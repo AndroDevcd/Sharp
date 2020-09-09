@@ -715,6 +715,7 @@ void GarbageCollector::printClassRefStatus() {
 recursive_mutex lockCheckMutex;
 bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
     if(o) {
+        bool contextSwitchCheck = false;
         mutex_t *mut;
         mutex.lock();
         long long idx = locks.indexof(isLocker, o);
@@ -732,7 +733,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         long maxSpin = 10000000;
         long spins = 0;
         while(mut->threadid != -1) {
-            if(spins++ == maxSpin) {
+            if (spins++ == maxSpin) {
                 spins = 0;
                 __os_yield();
 #ifdef WIN32_
@@ -741,8 +742,21 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 #ifdef POSIX_
                 usleep(1*POSIX_USEC_INTERVAL);
 #endif
-            } else if(hasSignal(thread->signal, tsig_context_switch) || thread->contextSwitching) {
+            } else if(thread->contextSwitching) {
                 return false;
+            } else if (hasSignal(thread->signal, tsig_context_switch)) {
+                if(!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
+                    if(!contextSwitchCheck) {
+                        contextSwitchCheck = true;
+                        thread->try_context_switch();
+                    }
+
+                    if(thread->contextSwitching) {
+                        return false;
+                    }
+                }
+            } else if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
+                return true;
             } else if(mut->threadid == thread->id)
                 break;
         }

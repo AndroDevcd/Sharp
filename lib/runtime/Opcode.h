@@ -99,7 +99,7 @@ if(hasSignal(signal, tsig_context_switch) && !(hasSignal(signal, tsig_suspend) \
            this_fiber->pc++; \
         return; \
     } \
-} \
+}
 
 #define CHECK_NULL(x) \
     if(this_fiber->ptr==NULL) { \
