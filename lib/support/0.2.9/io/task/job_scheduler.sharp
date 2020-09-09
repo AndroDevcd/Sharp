@@ -60,7 +60,7 @@ def set_thread_max(max: var) {
                 long_term_threads = 1;
 
             if(short_term_threads == 1) {
-               MAX_HIGH_PRIORITY_FIBERS = 3;
+               MAX_HIGH_PRIORITY_FIBERS = 2;
             }
 
             if(long_term_threads == 1) {

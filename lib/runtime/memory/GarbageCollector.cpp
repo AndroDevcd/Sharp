@@ -760,7 +760,12 @@ void GarbageCollector::reconcileLocks(Thread* thread) {
         if(mut->threadid==thread->id) {
             mut->threadid = -1;
             mut->mutex->unlock();
+            managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
+            delete mut;
+            locks.remove(i);
+            i--;
         }
+
     }
     mutex.unlock();
 }
@@ -774,7 +779,6 @@ void GarbageCollector::dropLock(SharpObject *o) {
             if(mut->threadid!= -1)
                 mut->mutex->unlock();
             managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
-            delete mut->mutex;
             delete mut;
             locks.remove(idx);
         }

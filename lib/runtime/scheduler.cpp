@@ -8,18 +8,20 @@
 #include "scheduler.h"
 #include "VirtualMachine.h"
 
+uInt loggedTime = 0;
 void run_scheduler() {
     do {
        fiber *fib = NULL;
 
-        __os_yield();
+       __os_yield();
        while((fib = fiber::nextFiber()) != NULL) {
+           loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
            if(vm.state >= VM_SHUTTING_DOWN) {
                break;
            }
 
            if(fib->delayTime >= 0) {
-               if(NANO_TOMILL(Clock::realTimeInNSecs()) >= fib->delayTime) {
+               if(loggedTime >= fib->delayTime) {
                    try_context_switch(fib);
                }
            } else {
@@ -55,12 +57,13 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 
     thread->enableContextSwitch(fib, true);
 
-    const long sMaxRetries = 10000000;
+    const long sMaxRetries = 5000000;
     long retryCount = 0;
-    uInt startTime = NANO_TOMILL(Clock::realTimeInNSecs());
+    long spinCount = 0;
     while(thread->next_fiber != NULL) {
         if (retryCount++ == sMaxRetries)
         {
+            spinCount++;
             retryCount = 0;
             __os_yield();
 #ifdef WIN32_
@@ -69,7 +72,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 #ifdef POSIX_
             usleep(1*POSIX_USEC_INTERVAL);
 #endif
-        } else if((NANO_TOMILL(Clock::realTimeInNSecs()) - startTime) > CSTL) {
+        } else if(spinCount > CSTL) {
             thread->enableContextSwitch(NULL, false);
             return false;
         } else if(thread->state == THREAD_KILLED)
@@ -80,7 +83,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 }
 
 bool is_thread_ready(Thread *thread) {
-    uInt currentTime = NANO_TOMILL(Clock::realTimeInNSecs());
+    uInt currentTime = loggedTime;
     if(thread->state != THREAD_RUNNING)
         return false;
 
