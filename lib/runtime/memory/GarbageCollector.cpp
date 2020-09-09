@@ -735,6 +735,23 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         while(mut->threadid != -1) {
             if (spins++ == maxSpin) {
                 spins = 0;
+                if(thread->contextSwitching) {
+                    return false;
+                } else if (hasSignal(thread->signal, tsig_context_switch)) {
+                    if(!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
+                        if(!contextSwitchCheck) {
+                            contextSwitchCheck = true;
+                            thread->try_context_switch();
+                        }
+
+                        if(thread->contextSwitching) {
+                            return false;
+                        }
+                    }
+                } else if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
+                    return true;
+                }
+
                 __os_yield();
 #ifdef WIN32_
                 Sleep(1);
@@ -742,21 +759,6 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 #ifdef POSIX_
                 usleep(1*POSIX_USEC_INTERVAL);
 #endif
-            } else if(thread->contextSwitching) {
-                return false;
-            } else if (hasSignal(thread->signal, tsig_context_switch)) {
-                if(!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
-                    if(!contextSwitchCheck) {
-                        contextSwitchCheck = true;
-                        thread->try_context_switch();
-                    }
-
-                    if(thread->contextSwitching) {
-                        return false;
-                    }
-                }
-            } else if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
-                return true;
             } else if(mut->threadid == thread->id)
                 break;
         }
@@ -818,7 +820,7 @@ void GarbageCollector::dropLock(SharpObject *o) {
     if(o) {
         mutex.lock();
         long long idx = locks.indexof(isLocker, o);
-        if(idx != -1) {
+        if(idx >= 0) {
             mutex_t *mut = locks.get(idx);
             if(mut->threadid!= -1) {
                 mut->threadid = -1;
