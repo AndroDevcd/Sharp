@@ -256,7 +256,7 @@ int fiber::bind(Thread *thread) {
 
     if(thread != NULL) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
-        if(thread->state != THREAD_KILLED) {
+        if(thread->state != THREAD_KILLED || !hasSignal(thread->signal, tsig_kill)) {
             boundThread = thread;
             thread->boundFibers++;
             return 0;
