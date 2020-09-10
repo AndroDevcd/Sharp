@@ -824,6 +824,7 @@ void Thread::exec() {
     SharpObject* tmpShObj;
     Int result;
     fptr jitFun;
+    HAS_SIGNAL
 
 #ifdef SHARP_PROF_
     tprof->init(stackLimit);
