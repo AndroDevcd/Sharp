@@ -54,7 +54,6 @@ void Exception::pushException() {
              * If there is no memory we exit
              */
             GUARD(thread->mutex);
-            thread->state = THREAD_KILLED;
             thread->this_fiber->exceptionObject = vm.outOfMemoryExcept;
 
             native_string str;

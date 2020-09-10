@@ -253,7 +253,7 @@ void GarbageCollector::run() {
         sig:
         if(hasSignal(tself->signal, tsig_suspend))
             Thread::suspendSelf();
-        if(tself->state == THREAD_KILLED) {
+        if(tself->state == THREAD_KILLED || hasSignal(tself->signal, tsig_kill)) {
             return;
         }
 
@@ -651,7 +651,6 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
 void GarbageCollector::kill() {
     mutex.lock();
     if(tself->state == THREAD_RUNNING) {
-        tself->state = THREAD_KILLED;
         sendSignal(tself->signal, tsig_kill, 1);
         Thread::waitForThreadExit(tself);
     }

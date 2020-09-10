@@ -160,7 +160,6 @@ void Thread::waitForUnsuspend() {
             return;
         } else if(vm.state == VM_SHUTTING_DOWN) {
             this->suspended = false;
-            this->state = THREAD_KILLED;
             sendSignal(signal, tsig_kill, 1);
             return;
         }
@@ -385,7 +384,6 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
     retry:
     {
         GUARD(thread->mutex);
-        thread->state = THREAD_KILLED;
         sendSignal(thread->signal, tsig_kill, 1);
     }
 
@@ -496,7 +494,7 @@ void Thread::suspendThread(Thread *thread) {
 
 void Thread::term() {
     GUARD(mutex);
-    this->state = THREAD_KILLED;
+    if(this_fiber) this_fiber->bind(NULL);
     sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
 
@@ -506,9 +504,13 @@ void Thread::term() {
 #endif
     this->name.free();
 
+    if(this_fiber) {
+        this_fiber->setState(this, FIB_KILLED);
+    }
     SharpObject *nill = NULL;
     currentThread = nill;
     args = nill;
+    this->state = THREAD_KILLED;
 #ifdef BUILD_JIT
     if(jctx != NULL) {
         delete jctx; jctx = NULL;
@@ -591,7 +593,6 @@ int Thread::interrupt(Thread *thread) {
         else
         {
             GUARD(thread->mutex);
-            thread->state = THREAD_KILLED; // terminate thread
             sendSignal(thread->signal, tsig_kill, 1);
         }
 
@@ -617,7 +618,6 @@ void Thread::shutdown() {
 void Thread::exit() {
     GUARD(mutex);
     if(this_fiber) this_fiber->bind(NULL);
-    this->state = THREAD_KILLED;
     if(id == main_threadid) {
         if (this_fiber && this_fiber->dataStack != NULL)
             this_fiber->exitVal = (int) this_fiber->dataStack[vm.manifest.threadLocals].var;
@@ -628,6 +628,7 @@ void Thread::exit() {
     if(this_fiber) {
         this_fiber->setState(this, FIB_KILLED);
     }
+    this->state = THREAD_KILLED;
     this->signal = tsig_empty;
     this->exited = true;
 }

@@ -69,7 +69,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
         } else if(spinCount >= CSTL) {
             thread->enableContextSwitch(NULL, false);
             return false;
-        } else if(thread->state == THREAD_KILLED)
+        } else if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
             return false;
     }
 
@@ -78,7 +78,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 
 bool is_thread_ready(Thread *thread) {
     uInt currentTime = loggedTime;
-    if(thread->state != THREAD_RUNNING)
+    if(thread->state != THREAD_RUNNING || hasSignal(thread->signal, tsig_kill))
         return false;
 
     switch(thread->priority) {
@@ -106,6 +106,9 @@ bool try_context_switch(fiber *fib) {
         if(vm.state >= VM_SHUTTING_DOWN) {
             return false;
         }
+
+        if(hasSignal(thread->signal, tsig_kill))
+            continue;
 
         if(is_thread_ready(thread)) {
             if(try_context_switch(thread, fib)) {

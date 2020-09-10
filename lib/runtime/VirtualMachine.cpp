@@ -332,7 +332,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         }
 
         if(e.getThrowable().handlingClass == vm.OutOfMemoryExcept && thread->state == THREAD_CREATED) {
-            thread->state = THREAD_KILLED;
+            GUARD(thread->mutex)
+            sendSignal(thread->signal, tsig_kill, 1);
         }
 
         sendSignal(thread->signal, tsig_except, 1);
