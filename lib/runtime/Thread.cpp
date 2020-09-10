@@ -616,6 +616,8 @@ void Thread::shutdown() {
 
 void Thread::exit() {
     GUARD(mutex);
+    if(this_fiber) this_fiber->bind(NULL);
+    this->state = THREAD_KILLED;
     if(id == main_threadid) {
         if (this_fiber && this_fiber->dataStack != NULL)
             this_fiber->exitVal = (int) this_fiber->dataStack[vm.manifest.threadLocals].var;
@@ -626,8 +628,6 @@ void Thread::exit() {
     if(this_fiber) {
         this_fiber->setState(this, FIB_KILLED);
     }
-
-    this->state = THREAD_KILLED;
     this->signal = tsig_empty;
     this->exited = true;
 }
