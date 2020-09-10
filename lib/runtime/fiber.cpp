@@ -14,7 +14,7 @@ bool find_fiber(void *arg1, fiber* fib) {
     return *((uInt*)arg1) == fib->id;
 }
 
-fiber* fiber::makeFiber(string name, Method* main) {
+fiber* fiber::makeFiber(native_string &name, Method* main) {
     GUARD(fiberMutex)
     // todo: check if space available before allocation
    fiber *fib = (fiber*)malloc(sizeof(fiber));
@@ -30,6 +30,7 @@ fiber* fiber::makeFiber(string name, Method* main) {
         fib->pc = NULL;
         fib->state = FIB_CREATED;
         fib->exitVal = 0;
+        fib->delayTime = -1;
         fib->wakeable = true;
         fib->finished = false;
         fib->attachedThread = NULL;
@@ -216,6 +217,7 @@ void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
             state = newState;
             break;
         case FIB_KILLED:
+            bind(NULL);
             state = newState;
             delayTime = -1;
             break;
@@ -271,7 +273,9 @@ int fiber::bind(Thread *thread) {
 }
 
 Int fiber::boundFiberCount(Thread *thread) {
-    return thread->boundFibers;
+    if(thread != NULL)
+       return thread->boundFibers;
+    return 0;
 }
 
 void fiber::killBoundFibers(Thread *thread) {

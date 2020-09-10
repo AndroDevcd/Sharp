@@ -624,8 +624,9 @@ void Thread::exit() {
 
     printException();
     releaseResources();
-    if(this_fiber)
-       this_fiber->setState(this, FIB_KILLED);
+    if(this_fiber) {
+        this_fiber->setState(this, FIB_KILLED);
+    }
     this->signal = tsig_empty;
     this->exited = true;
 }
@@ -712,33 +713,38 @@ void*
 #ifdef DEBUGGING
 void printRegs() {
     cout << endl;
-    cout << "Registers: \n";
-    cout << "adx = " << registers[ADX] << endl;
-    cout << "cx = " << registers[CX] << endl;
-    cout << "cmt = " << registers[CMT] << endl;
-    cout << "ebx = " << registers[EBX] << endl;
-    cout << "ecx = " << registers[ECX] << endl;
-    cout << "ecf = " << registers[ECF] << endl;
-    cout << "edf = " << registers[EDF] << endl;
-    cout << "ehf = " << registers[EHF] << endl;
-    cout << "bmr = " << registers[BMR] << endl;
-    cout << "egx = " << registers[EGX] << endl;
-    cout << "sp -> " << (thread_self->this_fiber->sp-thread_self->this_fiber->dataStack) << endl;
-    cout << "fp -> " << (thread_self->this_fiber->fp-thread_self->this_fiber->dataStack) << endl;
-    cout << "pc -> " << PC(thread_self->this_fiber) << endl;
+    if(registers != NULL) {
+        cout << "Registers: \n";
+        cout << "adx = " << registers[ADX] << endl;
+        cout << "cx = " << registers[CX] << endl;
+        cout << "cmt = " << registers[CMT] << endl;
+        cout << "ebx = " << registers[EBX] << endl;
+        cout << "ecx = " << registers[ECX] << endl;
+        cout << "ecf = " << registers[ECF] << endl;
+        cout << "edf = " << registers[EDF] << endl;
+        cout << "ehf = " << registers[EHF] << endl;
+        cout << "bmr = " << registers[BMR] << endl;
+        cout << "egx = " << registers[EGX] << endl;
+    }
+
+    if(thread_self && thread_self->this_fiber) {
+        cout << "sp -> " << (thread_self->this_fiber->sp - thread_self->this_fiber->dataStack) << endl;
+        cout << "fp -> " << (thread_self->this_fiber->fp - thread_self->this_fiber->dataStack) << endl;
+        cout << "pc -> " << PC(thread_self->this_fiber) << endl;
 
 
-    native_string stackTrace;
-    vm.fillStackTrace(stackTrace);
-    cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;
-   if(thread_self->this_fiber->current != NULL) {
-       cout << "current function -> " << thread_self->this_fiber->current->fullName.str() << endl;
-   }
+        native_string stackTrace;
+        vm.fillStackTrace(stackTrace);
+        cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;
+        if (thread_self->this_fiber->current != NULL) {
+            cout << "current function -> " << thread_self->this_fiber->current->fullName.str() << endl;
+        }
 
-   if(thread_self->this_fiber->dataStack) {
-     for(long i = 0; i < 15; i++) {
-         cout << "fp.var [" << i << "] = " << thread_self->this_fiber->dataStack[i].var << ";" << endl;
-     }
+        if (thread_self->this_fiber->dataStack) {
+            for (long i = 0; i < 15; i++) {
+                cout << "fp.var [" << i << "] = " << thread_self->this_fiber->dataStack[i].var << ";" << endl;
+            }
+        }
     }
 }
 
@@ -1355,6 +1361,9 @@ void Thread::exec() {
                     SharpObject *swappedObj = this_fiber->sp->object.object;
                     (this_fiber->sp)->object = (this_fiber->sp-1)->object;
                     (this_fiber->sp-1)->object = swappedObj;
+                    double swappedVar = this_fiber->sp->var;
+                    (this_fiber->sp)->var = (this_fiber->sp-1)->var;
+                    (this_fiber->sp-1)->var = swappedVar;
                 } else {
                     stringstream ss;
                     ss << "Illegal stack swap while sp is ( " << (x86int_t )(this_fiber->sp - this_fiber->dataStack) << ") ";
@@ -1422,7 +1431,7 @@ void Thread::setup() {
 #endif
 
     if(id != main_threadid){
-        this->this_fiber = fiber::makeFiber(name.str(), mainMethod);
+        this->this_fiber = fiber::makeFiber(name, mainMethod);
         this->this_fiber->bind(this);
 
         if(currentThread.object != nullptr
@@ -1547,7 +1556,7 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
     this->daemon=daemon;
     this->mainMethod=main;
     if(initializeStack) {
-        this->this_fiber = fiber::makeFiber(name, main);
+        this->this_fiber = fiber::makeFiber(this->name, main);
         this->this_fiber->bind(this);
     }
 

@@ -223,12 +223,15 @@ int Process_Exe(std::string &exe)
                 klass->methodCount = geti32(buffer);
                 klass->interfaceCount = geti32(buffer);
 
-                if(klass->totalFieldCount > 0)
-                    klass->fields = (Field*)malloc(sizeof(Field)*klass->totalFieldCount);
-                if(klass->methodCount > 0)
-                    klass->methods = (Method**)malloc(sizeof(Method**)*klass->methodCount);
-                if(klass->interfaceCount > 0)
-                    klass->interfaces = (ClassObject**)malloc(sizeof(ClassObject**)*klass->interfaceCount);
+                if(klass->totalFieldCount > 0) {
+                    klass->fields = (Field *) malloc(sizeof(Field) * klass->totalFieldCount);
+                }
+                if(klass->methodCount > 0) {
+                    klass->methods = (Method **) malloc(sizeof(Method **) * klass->methodCount);
+                }
+                if(klass->interfaceCount > 0) {
+                    klass->interfaces = (ClassObject **) malloc(sizeof(ClassObject **) * klass->interfaceCount);
+                }
 
                 itemsProcessed=0;
                 if(klass->totalFieldCount != 0) {

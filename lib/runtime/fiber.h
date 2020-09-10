@@ -20,7 +20,7 @@ enum fiber_state {
 class fiber {
 public:
 
-    static fiber* makeFiber(string name, Method* main);
+    static fiber* makeFiber(native_string &name, Method* main);
     static fiber* getFiber(uInt id);
     static fiber* nextFiber();
     static int suspend(uInt id);

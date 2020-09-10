@@ -73,12 +73,6 @@ bool try_context_switch(Thread *thread, fiber *fib) {
             return false;
     }
 
-#ifdef WIN32_
-    Sleep(1);
-#endif
-#ifdef POSIX_
-    usleep(1*POSIX_USEC_INTERVAL);
-#endif
     return true;
 }
 

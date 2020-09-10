@@ -7,23 +7,17 @@ import platform;
 import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
-task_count := 64;
 
-def foo() : var {
-    for(i := 0; i < task_count; i++) {
-        task.builder()
-         .with_args(new int[] { i }) = { args :object[] ->
-           index := (args[1] as int).get_value();
-           for(i := 0; i < 100_000_000; i++) {}
-           chan.send(0);
-           println("task #$index");
-        };
-    }
-
-    return 0;
-}
-
+count := 1000;
 def main(args: string[]) {
-   foo();
-   chan.read_next(task_count, 0);
+
+   jb : job;
+   for(i := 0; i < count; i++) {
+      jb = task.builder() = { ->
+         delay(5000);
+         print(".");
+         chan.send(0);
+      };
+   }
+   chan.read_next(0, count);
 }

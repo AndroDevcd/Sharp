@@ -557,7 +557,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 fiber *fib;
 
                 try {
-                    fib = fiber::makeFiber(fiberName.str(), &vm.methods[mainFunc % vm.manifest.methods]);
+                    fib = fiber::makeFiber(fiberName, &vm.methods[mainFunc % vm.manifest.methods]);
                 } catch(Exception &e) {
                     fiberName.free();
                     throw e;

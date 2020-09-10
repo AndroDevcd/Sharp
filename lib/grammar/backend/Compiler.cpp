@@ -2041,6 +2041,13 @@ void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, Li
             } else {
                 code.addIr(OpBuilder::smov(EBX, -params.size()))
                         .addIr(OpBuilder::calld(EBX));
+
+                if(resolvedMethod->utype == nilUtype) {
+                    code.addIr(OpBuilder::pop());
+                } else {
+                    code.addIr(OpBuilder::swap())
+                        .addIr(OpBuilder::pop());
+                }
             }
         }
     }
@@ -5752,6 +5759,7 @@ Field* Compiler::compileUtypeArg(Ast* ast) {
 
     // for optional utype args
     if(ast->getTokenCount() != 0) {
+        guid++;
         arg->name = ast->getToken(0).getValue();
         arg->fullName = arg->name;
     } else {
@@ -6216,7 +6224,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     if(ast->getType() == ast_delegate_decl) {
         if(method->flags.find(STATIC) && !method->isNative())
             this->errors->createNewError(GENERIC, ast->line, ast->col,
-                                         "delegate functions are not allowed at global scope");
+                                         "delegate functions are not allowed to have the 'static' access specifier");
 
         if(method->isNative() && IS_CLASS_INTERFACE(method->owner->getClassType())) {
             this->errors->createNewError(GENERIC, ast->line, ast->col,

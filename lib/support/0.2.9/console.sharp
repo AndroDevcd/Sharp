@@ -206,6 +206,8 @@ local def print_chars(str: _int8[]) {
             putc ebx
         }
     }
+
+    flush();
 }
 
 local def print_num(val: var) {
@@ -213,6 +215,8 @@ local def print_num(val: var) {
         loadl ebx, {val}
         put ebx
     }
+
+    flush();
 }
 
 local def print_char(val: _int8) {
@@ -220,6 +224,8 @@ local def print_char(val: _int8) {
         loadl ebx, {val}
         putc ebx
     }
+
+    flush();
 }
 
 local def print_numbers(str: var[]) {
@@ -251,6 +257,8 @@ local def print_numbers(str: var[]) {
         putc ebx
         putc ecx
     }
+
+    flush();
 }
 
 local def print_numbers(str: _int16[]) {

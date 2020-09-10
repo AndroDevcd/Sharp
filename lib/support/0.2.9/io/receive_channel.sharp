@@ -5,7 +5,7 @@ interface receive_channel<t> {
 
     def read(filter: var) : t;
 
-    def read_next(count: var, filter: var) : list<t>;
+    def read_next(filter: var, count: var) : list<t>;
 
     def read_next(filter: var) : list<t>;
 
