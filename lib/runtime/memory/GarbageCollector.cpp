@@ -108,7 +108,7 @@ void GarbageCollector::initilize() {
 void GarbageCollector::releaseObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
-        object->object->refCount--;
+        DEC_REF(object->object);
         object->object = nullptr;
     }
 }

@@ -9,6 +9,7 @@
 #include "../Exe.h"
 #include "../Manifest.h"
 #include "../VirtualMachine.h"
+recursive_mutex refLock;
 
 void Object::castObject(int64_t classPtr) {
     ClassObject* type =NULL, *base = NULL;

@@ -423,10 +423,10 @@ void VirtualMachine::getStackTrace() {
     SharpObject *frameInfo = (thread->this_fiber->sp)->object.object;
 
     if(frameInfo) {
-        frameInfo->refCount++;
+        INC_REF(frameInfo);
         (thread->this_fiber->sp)->object = gc.newObject(vm.StringClass);
         fillStackTrace(frameInfo, (thread->this_fiber->sp)->object.object);
-        frameInfo->refCount--;
+        DEC_REF(frameInfo);
     }
 }
 

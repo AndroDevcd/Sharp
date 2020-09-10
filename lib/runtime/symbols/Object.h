@@ -24,6 +24,7 @@ enum sharp_type
     _stype_none = 0x4
 };
 
+extern recursive_mutex refLock;
 #define NTYPE_VAR 8
 
 struct SharpObject
@@ -35,7 +36,7 @@ struct SharpObject
         HEAD=NULL;
         this->size=size;
         SET_INFO(info, 0, type, generation); /* generation young */
-        new (&refCount) std::atomic<uint32_t>();
+        refCount=0;
         refCount=0;
         monitor=0;
         next=NULL;
@@ -46,7 +47,7 @@ struct SharpObject
         ntype=0;
         HEAD=NULL;
         this->size=size;
-        new (&refCount) std::atomic<uint32_t>();
+        refCount=0;
         refCount=0;
         SET_INFO(info, k->address, _stype_struct, generation); /* generation young */
         SET_CLASS_BIT(info, 1);
@@ -63,7 +64,7 @@ struct SharpObject
 
     /* info */
     uint32_t size;
-    std::atomic<uint32_t> refCount;
+    uint32_t refCount;
     unsigned short monitor : 1; // used for the wait and notify() system
     unsigned short ntype : 4; // the type of number this object represents {var, _int32, _int64, etc}
 
@@ -91,12 +92,16 @@ struct SharpObject
 
 #define DEC_REF(obj) \
     if(obj != NULL) { \
+        refLock.lock(); \
         obj->refCount--; \
+        refLock.unlock(); \
     }
 
 #define INC_REF(object) \
     if(object != NULL) { \
+        refLock.lock(); \
         object->refCount++; \
+        refLock.unlock(); \
     }
 
 /**
@@ -122,29 +127,22 @@ struct Object {
         if(&o == this || o.object==object) return;
         DEC_REF(this->object);
 
-        if(o.object != NULL) {
-            this->object = o.object;
-            this->object->refCount++;
-        } else object=NULL;
+        this->object = o.object;
+        INC_REF(object);
     }
     CXX11_INLINE void operator=(Object *o) {
         if(o == this || (o != NULL && o->object==object)) return;
         DEC_REF(this->object);
 
-        if(o != NULL && o->object != NULL)
-        {
-            this->object = o->object;
-            this->object->refCount++;
-        } else object=NULL;
+        this->object = o ? o->object : NULL;
+        INC_REF(object);
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
         DEC_REF(this->object);
 
         this->object = o;
-        if(o != NULL) {
-            o->refCount++;
-        }
+        INC_REF(object);
     }
     void castObject(int64_t classPtr);
 };

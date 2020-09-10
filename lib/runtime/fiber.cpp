@@ -273,8 +273,12 @@ int fiber::bind(Thread *thread) {
 }
 
 Int fiber::boundFiberCount(Thread *thread) {
-    if(thread != NULL)
-       return thread->boundFibers;
+    if(thread != NULL) {
+        fiberMutex.lock();
+        uInt fibs = thread->boundFibers;
+        fiberMutex.unlock();
+        return fibs;
+    }
     return 0;
 }
 
