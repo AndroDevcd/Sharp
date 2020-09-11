@@ -828,7 +828,6 @@ void Thread::exec() {
     HAS_SIGNAL
 
 #ifdef SHARP_PROF_
-    tprof->init(stackLimit);
     tprof->starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < vm.manifest.methods; i++) {
         funcProf prof = funcProf(vm.methods+i);
@@ -837,7 +836,7 @@ void Thread::exec() {
 #endif
 
 #ifdef SHARP_PROF_
-    tprof->hit(main);
+    tprof->hit(this_fiber->current);
 #endif
 
     _initOpcodeTable
@@ -854,7 +853,7 @@ void Thread::exec() {
             _INT:
 
 #ifdef SHARP_PROF_
-            if(GET_Da(*pc) == OP_EXIT) {
+            if(GET_Da(*this_fiber->pc) == OP_EXIT) {
                 tprof->endtm=Clock::realTimeInNSecs();
                 tprof->profile();
                 tprof->dump();

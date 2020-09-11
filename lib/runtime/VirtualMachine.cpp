@@ -282,6 +282,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             thread->state = THREAD_RUNNING;
             thread->this_fiber->setAttachedThread(thread);
             thread->this_fiber->setState(thread, FIB_RUNNING);
+#ifdef SHARP_PROF_
+            thread->tprof->init(thread->this_fiber->stackLimit);
+#endif
 
             /*
              * Call main method

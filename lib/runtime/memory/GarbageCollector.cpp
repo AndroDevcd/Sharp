@@ -18,7 +18,7 @@
 uInt hbytes = 0;
 GarbageCollector gc;
 
-const Int MEMORY_POOL_SAMPLE_SIZE = 1000;
+const Int MEMORY_POOL_SAMPLE_SIZE = 500;
 uInt memoryPoolResults[MEMORY_POOL_SAMPLE_SIZE];
 Int samplesReceived =0;
 
