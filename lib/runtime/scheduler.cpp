@@ -108,6 +108,7 @@ bool try_context_switch(fiber *fib) {
         }
 
         if(vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
+            fiber::killBoundFibers(thread);
             Thread::destroy(thread); i--;
             continue;
         }
