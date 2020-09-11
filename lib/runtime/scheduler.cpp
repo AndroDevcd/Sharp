@@ -107,8 +107,10 @@ bool try_context_switch(fiber *fib) {
             return false;
         }
 
-        if(hasSignal(thread->signal, tsig_kill))
+        if(vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
+            Thread::destroy(thread); i--;
             continue;
+        }
 
         if(is_thread_ready(thread)) {
             if(try_context_switch(thread, fib)) {

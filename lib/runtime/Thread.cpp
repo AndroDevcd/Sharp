@@ -407,9 +407,6 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
 #endif
         }
     }
-
-    if(thread->exited) // the thread may be deadlocked by a mutex
-       thread->term();
 }
 
 /**
@@ -563,8 +560,6 @@ void Thread::killAll() {
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
             terminateAndWaitForThreadExit(thread);
-        } else {
-            thread->term();
         }
     }
 }
@@ -628,9 +623,9 @@ void Thread::exit() {
     if(this_fiber) {
         this_fiber->setState(this, FIB_KILLED);
     }
-    this->state = THREAD_KILLED;
     this->signal = tsig_empty;
     this->exited = true;
+    this->state = THREAD_KILLED;
 }
 
 void Thread::printException() {
