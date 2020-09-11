@@ -2,22 +2,27 @@ mod app;
 
 import std.io;
 import std.io.task;
-import std.io.fiber;
 import platform;
 import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
+task_count := 64;
 
-count := 10;
+def foo() : var {
+    for(i := 0; i < task_count; i++) {
+        task.builder()
+         .with_args(new int[] { i }) = { args :object[] ->
+           index := (args[1] as int).get_value();
+           for(i := 0; i < 100_000_000; i++) {}
+           chan.send(0);
+           println("task #$index");
+        };
+    }
+
+    return 0;
+}
+
 def main(args: string[]) {
-
-   jb : job;
-   for(i := 0; i < count; i++) {
-      jb = task.builder() = { ->
-         delay(5000);
-         print(".");
-         chan.send(0);
-      };
-   }
-   chan.read_next(0, count);
+   foo();
+   chan.read_next(0, task_count);
 }

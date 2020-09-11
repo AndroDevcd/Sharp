@@ -46,8 +46,7 @@ public:
         this->message.init();
         this->stackTrace.init();
 
-        string m(message);
-        this->message = m;
+        this->message.set(message);
     }
 
     void operator=(Throwable& t) {

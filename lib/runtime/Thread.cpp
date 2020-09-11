@@ -1611,7 +1611,8 @@ void Thread::waitForContextSwitch() {
 #ifdef POSIX_
             usleep(1*POSIX_USEC_INTERVAL);
 #endif
-        }
+        } else if(hasSignal(signal, tsig_suspend))
+            suspendSelf();
     }
 
     {

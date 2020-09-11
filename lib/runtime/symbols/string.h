@@ -20,8 +20,12 @@ public:
         } else {
             len=value.size();
             chars = (char*)malloc(sizeof(char)*(len+1));
-            assign(value);
-            chars[len]=0;
+            if(chars != NULL) {
+                assign(value);
+                chars[len] = 0;
+            } else {
+                len = 0;
+            }
         }
     }
 
@@ -55,8 +59,12 @@ public:
             chars = NULL;
         } else {
             chars = (char*)malloc(sizeof(char)*(len+1));
-            std::memcpy(chars, value, sizeof(char)*len);
-            chars[len]=0;
+            if(chars != NULL) {
+                std::memcpy(chars, value, sizeof(char) * len);
+                chars[len] = 0;
+            } else {
+                len = 0;
+            }
         }
     }
 
@@ -68,9 +76,13 @@ public:
         } else {
             len = max;
             chars = (char*)malloc(sizeof(char)*(max+1));
-            for(int64_t i = 0; i < max; i++)
-                chars[i] = (char)value[i];
-            chars[len]=0;
+            if(chars != NULL) {
+                for (int64_t i = 0; i < max; i++)
+                    chars[i] = (char) value[i];
+                chars[len] = 0;
+            } else {
+                len = 0;
+            }
 
         }
     }
@@ -172,6 +184,10 @@ public:
                 chars = tmp;
                 chars[len++] = c;
                 chars[len]=0;
+            } else {
+                len=0;
+                std::free(chars);
+                chars=NULL;
             }
         }
     }

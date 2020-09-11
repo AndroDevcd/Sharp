@@ -225,6 +225,9 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwit
 }
 
 void VirtualMachine::destroy() {
+    if(vm.state == VM_CREATED)
+        return;
+
     if(thread_self != NULL) {
         exitVal = thread_self->this_fiber->exitVal;
     } else
@@ -1041,6 +1044,8 @@ void VirtualMachine::fillStackTrace(SharpObject *frameInfo, SharpObject *stackTr
 }
 
 void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
+    if(func == NULL) return;
+
     ss << "\tSource ";
     if(func->sourceFile != -1 && func->sourceFile < vm.manifest.sourceFiles) {
         ss << "\""; ss << vm.metaData.files.get(func->sourceFile).name.str() << "\"";

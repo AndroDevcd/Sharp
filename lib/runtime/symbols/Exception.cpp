@@ -50,24 +50,28 @@ void Exception::pushException() {
     if(thread != NULL && throwable.native) {
 
         if(throwable.handlingClass == vm.OutOfMemoryExcept) {
-            /*
-             * If there is no memory we exit
-             */
-            GUARD(thread->mutex);
-            thread->this_fiber->exceptionObject = vm.outOfMemoryExcept;
 
-            native_string str;
-            vm.fillStackTrace(str);
-            Object *stackTrace = vm.resolveField("stack_trace", vm.outOfMemoryExcept.object); // seg faile error please fig stack_trace is now a string not a int8[]
-            if(stackTrace) {
-                *stackTrace = gc.newObjectUnsafe(vm.StringClass);
-                Object *data = vm.resolveField("data", stackTrace->object);
-                if(data != NULL) {
-                    *data = gc.newObjectUnsafe(str.len, _INT8);
+            if(thread->this_fiber) {
+                /*
+                 * If there is no memory we exit
+                 */
+                GUARD(thread->mutex);
+                thread->this_fiber->exceptionObject = vm.outOfMemoryExcept;
 
-                    if (data->object != NULL) {
-                        for (Int i = 0; i < str.len; i++) {
-                            data->object->HEAD[i] = str.chars[i];
+                native_string str;
+                vm.fillStackTrace(str);
+                Object *stackTrace = vm.resolveField("stack_trace",
+                                                     vm.outOfMemoryExcept.object); // seg faile error please fig stack_trace is now a string not a int8[]
+                if (stackTrace) {
+                    *stackTrace = gc.newObjectUnsafe(vm.StringClass);
+                    Object *data = vm.resolveField("data", stackTrace->object);
+                    if (data != NULL) {
+                        *data = gc.newObjectUnsafe(str.len, _INT8);
+
+                        if (data->object != NULL) {
+                            for (Int i = 0; i < str.len; i++) {
+                                data->object->HEAD[i] = str.chars[i];
+                            }
                         }
                     }
                 }

@@ -225,7 +225,13 @@ uInt getMemBytes(const char *str, string option) {
 int startApplication(string &exe, std::list<string>& appArgs) {
     int result;
     Thread *main = NULL;
-    if((result = CreateVirtualMachine(exe)) != 0) {
+    try {
+        if ((result = CreateVirtualMachine(exe)) != 0) {
+            fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
+            goto bail;
+        }
+    } catch(Exception &e) {
+        result = OUT_OF_MEMORY;
         fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
         goto bail;
     }

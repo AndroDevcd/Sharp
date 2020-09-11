@@ -41,6 +41,8 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->registers = NULL;
         fib->callStack = NULL;
         fib->calls = -1;
+        fib->current = NULL;
+        fib->ptr = NULL;
         fib->stackLimit = internalStackSize;
         fib->registers = (double *) calloc(REGISTER_SIZE, sizeof(double));
         fib->dataStack = (StackElement *) calloc(internalStackSize, sizeof(StackElement));
@@ -53,7 +55,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
     } catch(Exception &e) {
         fib->state = FIB_KILLED;
-        return NULL;
+        throw e;
     }
     return fib;
 }
