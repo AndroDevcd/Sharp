@@ -1632,9 +1632,11 @@ void Thread::waitForContextSwitch() {
             return;
 
         if(next_fiber) {
-            GUARD(mutex);
-            sendSignal(signal, tsig_context_switch, 0);
-            contextSwitching = false;
+            {
+                GUARD(mutex);
+                sendSignal(signal, tsig_context_switch, 0);
+                contextSwitching = false;
+            }
 
             if(next_fiber) {
                 this_fiber = next_fiber; next_fiber = NULL;
