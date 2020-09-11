@@ -16,10 +16,13 @@ public class thread_group : loopable<thread> {
 	
 	def add(t : thread) {
 	    lock(self) {
-            if(handles.put(t.get_id(), t)) {
-                ids.add(t.get_id());
+	        index := handles.indexof(t);
+            if(index >= 0) {
+               handles.put(index, t);
+            } else {
+               handles.add(t);
+               n_threads++;
             }
-            n_threads--;
 		}
 	}
 	
@@ -28,9 +31,10 @@ public class thread_group : loopable<thread> {
 	def get_priority() := default_priority;
 	def remove(id : var) : var {
 	    lock (self) {
-            if(handles.remove(id)) {
+	        _thread := find(id);
+            if(_thread != null) {
+                handles.remove(_thread);
                 n_threads--;
-                ids.remove(id);
                 return true;
             }
 
@@ -39,19 +43,12 @@ public class thread_group : loopable<thread> {
 	}
 
     def get_elements() : thread[] {
-        threads := new thread[ids.size()];
-        iter := 0;
-
-        foreach(id in ids) {
-            threads[iter++] = handles.at(id);
-        }
-
-        return threads;
+        return handles.get_elements();
     }
 
     def find(find_func: (thread)(var)) : thread {
-        for(i := 0; i < ids.size(); i++) {
-            _thread := handles.at(ids.at(i));
+        for(i := 0; i < handles.size(); i++) {
+            _thread := handles.at(i);
             if(_thread != null && find_func(_thread)) {
                 return _thread;
             }
@@ -59,16 +56,25 @@ public class thread_group : loopable<thread> {
 
         return null;
     }
+
+    def find(id: var) : thread {
+        for(i := 0; i < handles.size(); i++) {
+            if(handles[i].get_id() == id) {
+                return handles[i];
+            }
+        }
+
+        return null;
+    }
 	
 	def kill_all() {
-		foreach(id in ids) {
-			handles.at(id).interrupt();
+		foreach(t in handles) {
+			t.interrupt();
 		}
 	}
 	
 	public static main_group := new thread_group("main");
-	private handles := new hashtable<int, thread>();
-	private ids := new list<var>();
+	private handles := new synced_list<thread>();
 	private name : string;
 	private default_priority : thread_priority;
 	private n_threads := 0;

@@ -9,7 +9,7 @@ public class integer<native_type> {
         value = initial_val;
     }
 
-    def hash() : long {
+    def hash() : _int64 {
         return value;
     }
 

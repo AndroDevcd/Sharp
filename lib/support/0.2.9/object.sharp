@@ -48,12 +48,12 @@ stable class _object_ : printable, unique {
         }
     }
 
-    def hash() : long {
+    def hash() : _int64 {
         /* must be implemented at a higher level */
         return 0;
     }
 
-    def guid() : long {
+    def guid() : _int64 {
         /* user must impl at higher level if constant guid is desired */
         return global_guid++;
     }

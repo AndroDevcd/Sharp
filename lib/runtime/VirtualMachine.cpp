@@ -372,6 +372,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
      * Check for uncaught exception in thread before exit
      */
     if(vm.state != VM_TERMINATED) {
+        thread->exit();
+
         if (thread->id == main_threadid) {
             /*
             * Shutdown all running threads
@@ -382,8 +384,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             * stop them.
             */
             vm.shutdown();
-        } else {
-            thread->exit();
         }
 
 #ifdef WIN32_

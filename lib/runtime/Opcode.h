@@ -103,24 +103,28 @@ if(hasSignal(signal, tsig_context_switch) && !(hasSignal(signal, tsig_suspend) \
 
 #define CHECK_NULL(x) \
     if(this_fiber->ptr==NULL) { \
+        GUARD(mutex); \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULL2(x) \
     if(this_fiber->ptr==NULL|this_fiber->ptr->object == NULL) { \
+        GUARD(mutex); \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLOBJ(x) \
     if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL || TYPE(this_fiber->ptr->object->info) != _stype_struct) { \
+        GUARD(mutex); \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLVAR(x) \
     if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL || TYPE(this_fiber->ptr->object->info) != _stype_var) { \
+        GUARD(mutex); \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \

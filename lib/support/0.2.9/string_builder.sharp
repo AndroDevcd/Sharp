@@ -354,7 +354,7 @@ class string_builder : loopable<_int8> {
         return new bounds_except("Index out of bounds exception at: $pos with size of: ${cursor + 1}");
     }
 
-    def hash() : long {
+    def hash() : _int64 {
         const p := 31;
         const m := 1e9 + 9;
         hash_value := 0;

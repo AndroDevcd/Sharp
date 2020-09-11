@@ -149,7 +149,7 @@ public class thread {
         asm { hlt }
     }
 
-    def hash() : long {
+    def hash() : _int64 {
         return id;
     }
 
