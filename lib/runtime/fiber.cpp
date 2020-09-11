@@ -193,6 +193,8 @@ void fiber::free() {
         std::free(callStack); callStack = NULL;
     }
 
+    fiberObject=(SharpObject*)NULL;
+    exceptionObject=(SharpObject*)NULL;
     fp = NULL;
     sp = NULL;
     name.free();
