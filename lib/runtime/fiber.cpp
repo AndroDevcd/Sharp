@@ -85,7 +85,7 @@ fiber* fiber::nextFiber() {
                 lastFiberIndex++;
                 return fib;
             }
-        } else if(fib->state == FIB_KILLED) {
+        } else if(fib->state == FIB_KILLED && fib->getBoundThread() == NULL) {
             disposeFiber(fib);
             lastFiberIndex--;
         }
