@@ -275,7 +275,13 @@ class vm {
         }
 
         if(result == 0) {
-           t.wait();
+           while(t.is_started()) {
+               if(t.is_exited()) {
+                   return result_thread_not_started;
+               } else {
+                  delay(2);
+               }
+           }
         }
 
         return thread_result.at(result);

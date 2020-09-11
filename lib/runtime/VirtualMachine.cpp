@@ -329,7 +329,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
     } catch (Exception &e) {
         if(thread->state == THREAD_STARTED && thread->currentThread.object) {
-            thread->currentThread.notify(); // notify the waiting thread
             vm.setFieldVar("exited", thread->currentThread.object, 0, 0); // update respective values
             vm.setFieldVar("id", thread->currentThread.object, 0, -1);
         }

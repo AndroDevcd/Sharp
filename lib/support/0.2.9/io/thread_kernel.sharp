@@ -4,7 +4,6 @@ import platform.kernel;
 
 def _srt_thread_start() {
     curr := vm.current_thread();
-    curr.notify();
 
     asm {
         movi ebx, 1
