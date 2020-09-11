@@ -692,6 +692,11 @@ bool isLocker(void *o, mutex_t* mut) {
 void GarbageCollector::printClassRefStatus() {
     gc.mutex.lock();
     SharpObject *object = _Mheap->next, *prevObj = NULL, *end = tail;
+
+    for(Int i = 0; i < vm.manifest.classes; i++) {
+        vm.classes[i].gcRefs = 0;
+    }
+
     while(object != NULL) {
         if(object == end) {
             break;
@@ -700,6 +705,8 @@ void GarbageCollector::printClassRefStatus() {
         if(IS_CLASS(object->info)) {
             vm.classes[CLASS(object->info)].gcRefs++;
         }
+
+        object = object->next;
     }
 
     cout << "\n\n Class gc ref count:\n";
