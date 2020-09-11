@@ -600,13 +600,6 @@ int Thread::interrupt(Thread *thread) {
 void Thread::shutdown() {
     if(tid != ILL_THREAD_ID) {
         Thread::killAll();
-        Thread* thread;
-
-        for(uInt i = 0; i < threads.size(); i++) {
-            thread = threads.at(i);
-            std::free(thread);
-        }
-        threads.free();
     }
 }
 
