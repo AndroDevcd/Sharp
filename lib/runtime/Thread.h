@@ -54,6 +54,7 @@ public:
         next_fiber = NULL;
         signal = tsig_empty;
         contextSwitching=false;
+        marked=false;
         lastRanMills=0;
 #ifdef BUILD_JIT
         jctx = NULL;
@@ -91,8 +92,8 @@ public:
     static void shutdown();
     static bool validStackSize(size_t);
     static bool validInternalStackSize(size_t);
-    static void suspendAllThreads();
-    static void resumeAllThreads();
+    static void suspendAllThreads(bool withMarking = false);
+    static void resumeAllThreads(bool withMarking = false);
     static int threadjoin(Thread*);
     static int destroy(Thread*);
     bool try_context_switch();
@@ -144,6 +145,7 @@ public:
     unsigned int state;
     bool suspended;
     bool exited;
+    bool marked;
     native_string name;
     Object currentThread, args;
     fiber *this_fiber, *next_fiber;

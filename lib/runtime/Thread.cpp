@@ -451,7 +451,7 @@ int Thread::waitForThread(Thread *thread) {
     return RESULT_OK;
 }
 
-void Thread::suspendAllThreads() {
+void Thread::suspendAllThreads(bool withMarking) {
     GUARD(Thread::threadsListMutex);
     Thread* thread;
 
@@ -461,27 +461,26 @@ void Thread::suspendAllThreads() {
         if(thread->id != thread_self->id){
             if(thread->state == THREAD_RUNNING)
                 suspendAndWait(thread);
+            else if(withMarking && thread->state == THREAD_SUSPENDED) {
+                thread->marked = true;
+            }
         }
     }
 }
 
-void Thread::resumeAllThreads() {
+void Thread::resumeAllThreads(bool withMarking) {
     GUARD(Thread::threadsListMutex);
     Thread* thread;
 
     for(uInt i = 0; i < threads.size(); i++) {
         thread = threads.at(i);
 
-        if(thread->id != thread_self->id){
-            unsuspendThread(thread);
-        }
-    }
-
-    for(uInt i = 0; i < threads.size(); i++) {
-        thread = threads.at(i);
-
-        if(thread->id != thread_self->id){
-            waitForThreadUnSuspend(thread);
+        if(thread->id != thread_self->id) {
+            if(withMarking && thread->marked) {
+                thread->marked = false;
+            } else {
+                unsuspendAndWait(thread);
+            }
         }
     }
 }

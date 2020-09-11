@@ -151,7 +151,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     updateMemoryThreshold();
 
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
-        Thread::suspendAllThreads();
+        Thread::suspendAllThreads(true);
         /**
          * In order to keep memory utilization low we must shutdown
          * the entire system to perform a colection, this will take
@@ -159,7 +159,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
          */
         collectGarbage();
         if(tself->state != THREAD_KILLED)
-           Thread::resumeAllThreads();
+           Thread::resumeAllThreads(true);
     }
 }
 
