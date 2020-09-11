@@ -1595,6 +1595,7 @@ void Thread::waitForContextSwitch() {
         else return;
     } else if(this_fiber->state == FIB_RUNNING)
         this_fiber->setState(this, FIB_SUSPENDED);
+    this_fiber=NULL;
 
     wait:
     const long sMaxRetries = 10000000;
