@@ -331,6 +331,9 @@ void Thread::waitForThreadUnSuspend(Thread *thread) {
 
     while (thread->state != THREAD_RUNNING)
     {
+        if(thread->contextSwitching)
+            return;
+
         if (retryCount++ == sMaxRetries)
         {
             unsuspendThread(thread);
@@ -1611,8 +1614,7 @@ void Thread::waitForContextSwitch() {
 #ifdef POSIX_
             usleep(1*POSIX_USEC_INTERVAL);
 #endif
-        } else if(hasSignal(signal, tsig_suspend))
-            suspendSelf();
+        }
     }
 
     {
