@@ -104,7 +104,7 @@ void Thread::pushThread(Thread *thread) {
 
 void Thread::popThread(Thread *thread) {
     GUARD(Thread::threadsListMutex);
-    uInt pos = threads.indexof(find_thread, &thread->id);
+    Int pos = threads.indexof(find_thread, &thread->id);
     if(pos >= 0)
        threads.remove(pos);
 }
