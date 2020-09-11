@@ -452,6 +452,7 @@ int Thread::waitForThread(Thread *thread) {
 }
 
 void Thread::suspendAllThreads() {
+    GUARD(Thread::threadsListMutex);
     Thread* thread;
 
     for(uInt i = 0; i < threads.size(); i++) {
@@ -465,13 +466,22 @@ void Thread::suspendAllThreads() {
 }
 
 void Thread::resumeAllThreads() {
+    GUARD(Thread::threadsListMutex);
     Thread* thread;
 
     for(uInt i = 0; i < threads.size(); i++) {
         thread = threads.at(i);
 
         if(thread->id != thread_self->id){
-            unsuspendAndWait(thread);
+            unsuspendThread(thread);
+        }
+    }
+
+    for(uInt i = 0; i < threads.size(); i++) {
+        thread = threads.at(i);
+
+        if(thread->id != thread_self->id){
+            waitForThreadUnSuspend(thread);
         }
     }
 }
