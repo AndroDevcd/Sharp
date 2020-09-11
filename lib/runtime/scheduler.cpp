@@ -93,30 +93,49 @@ bool is_thread_ready(Thread *thread) {
     return false;
 }
 
+uInt availThreads=0;
+uInt ids[100000];
 bool try_context_switch(fiber *fib) {
-    GUARD(Thread::threadsListMutex);
     Thread *thread;
+    availThreads=0;
 
     if((thread = fib->getBoundThread()))  {
         return is_thread_ready(thread) && try_context_switch(thread, fib);
     }
 
-    for(Int i = 0; i < Thread::threads.size(); i++) {
-        thread = Thread::threads.at(i);
-        if(vm.state >= VM_SHUTTING_DOWN) {
+    {
+        Thread::threadsListMutex.lock();
+        for (Int i = 0; i < Thread::threads.size(); i++) {
+            thread = Thread::threads.at(i);
+
+            if (vm.state >= VM_SHUTTING_DOWN) {
+                return false;
+            }
+
+            if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
+                fiber::killBoundFibers(thread);
+                Thread::destroy(thread);
+                i--;
+                continue;
+            }
+
+            if (is_thread_ready(thread)) {
+                ids[availThreads++] = i;
+            }
+        }
+        Thread::threadsListMutex.unlock();
+    }
+
+
+    for (Int i = 0; i < availThreads; i++) {
+        thread = Thread::threads.at(ids[i]);
+
+        if (vm.state >= VM_SHUTTING_DOWN) {
             return false;
         }
 
-        if(vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
-            fiber::killBoundFibers(thread);
-            Thread::destroy(thread); i--;
-            continue;
-        }
-
-        if(is_thread_ready(thread)) {
-            if(try_context_switch(thread, fib)) {
-                return true;
-            }
+        if (try_context_switch(thread, fib)) {
+            return true;
         }
     }
 
