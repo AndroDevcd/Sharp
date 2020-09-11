@@ -154,6 +154,7 @@ int fiber::kill(uInt id) {
                 fib->attachedThread->enableContextSwitch(NULL, true);
             } else {
                 result = 2;
+                cout << "broken.." << endl;
             }
         } else {
             fib->setState(NULL, FIB_KILLED);
