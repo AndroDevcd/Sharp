@@ -294,7 +294,7 @@ void Thread::unsuspendAndWait(Thread *thread) {
 
 void Thread::waitForThreadSuspend(Thread *thread) {
     const int sMaxRetries = 10000000;
-    const int sMaxSpinCount = 10; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
+    const int sMaxSpinCount = 5; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
 
     int spinCount = 0;
     int retryCount = 0;
@@ -323,7 +323,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
 
 void Thread::waitForThreadUnSuspend(Thread *thread) {
     const int sMaxRetries = 10000000;
-    const int sMaxSpinCount = 10;
+    const int sMaxSpinCount = 5;
 
     int spinCount = 0;
     int retryCount = 0;
