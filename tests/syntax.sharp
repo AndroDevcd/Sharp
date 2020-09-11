@@ -8,7 +8,7 @@ import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
 
-count := 1000;
+count := 10;
 def main(args: string[]) {
 
    jb : job;

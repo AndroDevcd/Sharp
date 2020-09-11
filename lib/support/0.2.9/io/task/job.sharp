@@ -23,12 +23,17 @@ public class job {
 			    }
 			}
 
-            fib = slice({ args ->
-               schdj := args[0] as job;
-               schdj.execute();
-               return 0;
-            }, host, { self });
-			return 0;
+            if(fib.poll(host) >= 1) {
+                fib = slice({ args ->
+                   schdj := args[0] as job;
+                   schdj.execute();
+                   return 0;
+                }, host, { self });
+			    return 0;
+            } else {
+               host.interrupt(); // try again
+               return 2;
+            }
 		} else if(state == active) {
 			return 1;
 		}
