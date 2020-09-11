@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 83013
-post codebase size: 74420
-optimized opcodes: 8593
-net % gain 10.3514
+pre codebase size: 83032
+post codebase size: 74438
+optimized opcodes: 8594
+net % gain 10.3502
 
 
 class: app#__srt_global[0] fields(2) methods(5)
@@ -44238,61 +44238,59 @@ function: std.io#__srt_global._srt_thread_start[2246] params(0) in file: lib\sup
 0 [0x0]: line: 6 call @2330 // <platform.kernel#vm.current_thread>   
 1 [0x1]:         popobj2    
 2 [0x2]:         smovr_3 fp+0   
-3 [0x3]: line: 7 pushl 0   
-4 [0x4]:         call @2291 // <std#_object_.notify>   
-5 [0x5]: line: 9 movi #1, ebx   : protected asm start
-7 [0x7]:         movi #0, egx   
-9 [0x9]:         movi #0, adx   
-11 [0xb]:         movl 0   
-12 [0xc]:         movn #5   
-14 [0xe]:         rmov adx, egx   
-15 [0xf]:         movl 0   
-16 [0x10]:         movn #8   
-18 [0x12]:         rmov adx, ebx   : protected asm end
-19 [0x13]: line: 22 istorel 1, fp+1   
-21 [0x15]: line: 23 movl 0   : try start: try block start
-22 [0x16]: line: 25 movn #11   
-24 [0x18]: line: 26 movi #0, adx   
-26 [0x1a]:          iaload ebx, adx   
-27 [0x1b]:          rstore ebx   
-28 [0x1c]:          call @2336 // <platform.kernel#vm.thread_args>   
-29 [0x1d]:          smov ebx, sp+[-1]   
-30 [0x1e]:          calld ebx   
-31 [0x1f]:          swap    
-32 [0x20]:          pop   
-33 [0x21]:          ipopl 1   
-34 [0x22]:          jmp @55   : try block end
-35 [0x23]: line: 28 pushl 0   : catch(std#throwable)
-36 [0x24]:          call @2232 // <std.io#thread.get_exception_handler>   
-37 [0x25]:          pushnull    
-38 [0x26]:          itest ebx   
-39 [0x27]:          not ebx, ebx   
-40 [0x28]:          movr cmt, ebx   
-41 [0x29]:          jne 48   
-42 [0x2a]: line: 29 pushl 0   
-43 [0x2b]:          call @2232 // <std.io#thread.get_exception_handler>   
-44 [0x2c]:          pushl 2   
-45 [0x2d]:          invoke_delegate 2249 { static=0, args=1 }   
-47 [0x2f]:          jmp @53   
-48 [0x30]: line: 31 pushl 0   
-49 [0x31]:          ipushl #1   
-50 [0x32]:          call @2331 // <platform.kernel#vm.exit_thread>   
-51 [0x33]: line: 32 pushl 2   
-52 [0x34]:          throw    
-53 [0x35]:          nop   
-54 [0x36]:          jmp @55   
-55 [0x37]:          nop   : try end
-56 [0x38]: line: 36 pushl 0   
-57 [0x39]:          ipushl #1   
-58 [0x3a]:          call @2331 // <platform.kernel#vm.exit_thread>   
-59 [0x3b]:          ret   
+3 [0x3]: line: 8 movi #1, ebx   : protected asm start
+5 [0x5]:         movi #0, egx   
+7 [0x7]:         movi #0, adx   
+9 [0x9]:         movl 0   
+10 [0xa]:         movn #5   
+12 [0xc]:         rmov adx, egx   
+13 [0xd]:         movl 0   
+14 [0xe]:         movn #8   
+16 [0x10]:         rmov adx, ebx   : protected asm end
+17 [0x11]: line: 21 istorel 1, fp+1   
+19 [0x13]: line: 22 movl 0   : try start: try block start
+20 [0x14]: line: 24 movn #11   
+22 [0x16]: line: 25 movi #0, adx   
+24 [0x18]:          iaload ebx, adx   
+25 [0x19]:          rstore ebx   
+26 [0x1a]:          call @2336 // <platform.kernel#vm.thread_args>   
+27 [0x1b]:          smov ebx, sp+[-1]   
+28 [0x1c]:          calld ebx   
+29 [0x1d]:          swap    
+30 [0x1e]:          pop   
+31 [0x1f]:          ipopl 1   
+32 [0x20]:          jmp @53   : try block end
+33 [0x21]: line: 27 pushl 0   : catch(std#throwable)
+34 [0x22]:          call @2232 // <std.io#thread.get_exception_handler>   
+35 [0x23]:          pushnull    
+36 [0x24]:          itest ebx   
+37 [0x25]:          not ebx, ebx   
+38 [0x26]:          movr cmt, ebx   
+39 [0x27]:          jne 46   
+40 [0x28]: line: 28 pushl 0   
+41 [0x29]:          call @2232 // <std.io#thread.get_exception_handler>   
+42 [0x2a]:          pushl 2   
+43 [0x2b]:          invoke_delegate 2249 { static=0, args=1 }   
+45 [0x2d]:          jmp @51   
+46 [0x2e]: line: 30 pushl 0   
+47 [0x2f]:          ipushl #1   
+48 [0x30]:          call @2331 // <platform.kernel#vm.exit_thread>   
+49 [0x31]: line: 31 pushl 2   
+50 [0x32]:          throw    
+51 [0x33]:          nop   
+52 [0x34]:          jmp @53   
+53 [0x35]:          nop   : try end
+54 [0x36]: line: 35 pushl 0   
+55 [0x37]:          ipushl #1   
+56 [0x38]:          call @2331 // <platform.kernel#vm.exit_thread>   
+57 [0x39]:          ret   
 
 
-function: std.io#thread_result.at[2247] params(1) in file: lib\support\0.2.9/io//thread_kernel.sharp:64:15: note:  
+function: std.io#thread_result.at[2247] params(1) in file: lib\support\0.2.9/io//thread_kernel.sharp:63:15: note:  
 		    static def at(index: var) : thread_result {
 		              ^
 
-0 [0x0]: line: 65 ipushl #0   
+0 [0x0]: line: 64 ipushl #0   
 1 [0x1]:          movg @37 // @std.io#thread_result   
 2 [0x2]:          movn #16   
 4 [0x4]:          pushobj   
@@ -44301,7 +44299,7 @@ function: std.io#thread_result.at[2247] params(1) in file: lib\support\0.2.9/io/
 7 [0x7]:          loadval ecx   
 8 [0x8]:          test ecx, ebx   
 9 [0x9]:          jne 29   
-10 [0xa]: line: 66 movg @37 // @std.io#thread_result   
+10 [0xa]: line: 65 movg @37 // @std.io#thread_result   
 11 [0xb]:          movn #17   
 13 [0xd]:          pushobj   
 14 [0xe]:          movg @37 // @std.io#thread_result   
@@ -44318,7 +44316,7 @@ function: std.io#thread_result.at[2247] params(1) in file: lib\support\0.2.9/io/
 27 [0x1b]:          returnobj   
 28 [0x1c]:          ret   
 29 [0x1d]:          nop   
-30 [0x1e]: line: 68 movg @37 // @std.io#thread_result   
+30 [0x1e]: line: 67 movg @37 // @std.io#thread_result   
 31 [0x1f]:          movn #17   
 33 [0x21]:          pushobj   
 34 [0x22]:          loadl ebx, fp+0   
@@ -44330,7 +44328,7 @@ function: std.io#thread_result.at[2247] params(1) in file: lib\support\0.2.9/io/
 40 [0x28]:          ret   
 
 
-constructor: std.io#thread_result.thread_result[2248] params(0) in file: lib\support\0.2.9/io//thread_kernel.sharp:39:7: note:  
+constructor: std.io#thread_result.thread_result[2248] params(0) in file: lib\support\0.2.9/io//thread_kernel.sharp:38:7: note:  
 		mutate thread_result {
 		      ^
 
@@ -45542,7 +45540,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 8 [0x8]:          movn #0   
 10 [0xa]:          movn #0   
 12 [0xc]:          popobj   
-13 [0xd]:          movi #49580, ebx   
+13 [0xd]:          movi #66113, ebx   
 15 [0xf]:          movg @21 // @std.io#buffer_type   
 16 [0x10]:          movn #0   
 18 [0x12]:          movn #1   
@@ -45557,7 +45555,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 31 [0x1f]:          movn #1   
 33 [0x21]:          movn #0   
 35 [0x23]:          popobj   
-36 [0x24]:          movi #49581, ebx   
+36 [0x24]:          movi #66114, ebx   
 38 [0x26]:          movg @21 // @std.io#buffer_type   
 39 [0x27]:          movn #1   
 41 [0x29]:          movn #1   
@@ -45572,7 +45570,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 54 [0x36]:          movn #2   
 56 [0x38]:          movn #0   
 58 [0x3a]:          popobj   
-59 [0x3b]:          movi #49582, ebx   
+59 [0x3b]:          movi #66115, ebx   
 61 [0x3d]:          movg @21 // @std.io#buffer_type   
 62 [0x3e]:          movn #2   
 64 [0x40]:          movn #1   
@@ -45587,7 +45585,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 77 [0x4d]:          movn #3   
 79 [0x4f]:          movn #0   
 81 [0x51]:          popobj   
-82 [0x52]:          movi #49583, ebx   
+82 [0x52]:          movi #66116, ebx   
 84 [0x54]:          movg @21 // @std.io#buffer_type   
 85 [0x55]:          movn #3   
 87 [0x57]:          movn #1   
@@ -45602,7 +45600,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 100 [0x64]:          movn #0   
 102 [0x66]:          movn #0   
 104 [0x68]:          popobj   
-105 [0x69]:          movi #49581, ebx   
+105 [0x69]:          movi #66114, ebx   
 107 [0x6b]:          movg @24 // @std.io.fiber#fiber_state   
 108 [0x6c]:          movn #0   
 110 [0x6e]:          movn #1   
@@ -45617,7 +45615,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 123 [0x7b]:          movn #1   
 125 [0x7d]:          movn #0   
 127 [0x7f]:          popobj   
-128 [0x80]:          movi #49582, ebx   
+128 [0x80]:          movi #66115, ebx   
 130 [0x82]:          movg @24 // @std.io.fiber#fiber_state   
 131 [0x83]:          movn #1   
 133 [0x85]:          movn #1   
@@ -45632,7 +45630,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 146 [0x92]:          movn #2   
 148 [0x94]:          movn #0   
 150 [0x96]:          popobj   
-151 [0x97]:          movi #49583, ebx   
+151 [0x97]:          movi #66116, ebx   
 153 [0x99]:          movg @24 // @std.io.fiber#fiber_state   
 154 [0x9a]:          movn #2   
 156 [0x9c]:          movn #1   
@@ -45647,7 +45645,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 169 [0xa9]:          movn #3   
 171 [0xab]:          movn #0   
 173 [0xad]:          popobj   
-174 [0xae]:          movi #49584, ebx   
+174 [0xae]:          movi #66117, ebx   
 176 [0xb0]:          movg @24 // @std.io.fiber#fiber_state   
 177 [0xb1]:          movn #3   
 179 [0xb3]:          movn #1   
@@ -45662,7 +45660,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 192 [0xc0]:          movn #4   
 194 [0xc2]:          movn #0   
 196 [0xc4]:          popobj   
-197 [0xc5]:          movi #49585, ebx   
+197 [0xc5]:          movi #66118, ebx   
 199 [0xc7]:          movg @24 // @std.io.fiber#fiber_state   
 200 [0xc8]:          movn #4   
 202 [0xca]:          movn #1   
@@ -46350,7 +46348,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 1181 [0x49d]:          movn #0   
 1183 [0x49f]:          movn #0   
 1185 [0x4a1]:          popobj   
-1186 [0x4a2]:          movi #49586, ebx   
+1186 [0x4a2]:          movi #66119, ebx   
 1188 [0x4a4]:          movg @67 // @std.reflect#property_type   
 1189 [0x4a5]:          movn #0   
 1191 [0x4a7]:          movn #1   
@@ -46366,7 +46364,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 1204 [0x4b4]:          movn #1   
 1206 [0x4b6]:          movn #0   
 1208 [0x4b8]:          popobj   
-1209 [0x4b9]:          movi #49587, ebx   
+1209 [0x4b9]:          movi #66120, ebx   
 1211 [0x4bb]:          movg @67 // @std.reflect#property_type   
 1212 [0x4bc]:          movn #1   
 1214 [0x4be]:          movn #1   
@@ -46382,7 +46380,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 1227 [0x4cb]:          movn #2   
 1229 [0x4cd]:          movn #0   
 1231 [0x4cf]:          popobj   
-1232 [0x4d0]:          movi #49588, ebx   
+1232 [0x4d0]:          movi #66121, ebx   
 1234 [0x4d2]:          movg @67 // @std.reflect#property_type   
 1235 [0x4d3]:          movn #2   
 1237 [0x4d5]:          movn #1   
@@ -46606,7 +46604,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 1549 [0x60d]:          movn #0   
 1551 [0x60f]:          movn #0   
 1553 [0x611]:          popobj   
-1554 [0x612]:          movi #49589, ebx   
+1554 [0x612]:          movi #66122, ebx   
 1556 [0x614]:          movg @93 // @std.io#channel<t>.channel_state   
 1557 [0x615]:          movn #0   
 1559 [0x617]:          movn #1   
@@ -46622,7 +46620,7 @@ function: platform.kernel#platform.static_init[2305] params(0) in file: lib\supp
 1572 [0x624]:          movn #1   
 1574 [0x626]:          movn #0   
 1576 [0x628]:          popobj   
-1577 [0x629]:          movi #49590, ebx   
+1577 [0x629]:          movi #66123, ebx   
 1579 [0x62b]:          movg @93 // @std.io#channel<t>.channel_state   
 1580 [0x62c]:          movn #1   
 1582 [0x62e]:          movn #1   
@@ -47342,128 +47340,146 @@ function: platform.kernel#vm.thread_start[2333] params(2) in file: lib\support\0
 15 [0xf]:           movi #0, ebx   
 17 [0x11]:           loadval ecx   
 18 [0x12]:           test ecx, ebx   
-19 [0x13]:           jne 22   
+19 [0x13]:           jne 42   
 20 [0x14]: line: 278 pushl 0   
-21 [0x15]:           call @2290 // <std#_object_.wait>   
-22 [0x16]:           nop   
-23 [0x17]: line: 281 ipushl #4   
-24 [0x18]:           call @2247 // <std.io#thread_result.at>   
-25 [0x19]:           popobj2    
-26 [0x1a]:           returnobj   
-27 [0x1b]:           ret   
+21 [0x15]:           call @2227 // <std.io#thread.is_started>   
+22 [0x16]:           loadval ebx   
+23 [0x17]:           not ebx, ebx   
+24 [0x18]:           movr cmt, ebx   
+25 [0x19]:           jne 42   
+26 [0x1a]: line: 279 pushl 0   
+27 [0x1b]:           call @2225 // <std.io#thread.is_exited>   
+28 [0x1c]:           loadval ebx   
+29 [0x1d]:           movr cmt, ebx   
+30 [0x1e]:           jne 37   
+31 [0x1f]: line: 280 movg @37 // @std.io#thread_result   
+32 [0x20]:           movn #5   
+34 [0x22]:           returnobj   
+35 [0x23]:           ret   
+36 [0x24]:           jmp @40   
+37 [0x25]: line: 282 istore 2   
+39 [0x27]:           call @2025 // <std.io.fiber#__srt_global.delay>   
+40 [0x28]:           nop   
+41 [0x29]:           jmp @20   
+42 [0x2a]:           nop   
+43 [0x2b]: line: 287 ipushl #4   
+44 [0x2c]:           call @2247 // <std.io#thread_result.at>   
+45 [0x2d]:           popobj2    
+46 [0x2e]:           returnobj   
+47 [0x2f]:           ret   
 
 
-function: platform.kernel#vm.set_thread_priority[2334] params(2) in file: lib\support\0.2.9/platform//kernel//vm.sharp:284:15: note:  
+function: platform.kernel#vm.set_thread_priority[2334] params(2) in file: lib\support\0.2.9/platform//kernel//vm.sharp:290:15: note:  
 		    static def set_thread_priority(t: thread, priority: var) : thread_result {
 		              ^
 
-0 [0x0]: line: 285 pushl 0   
+0 [0x0]: line: 291 pushl 0   
 1 [0x1]:           call @2222 // <std.io#thread.get_native_handle>   
 2 [0x2]:           ipopl 2   
-3 [0x3]: line: 286 istorel 0, fp+3   
-5 [0x5]: line: 288 loadl adx, fp+2   : protected asm start
+3 [0x3]: line: 292 istorel 0, fp+3   
+5 [0x5]: line: 294 loadl adx, fp+2   : protected asm start
 6 [0x6]:           loadl egx, fp+1   
 7 [0x7]:           int 0x11   
 8 [0x8]:           smovr_2 cmt, fp+3   
-9 [0x9]: line: 295 ipushl #3   : protected asm end
+9 [0x9]: line: 301 ipushl #3   : protected asm end
 10 [0xa]:           call @2247 // <std.io#thread_result.at>   
 11 [0xb]:           popobj2    
 12 [0xc]:           returnobj   
 13 [0xd]:           ret   
 
 
-function: platform.kernel#vm.set_thread[2335] params(1) in file: lib\support\0.2.9/platform//kernel//vm.sharp:298:15: note:  
+function: platform.kernel#vm.set_thread[2335] params(1) in file: lib\support\0.2.9/platform//kernel//vm.sharp:304:15: note:  
 		    static def set_thread(t: thread) {
 		              ^
 
-0 [0x0]: line: 299 pushl 0   : protected asm start
+0 [0x0]: line: 305 pushl 0   : protected asm start
 1 [0x1]:           int 0x17   
 2 [0x2]:           ret   : protected asm end
 
 
-function: platform.kernel#vm.thread_args[2336] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:305:15: note:  
+function: platform.kernel#vm.thread_args[2336] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:311:15: note:  
 		    static def thread_args() : object[] {
 		              ^
 
-0 [0x0]: line: 306 int 0x16   : protected asm start
+0 [0x0]: line: 312 int 0x16   : protected asm start
 1 [0x1]:           popobj2    
 2 [0x2]:           returnobj   
 3 [0x3]:           ret   
-4 [0x4]: line: 313 pushnull    : protected asm end
+4 [0x4]: line: 319 pushnull    : protected asm end
 5 [0x5]:           popobj2    
 6 [0x6]:           returnobj   
 7 [0x7]:           ret   
 
 
-function: platform.kernel#vm.cores[2337] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:316:15: note:  
+function: platform.kernel#vm.cores[2337] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:322:15: note:  
 		    static def cores() : var {
 		              ^
 
-0 [0x0]: line: 317 istorel 0, fp+0   
-2 [0x2]: line: 319 int 0x38   : protected asm start
+0 [0x0]: line: 323 istorel 0, fp+0   
+2 [0x2]: line: 325 int 0x38   : protected asm start
 3 [0x3]:           smovr_2 ebx, fp+0   
-4 [0x4]: line: 324 loadl ebx, fp+0   : protected asm end
+4 [0x4]: line: 330 loadl ebx, fp+0   : protected asm end
 5 [0x5]:           return_val ebx   
 6 [0x6]:           ret   
 
 
-function: platform.kernel#vm.random_int[2338] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:327:15: note:  
+function: platform.kernel#vm.random_int[2338] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:333:15: note:  
 		    static def random_int() : var {
 		              ^
 
-0 [0x0]: line: 328 istorel 0, fp+0   
-2 [0x2]: line: 330 int 0x19   : protected asm start
+0 [0x0]: line: 334 istorel 0, fp+0   
+2 [0x2]: line: 336 int 0x19   : protected asm start
 3 [0x3]:           smovr_2 ebx, fp+0   
-4 [0x4]: line: 335 loadl ebx, fp+0   : protected asm end
+4 [0x4]: line: 341 loadl ebx, fp+0   : protected asm end
 5 [0x5]:           return_val ebx   
 6 [0x6]:           ret   
 
 
-function: platform.kernel#vm.random_int[2339] params(2) in file: lib\support\0.2.9/platform//kernel//vm.sharp:338:15: note:  
+function: platform.kernel#vm.random_int[2339] params(2) in file: lib\support\0.2.9/platform//kernel//vm.sharp:344:15: note:  
 		    static def random_int(min: var, max : var) : var {
 		              ^
 
-0 [0x0]: line: 339 istorel 0, fp+2   
-2 [0x2]: line: 341 loadl ebx, fp+0   : protected asm start
+0 [0x0]: line: 345 istorel 0, fp+2   
+2 [0x2]: line: 347 loadl ebx, fp+0   : protected asm start
 3 [0x3]:           loadl egx, fp+1   
 4 [0x4]:           int 0x3f   
 5 [0x5]:           smovr_2 ebx, fp+2   
-6 [0x6]: line: 348 loadl ebx, fp+2   : protected asm end
+6 [0x6]: line: 354 loadl ebx, fp+2   : protected asm end
 7 [0x7]:           return_val ebx   
 8 [0x8]:           ret   
 
 
-function: platform.kernel#vm.random_double[2340] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:351:15: note:  
+function: platform.kernel#vm.random_double[2340] params(0) in file: lib\support\0.2.9/platform//kernel//vm.sharp:357:15: note:  
 		    static def random_double() : var {
 		              ^
 
-0 [0x0]: line: 352 istorel 0, fp+0   
-2 [0x2]: line: 354 int 0x40   : protected asm start
+0 [0x0]: line: 358 istorel 0, fp+0   
+2 [0x2]: line: 360 int 0x40   : protected asm start
 3 [0x3]:           smovr_2 ebx, fp+0   
-4 [0x4]: line: 359 loadl ebx, fp+0   : protected asm end
+4 [0x4]: line: 365 loadl ebx, fp+0   : protected asm end
 5 [0x5]:           return_val ebx   
 6 [0x6]:           ret   
 
 
-function: platform.kernel#vm.random_double[2341] params(2) in file: lib\support\0.2.9/platform//kernel//vm.sharp:362:15: note:  
+function: platform.kernel#vm.random_double[2341] params(2) in file: lib\support\0.2.9/platform//kernel//vm.sharp:368:15: note:  
 		    static def random_double(min: var, max : var) : var {
 		              ^
 
-0 [0x0]: line: 363 istorel 0, fp+2   
-2 [0x2]: line: 365 loadl ebx, fp+0   : protected asm start
+0 [0x0]: line: 369 istorel 0, fp+2   
+2 [0x2]: line: 371 loadl ebx, fp+0   : protected asm start
 3 [0x3]:           loadl egx, fp+1   
 4 [0x4]:           int 0x41   
 5 [0x5]:           smovr_2 ebx, fp+2   
-6 [0x6]: line: 372 loadl ebx, fp+2   : protected asm end
+6 [0x6]: line: 378 loadl ebx, fp+2   : protected asm end
 7 [0x7]:           return_val ebx   
 8 [0x8]:           ret   
 
 
-function: platform.kernel#vm.random_seed[2342] params(1) in file: lib\support\0.2.9/platform//kernel//vm.sharp:375:15: note:  
+function: platform.kernel#vm.random_seed[2342] params(1) in file: lib\support\0.2.9/platform//kernel//vm.sharp:381:15: note:  
 		    static def random_seed(seed : var) {
 		              ^
 
-0 [0x0]: line: 376 loadl adx, fp+0   : protected asm start
+0 [0x0]: line: 382 loadl adx, fp+0   : protected asm start
 1 [0x1]:           int 0x42   
 2 [0x2]:           ret   : protected asm end
 
@@ -82144,13 +82160,13 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 		import platform.kernel;
 		    ^
 
-0 [0x0]: line: 43 istorel 0, fp+0   
-2 [0x2]: line: 44 movi #17, ebx   
+0 [0x0]: line: 42 istorel 0, fp+0   
+2 [0x2]: line: 43 movi #17, ebx   
 4 [0x4]:          new_classarray ebx  // std.io#thread_result[]   
 6 [0x6]:          movg @37 // @std.io#thread_result   
 7 [0x7]:          movn #17   
 9 [0x9]:          popobj   
-10 [0xa]: line: 45 movg @37 // @std.io#thread_result   
+10 [0xa]: line: 44 movg @37 // @std.io#thread_result   
 11 [0xb]:          movn #0   
 13 [0xd]:          pushobj   
 14 [0xe]:          movg @37 // @std.io#thread_result   
@@ -82166,7 +82182,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 25 [0x19]:          chklen adx   
 26 [0x1a]:          movnd adx   
 27 [0x1b]:          popobj   
-28 [0x1c]: line: 46 movg @37 // @std.io#thread_result   
+28 [0x1c]: line: 45 movg @37 // @std.io#thread_result   
 29 [0x1d]:          movn #1   
 31 [0x1f]:          pushobj   
 32 [0x20]:          movg @37 // @std.io#thread_result   
@@ -82182,7 +82198,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 43 [0x2b]:          chklen adx   
 44 [0x2c]:          movnd adx   
 45 [0x2d]:          popobj   
-46 [0x2e]: line: 47 movg @37 // @std.io#thread_result   
+46 [0x2e]: line: 46 movg @37 // @std.io#thread_result   
 47 [0x2f]:          movn #2   
 49 [0x31]:          pushobj   
 50 [0x32]:          movg @37 // @std.io#thread_result   
@@ -82198,7 +82214,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 61 [0x3d]:          chklen adx   
 62 [0x3e]:          movnd adx   
 63 [0x3f]:          popobj   
-64 [0x40]: line: 48 movg @37 // @std.io#thread_result   
+64 [0x40]: line: 47 movg @37 // @std.io#thread_result   
 65 [0x41]:          movn #3   
 67 [0x43]:          pushobj   
 68 [0x44]:          movg @37 // @std.io#thread_result   
@@ -82214,7 +82230,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 79 [0x4f]:          chklen adx   
 80 [0x50]:          movnd adx   
 81 [0x51]:          popobj   
-82 [0x52]: line: 49 movg @37 // @std.io#thread_result   
+82 [0x52]: line: 48 movg @37 // @std.io#thread_result   
 83 [0x53]:          movn #4   
 85 [0x55]:          pushobj   
 86 [0x56]:          movg @37 // @std.io#thread_result   
@@ -82230,7 +82246,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 97 [0x61]:          chklen adx   
 98 [0x62]:          movnd adx   
 99 [0x63]:          popobj   
-100 [0x64]: line: 50 movg @37 // @std.io#thread_result   
+100 [0x64]: line: 49 movg @37 // @std.io#thread_result   
 101 [0x65]:          movn #5   
 103 [0x67]:          pushobj   
 104 [0x68]:          movg @37 // @std.io#thread_result   
@@ -82246,7 +82262,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 115 [0x73]:          chklen adx   
 116 [0x74]:          movnd adx   
 117 [0x75]:          popobj   
-118 [0x76]: line: 51 movg @37 // @std.io#thread_result   
+118 [0x76]: line: 50 movg @37 // @std.io#thread_result   
 119 [0x77]:          movn #6   
 121 [0x79]:          pushobj   
 122 [0x7a]:          movg @37 // @std.io#thread_result   
@@ -82262,7 +82278,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 133 [0x85]:          chklen adx   
 134 [0x86]:          movnd adx   
 135 [0x87]:          popobj   
-136 [0x88]: line: 52 movg @37 // @std.io#thread_result   
+136 [0x88]: line: 51 movg @37 // @std.io#thread_result   
 137 [0x89]:          movn #7   
 139 [0x8b]:          pushobj   
 140 [0x8c]:          movg @37 // @std.io#thread_result   
@@ -82278,7 +82294,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 151 [0x97]:          chklen adx   
 152 [0x98]:          movnd adx   
 153 [0x99]:          popobj   
-154 [0x9a]: line: 53 movg @37 // @std.io#thread_result   
+154 [0x9a]: line: 52 movg @37 // @std.io#thread_result   
 155 [0x9b]:          movn #8   
 157 [0x9d]:          pushobj   
 158 [0x9e]:          movg @37 // @std.io#thread_result   
@@ -82294,7 +82310,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 169 [0xa9]:          chklen adx   
 170 [0xaa]:          movnd adx   
 171 [0xab]:          popobj   
-172 [0xac]: line: 54 movg @37 // @std.io#thread_result   
+172 [0xac]: line: 53 movg @37 // @std.io#thread_result   
 173 [0xad]:          movn #9   
 175 [0xaf]:          pushobj   
 176 [0xb0]:          movg @37 // @std.io#thread_result   
@@ -82310,7 +82326,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 187 [0xbb]:          chklen adx   
 188 [0xbc]:          movnd adx   
 189 [0xbd]:          popobj   
-190 [0xbe]: line: 55 movg @37 // @std.io#thread_result   
+190 [0xbe]: line: 54 movg @37 // @std.io#thread_result   
 191 [0xbf]:          movn #10   
 193 [0xc1]:          pushobj   
 194 [0xc2]:          movg @37 // @std.io#thread_result   
@@ -82326,7 +82342,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 205 [0xcd]:          chklen adx   
 206 [0xce]:          movnd adx   
 207 [0xcf]:          popobj   
-208 [0xd0]: line: 56 movg @37 // @std.io#thread_result   
+208 [0xd0]: line: 55 movg @37 // @std.io#thread_result   
 209 [0xd1]:          movn #11   
 211 [0xd3]:          pushobj   
 212 [0xd4]:          movg @37 // @std.io#thread_result   
@@ -82342,7 +82358,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 223 [0xdf]:          chklen adx   
 224 [0xe0]:          movnd adx   
 225 [0xe1]:          popobj   
-226 [0xe2]: line: 57 movg @37 // @std.io#thread_result   
+226 [0xe2]: line: 56 movg @37 // @std.io#thread_result   
 227 [0xe3]:          movn #12   
 229 [0xe5]:          pushobj   
 230 [0xe6]:          movg @37 // @std.io#thread_result   
@@ -82358,7 +82374,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 241 [0xf1]:          chklen adx   
 242 [0xf2]:          movnd adx   
 243 [0xf3]:          popobj   
-244 [0xf4]: line: 58 movg @37 // @std.io#thread_result   
+244 [0xf4]: line: 57 movg @37 // @std.io#thread_result   
 245 [0xf5]:          movn #13   
 247 [0xf7]:          pushobj   
 248 [0xf8]:          movg @37 // @std.io#thread_result   
@@ -82374,7 +82390,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 259 [0x103]:          chklen adx   
 260 [0x104]:          movnd adx   
 261 [0x105]:          popobj   
-262 [0x106]: line: 59 movg @37 // @std.io#thread_result   
+262 [0x106]: line: 58 movg @37 // @std.io#thread_result   
 263 [0x107]:          movn #14   
 265 [0x109]:          pushobj   
 266 [0x10a]:          movg @37 // @std.io#thread_result   
@@ -82390,7 +82406,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 277 [0x115]:          chklen adx   
 278 [0x116]:          movnd adx   
 279 [0x117]:          popobj   
-280 [0x118]: line: 60 movg @37 // @std.io#thread_result   
+280 [0x118]: line: 59 movg @37 // @std.io#thread_result   
 281 [0x119]:          movn #15   
 283 [0x11b]:          pushobj   
 284 [0x11c]:          movg @37 // @std.io#thread_result   
@@ -82406,7 +82422,7 @@ function: std.io#thread_result.$03internal_static_init[3828] params(0) in file: 
 295 [0x127]:          chklen adx   
 296 [0x128]:          movnd adx   
 297 [0x129]:          popobj   
-298 [0x12a]: line: 61 movg @37 // @std.io#thread_result   
+298 [0x12a]: line: 60 movg @37 // @std.io#thread_result   
 299 [0x12b]:          movn #16   
 301 [0x12d]:          pushobj   
 302 [0x12e]:          movg @37 // @std.io#thread_result   

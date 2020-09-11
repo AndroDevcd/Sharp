@@ -275,7 +275,7 @@ class vm {
         }
 
         if(result == 0) {
-           while(t.is_started()) {
+           while(!t.is_started()) {
                if(t.is_exited()) {
                    return result_thread_not_started;
                } else {
