@@ -14,6 +14,7 @@
 #include "../util/time.h"
 #include "jit/_BaseAssembler.h"
 #include "jit/Jit.h"
+#include "scheduler.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -452,7 +453,10 @@ int Thread::waitForThread(Thread *thread) {
 }
 
 void Thread::suspendAllThreads(bool withMarking) {
-    GUARD(Thread::threadsListMutex);
+    {
+        GUARD(Thread::threadsListMutex);
+        threadReleaseBlock = true;
+    }
     Thread* thread;
 
     for(uInt i = 0; i < threads.size(); i++) {
@@ -466,10 +470,16 @@ void Thread::suspendAllThreads(bool withMarking) {
             }
         }
     }
+
+    threadReleaseBlock = false;
 }
 
 void Thread::resumeAllThreads(bool withMarking) {
-    GUARD(Thread::threadsListMutex);
+    {
+        GUARD(Thread::threadsListMutex);
+        threadReleaseBlock = true;
+    }
+
     Thread* thread;
 
     for(uInt i = 0; i < threads.size(); i++) {
@@ -483,6 +493,8 @@ void Thread::resumeAllThreads(bool withMarking) {
             }
         }
     }
+
+    threadReleaseBlock = false;
 }
 
 int Thread::unsuspendThread(Thread *thread) {

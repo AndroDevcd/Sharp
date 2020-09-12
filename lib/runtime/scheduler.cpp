@@ -8,6 +8,7 @@
 #include "scheduler.h"
 #include "VirtualMachine.h"
 
+atomic<bool> threadReleaseBlock = { false };
 uInt loggedTime = 0;
 void run_scheduler() {
     do {
@@ -115,9 +116,11 @@ bool try_context_switch(fiber *fib) {
 
         if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
             GUARD(Thread::threadsListMutex);
-            fiber::killBoundFibers(thread);
-            Thread::destroy(thread);
-            i--;
+            if(!threadReleaseBlock) {
+                fiber::killBoundFibers(thread);
+                Thread::destroy(thread);
+                i--;
+            }
             continue;
         }
 

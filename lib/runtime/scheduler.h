@@ -5,11 +5,14 @@
 #ifndef SHARP_SCHEDULER_H
 #define SHARP_SCHEDULER_H
 
+#include "../../stdimports.h"
+
 #define LPTSI 25  /* low priority time slice interval */  // 40 fibers/thread
 #define NPTSI 70  /* norm priority time slice interval */ // 14 fibers/thread
 #define HPTSI 100 /* high priority time slice interval */ // 10 fibers/thread
 #define CSTL 5    /* Context switch time limit */
 
+extern atomic<bool> threadReleaseBlock;
 void run_scheduler();
 bool try_context_switch(fiber *fib);
 
