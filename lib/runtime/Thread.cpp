@@ -137,7 +137,7 @@ void Thread::suspendSelf() {
 }
 
 void Thread::waitForUnsuspend() {
-    const long sMaxRetries = 128 * 1024;
+    const long sMaxRetries = 100000;
 
     long spinCount = 0;
     long retryCount = 0;
@@ -294,7 +294,7 @@ void Thread::unsuspendAndWait(Thread *thread) {
 }
 
 void Thread::waitForThreadSuspend(Thread *thread) {
-    const int sMaxRetries = 10000000;
+    const int sMaxRetries = 1000000;
     const int sMaxSpinCount = 5; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
 
     int spinCount = 0;
@@ -323,7 +323,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
 }
 
 void Thread::waitForThreadUnSuspend(Thread *thread) {
-    const int sMaxRetries = 10000000;
+    const int sMaxRetries = 1000000;
     const int sMaxSpinCount = 5;
 
     int spinCount = 0;
@@ -424,7 +424,7 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
  * @return
  */
 int Thread::waitForThread(Thread *thread) {
-    const int sMaxRetries = 10000000;
+    const int sMaxRetries = 1000000;
     const int sMaxSpinCount = 25;
 
     int spinCount = 0;
@@ -1615,7 +1615,7 @@ void Thread::waitForContextSwitch() {
     this_fiber=NULL;
 
     wait:
-    const long sMaxRetries = 10000000;
+    const long sMaxRetries = 1000000;
 
     long retryCount = 0;
     while (next_fiber == NULL) {
