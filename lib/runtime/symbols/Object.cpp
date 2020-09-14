@@ -172,15 +172,19 @@ void SharpObject::print() {
     cout << "Object @0x" << this << endl;
     cout << "size " << size << endl;
     cout << "refrences " << refCount << endl;
+    cout << "monitor " << monitor << endl;
     cout << "generation " << GENERATION(info) << endl;
     ClassObject *k = &vm.classes[CLASS(info)];
     if(IS_CLASS(info)) cout << "class: " << k->name.str() << endl;
 
     if(TYPE(info)==_stype_var) {
-        cout << "HEAD[]" << endl;
+        if(ntype == _INT8) {
+            cout << "value: " << vm.stringValue(this) << endl;
+        } else
+           cout << "HEAD[]" << endl;
     } else if(TYPE(info)==_stype_struct){
         for(long i = 0; i < size; i++) {
-            cout << '\t' << this << " -> #" << i << " ";
+            cout << '\t' << "(" << this << ")struct item -> #" << i << " ";
             if(node[i].object == NULL) {
                 cout << "NULL";
             } else

@@ -230,6 +230,7 @@ public:
     void reconcileLocks(Thread*);
 
     void printClassRefStatus();
+    SharpObject *getObjectAt(uInt index);
 private:
     std::atomic<uInt> managedBytes;
     std::atomic<uInt> memoryLimit;

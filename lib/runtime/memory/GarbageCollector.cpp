@@ -691,6 +691,24 @@ bool isLocker(void *o, mutex_t* mut) {
     return (SharpObject*)o == mut->object;
 }
 
+SharpObject *GarbageCollector::getObjectAt(uInt index) {
+    gc.mutex.lock();
+    SharpObject *object = _Mheap->next, *prevObj = NULL, *end = tail;
+
+    while(object != NULL) {
+        if(object == end || --index == 0) {
+            break;
+        }
+
+        if(IS_CLASS(object->info)) {
+            vm.classes[CLASS(object->info)].gcRefs++;
+        }
+
+        object = object->next;
+    }
+    gc.mutex.unlock();
+}
+
 void GarbageCollector::printClassRefStatus() {
     gc.mutex.lock();
     SharpObject *object = _Mheap->next, *prevObj = NULL, *end = tail;
