@@ -261,18 +261,15 @@ namespace snb_api {
                 :
                 num(ref),
                 handle(handle) {
-            internal::inc_ref(handle);
         }
 
         var(const var &val)
                 :
                 num(val.num),
                 handle(val.handle) {
-            internal::inc_ref(handle);
         }
 
         virtual ~var() {
-            internal::dec_ref(handle);
         }
 
         double operator=(double val) {
@@ -355,18 +352,15 @@ namespace snb_api {
                 :
                 num(ref),
                 handle(handle) {
-            internal::inc_ref(handle);
         }
 
         integer(const var &val)
                 :
                 num(val.num),
                 handle(val.handle) {
-            internal::inc_ref(handle);
         }
 
         virtual ~integer() {
-            internal::dec_ref(handle);
         }
 
         double operator++() {

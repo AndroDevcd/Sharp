@@ -178,7 +178,7 @@ object getItem(object obj, int32_t index) {
             throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
         }
 
-        return data->object->node;
+        return data->object->node+index;
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
         return NULL;
