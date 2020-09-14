@@ -151,6 +151,8 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     updateMemoryThreshold();
 
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
+        collectGarbage(true);
+
         Thread::suspendAllThreads(true);
         /**
          * In order to keep memory utilization low we must shutdown
@@ -185,7 +187,7 @@ void GarbageCollector::updateMemoryThreshold() {
     }
 }
 
-void GarbageCollector::collectGarbage() {
+void GarbageCollector::collectGarbage(bool markOnly) {
     mutex.lock();
     SharpObject *object = gc._Mheap->next, *prevObj = NULL, *end = tail;
 #ifdef SHARP_PROF_
@@ -204,7 +206,7 @@ void GarbageCollector::collectGarbage() {
             if(MARKED(object->info)) {
                 if(object->refCount > 0) {
                     MARK(object->info, 0);
-                } else {
+                } else if(!markOnly) {
                     object = sweep(object, prevObj);
                     continue;
                 }
@@ -245,8 +247,8 @@ void GarbageCollector::collectGarbage() {
 
 void GarbageCollector::run() {
 #ifdef SHARP_PROF_
-    tself->tprof = new Profiler();
-    tself->tprof->init(2);
+    //tself->tprof = new Profiler();
+    //tself->tprof->init(2);
 #endif
 
     for(;;) {

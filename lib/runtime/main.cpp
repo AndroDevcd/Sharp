@@ -73,7 +73,7 @@ int runtimeStart(int argc, const char* argv[])
      */
     GarbageCollector::initilize();
     GarbageCollector::setMemoryLimit(GC_HEAP_LIMIT);
-    GarbageCollector::setMemoryThreshold(MB_TO_BYTES(12));
+    GarbageCollector::setMemoryThreshold(MB_TO_BYTES(64));
 
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){

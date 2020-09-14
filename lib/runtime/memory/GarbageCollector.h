@@ -260,7 +260,7 @@ private:
     SharpObject* _Mheap, *tail;
     std::atomic<uInt> heapSize;
 
-    void collectGarbage();
+    void collectGarbage(bool markOnly = false);
 
     /**
      * This function performs the actual collection of
@@ -278,7 +278,7 @@ private:
 };
 
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
-#define GC_HEAP_LIMIT (MB_TO_BYTES(64))
+#define GC_HEAP_LIMIT (MB_TO_BYTES(250))
 
 // object info macros
 #define GENERATION_MASK 0x3

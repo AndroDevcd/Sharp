@@ -803,9 +803,7 @@ namespace snb_api {
                 stringstream ss;
                 ss << "index out of bounds array size: " << size
                    << " accessed at index: " << index;
-                auto error = createLocalField<var_array>();
-                error = ss.str();
-                throwException(std_global::runtime_error(error.handle));
+                throw runtime_error(ss.str());
             }
         }
 
