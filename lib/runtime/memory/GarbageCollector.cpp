@@ -707,6 +707,7 @@ SharpObject *GarbageCollector::getObjectAt(uInt index) {
         object = object->next;
     }
     gc.mutex.unlock();
+    return object;
 }
 
 void GarbageCollector::printClassRefStatus() {
