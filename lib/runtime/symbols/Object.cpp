@@ -180,8 +180,19 @@ void SharpObject::print() {
     if(TYPE(info)==_stype_var) {
         if(ntype == _INT8) {
             cout << "value: " << vm.stringValue(this) << endl;
-        } else
-           cout << "HEAD[]" << endl;
+        } else {
+            cout << "{ ";
+            for(Int i = 0; i < 50; i++) {
+                if(i >= size)
+                    break;
+
+                cout << HEAD[i];
+                if((i + 1 < 50) || (i+1) < size)
+                   cout << ", ";
+            }
+
+            cout << " }" << endl;
+        }
     } else if(TYPE(info)==_stype_struct){
         for(long i = 0; i < size; i++) {
             cout << '\t' << "(" << this << ")struct item -> #" << i << " ";
