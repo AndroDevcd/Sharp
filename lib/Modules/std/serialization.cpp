@@ -11,6 +11,13 @@ bool find_obj(void* arg, KeyPair<Int, SharpObject*> element) {
 
 thread_local _List<KeyPair<Int, SharpObject*>> streamInfo;
 thread_local Int recursion = 0, refId;
+
+stringstream dataStream;
+void cleanup() {
+    dataStream.str("");
+    streamInfo.free();
+}
+
 string export_obj(SharpObject* obj) {
     recursion++;
     if(recursion == 1) {
@@ -18,30 +25,34 @@ string export_obj(SharpObject* obj) {
     }
 
     if(obj && obj->size > 0) {
-        stringstream dataStream;
         dataStream << (char)EXPORT_SECRET;
         dataStream << (char)TYPE(obj->info);
-        dataStream << obj->size << (char)0;
-        dataStream << refId++ << (char)0; // reference id
+        dataStream << obj->size << (char)DATA_END;;
+        dataStream << refId++ << (char)DATA_END;; // reference id
         streamInfo.add(KeyPair<Int, SharpObject*>(refId - 1, obj));
 
         if(TYPE(obj->info) == _stype_var) {
             dataStream << (char)obj->ntype;
             dataStream << (char)EXPORT_DATA;
-            for(uInt i = 0; i < obj->size; i++) {
-                dataStream << std::setprecision(16) << obj->HEAD[i] << (char)0;
+            if(obj->ntype == _INT8) {
+                dataStream << vm.stringValue(obj) << (char) DATA_END;
+            } else {
+                for (uInt i = 0; i < obj->size; i++) {
+                    dataStream << std::setprecision(16) << obj->HEAD[i] << (char) DATA_END;;
+                }
             }
             dataStream << (char)EXPORT_END;
             return dataStream.str();
-        } else {
+        } else if(IS_CLASS(obj->info)) {
             ClassObject &klass = vm.classes[CLASS(obj->info)];
+            dataStream << (char)EXPORT_CLASS;
             uInt fieldAddress =  GENERATION(obj->info) == gc_perm ? klass.instanceFields : 0;
             uInt fieldSize = GENERATION(obj->info) == gc_perm ? klass.staticFields : klass.instanceFields;
 
-            dataStream << klass.fullName.str() << (char)0;
+            dataStream << klass.fullName.str() << (char)DATA_END;;
             dataStream << (char)EXPORT_DATA;
-            dataStream << (GENERATION(obj->info) == gc_perm ? (char)1 : (char)0);
-            dataStream << (obj->array ? (char)1 : (char)0);
+            dataStream << (GENERATION(obj->info) == gc_perm ? 1 : 0);
+            dataStream << (obj->array ? 1 : 0);
 
             if(fieldSize != obj->size) {
                 recursion=0;
@@ -53,24 +64,27 @@ string export_obj(SharpObject* obj) {
             if(obj->array) {
                 for(uInt i = 0; i < obj->size; i++) {
                     SharpObject *objField = obj->node[i].object;
-                    dataStream << export_obj(objField);
+                    if(objField != NULL)
+                        export_obj(objField);
+                    else
+                        dataStream << (char)EXPORT_EMPTY;
                 }
             } else {
                 for(Int i = 0; i < fieldSize; i++) {
                     Field &field = klass.fields[fieldAddress++];
 
                     dataStream << (char)EXPORT_FIELD;
-                    dataStream << field.type << (char)0;
-                    dataStream << field.name.str() << (char)0;
+                    dataStream << field.type << (char)DATA_END;
+                    dataStream << field.name.str() << (char)DATA_END;
                     if (obj->node[i].object == NULL) {
                         dataStream << (char)EXPORT_EMPTY;
                     } else {
                         Int index = streamInfo.indexof(find_obj, obj->node[i].object);
                         if (index == -1) {
-                            dataStream << export_obj(obj->node[i].object);
+                            export_obj(obj->node[i].object);
                         } else {
                             dataStream << (char)EXPORT_REFERENCE;
-                            dataStream << streamInfo.at(index).key << (char) 0;
+                            dataStream << streamInfo.at(index).key << (char) DATA_END;
                         }
                     }
                 }
@@ -79,6 +93,15 @@ string export_obj(SharpObject* obj) {
             dataStream << (char)EXPORT_END;
 
             return dataStream.str();
+        } else {
+            dataStream << (char)EXPORT_DATA;
+            for(uInt i = 0; i < obj->size; i++) {
+                if(obj->node[i].object != NULL)
+                   export_obj(obj->node[i].object);
+                else
+                    dataStream << (char)EXPORT_EMPTY;
+            }
+            dataStream << (char)EXPORT_END;
         }
     } else {
         recursion=0;
@@ -110,7 +133,7 @@ Int readInt(double *data) {
 
     for(;;) {
         char ch = nextChar(data);
-        if(ch == 0) {
+        if(ch == DATA_END) {
             break;
         }
 
@@ -125,7 +148,7 @@ string readString(double *data) {
 
     for(;;) {
         char ch = nextChar(data);
-        if(ch == 0) {
+        if(ch == DATA_END) {
             break;
         }
 
@@ -140,7 +163,7 @@ Int readDouble(double *data) {
 
     for(;;) {
         char ch = nextChar(data);
-        if(ch == 0) {
+        if(ch == DATA_END) {
             break;
         }
 
@@ -172,21 +195,30 @@ SharpObject* load_obj(SharpObject* obj) {
             streamInfo.add(KeyPair<Int, SharpObject*>(refrenceId, object));
 
             INC_REF(object)
-            for(Int i = 0; i < size; i++) {
-                object->HEAD[i]
-                  = readDouble(data);
+            if(ntype == _INT8) {
+                string str = readString(data);
+                for (Int i = 0; i < size; i++) {
+                    object->HEAD[i]
+                            = str[i];
+                }
+            } else {
+                for (Int i = 0; i < size; i++) {
+                    object->HEAD[i]
+                            = readDouble(data);
+                }
             }
 
             expectChar(data, EXPORT_END);
             DEC_REF(object)
             return object;
-        } else {
+        } else if(peekChar(data) == EXPORT_CLASS) {
+            pos++;
             string className = readString(data);
             ClassObject *klass = vm.resolveClass(className);
             if(klass != NULL) {
                 expectChar(data, EXPORT_DATA);
-                bool staticInit = (char)data[++pos] == 1;
-                bool isArray = (char)data[++pos] == 1;
+                bool staticInit = (char)data[++pos] == '1';
+                bool isArray = (char)data[++pos] == '1';
                 uInt realSize = staticInit ? klass->staticFields : klass->instanceFields;
 
 
@@ -210,6 +242,7 @@ SharpObject* load_obj(SharpObject* obj) {
                         string fieldName = readString(data);
 
                         Field* field = klass->getfield(fieldName);
+                        long p = pos;
                         if(field != NULL) {
                             if(field->type == fieldType) {
                                 Object *fieldObj = vm.resolveField(fieldName, object);
@@ -248,7 +281,10 @@ SharpObject* load_obj(SharpObject* obj) {
 
                     INC_REF(object)
                     for(Int i = 0; i < size; i++) {
-                        object->node[i] = load_obj(obj);
+                        if(peekChar(data) == EXPORT_EMPTY)
+                            pos++;
+                        else
+                            object->node[i] = load_obj(obj);
                     }
                 }
 
@@ -260,12 +296,25 @@ SharpObject* load_obj(SharpObject* obj) {
                 ss << "class: " << className << " could not be found in the object stream";
                 throw Exception(vm.IllStateExcept, ss.str());
             }
+        } else {
+            expectChar(data, EXPORT_DATA);
+            SharpObject *object = gc.newObjectArray(size);
+
+            INC_REF(object)
+            for(Int i = 0; i < size; i++) {
+                if(peekChar(data) == EXPORT_EMPTY)
+                    pos++;
+                else {
+                    object->node[i] = load_obj(obj);
+                }
+            }
+            expectChar(data, EXPORT_END);
+            DEC_REF(object)
+            return object;
         }
     } else {
         throw Exception(vm.ObjectImportError, "export secret not found");
     }
-
-    return NULL;
 }
 
 void import_obj(SharpObject* obj) {

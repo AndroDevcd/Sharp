@@ -108,6 +108,12 @@ class list<t> : loopable<t> {
         }
     }
 
+    def pop_last() : t {
+        item := last();
+        pop_back();
+        return item;
+    }
+
     def size() := n_elements;
 
     def insert(index: var, element: t) {

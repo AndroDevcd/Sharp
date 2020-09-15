@@ -985,10 +985,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             native_string str(export_obj((thread_self->this_fiber->sp--)->object.object));
             gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
             str.free();
+            cleanup();
             return;
         }
         case OP_IMPORT: {
             import_obj((thread_self->this_fiber->sp--)->object.object);
+            cleanup();
             return;
         }
         default: {

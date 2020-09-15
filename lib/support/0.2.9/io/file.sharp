@@ -451,7 +451,7 @@ public class file {
         return create_temp_file(prefix, suffix, null);
     }
 
-    def read_all_text() := fs.read(self);
+    def read() := fs.read(self);
 
     def write(data: string) := fs.write(self, data);
 
