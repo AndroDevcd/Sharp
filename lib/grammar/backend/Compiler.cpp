@@ -1573,7 +1573,7 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
 bool Compiler::isLambdaUtype(Utype *utype) {
     if(utype && utype->getResolvedType()) {
         if (utype->getResolvedType()->type == FNPTR) {
-            Method *lambda = (Method *) utype->getResolvedType();
+            Method *lambda = utype->getMethod();
             return lambda->fnType == fn_lambda;
         }
     }
@@ -1584,7 +1584,7 @@ bool Compiler::isLambdaUtype(Utype *utype) {
 bool Compiler::paramsContainNonQualifiedLambda(List<Field*> &params) {
     for(long i = 0; i < params.size(); i++) {
         Field *param = params.get(i);
-        if(isLambdaUtype(param->utype) && !isLambdaFullyQualified((Method*)param->utype->getResolvedType())) {
+        if(isLambdaUtype(param->utype) && !isLambdaFullyQualified(param->utype->getMethod())) {
             return true;
         }
     }
@@ -1606,10 +1606,6 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
         k->getAllFunctionsByTypeAndName(type, name, checkBase, funcs);
 
     if(!funcs.empty()) {
-
-        if(name == "slice") {
-            int i = 3000;
-        }
 
         for(Int i = 0; i < funcs.size(); i++) {
             if(simpleParameterMatch(funcs.get(i)->params, params)) {
@@ -9424,19 +9420,8 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
 
     if(findFunction(klass, functionName, emptyParams, ast, false, fn_constructor, false) == NULL) {
         Method* method = new Method(functionName, currModule, klass, guid++, emptyParams, flags, meta);
-        string basicName = klass->name;
-        if(basicName.find("<") != string::npos) {
-            stringstream ss;
-            for(int i = 0; i < basicName.size(); i++) {
-                if(basicName[i] == '<')
-                    break;
-                ss << basicName[i];
-            }
 
-            basicName = ss.str();
-        }
-
-        method->fullName = klass->fullName + "." + basicName;
+        method->fullName = klass->fullName + "." + functionName;
         method->ast = ast;
         method->fnType = fn_constructor;
         method->address = methodSize++;

@@ -107,6 +107,8 @@ public:
     ClassObject *OutOfMemoryExcept;
     ClassObject *InvalidOperationExcept;
     ClassObject *UnsatisfiedLinkExcept;
+    ClassObject *IncompatibleClassExcept;
+    ClassObject *ObjectImportError;
     ClassObject *IllStateExcept;
     ClassObject *StringClass;
     ClassObject *StackSate;

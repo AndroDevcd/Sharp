@@ -39,6 +39,7 @@ struct SharpObject
         refCount=0;
         refCount=0;
         monitor=0;
+        array=0;
         next=NULL;
     }
     void init(uInt size, ClassObject* k, CollectionGeneration generation = gc_young)
@@ -52,6 +53,7 @@ struct SharpObject
         SET_INFO(info, k->address, _stype_struct, generation); /* generation young */
         SET_CLASS_BIT(info, 1);
         monitor=0;
+        array=0;
         next=NULL;
     }
 
@@ -67,6 +69,7 @@ struct SharpObject
     uint32_t refCount;
     unsigned short monitor : 1; // used for the wait and notify() system
     unsigned short ntype : 4; // the type of number this object represents {var, _int32, _int64, etc}
+    unsigned short array : 1; // wether or not this object is an array of data
 
     /**
      * Information package

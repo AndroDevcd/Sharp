@@ -1,6 +1,7 @@
 mod app;
 
 import std.io;
+import std.export;
 import std.io.task;
 import platform;
 import platform.kernel;
@@ -8,21 +9,19 @@ import platform.kernel;
 chan := new channel<var>(UNLIMITED);
 task_count := 64;
 
-def foo() : var {
-    for(i := 0; i < task_count; i++) {
-        task.builder()
-         .with_args(new int[] { i }) = { args :object[] ->
-           index := (args[1] as int).get_value();
-           for(i := 0; i < 100_000_000; i++) {}
-           chan.send(0);
-           println("task #$index");
-        };
-    }
-
-    return 0;
+class a {
+    num : var;
+    obj : var[];
+    _a : a;
 }
 
 def main(args: string[]) {
-   foo();
-   chan.read_next(0, task_count);
+   n := new a { num = 10, _a = new a { num = 10 }, obj = {1, 2, 3} };
+   println(n.num);
+   println(n.obj);
+   println(n._a.num);
+   n = _import(new file("class.txt").read_all_text()) as a;
+   println(n.num);
+   println(n.obj);
+   println(n._a.num);
 }

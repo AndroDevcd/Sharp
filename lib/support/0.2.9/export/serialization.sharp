@@ -1,0 +1,27 @@
+mod std.export;
+
+def _export(obj: object) : _int8[] {
+    result : _int8[];
+    asm {
+       pushl {obj}
+       int 0x4d
+       movl {result}
+       popObj
+    }
+
+    return result;
+}
+
+def _import(bytes: string) : object {
+    result : object;
+    data := bytes.get_data();
+
+    asm {
+       pushl {data}
+       int 0x4e
+       movl {result}
+       popObj
+    }
+
+    return result;
+}

@@ -425,6 +425,7 @@ SharpObject *GarbageCollector::newObject(int64_t size, unsigned short ntype) {
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
     object->ntype = ntype % 9;
+    object->array = size > 1;
 
     /* track the allocation amount */
     GUARD(mutex);
@@ -444,6 +445,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size, unsigned short ntyp
         object->init(size, _stype_var);
 
         object->HEAD = (double *) calloc(size, sizeof(double));
+        object->array = size > 1;
 
         if(object->HEAD != NULL) {
             object->ntype = ntype % 9;
@@ -463,7 +465,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size, unsigned short ntyp
     return object;
 }
 
-SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
+SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit, bool autoInit) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
         uint32_t size = staticInit ? k->staticFields : k->instanceFields;
@@ -471,20 +473,22 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         object->init(size, k);
         if(size > 0) {
             object->node = (Object*)__calloc(size, sizeof(struct Object));
-            uInt fieldAddress =  staticInit ? k->instanceFields : 0;
+            if(autoInit) {
+                uInt fieldAddress = staticInit ? k->instanceFields : 0;
 
-            for(unsigned int i = 0; i < object->size; i++) {
-                /**
-                 * We want to set the class variables and arrays
-                 * to null and initialize the var variables
-                 */
-                if(k->fields[fieldAddress].type <= VAR && !k->fields[fieldAddress].isArray) {
-                    if(!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
-                        object->node[i] = newObject(1, k->type < FNPTR ? k->type : NTYPE_VAR);
+                for (unsigned int i = 0; i < object->size; i++) {
+                    /**
+                     * We want to set the class variables and arrays
+                     * to null and initialize the var variables
+                     */
+                    if (k->fields[fieldAddress].type <= VAR && !k->fields[fieldAddress].isArray) {
+                        if (!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
+                            object->node[i] = newObject(1, k->type < FNPTR ? k->type : NTYPE_VAR);
+                        }
                     }
-                }
 
-                fieldAddress++;
+                    fieldAddress++;
+                }
             }
 
         }
@@ -550,6 +554,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
 
     object->init(size, _stype_struct);
     object->node = (Object*)__calloc(size, sizeof(struct Object)*1);
+    object->array = 1;
 
     /* track the allocation amount */
     GUARD(mutex);
@@ -568,6 +573,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
 
         if(size > 0)
             object->node = (Object*)__calloc(size, sizeof(struct Object));
+        object->array = 1;
 
         /* track the allocation amount */
         GUARD(mutex);

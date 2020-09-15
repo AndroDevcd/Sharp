@@ -23,6 +23,29 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     Backwards compatibility support tested Version: ()
     
+##### Version 0.2.9.1 (September 1, 2020)
+    # Bug Fixes
+        * Several seg faults fixed
+
+    # QoL Improvements
+        * Further improved Garbage collector performance
+        
+    # New Additions
+        * Multiple concurrency support features added to the lang
+           * Fibers
+           * Channels
+        * Added object serialization and de-serialization
+
+    # Known Issues
+        * JIT is not currently supported on any platform
+        * The Profiler is not supported
+        * Dictionaries are not fully supported by the lang
+
+    runtime version: 2.6.0
+    compiler version: 0.2.9
+
+    Backwards compatibility support tested Version: (n/a)
+    
 ##### Version 0.2.9 (September 1, 2020)
     # Bug Fixes
         * Several seg faults fixed

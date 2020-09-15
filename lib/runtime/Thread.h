@@ -199,5 +199,6 @@ extern thread_local double *registers;
 extern unsigned long irCount, overflow;
 extern size_t threadStackSize;
 extern size_t internalStackSize;
+extern string dataTypeToString(DataType varType, bool isArray);
 
 #endif //SHARP_THREAD_H

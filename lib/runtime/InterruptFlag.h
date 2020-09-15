@@ -83,6 +83,8 @@ enum interruptFlag
  OP_FIBER_BOUND_COUNT     = 0x4a,
        OP_FIBER_STATE     = 0x4b,
      OP_FIBER_CURRENT     = 0x4c,
+            OP_EXPORT     = 0x4d,
+            OP_IMPORT     = 0x4e,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

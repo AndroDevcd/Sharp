@@ -62,7 +62,7 @@ def args_task() {
 
    job := task.builder()
     .with_args({ message })
-	.block() = { args : object[] ->
+	.block() = { args ->
 	   message := args[1] as string; // we must use args[1] because args[0] is a reference to the current running job
        println(message);
    };

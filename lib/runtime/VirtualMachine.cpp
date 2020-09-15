@@ -25,6 +25,7 @@
 #include "../Modules/std.io/memory.h"
 #include "snb/snb.h"
 #include "scheduler.h"
+#include "../Modules/std/serialization.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -71,6 +72,8 @@ int CreateVirtualMachine(string &exe)
     vm.InvalidOperationExcept = vm.resolveClass("std#invalid_operation_exception");
     vm.UnsatisfiedLinkExcept = vm.resolveClass("std#unsatisfied_link_error");
     vm.IllStateExcept = vm.resolveClass("std#illegal_state_exception");
+    vm.IncompatibleClassExcept = vm.resolveClass("std#incompatible_class_exception");
+    vm.ObjectImportError = vm.resolveClass("std#object_import_error");
     vm.StringClass = vm.resolveClass("std#string");
     vm.StackSate = vm.resolveClass("platform.kernel#stack_state");
     vm.ThreadClass = vm.resolveClass("std.io#thread");
@@ -976,6 +979,16 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_NOTIFY_FOR: {
             Object *obj = &(thread_self->this_fiber->sp--)->object;
             obj->notify((uInt)registers[EBX]);
+            return;
+        }
+        case OP_EXPORT: {
+            native_string str(export_obj((thread_self->this_fiber->sp--)->object.object));
+            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
+            str.free();
+            return;
+        }
+        case OP_IMPORT: {
+            import_obj((thread_self->this_fiber->sp--)->object.object);
             return;
         }
         default: {
