@@ -1,5 +1,7 @@
 mod std.io;
 
+import std.io.fiber;
+
 class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
     private filters : list<filter<t> >;
@@ -147,6 +149,23 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        }
 
        return null;
+    }
+
+    def next() : var {
+       for(;;) {
+          if(state == channel_state.CLOSED)
+             return -1;
+
+          for(i := 0; i < filters.size(); i++) {
+             if(filters[i].avail_data()) {
+                return i;
+             }
+          }
+
+          delay(2);
+       }
+
+       return 0;
     }
 
     def get_elements() : t[] {

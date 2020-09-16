@@ -1432,12 +1432,12 @@ string ExeBuilder::codeToString(Method* fun) {
             }
             case Opcode::NEWCLASS:
             {
-                ss<<"new_class @" << GET_Da(opcodeData);
-                if(GET_Da(opcodeData) >= 0 && GET_Da(opcodeData) < allClasses.size()) {
+                ss<<"new_class @" << code.ir32.get(x+1);
+                if(code.ir32.get(x+1) >= 0 && code.ir32.get(x+1) < allClasses.size()) {
                     ss << " // ";
-                    ss << allClasses.get(GET_Da(opcodeData))->fullName;
-                } else ss << "out of bounds: " << GET_Da(opcodeData);
-
+                    ss << allClasses.get(code.ir32.get(x+1))->fullName;
+                } else ss << "out of bounds: " << code.ir32.get(x+1);
+                x++;
                 break;
             }
             case Opcode::MOVN:

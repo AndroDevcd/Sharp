@@ -1,6 +1,6 @@
-mod app;
+mod main.frontend.parser;
 
-import std;
+import main.frontend.tokenizer;
 
 /**
  * Created by BraxtonN on 6/14/2018.
@@ -36,7 +36,7 @@ class ast {
     }
 
     public def token_at(pos: var) : token {
-        return tokens.get(pos);
+        return tokens.at(pos);
     }
 
     public def token_size() : var {
@@ -71,7 +71,7 @@ class ast {
     }
 
     public def get_child(pos: var) : ast {
-        return children.get(pos);
+        return children.at(pos);
     }
 
     public def get_child(type: ast_type) : ast {
@@ -102,7 +102,7 @@ class ast {
         return encap;
     }
 
-    private def add_tabs(strbuf sb) {
+    private def add_tabs(sb: string_builder) {
         for(i := 0; i < recurs; i++)
             sb+='\t';
     }
@@ -130,7 +130,7 @@ class ast {
             add_tabs(sb);
 
             if(child != null)
-                child.toString(sb);
+                child.to_string(sb);
             else
                 sb += "null\n";
         }

@@ -84,6 +84,14 @@ class synced_list<t> : loopable<t> {
         }
     }
 
+    def pop_first() : t {
+        lock(self) {
+            item := data[0];
+            remove_at(0);
+            return item;
+        }
+    }
+
     def add_all(lst: list<t>) {
         lock(self) {
             data = copy(lst.data, 0, lst.n_elements) as t[];

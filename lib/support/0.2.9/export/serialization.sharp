@@ -1,5 +1,7 @@
 mod std.export;
 
+import std.io;
+
 def _export(obj: object) : _int8[] {
     result : _int8[];
     asm {
@@ -24,4 +26,19 @@ def _import(bytes: string) : object {
     }
 
     return result;
+}
+
+def _export(obj: object, filename: string) : file {
+    f := new file(filename);
+
+    if(!f.exists())
+       f.create();
+    f.write(_export(obj));
+    return f;
+}
+
+
+def _import_from(filename: string) : object {
+   f := new file(filename);
+   return _import(f.read());
 }

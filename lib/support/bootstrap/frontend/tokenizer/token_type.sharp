@@ -1,4 +1,4 @@
-mod app;
+mod main.frontend.tokenizer;
 
 //import std.io as io;
 
@@ -22,7 +22,7 @@ enum token_type
     minus,
     mult,
     div,               //
-    mod,               // %
+    _mod,               // %
     colon,              // :
     semicolon,
     dub_quote,           // "

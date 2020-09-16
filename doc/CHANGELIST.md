@@ -29,6 +29,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     # QoL Improvements
         * Further improved Garbage collector performance
+        * With the new concurrency support the language is now highly efficent & applies less load on the processor
         
     # New Additions
         * Multiple concurrency support features added to the lang

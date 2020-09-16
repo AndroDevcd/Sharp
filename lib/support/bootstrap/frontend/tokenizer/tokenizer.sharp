@@ -1,0 +1,607 @@
+mod main.frontend.tokenizer;
+
+import std;
+import main.frontend;
+import main;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+class tokenizer {
+
+    private tokens: list<token>;
+    private errors: error_manager;
+    private lines: list<string>;
+    private text: string;
+    private data: _int8[];
+    private cursor: var, start;
+    private current: var;
+    private line: var;
+    private is_end: var;
+    private col: var;
+    private file: string;
+
+    private tokenizer(){ /* Dont call */ }
+
+    public tokenizer(text: string, file: string)
+    {
+        line = 1;
+        self->file = file;
+        lines = new list<string>();
+
+        if(!text.empty()) {
+            self->text = text;
+            self->data = text.get_data();
+        }
+        else {
+            line = 0;
+        }
+
+        tokens = new list<token>();
+        parse();
+    }
+
+    def parse() {
+        if(text.empty())
+            return;
+
+        add_lines();
+        errors = new error_manager(lines, file, false, options.aggressive_errors);
+        current = text.at(0);
+
+        while(!is_end) {
+            start = cursor;
+            
+            when {
+              current == '_',
+              current >= 'A' && current <= 'Z',
+              current >= 'a' && current <= 'z' -> {
+                parse_identifier();
+              }
+
+              current == '(' -> add_token(token_type.left_paren);
+              current == ')' -> add_token(token_type.right_paren);
+              current == '{' -> add_token(token_type.left_curly);
+              current == '}' -> add_token(token_type.right_curly);
+              current == '[' -> add_token(token_type.left_brace);
+              current == ']' -> add_token(token_type.right_brace);
+              current == ',' -> add_token(token_type.comma);
+              current == '.' -> add_token(token_type.dot);
+              current == ';' -> add_token(token_type.semicolon);
+              current == '#' -> add_token(token_type.hash);
+              current == '?' -> add_token(token_type.quesmk);
+              current == '$' -> add_token(token_type.dollar);
+              current == '!' -> add_token(match('=') ? token_type.noteq : token_type.not);
+              current == '=' -> add_token(match('=') ? token_type.eqeq : token_type.equals);
+              current == ':' -> add_token(match('=') ? token_type.infer : token_type.colon);
+              current == '<' -> {
+                if(match('<'))
+                    add_token(token_type.shl);
+                else
+                    add_token(match('=') ? token_type.lte : token_type.lessthan);
+              }
+              
+              current == '>' -> {
+                if(match('>'))
+                    add_token(token_type.shr);
+                else
+                    add_token(match('=') ? token_type.gte : token_type.greaterthan);
+              }
+
+              current == '&' -> {
+                if(match('='))
+                    add_token(token_type.andeq);
+                else
+                    add_token(match('&') ? token_type.andand : token_type.and);
+              }
+              
+              current == '|' -> {
+                if(match('='))
+                    add_token(token_type.oreq);
+                else
+                    add_token(match('|') ? token_type.oror : token_type.or);
+              }
+              
+              current == '^' -> add_token(match('=') ? token_type.xoreq : token_type.xor);
+              current == '%' -> add_token(match('=') ? token_type.modeq : token_type._mod);
+              current == '+' -> {
+                if(match('='))
+                    add_token(token_type.pluseq);
+                else
+                    add_token(match('+') ? token_type.inc : token_type.plus);
+              }
+              
+              current == '-' -> {
+                if(match('='))
+                    add_token(token_type.minuseq);
+                else if(match('>'))
+                    add_token(token_type.ptr);
+                else
+                    add_token(match('-') ? token_type.dec : token_type.minus);
+              }
+              
+              current == '*' -> add_token(peek(1)=='=' ? token_type.multeq : token_type.mult);
+              current == ' ',
+              current == '\t',
+              current == '\r' -> {
+                // Ignore whitespace.
+              }
+              
+              current == '/' -> {
+                if (match('/')) {
+                  // A comment goes until the end of the line.
+                  while (!char.is_newline(peek(1)) && !is_end) advance();
+                } else if(match('*')) {
+                  // A multiline comment goes until the [*/].
+                  while(!is_end && !(current == '*' && peek(1) == '/'))
+                  {
+                      if(char.is_newline(current)){
+                          newline();
+                      }
+
+                      advance();
+                  }
+                  advance();
+                } else {
+                    if(match('='))
+                        add_token(token_type.diveq);
+                    else
+                        add_token(token_type.div);
+                }
+              }
+
+              current == '\n' -> {
+                newline();
+              }
+
+              current == '"' -> {
+                parse_string();
+              }
+
+              current == '\'' -> {
+                parse_char();
+              }
+
+              current >= '0' && current <= '9' -> {
+                    parse_number();
+              }
+
+              else -> {
+                errors.new_error(compiler_error.unexpected_symbol, line, col, " `" + new char(current) + "`");
+              }
+            }
+
+            advance();
+        }
+
+//        foreach(tok in tokens) {
+//            println(" token: " + tok.get_token()
+//                + " - " + tok.get_id() + " line " + tok.get_line()
+//                + " col " + tok.get_col());
+//        }
+        println("errors " + errors.get_raw_error_count());
+        println("tokens " + tokens.size());
+
+        end:
+        tokens.add(new token("eof", token_id.single, token_type.eof, 0, line));
+    }
+
+    private def add_token(id: token_id) {
+      tokens.add(new token(text.substring(start, cursor+1), id, col, line));
+    }
+
+    private def add_token(type: token_type) {
+      tokens.add(new token(text.substring(start, cursor+1), token_id.single, type, col, line));
+    }
+
+    private def match(c: var) : var {
+        if(peek(1)==c) {
+            advance();
+            return true;
+        }
+
+        return false;
+    }
+
+    private def parse_char() {
+        if (tokens_left() < 2)
+        {
+            errors.new_error(compiler_error.expected_char_literal_eof, line, col);
+            advance();
+            return;
+        }
+        advance();
+
+        start = cursor;
+        escaped_found := false;
+        escaped       := false;
+        has_character := false;
+
+        while (!is_end)
+        {
+            if (!escaped && ('\\' == current))
+            {
+                if(has_character)
+                {
+                    errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", a character literal cannot contain more than a single character; expected `'`");
+                    return;
+                }
+
+                escaped_found = true;
+                escaped = true;
+                advance();
+                continue;
+            }
+            else if (!escaped)
+            {
+                if ('\'' == current)
+                    break;
+
+                if(has_character)
+                {
+                    errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", a character literal cannot contain more than a single character; expected `'`");
+                    return;
+                }
+
+                has_character = true;
+            }
+            else if (escaped)
+            {
+                has_character = true;
+                if(current != '0' && current != 'a' && !char.is_alpha(current)
+                    && current != '\\' && current != '\"' && current != '\'')
+                {
+                    errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
+                    return;
+                }
+                escaped = false;
+            }
+            advance();
+        }
+
+        if (is_end)
+        {
+            errors.new_error(compiler_error.unexpected_eof, line, col);
+            return;
+        }
+
+        if (!escaped_found)
+        {
+            cursor--;
+            if(!has_character) {
+                errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", character literals cannot be empty");
+            } else
+                add_token(token_id.char_literal);
+            cursor++;
+        }
+        else
+        {
+            tokens.add(new token(get_escaped_string(text.substring(start, cursor-1)), token_id.char_literal, col, line));
+        }
+
+    }
+
+    private def parse_identifier() {
+        hasletter := false;
+
+        while(!is_end)
+        {
+            when {
+                current ==  '_',
+                current >= 'a' && current <= 'z',
+                current >= 'A' && current <= 'Z' -> {
+                    hasletter = true;
+                }
+
+                else -> {
+                    if(!(current >= '0' && current <= '9'))
+                       goto save;
+                }
+            }
+
+            advance();
+        }
+
+        save:
+        cursor--;
+        if(!hasletter)
+            errors.new_error(compiler_error.generic, line, col, " expected at least 1 letter in identifier");
+        else
+            add_token(token_id.identifier);
+    }
+
+    private def parse_number() {
+        if(current == '0' && peek(1) == 'x') {
+            underscore_allowed := false;
+
+            col += 2; cursor += 2;
+            while(!is_end && (is_hex_num(current) || current == '_')) {
+                if(is_hex_num(current))
+                    underscore_allowed = true;
+                else {
+                    if(!underscore_allowed) {
+                        errors.new_error(compiler_error.illegal_number_format, line, col, ", unexpected or illegally placed underscore");
+                        break;
+                    }
+
+                    advance();
+                    continue;
+                }
+
+                advance();
+            }
+
+            cursor--;
+            add_token(token_id.hex_literal);
+            return;
+        } else {
+            /*
+               Attempt to match a valid numeric value in one of the following formats:
+               1. 123456
+               2. 123.456
+               3. 1_23.456e3
+               4. 123.456E3
+               5. 123.456e+3
+               6. 123.456E+3
+               7. 123.456e-3
+               8. 123.456E-3
+               9. 12345e5
+            */
+            dot_found          := false;
+            e_found            := false;
+            post_eSign_found   := false;
+            underscore_allowed := false;
+
+            while(!is_end)
+            {
+               if('_' == current) {
+                   if(!underscore_allowed || data[cursor-1] == '.')
+                   {
+                       errors.new_error(compiler_error.illegal_number_format, line, col, ", unexpected or illegally placed underscore");
+                       return;
+                   }
+                   advance();
+               }
+               else if ('.' == current)
+               {
+                   if (dot_found)
+                   {
+                       errors.new_error(compiler_error.illegal_number_format, line, col, ", double decimal");
+                       return;
+                   }
+                   dot_found = true;
+                   advance();
+                   continue;
+               }
+               else if ('e' == char.to_lower(current))
+               {
+                   underscore_allowed = false;
+                   c := peek(1);
+                   if (peek_end(1))
+                   {
+                       errors.new_error(compiler_error.illegal_number_format, line, col, ", missing exponent prefix");
+                       return;
+                   }
+                   else if (
+                           ('+' != c) &&
+                           ('-' != c) &&
+                           !char.is_digit(c)
+                           )
+                   {
+                       errors.new_error(compiler_error.illegal_number_format, line, col, ", expected `+`, `-`, or digit");
+                       return;
+                   }
+                   e_found = true;
+                   advance();
+                   continue;
+               }
+               else if (e_found && is_sign(current))
+               {
+                   if (post_eSign_found)
+                   {
+                       errors.new_error(compiler_error.illegal_number_format, line, col, ", duplicate exponent sign postfix");
+                       return;
+                   }
+                   post_eSign_found = true;
+                   advance();
+                   continue;
+               }
+               else if (('.' != current) && !char.is_digit(current))
+                   break;
+               else
+               {
+                   if(char.is_digit(current) && !e_found)
+                       underscore_allowed = true;
+                   advance();
+               }
+            }
+
+            cursor--;
+            add_token(token_id.integer_literal);
+        }
+    }
+
+    private def parse_string() {
+        if (tokens_left() < 2)
+        {
+            errors.new_error(compiler_error.expected_string_literal_eof, line, col);
+            advance();
+            return;
+        }
+        advance();
+        if(current == '\"') {
+            tokens.add(new token("", token_id.string_literal, col, line));
+            return;
+        }
+
+        start = cursor;
+        escaped_found := false;
+        escaped := false;
+
+        while (!is_end)
+        {
+            if(char.is_newline(current))
+            {
+                errors.new_error(compiler_error.illegal_string_format, line, col, ", expected `\"` before end of line");
+                newline();
+                return;
+            }
+            else if (!escaped && ('\\' == current))
+            {
+                escaped_found = true;
+                escaped = true;
+                advance();
+                continue;
+            }
+            else if (!escaped)
+            {
+                if ('"' == current)
+                    break;
+            }
+            else if (escaped)
+            {
+                if(!char.is_alpha(current) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
+                {
+                    errors.new_error(compiler_error.illegal_string_format, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
+                    return;
+                }
+
+                escaped = false;
+            }
+
+            advance();
+        }
+
+        if (is_end)
+        {
+            errors.new_error(compiler_error.unexpected_eof, line, col);
+            return;
+        }
+
+        cursor--;
+        if (!escaped_found)
+            add_token(token_id.string_literal);
+        else
+            tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.string_literal, col, line));
+        cursor++;
+    }
+
+    def isWhitespace(c: var) : var {
+        return ((' '  == c) || ('\n' == c) ||
+                ('\r' == c) || ('\t' == c) ||
+                ('\b' == c) || ('\v' == c) ||
+                ('\f' == c));
+    }
+
+    def get_escaped_string(msg: string) : string {
+        str := msg.get_data();
+        tmp := new _int8[sizeof(str)];
+        size := 0;
+
+        for(i := 0; i < sizeof(str); i++)
+        {
+            if(str[i] == '\\')
+            {
+                when (str[i+1]) {
+                    'n' -> tmp[size++] = '\n';
+                    't' -> tmp[size++] = '\t';
+                    'b' -> tmp[size++] = '\b';
+                    'v' -> tmp[size++] = '\v';
+                    'r' -> tmp[size++] = '\r';
+                    'f' -> tmp[size++] = '\f';
+                    '0' -> tmp[size++] = '\0';
+                    'a' -> tmp[size++] = '\a';
+                    else -> tmp[size++] = str[i+1];
+                }
+
+                i++;
+            }
+            else
+                tmp[size++] = str[i];
+        }
+        return new string(tmp, 0, size);
+    }
+
+    def is_sign(c : var) : var {
+        return (('+'  == c) || ('-' == c));
+    }
+
+    def newline() {
+        col = 0;
+        line++;
+    }
+
+    def advance() {
+        col++;
+        cursor++;
+        if(cursor < sizeof(data))
+            current = data[cursor];
+        else is_end = true;
+    }
+
+    def peek_end(chars: var) : var {
+        return (cursor+chars) >= sizeof(data);
+    }
+
+    def tokens_left() : var {
+        return sizeof(data) - cursor;
+    }
+
+    def peek(chars: var) : var {
+        return ((cursor+chars) >= sizeof(data) || (cursor+chars) < 0)
+            ? data[sizeof(data)-1] : data[cursor+chars];
+    }
+
+    public def get_errors() : error_manager {
+        return errors;
+    }
+
+    public def get_data() : string {
+        return text;
+    }
+
+    public def get_lines() : list<string> {
+        return lines;
+    }
+
+    public def get_file() : string {
+        return file;
+    }
+
+    public def at(pos: var) : token {
+        return tokens.at(pos);
+    }
+
+    public def last() : token {
+        return tokens.last(); // EOF returned
+    }
+
+    public def get_tokens() : token[] {
+        return tokens.get_elements();
+    }
+
+    public def size() : var {
+        return tokens.size();
+    }
+
+    def add_lines() {
+        raw := text.get_data();
+
+        start = 0;
+        for(i := 0; i < sizeof(raw); i++) {
+            if(raw[i] == '\n') {
+                lines.add(text.substring(start, i==0 || start==i ? i : i-1));
+                start = i+1;
+            }
+        }
+
+        if(start==0)
+            lines.add(new string(raw));
+    }
+
+    private static def is_hex_num(c: var) : var {
+        return (char.is_digit(c) || ((c >= 65) && (c <= 72)) ||
+                       ((c >= 97) && (c <= 104)));
+    }
+}

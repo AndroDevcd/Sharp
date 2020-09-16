@@ -1,0 +1,110 @@
+mod main.frontend.tokenizer;
+
+import std;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+class token {
+
+    private line: var;
+    private col: var;
+    private id: token_id;
+    private type: token_type;
+    private tok : string = "";
+
+    public token() {
+        type = token_type.none;
+        id = token_id.noentity;
+    }
+
+    public token(tok: string, id: token_id, type: token_type, col: var, line: var) {
+        self->tok = tok;
+        self->type = type;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
+
+    public token(tok: string, id: token_id, col: var, line: var) {
+        self->tok = tok;
+        self->type = token_type.none;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
+    public def operator!=(id: token_id) : var {
+        return self->id != id;
+    }
+
+    public def operator!=(type: token_type) : var {
+        return self->type != type;
+    }
+
+    public def operator==(tok: string) : var {
+        return self->tok == tok;
+    }
+
+    public def operator!=(tok: string) : var {
+        return self->tok != tok;
+    }
+
+    public def operator==(entity: token) : var {
+        return id==entity.id && tok == entity.tok;
+    }
+
+    public def operator==(id: token_id) : var {
+        return self->id == id;
+    }
+
+    public def operator==(type: token_type) : var {
+        return self->type == type;
+    }
+
+    public def get_id() : token_id {
+        return id;
+    }
+
+    public def get_token() : string {
+        return tok;
+    }
+
+    public def get_col() : var {
+        return self->col;
+    }
+
+    public def get_line() : var {
+        return self->line;
+    }
+
+    public def get_type() : token_type {
+        return self->type;
+    }
+
+    public def to_string() : string {
+        return tok + ": " + line + "," + col;
+    }
+}
+
+enum token_id
+{
+    identifier,
+    native_type,
+    type_identifier,
+    integer_literal,
+    hex_literal,
+    modulename,
+    string_literal,
+    char_literal,
+    literal,
+    value,
+    accesstype,
+    singleline_comment,
+    return_statement,
+
+    single, // single token
+    noentity // not an entity
+};

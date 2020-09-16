@@ -20,11 +20,8 @@ def main(args: string[]) {
    println(n.num);
    println(n.obj);
    println(n._a.num);
-   group := new export_group("main_group");
-   group.write_object(n);
-   group.export_to("class.txt");
-   group.import_from("class.txt");
-   n = group.read_object() as a;
+   _export(n, "class.txt");
+   n = _import_from("class.txt") as a;
    println(n.num);
    println(n.obj);
    println(n._a.num);

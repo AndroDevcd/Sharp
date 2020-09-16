@@ -856,7 +856,8 @@ void Thread::exec() {
     try {
         for (;;) {
             top:
-                if(this_fiber->current->address == 2133 && (PC(this_fiber) >= 71)) { // tutoriall!!!!!!!!!!!!!!!!!!
+                if(this_fiber->current->address == 2097 && (PC(this_fiber) >= 8)) { // tutoriall!!!!!!!!!!!!!!!!!!
+//                    if(this_fiber->sp->object.object) this_fiber->sp->object.object->print();
                     Int i = 0;
                 }
                 DISPATCH();
@@ -1090,6 +1091,7 @@ void Thread::exec() {
                 gc.releaseObject(this_fiber->ptr);
                 _brh
             CALL:
+            HAS_SIGNAL
 #ifdef SHARP_PROF_
             tprof->hit(vm.methods+GET_Da(*this_fiber->pc));
 #endif
@@ -1103,6 +1105,7 @@ void Thread::exec() {
                 context_switch_check(false)
                 _brh_NOINCREMENT
             CALLD:
+            HAS_SIGNAL
 #ifdef SHARP_PROF_
             tprof->hit(vm.methods+GET_Da(*this_fiber->pc));
 #endif
@@ -1338,6 +1341,7 @@ void Thread::exec() {
                 registers[GET_Da(*this_fiber->pc)] = tmpPtr->object == (this_fiber->sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
+                HAS_SIGNAL
                 invokeDelegate(GET_Da(*this_fiber->pc), GET_Cb(*(this_fiber->pc+1)), this, GET_Ca(*(this_fiber->pc+1)) == 1);
 
                 context_switch_check(false)

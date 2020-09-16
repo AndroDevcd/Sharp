@@ -1,7 +1,9 @@
-mod app;
+mod main.frontend.parser;
 
-import std;
+import main;
 import std.io;
+import main.frontend.tokenizer;
+import main.frontend;
 
 /**
  * Created by BraxtonN on 10/5/2019.
@@ -16,21 +18,21 @@ class Parser {
     private lines: list<string>;
     private current: token;
     private tokens: token[];
-    private tokenizer: tokenizer;
+    private toks: tokenizer;
     private access_types: list<token>;
-    private error_manager errors;
+    private errors: error_manager;
 
-    public Parser(tokenizer: tokenizer)
+    public Parser(toks: tokenizer)
         {
-            self->tokenizer=tokenizer;
+            self->toks=toks;
 
-            if(tokenizer != null && tokenizer.get_errors() != null
-                && !tokenizer.get_errors().has_errors())
+            if(toks != null && toks.get_errors() != null
+                && !toks.get_errors().has_errors())
             {
                 access_types = new list<token>();
                 tree = new list<ast>();
-                lines = tokenizer.get_lines();
-                tokens = tokenizer.get_tokens();
+                lines = toks.get_lines();
+                tokens = toks.get_tokens();
 
                 parse();
 
@@ -42,14 +44,14 @@ class Parser {
                         sb += "null\n";
                 }
 
-                file out = new file("tree.txt");
-                file.write(sb.to_string());
+                out := new file("tree.txt");
+                out.write(sb.to_string());
          }
     }
 
 
     private def parse() {
-        source_file = tokenizer.get_file();
+        source_file = toks.get_file();
         errors = new error_manager(lines, source_file, true, options.aggressive_errors);
         current = tokens[cursor++];
 

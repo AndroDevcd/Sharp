@@ -805,6 +805,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                             gc.createStringArray(vm.resolveField("data", arry->object->node[i].object), files.get(i));
                             files.get(i).free();
                         }
+                    } else {
+                        *arry = (SharpObject*)NULL;
                     }
 
                     files.free();

@@ -82,7 +82,7 @@
 #define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+stackSize) >= self->this_fiber->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL goto top; DISPATCH();
+#define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();
 #else
 #define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; DISPATCH();
 #endif

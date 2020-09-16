@@ -6153,7 +6153,7 @@ void Compiler::resolveClassMethod(Ast* ast) {
     ClassObject *resolvedClass = getExtensionFunctionClass(ast);
 
     if(resolvedClass == NULL) {
-        // our method is most likely a normal global function
+        // our method is most likely a normal class function
         resolveMethod(ast);
     } else { // looks like we have an extension function!!
         if(resolvedClass->flags.find(STABLE))
@@ -6162,8 +6162,9 @@ void Compiler::resolveClassMethod(Ast* ast) {
         // god classes must update all its generic classes created under it
         if(IS_CLASS_GENERIC(resolvedClass->getClassType()) && resolvedClass->getGenericOwner() == NULL) {
             resolvedClass->getExtensionFunctionTree().add(ast);
-        } else // its can be a generic class that was already created or a reg. class
+        } else {
             resolveMethod(ast, resolvedClass);
+        }
     }
 }
 

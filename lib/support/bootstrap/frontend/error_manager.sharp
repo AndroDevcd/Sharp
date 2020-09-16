@@ -1,6 +1,8 @@
-mod app;
+mod main.frontend;
 
-import std;
+import std.io.fiber;
+import main.frontend.tokenizer;
+import main.frontend.parser;
 
 /**
  * Created by BraxtonN on 6/8/2018.
@@ -17,7 +19,7 @@ class error_manager {
     private filename: string;
 
     private error_manager() {
-        init();
+        init_class();
     }
 
     public error_manager(lines: list<string>, file: string, as_is: var, aggressive: var)
@@ -37,29 +39,31 @@ class error_manager {
     }
 
     public def print_errors() {
+        fiber._lock();
         if(!direct_report) {
             err_str: string;
             if(errors_found) {
                 if(aggressive_errors) {
-                    err_str = getErrors(raw_errors);
+                    err_str = get_errors(raw_errors);
                     if(!err_str.empty()) println(err_str);
                 }
                 else {
-                    err_str = getErrors(errors);
+                    err_str = get_errors(errors);
                     if(!err_str.empty()) println(err_str);
                 }
             }
 
-            err_str = getErrors(warnings);
+            err_str = get_errors(warnings);
             if(!err_str.empty()) println(err_str);
         }
+        fiber.unlock();
     }
 
 
-    def getErrors(errors: list<parse_error>) : string {
+    def get_errors(errors: list<parse_error>) : string {
         sb := new string_builder();
 
-        foreach(err : errors) {
+        foreach(err in errors) {
             if(err.warning) {
                 sb += filename + ":" + err.line + ":" + err.col + ": warning S60" +
                     (err.id as var) + ":  " + err.error + "\n";
@@ -79,13 +83,13 @@ class error_manager {
     }
 
     def print_error(error: parse_error) {
-
+        fiber._lock();
         if(error.warning) {
             print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
-                (err.id as var) + ":  " + error.error + "\n");
+                (error.id as var) + ":  " + error.error + "\n");
         } else {
             print(filename + ":" + error.line + ":" + error.col + ": error S60" +
-                (err.id as var) + ":  " + error.error + "\n");
+                (error.id as var) + ":  " + error.error + "\n");
         }
 
         print("\t" + get_line(error.line) + "\n\t");
@@ -93,13 +97,14 @@ class error_manager {
         for(i := 0; i < error.col-1; i++)
             print(" ");
         print("^\n");
+        fiber.unlock();
     }
 
     def get_line(line: var) : string {
         if((line-1) >= lines.size())
             return "End of File";
         else
-            return lines.get(line-1);
+            return lines.at(line-1);
     }
 
     public def get_error_count() : var {
@@ -154,9 +159,9 @@ class error_manager {
         }
     }
 
-    public def create_new_error(err: compiler_error, token: token, msg: string) {
-        predefined_message := predefined_errors.get(err);
-        new_err := new parse_error(false, err, predefined_message, token, msg);
+    public def new_error(err: compiler_error, tok: token, msg: string) {
+        predefined_message := predefined_errors.at(err);
+        new_err := new parse_error(false, err, predefined_message, tok, msg);
         last_error := protected_mode ? last_checked_error : self->last_error;
 
         if(protected_mode) {
@@ -165,7 +170,7 @@ class error_manager {
             return;
         } else if(direct_report)
             print_error(new_err);
-        else if(aggressive_errors || should_report(token, last_error, new_err)) {
+        else if(aggressive_errors || should_report(tok, last_error, new_err)) {
             errors_found = true;
             errors.add(new_err);
             raw_errors.add(new_err);
@@ -175,8 +180,8 @@ class error_manager {
         }
     }
 
-    public def create_new_error(err: compiler_error, line: var, col: var, msg: string) {
-        string predefined_message = predefined_errors.get(err);
+    public def new_error(err: compiler_error, line: var, col: var, msg: string) {
+        predefined_message := predefined_errors.at(err);
         new_err: parse_error = new parse_error(false, err, predefined_message, line, col, msg);
         last_error: parse_error = protected_mode ? last_checked_error : self->last_error;
 
@@ -196,12 +201,12 @@ class error_manager {
         }
     }
 
-    public def create_new_error(err: compiler_error, line: var, col: var) {
-        create_new_error(err, line, col, "");
+    public def new_error(err: compiler_error, line: var, col: var) {
+        new_error(err, line, col, "");
     }
 
-    public def create_new_warning(err: compiler_error, line: var, col: var, msg: string) {
-        string predefined_message = predefined_errors.get(err);
+    public def new_warning(err: compiler_error, line: var, col: var, msg: string) {
+        predefined_message := predefined_errors.at(err);
         new_err: parse_error = new parse_error(false, err, predefined_message, line, col, msg);
         last_error: parse_error;
         if(warnings.size() > 0)
@@ -217,32 +222,36 @@ class error_manager {
         }
     }
 
-    def should_report(token: token, last_err: parse_error, new_err: parse_error) : var
+    def should_report(tok: token, last_err: parse_error, new_err: parse_error) : var
     {
         if(last_err.error != new_err.error && !(last_err.line == new_err.line && last_err.col == new_err.col)
             && !last_err.error.find(new_err.error) && !has_error(errors, new_err))
         {
-            if(token != null && !(token == token_id.single || token == token_id.char_literal
-                || token == token_id.string_literal || token == token_id.integer_literal)) {
-                return !last_err.error.find(token.get_token());
+            if(tok != null && !(tok == token_id.single || tok == token_id.char_literal
+                || tok == token_id.string_literal || tok == token_id.integer_literal)) {
+                return !last_err.error.find(tok.get_token());
             }
 
             return true;
         }
+
+        return false;
     }
 
-    def should_report_warning(token: token, last_err: parse_error, new_err: parse_error) : var
+    def should_report_warning(tok: token, last_err: parse_error, new_err: parse_error) : var
     {
         if(last_err.error != new_err.error && !(last_err.line == new_err.line && last_err.col == new_err.col)
             && !last_err.error.find(new_err.error))
         {
-            if(token != null && !(token == token_id.single || token == token_id.char_literal
-                || token == token_id.string_literal || token == token_id.integer_literal)) {
-                return !last_err.error.find(token.get_token());
+            if(tok != null && !(tok == token_id.single || tok == token_id.char_literal
+                || tok == token_id.string_literal || tok == token_id.integer_literal)) {
+                return !last_err.error.find(tok.get_token());
             }
 
             return true;
         }
+
+        return false;
     }
 
     def has_error(errs: list<parse_error>, err: parse_error) : var {
@@ -255,8 +264,8 @@ class error_manager {
     }
 
 
-    public def create_new_error(err: compiler_error, ast: ast, msg: string) {
-        predefined_message := predefined_errors.get(err);
+    public def new_error(err: compiler_error, ast: ast, msg: string) {
+        predefined_message := predefined_errors.at(err);
         new_err: parse_error = new parse_error(false, err, predefined_message, ast.line, ast.col, msg);
         last_error: parse_error = protected_mode ? last_checked_error : self->last_error;
 
@@ -276,8 +285,8 @@ class error_manager {
         }
     }
 
-    public def create_new_warning(err: compiler_error, ast: ast, msg: string) {
-        predefined_message := predefined_errors.get(err);
+    public def new_warning(err: compiler_error, ast: ast, msg: string) {
+        predefined_message := predefined_errors.at(err);
         new_err: parse_error = new parse_error(false, err, predefined_message, ast.line, ast.col, msg);
         last_error: parse_error;
         if(warnings.size() > 0)
@@ -293,7 +302,7 @@ class error_manager {
         }
     }
 
-    public static def init() {
+    public static def init_class() {
         predefined_errors.put(compiler_error.unexpected_symbol, "unexpected symbol");
 
         predefined_errors.put(compiler_error.illegal_number_format, "illegal number format mismatch");
@@ -355,7 +364,7 @@ class parse_error {
    }
 
    public parse_error(err: compiler_error, msg: string, l: var, c: var,
-            string additional) {
+            additional: string) {
       id = err;
       if(additional != null && additional.size() != 0)
         error = msg + additional;
@@ -376,7 +385,7 @@ class parse_error {
       self->warning = warning;
    }
 
-   public parse_error(warning: var, err: var, msg: string, entity: token,
+   public parse_error(warning: var, err: compiler_error, msg: string, entity: token,
             additional: string) {
       id = err;
       if(additional != null && additional.size() != 0)
@@ -389,9 +398,9 @@ class parse_error {
 
    public id: compiler_error;
    public error : string = "";
-   public line: string;
-   public col: string;
-   public warning: string;
+   public line: var;
+   public col: var;
+   public warning: var;
 }
 
 enum compiler_error {

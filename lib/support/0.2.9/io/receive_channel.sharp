@@ -9,5 +9,7 @@ interface receive_channel<t> {
 
     def read_next(filter: var) : list<t>;
 
+    def next() : var;
+
     def avail_data(filter: var) : var;
 }

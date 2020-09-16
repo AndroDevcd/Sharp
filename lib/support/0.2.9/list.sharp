@@ -114,6 +114,12 @@ class list<t> : loopable<t> {
         return item;
     }
 
+    def pop_first() : t {
+        item := data[0];
+        remove_at(0);
+        return item;
+    }
+
     def size() := n_elements;
 
     def insert(index: var, element: t) {

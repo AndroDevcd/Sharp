@@ -69,92 +69,87 @@ class export_group {
    def read_var() : var {
       if(data.empty())
          empty_group();
-      return (data.pop_last() as double).get_value();
+      return (data.pop_first() as double).get_value();
    }
    
    def read_double() : double {
       if(data.empty())
          empty_group();
-      return data.pop_last() as double;
+      return data.pop_first() as double;
    }
    
    def read_long(val: long) : long {
       if(data.empty())
          empty_group();
-      return data.pop_last() as long;
+      return data.pop_first() as long;
    }
    
    def read_int() : int {
       if(data.empty())
          empty_group();
-      return data.pop_last() as int;
+      return data.pop_first() as int;
    }
    
    def read_short() : short {
       if(data.empty())
          empty_group();
-      return data.pop_last() as short;
+      return data.pop_first() as short;
    }
    
    def read_char() : char {
       if(data.empty())
          empty_group();
-      return data.pop_last() as char;
+      return data.pop_first() as char;
    }
    
    def read_byte() : byte {
       if(data.empty())
          empty_group();
-      return data.pop_last() as byte;
+      return data.pop_first() as byte;
    }
    
    def read_bool(val: bool) : bool {
       if(data.empty())
          empty_group();
-      return data.pop_last() as bool;
+      return data.pop_first() as bool;
    }
    
    def read_ulong() : ulong {
       if(data.empty())
          empty_group();
-      return data.pop_last() as ulong;
+      return data.pop_first() as ulong;
    }
    
    def read_uint(val: uint) : uint {
       if(data.empty())
          empty_group();
-      return data.pop_last() as uint;
+      return data.pop_first() as uint;
    }
    
    def read_ushort() : ushort {
       if(data.empty())
          empty_group();
-      return data.pop_last() as ushort;
+      return data.pop_first() as ushort;
    }
    
    def read_uchar() : uchar {
       if(data.empty())
          empty_group();
-      return data.pop_last() as uchar;
+      return data.pop_first() as uchar;
    }
    
    def read_object() : object {
       if(data.empty())
          empty_group();
-      return data.pop_last();
+      return data.pop_first();
    }
 
    def export() : _int8[] {
       return _export(self);
    }
    
-   def export_to(filename: string) : file {
-      f := new file(filename);
-      
-      if(!f.exists())
-         f.create();
-      f.write(export());
-      return f;
+   def export(filename: string) : file {
+      return _export(self, filename);
    }
    
    def import_(bytes: string) {
@@ -163,7 +158,7 @@ class export_group {
    }
    
    def import_from(filename: string) {
-      f := new file(filename);
-      import_(f.read());
+      result := _import_from(filename);
+      data = result.data;
    }
 }

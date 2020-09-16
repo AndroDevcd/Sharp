@@ -3,6 +3,7 @@ mod main;
 import std.io;
 import std.io.*;
 import platform;
+import main.frontend.*;
 
 private static program_name : string = "sharpc";
 private static program_vers : string = "0.3.0";
@@ -224,12 +225,8 @@ static def contains(files: list<string>, file: string) : var {
 static def exec_runtime(files: list<string>) {
 
     test_file := new file(files.at(0));
-
-    //IOStream istream = new IOStream(testFile, IOStream.READ);
-    //string tokens = istream.atData();
-
-    //  istream.close();
-    //Tokenizer tokenizer = new Tokenizer(tokens, files.at(0));
+    tokens := test_file.read();
+    tok := new tokenizer(tokens, files.at(0));
     //Parser parser = new Parser(tokenizer);
     //parser.atErrors().printErrors();
 }
