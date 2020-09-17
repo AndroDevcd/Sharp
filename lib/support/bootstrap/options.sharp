@@ -16,9 +16,34 @@ class options {
     static compile := false;
 
     /*
+     * Only compile all the files
+     */
+    static _obfuscate := false;
+
+    /*
      * Output file to write to
      */
     static out : string = "out";
+
+    /*
+     * Output file to write to
+     */
+    static new_project_dir : string = "";
+
+    /*
+     * Output file to write to
+     */
+    static project_dir : string = "";
+
+    /*
+     * Mapping file to write to
+     */
+    static map_file : string = "mapping.txt";
+
+    /*
+     * Directory to which c++ code will be generated
+     */
+    static native_code_dir : string = "generated";
 
     /*
      * Application version
@@ -31,9 +56,19 @@ class options {
     static warnings := true;
 
     /*
+     * Execute source code after successful compilation
+     */
+    static run_source := false;
+
+    /*
      * Optimize code
      */
     static optimize_level := optimization_level.none;
+
+    /*
+     * Set the compilation mode
+     */
+    static compile_mode := compilation_mode.file_mode;
 
     /*
      * Set code to be debuggable (flag only used in manifest creation)
@@ -77,6 +112,16 @@ class options {
      * List of user defined library paths
      */
     static libraries := new list<string>();
+
+    /*
+     * List of ignored directories (only used in project mode)
+     */
+    static ignored_directories := new list<string>();
+
+    /*
+     * List of ignored files
+     */
+    static ignored_files := new list<string>();
 }
 
 // WARNING SWITCHES
@@ -119,4 +164,20 @@ enum optimization_level {
     *
     */
     high_performance = 2
+};
+
+enum compilation_mode {
+    /*
+    * This mode specifies that you must explicitly pass in
+    * any files that you want compiled
+    */
+    file_mode,
+
+    /*
+    * This mode specifies that you want to run the compiler in project mode,
+    * signifying that you do not have to explicitly provide any files to be compiled.
+    * Any additional files and or directories added to the options will also be added
+    * to the compilation list as well.
+    */
+    project_mode
 };

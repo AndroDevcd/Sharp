@@ -37,4 +37,6 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly);
 
 long long disk_space(long request);
 
+void current_directory(native_string &path);
+
 #endif //SHARP_FILEIO_H

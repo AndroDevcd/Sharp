@@ -764,6 +764,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 throw Exception(vm.NullptrExcept, "");
             return;
         }
+        case OP_CURRENT_DIRECTORY: {
+            native_string path;
+            current_directory(path);
+            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, path);
+            return;
+        }
         case OP_FILE_ACCESS:
         case OP_FILE_ATTRS:
         case OP_FILE_UPDATE_TM:

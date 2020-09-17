@@ -7922,6 +7922,9 @@ void Compiler::compileForEachStatement(Ast *ast) {
 
     Expression arrayExpr;
     compileExpression(&arrayExpr, ast->getSubAst(ast_expression));
+    if(arrayExpr.utype == NULL || arrayExpr.utype->getType() == utype_unresolved)
+        return;
+
     if(!arrayExpr.utype->isArray()
         && !(arrayExpr.utype->getClass()
         && arrayExpr.utype->getClass()->getLoopableClass())) {
@@ -9559,6 +9562,10 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
         if((prevField = currentScope()->currentFunction->data.getLocalField(name)) != NULL) {
             createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
                              "local field `" + name + "` shadows another field at higher scope");
+        }
+
+        if(type == NULL || type->getResolvedType() == NULL) {
+            type = undefUtype;
         }
 
         Field *local = new Field(type == NULL ? UNTYPED : type->getResolvedType()->type, guid++, name, NULL, flags, meta, locality, checkstl(locality));

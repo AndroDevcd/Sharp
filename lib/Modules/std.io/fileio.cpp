@@ -19,6 +19,9 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <sys/statvfs.h>
+#define GetCurrentDir getcwd
+#else
+#define GetCurrentDir _getcwd
 #endif
 
 #ifdef WIN32
@@ -152,6 +155,12 @@ Int file_size(native_string &path)
 {
     int rc = stat(path.str().c_str(), &result);
     return rc == 0 ? result.st_size : -1;
+}
+
+void current_directory(native_string &path) {
+    char buff[FILENAME_MAX]; //create string buffer to hold path
+    GetCurrentDir( buff, FILENAME_MAX );
+    path.set(buff);
 }
 
 void create_file(native_string &path)

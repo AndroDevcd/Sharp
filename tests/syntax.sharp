@@ -6,17 +6,14 @@ import std.io.task;
 import platform;
 import platform.kernel;
 
-chan := new channel<var>(UNLIMITED);
-task_count := 64;
-
-class a {
+class a { ptr: 0x100 refid #0
     num : var;
     obj : var[];
     _a : a;
 }
 
 def main(args: string[]) {
-   n := new a { num = 10, _a = new a { num = 10 }, obj = {1, 2, 3} };
+   n := {1, 2, 3};
    println(n.num);
    println(n.obj);
    println(n._a.num);

@@ -38,10 +38,11 @@ string export_obj(SharpObject* obj) {
                 dataStream << vm.stringValue(obj) << (char) DATA_END;
             } else {
                 for (uInt i = 0; i < obj->size; i++) {
-                    dataStream << std::setprecision(16) << obj->HEAD[i] << (char) DATA_END;;
+                    dataStream << std::setprecision(16) << obj->HEAD[i] << (char) DATA_END;
                 }
             }
             dataStream << (char)EXPORT_END;
+            recursion--;
             return dataStream.str();
         } else if(IS_CLASS(obj->info)) {
             ClassObject &klass = vm.classes[CLASS(obj->info)];
@@ -49,17 +50,10 @@ string export_obj(SharpObject* obj) {
             uInt fieldAddress =  GENERATION(obj->info) == gc_perm ? klass.instanceFields : 0;
             uInt fieldSize = GENERATION(obj->info) == gc_perm ? klass.staticFields : klass.instanceFields;
 
-            dataStream << klass.fullName.str() << (char)DATA_END;;
+            dataStream << klass.fullName.str() << (char)DATA_END;
             dataStream << (char)EXPORT_DATA;
             dataStream << (GENERATION(obj->info) == gc_perm ? 1 : 0);
             dataStream << (obj->array ? 1 : 0);
-
-            if(fieldSize != obj->size) {
-                recursion=0;
-                streamInfo.free();
-                throw Exception(vm.IncompatibleClassExcept, "class: " + klass.name.str() + " size does not match field count");
-            }
-
 
             if(obj->array) {
                 for(uInt i = 0; i < obj->size; i++) {
@@ -70,6 +64,12 @@ string export_obj(SharpObject* obj) {
                         dataStream << (char)EXPORT_EMPTY;
                 }
             } else {
+                if(fieldSize != obj->size) {
+                    recursion=0;
+                    streamInfo.free();
+                    throw Exception(vm.IncompatibleClassExcept, "class: " + klass.name.str() + " size does not match field count");
+                }
+
                 for(Int i = 0; i < fieldSize; i++) {
                     Field &field = klass.fields[fieldAddress++];
 
@@ -92,6 +92,7 @@ string export_obj(SharpObject* obj) {
 
             dataStream << (char)EXPORT_END;
 
+            recursion--;
             return dataStream.str();
         } else {
             dataStream << (char)EXPORT_DATA;
@@ -242,7 +243,6 @@ SharpObject* load_obj(SharpObject* obj) {
                         string fieldName = readString(data);
 
                         Field* field = klass->getfield(fieldName);
-                        long p = pos;
                         if(field != NULL) {
                             if(field->type == fieldType) {
                                 Object *fieldObj = vm.resolveField(fieldName, object);
@@ -322,7 +322,6 @@ void import_obj(SharpObject* obj) {
         pos=-1; streamSize=obj->size;
         (++thread_self->this_fiber->sp)->object
            = load_obj(obj);
-        streamInfo.free();
     } else {
         throw Exception(vm.NullptrExcept, "");
     }

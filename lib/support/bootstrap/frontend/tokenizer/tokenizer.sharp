@@ -1,6 +1,5 @@
 mod main.frontend.tokenizer;
 
-import std;
 import main.frontend;
 import main;
 

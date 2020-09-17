@@ -85,6 +85,7 @@ enum interruptFlag
      OP_FIBER_CURRENT     = 0x4c,
             OP_EXPORT     = 0x4d,
             OP_IMPORT     = 0x4e,
+     OP_CURRENT_DIRECTORY = 0x4f,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

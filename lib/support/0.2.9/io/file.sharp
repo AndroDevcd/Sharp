@@ -387,6 +387,10 @@ public class file {
         return fs.get_space_available(file_system.space_usable);
     }
 
+    static def current_directory() : string {
+       return file_system.current_directory();
+    }
+
     /* -- Temporary files -- */
 
     // file name generation

@@ -48,6 +48,25 @@ protected class file_system {
         return "$path";
      }
 
+     static def current_directory() : string {
+        path : _int8[];
+
+        /*
+        * This will perform the os call to request the
+        * current working directory
+        */
+        asm {
+            int 0x4f
+            popl {path}
+        };
+
+        if(path == null) {
+            throw new io_exception("could not retrieve current directory");
+        }
+
+        return "$path";
+     }
+
 
     /* Constants for file attributes */
     static const file_exists       := 0x01;
