@@ -86,6 +86,12 @@ class options {
     static werrors := false;
 
     /*
+     * Enable green mode for less overall power consumption
+     * When compiling source code
+     */
+    static green_mode := false;
+
+    /*
      * Easter egg to enable magic mode
      */
     static magic := false;

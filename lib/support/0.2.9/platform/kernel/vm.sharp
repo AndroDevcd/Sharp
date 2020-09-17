@@ -319,7 +319,7 @@ class vm {
         return null;
     }
 
-    static def cores() : var {
+    static def hardware_concurrency() : var {
         result: var;
 
         asm {

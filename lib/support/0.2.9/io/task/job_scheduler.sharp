@@ -23,7 +23,7 @@ protected def start_scheduler() {
 }
 
 private def calculate_max_threads() {
-    n_cores := vm.cores();
+    n_cores := vm.hardware_concurrency();
     n_cores *= 2;
     n_cores -= 4;
 

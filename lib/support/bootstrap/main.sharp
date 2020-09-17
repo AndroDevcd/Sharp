@@ -4,6 +4,7 @@ import std.io;
 import std.io.*;
 import platform;
 import main.frontend.*;
+import platform.kernel;
 
 private static program_name : string = "sharpc";
 private static program_vers : string = "0.3.0";
@@ -129,6 +130,9 @@ def main(args: string[]) : var {
         }
         else if(arg == "-run"){
             options.run_source = true;
+        }
+        else if(arg == "-g" || arg == "-green"){
+            options.green_mode = true;
         }
         else if(arg == "--new-project"){
             if(i+1 >= sizeof(args))
@@ -366,9 +370,27 @@ def remove_ignored_files(files: list<string>) {
     }
 }
 
-static def exec_runtime(files: list<string>) {
+/**
+* We dont want to max out the CPU if green mode is set to true
+* So we cut the maximum available threads in half. While this will consume less power,
+* it will result in longer build times overall.
+*/
+def throttle_max_threads() {
+    threads = vm.hardware_concurrency() * 2;
+    threads -= 4;
+
+    if(threads > 3)
+       threads /= 2;
+    set_thread_max(threads);
+}
+
+def exec_runtime(files: list<string>) {
     if(files.size() == 0) {
        error("no files were found to be compiled, have you excluded your project directory by chance?");
+    }
+
+    if(options.green_mode) {
+        throttle_max_threads();
     }
 
     test_file := new file(files.at(0));
@@ -379,7 +401,7 @@ static def exec_runtime(files: list<string>) {
 }
 
 
-private static def create_project() {
+private def create_project() {
     dir := new file(options.new_project_dir);
 
     try{
@@ -493,6 +515,7 @@ private static def help() {
     println(              "    -L<path>          library directory path"                            );
     println(              "    -w                disable all warnings"                              );
     println(              "    -run              run compiled source after successful compilation"  );
+    println(              "    -g -green         run compiler in \"green\" mode to consume less power");
     println(              "    -ignoredir<dir>   include a directory to ignore (only works in project mode)");
     println(              "    -ignore<file>     include a file to ignore"                          );
     println(              "    -p                enable project mode compilation"                   );
