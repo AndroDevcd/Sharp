@@ -376,7 +376,7 @@ def remove_ignored_files(files: list<string>) {
 * it will result in longer build times overall.
 */
 def throttle_max_threads() {
-    threads = vm.hardware_concurrency() * 2;
+    threads := vm.hardware_concurrency() * 2;
     threads -= 4;
 
     if(threads > 3)
@@ -396,6 +396,7 @@ def exec_runtime(files: list<string>) {
     test_file := new file(files.at(0));
     tokens := test_file.read();
     tok := new tokenizer(tokens, files.at(0));
+    tok.get_errors().print_errors();
     //Parser parser = new Parser(tokenizer);
     //parser.atErrors().printErrors();
 }

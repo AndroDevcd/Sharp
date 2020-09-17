@@ -8,6 +8,7 @@ import main.frontend.parser;
  * Created by BraxtonN on 6/8/2018.
  */
 class error_manager {
+    private static has_setup : var;
     private static predefined_errors := new hashmap<compiler_error, string>();
     private static empty_error := new parse_error();
 
@@ -18,8 +19,11 @@ class error_manager {
     private lines: list<string>;
     private filename: string;
 
-    private error_manager() {
-        init_class();
+    init {
+       if(!has_setup) {
+          has_setup = true;
+          init_class();
+       }
     }
 
     public error_manager(lines: list<string>, file: string, as_is: var, aggressive: var)

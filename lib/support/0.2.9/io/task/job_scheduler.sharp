@@ -44,10 +44,10 @@ private def calculate_max_threads() {
      * we will revert back to the original single threaded mode
      * where each task submitted to the task scheduling api executes sequentially
      */
-    if(short_term_threads == 1 && vm.cores() <= 2)
+    if(short_term_threads == 1 && vm.hardware_concurrency() <= 2)
        MAX_HIGH_PRIORITY_FIBERS = 2; // 1 task only
 
-    if(long_term_threads == 1 && vm.cores() <= 2)
+    if(long_term_threads == 1 && vm.hardware_concurrency() <= 2)
        MAX_HIGH_PRIORITY_FIBERS = 2; // 1 task only
     max_threads = short_term_threads + long_term_threads;
 }
@@ -77,10 +77,10 @@ def set_thread_max(max: var) {
              * we will revert back to the original single threaded mode
              * where each task submitted to the task scheduling api executes sequentially
              */
-            if(short_term_threads == 1 && vm.cores() <= 2)
+            if(short_term_threads == 1 && vm.hardware_concurrency() <= 2)
                MAX_HIGH_PRIORITY_FIBERS = 2; // 1 task only
 
-            if(long_term_threads == 1 && vm.cores() <= 2)
+            if(long_term_threads == 1 && vm.hardware_concurrency() <= 2)
                MAX_HIGH_PRIORITY_FIBERS = 2; // 1 task only
             max_threads = max;
         } else {

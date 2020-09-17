@@ -21,6 +21,7 @@ enum token_type
     plus,
     minus,
     mult,
+    exponent,
     div,               //
     _mod,               // %
     colon,              // :
@@ -60,6 +61,7 @@ enum token_type
     inc,               // ++
     dec,               // --
     dollar,             // $
+    at,                // @
     eof = 9999,        // end of file
 
     none                // not a type

@@ -462,7 +462,7 @@ void tokenizer::parse()
                             tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
                             tokens.add(Token(string(1, '('), SINGLE, col, line, LEFTPAREN));
                             goto start;
-                        } else {
+                        } else if('$' != current){
                             saveString(message, escaped_found);
 
                             message.str("");

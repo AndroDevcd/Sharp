@@ -2530,9 +2530,12 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
     Ast* branch = getBranch(ast, ast_expression_list);
 
     expect(branch, beginChar);
+    if(peek(1)->getId() == STRING_LITERAL && peek(1)->getValue() == endChar)
+        goto compile;
 
     if(peek(1)->getValue() != endChar)
     {
+        compile:
         parseExpression(branch);
 
         _pValue:

@@ -19,6 +19,8 @@ class tokenizer {
     private line: var;
     private is_end: var;
     private col: var;
+    private dynamic_string: var;
+    private brackets: var;
     private file: string;
 
     private tokenizer(){ /* Dont call */ }
@@ -53,16 +55,49 @@ class tokenizer {
             start = cursor;
             
             when {
+              current == ' ',
+              current == '\t',
+              current == '\r' -> {
+                // Ignore whitespace.
+              }
+
+              current == '\n' -> {
+                newline();
+              }
+
               current == '_',
               current >= 'A' && current <= 'Z',
               current >= 'a' && current <= 'z' -> {
                 parse_identifier();
               }
 
+              current == '{' -> {
+                 if(dynamic_string)
+                    brackets++;
+                 add_token(token_type.left_curly);
+              }
+              current == '}' -> {
+                 if(dynamic_string) {
+                    if(--brackets == 0) {
+                       dynamic_string = false;
+                       if (peek(1) == '"') {
+                           advance();
+                           advance();
+                           tokens.add(new token(")", token_id.single, token_type.right_paren, col, line));
+                           continue;
+                       } else {
+                           tokens.add(new token(")", token_id.single, token_type.right_paren,
+                                     col, line));
+                           tokens.add(new token("+", token_id.single, token_type.plus, col, line));
+                           parse_string();
+                       }
+                    } else
+                       add_token(token_type.right_curly);
+                 } else
+                    add_token(token_type.right_curly);
+              }
               current == '(' -> add_token(token_type.left_paren);
               current == ')' -> add_token(token_type.right_paren);
-              current == '{' -> add_token(token_type.left_curly);
-              current == '}' -> add_token(token_type.right_curly);
               current == '[' -> add_token(token_type.left_brace);
               current == ']' -> add_token(token_type.right_brace);
               current == ',' -> add_token(token_type.comma);
@@ -71,6 +106,7 @@ class tokenizer {
               current == '#' -> add_token(token_type.hash);
               current == '?' -> add_token(token_type.quesmk);
               current == '$' -> add_token(token_type.dollar);
+              current == '@' -> add_token(token_type.at);
               current == '!' -> add_token(match('=') ? token_type.noteq : token_type.not);
               current == '=' -> add_token(match('=') ? token_type.eqeq : token_type.equals);
               current == ':' -> add_token(match('=') ? token_type.infer : token_type.colon);
@@ -120,11 +156,13 @@ class tokenizer {
                     add_token(match('-') ? token_type.dec : token_type.minus);
               }
               
-              current == '*' -> add_token(peek(1)=='=' ? token_type.multeq : token_type.mult);
-              current == ' ',
-              current == '\t',
-              current == '\r' -> {
-                // Ignore whitespace.
+              current == '*' -> {
+                if(match('='))
+                    add_token(token_type.multeq);
+                else if(match('*'))
+                    add_token(token_type.exponent);
+                else
+                    add_token(token_type.mult);
               }
               
               current == '/' -> {
@@ -150,12 +188,9 @@ class tokenizer {
                 }
               }
 
-              current == '\n' -> {
-                newline();
-              }
-
               current == '"' -> {
-                parse_string();
+                if(parse_string())
+                   continue;
               }
 
               current == '\'' -> {
@@ -291,6 +326,8 @@ class tokenizer {
                 current >= 'a' && current <= 'z',
                 current >= 'A' && current <= 'Z' -> {
                     hasletter = true;
+                    advance();
+                    continue;
                 }
 
                 else -> {
@@ -421,17 +458,17 @@ class tokenizer {
         }
     }
 
-    private def parse_string() {
+    private def parse_string() : var {
         if (tokens_left() < 2)
         {
             errors.new_error(compiler_error.expected_string_literal_eof, line, col);
             advance();
-            return;
+            return false;
         }
         advance();
         if(current == '\"') {
             tokens.add(new token("", token_id.string_literal, col, line));
-            return;
+            return false;
         }
 
         start = cursor;
@@ -444,7 +481,7 @@ class tokenizer {
             {
                 errors.new_error(compiler_error.illegal_string_format, line, col, ", expected `\"` before end of line");
                 newline();
-                return;
+                return false;
             }
             else if (!escaped && ('\\' == current))
             {
@@ -457,13 +494,62 @@ class tokenizer {
             {
                 if ('"' == current)
                     break;
+                if('$' == current) {
+                    if(start != cursor) {
+                       cursor--;
+                       if (!escaped_found)
+                           add_token(token_id.string_literal);
+                       else
+                           tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.string_literal, col, line));
+                       cursor++;
+                    } else if(peek(1) != '$') {
+                       tokens.add(new token("", token_id.string_literal, col, line));
+                    }
+
+                    advance();
+
+                    if('{' == current) {
+                        advance();
+                        // we gotta tokenize the rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
+                        dynamic_string = true;
+                        brackets = 1;
+
+                        tokens.add(new token("+", token_id.single, token_type.plus, col, line));
+                        tokens.add(new token("(", token_id.single, token_type.left_paren, col, line));
+                        return true;
+                    } else if('$' != current) {
+                        start=cursor;
+                        tokens.add(new token("+", token_id.single, token_type.plus, col, line));
+                        if(!is_end && (char.is_alpha_num(current) || current == '_')) {
+                            parse_identifier();
+                        }
+                        else
+                            errors.new_error(compiler_error.illegal_string_format, line, col, ", text preceding `$$` must be alpha numeric, or '_' only");
+
+                        advance();
+                        if('"' == current || is_end) {
+                            return false;
+                        } else {
+                            add_token(token_type.plus);
+                            continue;
+                        }
+                    } else {
+                        tokens.add(new token("$$", token_id.single, token_type.plus, col, line));
+                        advance();
+
+                        if('"' == current || is_end) {
+                            return false;
+                        } else
+                          start = cursor;
+                    }
+                }
             }
             else if (escaped)
             {
                 if(!char.is_alpha(current) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
                 {
                     errors.new_error(compiler_error.illegal_string_format, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
-                    return;
+                    return false;
                 }
 
                 escaped = false;
@@ -475,7 +561,7 @@ class tokenizer {
         if (is_end)
         {
             errors.new_error(compiler_error.unexpected_eof, line, col);
-            return;
+            return false;
         }
 
         cursor--;
@@ -484,6 +570,7 @@ class tokenizer {
         else
             tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.string_literal, col, line));
         cursor++;
+        return false;
     }
 
     def isWhitespace(c: var) : var {

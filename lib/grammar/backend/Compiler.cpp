@@ -3390,7 +3390,10 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
 
     RETAIN_TYPE_INFERENCE(true)
     RETAIN_SCOPE_INIT_CHECK(operand == "=" ? false : true)
-    compileExpressionAst(&leftExpr, ast->getSubAst(ast_primary_expr));
+    if(!ast->hasSubAst(ast_primary_expr))
+        compileExpression(&leftExpr, ast->getSubAst(0));
+    else
+        compileExpressionAst(&leftExpr, ast->getSubAst(ast_primary_expr));
     RESTORE_SCOPE_INIT_CHECK()
 
 
@@ -5234,7 +5237,6 @@ void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
             return compileInlineIfExpression(expr, branch);
     }
 
-    cout << branch->toString() << endl;
     return errors->createNewError(GENERIC, branch->getSubAst(0)->line, branch->getSubAst(0)->col,
                                   "unexpected malformed expression found");
 }
