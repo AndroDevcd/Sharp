@@ -546,13 +546,35 @@ class tokenizer {
             }
             else if (escaped)
             {
-                if(!char.is_alpha(current) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
+                if(!char.is_alpha(current) && ('\\' != current) && ('/' != current)  && ('\"' != current) && ('\'' != current))
                 {
-                    errors.new_error(compiler_error.illegal_string_format, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
+                    errors.new_error(compiler_error.illegal_string_format, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', '/', or '\"' only");
                     return false;
                 }
 
+                hex_processed := false;
                 escaped = false;
+                if(current == 'u') {
+                    advance();
+                    while(!is_end) {
+                        if(is_hex_num(current))
+                           hex_processed = true;
+                        else {
+                           if(current == '"') {
+                              tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.string_literal, col, line));
+                              return false;
+                           }
+                           break;
+                        }
+
+                        advance();
+                    }
+
+                    if(!hex_processed) {
+                       errors.new_error(compiler_error.illegal_string_format, line, col, ", expected hex value after '\\u'");
+                    }
+
+                }
             }
 
             advance();
@@ -568,7 +590,7 @@ class tokenizer {
         if (!escaped_found)
             add_token(token_id.string_literal);
         else
-            tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.string_literal, col, line));
+            tokens.add(new token(get_escaped_string(text.substring(start, cursor+1)), token_id.string_literal, col, line));
         cursor++;
         return false;
     }
@@ -582,7 +604,7 @@ class tokenizer {
 
     def get_escaped_string(msg: string) : string {
         str := msg.get_data();
-        tmp := new _int8[sizeof(str)];
+        tmp := new _int8[sizeof(str)*2];
         size := 0;
 
         for(i := 0; i < sizeof(str); i++)
@@ -598,6 +620,25 @@ class tokenizer {
                     'f' -> tmp[size++] = '\f';
                     '0' -> tmp[size++] = '\0';
                     'a' -> tmp[size++] = '\a';
+                    '/' -> tmp[size++] = '/';
+                    'u' -> {
+                       i += 2;
+                       str_start := i, end = i;
+                       for(; i < sizeof(str); i++) {
+                          if(!is_hex_num(str[i])) {
+                             break;
+                          }
+
+                          end = i;
+                       }
+
+                       if(str_start != end) {
+                          hex_str := msg.substring(str_start, end+1);
+                          tmp[size++] = strtol(hex_str, 16);
+                       }
+
+                       continue;
+                    }
                     else -> tmp[size++] = str[i+1];
                 }
 
@@ -606,6 +647,7 @@ class tokenizer {
             else
                 tmp[size++] = str[i];
         }
+
         return new string(tmp, 0, size);
     }
 
@@ -687,7 +729,7 @@ class tokenizer {
     }
 
     private static def is_hex_num(c: var) : var {
-        return (char.is_digit(c) || ((c >= 65) && (c <= 72)) ||
-                       ((c >= 97) && (c <= 104)));
+        return (char.is_digit(c) || ((c >= 65) && (c <= 70)) ||
+                       ((c >= 97) && (c <= 102)));
     }
 }

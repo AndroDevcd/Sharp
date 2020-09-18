@@ -645,6 +645,18 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             registers[CMT]=Thread::start((int32_t )_64ADX, (size_t )_64EBX);
             return;
         }
+        case OP_STRTOL: {
+            Int baseNum = (thread_self->this_fiber->sp--)->var;
+            SharpObject *str = (thread_self->this_fiber->sp--)->object.object;
+            if(str != NULL && TYPE(str->info) == _stype_var && str->HEAD != NULL) {
+                native_string numStr(str->HEAD, str->size);
+                _64EBX = strtoll(numStr.c_str(), NULL, baseNum);
+                numStr.free();
+            } else {
+                throw Exception(vm.NullptrExcept, "");
+            }
+            return;
+        }
         case OP_THREAD_JOIN:
             registers[CMT]=Thread::join((int32_t )_64ADX);
             return;

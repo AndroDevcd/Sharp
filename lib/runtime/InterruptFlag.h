@@ -86,6 +86,7 @@ enum interruptFlag
             OP_EXPORT     = 0x4d,
             OP_IMPORT     = 0x4e,
      OP_CURRENT_DIRECTORY = 0x4f,
+                OP_STRTOL = 0x50,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

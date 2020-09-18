@@ -13,13 +13,5 @@ class a {
 }
 
 def main(args: string[]) {
-   n := {1, 2, 3};
-   println(n.num);
-   println(n.obj);
-   println(n._a.num);
-   _export(n, "class.txt");
-   n = _import_from("class.txt") as a;
-   println(n.num);
-   println(n.obj);
-   println(n._a.num);
+   str := "hello \u00ff tlest";
 }

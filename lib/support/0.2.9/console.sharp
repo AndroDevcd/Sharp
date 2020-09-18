@@ -15,6 +15,20 @@ def strtod(str: string) : var {
     return result;
 }
 
+def strtol(str: string, base_num: var) : var {
+    data := str.get_data();
+    result : var;
+
+    asm {
+        pushl {data}
+        ipushl {base_num}
+        int 0x50
+        smovr2 {result}, ebx
+    }
+
+    return result;
+}
+
 def snprintf(fmt: var, num: var, precision: var) : var[] {
     asm {
         loadl egx, {fmt}
