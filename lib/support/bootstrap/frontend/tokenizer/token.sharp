@@ -83,14 +83,13 @@ class token {
     }
 
     public def to_string() : string {
-        return tok + ": " + line + "," + col;
+        return tok + ": " + line + "," + col + " { $type , $id }";
     }
 }
 
 enum token_id
 {
     identifier,
-    type_identifier,
     integer_literal,
     hex_literal,
     string_literal,

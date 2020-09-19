@@ -630,38 +630,40 @@ class tokenizer {
         {
             if(str[i] == '\\')
             {
-                when (str[i+1]) {
-                    'n' -> tmp[size++] = '\n';
-                    't' -> tmp[size++] = '\t';
-                    'b' -> tmp[size++] = '\b';
-                    'v' -> tmp[size++] = '\v';
-                    'r' -> tmp[size++] = '\r';
-                    'f' -> tmp[size++] = '\f';
-                    '0' -> tmp[size++] = '\0';
-                    'a' -> tmp[size++] = '\a';
-                    '/' -> tmp[size++] = '/';
-                    'u' -> {
-                       i += 2;
-                       str_start := i, end = i;
-                       for(; i < sizeof(str); i++) {
-                          if(!is_hex_num(str[i])) {
-                             break;
+                if((i + 1) < sizeof(str)) {
+                   when (str[i+1]) {
+                       'n' -> tmp[size++] = '\n';
+                       't' -> tmp[size++] = '\t';
+                       'b' -> tmp[size++] = '\b';
+                       'v' -> tmp[size++] = '\v';
+                       'r' -> tmp[size++] = '\r';
+                       'f' -> tmp[size++] = '\f';
+                       '0' -> tmp[size++] = '\0';
+                       'a' -> tmp[size++] = '\a';
+                       '/' -> tmp[size++] = '/';
+                       'u' -> {
+                          i += 2;
+                          str_start := i, end = i;
+                          for(; i < sizeof(str); i++) {
+                             if(!is_hex_num(str[i])) {
+                                break;
+                             }
+
+                             end = i;
                           }
 
-                          end = i;
-                       }
+                          if(str_start != end) {
+                             hex_str := msg.substring(str_start, end+1);
+                             tmp[size++] = strtol(hex_str, 16);
+                          }
 
-                       if(str_start != end) {
-                          hex_str := msg.substring(str_start, end+1);
-                          tmp[size++] = strtol(hex_str, 16);
+                          continue;
                        }
+                       else -> tmp[size++] = str[i+1];
+                   }
 
-                       continue;
-                    }
-                    else -> tmp[size++] = str[i+1];
+                   i++;
                 }
-
-                i++;
             }
             else
                 tmp[size++] = str[i];

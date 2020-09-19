@@ -71,7 +71,7 @@ def parse_value() : json_value {
    val := new json_value();
    t := next_token();
 
-   if(t.get_id() == type_identifier) {
+   if(t.get_id() == identifier) {
       if(t.get_token() == "true" || t.get_token() == "false") {
          val.value = new bool(t.get_token() == "true");
       } else if(t.get_token() == "null") {
@@ -87,6 +87,8 @@ def parse_value() : json_value {
       val.value = parse_array();
    } else if(t.get_type() == left_curly) {
       val.value = parse_object();
+   } else {
+      json_error("expected 'true', 'false', 'null', number, string literal, array, or object");
    }
 
    return val;
