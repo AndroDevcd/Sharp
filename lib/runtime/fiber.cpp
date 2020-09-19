@@ -50,6 +50,11 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->fp = &fib->dataStack[vm.manifest.threadLocals];
         fib->sp = (&fib->dataStack[vm.manifest.threadLocals]) - 1;
 
+        for(Int i = 0; i < vm.tlsInts.size(); i++) {
+            fib->dataStack[vm.tlsInts.at(i).key].object =
+                    gc.newObject(1, vm.tlsInts.at(i).value);
+        }
+
         gc.addMemory(sizeof(Frame) * (internalStackSize - vm.manifest.threadLocals));
         gc.addMemory(sizeof(StackElement) * internalStackSize);
         gc.addMemory(sizeof(double) * REGISTER_SIZE);

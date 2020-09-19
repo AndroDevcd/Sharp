@@ -1,0 +1,39 @@
+mod frontend.json;
+
+class json_value {
+    value : object;
+
+    int_value : int;
+       get { return value as int; }
+
+    string_value : string;
+       get { return value as string; }
+
+    array_value : json_array;
+       get { return value as json_array; }
+
+    bool_value : bool;
+       get { return value as bool; }
+
+    null_value : object;
+       get { return null; }
+
+    object_value : json_object;
+       get { return value as json_object; }
+
+    def get_type() : json_type {
+        if(value is int.class)
+           return jtype_int;
+        else if(value is string.class)
+           return jtype_string;
+        else if(value is json_array.class)
+           return jtype_array;
+        else if(value is bool.class)
+           return jtype_bool;
+        else if(value == null)
+           return jtype_null;
+        else if(value is json_object.class)
+           return jtype_object;
+        else return jtype_invalid;
+    }
+}

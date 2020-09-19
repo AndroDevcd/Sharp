@@ -1,6 +1,6 @@
-mod main.frontend.parser;
+mod frontend.parser;
 
-import main.frontend.tokenizer;
+import frontend.tokenizer;
 
 /**
  * Created by BraxtonN on 6/14/2018.

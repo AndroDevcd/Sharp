@@ -1,8 +1,8 @@
-mod main.frontend;
+mod frontend;
 
 import std.io.fiber;
-import main.frontend.tokenizer;
-import main.frontend.parser;
+import frontend.tokenizer;
+import frontend.parser;
 
 /**
  * Created by BraxtonN on 6/8/2018.
@@ -60,6 +60,7 @@ class error_manager {
             err_str = get_errors(warnings);
             if(!err_str.empty()) println(err_str);
         }
+
         fiber.unlock();
     }
 

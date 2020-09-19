@@ -1,0 +1,142 @@
+mod frontend.json;
+
+import frontend.tokenizer;
+import std.io;
+
+thread_local json_data : string;
+thread_local pos := -1;
+thread_local tok : tokenizer;
+thread_local tokens : token[];
+
+class json_parse_error base error {
+    public json_parse_error(message : _int8[]) -> base(message) {}
+    public json_parse_error(message : string) -> base(message) {}
+}
+
+def next_token() : token {
+    pos++;
+    if(pos < sizeof(tokens) && tokens[pos].get_type() != eof)
+       return tokens[pos];
+    else {
+       tok.get_errors().new_error(compiler_error.generic, tokens[pos-1], "expected token before end of file");
+       throw new json_parse_error();
+    }
+}
+
+def peek_token() : token {
+    if((pos+1) < sizeof(tokens))
+       return tokens[pos+1];
+    else {
+       return tokens[pos];
+    }
+}
+
+def expect_token(type: token_type, value: string) {
+    t := next_token();
+    if(!(t.get_type() == type && t.get_token() == value)) {
+       json_error("expected token: $value");
+    }
+}
+
+def parse(filename: string) : json_value {
+   pos = -1;
+   jfile := new file(filename);
+   if(!jfile.exists()) {
+      main#error("json file: $filename dosen't exist!");
+   }
+
+   if(jfile.is_empty()) {
+      main#error("json file: $filename is empty");
+   }
+
+   json_data = jfile.read();
+   tok = new tokenizer(json_data, filename);
+
+   if(!tok.get_errors().has_errors()) {
+      tokens = tok.get_tokens();
+      try {
+         return parse_element();
+      } catch(json_parse_error) { /* ignore and return null */ }
+   }
+
+   tok.get_errors().print_errors();
+   return null;
+}
+
+def parse_element() : json_value {
+   return parse_value();
+}
+
+def parse_value() : json_value {
+   val := new json_value();
+   t := next_token();
+
+   if(t.get_id() == type_identifier) {
+      if(t.get_token() == "true" || t.get_token() == "false") {
+         val.value = new bool(t.get_token() == "true");
+      } else if(t.get_token() == "null") {
+         /* Dont do anything, all json values are null by default! */
+      } else {
+         json_error("expected 'true', 'false', or 'null'");
+      }
+   } else if(t.get_id() == integer_literal || t.get_id() == hex_literal) {
+      val.value = new int(strtol(t.get_token(), t.get_id() == integer_literal ? 0 : 16));
+   } else if(t.get_id() == string_literal) {
+      val.value = t.get_token();
+   } else if(t.get_type() == left_brace) {
+      val.value = parse_array();
+   } else if(t.get_type() == left_curly) {
+      val.value = parse_object();
+   }
+
+   return val;
+}
+
+def parse_array() : json_array {
+   array := new json_array();
+
+   array.values.add(parse_element());
+   while(peek_token().get_type() == comma) {
+      expect_token(comma, ",");
+      array.values.add(parse_element());
+   }
+
+   expect_token(right_brace, "]");
+   return array;
+}
+
+def parse_object() : json_object {
+   obj := new json_object();
+
+   obj.members.add(parse_member());
+   while(peek_token().get_type() == comma) {
+      expect_token(comma, ",");
+      obj.members.add(parse_member());
+   }
+
+   expect_token(right_curly, "}");
+   return obj;
+}
+
+def parse_member() : json_member {
+   member := new json_member();
+
+   if(peek_token().get_id() == string_literal) {
+      member.name = next_token().get_token();
+      expect_token(colon, ":");
+      member.value = parse_element();
+   } else if(peek_token().get_id() == identifier) {
+      member.name = next_token().get_token();
+      expect_token(colon, ":");
+      member.value = parse_element();
+   } else {
+       json_error("expected string literal or identifier for member declaration");
+   }
+   return member;
+}
+
+def json_error(err_msg: string) {
+  tok.get_errors().new_error(compiler_error.generic, tokens[pos], err_msg);
+
+  throw new json_parse_error("");
+}

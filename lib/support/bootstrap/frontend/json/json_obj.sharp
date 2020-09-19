@@ -1,0 +1,31 @@
+mod frontend.json;
+
+class json_object : loopable<json_member> {
+    members := new list<json_member>();
+
+    member_size : var;
+       get { return members.size(); }
+
+    def operator[](member_name: string) : json_member {
+        return get_member(member_name);
+    }
+
+    def operator[](member_index: var) : json_member {
+        return members.at(member_index);
+    }
+
+    def get_member(member_name : string) : json_member {
+       foreach(member in members) {
+          if(member.name == member_name)
+             return member;
+       }
+
+       return null;
+    }
+
+    def has_member(member_name: string) : var {
+       return get_member(member_name) == null;
+    }
+
+    def get_elements() := members.get_elements();
+}

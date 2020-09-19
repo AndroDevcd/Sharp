@@ -130,6 +130,11 @@ class options {
     static ignored_files := new list<string>();
 }
 
+supported_versions := new string[] {
+    "0.2.9",
+    "0.3.0"
+};
+
 // WARNING SWITCHES
 const __w_general := 0;
 const __w_access := 1;

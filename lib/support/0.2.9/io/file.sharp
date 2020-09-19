@@ -172,6 +172,10 @@ public class file {
         return fs.get_length(self);
     }
 
+    def is_empty() : var {
+       return length() == 0;
+    }
+
 
     /* -- File operations -- */
 

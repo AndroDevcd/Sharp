@@ -259,6 +259,9 @@ int Process_Exe(std::string &exe)
 
                             if(field->utype == NULL)
                                 return CORRUPT_FILE;
+
+                            if(field->threadLocal && field->type <= VAR && !field->isArray)
+                                vm.tlsInts.add(KeyPair<Int, int>(field->address, field->type < FNPTR ? field->type : NTYPE_VAR));
                         } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
                         else
                             break;

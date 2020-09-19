@@ -13,5 +13,4 @@ class a {
 }
 
 def main(args: string[]) {
-   str := "hello \u00ff tlest";
 }

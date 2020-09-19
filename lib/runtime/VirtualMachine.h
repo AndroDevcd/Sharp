@@ -131,6 +131,7 @@ public:
     Gui* gui;
 #endif
     _List<Library> libs;
+    _List<KeyPair<Int, int>> tlsInts;
     int exitVal;
     short state;
 };

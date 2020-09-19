@@ -1,4 +1,4 @@
-mod main.frontend.tokenizer;
+mod frontend.tokenizer;
 
 /**                          
 * Created by bknun on 6/13/2018            
@@ -90,18 +90,11 @@ class token {
 enum token_id
 {
     identifier,
-    native_type,
     type_identifier,
     integer_literal,
     hex_literal,
-    modulename,
     string_literal,
     char_literal,
-    literal,
-    value,
-    accesstype,
-    singleline_comment,
-    return_statement,
 
     single, // single token
     noentity // not an entity

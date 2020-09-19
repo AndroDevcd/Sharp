@@ -1,0 +1,6 @@
+mod frontend.json;
+
+class json_member {
+    name : string;
+    value : json_value;
+}

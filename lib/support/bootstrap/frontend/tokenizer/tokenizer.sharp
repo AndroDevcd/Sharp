@@ -1,6 +1,6 @@
-mod main.frontend.tokenizer;
+mod frontend.tokenizer;
 
-import main.frontend;
+import frontend;
 import main;
 
 /**                          
@@ -53,10 +53,12 @@ class tokenizer {
 
         while(!is_end) {
             start = cursor;
-            
+
             when {
               current == ' ',
               current == '\t',
+              current == '\b',
+              current == '\v',
               current == '\r' -> {
                 // Ignore whitespace.
               }
@@ -283,13 +285,37 @@ class tokenizer {
             else if (escaped)
             {
                 has_character = true;
-                if(current != '0' && current != 'a' && !char.is_alpha(current)
-                    && current != '\\' && current != '\"' && current != '\'')
+                if(!char.is_alpha(current) && ('\\' != current) && ('/' != current)  && ('\"' != current) && ('\'' != current))
                 {
-                    errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
+                    errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', '/', or '\"' only");
                     return;
                 }
+
+                hex_processed := false;
                 escaped = false;
+                if(current == 'u') {
+                    advance();
+                    while(!is_end) {
+                        if(is_hex_num(current))
+                           hex_processed = true;
+                        else {
+                           if(current == '\'') {
+                              tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.string_literal, col, line));
+                              return;
+                           } else {
+                              errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", a character literal cannot contain more than a single character; expected `'`");
+                           }
+                           break;
+                        }
+
+                        advance();
+                    }
+
+                    if(!hex_processed) {
+                       errors.new_error(compiler_error.illegal_char_literal_format, line, col, ", expected hex value after '\\u'");
+                    }
+
+                }
             }
             advance();
         }
@@ -311,7 +337,7 @@ class tokenizer {
         }
         else
         {
-            tokens.add(new token(get_escaped_string(text.substring(start, cursor-1)), token_id.char_literal, col, line));
+            tokens.add(new token(get_escaped_string(text.substring(start, cursor)), token_id.char_literal, col, line));
         }
 
     }
@@ -593,13 +619,6 @@ class tokenizer {
             tokens.add(new token(get_escaped_string(text.substring(start, cursor+1)), token_id.string_literal, col, line));
         cursor++;
         return false;
-    }
-
-    def isWhitespace(c: var) : var {
-        return ((' '  == c) || ('\n' == c) ||
-                ('\r' == c) || ('\t' == c) ||
-                ('\b' == c) || ('\v' == c) ||
-                ('\f' == c));
     }
 
     def get_escaped_string(msg: string) : string {

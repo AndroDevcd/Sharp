@@ -3,11 +3,12 @@ mod main;
 import std.io;
 import std.io.*;
 import platform;
-import main.frontend.*;
+import frontend.*;
 import platform.kernel;
 
-private static program_name : string = "sharpc";
-private static program_vers : string = "0.3.0";
+private program_name : string = "sharpc";
+private program_vers : string = "0.3.0";
+private files := new list<string>();
 
 def main(args: string[]) : var {
     if(args == null) {
@@ -15,8 +16,6 @@ def main(args: string[]) : var {
         return 1;
     }
 
-    //error_manager.init();
-    files := new list<string>();
     for(i := 0; i < sizeof(args); i++) {
 
         parse_arg:
@@ -243,42 +242,6 @@ def main(args: string[]) : var {
         return 1;
     }
 
-    path := "";
-    if(build.is_windows()) {
-        path = "C:\\Program Files\\Sharp\\include";
-    } else {
-        path = "/usr/include/sharp/";
-    }
-
-    stl_files := new file(path);
-    support_files:= new list<string>();
-
-    try {
-        foreach(file in stl_files.list()) {
-            if(file.ends_with(".sharp"))
-              files.add(file);
-        }
-    } catch(io_exception) {
-        /* support files not found */
-        println("warning: could not find support library files in path `$path`, do you have them installed?");
-    }
-
-
-    for(i := 0; i < options.libraries.size(); i++) {
-        stl_files.update_path(options.libraries.at(i));
-
-        try {
-            foreach(file in stl_files.list()) {
-               if(file.ends_with(".sharp"))
-                  files.add(file);
-            }
-        } catch(io_exception) {
-            /* support files not found */
-            error("could not access library files in path `$path`");
-        }
-
-    }
-
     if(options.compile_mode == compilation_mode.project_mode) {
         // TODO: process settings.json file
         proj_dir : file;
@@ -297,7 +260,9 @@ def main(args: string[]) : var {
             /* support files not found */
             error("could not access project directory files in: $proj_dir");
         }
-    }
+    }/* else {
+        add_library_files(program_vers);
+    }*/
 
     fp := new file("no_file");
     for(i := 0; i < files.size(); i++) {
@@ -324,7 +289,75 @@ def main(args: string[]) : var {
     return 0;
 }
 
-static def contains(files: list<string>, file: string) : var {
+def add_library_files(version_num: string) {
+    is_supported := false;
+    foreach(vers in supported_versions) {
+       if(version_num == vers) {
+          is_supported = true;
+          break;
+       }
+    }
+
+    if(!is_supported) {
+        err_msg : string = "Library api version: $version_num is not supported!";
+        err_msg += " Supported versions are: {";
+
+        pos := 0, size = sizeof(supported_versions);
+        foreach(vers in supported_versions) {
+           err_msg += " $vers";
+
+           if((pos + 1) < size) {
+              err_msg += ",";
+           } else {
+              err_msg += " ";
+           }
+
+           pos++;
+        }
+
+        err_msg += "}";
+
+        error(err_msg);
+    }
+
+    path : string = "";
+    if(build.is_windows()) {
+        path = "C:\\Program Files\\Sharp\\include\\$version_num";
+    } else {
+        path = "/usr/include/sharp/$version_num";
+    }
+
+    stl_files := new file(path);
+    support_files:= new list<string>();
+
+    try {
+        foreach(file in stl_files.list()) {
+            if(file.ends_with(".sharp"))
+              files.add(file);
+        }
+    } catch(io_exception) {
+        /* support files not found */
+        error("could not find support library files in path `$path`, did you correctly install the target api?");
+    }
+
+
+    for(i := 0; i < options.libraries.size(); i++) {
+        stl_files.update_path(options.libraries.at(i));
+
+        try {
+            foreach(file in stl_files.list()) {
+               if(file.ends_with(".sharp"))
+                  files.add(file);
+            }
+        } catch(io_exception) {
+            /* support files not found */
+            error("could not access library files in path `$path`");
+        }
+
+    }
+}
+
+def contains(files: list<string>, file: string) : var {
 
     foreach(f in files) {
         if(f == file)
@@ -334,7 +367,7 @@ static def contains(files: list<string>, file: string) : var {
     return false;
 }
 
-static def count(files: list<string>, file: string) : var {
+def count(files: list<string>, file: string) : var {
     amount := 0;
     foreach(f in files) {
         if(f == file)
@@ -397,6 +430,7 @@ def exec_runtime(files: list<string>) {
     tokens := test_file.read();
     tok := new tokenizer(tokens, files.at(0));
     tok.get_errors().print_errors();
+    parse("test.json");
     //Parser parser = new Parser(tokenizer);
     //parser.atErrors().printErrors();
 }
@@ -417,13 +451,12 @@ private def create_project() {
        }
 
        src_dir := new file(options.new_project_dir + "/src/");
-       main_dir := new file(options.new_project_dir + "/src/main/");
        build_dir := new file(options.new_project_dir + "/build/");
        cache_dir := new file(options.new_project_dir + "/build/cache/");
        outputs_dir := new file(options.new_project_dir + "/build/outputs/");
        files_dir := new file(options.new_project_dir + "/build/cache/files/");
 
-       if(src_dir.mkdir() || main_dir.mkdir() || build_dir.mkdir() || cache_dir.mkdir()
+       if(src_dir.mkdir() || build_dir.mkdir() || cache_dir.mkdir()
           || outputs_dir.mkdir() || files_dir.mkdir()) {
           println("failed to create all necessary directories for project: ${options.new_project_dir}");
           exit(1);
@@ -431,7 +464,7 @@ private def create_project() {
 
        main_template_file : file;
        settings_template_file : file;
-       main_file := new file(options.new_project_dir + "/src/main/main.sharp");
+       main_file := new file(options.new_project_dir + "/src/main.sharp");
        settings_file := new file(options.new_project_dir + "/settings.json");
 
        if(build.is_windows()) {
@@ -493,7 +526,7 @@ private static def check_target() {
     }
 }
 
-private static def error(message: string) {
+def error(message: string) {
     println("$program_name:  error: $message");
     exit();
 }

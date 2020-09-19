@@ -1,9 +1,9 @@
-mod main.frontend.parser;
+mod frontend.parser;
 
 import main;
 import std.io;
-import main.frontend.tokenizer;
-import main.frontend;
+import frontend.tokenizer;
+import frontend;
 
 /**
  * Created by BraxtonN on 10/5/2019.

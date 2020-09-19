@@ -3466,7 +3466,7 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
         if(expr->type != exp_object) {
             for (int i = 0; i < array.size(); i++) {
-                if (array.get(0)->utype->isArray()) {
+                if (array.get(0)->utype->isArray() && !isUtypeConvertableToNativeClass(expr->utype, array.get(i)->utype)) {
                     errors->createNewError(GENERIC, ast->line, ast->col, "array arrays are not supported");
                 }
             }
