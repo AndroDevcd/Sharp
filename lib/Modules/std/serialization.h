@@ -15,7 +15,7 @@
 #define EXPORT_END 0x2E
 #define EXPORT_EMPTY 0x6C
 #define EXPORT_REFERENCE 0x4B
-#define DATA_END 0x2
+#define DATA_END 0x0
 #define DATA_SIZE 0xca
 
 string export_obj(SharpObject* obj);

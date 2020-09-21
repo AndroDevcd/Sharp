@@ -3,4 +3,12 @@ mod frontend.json;
 class json_member {
     name : string;
     value : json_value;
+
+    type : json_type;
+       get {
+         if(value == null) return jtype_invalid;
+         return value.type;
+       }
+
+    def to_string() := name;
 }

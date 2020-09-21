@@ -31,7 +31,7 @@ class options {
     static new_project_dir : string = "";
 
     /*
-     * Output file to write to
+     * Location of the project you want to compile
      */
     static project_dir : string = "";
 
@@ -54,6 +54,11 @@ class options {
      * Disable warnings
      */
     static warnings := true;
+
+    /*
+     * Enable file caching
+     */
+    static file_caching := true;
 
     /*
      * Execute source code after successful compilation
@@ -79,6 +84,11 @@ class options {
      * Strip debugging info (if-applicable)
      */
     static strip := false;
+
+    /*
+     * Flush compiler cache and start from scratch (only used in project mode)
+     */
+    static clean_build := false;
 
     /*
      * Enable warnings as errors

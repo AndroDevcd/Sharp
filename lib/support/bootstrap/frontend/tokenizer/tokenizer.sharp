@@ -1,5 +1,6 @@
 mod frontend.tokenizer;
 
+import frontend.parser;
 import frontend;
 import main;
 
@@ -21,15 +22,17 @@ class tokenizer {
     private col: var;
     private dynamic_string: var;
     private brackets: var;
+    private start_parser: var;
     private file: string;
 
     private tokenizer(){ /* Dont call */ }
 
-    public tokenizer(text: string, file: string)
+    public tokenizer(text: string, file: string, start_parser: var)
     {
         line = 1;
         self->file = file;
         lines = new list<string>();
+        self->start_parser = start_parser;
 
         if(!text.empty()) {
             self->text = text;
@@ -216,11 +219,17 @@ class tokenizer {
 //                + " - " + tok.get_id() + " line " + tok.get_line()
 //                + " col " + tok.get_col());
 //        }
-        println("errors " + errors.get_raw_error_count());
-        println("tokens " + tokens.size());
 
-        end:
         tokens.add(new token("eof", token_id.single, token_type.eof, 0, line));
+
+        if(errors.has_errors()) {
+            errors.print_errors();
+
+            if(start_parser)
+               parser_channel.send(null);
+        } else if(start_parser) {
+            new parser(self);
+        }
     }
 
     private def add_token(id: token_id) {

@@ -600,7 +600,16 @@ void tokenizer::parse()
         }
     }
 
+
     end:
+
+//    for(Int i = 0; i < tokens.size(); i++) {
+//        cout << tokens.at(i).getValue()
+//        << ":" << tokens.at(i).getLine() << ":" << tokens.at(i).getColumn()
+//        << " " << tokenTypeToString(tokens.at(i).getType()) << endl;
+//    }
+//    cout << "done\n\n";
+
     tokens.push_back(*EOF_token);
 }
 

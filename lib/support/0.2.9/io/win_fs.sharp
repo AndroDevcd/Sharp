@@ -24,6 +24,10 @@ protected class win_fs base file_system {
         n := pathname.size();
         buf_index := 0;
         for (i := 0; i < n; i++) {
+            // remove any trailing slashes
+            if((i + 1) >= n && buf_index > 0 && (pathname[i] == '\\' || pathname[i] == '/'))
+                break;
+
             // Remove duplicate slashes.
             if (pathname[i] == '/') {
                 if(buf_index > 0 && buffer[buf_index - 1] != '\\')

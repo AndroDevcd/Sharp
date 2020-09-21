@@ -3,26 +3,28 @@ mod frontend.parser;
 import main;
 import std.io;
 import frontend.tokenizer;
+import frontend.cache;
 import frontend;
 
 /**
  * Created by BraxtonN on 10/5/2019.
  */
-class Parser {
+class parser {
 
-    private source_file: string;
+    public source_file: string;
     private panic: var;
     private cursor: var;
     private parsed: var;
+    private cached: var;
     private tree: list<ast>;
     private lines: list<string>;
     private current: token;
     private tokens: token[];
-    private toks: tokenizer;
+    public toks: tokenizer;
     private access_types: list<token>;
     private errors: error_manager;
 
-    public Parser(toks: tokenizer)
+    public parser(toks: tokenizer)
         {
             self->toks=toks;
 
@@ -36,16 +38,16 @@ class Parser {
 
                 parse();
 
-                sb := new string_builder("");
-                foreach(child in tree) {
-                    if(child != null)
-                        child.to_string(sb);
-                    else
-                        sb += "null\n";
-                }
-
-                out := new file("tree.txt");
-                out.write(sb.to_string());
+//                sb := new string_builder("");
+//                foreach(child in tree) {
+//                    if(child != null)
+//                        child.to_string(sb);
+//                    else
+//                        sb += "null\n";
+//                }
+//
+//                out := new file("tree.txt");
+//                out.write(sb.to_string());
          }
     }
 
@@ -56,6 +58,9 @@ class Parser {
         current = tokens[cursor++];
 
         parsed = true;
+        toks = null;
+        tokens = null;
+        cache_parser(self);
     }
 
 

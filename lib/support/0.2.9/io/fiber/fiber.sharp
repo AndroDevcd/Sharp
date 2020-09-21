@@ -63,9 +63,7 @@ class fiber {
    }
 
    static def unlock() {
-      if(lockCount > 1)
-         lockCount--;
-      else
+      if(--lockCount <= 0)
          currFiber = -1;
       lock_obj._unlock();
    }

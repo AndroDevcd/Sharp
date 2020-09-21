@@ -21,7 +21,10 @@ class json_value {
     object_value : json_object;
        get { return value as json_object; }
 
-    def get_type() : json_type {
+    type : json_type;
+       get { return get_json_type(); }
+
+    def get_json_type() : json_type {
         if(value is int.class)
            return jtype_int;
         else if(value is string.class)

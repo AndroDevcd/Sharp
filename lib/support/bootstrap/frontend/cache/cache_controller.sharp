@@ -1,0 +1,45 @@
+mod frontend.cache;
+
+import frontend.parser;
+import frontend.tokenizer;
+import main;
+import std.io;
+
+cache_folder : string = "/build/cache";
+def load_or_parse(filepath: string) {
+   if(options.file_caching && options.compile_mode == compilation_mode.project_mode) {
+      update_cache_info();
+      p := load_cached_parser(filepath);
+
+      if(p != null) {
+        parser_channel.send(p);
+        return;
+      }
+   }
+
+   new tokenizer(new file(filepath).read(), filepath, true);
+}
+
+def cache_parser(p : parser) {
+
+   if(options.file_caching && options.compile_mode == compilation_mode.project_mode
+      && p.parsed && !p.cached) {
+      update_cache_info();
+      store_parsed_data(p);
+      save_cache();
+   }
+
+   parser_channel.send(p);
+}
+
+def flush_cache() {
+   if(options.compile_mode == compilation_mode.project_mode) {
+      cf := new file(options.project_dir + cache_folder);
+      if(cf.exists())
+         cf.delete();
+   }
+}
+
+def save_cache() {
+    store_cache_info();
+}

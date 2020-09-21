@@ -1,0 +1,203 @@
+mod main;
+
+import frontend.json;
+
+settings_file_name : string = "settings.json";
+project_name : string = "";
+
+def process_settings() {
+   jval := parse(options.project_dir + "/$settings_file_name");
+
+   if(jval != null) {
+      if(jval.type == jtype_object) {
+         obj := jval.object_value;
+         member : json_member;
+
+         if((member = obj["compile_only"]) != null) {
+            require_type(member, jtype_bool);
+            enable_compile_only(member.value.bool_value.get_value());
+         }
+
+         if((member = obj["name"]) != null) {
+            require_type(member, jtype_string);
+            project_name = member.value.string_value;
+         }
+
+         if((member = obj["show_all_errors"]) != null) {
+            require_type(member, jtype_bool);
+            enable_show_all_errors(member.value.bool_value.get_value());
+         }
+
+         if((member = obj["output_file"]) != null) {
+            require_type(member, jtype_string);
+            set_output_file(member.value.string_value);
+         }
+
+         if((member = obj["optimize_level"]) != null) {
+            require_type(member, jtype_int);
+
+            when (member.value.int_value) {
+                0 -> set_optimization_level(optimization_level.none);
+                1 -> set_optimization_level(optimization_level.basic);
+                2 -> set_optimization_level(optimization_level.high_performance);
+                else -> settings_error("invalid optimize level ${member.value.int_value}, allowed values are [ 0, 1, 2 ]");
+            }
+         }
+
+         if((member = obj["release_build"]) != null || (member = obj["release"]) != null) {
+            require_type(member, jtype_bool);
+            if(member.value.bool_value.get_value()) {
+               enable_release_mode();
+            }
+         }
+
+         if((member = obj["cache_files"]) != null) {
+            require_type(member, jtype_bool);
+            options.file_caching = member.value.bool_value.get_value();
+         }
+
+         if((member = obj["magic_mode"]) != null) {
+            require_type(member, jtype_bool);
+            enable_magic_mode(member.value.bool_value.get_value());
+         }
+
+         if((member = obj["compiler_debug_mode"]) != null) {
+            require_type(member, jtype_bool);
+            enable_debug_mode(member.value.bool_value.get_value());
+         }
+
+         if((member = obj["target"]) != null) {
+            require_type(member, jtype_string);
+            set_target_platform(member.value.string_value);
+         }
+
+         if((member = obj["warnings"]) != null) {
+            require_type(member, jtype_bool);
+            enable_warnings(member.value.bool_value.get_value());
+         }
+
+         if((member = obj["enable_warnings"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in warnings setting must be of type string");
+               }
+
+               enable_warning_type(val.string_value, true);
+            }
+         }
+
+         if((member = obj["disable_warnings"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in warnings setting must be of type string");
+               }
+
+               enable_warning_type(val.string_value, false);
+            }
+         }
+
+         if((member = obj["green_mode"]) != null) {
+            require_type(member, jtype_bool);
+            enable_green_mode(member.value.bool_value.get_value());
+         }
+
+         if((member = obj["ignore_files"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in file ignore setting must be of type string");
+               }
+
+               add_ignored_file(options.project_dir + "/" + val.string_value);
+            }
+         }
+
+         if((member = obj["ignore_folders"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in folder ignore setting must be of type string");
+               }
+
+               add_ignored_directory(options.project_dir + "/" + val.string_value);
+            }
+         }
+
+         if((member = obj["extern_libs"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in external libraries setting must be of type string");
+               }
+
+               add_library_path(val.string_value);
+            }
+         }
+
+         if((member = obj["ignore_extern_files"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in external file ignore setting must be of type string");
+               }
+
+               add_ignored_file(val.string_value);
+            }
+         }
+
+         if((member = obj["ignore_extern_folders"]) != null) {
+            require_type(member, jtype_array);
+
+            foreach(val in member.value.array_value) {
+               if(val.type != jtype_string) {
+                  settings_error("array values in external folder ignore setting must be of type string");
+               }
+
+               add_ignored_directory(val.string_value);
+            }
+         }
+
+         if((member = obj["warnings_as_errors"]) != null) {
+            require_type(member, jtype_bool);
+            if(member.value.bool_value.get_value()) {
+               enable_warnings_as_errors();
+            }
+         }
+
+         if((member = obj["error_limit"]) != null) {
+            if(member.type == jtype_int) {
+               set_error_limit("${member.value.int_value}");
+            } else if(member.type == jtype_string) {
+               set_error_limit(member.value.string_value);
+            } else
+               require_type(member, jtype_int);
+         }
+
+         if((member = obj["target_api"]) != null) {
+            require_type(member, jtype_string);
+            add_library_files(member.value.string_value);
+         } else
+            add_library_files(program_vers);
+      } else {
+         settings_error("format is incorrect, initial type must be of type object");
+      }
+   }
+}
+
+def require_type(member: json_member, type: json_type) {
+   if(member.type != type) {
+      error("settings option: $member requires type of $type");
+   }
+}
+
+def settings_error(msg : string) {
+   error("$settings_file_name: $msg");
+}

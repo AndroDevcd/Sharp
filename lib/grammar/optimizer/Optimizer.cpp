@@ -834,6 +834,21 @@ void Optimizer::optimizeTNE() {
                         && GET_Cb(code.ir32.get(i + 1)) == CMT
                         && GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
                         && GET_Ca(code.ir32.get(i + 1)) == GET_Da(code.ir32.get(i + 2))) {
+                        if(i - 1 > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::LT
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::GT
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::LTE
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::GTE
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::TEST
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::TNE)) {
+                            continue;
+                        }
+
+                        if(i > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP
+                                     || GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                                     || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE)) {
+                            i++;
+                            continue;
+                        }
                         i++;
                         shiftAddresses(1, i);
                         code.ir32.removeAt(i);
@@ -1230,6 +1245,15 @@ void Optimizer::optimizeCmtReturn() {
 
                     if (cmtReg == CMT && GET_OP(code.ir32.get(i + 1)) == Opcode::RETURNVAL
                         && GET_Da(code.ir32.get(i + 1)) == returnReg) {
+                        if(i - 1 > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::LT
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::GT
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::LTE
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::GTE
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::TEST
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::TNE)) {
+                            continue;
+                        }
+
                         shiftAddresses(1, i + 1);
                         code.ir32.removeAt(i + 1);
                         code.ir32.get(i) = OpBuilder::returnValue((_register)returnReg);
@@ -1250,7 +1274,7 @@ void Optimizer::optimize() {
         if(currentMethod->fnType != fn_delegate) {
             preCodebaseSize += currentMethod->data.code.size();
             optimizeRedundantMovr();
-            optimizeLocalVarInit(); // good
+            optimizeLocalVarInit();
             optimizeLocalStackPush();
             optimizeLocalVariableIncrement();
             optimizeRedundantIntegerPush();
@@ -1258,15 +1282,15 @@ void Optimizer::optimize() {
             optimizeRedundantLocalPop();
             optimizeEbxReturn();
             optimizeNullCheck();
-            optimizeNot(); // good
+            optimizeNot();
             optimizeRedundantEbxStore();
-            optimizeTNE();
+//            optimizeTNE(); // broken
             optimizeNumericStore();
             optimizeUnNessicaryLengthCheck();
             optimizeUnnessicaryCMTMov();
             optimizeUnnessicaryLocalIntPop();
             optimizeEmptyCall();
-            optimizeIntReturn(); // new
+            optimizeIntReturn();
             optimizeCmtReturn();
             postCodebaseSize += currentMethod->data.code.size();
         }

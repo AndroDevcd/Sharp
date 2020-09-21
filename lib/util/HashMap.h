@@ -84,7 +84,10 @@ public:
     }
 
     ~HashMap() {
-        monitor.lock();
+        free();
+    }
+
+    void free() {
         if(table != NULL) {
             // destroy all buckets one by one
             for (uInt i = 0; i < tableSize; ++i) {
@@ -100,11 +103,13 @@ public:
             delete[] table;
             table = NULL;
         }
-        monitor.unlock();
     }
 
     bool get(const K &key, V &value) {
         GUARD(monitor)
+        if(table == NULL)
+            init(tableSize);
+
         uInt hashValue = hashFunc(key, tableSize);
         HashNode<K, V> *entry = table[hashValue];
 
@@ -115,11 +120,15 @@ public:
             }
             entry = entry->getNext();
         }
+
         return false;
     }
 
     void put(const K &key, const V &value) {
         GUARD(monitor)
+        if(table == NULL)
+            init(tableSize);
+
         uInt hashValue = hashFunc(key, tableSize);
         HashNode<K, V> *prev = NULL;
         HashNode<K, V> *entry = table[hashValue];
@@ -145,6 +154,9 @@ public:
 
     void remove(const K &key) {
         GUARD(monitor)
+        if(table == NULL)
+            init(tableSize);
+
         uInt hashValue = hashFunc(key, tableSize);
         HashNode<K, V> *prev = NULL;
         HashNode<K, V> *entry = table[hashValue];

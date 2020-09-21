@@ -42,15 +42,17 @@ def parse(filename: string) : json_value {
    pos = -1;
    jfile := new file(filename);
    if(!jfile.exists()) {
-      main#error("json file: $filename dosen't exist!");
+      main#warning("json file: $filename dosen't exist!");
+      return null;
    }
 
    if(jfile.is_empty()) {
-      main#error("json file: $filename is empty");
+      main#warning("json file: $filename is empty");
+      return null;
    }
 
    json_data = jfile.read();
-   tok = new tokenizer(json_data, filename);
+   tok = new tokenizer(json_data, filename, false);
 
    if(!tok.get_errors().has_errors()) {
       tokens = tok.get_tokens();

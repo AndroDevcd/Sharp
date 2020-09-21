@@ -2008,6 +2008,10 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
     CHECK_ERRLMT(return false;)
     Token* old = NULL;
 
+    if(branch->line >= 3000) {
+        int i = 3000;
+    }
+
     if(peek(1)->getType() ==MINUS) {
         advance();
         Ast *exprAst = getBranch(branch, ast_minus_e);
@@ -2116,7 +2120,8 @@ bool parser::binary(Ast *ast) {
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
+            && peek(2)->getId() != CHAR_LITERAL
+               && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2150,7 +2155,8 @@ bool parser::equality(Ast *ast) {
 
     while(match(2, EQEQ, NOTEQ)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-" )
+            && peek(2)->getId() != CHAR_LITERAL
+               && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-" )
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2183,7 +2189,8 @@ bool parser::comparason(Ast *ast) {
 
     while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
+            && peek(2)->getId() != CHAR_LITERAL
+               && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2216,7 +2223,8 @@ bool parser::shift(Ast *ast) {
 
     while(match(2, SHL, SHR)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
+            && peek(2)->getId() != CHAR_LITERAL
+               && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2249,7 +2257,8 @@ bool parser::addition(Ast *ast) {
 
     while(match(2, MINUS, PLUS)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
+            && peek(2)->getId() != CHAR_LITERAL
+            && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2284,7 +2293,8 @@ bool parser::multiplication(Ast *ast) {
 
     while(match(3, _DIV, _MOD, MULT)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
+            && peek(2)->getId() != CHAR_LITERAL
+               && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2317,7 +2327,8 @@ bool parser::exponent(Ast *ast) {
 
     while(match(1, EXPONENT)) {
         if(isExprSymbol(peek(2)->getValue())
-            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
+            && peek(2)->getId() != CHAR_LITERAL
+               && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {

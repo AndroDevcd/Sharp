@@ -1,0 +1,133 @@
+mod main;
+
+import std.io;
+
+def enable_compile_only(enable: var) {
+   options.compile = enable;
+}
+
+def enable_show_all_errors(enable: var) {
+   options.aggressive_errors = enable;
+}
+
+def set_output_file(outfile: string) {
+   options.out = outfile;
+}
+
+def set_optimization_level(olvl: optimization_level) {
+   options.optimize_level = olvl;
+}
+
+def enable_release_mode() {
+   options.optimize_level = optimization_level.high_performance;
+   options.debug = false;
+   options.strip = true;
+}
+
+def enable_magic_mode(enable : var) {
+   options.magic = enable;
+}
+
+def enable_debug_mode(enable : var) {
+   options.debug_mode = enable;
+}
+
+def set_target_platform(target : string) {
+   if(is_number(target)) {
+       options.target = int.parse(target);
+       check_target();
+   } else {
+       if(target.to_lower() == "alpha") {
+           options.target = main#platform.alpha;
+       }
+       else {
+           error("unknown platform target $target");
+       }
+   }
+}
+
+def enable_warnings(enable : var) {
+   options.warnings = enable;
+}
+
+def enable_warning_type(wtype : string, enable: var) {
+   when(wtype) {
+      "-waccess" -> warning_options[__w_access] = enable;
+      "-wambig" -> warning_options[__w_ambig] = enable;
+      "-wdecl" -> warning_options[__w_decl] = enable;
+      "-wmain" -> warning_options[__w_main] = enable;
+      "-wcast" -> warning_options[__w_cast] = enable;
+      "-winit" -> warning_options[__w_init] = enable;
+      else -> error("invalid warning type: $wtype");
+   }
+}
+
+def enable_green_mode(enable : var) {
+   options.green_mode = enable;
+}
+
+def add_ignored_file(filepath : string) {
+   ignored_file := new file(filepath);
+   if(!ignored_file.exists()) {
+      warning("ignored file: $ignored_file dosen't exist!");
+      return;
+   }
+
+   if(ignored_file.is_directory()) {
+      warning("ignored file: $ignored_file is a directory, try `-ignoredir` instead");
+      return;
+   }
+
+   options.ignored_files.add(ignored_file.get_absolute_path());
+}
+
+def add_ignored_directory(dirpath : string) {
+   ignored_dir := new file(dirpath);
+   if(!ignored_dir.exists()) {
+      warning("ignored directory: $ignored_dir dosen't exist!");
+      return;
+   }
+
+   if(!ignored_dir.is_directory()) {
+      warning("ignored directory: $ignored_dir is a file, try `-ignore` instead");
+      return;
+   }
+
+   options.ignored_directories.add(ignored_dir.get_absolute_path());
+}
+
+def add_library_path(libpath: string) {
+   library_dir := new file(libpath);
+
+   if(!library_dir.exists()) {
+      warning("library path: library_dir dosen't exist!");
+      return;
+   }
+
+   if(!library_dir.is_directory()) {
+      warning("library path: library_dir is not a directory");
+      return;
+   }
+
+   options.libraries.add(library_dir.get_absolute_path());
+}
+
+def enable_warnings_as_errors() {
+   options.werrors = true;
+   options.warnings = true;
+}
+
+def set_error_limit(lmt: string) {
+   if(is_number(lmt)) {
+       options.max_errors = int.parse(lmt);
+
+       if(options.max_errors > 100000) {
+           error("cannot set the max errors allowed higher than (100,000) - $lmt");
+       } else if(options.max_errors <= 0) {
+           error("cannot have an error limit of 0 ");
+       }
+   }
+   else {
+       error("invalid error limit set $lmt");
+   }
+}

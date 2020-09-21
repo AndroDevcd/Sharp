@@ -1,0 +1,161 @@
+mod frontend.cache;
+
+import std.io;
+import std.io.fiber;
+import std.export;
+import main;
+import frontend.parser;
+
+ufid := 0;
+file_info : cache_info;
+cache_file_size_limit := 1024 * 250; // 250kb/file limit for caching files
+
+class cache_info {
+   files := new list<file_data>();
+
+   def add(filepath: string) : file_data {
+      remove_if_exists(filepath);
+
+      fd := new file_data(filepath, new file(filepath).last_modified(), ufid++);
+      files.add(fd);
+      return fd;
+   }
+
+   def get_file(filepath: string) : file_data {
+      tmp := new file_data(filepath, 0, 0);
+      return files.find(tmp, { it, it2 -> return it.name == it2.name; });
+   }
+
+   private def remove_if_exists(filepath: string) {
+      tmp := new file_data(filepath, 0, 0);
+
+      files.remove(tmp, { it, it2 ->
+         if(it.name == it2.name) {
+
+            try {
+               // delete respective cache file
+               a_file := new file(options.project_dir + it2.parser_cache);
+               b_file := new file(options.project_dir + it2.compiler_cache);
+               if(a_file.exists())
+                  a_file.delete();
+               if(b_file.exists())
+                  b_file.delete();
+            } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+
+            return true;
+         } else return false;
+      });
+   }
+}
+
+class file_data {
+   file_data(name: string, modified_time: var, id: var) {
+      self->name = name;
+      self->last_update = modified_time;
+      self->parser_cache = "/build/cache/files/file_${id}_a.data";
+      self->compiler_cache = "/build/cache/files/file_${id}_b.data";
+   }
+
+   name : string;
+   parser_cache : string;
+   compiler_cache : string;
+   last_update: var;
+}
+
+cache_file_path := "/build/cache/files/cache_info.data";
+cache_folder_1 := "/build/cache";
+build_folder := "/build/cache";
+cache_folder_2 := "/build/cache/files";
+
+def update_cache_info() {
+   fiber._lock();
+   if(file_info == null) {
+      cf := new file(options.project_dir + cache_file_path);
+      build := new file(options.project_dir + build_folder);
+      folder_1 := new file(options.project_dir + cache_folder_1);
+      folder_2 := new file(options.project_dir + cache_folder_2);
+
+      if(!build.exists())
+         build.mkdir();
+
+      if(!folder_1.exists())
+         folder_1.mkdir();
+
+      if(!folder_2.exists())
+         folder_2.mkdir();
+
+      if(cf.exists()) {
+         try {
+      println("update cache ${options.project_dir + cache_file_path}");
+            file_info = _import_from(options.project_dir + cache_file_path) as cache_info;
+            fiber.unlock();
+            return;
+         } catch (throwable) {
+            flush_cache();
+         }
+      }
+
+      file_info = new cache_info();
+   }
+   fiber.unlock();
+}
+
+def store_cache_info() {
+   fiber._lock();
+   if(file_info != null) {
+      try {
+         println("export cache ${options.project_dir + cache_file_path}");
+         _export(file_info, options.project_dir + cache_file_path);
+      } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+   }
+   fiber.unlock();
+}
+
+def store_parsed_data(p: parser) {
+   fiber._lock();
+   filepath := p.source_file;
+   fd := file_info.get_file(filepath);
+
+   try {
+      if(new file(filepath).length() > cache_file_size_limit) {
+         if(fd != null) {
+            old_cache := new file(options.project_dir + fd.parser_cache);
+            if(old_cache.exists())
+               old_cache.delete();
+         }
+
+         fiber.unlock();
+         return; // no caching files over cache limit
+      }
+
+      if(fd == null) {
+        fd = file_info.add(filepath);
+      }
+
+      _export(p, options.project_dir + fd.parser_cache);
+      fd.last_update = new file(filepath).last_modified();
+      p.cached = true;
+   } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+   fiber.unlock();
+}
+
+def load_cached_parser(filepath: string) : parser {
+   fd := file_info.get_file(filepath);
+
+   try {
+      if(fd == null)
+        return null;
+
+      last_updated := new file(filepath).last_modified();
+      if(fd.last_update != last_updated) {
+         old_cache := new file(options.project_dir + fd.parser_cache);
+         if(old_cache.exists())
+            old_cache.delete();
+         return null;
+      }
+
+      return _import_from(options.project_dir + fd.parser_cache) as parser;
+   } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+
+   return null;
+}

@@ -207,6 +207,14 @@ protected class file_system {
     private def delete_directory(f: file) : var {
         // native code here
         path := f.get_absolute_path().get_data();
+
+        tmp := new file(path);
+        files := list(tmp);
+        foreach(fl in files) {
+           tmp.update_path(fl);
+           tmp.delete();
+        }
+
         result := 0;
 
         /*
