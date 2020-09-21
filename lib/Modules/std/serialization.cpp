@@ -42,7 +42,7 @@ string export_obj(SharpObject* obj) {
             }
             dataStream << (char)EXPORT_END;
             recursion--;
-            return dataStream.str();
+            return recursion == 0 ? dataStream.str() : "";
         } else if(IS_CLASS(obj->info)) {
             ClassObject &klass = vm.classes[CLASS(obj->info)];
             dataStream << (char)EXPORT_CLASS;
@@ -97,7 +97,7 @@ string export_obj(SharpObject* obj) {
             dataStream << (char)EXPORT_END;
 
             recursion--;
-            return dataStream.str();
+            return recursion == 0 ? dataStream.str() : "";
         } else {
             dataStream << (char)EXPORT_DATA;
             for(uInt i = 0; i < obj->size; i++) {
@@ -115,7 +115,7 @@ string export_obj(SharpObject* obj) {
             dataStream << (char)EXPORT_END;
 
             recursion--;
-            return dataStream.str();
+            return recursion == 0 ? dataStream.str() : "";
         }
     } else {
         recursion=0;

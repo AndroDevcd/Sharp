@@ -68,7 +68,7 @@ build_folder := "/build/cache";
 cache_folder_2 := "/build/cache/files";
 
 def update_cache_info() {
-   fiber._lock();
+   lock(cache_file_path) {
    if(file_info == null) {
       cf := new file(options.project_dir + cache_file_path);
       build := new file(options.project_dir + build_folder);
@@ -97,22 +97,22 @@ def update_cache_info() {
 
       file_info = new cache_info();
    }
-   fiber.unlock();
+   }
 }
 
 def store_cache_info() {
-   fiber._lock();
+   lock(cache_file_path) {
    if(file_info != null) {
       try {
          println("export cache ${options.project_dir + cache_file_path}");
          _export(file_info, options.project_dir + cache_file_path);
       } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
    }
-   fiber.unlock();
+   }
 }
 
 def store_parsed_data(p: parser) {
-   fiber._lock();
+   lock(cache_file_path) {
    filepath := p.source_file;
    fd := file_info.get_file(filepath);
 
@@ -132,11 +132,15 @@ def store_parsed_data(p: parser) {
         fd = file_info.add(filepath);
       }
 
+      cache := new file(options.project_dir + fd.parser_cache);
+      if(!cache.exists())
+         cache.create();
+
       _export(p, options.project_dir + fd.parser_cache);
       fd.last_update = new file(filepath).last_modified();
       p.cached = true;
    } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
-   fiber.unlock();
+   }
 }
 
 def load_cached_parser(filepath: string) : parser {

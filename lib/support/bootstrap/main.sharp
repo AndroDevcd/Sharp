@@ -223,36 +223,36 @@ def main(args: string[]) : var {
 }
 
 def add_library_files(version_num: string) {
-    is_supported := false;
-    foreach(vers in supported_versions) {
-       if(version_num == vers) {
-          is_supported = true;
-          break;
-       }
-    }
-
-    if(!is_supported) {
-        err_msg : string = "Library api version: $version_num is not supported!";
-        err_msg += " Supported versions are: {";
-
-        pos := 0, size = sizeof(supported_versions);
-        foreach(vers in supported_versions) {
-           err_msg += " $vers";
-
-           if((pos + 1) < size) {
-              err_msg += ",";
-           } else {
-              err_msg += " ";
-           }
-
-           pos++;
-        }
-
-        err_msg += "}";
-
-        error(err_msg);
-    }
-
+//    is_supported := false;
+//    foreach(vers in supported_versions) {
+//       if(version_num == vers) {
+//          is_supported = true;
+//          break;
+//       }
+//    }
+//
+//    if(!is_supported) {
+//        err_msg : string = "Library api version: $version_num is not supported!";
+//        err_msg += " Supported versions are: {";
+//
+//        pos := 0, size = sizeof(supported_versions);
+//        foreach(vers in supported_versions) {
+//           err_msg += " $vers";
+//
+//           if((pos + 1) < size) {
+//              err_msg += ",";
+//           } else {
+//              err_msg += " ";
+//           }
+//
+//           pos++;
+//        }
+//
+//        err_msg += "}";
+//
+//        error(err_msg);
+//    }
+//
     path : string = "";
     if(build.is_windows()) {
         path = "C:\\Program Files\\Sharp\\include\\$version_num";
@@ -262,16 +262,16 @@ def add_library_files(version_num: string) {
 
     stl_files := new file(path);
     support_files:= new list<string>();
-
-    try {
-        foreach(file in stl_files.list()) {
-            if(file.ends_with(".sharp"))
-              files.add(file);
-        }
-    } catch(io_exception) {
-        /* support files not found */
-        error("could not find support library files in path `$path`, did you correctly install the target api?");
-    }
+//
+//    try {
+//        foreach(file in stl_files.list()) {
+//            if(file.ends_with(".sharp"))
+//              files.add(file);
+//        }
+//    } catch(io_exception) {
+//        /* support files not found */
+//        error("could not find support library files in path `$path`, did you correctly install the target api?");
+//    }
 
 
     for(i := 0; i < options.libraries.size(); i++) {
@@ -375,6 +375,7 @@ def exec_runtime(files: list<string>) {
 
     results := parser_channel.read_next(0, files.size());
 
+    save_cache();
     all_files_passed := true;
     foreach(p in results) {
        if(p == null || !p.parsed) {

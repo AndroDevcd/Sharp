@@ -54,6 +54,9 @@ class fiber {
       retry:
       while(currFiber != -1) {
          delay(2);
+
+         if(currFiber == this_id)
+            break;
       }
 
       currFiber = this_id;

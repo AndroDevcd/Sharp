@@ -39,4 +39,6 @@ long long disk_space(long request);
 
 void current_directory(native_string &path);
 
+void read_file(native_string &path, native_string &outStr);
+
 #endif //SHARP_FILEIO_H

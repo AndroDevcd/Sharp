@@ -5,6 +5,9 @@
 #include "../../runtime/symbols/string.h"
 #include "../../../stdimports.h"
 #include "../../runtime/List.h"
+#include "../../runtime/memory/GarbageCollector.h"
+#include "../../runtime/VirtualMachine.h"
+
 #ifdef WIN32_
 #include  <io.h>
 #include <direct.h>
@@ -15,6 +18,7 @@
 #include <dirent.h>
 #include <utime.h>
 #include <iomanip>
+#include <mutex>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -28,6 +32,7 @@
 #define stat _stat
 #endif
 
+recursive_mutex fileMutex;
 int FILE_EXISTS       = 0x01;
 int FILE_REGULAR      = 0x02;
 int FILE_DIRECTORY    = 0x04;
@@ -36,23 +41,22 @@ int FILE_CHARACTER    = 0x10;
 int FILE_FIFO_PIPE    = 0x20;
 int _FILE_UNKNOWN     = 0x40;
 int FILE_HIDDEN       = 0x80;
-struct stat result;
+thread_local struct stat result;
 native_string resolve_path(native_string& path) {
     native_string fullPath;
+    GUARD(fileMutex);
 
 #ifdef WIN32_
     char full_path[MAX_PATH];
+    GetFullPathName(path.str().c_str(), MAX_PATH, full_path, NULL);
 
-    if(stat(path.str().c_str(), &result)==0) {
-        GetFullPathName(path.str().c_str(), MAX_PATH, full_path, NULL);
-
-        for(int i = 0; i < MAX_PATH; i++) {
-            if(full_path[i] != '\000')
-                fullPath += full_path[i];
-            else
-                break;
-        }
+    for(int i = 0; i < MAX_PATH; i++) {
+        if(full_path[i] != '\000')
+            fullPath += full_path[i];
+        else
+            break;
     }
+
 #endif
     
 #ifdef POSIX_
@@ -71,6 +75,8 @@ native_string resolve_path(native_string& path) {
 }
 
 uInt get_file_attrs(native_string& path) {
+    GUARD(fileMutex);
+
     if(stat(path.str().c_str(), &result)==0)
     {
         uInt mode = result.st_mode, attrs=0;
@@ -136,6 +142,8 @@ int check_access(native_string& path, int access_flg) {
 }
 
 Int last_update(native_string& path, int tm_request) {
+    GUARD(fileMutex);
+
     if(stat(path.str().c_str(), &result)==0)
     {
         switch(tm_request) {
@@ -153,6 +161,8 @@ Int last_update(native_string& path, int tm_request) {
 
 Int file_size(native_string &path)
 {
+    GUARD(fileMutex);
+
     int rc = stat(path.str().c_str(), &result);
     return rc == 0 ? result.st_size : -1;
 }
@@ -175,6 +185,8 @@ long delete_file(native_string &path)
 }
 
 void get_file_list(native_string &path, _List<native_string> &files) {
+    GUARD(fileMutex);
+
     DIR *dir;
     struct dirent *ent;
 #ifdef WIN32_
@@ -240,6 +252,8 @@ long rename_file(native_string &path, native_string &newName)
 
 time_t update_time(native_string &path, time_t time)
 {
+    GUARD(fileMutex);
+
     struct utimbuf new_times;
 
     if(stat(path.str().c_str(), &result)==0) {
@@ -257,6 +271,8 @@ static const mode_t MS_MODE_MASK = 0x0000ffff;           ///< low word
 
 int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
 {
+    GUARD(fileMutex);
+
     if(stat(path.str().c_str(), &result)==0) {
         Int mode = result.st_mode;
 
@@ -276,13 +292,13 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
                 mode ^= _S_IWRITE;
         }
 
-        int result = _chmod(path.str().c_str(), mode);
+        int res = _chmod(path.str().c_str(), mode);
 
-        if (result != 0) {
-            result = errno;
+        if (res != 0) {
+            res = errno;
         }
 
-        return (result);
+        return (res);
     }
 
     return -1;
@@ -389,5 +405,16 @@ Int disk_space(long request) {
 #ifdef POSIX_
     return GetAvailableSpace("/", request);
 #endif
+}
+
+void read_file(native_string &path, native_string &outStr) {
+
+    File::buffer buf;
+    File::read_alltext(path.str().c_str(), buf);
+
+    if(outStr.injectBuff(buf)) {
+        throw Exception(vm.OutOfMemoryExcept, "out of memory");
+    }
+    buf.end();
 }
 

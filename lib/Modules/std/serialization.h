@@ -8,7 +8,7 @@
 #include "../../runtime/symbols/Object.h"
 
 #define EXPORT_VERS 1
-#define EXPORT_SECRET 0x1A
+#define EXPORT_SECRET 0x20
 #define EXPORT_DATA 0x5F
 #define EXPORT_FIELD 0xD
 #define EXPORT_CLASS 0x2B

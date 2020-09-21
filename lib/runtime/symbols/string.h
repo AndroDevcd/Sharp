@@ -154,10 +154,11 @@ public:
         if(buf.size()>0) {
             len = buf.size();
             if(len) {
-                chars = (char*)malloc(sizeof(char)*buf.size());
+                chars = (char*)malloc(sizeof(char)*buf.size()+1);
                 if(chars==NULL) { len = 0; return 1; }
 
                 std::memcpy(chars, buf.data(), sizeof(char)*len);
+                chars[len]=0;
             } else
                 chars = NULL;
         } else {
@@ -165,6 +166,13 @@ public:
         }
 
         return 0;
+    }
+
+    char at(Int index) {
+        if(index <= 0 || index >= len)
+            throw runtime_error("string out of bounds");
+        
+        return chars[index];
     }
 
     void operator+=(const char &c) {

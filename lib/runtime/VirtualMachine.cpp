@@ -469,6 +469,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                     for (Int i = (thread->this_fiber->calls + 1) - EXCEPTION_PRINT_MAX; i <= thread->this_fiber->calls; i++) {
                         if (iter >= EXCEPTION_PRINT_MAX)
                             break;
+                        else if(i==0) continue;
                         methods->object->HEAD[iter] = thread->this_fiber->callStack[i].returnAddress->address;
                         pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc;
                         iter++;
@@ -838,21 +839,16 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 else if(signal==OP_CHMOD)
                     registers[EBX] = __chmod(path, (mode_t)registers[EBX], (bool)registers[EGX], (bool)registers[ECX]);
                 else if(signal==OP_READ_FILE) {
-                    File::buffer buf;
-                    File::read_alltext(path.str().c_str(), buf);
-                    native_string str;
                     arry = &(++thread_self->this_fiber->sp)->object;
+                    native_string str;
+                    read_file(path, str);
 
-                    if(str.injectBuff(buf)) {
-                        throw Exception(vm.OutOfMemoryExcept, "out of memory");
-                    }
-
-                    buf.end();
                     if(str.len > 0) {
                         *arry = gc.newObject(vm.StringClass);
                         gc.createStringArray(vm.resolveField("data", arry->object), str);
                         str.free();
                     } else {
+                        cout << "{{{{{{{ RELEASE!!" << endl;
                         gc.releaseObject(arry);
                     }
                 }
@@ -877,6 +873,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     File::buffer buf;
                     buf.operator<<(&rename); // rename will contain our actual unicode data
                     registers[EBX] = File::write(path.str().c_str(), buf);
+                    buf.end();
                 }
                 path.free();
                 rename.free();

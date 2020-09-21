@@ -26,7 +26,6 @@ def cache_parser(p : parser) {
       && p.parsed && !p.cached) {
       update_cache_info();
       store_parsed_data(p);
-      save_cache();
    }
 
    parser_channel.send(p);
