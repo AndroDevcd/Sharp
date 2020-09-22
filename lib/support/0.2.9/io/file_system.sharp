@@ -328,7 +328,6 @@ protected class file_system {
         return result;
     }
 
-
     static def read(f: file) : string {
         path := f.get_absolute_path().get_data();
         data : string;

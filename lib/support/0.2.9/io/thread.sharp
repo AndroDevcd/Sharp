@@ -160,18 +160,21 @@ public class thread {
     }
 
     public def set_priority(priority : thread_priority) : thread_result {
-        lock(self) {
-            when (priority) {
-                min_priority,
-                norm_priority,
-                max_priority -> {
-                    return vm.set_thread_priority(self, priority.get_ordinal());
-                }
-                else -> {
-                    throw new illegal_argument_exception("invalid thread priority $priority");
-                }
+        mut.acquire();
+        when (priority) {
+            min_priority,
+            norm_priority,
+            max_priority -> {
+                result := vm.set_thread_priority(self, priority.get_ordinal());
+                mut.release();
+                return result;
+            }
+            else -> {
+                mut.release();
+                throw new illegal_argument_exception("invalid thread priority $priority");
             }
         }
+        mut.release();
     }
 
     private def remove_thread(t : thread) {
@@ -193,6 +196,7 @@ public class thread {
 
     public def operator==(t : thread) : var = native_handle==t.native_handle;
 
+    private mut := new mutex();
     private exit_code : var;
     private native_handle : var;
     private id : var;

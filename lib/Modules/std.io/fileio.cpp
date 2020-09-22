@@ -407,11 +407,17 @@ Int disk_space(long request) {
 #endif
 }
 
-void read_file(native_string &path, native_string &outStr) {
+extern void printRegs();
 
+void read_file(native_string &path, native_string &outStr) {
+    GUARD(fileMutex);
     File::buffer buf;
     File::read_alltext(path.str().c_str(), buf);
 
+    if(buf.size() == 0) {
+        printRegs();
+        int i = 0;
+    }
     if(outStr.injectBuff(buf)) {
         throw Exception(vm.OutOfMemoryExcept, "out of memory");
     }

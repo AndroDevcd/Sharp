@@ -21,6 +21,7 @@ protected class win_fs base file_system {
     * path seperators to be accessed
     */
     def normalize(pathname: string) : string {
+        mut.acquire();
         n := pathname.size();
         buf_index := 0;
         for (i := 0; i < n; i++) {
@@ -57,7 +58,10 @@ protected class win_fs base file_system {
                 buffer[buf_index++] = pathname[i];
         }
 
-        return new string(buffer, 0, buf_index);
+
+        result := new string(buffer, 0, buf_index);
+        mut.release();
+        return result;
     }
 
      /**

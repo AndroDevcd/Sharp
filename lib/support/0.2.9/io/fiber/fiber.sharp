@@ -3,10 +3,6 @@ mod std.io.fiber;
 import std.io;
 import platform.kernel;
 
-lockCount := 0;
-currFiber := -1;
-lock_obj := new string();
-
 class fiber {
 
    private fiber() {}
@@ -46,29 +42,6 @@ class fiber {
       if(result == 0)
          id = -1;
       return result;
-   }
-
-   static def _lock() {
-      lock_obj._lock();
-      this_id := current().id;
-      retry:
-      while(currFiber != -1) {
-         delay(2);
-
-         if(currFiber == this_id)
-            break;
-      }
-
-      currFiber = this_id;
-      if(currFiber != this_id)
-         goto retry;
-      lockCount++;
-   }
-
-   static def unlock() {
-      if(--lockCount <= 0)
-         currFiber = -1;
-      lock_obj._unlock();
    }
 
    def bind(t: thread) : var {

@@ -515,3 +515,28 @@ scope(main,
     }
 )
 ```
+
+- Add init = support for all classes
+   * This saves alot of work in the compiler side because you no longer have to rely on building type conversion
+     functions from native values to class values. 
+   * This also makes resolving functions a lot easier, if a type does not match the parameter exactly, then
+      the only way that parameter can be passed is if the receiving class has a constructor that accepts that type
+      or the types have to be related
+
+```javascript
+class foo {
+    name : string;
+
+    init(name: string) {
+       self->name = name;
+    }
+}
+
+def main() {
+   foo_var : foo = "Dave";
+
+   // translates to
+   foo_var := new foo();
+   foo_var.init_func$100("Dave"); 
+}
+```
