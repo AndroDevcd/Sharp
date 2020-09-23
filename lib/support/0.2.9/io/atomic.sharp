@@ -2,1733 +2,1450 @@ mod std.io;
 
 class atomic<t> {
      private value : t;
-     mut := new mutex();
 
      atomic(initial_val : t) {
         value = initial_val;
      }
 
      def read() : t {
-        mut.acquire();
-        result := value;
-        mut.release();
-        return result;
+        lock(self) {
+          return value;
+        }
      }
 
      def write(new_val: t) {
-        mut.acquire();
-        value = new_val;
-        mut.release();
+        lock(self) {
+           value = new_val;
+        }
      }
 
-     def operator!=(num : ulong) : var { 
-        mut.acquire();
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : ulong) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : long) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : long) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : uint) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : uint) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : int) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : int) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : short) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : short) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : uchar) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : uchar) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : char) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : char) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : byte) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : byte) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator!=(num : bool) : var { 
-        mut.acquire(); 
-        result := (value!=num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : bool) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
-     def operator==(num : double) : var { 
-        mut.acquire(); 
-        result := (value==num.value);
-        mut.release();
-        return result;
-     }
- 
-     def operator+(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : long)   : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : int)    : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : short)  : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : char)   : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : double)   : var { 
-        mut.acquire(); 
-        result := (value+num.value);
-        mut.release();
-        return result;
-     }
-     def operator+(num : var)    : var { 
-        mut.acquire(); 
-        result := (value+num);
-        mut.release();
-        return result;
-     }
- 
-     def operator-(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : long)   : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : int)    : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : short)  : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : char)   : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : double)   : var { 
-        mut.acquire(); 
-        result := (value-num.value);
-        mut.release();
-        return result;
-     }
-     def operator-(num : var)    : var { 
-        mut.acquire(); 
-        result := (value-num);
-        mut.release();
-        return result;
-     }
- 
-     def operator*(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : long)   : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : int)    : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : short)  : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : char)   : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : double)   : var { 
-        mut.acquire(); 
-        result := (value*num.value);
-        mut.release();
-        return result;
-     }
-     def operator*(num : var)    : var { 
-        mut.acquire(); 
-        result := (value*num);
-        mut.release();
-        return result;
-     }
- 
-     def operator/(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : long)   : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : int)    : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : short)  : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : char)   : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : double)   : var { 
-        mut.acquire(); 
-        result := (value/num.value);
-        mut.release();
-        return result;
-     }
-     def operator/(num : var)    : var { 
-        mut.acquire(); 
-        result := (value/num);
-        mut.release();
-        return result;
-     }
- 
-     def operator%(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : long)   : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : int)    : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : short)  : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : char)   : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : double)   : var { 
-        mut.acquire(); 
-        result := (value%num.value);
-        mut.release();
-        return result;
-     }
-     def operator%(num : var)    : var { 
-        mut.acquire(); 
-        result := (value%num);
-        mut.release();
-        return result;
-     }
- 
-     def operator<(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : long)   : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : int)    : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : short)  : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : char)   : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : double)   : var { 
-        mut.acquire(); 
-        result := (value<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<(num : var)    : var { 
-        mut.acquire(); 
-        result := (value<num);
-        mut.release();
-        return result;
-     }
- 
-     def operator>(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : long)   : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : int)    : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : short)  : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : char)   : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : double)   : var { 
-        mut.acquire(); 
-        result := (value>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>(num : var)    : var { 
-        mut.acquire(); 
-        result := (value>num);
-        mut.release();
-        return result;
-     }
- 
-     def operator<=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value>=num.value);
-        mut.release();
-        return result;
-     }
-     def operator<=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value>=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator**(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : long)   : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : int)    : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : short)  : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : char)   : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : double)   : var { 
-        mut.acquire(); 
-        result := (value**num.value);
-        mut.release();
-        return result;
-     }
-     def operator**(num : var)    : var { 
-        mut.acquire(); 
-        result := (value**num);
-        mut.release();
-        return result;
-     }
- 
-     def operator<<(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : long)   : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : int)    : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : short)  : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : char)   : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : double)   : var { 
-        mut.acquire(); 
-        result := (value<<num.value);
-        mut.release();
-        return result;
-     }
-     def operator<<(num : var)    : var { 
-        mut.acquire(); 
-        result := (value<<num);
-        mut.release();
-        return result;
-     }
- 
-     def operator>>(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : long)   : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : int)    : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : short)  : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : char)   : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : double)   : var { 
-        mut.acquire(); 
-        result := (value>>num.value);
-        mut.release();
-        return result;
-     }
-     def operator>>(num : var)    : var { 
-        mut.acquire(); 
-        result := (value>>num);
-        mut.release();
-        return result;
-     }
- 
-     def operator^(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : long)   : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : int)    : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : short)  : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : char)   : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : double)   : var { 
-        mut.acquire(); 
-        result := (value^num.value);
-        mut.release();
-        return result;
-     }
-     def operator^(num : var)    : var { 
-        mut.acquire(); 
-        result := (value^num);
-        mut.release();
-        return result;
-     }
- 
-     def operator&(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : long)   : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : int)    : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : short)  : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : char)   : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : double)   : var { 
-        mut.acquire(); 
-        result := (value&num.value);
-        mut.release();
-        return result;
-     }
-     def operator&(num : var)    : var { 
-        mut.acquire(); 
-        result := (value&num);
-        mut.release();
-        return result;
-     }
- 
-     def operator|(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : long)   : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : int)    : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : short)  : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : char)   : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : double)   : var { 
-        mut.acquire(); 
-        result := (value|num.value);
-        mut.release();
-        return result;
-     }
-     def operator|(num : var)    : var { 
-        mut.acquire(); 
-        result := (value|num);
-        mut.release();
-        return result;
-     }
- 
+     def operator!=(num : ulong) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : ulong) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : long) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : long) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : uint) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : uint) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : int) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : int) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : ushort) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : ushort) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : short) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : short) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : uchar) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : uchar) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : char) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : char) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : byte) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : byte) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator!=(num : bool) : var {
+            lock(self) {
+               return (value!=num.value);
+            }
+     }
+     def operator==(num : bool) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+     def operator==(num : double) : var {
+            lock(self) {
+               return (value==num.value);
+            }
+     }
+
+     def operator+(num : ulong)  : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : long)   : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : uint)   : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : int)    : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : ushort) : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : short)  : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : uchar)  : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : char)   : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : byte)   : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : bool)   : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : double)   : var {
+            lock(self) {
+               return (value+num.value);
+            }
+     }
+     def operator+(num : var)    : var {
+            lock(self) {
+               return (value+num);
+            }
+     }
+
+     def operator-(num : ulong)  : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : long)   : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : uint)   : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : int)    : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : ushort) : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : short)  : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : uchar)  : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : char)   : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : byte)   : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : bool)   : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : double)   : var {
+            lock(self) {
+               return (value-num.value);
+            }
+     }
+     def operator-(num : var)    : var {
+            lock(self) {
+               return (value-num);
+            }
+     }
+
+     def operator*(num : ulong)  : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : long)   : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : uint)   : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : int)    : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : ushort) : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : short)  : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : uchar)  : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : char)   : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : byte)   : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : bool)   : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : double)   : var {
+            lock(self) {
+               return (value*num.value);
+            }
+     }
+     def operator*(num : var)    : var {
+            lock(self) {
+               return (value*num);
+            }
+     }
+
+     def operator/(num : ulong)  : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : long)   : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : uint)   : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : int)    : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : ushort) : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : short)  : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : uchar)  : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : char)   : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : byte)   : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : bool)   : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : double)   : var {
+            lock(self) {
+               return (value/num.value);
+            }
+     }
+     def operator/(num : var)    : var {
+            lock(self) {
+               return (value/num);
+            }
+     }
+
+     def operator%(num : ulong)  : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : long)   : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : uint)   : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : int)    : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : ushort) : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : short)  : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : uchar)  : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : char)   : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : byte)   : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : bool)   : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : double)   : var {
+            lock(self) {
+               return (value%num.value);
+            }
+     }
+     def operator%(num : var)    : var {
+            lock(self) {
+               return (value%num);
+            }
+     }
+
+     def operator<(num : ulong)  : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : long)   : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : uint)   : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : int)    : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : ushort) : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : short)  : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : uchar)  : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : char)   : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : byte)   : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : bool)   : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : double)   : var {
+            lock(self) {
+               return (value<num.value);
+            }
+     }
+     def operator<(num : var)    : var {
+            lock(self) {
+               return (value<num);
+            }
+     }
+
+     def operator>(num : ulong)  : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : long)   : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : uint)   : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : int)    : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : ushort) : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : short)  : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : uchar)  : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : char)   : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : byte)   : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : bool)   : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : double)   : var {
+            lock(self) {
+               return (value>num.value);
+            }
+     }
+     def operator>(num : var)    : var {
+            lock(self) {
+               return (value>num);
+            }
+     }
+
+     def operator<=(num : ulong)  : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : long)   : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : uint)   : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : int)    : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : ushort) : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : short)  : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : uchar)  : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : char)   : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : byte)   : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : bool)   : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : double)   : var {
+            lock(self) {
+               return (value>=num.value);
+            }
+     }
+     def operator<=(num : var)    : var {
+            lock(self) {
+               return (value>=num);
+            }
+     }
+
+     def operator**(num : ulong)  : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : long)   : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : uint)   : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : int)    : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : ushort) : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : short)  : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : uchar)  : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : char)   : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : byte)   : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : bool)   : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : double)   : var {
+            lock(self) {
+               return (value**num.value);
+            }
+     }
+     def operator**(num : var)    : var {
+            lock(self) {
+               return (value**num);
+            }
+     }
+
+     def operator<<(num : ulong)  : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : long)   : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : uint)   : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : int)    : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : ushort) : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : short)  : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : uchar)  : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : char)   : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : byte)   : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : bool)   : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : double)   : var {
+            lock(self) {
+               return (value<<num.value);
+            }
+     }
+     def operator<<(num : var)    : var {
+            lock(self) {
+               return (value<<num);
+            }
+     }
+
+     def operator>>(num : ulong)  : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : long)   : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : uint)   : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : int)    : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : ushort) : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : short)  : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : uchar)  : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : char)   : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : byte)   : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : bool)   : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : double)   : var {
+            lock(self) {
+               return (value>>num.value);
+            }
+     }
+     def operator>>(num : var)    : var {
+            lock(self) {
+               return (value>>num);
+            }
+     }
+
+     def operator^(num : ulong)  : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : long)   : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : uint)   : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : int)    : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : ushort) : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : short)  : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : uchar)  : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : char)   : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : byte)   : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : bool)   : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : double)   : var {
+            lock(self) {
+               return (value^num.value);
+            }
+     }
+     def operator^(num : var)    : var {
+            lock(self) {
+               return (value^num);
+            }
+     }
+
+     def operator&(num : ulong)  : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : long)   : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : uint)   : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : int)    : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : ushort) : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : short)  : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : uchar)  : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : char)   : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : byte)   : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : bool)   : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : double)   : var {
+            lock(self) {
+               return (value&num.value);
+            }
+     }
+     def operator&(num : var)    : var {
+            lock(self) {
+               return (value&num);
+            }
+     }
+
+     def operator|(num : ulong)  : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : long)   : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : uint)   : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : int)    : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : ushort) : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : short)  : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : uchar)  : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : char)   : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : byte)   : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : bool)   : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : double)   : var {
+            lock(self) {
+               return (value|num.value);
+            }
+     }
+     def operator|(num : var)    : var {
+            lock(self) {
+               return (value|num);
+            }
+     }
+
      def operator!=(num : var) : var {
-        mut.acquire();
-        result := (value!=num);
-        mut.release();
-        return result;
+            lock(self) {
+               return (value!=num);
+            }
      }
      def operator==(num : var) : var {
-        mut.acquire();
-        result := (value==num);
-        mut.release();
-        return result;
+            lock(self) {
+               return (value==num);
+            }
      }
      def operator=(num : var) : var {
-        mut.acquire();
+            lock(self) {
                value = num;
                return value;
-        mut.release();
-        return result;
+            }
      }
-     
+
      def operator!() : var {
-        mut.acquire();
-        result := (!value);
-        mut.release();
-        return result;
+            lock(self) {
+               return (!value);
+            }
      }
      def operator++() : var {
-        mut.acquire();
-        result := (++value);
-        mut.release();
-        return result;
+            lock(self) {
+               return (++value);
+            }
      }
-     def operator++(num : var) : var { 
-        mut.acquire(); 
-        result := (value++);
-        mut.release();
-        return result;
+     def operator++(num : var) : var {
+            lock(self) {
+               return (value++);
+            }
      }
      def operator--() : var {
-        mut.acquire();
-        result := (--value);
-        mut.release();
-        return result;
-     }
-     def operator--(num : var) : var { 
-        mut.acquire(); 
-        result := (value--);
-        mut.release();
-        return result;
-     }
- 
-     def operator+=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value+=num.value);
-        mut.release();
-        return result;
-     }
-     def operator+=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value+=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator-=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value-=num.value);
-        mut.release();
-        return result;
-     }
-     def operator-=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value-=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator*=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value*=num.value);
-        mut.release();
-        return result;
-     }
-     def operator*=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value*=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator/=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value/=num.value);
-        mut.release();
-        return result;
-     }
-     def operator/=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value/=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator%=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value%=num.value);
-        mut.release();
-        return result;
-     }
-     def operator%=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value%=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator&=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value&=num.value);
-        mut.release();
-        return result;
-     }
-     def operator&=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value&=num);
-        mut.release();
-        return result;
-     }
- 
-     def operator|=(num : ulong)  : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : long)   : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : uint)   : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : int)    : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : ushort) : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : short)  : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : uchar)  : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : char)   : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : byte)   : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : bool)   : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : double)   : var { 
-        mut.acquire(); 
-        result := (value|=num.value);
-        mut.release();
-        return result;
-     }
-     def operator|=(num : var)    : var { 
-        mut.acquire(); 
-        result := (value|=num);
-        mut.release();
-        return result;
+            lock(self) {
+               return (--value);
+            }
+     }
+     def operator--(num : var) : var {
+            lock(self) {
+               return (value--);
+            }
+     }
+
+     def operator+=(num : ulong)  : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : long)   : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : uint)   : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : int)    : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : ushort) : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : short)  : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : uchar)  : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : char)   : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : byte)   : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : bool)   : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : double)   : var {
+            lock(self) {
+               return (value+=num.value);
+            }
+     }
+     def operator+=(num : var)    : var {
+            lock(self) {
+               return (value+=num);
+            }
+     }
+
+     def operator-=(num : ulong)  : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : long)   : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : uint)   : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : int)    : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : ushort) : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : short)  : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : uchar)  : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : char)   : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : byte)   : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : bool)   : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : double)   : var {
+            lock(self) {
+               return (value-=num.value);
+            }
+     }
+     def operator-=(num : var)    : var {
+            lock(self) {
+               return (value-=num);
+            }
+     }
+
+     def operator*=(num : ulong)  : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : long)   : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : uint)   : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : int)    : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : ushort) : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : short)  : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : uchar)  : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : char)   : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : byte)   : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : bool)   : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : double)   : var {
+            lock(self) {
+               return (value*=num.value);
+            }
+     }
+     def operator*=(num : var)    : var {
+            lock(self) {
+               return (value*=num);
+            }
+     }
+
+     def operator/=(num : ulong)  : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : long)   : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : uint)   : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : int)    : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : ushort) : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : short)  : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : uchar)  : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : char)   : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : byte)   : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : bool)   : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : double)   : var {
+            lock(self) {
+               return (value/=num.value);
+            }
+     }
+     def operator/=(num : var)    : var {
+            lock(self) {
+               return (value/=num);
+            }
+     }
+
+     def operator%=(num : ulong)  : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : long)   : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : uint)   : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : int)    : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : ushort) : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : short)  : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : uchar)  : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : char)   : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : byte)   : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : bool)   : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : double)   : var {
+            lock(self) {
+               return (value%=num.value);
+            }
+     }
+     def operator%=(num : var)    : var {
+            lock(self) {
+               return (value%=num);
+            }
+     }
+
+     def operator&=(num : ulong)  : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : long)   : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : uint)   : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : int)    : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : ushort) : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : short)  : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : uchar)  : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : char)   : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : byte)   : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : bool)   : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : double)   : var {
+            lock(self) {
+               return (value&=num.value);
+            }
+     }
+     def operator&=(num : var)    : var {
+            lock(self) {
+               return (value&=num);
+            }
+     }
+
+     def operator|=(num : ulong)  : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : long)   : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : uint)   : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : int)    : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : ushort) : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : short)  : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : uchar)  : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : char)   : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : byte)   : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : bool)   : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : double)   : var {
+            lock(self) {
+               return (value|=num.value);
+            }
+     }
+     def operator|=(num : var)    : var {
+            lock(self) {
+               return (value|=num);
+            }
      }
 }

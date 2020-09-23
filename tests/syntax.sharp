@@ -6,11 +6,38 @@ import std.io.task;
 import platform;
 import platform.kernel;
 
-class a {
-    num : var;
-    obj : var[];
-    _a : a;
+// ABC Corp []
+
+interface def_corp_employer {
+    private def organize(num : var); // 0
+}
+
+interface abc_corp_employer base def_corp_employer {
+    def build_app(); // 1
+}
+
+class employee : abc_corp_employer {
+    def organize(num : var) {
+       build_app();
+    }
+
+    def work();
+}
+
+class john base employee {
+    def build_app() : kdlkdfkdsm { // delegateAddress = 1
+
+    }
+
+    def foo() { // delegateAddress = -1
+
+    }
 }
 
 def main(args: string[]) {
+  j : abc_corp_employer = new john();
+  j.build_app(); // 1
 }
+
+
+

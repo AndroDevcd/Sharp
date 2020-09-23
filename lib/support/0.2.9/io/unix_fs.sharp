@@ -8,7 +8,6 @@ mod std.io;
 protected class unix_fs base file_system {
     private slash := '/';
     private buffer := new _int8[512];
-    private mut := new mutex();
 
     def path_separator() : var {
         return slash;
@@ -19,46 +18,45 @@ protected class unix_fs base file_system {
     * path seperators to be accessed
     */
     def normalize(pathname: string) : string {
-        mut.acquire();
-        n := pathname.size();
-        buf_index := 0;
-        for (i := 0; i < n; i++) {
-            // remove any trailing slashes
-            if((i + 1) >= n && buf_index > 0 && (pathname[i] == '\\' || pathname[i] == '/'))
-                break;
+        lock(self) {
+           n := pathname.size();
+           buf_index := 0;
+           for (i := 0; i < n; i++) {
+               // remove any trailing slashes
+               if((i + 1) >= n && buf_index > 0 && (pathname[i] == '\\' || pathname[i] == '/'))
+                   break;
 
-            // Remove duplicate slashes.
-            if (pathname[i] == '\\') {
-                if(buf_index > 0 && buffer[buf_index - 1] != '/')
-                    buffer[buf_index++] = '/';
+               // Remove duplicate slashes.
+               if (pathname[i] == '\\') {
+                   if(buf_index > 0 && buffer[buf_index - 1] != '/')
+                       buffer[buf_index++] = '/';
 
-                if(((i + 1) < n) && pathname[i + 1] == '\\') {
-                    do {
-                        i++;
-                    } while(pathname[i] == '\\');
-                    i--;
-                }
-            }
-            else if(pathname[i] == '/')  {
-                if(((i + 1) < n) && pathname[i + 1] == '/') {
-                    do {
-                        i++;
-                    } while(pathname[i] == '/');
+                   if(((i + 1) < n) && pathname[i + 1] == '\\') {
+                       do {
+                           i++;
+                       } while(pathname[i] == '\\');
+                       i--;
+                   }
+               }
+               else if(pathname[i] == '/')  {
+                   if(((i + 1) < n) && pathname[i + 1] == '/') {
+                       do {
+                           i++;
+                       } while(pathname[i] == '/');
 
-                    if(buf_index > 0 && buffer[buf_index - 1] != '/')
-                        i--;
-                }
+                       if(buf_index > 0 && buffer[buf_index - 1] != '/')
+                           i--;
+                   }
 
-                if(buf_index == 0 || buf_index > 0 && buffer[buf_index - 1] != '/')
-                    buffer[buf_index++] = '/';
-            }
-            else
-                buffer[buf_index++] = pathname[i];
+                   if(buf_index == 0 || buf_index > 0 && buffer[buf_index - 1] != '/')
+                       buffer[buf_index++] = '/';
+               }
+               else
+                   buffer[buf_index++] = pathname[i];
+           }
+
+           return new string(buffer, 0, buf_index);
         }
-
-        result := new string(buffer, 0, buf_index);
-        mut.release();
-        return result;
     }
 
      /**

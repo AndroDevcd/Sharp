@@ -105,16 +105,14 @@ public class thread {
 	    result := vm.suspend(self);
 	    if(result == result_ok) {
 	        suspended = true;
-	        fib.suspend();
 	    }
 	    return result;
 	}
-	
+
 	public def unsuspend() : thread_result {
 	    result := vm.unsuspend(self, false);
 	    if(result == result_ok) {
 	        suspended = false;
-	        fib.unsuspend();
 	    }
 	    return result;
 	}
@@ -123,13 +121,12 @@ public class thread {
 	    result := vm.unsuspend(self, true);
 	    if(result == result_ok) {
 	        suspended = false;
-	        fib.unsuspend();
 	    }
 	    return result;
 	}
-	
+
     public def join() := vm.thread_join(self);
-	
+
     public def interrupt() {
         vm.kill(self);
     }
@@ -160,21 +157,18 @@ public class thread {
     }
 
     public def set_priority(priority : thread_priority) : thread_result {
-        mut.acquire();
-        when (priority) {
-            min_priority,
-            norm_priority,
-            max_priority -> {
-                result := vm.set_thread_priority(self, priority.get_ordinal());
-                mut.release();
-                return result;
-            }
-            else -> {
-                mut.release();
-                throw new illegal_argument_exception("invalid thread priority $priority");
+        lock(self) {
+            when (priority) {
+                min_priority,
+                norm_priority,
+                max_priority -> {
+                    return vm.set_thread_priority(self, priority.get_ordinal());
+                }
+                else -> {
+                    throw new illegal_argument_exception("invalid thread priority $priority");
+                }
             }
         }
-        mut.release();
     }
 
     private def remove_thread(t : thread) {
@@ -193,10 +187,10 @@ public class thread {
 	public def is_active() := started && !exited;
 	public def get_exit_code() := exit_code;
 	public def get_exception_handler() := error_handler;
+	public def get_main_fiber() := fib;
 
     public def operator==(t : thread) : var = native_handle==t.native_handle;
 
-    private mut := new mutex();
     private exit_code : var;
     private native_handle : var;
     private id : var;

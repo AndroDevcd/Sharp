@@ -88,9 +88,6 @@ void File::read_alltext(const char *f, buffer& _out)
 
         len = file_size(fp);
         if(len == -1) 1;
-        if(len == 0) {
-            cout << "SEEK_END" << endl;
-        }
         char c;
 
         do {

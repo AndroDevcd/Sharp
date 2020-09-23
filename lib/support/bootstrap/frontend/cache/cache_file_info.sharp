@@ -8,7 +8,6 @@ import frontend.parser;
 
 ufid := new atomic<var>(0);
 file_info : cache_info;
-mut := new mutex();
 cache_file_size_limit := 1024 * 250; // 250kb/file limit for caching files
 
 class cache_info {
@@ -70,79 +69,81 @@ build_folder_2 := "/build";
 cache_folder_2 := "/build/cache/files";
 
 def update_cache_info() {
-   mut.acquire();
-   if(file_info == null) {
-      cf := new file(options.project_dir + cache_file_path);
-      build_1 := new file(options.project_dir + build_folder_1);
-      build_2 := new file(options.project_dir + build_folder_2);
-      folder_1 := new file(options.project_dir + cache_folder_1);
-      folder_2 := new file(options.project_dir + cache_folder_2);
+   lock(cache_file_path) {
+      if(file_info == null) {
+         cf := new file(options.project_dir + cache_file_path);
+         build_1 := new file(options.project_dir + build_folder_1);
+         build_2 := new file(options.project_dir + build_folder_2);
+         folder_1 := new file(options.project_dir + cache_folder_1);
+         folder_2 := new file(options.project_dir + cache_folder_2);
 
-      if(!build_1.exists())
-         build_1.mkdir();
+         if(!build_1.exists())
+            build_1.mkdir();
 
-      if(!build_2.exists())
-         build_2.mkdir();
+         if(!build_2.exists())
+            build_2.mkdir();
 
-      if(!folder_1.exists())
-         folder_1.mkdir();
+         if(!folder_1.exists())
+            folder_1.mkdir();
 
-      if(!folder_2.exists())
-         folder_2.mkdir();
+         if(!folder_2.exists())
+            folder_2.mkdir();
 
-      if(cf.exists()) {
-         try {
-            println("update cache ${options.project_dir + cache_file_path}");
-            file_info = _import_from(options.project_dir + cache_file_path) as cache_info;
-            mut.release();
-            return;
-         } catch (throwable) {
-            flush_cache();
+         if(cf.exists()) {
+            try {
+               println("update cache ${options.project_dir + cache_file_path}");
+               file_info = _import_from(options.project_dir + cache_file_path) as cache_info;
+               return;
+            } catch (throwable) {
+               flush_cache();
+            }
          }
-      }
 
-      file_info = new cache_info();
+         file_info = new cache_info();
+      }
    }
-   mut.release();
 }
 
 def store_cache_info() {
-   if(file_info != null) {
-      try {
-         println("export cache ${options.project_dir + cache_file_path}");
-         _export(file_info, options.project_dir + cache_file_path);
-      } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+   lock(cache_file_path) {
+      if(file_info != null) {
+         try {
+            println("export cache ${options.project_dir + cache_file_path}");
+            _export(file_info, options.project_dir + cache_file_path);
+         } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+      }
    }
 }
 
 def store_parsed_data(p: parser) {
-   filepath := p.source_file;
-   fd := file_info.get_file(filepath);
+   lock(cache_file_path) {
+      filepath := p.source_file;
+      fd := file_info.get_file(filepath);
 
-   try {
-      if(new file(filepath).length() > cache_file_size_limit) {
-         if(fd != null) {
-            old_cache := new file(options.project_dir + fd.parser_cache);
-            if(old_cache.exists())
-               old_cache.delete();
+      try {
+         if(new file(filepath).length() > cache_file_size_limit) {
+            if(fd != null) {
+               old_cache := new file(options.project_dir + fd.parser_cache);
+               if(old_cache.exists())
+                  old_cache.delete();
+            }
+
+            return; // no caching files over cache limit
          }
 
-         fiber.unlock();
-         return; // no caching files over cache limit
-      }
+         if(fd == null) {
+           fd = file_info.add(filepath);
+         }
 
-      if(fd == null) {
-        fd = file_info.add(filepath);
-      }
+         cache := new file(options.project_dir + fd.parser_cache);
+         if(!cache.exists())
+            cache.create();
 
-      cache := new file(options.project_dir + fd.parser_cache);
-      if(!cache.exists())
-         cache.create();
-
-      _export(p, options.project_dir + fd.parser_cache);
-      fd.last_update = new file(filepath).last_modified();
-      p.cached = true;
-   } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+         _export(p, options.project_dir + fd.parser_cache);
+         fd.last_update = new file(filepath).last_modified();
+         p.cached = true;
+      } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+   }
 }
 
 def load_cached_parser(filepath: string) : parser {

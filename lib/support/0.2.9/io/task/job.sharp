@@ -42,34 +42,33 @@ public class job {
 	}
 
 	public def cancel() {
-	    mut.acquire();
-        if(state == active) {
-            state = cancelled;
+	    lock(self) {
+            if(state == active) {
+                state = cancelled;
 
-            if(fiber.current() != fib) {
-               fib.kill();
-               launcher.cleanup_job(self);
+                if(fiber.current() != fib) {
+                   fib.kill();
+                   launcher.cleanup_job(self);
+                }
+                else {
+                   throw new cancellation_exception();
+                }
             }
-            else {
-	           mut.release();
-               throw new cancellation_exception();
-            }
-        }
-	    mut.release();
+	    }
 	}
 
 	protected def cancel_future() {
-	    mut.acquire();
-        if(recurring) {
-            jb := next_task;
-            while(jb != null) {
-                jb.cancel();
-                launcher.cleanup_job(jb);
+	    lock(self) {
+            if(recurring) {
+                jb := next_task;
+                while(jb != null) {
+                    jb.cancel();
+                    launcher.cleanup_job(jb);
 
-                jb = jb.next_task;
+                    jb = jb.next_task;
+                }
             }
-        }
-	    mut.release();
+		}
 	}
 
 	public def join() {
@@ -203,7 +202,6 @@ public class job {
         jb.master.start_job(jb.scheduled_job);
     }
 
-    private mut := new mutex();
 	protected main0: ()();
 	protected main1: (args : object[])();
 	protected main2: (object, object[])();

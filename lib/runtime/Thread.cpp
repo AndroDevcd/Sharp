@@ -1481,6 +1481,9 @@ void Thread::setup() {
             if(nameField) {
                 *nameField = threadNameField;
             }
+
+            if(this_fiber->fiberObject.object == NULL)
+                this_fiber->fiberObject = fibField;
         }
     }
 }

@@ -1,6 +1,5 @@
 mod frontend;
 
-import std.io.fiber;
 import frontend.tokenizer;
 import frontend.parser;
 
@@ -43,25 +42,24 @@ class error_manager {
     }
 
     public def print_errors() {
-        fiber._lock();
-        if(!direct_report) {
-            err_str: string;
-            if(errors_found) {
-                if(aggressive_errors) {
-                    err_str = get_errors(raw_errors);
-                    if(!err_str.empty()) println(err_str);
-                }
-                else {
-                    err_str = get_errors(errors);
-                    if(!err_str.empty()) println(err_str);
-                }
-            }
+        lock(self) {
+           if(!direct_report) {
+               err_str: string;
+               if(errors_found) {
+                   if(aggressive_errors) {
+                       err_str = get_errors(raw_errors);
+                       if(!err_str.empty()) println(err_str);
+                   }
+                   else {
+                       err_str = get_errors(errors);
+                       if(!err_str.empty()) println(err_str);
+                   }
+               }
 
-            err_str = get_errors(warnings);
-            if(!err_str.empty()) println(err_str);
+               err_str = get_errors(warnings);
+               if(!err_str.empty()) println(err_str);
+           }
         }
-
-        fiber.unlock();
     }
 
 
@@ -88,21 +86,21 @@ class error_manager {
     }
 
     def print_error(error: parse_error) {
-        fiber._lock();
-        if(error.warning) {
-            print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
-                (error.id as var) + ":  " + error.error + "\n");
-        } else {
-            print(filename + ":" + error.line + ":" + error.col + ": error S60" +
-                (error.id as var) + ":  " + error.error + "\n");
+        lock(self) {
+           if(error.warning) {
+               print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
+                   (error.id as var) + ":  " + error.error + "\n");
+           } else {
+               print(filename + ":" + error.line + ":" + error.col + ": error S60" +
+                   (error.id as var) + ":  " + error.error + "\n");
+           }
+
+           print("\t" + get_line(error.line) + "\n\t");
+
+           for(i := 0; i < error.col-1; i++)
+               print(" ");
+           print("^\n");
         }
-
-        print("\t" + get_line(error.line) + "\n\t");
-
-        for(i := 0; i < error.col-1; i++)
-            print(" ");
-        print("^\n");
-        fiber.unlock();
     }
 
     def get_line(line: var) : string {

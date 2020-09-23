@@ -53,13 +53,15 @@ struct mutex_t
 {
     SharpObject* object;
     uInt lockedCount;
-    long threadid;
-    
-    mutex_t(SharpObject *o, recursive_mutex *mut, long threadid) 
+    Int fiberid;
+    Int threadid;
+
+    mutex_t(SharpObject *o, recursive_mutex *mut)
     : 
         object(o),
-        threadid(threadid),
-        lockedCount(0)
+        lockedCount(0),
+        fiberid(-1),
+        threadid(-1)
     {
     }
 };

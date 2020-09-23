@@ -23,12 +23,12 @@ class job_master {
 	protected def create_job(name : string) := new job(name);
 
 	protected def start_job(scheduled_job : job) {
-	    mut.acquire();
-        if(!started) {
-            start_scheduler();
-            started = true;
-        }
-	    mut.release();
+	    lock(self) {
+            if(!started) {
+                start_scheduler();
+                started = true;
+            }
+		}
 
 		if(scheduled_job.delay_time)
 			scheduled_job.delay_time = scheduled_job.delay_time + time.mills_time();
@@ -79,5 +79,4 @@ class job_master {
 	protected long_term_pool : thread_group;
 	protected short_term_pool : thread_group;
 	protected started: var;
-	private mut := new mutex();
 }

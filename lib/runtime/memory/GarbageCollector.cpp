@@ -744,6 +744,7 @@ void GarbageCollector::printClassRefStatus() {
     gc.mutex.unlock();
 
 }
+extern void printRegs();
 
 recursive_mutex lockCheckMutex;
 bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
@@ -756,7 +757,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
             mut = locks.get(idx);
         else {
             managedBytes += sizeof(mutex_t)+sizeof(recursive_mutex);
-            mut = new mutex_t(o, new recursive_mutex(), -1);
+            mut = new mutex_t(o, new recursive_mutex());
             locks.add(mut);
             SET_LOCK(o->info, 1);
         }
@@ -765,7 +766,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         retry:
         long maxSpin = 10000000;
         long spins = 0;
-        while(mut->threadid != -1) {
+        while(mut->fiberid != -1) {
             if (spins++ == maxSpin) {
                 spins = 0;
                 if(thread->contextSwitching) {
@@ -792,17 +793,20 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 #ifdef POSIX_
                 usleep(1*POSIX_USEC_INTERVAL);
 #endif
-            } else if(mut->threadid == thread->id)
+            } else if(mut->fiberid == thread->this_fiber->id)
                 break;
         }
 
-        mut->threadid = thread->id;
+        mut->fiberid = thread->this_fiber->id;
         lockCheckMutex.lock();
-        if(mut->threadid != thread->id) {
+        if(mut->fiberid != thread->this_fiber->id) {
             lockCheckMutex.unlock();
-            goto retry;
+            thread->this_fiber->delay(1);
+            thread->enableContextSwitch(NULL, true);
+            return false;
         }
 
+        mut->threadid=thread->id;
         mut->lockedCount++;
         lockCheckMutex.unlock();
     }
@@ -821,9 +825,10 @@ void GarbageCollector::unlock(SharpObject *o) {
         if(mut) {
 
             lockCheckMutex.lock();
-            if (mut->threadid != -1) {
+            if (mut->fiberid != -1) {
                 mut->lockedCount--;
                 if(mut->lockedCount <= 0) {
+                    mut->fiberid = -1;
                     mut->threadid = -1;
                     mut->lockedCount=0;
                 }

@@ -2,41 +2,34 @@ mod std.io;
 
 class atomic_ref<t> {
      value : t;
-        get {
-           mut.acquire();
-           result := value;
-           mut.release();
-           return result;
-        }
+        get { lock(self) { return value; } }
         set val -> {
-           mut.acquire();
-           value = val;
-           mut.release();
+            lock(self) {
+               value = val;
+            }
         }
-
-     mut := new mutex();
 
      atomic_ref(initial_val : t) {
         value = initial_val;
      }
-	 
+
 	 def write(write_func: (data: t)()) {
-         mut.acquire();
-         try {
-		    write_func(value);
-		 } finally {
-            mut.release();
-		 }
-         mut.release();
+        lock(self) {
+           try {
+		      write_func(value);
+		   } finally{
+		      self->_unlock();
+		   }
+		}
 	 }
-	 
+
 	 def write(write_func: (data: t, args: object[])(), args: object[]) {
-         mut.acquire();
-         try {
-		    write_func(value, args);
-		 } finally {
-            mut.release();
-		 }
-         mut.release();
+        lock(self) {
+           try {
+		      write_func(value, args);
+		   } finally{
+		      self->_unlock();
+		   }
+		}
 	 }
 }

@@ -414,10 +414,6 @@ void read_file(native_string &path, native_string &outStr) {
     File::buffer buf;
     File::read_alltext(path.str().c_str(), buf);
 
-    if(buf.size() == 0) {
-        printRegs();
-        int i = 0;
-    }
     if(outStr.injectBuff(buf)) {
         throw Exception(vm.OutOfMemoryExcept, "out of memory");
     }
