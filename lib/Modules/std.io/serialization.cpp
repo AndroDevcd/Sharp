@@ -5,9 +5,9 @@
 #include "serialization.h"
 #include "../../runtime/VirtualMachine.h"
 
-thread_local HashMap<Int, Int> exportStreamInfo(0x1024, false);
-thread_local HashMap<Int, SharpObject*> importStreamInfo(0x1024, false);
-thread_local Int recursion = 0, refId;
+HashMap<Int, Int> exportStreamInfo(0x1024, false);
+HashMap<Int, SharpObject*> importStreamInfo(0x1024, false);
+Int recursion = 0, refId;
 
 recursive_mutex exportMutex;
 stringstream dataStream;
@@ -129,7 +129,7 @@ string export_obj(SharpObject* obj) {
     return "";
 }
 
-thread_local Int pos, streamSize;
+Int pos, streamSize;
 char nextChar(double* data) {
     if(pos < streamSize) {
         return (char)data[++pos];
