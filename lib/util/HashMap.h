@@ -61,14 +61,16 @@ class HashMap {
 public:
     HashMap()
     :
-       monitor()
+       monitor(),
+       isProtected(false)
     {
         init(TABLE_SIZE);
     }
 
-    HashMap(uInt tableSize)
+    HashMap(uInt tableSize, bool protectedClass = false)
     :
-       monitor()
+       monitor(),
+       isProtected(protectedClass)
     {
         // construct zero initialized hash table of size
         init(tableSize);
@@ -106,7 +108,7 @@ public:
     }
 
     bool get(const K &key, V &value) {
-        GUARD(monitor)
+        if(isProtected) monitor.lock();
         if(table == NULL)
             init(tableSize);
 
@@ -116,16 +118,19 @@ public:
         while (entry != NULL) {
             if (entry->getKey() == key) {
                 value = entry->getValue();
+
+                if(isProtected) monitor.unlock();
                 return true;
             }
             entry = entry->getNext();
         }
 
+        if(isProtected) monitor.unlock();
         return false;
     }
 
     void put(const K &key, const V &value) {
-        GUARD(monitor)
+        if(isProtected) monitor.lock();
         if(table == NULL)
             init(tableSize);
 
@@ -150,10 +155,11 @@ public:
             // just update the value
             entry->setValue(value);
         }
+        if(isProtected) monitor.unlock();
     }
 
     void remove(const K &key) {
-        GUARD(monitor)
+        if(isProtected) monitor.lock();
         if(table == NULL)
             init(tableSize);
 
@@ -168,6 +174,7 @@ public:
 
         if (entry == NULL) {
             // key not found
+            if(isProtected) monitor.unlock();
             return;
         }
         else {
@@ -179,6 +186,7 @@ public:
             }
             delete entry;
         }
+        if(isProtected) monitor.unlock();
     }
 
 private:
@@ -187,6 +195,7 @@ private:
     F hashFunc;
     uInt tableSize;
     recursive_mutex monitor;
+    bool isProtected;
 };
 
 #endif //SHARP_HASHMAP_H

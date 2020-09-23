@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 124949
-post codebase size: 112833
-optimized opcodes: 12116
-net % gain 9.69676
+pre codebase size: 124933
+post codebase size: 112813
+optimized opcodes: 12120
+net % gain 9.7012
 
 
 class: std#__srt_global[0] fields(2) methods(59)
@@ -49,7 +49,7 @@ enum: std.io#thread_priority[39] fields(5) methods(19)
 enum: std.io#thread_result[40] fields(20) methods(22)
 interface: std.io#uncaught_exception_handler[41] fields(0) methods(11)
 class: std.io#unix_fs[42] fields(20) methods(35)
-class: std.io#win_fs[43] fields(20) methods(35)
+class: std.io#win_fs[43] fields(19) methods(35)
 class: std.math#__srt_global[44] fields(5) methods(27)
 class: std#_nil_[45] fields(1) methods(13)
 class: std#_object_[46] fields(0) methods(9)
@@ -46109,11 +46109,11 @@ constructor: std.io#unix_fs.unix_fs[2312] params(0) in file: lib/support/0.2.9/i
 16 [0x10]:         ret   
 
 
-function: std.io#win_fs.path_separator[2313] params(0) in file: lib/support/0.2.9/io//win_fs.sharp:15:8: note:  
+function: std.io#win_fs.path_separator[2313] params(0) in file: lib/support/0.2.9/io//win_fs.sharp:14:8: note:  
 		    def path_separator() : var {
 		       ^
 
-0 [0x0]: line: 16 movl 0   
+0 [0x0]: line: 15 movl 0   
 1 [0x1]:          movn #0   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          iaload ebx, adx   
@@ -46121,108 +46121,109 @@ function: std.io#win_fs.path_separator[2313] params(0) in file: lib/support/0.2.
 7 [0x7]:          ret   
 
 
-function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io//win_fs.sharp:23:8: note:  
+function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io//win_fs.sharp:22:8: note:  
 		    def normalize(pathname: string) : string {
 		       ^
 
-0 [0x0]: line: 24 movl 0   
+0 [0x0]: line: 23 movl 0   
 1 [0x1]:          _lck    
-2 [0x2]: line: 25 pushl 1   
-3 [0x3]:          call @3594 // <std#string.size>   
-4 [0x4]:          ipopl 2   
-5 [0x5]: line: 26 istorel 0, fp+3   
-7 [0x7]: line: 27 istorel 0, fp+4   
-9 [0x9]:          ipushl #4   
-10 [0xa]:          loadl ebx, fp+2   
-11 [0xb]:          loadval ecx   
-12 [0xc]:          lt ecx, ebx   
-13 [0xd]:          movr ebx, cmt   
-14 [0xe]:          movr cmt, ebx   
-15 [0xf]:          jne 323   
-16 [0x10]: line: 29 ipushl #4   
-17 [0x11]:          movi #1, ebx   
-19 [0x13]:          loadval ecx   
-20 [0x14]:          add ecx, ebx -> ebx   
-21 [0x15]:          rstore ebx   
-22 [0x16]:          loadl ebx, fp+2   
-23 [0x17]:          loadval ecx   
-24 [0x18]:          gte ecx, ebx   
-25 [0x19]:          movr ebx, cmt   
-26 [0x1a]:          skne ebx // pc = 57   
-27 [0x1b]:          ipushl #3   
-28 [0x1c]:          movi #0, ebx   
-30 [0x1e]:          loadval ecx   
-31 [0x1f]:          gt ecx, ebx   
-32 [0x20]:          movr ebx, cmt   
-33 [0x21]:          skne ebx // pc = 57   
-34 [0x22]:          movl 1   
-35 [0x23]:          pushobj   
-36 [0x24]:          ipushl #4   
-37 [0x25]:          call @3576 // <std#string.operator[>   
-38 [0x26]:          loadval ebx   
-39 [0x27]:          rstore ebx   
-40 [0x28]:          movi #92, ebx   
-42 [0x2a]:          loadval ecx   
-43 [0x2b]:          test ecx, ebx   
-44 [0x2c]:          movr ebx, cmt   
-45 [0x2d]:          skpe ebx // pc = 57   
-46 [0x2e]:          movl 1   
-47 [0x2f]:          pushobj   
-48 [0x30]:          ipushl #4   
-49 [0x31]:          call @3576 // <std#string.operator[>   
-50 [0x32]:          loadval ebx   
-51 [0x33]:          rstore ebx   
-52 [0x34]:          movi #47, ebx   
-54 [0x36]:          loadval ecx   
-55 [0x37]:          test ecx, ebx   
-56 [0x38]:          movr ebx, cmt   
-57 [0x39]:          movr cmt, ebx   
-58 [0x3a]:          jne 60   
-59 [0x3b]: line: 30 jmp @323   
-60 [0x3c]:          nop   
-61 [0x3d]: line: 33 pushl 1   
-62 [0x3e]:          ipushl #4   
-63 [0x3f]:          call @3576 // <std#string.operator[>   
-64 [0x40]:          loadval ebx   
-65 [0x41]:          rstore ebx   
-66 [0x42]:          movi #47, ebx   
-68 [0x44]:          loadval ecx   
-69 [0x45]:          test ecx, ebx   
-70 [0x46]:          movr ebx, cmt   
-71 [0x47]:          movr cmt, ebx   
-72 [0x48]:          jne 167   
-73 [0x49]: line: 34 ipushl #3   
-74 [0x4a]:          movi #0, ebx   
-76 [0x4c]:          loadval ecx   
-77 [0x4d]:          gt ecx, ebx   
-78 [0x4e]:          movr ebx, cmt   
-79 [0x4f]:          skne ebx // pc = 99   
-80 [0x50]:          movl 0   
-81 [0x51]:          movn #1   
-83 [0x53]:          pushobj   
-84 [0x54]:          ipushl #3   
-85 [0x55]:          movi #1, ebx   
-87 [0x57]:          loadval ecx   
-88 [0x58]:          sub ecx, ebx -> ebx   
-89 [0x59]:          popobj2    
-90 [0x5a]:          movr adx, ebx   
-91 [0x5b]:          chklen adx   
-92 [0x5c]:          iaload ebx, adx   
-93 [0x5d]:          rstore ebx   
-94 [0x5e]:          movi #92, ebx   
-96 [0x60]:          loadval ecx   
-97 [0x61]:          tne ecx, ebx   
-98 [0x62]:          movr ebx, cmt   
-99 [0x63]:          movr cmt, ebx   
-100 [0x64]:          jne 117   
-101 [0x65]: line: 35 istore 92   
-103 [0x67]:          movl 0   
-104 [0x68]:          movn #1   
-106 [0x6a]:          pushobj   
-107 [0x6b]:          loadl ebx, fp+3   
+2 [0x2]: line: 24 movi #512, ebx   
+4 [0x4]:          newarry ebx: 0   
+5 [0x5]:          popobj2    
+6 [0x6]:          smovr_3 fp+2   
+7 [0x7]: line: 25 pushl 1   
+8 [0x8]:          call @3594 // <std#string.size>   
+9 [0x9]:          ipopl 3   
+10 [0xa]: line: 26 istorel 0, fp+4   
+12 [0xc]: line: 27 istorel 0, fp+5   
+14 [0xe]:          ipushl #5   
+15 [0xf]:          loadl ebx, fp+3   
+16 [0x10]:          loadval ecx   
+17 [0x11]:          lt ecx, ebx   
+18 [0x12]:          movr ebx, cmt   
+19 [0x13]:          movr cmt, ebx   
+20 [0x14]:          jne 313   
+21 [0x15]: line: 29 ipushl #5   
+22 [0x16]:          movi #1, ebx   
+24 [0x18]:          loadval ecx   
+25 [0x19]:          add ecx, ebx -> ebx   
+26 [0x1a]:          rstore ebx   
+27 [0x1b]:          loadl ebx, fp+3   
+28 [0x1c]:          loadval ecx   
+29 [0x1d]:          gte ecx, ebx   
+30 [0x1e]:          movr ebx, cmt   
+31 [0x1f]:          skne ebx // pc = 62   
+32 [0x20]:          ipushl #4   
+33 [0x21]:          movi #0, ebx   
+35 [0x23]:          loadval ecx   
+36 [0x24]:          gt ecx, ebx   
+37 [0x25]:          movr ebx, cmt   
+38 [0x26]:          skne ebx // pc = 62   
+39 [0x27]:          movl 1   
+40 [0x28]:          pushobj   
+41 [0x29]:          ipushl #5   
+42 [0x2a]:          call @3576 // <std#string.operator[>   
+43 [0x2b]:          loadval ebx   
+44 [0x2c]:          rstore ebx   
+45 [0x2d]:          movi #92, ebx   
+47 [0x2f]:          loadval ecx   
+48 [0x30]:          test ecx, ebx   
+49 [0x31]:          movr ebx, cmt   
+50 [0x32]:          skpe ebx // pc = 62   
+51 [0x33]:          movl 1   
+52 [0x34]:          pushobj   
+53 [0x35]:          ipushl #5   
+54 [0x36]:          call @3576 // <std#string.operator[>   
+55 [0x37]:          loadval ebx   
+56 [0x38]:          rstore ebx   
+57 [0x39]:          movi #47, ebx   
+59 [0x3b]:          loadval ecx   
+60 [0x3c]:          test ecx, ebx   
+61 [0x3d]:          movr ebx, cmt   
+62 [0x3e]:          movr cmt, ebx   
+63 [0x3f]:          jne 65   
+64 [0x40]: line: 30 jmp @313   
+65 [0x41]:          nop   
+66 [0x42]: line: 33 pushl 1   
+67 [0x43]:          ipushl #5   
+68 [0x44]:          call @3576 // <std#string.operator[>   
+69 [0x45]:          loadval ebx   
+70 [0x46]:          rstore ebx   
+71 [0x47]:          movi #47, ebx   
+73 [0x49]:          loadval ecx   
+74 [0x4a]:          test ecx, ebx   
+75 [0x4b]:          movr ebx, cmt   
+76 [0x4c]:          movr cmt, ebx   
+77 [0x4d]:          jne 167   
+78 [0x4e]: line: 34 ipushl #4   
+79 [0x4f]:          movi #0, ebx   
+81 [0x51]:          loadval ecx   
+82 [0x52]:          gt ecx, ebx   
+83 [0x53]:          movr ebx, cmt   
+84 [0x54]:          skne ebx // pc = 102   
+85 [0x55]:          movl 2   
+86 [0x56]:          pushobj   
+87 [0x57]:          ipushl #4   
+88 [0x58]:          movi #1, ebx   
+90 [0x5a]:          loadval ecx   
+91 [0x5b]:          sub ecx, ebx -> ebx   
+92 [0x5c]:          popobj2    
+93 [0x5d]:          movr adx, ebx   
+94 [0x5e]:          chklen adx   
+95 [0x5f]:          iaload ebx, adx   
+96 [0x60]:          rstore ebx   
+97 [0x61]:          movi #92, ebx   
+99 [0x63]:          loadval ecx   
+100 [0x64]:          tne ecx, ebx   
+101 [0x65]:          movr ebx, cmt   
+102 [0x66]:          movr cmt, ebx   
+103 [0x67]:          jne 117   
+104 [0x68]: line: 35 istore 92   
+106 [0x6a]:          pushl 2   
+107 [0x6b]:          loadl ebx, fp+4   
 108 [0x6c]:          movr egx, ebx   
 109 [0x6d]:          inc ebx   
-110 [0x6e]:          smovr_2 ebx, fp+3   
+110 [0x6e]:          smovr_2 ebx, fp+4   
 111 [0x6f]:          movr ebx, egx   
 112 [0x70]:          popobj2    
 113 [0x71]:          movr adx, ebx   
@@ -46230,19 +46231,19 @@ function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io/
 115 [0x73]:          loadval ebx   
 116 [0x74]:          rmov adx, ebx   
 117 [0x75]:          nop   
-118 [0x76]: line: 37 ipushl #4   
+118 [0x76]: line: 37 ipushl #5   
 119 [0x77]:          movi #1, ebx   
 121 [0x79]:          loadval ecx   
 122 [0x7a]:          add ecx, ebx -> ebx   
 123 [0x7b]:          rstore ebx   
-124 [0x7c]:          loadl ebx, fp+2   
+124 [0x7c]:          loadl ebx, fp+3   
 125 [0x7d]:          loadval ecx   
 126 [0x7e]:          lt ecx, ebx   
 127 [0x7f]:          movr ebx, cmt   
 128 [0x80]:          skne ebx // pc = 145   
 129 [0x81]:          movl 1   
 130 [0x82]:          pushobj   
-131 [0x83]:          ipushl #4   
+131 [0x83]:          ipushl #5   
 132 [0x84]:          movi #1, ebx   
 134 [0x86]:          loadval ecx   
 135 [0x87]:          add ecx, ebx -> ebx   
@@ -46256,9 +46257,9 @@ function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io/
 144 [0x90]:          movr ebx, cmt   
 145 [0x91]:          movr cmt, ebx   
 146 [0x92]:          jne 165   
-147 [0x93]: line: 38 iaddl 1, fp@4   
+147 [0x93]: line: 38 iaddl 1, fp@5   
 149 [0x95]: line: 39 pushl 1   
-150 [0x96]:          ipushl #4   
+150 [0x96]:          ipushl #5   
 151 [0x97]:          call @3576 // <std#string.operator[>   
 152 [0x98]:          loadval ebx   
 153 [0x99]:          rstore ebx   
@@ -46268,14 +46269,14 @@ function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io/
 158 [0x9e]:          movr ebx, cmt   
 159 [0x9f]:          movr cmt, ebx   
 160 [0xa0]:          je 147   
-161 [0xa1]: line: 41 loadl ebx, fp+4   
+161 [0xa1]: line: 41 loadl ebx, fp+5   
 162 [0xa2]:          movr egx, ebx   
 163 [0xa3]:          dec ebx   
-164 [0xa4]:          smovr_2 ebx, fp+4   
+164 [0xa4]:          smovr_2 ebx, fp+5   
 165 [0xa5]:          nop   
-166 [0xa6]:          jmp @319   
+166 [0xa6]:          jmp @309   
 167 [0xa7]:          pushl 1   
-168 [0xa8]:          ipushl #4   
+168 [0xa8]:          ipushl #5   
 169 [0xa9]:          call @3576 // <std#string.operator[>   
 170 [0xaa]:          loadval ebx   
 171 [0xab]:          rstore ebx   
@@ -46284,20 +46285,20 @@ function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io/
 175 [0xaf]:          test ecx, ebx   
 176 [0xb0]:          movr ebx, cmt   
 177 [0xb1]:          movr cmt, ebx   
-178 [0xb2]:          jne 302   
-179 [0xb3]: line: 45 ipushl #4   
+178 [0xb2]:          jne 295   
+179 [0xb3]: line: 45 ipushl #5   
 180 [0xb4]:          movi #1, ebx   
 182 [0xb6]:          loadval ecx   
 183 [0xb7]:          add ecx, ebx -> ebx   
 184 [0xb8]:          rstore ebx   
-185 [0xb9]:          loadl ebx, fp+2   
+185 [0xb9]:          loadl ebx, fp+3   
 186 [0xba]:          loadval ecx   
 187 [0xbb]:          lt ecx, ebx   
 188 [0xbc]:          movr ebx, cmt   
 189 [0xbd]:          skne ebx // pc = 206   
 190 [0xbe]:          movl 1   
 191 [0xbf]:          pushobj   
-192 [0xc0]:          ipushl #4   
+192 [0xc0]:          ipushl #5   
 193 [0xc1]:          movi #1, ebx   
 195 [0xc3]:          loadval ecx   
 196 [0xc4]:          add ecx, ebx -> ebx   
@@ -46310,10 +46311,10 @@ function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io/
 204 [0xcc]:          test ecx, ebx   
 205 [0xcd]:          movr ebx, cmt   
 206 [0xce]:          movr cmt, ebx   
-207 [0xcf]:          jne 255   
-208 [0xd0]: line: 46 iaddl 1, fp@4   
+207 [0xcf]:          jne 253   
+208 [0xd0]: line: 46 iaddl 1, fp@5   
 210 [0xd2]: line: 47 pushl 1   
-211 [0xd3]:          ipushl #4   
+211 [0xd3]:          ipushl #5   
 212 [0xd4]:          call @3576 // <std#string.operator[>   
 213 [0xd5]:          loadval ebx   
 214 [0xd6]:          rstore ebx   
@@ -46323,112 +46324,104 @@ function: std.io#win_fs.normalize[2314] params(1) in file: lib/support/0.2.9/io/
 219 [0xdb]:          movr ebx, cmt   
 220 [0xdc]:          movr cmt, ebx   
 221 [0xdd]:          je 208   
-222 [0xde]: line: 50 ipushl #3   
+222 [0xde]: line: 50 ipushl #4   
 223 [0xdf]:          movi #0, ebx   
 225 [0xe1]:          loadval ecx   
 226 [0xe2]:          gt ecx, ebx   
 227 [0xe3]:          movr ebx, cmt   
-228 [0xe4]:          skne ebx // pc = 248   
-229 [0xe5]:          movl 0   
-230 [0xe6]:          movn #1   
-232 [0xe8]:          pushobj   
-233 [0xe9]:          ipushl #3   
-234 [0xea]:          movi #1, ebx   
-236 [0xec]:          loadval ecx   
-237 [0xed]:          sub ecx, ebx -> ebx   
-238 [0xee]:          popobj2    
-239 [0xef]:          movr adx, ebx   
-240 [0xf0]:          chklen adx   
-241 [0xf1]:          iaload ebx, adx   
-242 [0xf2]:          rstore ebx   
-243 [0xf3]:          movi #92, ebx   
-245 [0xf5]:          loadval ecx   
-246 [0xf6]:          tne ecx, ebx   
-247 [0xf7]:          movr ebx, cmt   
-248 [0xf8]:          movr cmt, ebx   
-249 [0xf9]:          jne 254   
-250 [0xfa]: line: 51 loadl ebx, fp+4   
-251 [0xfb]:          movr egx, ebx   
-252 [0xfc]:          dec ebx   
-253 [0xfd]:          smovr_2 ebx, fp+4   
-254 [0xfe]:          nop   
-255 [0xff]:          nop   
-256 [0x100]: line: 54 ipushl #3   
-257 [0x101]:          movi #0, ebx   
-259 [0x103]:          loadval ecx   
-260 [0x104]:          gt ecx, ebx   
-261 [0x105]:          movr ebx, cmt   
-262 [0x106]:          skne ebx // pc = 282   
-263 [0x107]:          movl 0   
-264 [0x108]:          movn #1   
-266 [0x10a]:          pushobj   
-267 [0x10b]:          ipushl #3   
-268 [0x10c]:          movi #1, ebx   
-270 [0x10e]:          loadval ecx   
-271 [0x10f]:          sub ecx, ebx -> ebx   
-272 [0x110]:          popobj2    
-273 [0x111]:          movr adx, ebx   
-274 [0x112]:          chklen adx   
-275 [0x113]:          iaload ebx, adx   
-276 [0x114]:          rstore ebx   
-277 [0x115]:          movi #92, ebx   
-279 [0x117]:          loadval ecx   
-280 [0x118]:          tne ecx, ebx   
-281 [0x119]:          movr ebx, cmt   
-282 [0x11a]:          movr cmt, ebx   
-283 [0x11b]:          jne 300   
-284 [0x11c]: line: 55 istore 92   
-286 [0x11e]:          movl 0   
-287 [0x11f]:          movn #1   
-289 [0x121]:          pushobj   
-290 [0x122]:          loadl ebx, fp+3   
-291 [0x123]:          movr egx, ebx   
-292 [0x124]:          inc ebx   
-293 [0x125]:          smovr_2 ebx, fp+3   
-294 [0x126]:          movr ebx, egx   
-295 [0x127]:          popobj2    
-296 [0x128]:          movr adx, ebx   
-297 [0x129]:          chklen adx   
-298 [0x12a]:          loadval ebx   
-299 [0x12b]:          rmov adx, ebx   
-300 [0x12c]:          nop   
-301 [0x12d]:          jmp @319   
-302 [0x12e]: line: 58 pushl 1   
-303 [0x12f]:          ipushl #4   
-304 [0x130]:          call @3576 // <std#string.operator[>   
-305 [0x131]:          movl 0   
-306 [0x132]:          movn #1   
-308 [0x134]:          pushobj   
-309 [0x135]:          loadl ebx, fp+3   
-310 [0x136]:          movr egx, ebx   
-311 [0x137]:          inc ebx   
-312 [0x138]:          smovr_2 ebx, fp+3   
-313 [0x139]:          movr ebx, egx   
-314 [0x13a]:          popobj2    
-315 [0x13b]:          movr adx, ebx   
-316 [0x13c]:          chklen adx   
-317 [0x13d]:          loadval ebx   
-318 [0x13e]:          rmov adx, ebx   
-319 [0x13f]:          nop   
-320 [0x140]:          iaddl 1, fp@4   
-322 [0x142]:          jmp @9   
-323 [0x143]: line: 62 new_class @75 // std#string   
-325 [0x145]:          dup    
-326 [0x146]:          movl 0   
-327 [0x147]:          movn #1   
-329 [0x149]:          pushobj   
-330 [0x14a]:          istore 0   
-332 [0x14c]:          ipushl #3   
-333 [0x14d]:          call @3558 // <std#string.string>   
-334 [0x14e]:          popobj2    
-335 [0x14f]:          pushobj   
-336 [0x150]:          movl 0   
-337 [0x151]:          _ulck   
-338 [0x152]:          popobj2    
-339 [0x153]:          returnobj   
-340 [0x154]:          ret   
-341 [0x155]:          movl 0   
-342 [0x156]:          _ulck   
+228 [0xe4]:          skne ebx // pc = 246   
+229 [0xe5]:          movl 2   
+230 [0xe6]:          pushobj   
+231 [0xe7]:          ipushl #4   
+232 [0xe8]:          movi #1, ebx   
+234 [0xea]:          loadval ecx   
+235 [0xeb]:          sub ecx, ebx -> ebx   
+236 [0xec]:          popobj2    
+237 [0xed]:          movr adx, ebx   
+238 [0xee]:          chklen adx   
+239 [0xef]:          iaload ebx, adx   
+240 [0xf0]:          rstore ebx   
+241 [0xf1]:          movi #92, ebx   
+243 [0xf3]:          loadval ecx   
+244 [0xf4]:          tne ecx, ebx   
+245 [0xf5]:          movr ebx, cmt   
+246 [0xf6]:          movr cmt, ebx   
+247 [0xf7]:          jne 252   
+248 [0xf8]: line: 51 loadl ebx, fp+5   
+249 [0xf9]:          movr egx, ebx   
+250 [0xfa]:          dec ebx   
+251 [0xfb]:          smovr_2 ebx, fp+5   
+252 [0xfc]:          nop   
+253 [0xfd]:          nop   
+254 [0xfe]: line: 54 ipushl #4   
+255 [0xff]:          movi #0, ebx   
+257 [0x101]:          loadval ecx   
+258 [0x102]:          gt ecx, ebx   
+259 [0x103]:          movr ebx, cmt   
+260 [0x104]:          skne ebx // pc = 278   
+261 [0x105]:          movl 2   
+262 [0x106]:          pushobj   
+263 [0x107]:          ipushl #4   
+264 [0x108]:          movi #1, ebx   
+266 [0x10a]:          loadval ecx   
+267 [0x10b]:          sub ecx, ebx -> ebx   
+268 [0x10c]:          popobj2    
+269 [0x10d]:          movr adx, ebx   
+270 [0x10e]:          chklen adx   
+271 [0x10f]:          iaload ebx, adx   
+272 [0x110]:          rstore ebx   
+273 [0x111]:          movi #92, ebx   
+275 [0x113]:          loadval ecx   
+276 [0x114]:          tne ecx, ebx   
+277 [0x115]:          movr ebx, cmt   
+278 [0x116]:          movr cmt, ebx   
+279 [0x117]:          jne 293   
+280 [0x118]: line: 55 istore 92   
+282 [0x11a]:          pushl 2   
+283 [0x11b]:          loadl ebx, fp+4   
+284 [0x11c]:          movr egx, ebx   
+285 [0x11d]:          inc ebx   
+286 [0x11e]:          smovr_2 ebx, fp+4   
+287 [0x11f]:          movr ebx, egx   
+288 [0x120]:          popobj2    
+289 [0x121]:          movr adx, ebx   
+290 [0x122]:          chklen adx   
+291 [0x123]:          loadval ebx   
+292 [0x124]:          rmov adx, ebx   
+293 [0x125]:          nop   
+294 [0x126]:          jmp @309   
+295 [0x127]: line: 58 pushl 1   
+296 [0x128]:          ipushl #5   
+297 [0x129]:          call @3576 // <std#string.operator[>   
+298 [0x12a]:          pushl 2   
+299 [0x12b]:          loadl ebx, fp+4   
+300 [0x12c]:          movr egx, ebx   
+301 [0x12d]:          inc ebx   
+302 [0x12e]:          smovr_2 ebx, fp+4   
+303 [0x12f]:          movr ebx, egx   
+304 [0x130]:          popobj2    
+305 [0x131]:          movr adx, ebx   
+306 [0x132]:          chklen adx   
+307 [0x133]:          loadval ebx   
+308 [0x134]:          rmov adx, ebx   
+309 [0x135]:          nop   
+310 [0x136]:          iaddl 1, fp@5   
+312 [0x138]:          jmp @14   
+313 [0x139]: line: 62 new_class @75 // std#string   
+315 [0x13b]:          dup    
+316 [0x13c]:          pushl 2   
+317 [0x13d]:          istore 0   
+319 [0x13f]:          ipushl #4   
+320 [0x140]:          call @3558 // <std#string.string>   
+321 [0x141]:          popobj2    
+322 [0x142]:          pushobj   
+323 [0x143]:          movl 0   
+324 [0x144]:          _ulck   
+325 [0x145]:          popobj2    
+326 [0x146]:          returnobj   
+327 [0x147]:          ret   
+328 [0x148]:          movl 0   
+329 [0x149]:          _ulck   
 
 
 function: std.io#win_fs.get_attributes[2315] params(1) in file: lib/support/0.2.9/io//win_fs.sharp:71:9: note:  
@@ -46490,12 +46483,7 @@ constructor: std.io#win_fs.win_fs[2317] params(0) in file: lib/support/0.2.9/io/
 5 [0x5]:         mov8 ebx, ebx   
 6 [0x6]:         movi #0, adx   
 8 [0x8]:         rmov adx, ebx   
-9 [0x9]:         movi #512, ebx   
-11 [0xb]:         newarry ebx: 0   
-12 [0xc]:         movl 0   
-13 [0xd]:         movn #1   
-15 [0xf]:         popobj   
-16 [0x10]:         ret   
+9 [0x9]:         ret   
 
 
 function: std.math#__srt_global.is_nan[2318] params(1) in file: lib/support/0.2.9/math//math.sharp:44:18: note:  
@@ -47045,7 +47033,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 8 [0x8]:          movn #0   
 10 [0xa]:          movn #0   
 12 [0xc]:          popobj   
-13 [0xd]:          movi #84401, ebx   
+13 [0xd]:          movi #95877, ebx   
 15 [0xf]:          movg @24 // @std.io#buffer_type   
 16 [0x10]:          movn #0   
 18 [0x12]:          movn #1   
@@ -47060,7 +47048,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 31 [0x1f]:          movn #1   
 33 [0x21]:          movn #0   
 35 [0x23]:          popobj   
-36 [0x24]:          movi #84402, ebx   
+36 [0x24]:          movi #95878, ebx   
 38 [0x26]:          movg @24 // @std.io#buffer_type   
 39 [0x27]:          movn #1   
 41 [0x29]:          movn #1   
@@ -47075,7 +47063,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 54 [0x36]:          movn #2   
 56 [0x38]:          movn #0   
 58 [0x3a]:          popobj   
-59 [0x3b]:          movi #84403, ebx   
+59 [0x3b]:          movi #95879, ebx   
 61 [0x3d]:          movg @24 // @std.io#buffer_type   
 62 [0x3e]:          movn #2   
 64 [0x40]:          movn #1   
@@ -47090,7 +47078,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 77 [0x4d]:          movn #3   
 79 [0x4f]:          movn #0   
 81 [0x51]:          popobj   
-82 [0x52]:          movi #84404, ebx   
+82 [0x52]:          movi #95880, ebx   
 84 [0x54]:          movg @24 // @std.io#buffer_type   
 85 [0x55]:          movn #3   
 87 [0x57]:          movn #1   
@@ -47105,7 +47093,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 100 [0x64]:          movn #0   
 102 [0x66]:          movn #0   
 104 [0x68]:          popobj   
-105 [0x69]:          movi #84402, ebx   
+105 [0x69]:          movi #95878, ebx   
 107 [0x6b]:          movg @27 // @std.io.fiber#fiber_state   
 108 [0x6c]:          movn #0   
 110 [0x6e]:          movn #1   
@@ -47120,7 +47108,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 123 [0x7b]:          movn #1   
 125 [0x7d]:          movn #0   
 127 [0x7f]:          popobj   
-128 [0x80]:          movi #84403, ebx   
+128 [0x80]:          movi #95879, ebx   
 130 [0x82]:          movg @27 // @std.io.fiber#fiber_state   
 131 [0x83]:          movn #1   
 133 [0x85]:          movn #1   
@@ -47135,7 +47123,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 146 [0x92]:          movn #2   
 148 [0x94]:          movn #0   
 150 [0x96]:          popobj   
-151 [0x97]:          movi #84404, ebx   
+151 [0x97]:          movi #95880, ebx   
 153 [0x99]:          movg @27 // @std.io.fiber#fiber_state   
 154 [0x9a]:          movn #2   
 156 [0x9c]:          movn #1   
@@ -47150,7 +47138,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 169 [0xa9]:          movn #3   
 171 [0xab]:          movn #0   
 173 [0xad]:          popobj   
-174 [0xae]:          movi #84405, ebx   
+174 [0xae]:          movi #95881, ebx   
 176 [0xb0]:          movg @27 // @std.io.fiber#fiber_state   
 177 [0xb1]:          movn #3   
 179 [0xb3]:          movn #1   
@@ -47165,7 +47153,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 192 [0xc0]:          movn #4   
 194 [0xc2]:          movn #0   
 196 [0xc4]:          popobj   
-197 [0xc5]:          movi #84406, ebx   
+197 [0xc5]:          movi #95882, ebx   
 199 [0xc7]:          movg @27 // @std.io.fiber#fiber_state   
 200 [0xc8]:          movn #4   
 202 [0xca]:          movn #1   
@@ -47810,7 +47798,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 1181 [0x49d]:          movn #0   
 1183 [0x49f]:          movn #0   
 1185 [0x4a1]:          popobj   
-1186 [0x4a2]:          movi #84407, ebx   
+1186 [0x4a2]:          movi #95883, ebx   
 1188 [0x4a4]:          movg @70 // @std.reflect#property_type   
 1189 [0x4a5]:          movn #0   
 1191 [0x4a7]:          movn #1   
@@ -47825,7 +47813,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 1204 [0x4b4]:          movn #1   
 1206 [0x4b6]:          movn #0   
 1208 [0x4b8]:          popobj   
-1209 [0x4b9]:          movi #84408, ebx   
+1209 [0x4b9]:          movi #95884, ebx   
 1211 [0x4bb]:          movg @70 // @std.reflect#property_type   
 1212 [0x4bc]:          movn #1   
 1214 [0x4be]:          movn #1   
@@ -47840,7 +47828,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 1227 [0x4cb]:          movn #2   
 1229 [0x4cd]:          movn #0   
 1231 [0x4cf]:          popobj   
-1232 [0x4d0]:          movi #84409, ebx   
+1232 [0x4d0]:          movi #95885, ebx   
 1234 [0x4d2]:          movg @70 // @std.reflect#property_type   
 1235 [0x4d3]:          movn #2   
 1237 [0x4d5]:          movn #1   
@@ -48485,7 +48473,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2216 [0x8a8]:          movn #0   
 2218 [0x8aa]:          movn #0   
 2220 [0x8ac]:          popobj   
-2221 [0x8ad]:          movi #84411, ebx   
+2221 [0x8ad]:          movi #95887, ebx   
 2223 [0x8af]:          movg @93 // @frontend.json#json_type   
 2224 [0x8b0]:          movn #0   
 2226 [0x8b2]:          movn #1   
@@ -48500,7 +48488,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2239 [0x8bf]:          movn #1   
 2241 [0x8c1]:          movn #0   
 2243 [0x8c3]:          popobj   
-2244 [0x8c4]:          movi #84412, ebx   
+2244 [0x8c4]:          movi #95888, ebx   
 2246 [0x8c6]:          movg @93 // @frontend.json#json_type   
 2247 [0x8c7]:          movn #1   
 2249 [0x8c9]:          movn #1   
@@ -48515,7 +48503,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2262 [0x8d6]:          movn #2   
 2264 [0x8d8]:          movn #0   
 2266 [0x8da]:          popobj   
-2267 [0x8db]:          movi #84413, ebx   
+2267 [0x8db]:          movi #95889, ebx   
 2269 [0x8dd]:          movg @93 // @frontend.json#json_type   
 2270 [0x8de]:          movn #2   
 2272 [0x8e0]:          movn #1   
@@ -48530,7 +48518,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2285 [0x8ed]:          movn #3   
 2287 [0x8ef]:          movn #0   
 2289 [0x8f1]:          popobj   
-2290 [0x8f2]:          movi #84414, ebx   
+2290 [0x8f2]:          movi #95890, ebx   
 2292 [0x8f4]:          movg @93 // @frontend.json#json_type   
 2293 [0x8f5]:          movn #3   
 2295 [0x8f7]:          movn #1   
@@ -48545,7 +48533,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2308 [0x904]:          movn #4   
 2310 [0x906]:          movn #0   
 2312 [0x908]:          popobj   
-2313 [0x909]:          movi #84415, ebx   
+2313 [0x909]:          movi #95891, ebx   
 2315 [0x90b]:          movg @93 // @frontend.json#json_type   
 2316 [0x90c]:          movn #4   
 2318 [0x90e]:          movn #1   
@@ -48560,7 +48548,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2331 [0x91b]:          movn #5   
 2333 [0x91d]:          movn #0   
 2335 [0x91f]:          popobj   
-2336 [0x920]:          movi #84416, ebx   
+2336 [0x920]:          movi #95892, ebx   
 2338 [0x922]:          movg @93 // @frontend.json#json_type   
 2339 [0x923]:          movn #5   
 2341 [0x925]:          movn #1   
@@ -48575,7 +48563,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2354 [0x932]:          movn #6   
 2356 [0x934]:          movn #0   
 2358 [0x936]:          popobj   
-2359 [0x937]:          movi #84417, ebx   
+2359 [0x937]:          movi #95893, ebx   
 2361 [0x939]:          movg @93 // @frontend.json#json_type   
 2362 [0x93a]:          movn #6   
 2364 [0x93c]:          movn #1   
@@ -48590,7 +48578,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2377 [0x949]:          movn #0   
 2379 [0x94b]:          movn #0   
 2381 [0x94d]:          popobj   
-2382 [0x94e]:          movi #84412, ebx   
+2382 [0x94e]:          movi #95888, ebx   
 2384 [0x950]:          movg @97 // @frontend.parser#ast_type   
 2385 [0x951]:          movn #0   
 2387 [0x953]:          movn #1   
@@ -48605,7 +48593,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2400 [0x960]:          movn #1   
 2402 [0x962]:          movn #0   
 2404 [0x964]:          popobj   
-2405 [0x965]:          movi #84413, ebx   
+2405 [0x965]:          movi #95889, ebx   
 2407 [0x967]:          movg @97 // @frontend.parser#ast_type   
 2408 [0x968]:          movn #1   
 2410 [0x96a]:          movn #1   
@@ -48620,7 +48608,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2423 [0x977]:          movn #2   
 2425 [0x979]:          movn #0   
 2427 [0x97b]:          popobj   
-2428 [0x97c]:          movi #84414, ebx   
+2428 [0x97c]:          movi #95890, ebx   
 2430 [0x97e]:          movg @97 // @frontend.parser#ast_type   
 2431 [0x97f]:          movn #2   
 2433 [0x981]:          movn #1   
@@ -48635,7 +48623,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2446 [0x98e]:          movn #3   
 2448 [0x990]:          movn #0   
 2450 [0x992]:          popobj   
-2451 [0x993]:          movi #84415, ebx   
+2451 [0x993]:          movi #95891, ebx   
 2453 [0x995]:          movg @97 // @frontend.parser#ast_type   
 2454 [0x996]:          movn #3   
 2456 [0x998]:          movn #1   
@@ -48650,7 +48638,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2469 [0x9a5]:          movn #4   
 2471 [0x9a7]:          movn #0   
 2473 [0x9a9]:          popobj   
-2474 [0x9aa]:          movi #84416, ebx   
+2474 [0x9aa]:          movi #95892, ebx   
 2476 [0x9ac]:          movg @97 // @frontend.parser#ast_type   
 2477 [0x9ad]:          movn #4   
 2479 [0x9af]:          movn #1   
@@ -48665,7 +48653,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2492 [0x9bc]:          movn #5   
 2494 [0x9be]:          movn #0   
 2496 [0x9c0]:          popobj   
-2497 [0x9c1]:          movi #84417, ebx   
+2497 [0x9c1]:          movi #95893, ebx   
 2499 [0x9c3]:          movg @97 // @frontend.parser#ast_type   
 2500 [0x9c4]:          movn #5   
 2502 [0x9c6]:          movn #1   
@@ -48680,7 +48668,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2515 [0x9d3]:          movn #6   
 2517 [0x9d5]:          movn #0   
 2519 [0x9d7]:          popobj   
-2520 [0x9d8]:          movi #84418, ebx   
+2520 [0x9d8]:          movi #95894, ebx   
 2522 [0x9da]:          movg @97 // @frontend.parser#ast_type   
 2523 [0x9db]:          movn #6   
 2525 [0x9dd]:          movn #1   
@@ -48695,7 +48683,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2538 [0x9ea]:          movn #7   
 2540 [0x9ec]:          movn #0   
 2542 [0x9ee]:          popobj   
-2543 [0x9ef]:          movi #84419, ebx   
+2543 [0x9ef]:          movi #95895, ebx   
 2545 [0x9f1]:          movg @97 // @frontend.parser#ast_type   
 2546 [0x9f2]:          movn #7   
 2548 [0x9f4]:          movn #1   
@@ -48710,7 +48698,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2561 [0xa01]:          movn #8   
 2563 [0xa03]:          movn #0   
 2565 [0xa05]:          popobj   
-2566 [0xa06]:          movi #84420, ebx   
+2566 [0xa06]:          movi #95896, ebx   
 2568 [0xa08]:          movg @97 // @frontend.parser#ast_type   
 2569 [0xa09]:          movn #8   
 2571 [0xa0b]:          movn #1   
@@ -48725,7 +48713,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2584 [0xa18]:          movn #9   
 2586 [0xa1a]:          movn #0   
 2588 [0xa1c]:          popobj   
-2589 [0xa1d]:          movi #84421, ebx   
+2589 [0xa1d]:          movi #95897, ebx   
 2591 [0xa1f]:          movg @97 // @frontend.parser#ast_type   
 2592 [0xa20]:          movn #9   
 2594 [0xa22]:          movn #1   
@@ -48740,7 +48728,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2607 [0xa2f]:          movn #10   
 2609 [0xa31]:          movn #0   
 2611 [0xa33]:          popobj   
-2612 [0xa34]:          movi #84422, ebx   
+2612 [0xa34]:          movi #95898, ebx   
 2614 [0xa36]:          movg @97 // @frontend.parser#ast_type   
 2615 [0xa37]:          movn #10   
 2617 [0xa39]:          movn #1   
@@ -48755,7 +48743,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2630 [0xa46]:          movn #11   
 2632 [0xa48]:          movn #0   
 2634 [0xa4a]:          popobj   
-2635 [0xa4b]:          movi #84423, ebx   
+2635 [0xa4b]:          movi #95899, ebx   
 2637 [0xa4d]:          movg @97 // @frontend.parser#ast_type   
 2638 [0xa4e]:          movn #11   
 2640 [0xa50]:          movn #1   
@@ -48770,7 +48758,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2653 [0xa5d]:          movn #12   
 2655 [0xa5f]:          movn #0   
 2657 [0xa61]:          popobj   
-2658 [0xa62]:          movi #84424, ebx   
+2658 [0xa62]:          movi #95900, ebx   
 2660 [0xa64]:          movg @97 // @frontend.parser#ast_type   
 2661 [0xa65]:          movn #12   
 2663 [0xa67]:          movn #1   
@@ -48785,7 +48773,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2676 [0xa74]:          movn #13   
 2678 [0xa76]:          movn #0   
 2680 [0xa78]:          popobj   
-2681 [0xa79]:          movi #84425, ebx   
+2681 [0xa79]:          movi #95901, ebx   
 2683 [0xa7b]:          movg @97 // @frontend.parser#ast_type   
 2684 [0xa7c]:          movn #13   
 2686 [0xa7e]:          movn #1   
@@ -48800,7 +48788,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2699 [0xa8b]:          movn #14   
 2701 [0xa8d]:          movn #0   
 2703 [0xa8f]:          popobj   
-2704 [0xa90]:          movi #84426, ebx   
+2704 [0xa90]:          movi #95902, ebx   
 2706 [0xa92]:          movg @97 // @frontend.parser#ast_type   
 2707 [0xa93]:          movn #14   
 2709 [0xa95]:          movn #1   
@@ -48815,7 +48803,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2722 [0xaa2]:          movn #15   
 2724 [0xaa4]:          movn #0   
 2726 [0xaa6]:          popobj   
-2727 [0xaa7]:          movi #84427, ebx   
+2727 [0xaa7]:          movi #95903, ebx   
 2729 [0xaa9]:          movg @97 // @frontend.parser#ast_type   
 2730 [0xaaa]:          movn #15   
 2732 [0xaac]:          movn #1   
@@ -48830,7 +48818,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2745 [0xab9]:          movn #16   
 2747 [0xabb]:          movn #0   
 2749 [0xabd]:          popobj   
-2750 [0xabe]:          movi #84428, ebx   
+2750 [0xabe]:          movi #95904, ebx   
 2752 [0xac0]:          movg @97 // @frontend.parser#ast_type   
 2753 [0xac1]:          movn #16   
 2755 [0xac3]:          movn #1   
@@ -48845,7 +48833,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2768 [0xad0]:          movn #17   
 2770 [0xad2]:          movn #0   
 2772 [0xad4]:          popobj   
-2773 [0xad5]:          movi #84429, ebx   
+2773 [0xad5]:          movi #95905, ebx   
 2775 [0xad7]:          movg @97 // @frontend.parser#ast_type   
 2776 [0xad8]:          movn #17   
 2778 [0xada]:          movn #1   
@@ -48860,7 +48848,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2791 [0xae7]:          movn #18   
 2793 [0xae9]:          movn #0   
 2795 [0xaeb]:          popobj   
-2796 [0xaec]:          movi #84430, ebx   
+2796 [0xaec]:          movi #95906, ebx   
 2798 [0xaee]:          movg @97 // @frontend.parser#ast_type   
 2799 [0xaef]:          movn #18   
 2801 [0xaf1]:          movn #1   
@@ -48875,7 +48863,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2814 [0xafe]:          movn #19   
 2816 [0xb00]:          movn #0   
 2818 [0xb02]:          popobj   
-2819 [0xb03]:          movi #84431, ebx   
+2819 [0xb03]:          movi #95907, ebx   
 2821 [0xb05]:          movg @97 // @frontend.parser#ast_type   
 2822 [0xb06]:          movn #19   
 2824 [0xb08]:          movn #1   
@@ -48890,7 +48878,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2837 [0xb15]:          movn #20   
 2839 [0xb17]:          movn #0   
 2841 [0xb19]:          popobj   
-2842 [0xb1a]:          movi #84432, ebx   
+2842 [0xb1a]:          movi #95908, ebx   
 2844 [0xb1c]:          movg @97 // @frontend.parser#ast_type   
 2845 [0xb1d]:          movn #20   
 2847 [0xb1f]:          movn #1   
@@ -48905,7 +48893,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2860 [0xb2c]:          movn #21   
 2862 [0xb2e]:          movn #0   
 2864 [0xb30]:          popobj   
-2865 [0xb31]:          movi #84433, ebx   
+2865 [0xb31]:          movi #95909, ebx   
 2867 [0xb33]:          movg @97 // @frontend.parser#ast_type   
 2868 [0xb34]:          movn #21   
 2870 [0xb36]:          movn #1   
@@ -48920,7 +48908,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2883 [0xb43]:          movn #22   
 2885 [0xb45]:          movn #0   
 2887 [0xb47]:          popobj   
-2888 [0xb48]:          movi #84434, ebx   
+2888 [0xb48]:          movi #95910, ebx   
 2890 [0xb4a]:          movg @97 // @frontend.parser#ast_type   
 2891 [0xb4b]:          movn #22   
 2893 [0xb4d]:          movn #1   
@@ -48935,7 +48923,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2906 [0xb5a]:          movn #23   
 2908 [0xb5c]:          movn #0   
 2910 [0xb5e]:          popobj   
-2911 [0xb5f]:          movi #84435, ebx   
+2911 [0xb5f]:          movi #95911, ebx   
 2913 [0xb61]:          movg @97 // @frontend.parser#ast_type   
 2914 [0xb62]:          movn #23   
 2916 [0xb64]:          movn #1   
@@ -48950,7 +48938,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2929 [0xb71]:          movn #24   
 2931 [0xb73]:          movn #0   
 2933 [0xb75]:          popobj   
-2934 [0xb76]:          movi #84436, ebx   
+2934 [0xb76]:          movi #95912, ebx   
 2936 [0xb78]:          movg @97 // @frontend.parser#ast_type   
 2937 [0xb79]:          movn #24   
 2939 [0xb7b]:          movn #1   
@@ -48965,7 +48953,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2952 [0xb88]:          movn #25   
 2954 [0xb8a]:          movn #0   
 2956 [0xb8c]:          popobj   
-2957 [0xb8d]:          movi #84437, ebx   
+2957 [0xb8d]:          movi #95913, ebx   
 2959 [0xb8f]:          movg @97 // @frontend.parser#ast_type   
 2960 [0xb90]:          movn #25   
 2962 [0xb92]:          movn #1   
@@ -48980,7 +48968,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2975 [0xb9f]:          movn #26   
 2977 [0xba1]:          movn #0   
 2979 [0xba3]:          popobj   
-2980 [0xba4]:          movi #84438, ebx   
+2980 [0xba4]:          movi #95914, ebx   
 2982 [0xba6]:          movg @97 // @frontend.parser#ast_type   
 2983 [0xba7]:          movn #26   
 2985 [0xba9]:          movn #1   
@@ -48995,7 +48983,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 2998 [0xbb6]:          movn #27   
 3000 [0xbb8]:          movn #0   
 3002 [0xbba]:          popobj   
-3003 [0xbbb]:          movi #84439, ebx   
+3003 [0xbbb]:          movi #95915, ebx   
 3005 [0xbbd]:          movg @97 // @frontend.parser#ast_type   
 3006 [0xbbe]:          movn #27   
 3008 [0xbc0]:          movn #1   
@@ -49010,7 +48998,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3021 [0xbcd]:          movn #28   
 3023 [0xbcf]:          movn #0   
 3025 [0xbd1]:          popobj   
-3026 [0xbd2]:          movi #84440, ebx   
+3026 [0xbd2]:          movi #95916, ebx   
 3028 [0xbd4]:          movg @97 // @frontend.parser#ast_type   
 3029 [0xbd5]:          movn #28   
 3031 [0xbd7]:          movn #1   
@@ -49025,7 +49013,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3044 [0xbe4]:          movn #29   
 3046 [0xbe6]:          movn #0   
 3048 [0xbe8]:          popobj   
-3049 [0xbe9]:          movi #84441, ebx   
+3049 [0xbe9]:          movi #95917, ebx   
 3051 [0xbeb]:          movg @97 // @frontend.parser#ast_type   
 3052 [0xbec]:          movn #29   
 3054 [0xbee]:          movn #1   
@@ -49040,7 +49028,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3067 [0xbfb]:          movn #30   
 3069 [0xbfd]:          movn #0   
 3071 [0xbff]:          popobj   
-3072 [0xc00]:          movi #84442, ebx   
+3072 [0xc00]:          movi #95918, ebx   
 3074 [0xc02]:          movg @97 // @frontend.parser#ast_type   
 3075 [0xc03]:          movn #30   
 3077 [0xc05]:          movn #1   
@@ -49055,7 +49043,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3090 [0xc12]:          movn #31   
 3092 [0xc14]:          movn #0   
 3094 [0xc16]:          popobj   
-3095 [0xc17]:          movi #84443, ebx   
+3095 [0xc17]:          movi #95919, ebx   
 3097 [0xc19]:          movg @97 // @frontend.parser#ast_type   
 3098 [0xc1a]:          movn #31   
 3100 [0xc1c]:          movn #1   
@@ -49070,7 +49058,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3113 [0xc29]:          movn #32   
 3115 [0xc2b]:          movn #0   
 3117 [0xc2d]:          popobj   
-3118 [0xc2e]:          movi #84444, ebx   
+3118 [0xc2e]:          movi #95920, ebx   
 3120 [0xc30]:          movg @97 // @frontend.parser#ast_type   
 3121 [0xc31]:          movn #32   
 3123 [0xc33]:          movn #1   
@@ -49085,7 +49073,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3136 [0xc40]:          movn #33   
 3138 [0xc42]:          movn #0   
 3140 [0xc44]:          popobj   
-3141 [0xc45]:          movi #84445, ebx   
+3141 [0xc45]:          movi #95921, ebx   
 3143 [0xc47]:          movg @97 // @frontend.parser#ast_type   
 3144 [0xc48]:          movn #33   
 3146 [0xc4a]:          movn #1   
@@ -49100,7 +49088,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3159 [0xc57]:          movn #34   
 3161 [0xc59]:          movn #0   
 3163 [0xc5b]:          popobj   
-3164 [0xc5c]:          movi #84446, ebx   
+3164 [0xc5c]:          movi #95922, ebx   
 3166 [0xc5e]:          movg @97 // @frontend.parser#ast_type   
 3167 [0xc5f]:          movn #34   
 3169 [0xc61]:          movn #1   
@@ -49115,7 +49103,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3182 [0xc6e]:          movn #35   
 3184 [0xc70]:          movn #0   
 3186 [0xc72]:          popobj   
-3187 [0xc73]:          movi #84447, ebx   
+3187 [0xc73]:          movi #95923, ebx   
 3189 [0xc75]:          movg @97 // @frontend.parser#ast_type   
 3190 [0xc76]:          movn #35   
 3192 [0xc78]:          movn #1   
@@ -49130,7 +49118,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3205 [0xc85]:          movn #36   
 3207 [0xc87]:          movn #0   
 3209 [0xc89]:          popobj   
-3210 [0xc8a]:          movi #84448, ebx   
+3210 [0xc8a]:          movi #95924, ebx   
 3212 [0xc8c]:          movg @97 // @frontend.parser#ast_type   
 3213 [0xc8d]:          movn #36   
 3215 [0xc8f]:          movn #1   
@@ -49145,7 +49133,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3228 [0xc9c]:          movn #37   
 3230 [0xc9e]:          movn #0   
 3232 [0xca0]:          popobj   
-3233 [0xca1]:          movi #84449, ebx   
+3233 [0xca1]:          movi #95925, ebx   
 3235 [0xca3]:          movg @97 // @frontend.parser#ast_type   
 3236 [0xca4]:          movn #37   
 3238 [0xca6]:          movn #1   
@@ -49160,7 +49148,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3251 [0xcb3]:          movn #38   
 3253 [0xcb5]:          movn #0   
 3255 [0xcb7]:          popobj   
-3256 [0xcb8]:          movi #84450, ebx   
+3256 [0xcb8]:          movi #95926, ebx   
 3258 [0xcba]:          movg @97 // @frontend.parser#ast_type   
 3259 [0xcbb]:          movn #38   
 3261 [0xcbd]:          movn #1   
@@ -49175,7 +49163,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3274 [0xcca]:          movn #39   
 3276 [0xccc]:          movn #0   
 3278 [0xcce]:          popobj   
-3279 [0xccf]:          movi #84451, ebx   
+3279 [0xccf]:          movi #95927, ebx   
 3281 [0xcd1]:          movg @97 // @frontend.parser#ast_type   
 3282 [0xcd2]:          movn #39   
 3284 [0xcd4]:          movn #1   
@@ -49190,7 +49178,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3297 [0xce1]:          movn #40   
 3299 [0xce3]:          movn #0   
 3301 [0xce5]:          popobj   
-3302 [0xce6]:          movi #84452, ebx   
+3302 [0xce6]:          movi #95928, ebx   
 3304 [0xce8]:          movg @97 // @frontend.parser#ast_type   
 3305 [0xce9]:          movn #40   
 3307 [0xceb]:          movn #1   
@@ -49205,7 +49193,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3320 [0xcf8]:          movn #41   
 3322 [0xcfa]:          movn #0   
 3324 [0xcfc]:          popobj   
-3325 [0xcfd]:          movi #84453, ebx   
+3325 [0xcfd]:          movi #95929, ebx   
 3327 [0xcff]:          movg @97 // @frontend.parser#ast_type   
 3328 [0xd00]:          movn #41   
 3330 [0xd02]:          movn #1   
@@ -49220,7 +49208,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3343 [0xd0f]:          movn #42   
 3345 [0xd11]:          movn #0   
 3347 [0xd13]:          popobj   
-3348 [0xd14]:          movi #84454, ebx   
+3348 [0xd14]:          movi #95930, ebx   
 3350 [0xd16]:          movg @97 // @frontend.parser#ast_type   
 3351 [0xd17]:          movn #42   
 3353 [0xd19]:          movn #1   
@@ -49235,7 +49223,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3366 [0xd26]:          movn #43   
 3368 [0xd28]:          movn #0   
 3370 [0xd2a]:          popobj   
-3371 [0xd2b]:          movi #84455, ebx   
+3371 [0xd2b]:          movi #95931, ebx   
 3373 [0xd2d]:          movg @97 // @frontend.parser#ast_type   
 3374 [0xd2e]:          movn #43   
 3376 [0xd30]:          movn #1   
@@ -49250,7 +49238,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3389 [0xd3d]:          movn #44   
 3391 [0xd3f]:          movn #0   
 3393 [0xd41]:          popobj   
-3394 [0xd42]:          movi #84456, ebx   
+3394 [0xd42]:          movi #95932, ebx   
 3396 [0xd44]:          movg @97 // @frontend.parser#ast_type   
 3397 [0xd45]:          movn #44   
 3399 [0xd47]:          movn #1   
@@ -49265,7 +49253,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3412 [0xd54]:          movn #45   
 3414 [0xd56]:          movn #0   
 3416 [0xd58]:          popobj   
-3417 [0xd59]:          movi #84457, ebx   
+3417 [0xd59]:          movi #95933, ebx   
 3419 [0xd5b]:          movg @97 // @frontend.parser#ast_type   
 3420 [0xd5c]:          movn #45   
 3422 [0xd5e]:          movn #1   
@@ -49280,7 +49268,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3435 [0xd6b]:          movn #46   
 3437 [0xd6d]:          movn #0   
 3439 [0xd6f]:          popobj   
-3440 [0xd70]:          movi #84458, ebx   
+3440 [0xd70]:          movi #95934, ebx   
 3442 [0xd72]:          movg @97 // @frontend.parser#ast_type   
 3443 [0xd73]:          movn #46   
 3445 [0xd75]:          movn #1   
@@ -49295,7 +49283,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3458 [0xd82]:          movn #47   
 3460 [0xd84]:          movn #0   
 3462 [0xd86]:          popobj   
-3463 [0xd87]:          movi #84459, ebx   
+3463 [0xd87]:          movi #95935, ebx   
 3465 [0xd89]:          movg @97 // @frontend.parser#ast_type   
 3466 [0xd8a]:          movn #47   
 3468 [0xd8c]:          movn #1   
@@ -49310,7 +49298,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3481 [0xd99]:          movn #48   
 3483 [0xd9b]:          movn #0   
 3485 [0xd9d]:          popobj   
-3486 [0xd9e]:          movi #84460, ebx   
+3486 [0xd9e]:          movi #95936, ebx   
 3488 [0xda0]:          movg @97 // @frontend.parser#ast_type   
 3489 [0xda1]:          movn #48   
 3491 [0xda3]:          movn #1   
@@ -49325,7 +49313,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3504 [0xdb0]:          movn #49   
 3506 [0xdb2]:          movn #0   
 3508 [0xdb4]:          popobj   
-3509 [0xdb5]:          movi #84461, ebx   
+3509 [0xdb5]:          movi #95937, ebx   
 3511 [0xdb7]:          movg @97 // @frontend.parser#ast_type   
 3512 [0xdb8]:          movn #49   
 3514 [0xdba]:          movn #1   
@@ -49340,7 +49328,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3527 [0xdc7]:          movn #50   
 3529 [0xdc9]:          movn #0   
 3531 [0xdcb]:          popobj   
-3532 [0xdcc]:          movi #84462, ebx   
+3532 [0xdcc]:          movi #95938, ebx   
 3534 [0xdce]:          movg @97 // @frontend.parser#ast_type   
 3535 [0xdcf]:          movn #50   
 3537 [0xdd1]:          movn #1   
@@ -49355,7 +49343,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3550 [0xdde]:          movn #51   
 3552 [0xde0]:          movn #0   
 3554 [0xde2]:          popobj   
-3555 [0xde3]:          movi #84463, ebx   
+3555 [0xde3]:          movi #95939, ebx   
 3557 [0xde5]:          movg @97 // @frontend.parser#ast_type   
 3558 [0xde6]:          movn #51   
 3560 [0xde8]:          movn #1   
@@ -49370,7 +49358,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3573 [0xdf5]:          movn #52   
 3575 [0xdf7]:          movn #0   
 3577 [0xdf9]:          popobj   
-3578 [0xdfa]:          movi #84464, ebx   
+3578 [0xdfa]:          movi #95940, ebx   
 3580 [0xdfc]:          movg @97 // @frontend.parser#ast_type   
 3581 [0xdfd]:          movn #52   
 3583 [0xdff]:          movn #1   
@@ -49385,7 +49373,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3596 [0xe0c]:          movn #53   
 3598 [0xe0e]:          movn #0   
 3600 [0xe10]:          popobj   
-3601 [0xe11]:          movi #84465, ebx   
+3601 [0xe11]:          movi #95941, ebx   
 3603 [0xe13]:          movg @97 // @frontend.parser#ast_type   
 3604 [0xe14]:          movn #53   
 3606 [0xe16]:          movn #1   
@@ -49400,7 +49388,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3619 [0xe23]:          movn #54   
 3621 [0xe25]:          movn #0   
 3623 [0xe27]:          popobj   
-3624 [0xe28]:          movi #84466, ebx   
+3624 [0xe28]:          movi #95942, ebx   
 3626 [0xe2a]:          movg @97 // @frontend.parser#ast_type   
 3627 [0xe2b]:          movn #54   
 3629 [0xe2d]:          movn #1   
@@ -49415,7 +49403,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3642 [0xe3a]:          movn #55   
 3644 [0xe3c]:          movn #0   
 3646 [0xe3e]:          popobj   
-3647 [0xe3f]:          movi #84467, ebx   
+3647 [0xe3f]:          movi #95943, ebx   
 3649 [0xe41]:          movg @97 // @frontend.parser#ast_type   
 3650 [0xe42]:          movn #55   
 3652 [0xe44]:          movn #1   
@@ -49430,7 +49418,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3665 [0xe51]:          movn #56   
 3667 [0xe53]:          movn #0   
 3669 [0xe55]:          popobj   
-3670 [0xe56]:          movi #84468, ebx   
+3670 [0xe56]:          movi #95944, ebx   
 3672 [0xe58]:          movg @97 // @frontend.parser#ast_type   
 3673 [0xe59]:          movn #56   
 3675 [0xe5b]:          movn #1   
@@ -49445,7 +49433,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3688 [0xe68]:          movn #57   
 3690 [0xe6a]:          movn #0   
 3692 [0xe6c]:          popobj   
-3693 [0xe6d]:          movi #84469, ebx   
+3693 [0xe6d]:          movi #95945, ebx   
 3695 [0xe6f]:          movg @97 // @frontend.parser#ast_type   
 3696 [0xe70]:          movn #57   
 3698 [0xe72]:          movn #1   
@@ -49460,7 +49448,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3711 [0xe7f]:          movn #58   
 3713 [0xe81]:          movn #0   
 3715 [0xe83]:          popobj   
-3716 [0xe84]:          movi #84470, ebx   
+3716 [0xe84]:          movi #95946, ebx   
 3718 [0xe86]:          movg @97 // @frontend.parser#ast_type   
 3719 [0xe87]:          movn #58   
 3721 [0xe89]:          movn #1   
@@ -49475,7 +49463,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3734 [0xe96]:          movn #59   
 3736 [0xe98]:          movn #0   
 3738 [0xe9a]:          popobj   
-3739 [0xe9b]:          movi #84471, ebx   
+3739 [0xe9b]:          movi #95947, ebx   
 3741 [0xe9d]:          movg @97 // @frontend.parser#ast_type   
 3742 [0xe9e]:          movn #59   
 3744 [0xea0]:          movn #1   
@@ -49490,7 +49478,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3757 [0xead]:          movn #60   
 3759 [0xeaf]:          movn #0   
 3761 [0xeb1]:          popobj   
-3762 [0xeb2]:          movi #84472, ebx   
+3762 [0xeb2]:          movi #95948, ebx   
 3764 [0xeb4]:          movg @97 // @frontend.parser#ast_type   
 3765 [0xeb5]:          movn #60   
 3767 [0xeb7]:          movn #1   
@@ -49505,7 +49493,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3780 [0xec4]:          movn #61   
 3782 [0xec6]:          movn #0   
 3784 [0xec8]:          popobj   
-3785 [0xec9]:          movi #84473, ebx   
+3785 [0xec9]:          movi #95949, ebx   
 3787 [0xecb]:          movg @97 // @frontend.parser#ast_type   
 3788 [0xecc]:          movn #61   
 3790 [0xece]:          movn #1   
@@ -49520,7 +49508,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3803 [0xedb]:          movn #62   
 3805 [0xedd]:          movn #0   
 3807 [0xedf]:          popobj   
-3808 [0xee0]:          movi #84474, ebx   
+3808 [0xee0]:          movi #95950, ebx   
 3810 [0xee2]:          movg @97 // @frontend.parser#ast_type   
 3811 [0xee3]:          movn #62   
 3813 [0xee5]:          movn #1   
@@ -49535,7 +49523,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3826 [0xef2]:          movn #63   
 3828 [0xef4]:          movn #0   
 3830 [0xef6]:          popobj   
-3831 [0xef7]:          movi #84475, ebx   
+3831 [0xef7]:          movi #95951, ebx   
 3833 [0xef9]:          movg @97 // @frontend.parser#ast_type   
 3834 [0xefa]:          movn #63   
 3836 [0xefc]:          movn #1   
@@ -49550,7 +49538,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3849 [0xf09]:          movn #64   
 3851 [0xf0b]:          movn #0   
 3853 [0xf0d]:          popobj   
-3854 [0xf0e]:          movi #84476, ebx   
+3854 [0xf0e]:          movi #95952, ebx   
 3856 [0xf10]:          movg @97 // @frontend.parser#ast_type   
 3857 [0xf11]:          movn #64   
 3859 [0xf13]:          movn #1   
@@ -49565,7 +49553,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3872 [0xf20]:          movn #65   
 3874 [0xf22]:          movn #0   
 3876 [0xf24]:          popobj   
-3877 [0xf25]:          movi #84477, ebx   
+3877 [0xf25]:          movi #95953, ebx   
 3879 [0xf27]:          movg @97 // @frontend.parser#ast_type   
 3880 [0xf28]:          movn #65   
 3882 [0xf2a]:          movn #1   
@@ -49580,7 +49568,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3895 [0xf37]:          movn #66   
 3897 [0xf39]:          movn #0   
 3899 [0xf3b]:          popobj   
-3900 [0xf3c]:          movi #84478, ebx   
+3900 [0xf3c]:          movi #95954, ebx   
 3902 [0xf3e]:          movg @97 // @frontend.parser#ast_type   
 3903 [0xf3f]:          movn #66   
 3905 [0xf41]:          movn #1   
@@ -49595,7 +49583,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3918 [0xf4e]:          movn #67   
 3920 [0xf50]:          movn #0   
 3922 [0xf52]:          popobj   
-3923 [0xf53]:          movi #84479, ebx   
+3923 [0xf53]:          movi #95955, ebx   
 3925 [0xf55]:          movg @97 // @frontend.parser#ast_type   
 3926 [0xf56]:          movn #67   
 3928 [0xf58]:          movn #1   
@@ -49610,7 +49598,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3941 [0xf65]:          movn #68   
 3943 [0xf67]:          movn #0   
 3945 [0xf69]:          popobj   
-3946 [0xf6a]:          movi #84480, ebx   
+3946 [0xf6a]:          movi #95956, ebx   
 3948 [0xf6c]:          movg @97 // @frontend.parser#ast_type   
 3949 [0xf6d]:          movn #68   
 3951 [0xf6f]:          movn #1   
@@ -49625,7 +49613,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3964 [0xf7c]:          movn #69   
 3966 [0xf7e]:          movn #0   
 3968 [0xf80]:          popobj   
-3969 [0xf81]:          movi #84481, ebx   
+3969 [0xf81]:          movi #95957, ebx   
 3971 [0xf83]:          movg @97 // @frontend.parser#ast_type   
 3972 [0xf84]:          movn #69   
 3974 [0xf86]:          movn #1   
@@ -49640,7 +49628,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 3987 [0xf93]:          movn #70   
 3989 [0xf95]:          movn #0   
 3991 [0xf97]:          popobj   
-3992 [0xf98]:          movi #84482, ebx   
+3992 [0xf98]:          movi #95958, ebx   
 3994 [0xf9a]:          movg @97 // @frontend.parser#ast_type   
 3995 [0xf9b]:          movn #70   
 3997 [0xf9d]:          movn #1   
@@ -49655,7 +49643,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4010 [0xfaa]:          movn #71   
 4012 [0xfac]:          movn #0   
 4014 [0xfae]:          popobj   
-4015 [0xfaf]:          movi #84483, ebx   
+4015 [0xfaf]:          movi #95959, ebx   
 4017 [0xfb1]:          movg @97 // @frontend.parser#ast_type   
 4018 [0xfb2]:          movn #71   
 4020 [0xfb4]:          movn #1   
@@ -49670,7 +49658,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4033 [0xfc1]:          movn #72   
 4035 [0xfc3]:          movn #0   
 4037 [0xfc5]:          popobj   
-4038 [0xfc6]:          movi #84484, ebx   
+4038 [0xfc6]:          movi #95960, ebx   
 4040 [0xfc8]:          movg @97 // @frontend.parser#ast_type   
 4041 [0xfc9]:          movn #72   
 4043 [0xfcb]:          movn #1   
@@ -49685,7 +49673,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4056 [0xfd8]:          movn #73   
 4058 [0xfda]:          movn #0   
 4060 [0xfdc]:          popobj   
-4061 [0xfdd]:          movi #84485, ebx   
+4061 [0xfdd]:          movi #95961, ebx   
 4063 [0xfdf]:          movg @97 // @frontend.parser#ast_type   
 4064 [0xfe0]:          movn #73   
 4066 [0xfe2]:          movn #1   
@@ -49700,7 +49688,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4079 [0xfef]:          movn #74   
 4081 [0xff1]:          movn #0   
 4083 [0xff3]:          popobj   
-4084 [0xff4]:          movi #84486, ebx   
+4084 [0xff4]:          movi #95962, ebx   
 4086 [0xff6]:          movg @97 // @frontend.parser#ast_type   
 4087 [0xff7]:          movn #74   
 4089 [0xff9]:          movn #1   
@@ -49715,7 +49703,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4102 [0x1006]:          movn #75   
 4104 [0x1008]:          movn #0   
 4106 [0x100a]:          popobj   
-4107 [0x100b]:          movi #84487, ebx   
+4107 [0x100b]:          movi #95963, ebx   
 4109 [0x100d]:          movg @97 // @frontend.parser#ast_type   
 4110 [0x100e]:          movn #75   
 4112 [0x1010]:          movn #1   
@@ -49730,7 +49718,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4125 [0x101d]:          movn #76   
 4127 [0x101f]:          movn #0   
 4129 [0x1021]:          popobj   
-4130 [0x1022]:          movi #84488, ebx   
+4130 [0x1022]:          movi #95964, ebx   
 4132 [0x1024]:          movg @97 // @frontend.parser#ast_type   
 4133 [0x1025]:          movn #76   
 4135 [0x1027]:          movn #1   
@@ -49745,7 +49733,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4148 [0x1034]:          movn #77   
 4150 [0x1036]:          movn #0   
 4152 [0x1038]:          popobj   
-4153 [0x1039]:          movi #84489, ebx   
+4153 [0x1039]:          movi #95965, ebx   
 4155 [0x103b]:          movg @97 // @frontend.parser#ast_type   
 4156 [0x103c]:          movn #77   
 4158 [0x103e]:          movn #1   
@@ -49760,7 +49748,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4171 [0x104b]:          movn #78   
 4173 [0x104d]:          movn #0   
 4175 [0x104f]:          popobj   
-4176 [0x1050]:          movi #84490, ebx   
+4176 [0x1050]:          movi #95966, ebx   
 4178 [0x1052]:          movg @97 // @frontend.parser#ast_type   
 4179 [0x1053]:          movn #78   
 4181 [0x1055]:          movn #1   
@@ -49775,7 +49763,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4194 [0x1062]:          movn #79   
 4196 [0x1064]:          movn #0   
 4198 [0x1066]:          popobj   
-4199 [0x1067]:          movi #84491, ebx   
+4199 [0x1067]:          movi #95967, ebx   
 4201 [0x1069]:          movg @97 // @frontend.parser#ast_type   
 4202 [0x106a]:          movn #79   
 4204 [0x106c]:          movn #1   
@@ -49790,7 +49778,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4217 [0x1079]:          movn #80   
 4219 [0x107b]:          movn #0   
 4221 [0x107d]:          popobj   
-4222 [0x107e]:          movi #84492, ebx   
+4222 [0x107e]:          movi #95968, ebx   
 4224 [0x1080]:          movg @97 // @frontend.parser#ast_type   
 4225 [0x1081]:          movn #80   
 4227 [0x1083]:          movn #1   
@@ -49805,7 +49793,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4240 [0x1090]:          movn #81   
 4242 [0x1092]:          movn #0   
 4244 [0x1094]:          popobj   
-4245 [0x1095]:          movi #84493, ebx   
+4245 [0x1095]:          movi #95969, ebx   
 4247 [0x1097]:          movg @97 // @frontend.parser#ast_type   
 4248 [0x1098]:          movn #81   
 4250 [0x109a]:          movn #1   
@@ -49820,7 +49808,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4263 [0x10a7]:          movn #82   
 4265 [0x10a9]:          movn #0   
 4267 [0x10ab]:          popobj   
-4268 [0x10ac]:          movi #84494, ebx   
+4268 [0x10ac]:          movi #95970, ebx   
 4270 [0x10ae]:          movg @97 // @frontend.parser#ast_type   
 4271 [0x10af]:          movn #82   
 4273 [0x10b1]:          movn #1   
@@ -49835,7 +49823,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4286 [0x10be]:          movn #83   
 4288 [0x10c0]:          movn #0   
 4290 [0x10c2]:          popobj   
-4291 [0x10c3]:          movi #84495, ebx   
+4291 [0x10c3]:          movi #95971, ebx   
 4293 [0x10c5]:          movg @97 // @frontend.parser#ast_type   
 4294 [0x10c6]:          movn #83   
 4296 [0x10c8]:          movn #1   
@@ -49850,7 +49838,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4309 [0x10d5]:          movn #84   
 4311 [0x10d7]:          movn #0   
 4313 [0x10d9]:          popobj   
-4314 [0x10da]:          movi #84496, ebx   
+4314 [0x10da]:          movi #95972, ebx   
 4316 [0x10dc]:          movg @97 // @frontend.parser#ast_type   
 4317 [0x10dd]:          movn #84   
 4319 [0x10df]:          movn #1   
@@ -49865,7 +49853,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4332 [0x10ec]:          movn #85   
 4334 [0x10ee]:          movn #0   
 4336 [0x10f0]:          popobj   
-4337 [0x10f1]:          movi #84497, ebx   
+4337 [0x10f1]:          movi #95973, ebx   
 4339 [0x10f3]:          movg @97 // @frontend.parser#ast_type   
 4340 [0x10f4]:          movn #85   
 4342 [0x10f6]:          movn #1   
@@ -49880,7 +49868,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4355 [0x1103]:          movn #86   
 4357 [0x1105]:          movn #0   
 4359 [0x1107]:          popobj   
-4360 [0x1108]:          movi #84498, ebx   
+4360 [0x1108]:          movi #95974, ebx   
 4362 [0x110a]:          movg @97 // @frontend.parser#ast_type   
 4363 [0x110b]:          movn #86   
 4365 [0x110d]:          movn #1   
@@ -49895,7 +49883,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4378 [0x111a]:          movn #87   
 4380 [0x111c]:          movn #0   
 4382 [0x111e]:          popobj   
-4383 [0x111f]:          movi #84499, ebx   
+4383 [0x111f]:          movi #95975, ebx   
 4385 [0x1121]:          movg @97 // @frontend.parser#ast_type   
 4386 [0x1122]:          movn #87   
 4388 [0x1124]:          movn #1   
@@ -49910,7 +49898,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4401 [0x1131]:          movn #0   
 4403 [0x1133]:          movn #0   
 4405 [0x1135]:          popobj   
-4406 [0x1136]:          movi #84413, ebx   
+4406 [0x1136]:          movi #95889, ebx   
 4408 [0x1138]:          movg @101 // @frontend.tokenizer#token_id   
 4409 [0x1139]:          movn #0   
 4411 [0x113b]:          movn #1   
@@ -49925,7 +49913,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4424 [0x1148]:          movn #1   
 4426 [0x114a]:          movn #0   
 4428 [0x114c]:          popobj   
-4429 [0x114d]:          movi #84414, ebx   
+4429 [0x114d]:          movi #95890, ebx   
 4431 [0x114f]:          movg @101 // @frontend.tokenizer#token_id   
 4432 [0x1150]:          movn #1   
 4434 [0x1152]:          movn #1   
@@ -49940,7 +49928,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4447 [0x115f]:          movn #2   
 4449 [0x1161]:          movn #0   
 4451 [0x1163]:          popobj   
-4452 [0x1164]:          movi #84415, ebx   
+4452 [0x1164]:          movi #95891, ebx   
 4454 [0x1166]:          movg @101 // @frontend.tokenizer#token_id   
 4455 [0x1167]:          movn #2   
 4457 [0x1169]:          movn #1   
@@ -49955,7 +49943,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4470 [0x1176]:          movn #3   
 4472 [0x1178]:          movn #0   
 4474 [0x117a]:          popobj   
-4475 [0x117b]:          movi #84416, ebx   
+4475 [0x117b]:          movi #95892, ebx   
 4477 [0x117d]:          movg @101 // @frontend.tokenizer#token_id   
 4478 [0x117e]:          movn #3   
 4480 [0x1180]:          movn #1   
@@ -49970,7 +49958,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4493 [0x118d]:          movn #4   
 4495 [0x118f]:          movn #0   
 4497 [0x1191]:          popobj   
-4498 [0x1192]:          movi #84417, ebx   
+4498 [0x1192]:          movi #95893, ebx   
 4500 [0x1194]:          movg @101 // @frontend.tokenizer#token_id   
 4501 [0x1195]:          movn #4   
 4503 [0x1197]:          movn #1   
@@ -49985,7 +49973,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4516 [0x11a4]:          movn #5   
 4518 [0x11a6]:          movn #0   
 4520 [0x11a8]:          popobj   
-4521 [0x11a9]:          movi #84418, ebx   
+4521 [0x11a9]:          movi #95894, ebx   
 4523 [0x11ab]:          movg @101 // @frontend.tokenizer#token_id   
 4524 [0x11ac]:          movn #5   
 4526 [0x11ae]:          movn #1   
@@ -50000,7 +49988,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4539 [0x11bb]:          movn #6   
 4541 [0x11bd]:          movn #0   
 4543 [0x11bf]:          popobj   
-4544 [0x11c0]:          movi #84419, ebx   
+4544 [0x11c0]:          movi #95895, ebx   
 4546 [0x11c2]:          movg @101 // @frontend.tokenizer#token_id   
 4547 [0x11c3]:          movn #6   
 4549 [0x11c5]:          movn #1   
@@ -50015,7 +50003,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4562 [0x11d2]:          movn #0   
 4564 [0x11d4]:          movn #0   
 4566 [0x11d6]:          popobj   
-4567 [0x11d7]:          movi #84414, ebx   
+4567 [0x11d7]:          movi #95890, ebx   
 4569 [0x11d9]:          movg @103 // @frontend.tokenizer#token_type   
 4570 [0x11da]:          movn #0   
 4572 [0x11dc]:          movn #1   
@@ -50030,7 +50018,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4585 [0x11e9]:          movn #1   
 4587 [0x11eb]:          movn #0   
 4589 [0x11ed]:          popobj   
-4590 [0x11ee]:          movi #84415, ebx   
+4590 [0x11ee]:          movi #95891, ebx   
 4592 [0x11f0]:          movg @103 // @frontend.tokenizer#token_type   
 4593 [0x11f1]:          movn #1   
 4595 [0x11f3]:          movn #1   
@@ -50045,7 +50033,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4608 [0x1200]:          movn #2   
 4610 [0x1202]:          movn #0   
 4612 [0x1204]:          popobj   
-4613 [0x1205]:          movi #84416, ebx   
+4613 [0x1205]:          movi #95892, ebx   
 4615 [0x1207]:          movg @103 // @frontend.tokenizer#token_type   
 4616 [0x1208]:          movn #2   
 4618 [0x120a]:          movn #1   
@@ -50060,7 +50048,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4631 [0x1217]:          movn #3   
 4633 [0x1219]:          movn #0   
 4635 [0x121b]:          popobj   
-4636 [0x121c]:          movi #84417, ebx   
+4636 [0x121c]:          movi #95893, ebx   
 4638 [0x121e]:          movg @103 // @frontend.tokenizer#token_type   
 4639 [0x121f]:          movn #3   
 4641 [0x1221]:          movn #1   
@@ -50075,7 +50063,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4654 [0x122e]:          movn #4   
 4656 [0x1230]:          movn #0   
 4658 [0x1232]:          popobj   
-4659 [0x1233]:          movi #84418, ebx   
+4659 [0x1233]:          movi #95894, ebx   
 4661 [0x1235]:          movg @103 // @frontend.tokenizer#token_type   
 4662 [0x1236]:          movn #4   
 4664 [0x1238]:          movn #1   
@@ -50090,7 +50078,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4677 [0x1245]:          movn #5   
 4679 [0x1247]:          movn #0   
 4681 [0x1249]:          popobj   
-4682 [0x124a]:          movi #84419, ebx   
+4682 [0x124a]:          movi #95895, ebx   
 4684 [0x124c]:          movg @103 // @frontend.tokenizer#token_type   
 4685 [0x124d]:          movn #5   
 4687 [0x124f]:          movn #1   
@@ -50105,7 +50093,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4700 [0x125c]:          movn #6   
 4702 [0x125e]:          movn #0   
 4704 [0x1260]:          popobj   
-4705 [0x1261]:          movi #84420, ebx   
+4705 [0x1261]:          movi #95896, ebx   
 4707 [0x1263]:          movg @103 // @frontend.tokenizer#token_type   
 4708 [0x1264]:          movn #6   
 4710 [0x1266]:          movn #1   
@@ -50120,7 +50108,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4723 [0x1273]:          movn #7   
 4725 [0x1275]:          movn #0   
 4727 [0x1277]:          popobj   
-4728 [0x1278]:          movi #84421, ebx   
+4728 [0x1278]:          movi #95897, ebx   
 4730 [0x127a]:          movg @103 // @frontend.tokenizer#token_type   
 4731 [0x127b]:          movn #7   
 4733 [0x127d]:          movn #1   
@@ -50135,7 +50123,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4746 [0x128a]:          movn #8   
 4748 [0x128c]:          movn #0   
 4750 [0x128e]:          popobj   
-4751 [0x128f]:          movi #84422, ebx   
+4751 [0x128f]:          movi #95898, ebx   
 4753 [0x1291]:          movg @103 // @frontend.tokenizer#token_type   
 4754 [0x1292]:          movn #8   
 4756 [0x1294]:          movn #1   
@@ -50150,7 +50138,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4769 [0x12a1]:          movn #9   
 4771 [0x12a3]:          movn #0   
 4773 [0x12a5]:          popobj   
-4774 [0x12a6]:          movi #84423, ebx   
+4774 [0x12a6]:          movi #95899, ebx   
 4776 [0x12a8]:          movg @103 // @frontend.tokenizer#token_type   
 4777 [0x12a9]:          movn #9   
 4779 [0x12ab]:          movn #1   
@@ -50165,7 +50153,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4792 [0x12b8]:          movn #10   
 4794 [0x12ba]:          movn #0   
 4796 [0x12bc]:          popobj   
-4797 [0x12bd]:          movi #84424, ebx   
+4797 [0x12bd]:          movi #95900, ebx   
 4799 [0x12bf]:          movg @103 // @frontend.tokenizer#token_type   
 4800 [0x12c0]:          movn #10   
 4802 [0x12c2]:          movn #1   
@@ -50180,7 +50168,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4815 [0x12cf]:          movn #11   
 4817 [0x12d1]:          movn #0   
 4819 [0x12d3]:          popobj   
-4820 [0x12d4]:          movi #84425, ebx   
+4820 [0x12d4]:          movi #95901, ebx   
 4822 [0x12d6]:          movg @103 // @frontend.tokenizer#token_type   
 4823 [0x12d7]:          movn #11   
 4825 [0x12d9]:          movn #1   
@@ -50195,7 +50183,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4838 [0x12e6]:          movn #12   
 4840 [0x12e8]:          movn #0   
 4842 [0x12ea]:          popobj   
-4843 [0x12eb]:          movi #84426, ebx   
+4843 [0x12eb]:          movi #95902, ebx   
 4845 [0x12ed]:          movg @103 // @frontend.tokenizer#token_type   
 4846 [0x12ee]:          movn #12   
 4848 [0x12f0]:          movn #1   
@@ -50210,7 +50198,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4861 [0x12fd]:          movn #13   
 4863 [0x12ff]:          movn #0   
 4865 [0x1301]:          popobj   
-4866 [0x1302]:          movi #84427, ebx   
+4866 [0x1302]:          movi #95903, ebx   
 4868 [0x1304]:          movg @103 // @frontend.tokenizer#token_type   
 4869 [0x1305]:          movn #13   
 4871 [0x1307]:          movn #1   
@@ -50225,7 +50213,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4884 [0x1314]:          movn #14   
 4886 [0x1316]:          movn #0   
 4888 [0x1318]:          popobj   
-4889 [0x1319]:          movi #84428, ebx   
+4889 [0x1319]:          movi #95904, ebx   
 4891 [0x131b]:          movg @103 // @frontend.tokenizer#token_type   
 4892 [0x131c]:          movn #14   
 4894 [0x131e]:          movn #1   
@@ -50240,7 +50228,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4907 [0x132b]:          movn #15   
 4909 [0x132d]:          movn #0   
 4911 [0x132f]:          popobj   
-4912 [0x1330]:          movi #84429, ebx   
+4912 [0x1330]:          movi #95905, ebx   
 4914 [0x1332]:          movg @103 // @frontend.tokenizer#token_type   
 4915 [0x1333]:          movn #15   
 4917 [0x1335]:          movn #1   
@@ -50255,7 +50243,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4930 [0x1342]:          movn #16   
 4932 [0x1344]:          movn #0   
 4934 [0x1346]:          popobj   
-4935 [0x1347]:          movi #84430, ebx   
+4935 [0x1347]:          movi #95906, ebx   
 4937 [0x1349]:          movg @103 // @frontend.tokenizer#token_type   
 4938 [0x134a]:          movn #16   
 4940 [0x134c]:          movn #1   
@@ -50270,7 +50258,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4953 [0x1359]:          movn #17   
 4955 [0x135b]:          movn #0   
 4957 [0x135d]:          popobj   
-4958 [0x135e]:          movi #84431, ebx   
+4958 [0x135e]:          movi #95907, ebx   
 4960 [0x1360]:          movg @103 // @frontend.tokenizer#token_type   
 4961 [0x1361]:          movn #17   
 4963 [0x1363]:          movn #1   
@@ -50285,7 +50273,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4976 [0x1370]:          movn #18   
 4978 [0x1372]:          movn #0   
 4980 [0x1374]:          popobj   
-4981 [0x1375]:          movi #84432, ebx   
+4981 [0x1375]:          movi #95908, ebx   
 4983 [0x1377]:          movg @103 // @frontend.tokenizer#token_type   
 4984 [0x1378]:          movn #18   
 4986 [0x137a]:          movn #1   
@@ -50300,7 +50288,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 4999 [0x1387]:          movn #19   
 5001 [0x1389]:          movn #0   
 5003 [0x138b]:          popobj   
-5004 [0x138c]:          movi #84433, ebx   
+5004 [0x138c]:          movi #95909, ebx   
 5006 [0x138e]:          movg @103 // @frontend.tokenizer#token_type   
 5007 [0x138f]:          movn #19   
 5009 [0x1391]:          movn #1   
@@ -50315,7 +50303,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5022 [0x139e]:          movn #20   
 5024 [0x13a0]:          movn #0   
 5026 [0x13a2]:          popobj   
-5027 [0x13a3]:          movi #84434, ebx   
+5027 [0x13a3]:          movi #95910, ebx   
 5029 [0x13a5]:          movg @103 // @frontend.tokenizer#token_type   
 5030 [0x13a6]:          movn #20   
 5032 [0x13a8]:          movn #1   
@@ -50330,7 +50318,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5045 [0x13b5]:          movn #21   
 5047 [0x13b7]:          movn #0   
 5049 [0x13b9]:          popobj   
-5050 [0x13ba]:          movi #84435, ebx   
+5050 [0x13ba]:          movi #95911, ebx   
 5052 [0x13bc]:          movg @103 // @frontend.tokenizer#token_type   
 5053 [0x13bd]:          movn #21   
 5055 [0x13bf]:          movn #1   
@@ -50345,7 +50333,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5068 [0x13cc]:          movn #22   
 5070 [0x13ce]:          movn #0   
 5072 [0x13d0]:          popobj   
-5073 [0x13d1]:          movi #84436, ebx   
+5073 [0x13d1]:          movi #95912, ebx   
 5075 [0x13d3]:          movg @103 // @frontend.tokenizer#token_type   
 5076 [0x13d4]:          movn #22   
 5078 [0x13d6]:          movn #1   
@@ -50360,7 +50348,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5091 [0x13e3]:          movn #23   
 5093 [0x13e5]:          movn #0   
 5095 [0x13e7]:          popobj   
-5096 [0x13e8]:          movi #84437, ebx   
+5096 [0x13e8]:          movi #95913, ebx   
 5098 [0x13ea]:          movg @103 // @frontend.tokenizer#token_type   
 5099 [0x13eb]:          movn #23   
 5101 [0x13ed]:          movn #1   
@@ -50375,7 +50363,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5114 [0x13fa]:          movn #24   
 5116 [0x13fc]:          movn #0   
 5118 [0x13fe]:          popobj   
-5119 [0x13ff]:          movi #84438, ebx   
+5119 [0x13ff]:          movi #95914, ebx   
 5121 [0x1401]:          movg @103 // @frontend.tokenizer#token_type   
 5122 [0x1402]:          movn #24   
 5124 [0x1404]:          movn #1   
@@ -50390,7 +50378,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5137 [0x1411]:          movn #25   
 5139 [0x1413]:          movn #0   
 5141 [0x1415]:          popobj   
-5142 [0x1416]:          movi #84439, ebx   
+5142 [0x1416]:          movi #95915, ebx   
 5144 [0x1418]:          movg @103 // @frontend.tokenizer#token_type   
 5145 [0x1419]:          movn #25   
 5147 [0x141b]:          movn #1   
@@ -50405,7 +50393,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5160 [0x1428]:          movn #26   
 5162 [0x142a]:          movn #0   
 5164 [0x142c]:          popobj   
-5165 [0x142d]:          movi #84440, ebx   
+5165 [0x142d]:          movi #95916, ebx   
 5167 [0x142f]:          movg @103 // @frontend.tokenizer#token_type   
 5168 [0x1430]:          movn #26   
 5170 [0x1432]:          movn #1   
@@ -50420,7 +50408,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5183 [0x143f]:          movn #27   
 5185 [0x1441]:          movn #0   
 5187 [0x1443]:          popobj   
-5188 [0x1444]:          movi #84441, ebx   
+5188 [0x1444]:          movi #95917, ebx   
 5190 [0x1446]:          movg @103 // @frontend.tokenizer#token_type   
 5191 [0x1447]:          movn #27   
 5193 [0x1449]:          movn #1   
@@ -50435,7 +50423,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5206 [0x1456]:          movn #28   
 5208 [0x1458]:          movn #0   
 5210 [0x145a]:          popobj   
-5211 [0x145b]:          movi #84442, ebx   
+5211 [0x145b]:          movi #95918, ebx   
 5213 [0x145d]:          movg @103 // @frontend.tokenizer#token_type   
 5214 [0x145e]:          movn #28   
 5216 [0x1460]:          movn #1   
@@ -50450,7 +50438,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5229 [0x146d]:          movn #29   
 5231 [0x146f]:          movn #0   
 5233 [0x1471]:          popobj   
-5234 [0x1472]:          movi #84443, ebx   
+5234 [0x1472]:          movi #95919, ebx   
 5236 [0x1474]:          movg @103 // @frontend.tokenizer#token_type   
 5237 [0x1475]:          movn #29   
 5239 [0x1477]:          movn #1   
@@ -50465,7 +50453,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5252 [0x1484]:          movn #30   
 5254 [0x1486]:          movn #0   
 5256 [0x1488]:          popobj   
-5257 [0x1489]:          movi #84444, ebx   
+5257 [0x1489]:          movi #95920, ebx   
 5259 [0x148b]:          movg @103 // @frontend.tokenizer#token_type   
 5260 [0x148c]:          movn #30   
 5262 [0x148e]:          movn #1   
@@ -50480,7 +50468,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5275 [0x149b]:          movn #31   
 5277 [0x149d]:          movn #0   
 5279 [0x149f]:          popobj   
-5280 [0x14a0]:          movi #84445, ebx   
+5280 [0x14a0]:          movi #95921, ebx   
 5282 [0x14a2]:          movg @103 // @frontend.tokenizer#token_type   
 5283 [0x14a3]:          movn #31   
 5285 [0x14a5]:          movn #1   
@@ -50495,7 +50483,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5298 [0x14b2]:          movn #32   
 5300 [0x14b4]:          movn #0   
 5302 [0x14b6]:          popobj   
-5303 [0x14b7]:          movi #84446, ebx   
+5303 [0x14b7]:          movi #95922, ebx   
 5305 [0x14b9]:          movg @103 // @frontend.tokenizer#token_type   
 5306 [0x14ba]:          movn #32   
 5308 [0x14bc]:          movn #1   
@@ -50510,7 +50498,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5321 [0x14c9]:          movn #33   
 5323 [0x14cb]:          movn #0   
 5325 [0x14cd]:          popobj   
-5326 [0x14ce]:          movi #84447, ebx   
+5326 [0x14ce]:          movi #95923, ebx   
 5328 [0x14d0]:          movg @103 // @frontend.tokenizer#token_type   
 5329 [0x14d1]:          movn #33   
 5331 [0x14d3]:          movn #1   
@@ -50525,7 +50513,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5344 [0x14e0]:          movn #34   
 5346 [0x14e2]:          movn #0   
 5348 [0x14e4]:          popobj   
-5349 [0x14e5]:          movi #84448, ebx   
+5349 [0x14e5]:          movi #95924, ebx   
 5351 [0x14e7]:          movg @103 // @frontend.tokenizer#token_type   
 5352 [0x14e8]:          movn #34   
 5354 [0x14ea]:          movn #1   
@@ -50540,7 +50528,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5367 [0x14f7]:          movn #35   
 5369 [0x14f9]:          movn #0   
 5371 [0x14fb]:          popobj   
-5372 [0x14fc]:          movi #84449, ebx   
+5372 [0x14fc]:          movi #95925, ebx   
 5374 [0x14fe]:          movg @103 // @frontend.tokenizer#token_type   
 5375 [0x14ff]:          movn #35   
 5377 [0x1501]:          movn #1   
@@ -50555,7 +50543,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5390 [0x150e]:          movn #36   
 5392 [0x1510]:          movn #0   
 5394 [0x1512]:          popobj   
-5395 [0x1513]:          movi #84450, ebx   
+5395 [0x1513]:          movi #95926, ebx   
 5397 [0x1515]:          movg @103 // @frontend.tokenizer#token_type   
 5398 [0x1516]:          movn #36   
 5400 [0x1518]:          movn #1   
@@ -50570,7 +50558,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5413 [0x1525]:          movn #37   
 5415 [0x1527]:          movn #0   
 5417 [0x1529]:          popobj   
-5418 [0x152a]:          movi #84451, ebx   
+5418 [0x152a]:          movi #95927, ebx   
 5420 [0x152c]:          movg @103 // @frontend.tokenizer#token_type   
 5421 [0x152d]:          movn #37   
 5423 [0x152f]:          movn #1   
@@ -50585,7 +50573,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5436 [0x153c]:          movn #38   
 5438 [0x153e]:          movn #0   
 5440 [0x1540]:          popobj   
-5441 [0x1541]:          movi #84452, ebx   
+5441 [0x1541]:          movi #95928, ebx   
 5443 [0x1543]:          movg @103 // @frontend.tokenizer#token_type   
 5444 [0x1544]:          movn #38   
 5446 [0x1546]:          movn #1   
@@ -50600,7 +50588,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5459 [0x1553]:          movn #39   
 5461 [0x1555]:          movn #0   
 5463 [0x1557]:          popobj   
-5464 [0x1558]:          movi #84453, ebx   
+5464 [0x1558]:          movi #95929, ebx   
 5466 [0x155a]:          movg @103 // @frontend.tokenizer#token_type   
 5467 [0x155b]:          movn #39   
 5469 [0x155d]:          movn #1   
@@ -50615,7 +50603,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5482 [0x156a]:          movn #40   
 5484 [0x156c]:          movn #0   
 5486 [0x156e]:          popobj   
-5487 [0x156f]:          movi #84454, ebx   
+5487 [0x156f]:          movi #95930, ebx   
 5489 [0x1571]:          movg @103 // @frontend.tokenizer#token_type   
 5490 [0x1572]:          movn #40   
 5492 [0x1574]:          movn #1   
@@ -50630,7 +50618,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5505 [0x1581]:          movn #41   
 5507 [0x1583]:          movn #0   
 5509 [0x1585]:          popobj   
-5510 [0x1586]:          movi #84455, ebx   
+5510 [0x1586]:          movi #95931, ebx   
 5512 [0x1588]:          movg @103 // @frontend.tokenizer#token_type   
 5513 [0x1589]:          movn #41   
 5515 [0x158b]:          movn #1   
@@ -50645,7 +50633,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5528 [0x1598]:          movn #42   
 5530 [0x159a]:          movn #0   
 5532 [0x159c]:          popobj   
-5533 [0x159d]:          movi #84456, ebx   
+5533 [0x159d]:          movi #95932, ebx   
 5535 [0x159f]:          movg @103 // @frontend.tokenizer#token_type   
 5536 [0x15a0]:          movn #42   
 5538 [0x15a2]:          movn #1   
@@ -50660,7 +50648,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5551 [0x15af]:          movn #43   
 5553 [0x15b1]:          movn #0   
 5555 [0x15b3]:          popobj   
-5556 [0x15b4]:          movi #84457, ebx   
+5556 [0x15b4]:          movi #95933, ebx   
 5558 [0x15b6]:          movg @103 // @frontend.tokenizer#token_type   
 5559 [0x15b7]:          movn #43   
 5561 [0x15b9]:          movn #1   
@@ -50675,7 +50663,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5574 [0x15c6]:          movn #44   
 5576 [0x15c8]:          movn #0   
 5578 [0x15ca]:          popobj   
-5579 [0x15cb]:          movi #84458, ebx   
+5579 [0x15cb]:          movi #95934, ebx   
 5581 [0x15cd]:          movg @103 // @frontend.tokenizer#token_type   
 5582 [0x15ce]:          movn #44   
 5584 [0x15d0]:          movn #1   
@@ -50690,7 +50678,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5597 [0x15dd]:          movn #45   
 5599 [0x15df]:          movn #0   
 5601 [0x15e1]:          popobj   
-5602 [0x15e2]:          movi #84459, ebx   
+5602 [0x15e2]:          movi #95935, ebx   
 5604 [0x15e4]:          movg @103 // @frontend.tokenizer#token_type   
 5605 [0x15e5]:          movn #45   
 5607 [0x15e7]:          movn #1   
@@ -50705,7 +50693,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5620 [0x15f4]:          movn #46   
 5622 [0x15f6]:          movn #0   
 5624 [0x15f8]:          popobj   
-5625 [0x15f9]:          movi #84460, ebx   
+5625 [0x15f9]:          movi #95936, ebx   
 5627 [0x15fb]:          movg @103 // @frontend.tokenizer#token_type   
 5628 [0x15fc]:          movn #46   
 5630 [0x15fe]:          movn #1   
@@ -50720,7 +50708,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5643 [0x160b]:          movn #47   
 5645 [0x160d]:          movn #0   
 5647 [0x160f]:          popobj   
-5648 [0x1610]:          movi #84461, ebx   
+5648 [0x1610]:          movi #95937, ebx   
 5650 [0x1612]:          movg @103 // @frontend.tokenizer#token_type   
 5651 [0x1613]:          movn #47   
 5653 [0x1615]:          movn #1   
@@ -50735,7 +50723,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5666 [0x1622]:          movn #48   
 5668 [0x1624]:          movn #0   
 5670 [0x1626]:          popobj   
-5671 [0x1627]:          movi #84462, ebx   
+5671 [0x1627]:          movi #95938, ebx   
 5673 [0x1629]:          movg @103 // @frontend.tokenizer#token_type   
 5674 [0x162a]:          movn #48   
 5676 [0x162c]:          movn #1   
@@ -50750,7 +50738,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5689 [0x1639]:          movn #49   
 5691 [0x163b]:          movn #0   
 5693 [0x163d]:          popobj   
-5694 [0x163e]:          movi #84463, ebx   
+5694 [0x163e]:          movi #95939, ebx   
 5696 [0x1640]:          movg @103 // @frontend.tokenizer#token_type   
 5697 [0x1641]:          movn #49   
 5699 [0x1643]:          movn #1   
@@ -50765,7 +50753,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5712 [0x1650]:          movn #50   
 5714 [0x1652]:          movn #0   
 5716 [0x1654]:          popobj   
-5717 [0x1655]:          movi #84464, ebx   
+5717 [0x1655]:          movi #95940, ebx   
 5719 [0x1657]:          movg @103 // @frontend.tokenizer#token_type   
 5720 [0x1658]:          movn #50   
 5722 [0x165a]:          movn #1   
@@ -50780,7 +50768,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5735 [0x1667]:          movn #51   
 5737 [0x1669]:          movn #0   
 5739 [0x166b]:          popobj   
-5740 [0x166c]:          movi #84465, ebx   
+5740 [0x166c]:          movi #95941, ebx   
 5742 [0x166e]:          movg @103 // @frontend.tokenizer#token_type   
 5743 [0x166f]:          movn #51   
 5745 [0x1671]:          movn #1   
@@ -50795,7 +50783,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5758 [0x167e]:          movn #52   
 5760 [0x1680]:          movn #0   
 5762 [0x1682]:          popobj   
-5763 [0x1683]:          movi #84466, ebx   
+5763 [0x1683]:          movi #95942, ebx   
 5765 [0x1685]:          movg @103 // @frontend.tokenizer#token_type   
 5766 [0x1686]:          movn #52   
 5768 [0x1688]:          movn #1   
@@ -50885,7 +50873,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5896 [0x1708]:          movn #0   
 5898 [0x170a]:          movn #0   
 5900 [0x170c]:          popobj   
-5901 [0x170d]:          movi #84416, ebx   
+5901 [0x170d]:          movi #95892, ebx   
 5903 [0x170f]:          movg @107 // @main#compilation_mode   
 5904 [0x1710]:          movn #0   
 5906 [0x1712]:          movn #1   
@@ -50900,7 +50888,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5919 [0x171f]:          movn #1   
 5921 [0x1721]:          movn #0   
 5923 [0x1723]:          popobj   
-5924 [0x1724]:          movi #84417, ebx   
+5924 [0x1724]:          movi #95893, ebx   
 5926 [0x1726]:          movg @107 // @main#compilation_mode   
 5927 [0x1727]:          movn #1   
 5929 [0x1729]:          movn #1   
@@ -50915,7 +50903,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5942 [0x1736]:          movn #0   
 5944 [0x1738]:          movn #0   
 5946 [0x173a]:          popobj   
-5947 [0x173b]:          movi #84417, ebx   
+5947 [0x173b]:          movi #95893, ebx   
 5949 [0x173d]:          movg @147 // @std.io#channel<t>.channel_state   
 5950 [0x173e]:          movn #0   
 5952 [0x1740]:          movn #1   
@@ -50930,7 +50918,7 @@ function: platform.kernel#platform.static_init[2362] params(0) in file: lib/supp
 5965 [0x174d]:          movn #1   
 5967 [0x174f]:          movn #0   
 5969 [0x1751]:          popobj   
-5970 [0x1752]:          movi #84418, ebx   
+5970 [0x1752]:          movi #95894, ebx   
 5972 [0x1754]:          movg @147 // @std.io#channel<t>.channel_state   
 5973 [0x1755]:          movn #1   
 5975 [0x1757]:          movn #1   

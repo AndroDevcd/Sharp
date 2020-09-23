@@ -801,9 +801,12 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         lockCheckMutex.lock();
         if(mut->fiberid != thread->this_fiber->id) {
             lockCheckMutex.unlock();
-            thread->this_fiber->delay(1);
-            thread->enableContextSwitch(NULL, true);
-            return false;
+
+            if(mut->threadid == thread->id) {
+                thread->this_fiber->delay(1);
+                thread->enableContextSwitch(NULL, true);
+                return false;
+            } else goto retry;
         }
 
         mut->threadid=thread->id;

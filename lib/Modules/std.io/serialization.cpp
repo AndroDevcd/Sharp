@@ -5,10 +5,11 @@
 #include "serialization.h"
 #include "../../runtime/VirtualMachine.h"
 
-thread_local HashMap<Int, Int> exportStreamInfo(0x1024);
-thread_local HashMap<Int, SharpObject*> importStreamInfo(0x1024);
+thread_local HashMap<Int, Int> exportStreamInfo(0x1024, false);
+thread_local HashMap<Int, SharpObject*> importStreamInfo(0x1024, false);
 thread_local Int recursion = 0, refId;
 
+recursive_mutex exportMutex;
 stringstream dataStream;
 void cleanup() {
     dataStream.str("");
@@ -67,6 +68,7 @@ string export_obj(SharpObject* obj) {
                     }
                     else
                         dataStream << (char)EXPORT_EMPTY;
+
                 }
             } else {
                 if(fieldSize != obj->size) {

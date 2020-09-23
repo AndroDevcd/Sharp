@@ -18,6 +18,11 @@
 #define DATA_END 0x0
 #define DATA_SIZE 0xca
 
+#define STREAM_SIZE_START KB_TO_BYTES(250) // 16Mb limit per object
+#define STREAM_SIZE_MAX MB_TO_BYTES(16)
+#define STREAM_SIZE_ALLOC_CHUNK KB_TO_BYTES(50)
+
+extern recursive_mutex exportMutex;
 string export_obj(SharpObject* obj);
 void import_obj(SharpObject* obj);
 void cleanup();

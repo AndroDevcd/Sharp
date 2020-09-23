@@ -25,7 +25,7 @@
 #include "../Modules/std.io/memory.h"
 #include "snb/snb.h"
 #include "scheduler.h"
-#include "../Modules/std/serialization.h"
+#include "../Modules/std.io/serialization.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -483,6 +483,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
     }
 }
 
+Int total = 0;
 void VirtualMachine::sysInterrupt(int64_t signal) {
     switch (signal) {
         case OP_NOP:
@@ -999,6 +1000,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         }
         case OP_EXPORT: {
+            GUARD(exportMutex);
             native_string str(export_obj((thread_self->this_fiber->sp--)->object.object));
             gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
             str.free();
@@ -1006,6 +1008,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         }
         case OP_IMPORT: {
+            GUARD(exportMutex);
             import_obj((thread_self->this_fiber->sp--)->object.object);
             cleanup();
             return;
