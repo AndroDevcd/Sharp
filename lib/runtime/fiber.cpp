@@ -88,7 +88,7 @@ fiber* fiber::nextFiber() {
             if(fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
                 lastFiberIndex++;
                 return fib;
-            } else if(fib->delayTime == -1) {
+            } else if(fib->delayTime < 0) {
                 lastFiberIndex++;
                 return fib;
             }
@@ -254,8 +254,11 @@ void fiber::setAttachedThread(Thread *thread) {
     attachedThread = thread;
 }
 
-void fiber::delay(uInt time) {
+void fiber::delay(Int time) {
     GUARD(fiberMutex)
+    if(time < 0)
+        time = -1;
+
     attachedThread->enableContextSwitch(NULL, true);
     attachedThread->contextSwitching = true;
     setState(thread_self, FIB_SUSPENDED, NANO_TOMILL(Clock::realTimeInNSecs()) + time);
@@ -272,8 +275,11 @@ int fiber::bind(Thread *thread) {
             return 0;
         }
     } else {
-        if(boundThread)
+        if(boundThread) {
+            std::lock_guard<recursive_mutex> guard2(boundThread->mutex);
             boundThread->boundFibers--;
+        }
+
         boundThread = NULL;
         return 0;
     }

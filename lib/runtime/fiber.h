@@ -36,7 +36,7 @@ public:
     Thread *getAttachedThread();
     Thread *getBoundThread();
     void setAttachedThread(Thread *thread);
-    void delay(uInt time);
+    void delay(Int time);
     int bind(Thread *thread);
 
 private:
