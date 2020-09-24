@@ -115,6 +115,7 @@ private def scheduler_main(args : object[]) : var
 
         			if(result && !scheduled_job.has_timeout) {
                         jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
+                        i--;
         			} else if(!result) break;
         		}
         	} else if(scheduled_job.has_timeout) {
@@ -127,10 +128,12 @@ private def scheduler_main(args : object[]) : var
                     while(scheduled_job.next_task == null){} // wait until the next task is updated
                     scheduled_job.cancel();
         			launcher.cleanup_job(scheduled_job);
+                    i--;
         		}
         	} else {
         	    if(execute_job(scheduled_job)) {
                     jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
+                    i--;
         		} else break;
         	}
         }

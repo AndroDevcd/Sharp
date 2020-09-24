@@ -844,8 +844,11 @@ void GarbageCollector::unlock(SharpObject *o) {
 }
 
 void GarbageCollector::reconcileLocks(Thread* thread) {
+    if(thread== NULL)
+        return;
 
     mutex.lock();
+    lockCheckMutex.lock();
     for(long long i = 0; i < locks.size(); i++) {
         mutex_t *mut = locks.get(i);
         if(mut->threadid==thread->id) {
@@ -854,6 +857,26 @@ void GarbageCollector::reconcileLocks(Thread* thread) {
         }
 
     }
+    lockCheckMutex.unlock();
+    mutex.unlock();
+}
+
+void GarbageCollector::reconcileLocks(fiber* fib) {
+    if(fib== NULL)
+        return;
+
+    mutex.lock();
+    lockCheckMutex.lock();
+    for(long long i = 0; i < locks.size(); i++) {
+        mutex_t *mut = locks.get(i);
+        if(mut->fiberid==fib->id) {
+            mut->fiberid = -1;
+            mut->threadid = -1;
+            mut->lockedCount = 0;
+        }
+
+    }
+    lockCheckMutex.unlock();
     mutex.unlock();
 }
 

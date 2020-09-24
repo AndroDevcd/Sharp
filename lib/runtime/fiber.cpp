@@ -173,6 +173,7 @@ int fiber::kill(uInt id) {
 
 void fiber::free() {
     GUARD(fiberMutex)
+    gc.reconcileLocks(this);
 
     bind(NULL);
     if(dataStack != NULL) {

@@ -48,6 +48,7 @@ struct Object;
 struct SharpObject;
 class ClassObject;
 class Thread;
+class fiber;
 
 struct mutex_t
 {
@@ -230,6 +231,7 @@ public:
      * Thread sycronization protection for destroyed threads with pending locks
      */
     void reconcileLocks(Thread*);
+    void reconcileLocks(fiber*);
 
     void printClassRefStatus();
     SharpObject *getObjectAt(uInt index);
