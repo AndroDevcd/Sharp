@@ -115,11 +115,12 @@ private def scheduler_main(args : object[]) : var
 
         			if(result && !scheduled_job.has_timeout) {
                         jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
-        			}
+        			} else if(!result) break;
         		}
         	} else if(scheduled_job.has_timeout) {
         	    if(scheduled_job.host == null) {
-        	        execute_job(scheduled_job);
+        	        if(!execute_job(scheduled_job))
+        	           break;
         	    }
 
         		if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
@@ -130,7 +131,7 @@ private def scheduler_main(args : object[]) : var
         	} else {
         	    if(execute_job(scheduled_job)) {
                     jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
-        		}
+        		} else break;
         	}
         }
 
