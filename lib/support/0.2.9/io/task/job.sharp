@@ -30,9 +30,6 @@ public class job {
                    return 0;
                 }, host, { self });
 			    return 0;
-            } else {
-               host.interrupt(); // try again
-               return 2;
             }
 		} else if(state == active) {
 			return 1;
