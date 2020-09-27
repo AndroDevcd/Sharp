@@ -244,6 +244,7 @@ enum ast_type {
     ast_import_module,
     ast_primary_constr,
     ast_constructor_arg,
+    ast_base_constr_args,
     ast_access_type,
 
     /**

@@ -44,12 +44,14 @@ class parser {
     private static const KEYWORD_UINT16        := 39;
     private static const KEYWORD_UINT32        := 40;
     private static const KEYWORD_UINT64        := 41;
+    private static const KEYWORD_INTERFACE     := 42;
     private static const KEYWORD_LOCAL         := 48;
     private static const KEYWORD_EXT           := 49;
     private static const KEYWORD_STABLE        := 50;
     private static const KEYWORD_NATIVE        := 51;
     private static const KEYWORD_AS            := 52;
     private static const KEYWORD_NIL           := 54;
+    private static const KEYWORD_MUTATE        := 55;
 
     public parser(toks: tokenizer)
         {
@@ -93,34 +95,36 @@ class parser {
 
         advance();
 
-        for( ;; ) {
-           if(panic)
-              break;
+        try {
+           for( ;; ) {
+              if(panic)
+                 break;
 
-           if(is_access_decl()) {
-              parse_access_types();
-           }
+              if(is_access_decl()) {
+                 parse_access_types();
+              }
 
-           when {
-              current.type == eof -> { break; }
-              current.tok == keywords[KEYWORD_MOD] -> {
-                   if(access_types.size() > 0)
-                      errors.new_error(illegal_access_declaration, current);
-                   parse_module_decl(null);
-                }
-              current.tok == keywords[KEYWORD_IMPORT] -> {
-                   if(access_types.size() > 0)
-                      errors.new_error(illegal_access_declaration, current);
-                   parse_import_decl(null);
-                }
-              current.tok == keywords[KEYWORD_CLASS] -> {
-                 parse_class_decl(null);
-              }
-              else -> {
-                 advance();
+              when {
+                 current.type == eof -> { break; }
+                 current.tok == keywords[KEYWORD_MOD] -> {
+                      if(access_types.size() > 0)
+                         errors.new_error(illegal_access_declaration, current);
+                      parse_module_decl(null);
+                   }
+                 current.tok == keywords[KEYWORD_IMPORT] -> {
+                      if(access_types.size() > 0)
+                         errors.new_error(illegal_access_declaration, current);
+                      parse_import_decl(null);
+                   }
+                 current.tok == keywords[KEYWORD_CLASS] -> {
+                    parse_class_decl(null);
+                 }
+                 else -> {
+                    advance();
+                 }
               }
            }
-        }
+        } catch(throwable) { /* ignore everything */ }
 
 
         parsed = !panic && !errors.has_errors();
@@ -128,6 +132,8 @@ class parser {
         tokens = null;
         cache_parser(self);
     }
+
+    def is_end() := current.type == eof;
 
     def add_access_types(_ast: ast) {
         if(access_types.empty()) return;
@@ -163,6 +169,13 @@ class parser {
        if(peek(1).tok == keywords[KEYWORD_BASE]) {
           expect(branch, keywords[KEYWORD_BASE], false);
           parse_reference_ptr(branch);
+
+          if(peek(1).type == token_type.left_paren) {
+             base_args := get_branch(_ast, ast_base_constr_args);
+             expect(base_args, "(", false);
+             parse_expression_list(base_args);
+             expect(base_args, ")", false);
+          }
        }
 
 
@@ -171,6 +184,126 @@ class parser {
            expect(branch, ":", false);
            parse_reference_pointer_list(branch);
        }
+
+       parse_class_block(branch);
+    }
+
+    def check_error_limit() {
+       if(panic) throw new illegal_state_exception("panic!");
+       else if(errors.get_raw_error_count() > options.max_errors) {
+           panic = true;
+           throw new illegal_state_exception("panic!");
+       }
+    }
+
+    def parse_expression_list(_ast : ast) {
+       branch := get_branch(_ast, ast_expression);
+
+       parse_expression(branch);
+       while(peek(1).type == token_type.comma) {
+          expect(branch, ",", false);
+          parse_expression(branch);
+       }
+    }
+
+    def parse_expression(_ast : ast) {
+       branch := get_branch(_ast, ast_expression);
+
+    }
+
+    def parse_class_block(_ast : ast) {
+       branch := get_branch(_ast, ast_block);
+
+       expect(branch, "{", false);
+       brackets := 1;
+       while(!is_end() && brackets > 0)
+       {
+          check_error_limit();
+
+          advance();
+          if(is_access_decl()) {
+             parse_access_types();
+          }
+
+          when {
+             current.type == eof -> { break; }
+             current.tok == keywords[KEYWORD_MOD] -> {
+                  if(access_types.size() > 0)
+                     errors.new_error(illegal_access_declaration, current);
+                  errors.new_error(generic, current, "unexpected module declaration, module declarations are expected to be the first item in every file, have you possibly misplaced the declaration?");
+                  parse_module_decl(branch);
+               }
+             current.tok == keywords[KEYWORD_IMPORT] -> {
+                  if(access_types.size() > 0)
+                     errors.new_error(illegal_access_declaration, current);
+                  parse_import_decl(branch);
+               }
+             current.tok == keywords[KEYWORD_CLASS] -> {
+                parse_class_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_MUTATE]
+             {
+                 parse_mutate_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_INTERFACE]
+             {
+                 parse_interface_decl(branch);
+             }
+             else -> {
+                advance();
+             }
+          }
+       }
+    }
+
+    def parse_interface_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_interface_decl);
+       add_access_types(branch);
+
+       expect_identifier(branch);
+       if(peek(1).type == token_type.lessthan) {
+          branch.type = ast_generic_class_decl;
+          expect(branch, "<", false);
+          parse_generic_identifier_list(branch);
+          expect(branch, ">", false);
+       }
+
+       if(peek(1).tok == keywords[KEYWORD_BASE]) {
+          expect(branch, keywords[KEYWORD_BASE], false);
+          parse_reference_ptr(branch);
+       }
+
+       parse_interface_block(branch);
+    }
+
+    def parse_interface_block(_ast: ast) {
+
+    }
+
+    def parse_mutate_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_mutate_decl);
+       if(access_types.size() > 0) {
+           errors.new_error(generic, current, "access types not allowed here");
+           access_types.clear();
+       }
+
+       // class name we do this for reuseability purposses on the back end
+       name_ast := getBranch(branch, ast_name);
+       parse_reference_ptr(name_ast);
+
+       if(peek(1).tok == keywords[KEYWORD_BASE])
+       {
+           expect(branch, keywords[KEYWORD_BASE]);
+           parseReferencePointer(branch);
+       }
+
+       if(peek(1).type == token_type.colon)
+       {
+           expect(branch, ":");
+           parse_reference_pointer_list(branch);
+       }
+
+       parse_class_block(branch);
     }
 
     def is_variable_decl(tok : token) : var {
@@ -717,7 +850,8 @@ class parser {
         "native",
         "as",
         "__result__",
-        "nil"
+        "nil",
+        "mutate"
     };
 
     private def is_keyword(key: string) : var {

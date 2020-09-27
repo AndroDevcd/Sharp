@@ -105,8 +105,7 @@ class tokenizer {
                            tokens.add(new token(")", token_id.single, token_type.right_paren, col, line));
                            continue;
                        } else {
-                           tokens.add(new token(")", token_id.single, token_type.right_paren,
-                                     col, line));
+                           tokens.add(new token(")", token_id.single, token_type.right_paren, col, line));
                            tokens.add(new token("+", token_id.single, token_type.plus, col, line));
                            parse_string();
                        }
@@ -207,15 +206,35 @@ class tokenizer {
                   // A comment goes until the end of the line.
                   while (!char.is_newline(peek(1)) && !is_end) advance();
                 } else if(match('*')) {
+                   nests := 0, found_end;
                   // A multiline comment goes until the [*/].
-                  while(!is_end && !(current == '*' && peek(1) == '/'))
+                  while(!is_end)
                   {
                       if(char.is_newline(current)){
                           newline();
+                      } else if(current == '*' && peek(1) == '/') {
+                         if(nests == 0) {
+                            found_end = true;
+                            break;
+                         } else nests--;
+                      } else if(current == '/' && peek(1) == '*')
+                         nests++;
+                      else if(current == '\"') {
+                         advance();
+                         while(!is_end) {
+                            if(current == '\"')
+                               break;
+                            else if(current == '\\')
+                              advance();
+                            advance();
+                         }
                       }
 
                       advance();
                   }
+
+                  if(!found_end)
+                     errors.new_error(compiler_error.generic, line, col, "expected `*/` at end of block comment");
                   advance();
                 } else {
                     if(match('='))

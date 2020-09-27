@@ -212,6 +212,10 @@ class error_manager {
         new_error(err, line, col, "");
     }
 
+    public def new_warning(err: compiler_error, tok: token, msg: string) {
+       new_warning(err, tok.line, tok.col, msg);
+    }
+
     public def new_warning(err: compiler_error, line: var, col: var, msg: string) {
         predefined_message := predefined_errors.at(err);
         new_err: parse_error = new parse_error(false, err, predefined_message, line, col, msg);

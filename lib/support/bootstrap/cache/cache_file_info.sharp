@@ -110,7 +110,7 @@ def store_cache_info() {
          try {
             println("export cache ${options.project_dir + cache_file_path}");
             _export(file_info, options.project_dir + cache_file_path);
-         } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+         } catch(e: throwable) { println("cache error: " + e.get_message()); /* ignore and move on */ }
       }
    }
 }
@@ -142,7 +142,7 @@ def store_parsed_data(p: parser) {
          _export(p, options.project_dir + fd.parser_cache);
          fd.last_update = new file(filepath).last_modified();
          p.cached = true;
-      } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+      } catch(e: throwable) { println("cache error: " + e.get_message()); /* ignore and move on */ }
    }
 }
 
@@ -162,7 +162,7 @@ def load_cached_parser(filepath: string) : parser {
       }
 
       return _import_from(options.project_dir + fd.parser_cache) as parser;
-   } catch(e: throwable) { println(e.get_message()); /* ignore and move on */ }
+   } catch(e: throwable) { println("cache error: " + e.get_message()); /* ignore and move on */ }
 
    return null;
 }
