@@ -180,8 +180,10 @@ enum ast_type {
     ast_class_decl,
     ast_generic_class_decl,
     ast_generic_interface_decl,
+    ast_obfuscate_decl,
     ast_interface_decl,
     ast_import_decl,
+    ast_mutate_decl,
     ast_module_decl,
     ast_method_decl,
     ast_enum_decl,
@@ -190,9 +192,12 @@ enum ast_type {
     ast_constructor_decl,
     ast_label_decl,
     ast_operator_decl,
-    ast_var_decl,
+    ast_variable_decl,
     ast_switch_declarator,
     ast_value,
+    ast_name,
+    ast_getter,
+    ast_setter,
     ast_value_list,
     ast_utype_arg_list,
     ast_utype_arg_list_opt,
@@ -246,6 +251,8 @@ enum ast_type {
     ast_constructor_arg,
     ast_base_constr_args,
     ast_access_type,
+    ast_obfuscate_block,
+    ast_obfuscate_element,
 
     /**
      * Encapsulated ast's to make processing expressions easier

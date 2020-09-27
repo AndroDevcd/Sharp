@@ -90,6 +90,49 @@ class tokenizer {
                     parse_number();
               }
 
+              current == '/' -> {
+                if (match('/')) {
+                  // A comment goes until the end of the line.
+                  while (!char.is_newline(peek(1)) && !is_end) advance();
+                } else if(match('*')) {
+                   nests := 0, found_end;
+                  // A multiline comment goes until the [*/].
+                  while(!is_end)
+                  {
+                      if(char.is_newline(current)){
+                          newline();
+                      } else if(current == '*' && peek(1) == '/') {
+                         if(nests == 0) {
+                            found_end = true;
+                            break;
+                         } else nests--;
+                      } else if(current == '/' && peek(1) == '*')
+                         nests++;
+                      else if(current == '\"') {
+                         advance();
+                         while(!is_end) {
+                            if(current == '\"')
+                               break;
+                            else if(current == '\\')
+                              advance();
+                            advance();
+                         }
+                      }
+
+                      advance();
+                  }
+
+                  if(!found_end)
+                     errors.new_error(compiler_error.generic, line, col, "expected `*/` at end of block comment");
+                  advance();
+                } else {
+                    if(match('='))
+                        add_token(token_type.diveq);
+                    else
+                        add_token(token_type.div);
+                }
+              }
+
               current == '{' -> {
                  if(dynamic_string)
                     brackets++;
@@ -199,49 +242,6 @@ class tokenizer {
                     add_token(token_type.exponent);
                 else
                     add_token(token_type.mult);
-              }
-              
-              current == '/' -> {
-                if (match('/')) {
-                  // A comment goes until the end of the line.
-                  while (!char.is_newline(peek(1)) && !is_end) advance();
-                } else if(match('*')) {
-                   nests := 0, found_end;
-                  // A multiline comment goes until the [*/].
-                  while(!is_end)
-                  {
-                      if(char.is_newline(current)){
-                          newline();
-                      } else if(current == '*' && peek(1) == '/') {
-                         if(nests == 0) {
-                            found_end = true;
-                            break;
-                         } else nests--;
-                      } else if(current == '/' && peek(1) == '*')
-                         nests++;
-                      else if(current == '\"') {
-                         advance();
-                         while(!is_end) {
-                            if(current == '\"')
-                               break;
-                            else if(current == '\\')
-                              advance();
-                            advance();
-                         }
-                      }
-
-                      advance();
-                  }
-
-                  if(!found_end)
-                     errors.new_error(compiler_error.generic, line, col, "expected `*/` at end of block comment");
-                  advance();
-                } else {
-                    if(match('='))
-                        add_token(token_type.diveq);
-                    else
-                        add_token(token_type.div);
-                }
               }
               else -> {
                 errors.new_error(compiler_error.unexpected_symbol, line, col, " `" + new char(current) + "`");

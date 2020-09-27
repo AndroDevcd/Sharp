@@ -3354,14 +3354,14 @@ void parser::parseClassBlock(Ast *ast) {
             errors->createNewError(GENERIC, current(), "unexpected get declaration");
 
             _current--;
-            parseGetter(ast);
+            parseGetter(branch);
         } else if(current() == "set") {
             if(access_types.size() > 0)
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
             errors->createNewError(GENERIC, current(), "unexpected set declaration");
 
             _current--;
-            parseSetter(ast);
+            parseSetter(branch);
         }
         else if(isImportDecl(current()))
         {

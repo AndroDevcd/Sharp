@@ -540,3 +540,25 @@ def main() {
    foo_var.init_func$100("Dave"); 
 }
 ```
+
+#### Offical 0.3.0 features
+* Nullable types (true null type safety)
+* [X] Revised import syntax
+* elvis operator & then operator
+* Support for new class inlining 
+* Several high perf optimizations
+* [X] File caching
+* Faster compile times
+* [X] More compiler settings
+* Offical support for closures
+* Template functions
+* Generic base classes generic< t base some_class >
+* Revised for loop syntax
+* [X] Semicolons are no longer required
+* Parenthesis are no longer required
+* Trailing function pointers lst.sort { -> ... } -> def sort(sort_fun: ()()) { ... } after dot not & after ref ptr in dot not check for trailing lambda
+* dynamic args via '...' referenced as object[]
+* [X] Nesting block comments
+* Live code compiling using the `--watch` compiler option to update changed project files in real time
+* New async functionality
+* deferr keyword added

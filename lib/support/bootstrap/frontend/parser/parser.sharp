@@ -52,6 +52,12 @@ class parser {
     private static const KEYWORD_AS            := 52;
     private static const KEYWORD_NIL           := 54;
     private static const KEYWORD_MUTATE        := 55;
+    private static const KEYWORD_OBFUSCATE     := 56;
+    private static const KEYWORD_ASYNC         := 57;
+    private static const KEYWORD_GET           := 58;
+    private static const KEYWORD_SET           := 59;
+    private static const KEYWORD_THREAD_LOCAL  := 60;
+    private static const KEYWORD_DEFER         := 61;
 
     public parser(toks: tokenizer)
         {
@@ -241,19 +247,182 @@ class parser {
              current.tok == keywords[KEYWORD_CLASS] -> {
                 parse_class_decl(branch);
              }
-             current.tok == keywords[KEYWORD_MUTATE]
-             {
+             current.tok == keywords[KEYWORD_MUTATE] -> {
                  parse_mutate_decl(branch);
              }
-             current.tok == keywords[KEYWORD_INTERFACE]
-             {
+             current.tok == keywords[KEYWORD_INTERFACE] -> {
                  parse_interface_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_OBFUSCATE] -> {
+                 parse_obfuscate_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_GET] -> {
+               if(access_types.size() > 0)
+                   errors.new_error(illegal_access_declaration, current);
+               errors.new_error(generic, current, "unexpected get declaration, getters are only intended to be created immediately after a field declaration.");
+
+               cursor--;
+               parse_getter(branch);
+             }
+             current.tok == keywords[KEYWORD_SET] -> {
+               if(access_types.size() > 0)
+                   errors.new_error(illegal_access_declaration, current);
+               errors.new_error(generic, current, "unexpected set declaration, setters are only intended to be created immediately after a field declaration.");
+
+               cursor--;
+               parse_setter(branch);
+             }
+             (is_variable_decl(current) && (peek(1).type == token_type.colon || peek(1).type == token_type.infer)) ||
+                (current.tok == keywords[KEYWORD_THREAD_LOCAL]
+                     && (is_variable_decl(peek(1)) && (peek(2).type == token_type.colon || peek(2).type == token_type.infer))) -> {
+                parse_variable_decl(branch, true);
              }
              else -> {
                 advance();
              }
           }
        }
+
+       if(brackets != 0)
+           errors.new_error(missing_bracket, current, " expected `}` at end of interface declaration");
+
+       expect(branch, "}");
+    }
+
+    def parse_variable_decl(_ast: ast, first_variable: var) {
+       branch := get_branch(_ast, ast_variable_decl);
+
+       if(first_variable) {
+          add_access_types(branch);
+
+          if(current == keywords[KEYWORD_THREAD_LOCAL]) {
+              branch.add(current);
+          } else
+              cursor--;
+       }
+
+       expect_identifier(branch);
+       if(first_variable) {
+           if(peek(1).type == token_type.colon) {
+               expect(branch, ":");
+               parse_utype(branch);
+
+               if(peek(1).type == token_type.equals) {
+                   advance();
+                   parse_expression(branch);
+               }
+           } else if(peek(1).type == token_type.infer) {
+               expect(branch, ":=");
+               parse_expression(branch);
+           }
+       } else {
+           if(peek(1).type == token_type.equals) {
+               advance();
+               parse_expression(branch);
+           }
+       }
+
+       if(peek(1).type == token_type.comma) {
+           expect(branch, ",");
+
+           parse_variable_decl(first_variable ? branch : _ast, false);
+
+           if(first_variable && peek(1).type == token_type.semicolon)
+               expect(branch, ";");
+       } else {
+           if(first_variable && peek(1).type == token_type.semicolon)
+               expect(branch, ";");
+
+           if (peek(1).tok == keywords[KEYWORD_GET]) {
+               parse_getter(branch);
+               parse_setter(branch);
+           } else if(peek(1).tok == keywords[KEYWORD_SET]) {
+               parse_setter(branch);
+               parse_getter(branch);
+           }
+       }
+    }
+
+    def parse_getter(_ast: ast) {
+
+       if(peek(1).tok == keywords[KEYWORD_GET]) {
+           branch := get_branch(_ast, ast_getter);
+           expect(branch, keywords[KEYWORD_GET]);
+           parse_block(branch);
+       }
+    }
+
+    def parse_setter(_ast: ast) {
+
+       if(peek(1).tok == keywords[KEYWORD_SET]) {
+           branch := get_branch(_ast, ast_setter);
+           expect(branch, keywords[KEYWORD_SET]);
+           parse_block(branch);
+       }
+    }
+
+    def parse_block(_ast: ast) {
+
+    }
+
+    def parse_obfuscate_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_obfuscate_decl);
+
+       if(peek(1).type == token_type.minus) {
+           if(peek(2).tok == "keep") {
+               expect(branch, "-", false);
+               expect(branch, peek(1).tok);
+           } else
+               errors.new_error(generic, current, "expected obfuscation option");
+       }
+
+       parse_obfuscate_block(branch);
+    }
+
+    def parse_method_return_type(_ast: ast) {
+        if(peek(1).type == token_type.colon)
+        {
+            branch := get_branch(_ast, ast_method_return_type);
+            advance();
+
+            if(peek(1).tok == keywords[KEYWORD_NIL]) {
+                advance();
+                branch.add(current);
+            } else
+                parse_utype(branch);
+        }
+    }
+
+    def parse_obfuscate_element(_ast: ast) {
+        branch := get_branch(_ast, ast_obfuscate_element);
+
+        if(peek(1).id == string_literal) {
+            advance();
+            branch.add(current);
+        } else {
+            parse_utype(branch);
+            if(peek(1).type == token_type.left_paren) {
+                parse_utype_arg_list(branch, false);
+                parse_method_return_type(branch);
+            }
+        }
+    }
+
+    def parse_obfuscate_block(_ast: ast) {
+        branch := get_branch(_ast, ast_obfuscate_block);
+
+        expect(branch, "{", false);
+
+        if(peek(1).type != token_type.right_curly)
+        {
+            parse_obfuscate_element(branch);
+            while(peek(1).type == token_type.comma) {
+                expect(branch, ",", false);
+                parse_obfuscate_element(branch);
+            }
+        }
+
+        expect(branch, "}", false);
     }
 
     def parse_interface_decl(_ast: ast) {
@@ -277,7 +446,53 @@ class parser {
     }
 
     def parse_interface_block(_ast: ast) {
+       branch := get_branch(_ast, ast_block);
 
+       expect(branch, "{", false);
+       brackets := 1;
+       while(!is_end() && brackets > 0)
+       {
+          check_error_limit();
+
+          advance();
+          if(is_access_decl()) {
+             parse_access_types();
+          }
+
+          when {
+             current.type == eof -> { break; }
+             current.tok == keywords[KEYWORD_MOD] -> {
+                  if(access_types.size() > 0)
+                     errors.new_error(illegal_access_declaration, current);
+                  errors.new_error(generic, current, "unexpected module declaration, module declarations are expected to be the first item in every file, have you possibly misplaced the declaration?");
+                  parse_module_decl(branch);
+               }
+             current.tok == keywords[KEYWORD_IMPORT] -> {
+                  if(access_types.size() > 0)
+                     errors.new_error(illegal_access_declaration, current);
+                  parse_import_decl(branch);
+               }
+             current.tok == keywords[KEYWORD_CLASS] -> {
+                  errors.new_error(generic, current, "unexpected class declaration, delegate functions i.e. `def foo()` are only allowed in interfaces. Have you possibly misplaces a bracket somewhere?");
+                parse_class_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_MUTATE] -> {
+                  errors.new_error(generic, current, "unexpected mutate declaration, delegate functions i.e. `def foo()` are only allowed in interfaces. Have you possibly misplaces a bracket somewhere?");
+                 parse_mutate_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_INTERFACE] -> {
+                 parse_interface_decl(branch);
+             }
+             else -> {
+                advance();
+             }
+          }
+       }
+
+       if(brackets != 0)
+           errors.new_error(missing_bracket, current, " expected `}` at end of interface declaration");
+
+       expect(branch, "}");
     }
 
     def parse_mutate_decl(_ast: ast) {
@@ -288,13 +503,13 @@ class parser {
        }
 
        // class name we do this for reuseability purposses on the back end
-       name_ast := getBranch(branch, ast_name);
+       name_ast := get_branch(branch, ast_name);
        parse_reference_ptr(name_ast);
 
        if(peek(1).tok == keywords[KEYWORD_BASE])
        {
            expect(branch, keywords[KEYWORD_BASE]);
-           parseReferencePointer(branch);
+           parse_reference_ptr(branch);
        }
 
        if(peek(1).type == token_type.colon)
@@ -392,8 +607,9 @@ class parser {
        if(!expect_identifier(branch))
           return false;
 
-       while(peek(1).type == token_type.dot && peek(2).tok != keywords[KEYWORD_CLASS]) {
-           expect(branch, ".");
+       while((peek(1).type == token_type.dot && peek(2).tok != keywords[KEYWORD_CLASS])
+         || peek(1).type == token_type.safe_dot || peek(1).type == token_type.force_dot) {
+           expect(branch, peek(1).tok);
 
            if(peek(1).tok == keywords[KEYWORD_OPERATOR]) {
                expect(branch, keywords[KEYWORD_OPERATOR], false);
@@ -425,8 +641,9 @@ class parser {
            });
        }
 
-       while(peek(1).type == token_type.dot && peek(2).tok != keywords[KEYWORD_CLASS]) {
-           expect(branch, ".");
+       while((peek(1).type == token_type.dot && peek(2).tok != keywords[KEYWORD_CLASS])
+         || peek(1).type == token_type.safe_dot || peek(1).type == token_type.force_dot) {
+           expect(branch, peek(1).tok);
 
            if(peek(1).tok == keywords[KEYWORD_OPERATOR]) {
                expect(_ast, keywords[KEYWORD_OPERATOR], false);
@@ -643,21 +860,31 @@ class parser {
     def parse_import_decl(_ast: ast) {
         branch := get_branch(_ast, ast_import_decl);
 
-        if(peek(1).tok == keywords[KEYWORD_AS]) {
-           expect(branch, keywords[KEYWORD_AS], false);
-           expect_identifier(branch);
+        if(peek(1).type == token_type.left_paren || peek(1).tok == keywords[KEYWORD_AS]) {
+           if(peek(1).tok == keywords[KEYWORD_AS]) {
+              expect(branch, keywords[KEYWORD_AS], false);
+              expect_identifier(branch);
+           }
+
+           expect(branch, "(", false);
+           parse_import_module(branch);
+
+           while(peek(1).type == token_type.comma) {
+               expect(branch, ",", false);
+
+               parse_import_module(branch);
+           }
+
+           expect(branch, ")", false);
+        } else {
+           parse_import_module(branch);
+
+           if(peek(1).tok == keywords[KEYWORD_AS]) {
+              expect(branch, keywords[KEYWORD_AS], false);
+              expect_identifier(branch);
+           }
         }
 
-        expect(branch, "(");
-        parse_import_module(branch);
-
-        while(peek(1).type == token_type.comma) {
-            expect(branch, ",");
-
-            parse_import_module(branch);
-        }
-
-        expect(branch, ")");
         if(peek(1).type == token_type.semicolon)
            expect(branch, ";", false);
     }
@@ -851,7 +1078,13 @@ class parser {
         "as",
         "__result__",
         "nil",
-        "mutate"
+        "mutate",
+        "obfuscate",
+        "async",
+        "get",
+        "set",
+        "thread_local",
+        "defer"
     };
 
     private def is_keyword(key: string) : var {
