@@ -6,11 +6,11 @@ mod frontend.tokenizer;
 */
 class token {
 
-    private line: var;
-    private col: var;
-    private id: token_id;
-    private type: token_type;
-    private tok : string = "";
+    line: var;
+    col: var;
+    id: token_id;
+    type: token_type;
+    tok : string = "";
 
     public token() {
         type = token_type.none;

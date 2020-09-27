@@ -1,4 +1,4 @@
-mod frontend.cache;
+mod cache;
 
 import frontend.parser;
 import frontend.tokenizer;
@@ -17,7 +17,12 @@ def load_or_parse(filepath: string) {
       }
    }
 
-   new tokenizer(new file(filepath).read(), filepath, true);
+   //try {
+      new tokenizer(new file(filepath).read(), filepath, true);
+   //} catch(t: throwable) {
+   //     println("parse error: ${t.get_message()}");
+   //     parser_channel.send(null); // send null to protect against infinite loops
+   //}
 }
 
 def cache_parser(p : parser) {

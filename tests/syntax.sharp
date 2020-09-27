@@ -1,43 +1,28 @@
 mod app;
 
 import std.io;
-import std.export;
 import std.io.task;
 import platform;
 import platform.kernel;
 
-// ABC Corp []
+chan := new channel<var>(UNLIMITED);
+task_count := 64;
 
-interface def_corp_employer {
-    private def organize(num : var); // 0
-}
-
-interface abc_corp_employer base def_corp_employer {
-    def build_app(); // 1
-}
-
-class employee : abc_corp_employer {
-    def organize(num : var) {
-       build_app();
+def foo() : var {
+    for(i := 0; i < task_count; i++) {
+        task.builder()
+         .with_args(new int[] { i }) = { args :object[] ->
+           index := (args[1] as int).get_value();
+           for(i := 0; i < 100_000_000; i++) {}
+           chan.send(0);
+           println("task #$index");
+        };
     }
 
-    def work();
-}
-
-class john base employee {
-    def build_app() : kdlkdfkdsm { // delegateAddress = 1
-
-    }
-
-    def foo() { // delegateAddress = -1
-
-    }
+    return 0;
 }
 
 def main(args: string[]) {
-  j : abc_corp_employer = new john();
-  j.build_app(); // 1
+   foo();
+   chan.read_next(0, task_count);
 }
-
-
-

@@ -58,6 +58,7 @@ def enable_warning_type(wtype : string, enable: var) {
       "-wmain" -> warning_options[__w_main] = enable;
       "-wcast" -> warning_options[__w_cast] = enable;
       "-winit" -> warning_options[__w_init] = enable;
+      "-wnull" -> warning_options[__w_null] = enable;
       else -> error("invalid warning type: $wtype");
    }
 }

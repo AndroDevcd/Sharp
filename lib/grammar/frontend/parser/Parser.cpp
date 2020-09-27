@@ -3452,7 +3452,7 @@ bool parser::parseReferencePointer(Ast *ast) {
     Ast *branch = getBranch(ast, ast_refrence_pointer);
 
     if(*peek(1) == "operator") {
-        expect(ast, "operator", false);
+        expect(branch, "operator", false);
         expectOverrideOperator(branch);
         return true;
     }
@@ -3464,7 +3464,7 @@ bool parser::parseReferencePointer(Ast *ast) {
         expect(branch, ".");
 
         if(*peek(1) == "operator") {
-            expect(ast, "operator", false);
+            expect(branch, "operator", false);
             expectOverrideOperator(branch);
             return true;
         }
@@ -3498,7 +3498,7 @@ bool parser::parseReferencePointer(Ast *ast) {
         expect(branch, ".");
 
         if(*peek(1) == "operator") {
-            expect(ast, "operator", false);
+            expect(branch, "operator", false);
             expectOverrideOperator(branch);
             return true;
         }

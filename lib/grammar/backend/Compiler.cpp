@@ -2007,6 +2007,8 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
 }
 
 void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, List<Field *> &params, CodeHolder &code) {
+    if(params.size() != resolvedMethod->params.size())
+        return;
 
     for(long i = 0; i < params.size(); i++) {
         Field *methodParam = resolvedMethod->params.get(i);

@@ -204,8 +204,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
           if(buff_size == 0) {
              self->_unlock();
              while(buff_size == 0) {
-                thread.sleep(2);
-                thread.yield();
+                delay(0); // yield thread
              }
 
              self->_lock();
@@ -214,8 +213,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
        private def wait_for_consume() {
           while(buff_size != 0) {
-             thread.sleep(2);
-             thread.yield();
+              delay(0); // yield thread
           }
        }
 
@@ -225,8 +223,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 if(chan.state == channel_state.CLOSED)
                    break;
 
-                thread.sleep(2);
-                thread.yield();
+                delay(0); // yield thread
              }
           }
        }
@@ -330,8 +327,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                    if(buff_size == chan.capacity) {
                       self->_unlock();
                       while(buff_size == chan.capacity) {
-                         thread.sleep(2);
-                         thread.yield();
+                         delay(0); // yield thread
                       }
                       self->_lock();
                    }

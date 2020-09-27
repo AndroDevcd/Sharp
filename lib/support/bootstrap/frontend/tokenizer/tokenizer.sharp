@@ -77,6 +77,19 @@ class tokenizer {
                 parse_identifier();
               }
 
+              current == '"' -> {
+                if(parse_string())
+                   continue;
+              }
+
+              current == '\'' -> {
+                parse_char();
+              }
+
+              current >= '0' && current <= '9' -> {
+                    parse_number();
+              }
+
               current == '{' -> {
                  if(dynamic_string)
                     brackets++;
@@ -110,12 +123,30 @@ class tokenizer {
               current == '.' -> add_token(token_type.dot);
               current == ';' -> add_token(token_type.semicolon);
               current == '#' -> add_token(token_type.hash);
-              current == '?' -> add_token(token_type.quesmk);
+              current == '?' -> {
+                if(match(':'))
+                    add_token(token_type.elvis);
+                else
+                    add_token(match('.') ? token_type.safe_dot : token_type.quesmk);
+              }
               current == '$' -> add_token(token_type.dollar);
               current == '@' -> add_token(token_type.at);
-              current == '!' -> add_token(match('=') ? token_type.noteq : token_type.not);
+              current == '!' -> {
+                if(match('!')) {
+                    if(match('.'))
+                       add_token(token_type.force_dot);
+                    else errors.new_error(compiler_error.generic, line, col, " expected char `.` after `!!`");
+                }
+                else
+                    add_token(match('=') ? token_type.noteq : token_type.not);
+              }
               current == '=' -> add_token(match('=') ? token_type.eqeq : token_type.equals);
-              current == ':' -> add_token(match('=') ? token_type.infer : token_type.colon);
+              current == ':' -> {
+                if(match('>'))
+                    add_token(token_type.then);
+                else
+                    add_token(match('=') ? token_type.infer : token_type.colon);
+              }
               current == '<' -> {
                 if(match('<'))
                     add_token(token_type.shl);
@@ -193,20 +224,6 @@ class tokenizer {
                         add_token(token_type.div);
                 }
               }
-
-              current == '"' -> {
-                if(parse_string())
-                   continue;
-              }
-
-              current == '\'' -> {
-                parse_char();
-              }
-
-              current >= '0' && current <= '9' -> {
-                    parse_number();
-              }
-
               else -> {
                 errors.new_error(compiler_error.unexpected_symbol, line, col, " `" + new char(current) + "`");
               }

@@ -162,6 +162,10 @@ class error_manager {
         }
     }
 
+    public def new_error(err: compiler_error, tok: token) {
+       new_error(err, tok, null);
+    }
+
     public def new_error(err: compiler_error, tok: token, msg: string) {
         predefined_message := predefined_errors.at(err);
         new_err := new parse_error(false, err, predefined_message, tok, msg);

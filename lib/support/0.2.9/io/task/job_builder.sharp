@@ -1,5 +1,6 @@
 mod std.io.task;
 
+import std.io;
 
 public class job_builder {
 
@@ -26,6 +27,24 @@ public class job_builder {
 
 	def schedule(future : var) : job_builder {
 		scheduled_job.delay_time = future;
+		return self;
+	}
+
+	def unconfined() : job_builder {
+	    if(scheduled_job.host != null) {
+	        throw new ill_state_except("cannot set task as unconfined after setting the host to run on");
+	    }
+
+		scheduled_job.unconfined = true;
+		return self;
+	}
+
+	def with_host(host : thread) : job_builder {
+	    if(scheduled_job.unconfined) {
+	        throw new ill_state_except("cannot set task's host when running as unconfined");
+	    }
+
+		scheduled_job.host = host;
 		return self;
 	}
 

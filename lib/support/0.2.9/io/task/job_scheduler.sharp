@@ -256,16 +256,22 @@ protected def execute_synchronous(scheduled_job : job) {
 }
 
 protected def execute_job(scheduled_job : job) : var {
-	host := get_host(scheduled_job.long_term);
+    if(scheduled_job.unconfined) {
+       scheduled_job.execute_async();
+       return true;
+    } else {
+	   host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
+	       : scheduled_job.host;
 
-	if(host != null) {
-	    scheduled_job.host = host;
-	    if(scheduled_job.execute_async() != 0) {
-	       scheduled_job.host = null;
-	       return false;
-	    }
+	   if(host != null) {
+	       scheduled_job.host = host;
+	       if(scheduled_job.execute_async() != 0) {
+	          scheduled_job.host = null;
+	          return false;
+	       }
 
-	    return true;
-	} else return false;
+	       return true;
+	   } else return false;
+	}
 }
 

@@ -3,7 +3,7 @@ mod frontend.parser;
 import main;
 import std.io;
 import frontend.tokenizer;
-import frontend.cache;
+import cache;
 import frontend;
 
 /**
@@ -24,6 +24,33 @@ class parser {
     private access_types: list<token>;
     private errors: error_manager;
 
+    private static const KEYWORD_MOD           := 0;
+    private static const KEYWORD_CLASS         := 3;
+    private static const KEYWORD_STATIC        := 4;
+    private static const KEYWORD_PROTECTED     := 5;
+    private static const KEYWORD_PRIVATE       := 6;
+    private static const KEYWORD_IMPORT        := 8;
+    private static const KEYWORD_CONST         := 11;
+    private static const KEYWORD_PUBLIC        := 12;
+    private static const KEYWORD_OPERATOR      := 15;
+    private static const KEYWORD_BASE          := 16;
+    private static const KEYWORD_OBJECT        := 29;
+    private static const KEYWORD_VAR           := 33;
+    private static const KEYWORD_INT8          := 34;
+    private static const KEYWORD_INT16         := 35;
+    private static const KEYWORD_INT32         := 36;
+    private static const KEYWORD_INT64         := 37;
+    private static const KEYWORD_UINT8         := 38;
+    private static const KEYWORD_UINT16        := 39;
+    private static const KEYWORD_UINT32        := 40;
+    private static const KEYWORD_UINT64        := 41;
+    private static const KEYWORD_LOCAL         := 48;
+    private static const KEYWORD_EXT           := 49;
+    private static const KEYWORD_STABLE        := 50;
+    private static const KEYWORD_NATIVE        := 51;
+    private static const KEYWORD_AS            := 52;
+    private static const KEYWORD_NIL           := 54;
+
     public parser(toks: tokenizer)
         {
             self->toks=toks;
@@ -38,33 +65,603 @@ class parser {
 
                 parse();
 
-//                sb := new string_builder("");
-//                foreach(child in tree) {
-//                    if(child != null)
-//                        child.to_string(sb);
-//                    else
-//                        sb += "null\n";
-//                }
+//                if(source_file.find("main.sharp")) {
+//                   sb := new string_builder("");
+//                   foreach(child in tree) {
+//                       if(child != null)
+//                           child.to_string(sb);
+//                       else
+//                           sb += "null\n";
+//                   }
 //
-//                out := new file("tree.txt");
-//                out.write(sb.to_string());
+//                   out := new file("tree.txt");
+//                   out.write(sb.to_string());
+//                }
          }
     }
 
 
     private def parse() {
         source_file = toks.get_file();
-        errors = new error_manager(lines, source_file, true, options.aggressive_errors);
-        current = tokens[cursor++];
+        errors = new error_manager(lines, source_file, false, options.aggressive_errors);
 
-        parsed = true;
+        if(sizeof(toks) == 0) {
+            errors.new_error(compiler_error.generic, 0, 0, "no tokens found in file: $source_file");
+            cache_parser(self);
+            return;
+        }
+
+        advance();
+
+        for( ;; ) {
+           if(panic)
+              break;
+
+           if(is_access_decl()) {
+              parse_access_types();
+           }
+
+           when {
+              current.type == eof -> { break; }
+              current.tok == keywords[KEYWORD_MOD] -> {
+                   if(access_types.size() > 0)
+                      errors.new_error(illegal_access_declaration, current);
+                   parse_module_decl(null);
+                }
+              current.tok == keywords[KEYWORD_IMPORT] -> {
+                   if(access_types.size() > 0)
+                      errors.new_error(illegal_access_declaration, current);
+                   parse_import_decl(null);
+                }
+              current.tok == keywords[KEYWORD_CLASS] -> {
+                 parse_class_decl(null);
+              }
+              else -> {
+                 advance();
+              }
+           }
+        }
+
+
+        parsed = !panic && !errors.has_errors();
         toks = null;
         tokens = null;
         cache_parser(self);
     }
 
+    def add_access_types(_ast: ast) {
+        if(access_types.empty()) return;
+        branch := get_branch(_ast, ast_access_type);
 
-    private static keywords := new object[]
+        foreach(at in access_types) {
+           branch.add(at);
+        }
+
+        access_types.clear();
+    }
+
+    def parse_class_decl(_ast : ast) {
+       branch := get_branch(_ast, ast_class_decl);
+       add_access_types(branch);
+
+       expect_identifier(branch);
+
+       if(peek(1).type == token_type.lessthan) {
+          branch.type = ast_generic_class_decl;
+          expect(branch, "<", false);
+          parse_generic_identifier_list(branch);
+          expect(branch, ">", false);
+       }
+
+
+       if(peek(1).type == token_type.left_paren) {
+          expect(branch, "(", false);
+          parse_primary_constructor_args(branch);
+          expect(branch, ")", false);
+       }
+
+       if(peek(1).tok == keywords[KEYWORD_BASE]) {
+          expect(branch, keywords[KEYWORD_BASE], false);
+          parse_reference_ptr(branch);
+       }
+
+
+       if(peek(1).type == token_type.colon)
+       {
+           expect(branch, ":", false);
+           parse_reference_pointer_list(branch);
+       }
+    }
+
+    def is_variable_decl(tok : token) : var {
+       return !is_keyword(tok.tok) && tok.id == identifier;
+    }
+
+    def parse_utype_arg(_ast : ast, require_name: var) : var {
+       branch := get_branch(_ast, ast_utype_arg);
+
+        if(require_name) {
+           expect_identifier(branch);
+           expect(branch, ":", false);
+           parse_utype(branch);
+           return true;
+        } else {
+           if(is_variable_decl(peek(1)) && (peek(2).tok == ":")) {
+               expect_identifier(branch);
+               expect(branch, ":", false);
+               parse_utype(branch);
+               return true;
+           } else {
+               return parse_utype(branch);
+           }
+        }
+    }
+
+    def parse_utype_arg_list(_ast : ast, require_name: var) : var {
+       branch := get_branch(_ast, ast_utype_arg_list_opt);
+       expect(branch, "(", false);
+
+       if(peek(1).type != token_type.right_paren)
+       {
+           parse_utype_arg(branch, require_name);
+           while(peek(1).type == token_type.comma) {
+               expect(branch, ",", false);
+
+               parse_utype_arg(branch, require_name);
+           }
+       }
+
+       if(peek(1).type == token_type.right_paren) {
+           expect(branch, ")", false);
+           return true;
+       } else return false;
+    }
+
+    def parse_reference_pointer_list(_ast : ast) {
+        branch := get_branch(_ast, ast_reference_pointer_list);
+
+        parse_reference_ptr(branch);
+        while(peek(1).type == token_type.comma) {
+            expect(branch, ",");
+
+            parse_reference_ptr(branch);
+        }
+    }
+
+    def parse_generic_utype_list(_ast: ast) {
+       branch := get_branch(_ast, ast_generic_utype_list);
+
+       parse_utype(branch);
+       if(peek(1).tok == keywords[KEYWORD_BASE]) {
+           expect(branch, keywords[KEYWORD_BASE], false);
+           parse_utype(branch);
+       }
+
+       while(peek(1).type == token_type.comma) {
+           expect(branch, ",");
+
+           parse_utype(branch);
+           if(peek(1).tok == keywords[KEYWORD_BASE]) {
+               expect(branch, keywords[KEYWORD_BASE], false);
+               parse_utype(branch);
+           }
+       }
+    }
+
+    def parse_reference_ptr(_ast : ast) : var {
+       branch := get_branch(_ast, ast_reference_pointer);
+       if(peek(1).tok == keywords[KEYWORD_OPERATOR]) {
+           expect(branch, keywords[KEYWORD_OPERATOR], false);
+           expect_override_op(branch);
+           return true;
+       }
+
+       if(!expect_identifier(branch))
+          return false;
+
+       while(peek(1).type == token_type.dot && peek(2).tok != keywords[KEYWORD_CLASS]) {
+           expect(branch, ".");
+
+           if(peek(1).tok == keywords[KEYWORD_OPERATOR]) {
+               expect(branch, keywords[KEYWORD_OPERATOR], false);
+               expect_override_op(branch);
+               return true;
+           }
+
+           expect_identifier(branch);
+       }
+
+       if(peek(1).tok == "#") {
+           expect(branch, "#");
+           expect_identifier(branch);
+       }
+
+       if(peek(1).type == token_type.lessthan) {
+           try_parse(branch, { branch, p ->
+              p.expect(branch, "<");
+              p.parse_generic_utype_list(branch);
+
+              if(p.peek(1).type == token_type.greaterthan) {
+                  p.expect(branch, ">");
+                  return true;
+              }
+              else {
+                  branch.pop_token();
+                  return false;
+              }
+           });
+       }
+
+       while(peek(1).type == token_type.dot && peek(2).tok != keywords[KEYWORD_CLASS]) {
+           expect(branch, ".");
+
+           if(peek(1).tok == keywords[KEYWORD_OPERATOR]) {
+               expect(_ast, keywords[KEYWORD_OPERATOR], false);
+               expect_override_op(branch);
+               return true;
+           }
+
+           expect_identifier(branch);
+           if(peek(1).type == token_type.lessthan) {
+              try_parse(branch, { branch, p ->
+                 p.expect(branch, "<");
+                 p.parse_generic_utype_list(branch);
+
+                 if(p.peek(1).type == token_type.greaterthan) {
+                     p.expect(branch, ">");
+                     return true;
+                 }
+                 else {
+                     branch.pop_token();
+                     return false;
+                 }
+              });
+           }
+       }
+
+       return true;
+    }
+
+    def parse_function_ptr(_ast : ast) : var {
+       branch := get_branch(_ast, ast_func_pointer);
+
+       if(peek(1).type == token_type.left_paren) {
+           if(parse_utype_arg_list(branch, false) && peek(1).type == token_type.left_paren) {
+               expect(branch, "(", false);
+
+               if(peek(1).type != token_type.right_paren) {
+                   return_type := get_branch(branch, ast_method_return_type);
+
+                   if(peek(1).tok == keywords[KEYWORD_NIL])
+                       expect(return_type, keywords[KEYWORD_NIL]);
+                   else
+                       parse_utype(return_type);
+               }
+
+               expect(branch, ")", false);
+               return true;
+           }
+       }
+
+       return false;
+    }
+
+    def parse_constructor_arg(_ast : ast) {
+       branch := get_branch(_ast, ast_constructor_arg);
+
+       if(is_access_decl()) {
+          parse_access_types();
+          add_access_types(branch);
+       }
+
+       expect_identifier(branch);
+       expect(branch, ":", false);
+       parse_utype(branch);
+    }
+
+    def is_native_type(tok: token) : var {
+       type := tok.tok;
+       return type == keywords[KEYWORD_VAR] || type == keywords[KEYWORD_OBJECT]
+                  || type == keywords[KEYWORD_INT8] || type == keywords[KEYWORD_INT16]
+                  || type == keywords[KEYWORD_INT32] || type == keywords[KEYWORD_INT64]
+                  || type == keywords[KEYWORD_UINT8] || type == keywords[KEYWORD_UINT16]
+                  || type == keywords[KEYWORD_UINT32] || type == keywords[KEYWORD_UINT64];
+    }
+
+    def try_parse(branch: ast, parse_fn: (ast, parser)(var)) : var {
+       errors.enable_protected_mode();
+       old := cursor;
+       if(parse_fn(branch, self)) {
+          errors.report_stack();
+          return true;
+       } else {
+          errors.pop_error_stack();
+          branch.pop_child();
+          cursor = old;
+          return false;
+       }
+    }
+
+    def parse_type_identifier(_ast: ast) : var {
+       branch := get_branch(_ast, ast_type_identifier);
+
+       advance();
+       if(is_native_type(current)) {
+          branch.add(current);
+          return true;
+       } else cursor--;
+
+       if(try_parse(branch, { branch, p -> return p.parse_function_ptr(branch); }))
+          return true;
+       else return parse_reference_ptr(branch);
+    }
+
+    def parse_utype(_ast : ast) : var {
+       branch := get_branch(_ast, ast_utype);
+
+       if(parse_type_identifier(branch)) {
+          if(peek(1).type == token_type.left_brace && peek(1).type == token_type.right_brace) {
+             expect(branch, "[");
+             expect(branch, "]");
+          }
+
+          if(peek(1).type == token_type.quesmk)
+             expect(branch, "?");
+
+          return true;
+       } else errors.new_error(generic, current, "expected native type or reference pointer");
+
+       return false;
+    }
+
+    def parse_primary_constructor_args(_ast : ast) {
+       branch := get_branch(_ast, ast_primary_constr);
+
+       parse_constructor_arg(branch);
+        while(peek(1).type == token_type.comma) {
+            expect(branch, ",", false);
+
+            parse_constructor_arg(branch);
+        }
+    }
+
+    def parse_generic_identifier_list(_ast : ast) {
+       branch := get_branch(_ast, ast_identifier_list);
+
+        expect_identifier(branch);
+        if(peek(1).tok == keywords[KEYWORD_BASE]) {
+            expect(branch, keywords[KEYWORD_BASE], false);
+            parse_utype(branch);
+        }
+
+        while(peek(1).type == token_type.comma) {
+            expect(branch, ",", false);
+
+            expect_identifier(branch);
+            if(peek(1).tok == keywords[KEYWORD_BASE]) {
+                expect(branch, keywords[KEYWORD_BASE], false);
+                parse_utype(branch);
+            }
+        }
+    }
+
+    def get_branch(parent: ast, type: ast_type) : ast {
+        branch : ast;
+
+        if(type == ast_expression || type == ast_utype) {
+            branch = new ast(type, peek(1).line,
+                             peek(1).col);
+        }
+        else {
+            branch = new ast(type, current.line,
+                    current.col);
+        }
+
+        if(parent == null)
+        {
+            tree.add(branch);
+            return tree.last();
+        }
+        else {
+            parent.add(branch);
+            return branch;
+        }
+    }
+
+    def peek(amount: var) : token {
+       if(amount == 1)
+          return tokens[cursor];
+       else if(amount > 1)
+          return tokens[(cursor + amount) - 1];
+       else return current;
+    }
+
+    def parse_module_decl(_ast: ast) {
+        branch := get_branch(_ast, ast_module_decl);
+
+        expect_identifier(branch);
+
+        while(peek(1).type == token_type.dot) {
+            expect(branch, ".");
+
+            expect_identifier(branch);
+        }
+
+        if(peek(1).type == token_type.semicolon)
+           expect(branch, ";", false);
+    }
+
+    def parse_import_module(_ast: ast) {
+        branch := get_branch(_ast, ast_import_module);
+
+        expect_identifier(branch);
+
+        while(peek(1).type == token_type.dot) {
+            expect(branch, ".");
+
+            if(peek(1).type == token_type.mult) {
+                expect(branch, "*");
+                break;
+            } else
+               expect_identifier(branch);
+        }
+    }
+
+    def parse_import_decl(_ast: ast) {
+        branch := get_branch(_ast, ast_import_decl);
+
+        if(peek(1).tok == keywords[KEYWORD_AS]) {
+           expect(branch, keywords[KEYWORD_AS], false);
+           expect_identifier(branch);
+        }
+
+        expect(branch, "(");
+        parse_import_module(branch);
+
+        while(peek(1).type == token_type.comma) {
+            expect(branch, ",");
+
+            parse_import_module(branch);
+        }
+
+        expect(branch, ")");
+        if(peek(1).type == token_type.semicolon)
+           expect(branch, ";", false);
+    }
+
+    def parse_access_types() {
+        while(is_access_decl())
+        {
+            access_types.add(current);
+            advance();
+        }
+    }
+
+    def expect(_ast: ast, token: string) {
+       expect(_ast, token, true, null);
+    }
+
+    def expect(_ast: ast, token: string, add_token: var) {
+       expect(_ast, token, add_token, null);
+    }
+
+    def expect(_ast: ast, token: string, add_token: var, expectedstr: _int8[]) {
+        advance();
+
+        if(current.tok == token)
+        {
+            if(add_token)
+                _ast.add(current);
+        }
+        else {
+            if(expectedstr != null)
+                errors.new_error(generic, current, "expected $expectedstr");
+            else
+                errors.new_error(generic, current, "expected `$token`");
+        }
+    }
+
+    private static operators := new string[]
+    {
+       // assign operators
+       "+=",
+       "-=",
+       "*=",
+       "/=",
+       "&=",
+       "|=",
+       "^=",
+       "%=",
+       "=",
+       // end of assign operators
+       "++",
+       "--",
+       "*",
+       "/",
+       "%" ,
+       "-",
+       "+",
+       "==",
+       ">>",
+       "<<",
+       "<",
+       ">",
+       "<=",
+       ">=",
+       "!=",
+       "!",
+       "[",
+       "**",
+       "&",
+       "|",
+       "^"
+       // end of overrideable operators
+    };
+
+    def is_override_op(tok : token) : var {
+       foreach(op in operators) {
+          if(tok.tok == op)
+             return true;
+       }
+
+       return false;
+    }
+
+    def expect_override_op(_ast: ast) : var {
+       advance();
+
+       if(is_override_op(current))
+       {
+           if(_ast != null) {
+               if(current.tok == "[") {
+                   _ast.add(current);
+                   expect(_ast, "]", false);
+               } else
+                   _ast.add(current);
+           }
+           return true;
+       }
+       else {
+           errors.new_error(generic, current, "expected override operator");
+       }
+
+       return false;
+    }
+
+    def expect_identifier(_ast: ast) : var {
+        advance();
+
+        if(current.id == identifier && !is_keyword(current.tok))
+        {
+            if(_ast != null)
+                _ast.add(current);
+            return true;
+        }
+        else {
+            errors.new_error(generic, current, "expected identifier");
+        }
+        return false;
+    }
+
+    def is_access_decl() : var {
+       return ((current.tok == keywords[KEYWORD_PROTECTED]) ||
+            (current.tok == keywords[KEYWORD_PRIVATE]) ||
+            (current.tok == keywords[KEYWORD_STATIC]) ||
+            (current.tok == keywords[KEYWORD_LOCAL]) ||
+            (current.tok == keywords[KEYWORD_CONST]) ||
+            (current.tok == keywords[KEYWORD_EXT]) ||
+            (current.tok == keywords[KEYWORD_STABLE]) ||
+            (current.tok == keywords[KEYWORD_NATIVE]) ||
+            (current.tok == keywords[KEYWORD_PUBLIC]));
+    }
+
+    def advance() {
+       if(cursor < sizeof(tokens))
+          current = tokens[cursor++];
+       else current = tokens[sizeof(tokens)];
+    }
+
+    private static keywords := new string[]
     {
         "mod",
         "true",
@@ -72,7 +669,6 @@ class parser {
         "class",
         "static",
         "protected",
-        "pro",
         "private",
         "def",
         "import",
@@ -98,9 +694,8 @@ class parser {
         "object",
         "asm",
         "for",
-        "foreach",
-        "var",
         "sizeof",
+        "var",
         "_int8",
         "_int16",
         "_int32",
@@ -116,12 +711,18 @@ class parser {
         "switch",
         "default",
         "volatile",
-        "fn"
+        "local",
+        "ext",
+        "stable",
+        "native",
+        "as",
+        "__result__",
+        "nil"
     };
 
     private def is_keyword(key: string) : var {
-        foreach(keyword in keywords) {
-            if(key == keyword)
+        for(i := 0; i < sizeof(keywords); i++) {
+            if(key == keywords[i])
                 return true;
         }
 

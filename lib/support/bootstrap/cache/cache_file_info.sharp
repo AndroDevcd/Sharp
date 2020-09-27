@@ -1,4 +1,4 @@
-mod frontend.cache;
+mod cache;
 
 import std.io;
 import std.io.fiber;

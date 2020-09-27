@@ -153,6 +153,7 @@ const __w_decl := 3;
 const __w_main := 4;
 const __w_cast := 5;
 const __w_init := 6;
+const __w_null := 7;
 
 warning_options := new var[]
 {
@@ -162,7 +163,8 @@ warning_options := new var[]
     true,   // wdecl
     true,   // wmain
     true,   // wcast
-    true    // winit
+    true,    // winit
+    true    // wnull
 };
 
 enum optimization_level {

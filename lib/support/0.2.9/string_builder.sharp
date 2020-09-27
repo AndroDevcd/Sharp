@@ -39,7 +39,7 @@ class string_builder : loopable<_int8> {
 
             data = new var[sizeof(str)];
             foreach(ch in str) {
-                data[++cursor] = ch.get_value();
+                data[cursor++] = ch.get_value();
             }
         }
     }
@@ -62,7 +62,7 @@ class string_builder : loopable<_int8> {
                 expand(sizeof(str));
             }
 
-            memcopy(str, data, ++cursor, offset, sizeof(str));
+            memcopy(str, data, cursor, offset, sizeof(str));
             cursor += sizeof(str) - offset - 1;
         }
     }
@@ -92,7 +92,7 @@ class string_builder : loopable<_int8> {
         else if((cursor + 1) >= sizeof(data))
             expand(0);
 
-        data[sizeof(data) - 1] = ch;
+        data[cursor++] = ch;
         return self;
     }
 
@@ -109,7 +109,7 @@ class string_builder : loopable<_int8> {
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
-        memcopy(immstr, data, ++cursor, 0, sizeof(immstr));
+        memcopy(immstr, data, cursor, 0, sizeof(immstr));
         cursor += sizeof(immstr) - 1;
         return self;
     }
@@ -128,8 +128,8 @@ class string_builder : loopable<_int8> {
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
-        memcopy(immstr, data, ++cursor, 0, len);
-        cursor += sizeof(immstr) - len - 1;
+        memcopy(immstr, data, cursor, 0, len);
+        cursor += len - 1;
         return self;
     }
 

@@ -18,6 +18,8 @@ enum token_type
     right_curly,
     hash,               // #
     dot,                // .
+    safe_dot,                // ?.
+    force_dot,                // !!.
     plus,
     minus,
     mult,
@@ -33,6 +35,8 @@ enum token_type
     lte,               // <=
     gte,               // >=
     eqeq,               // ==
+    elvis,               // ?:
+    then,               // :>
     pluseq,
     minuseq,
     multeq,

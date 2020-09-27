@@ -4,6 +4,7 @@ import std.io;
 import std.io.*;
 import platform;
 import frontend.*;
+import cache;
 import platform.kernel;
 
 private program_name : string = "sharpc";
@@ -81,7 +82,8 @@ def main(args: string[]) : var {
             enable_warnings(false);
         }
         else if(arg == "-waccess" || arg == "-wambig" || arg == "-wdecl"
-          || arg == "-wmain" || arg == "-wcast" || arg == "-winit"){
+          || arg == "-wmain" || arg == "-wcast" || arg == "-winit"
+          || arg == "-wnull"){
             enable_warning_type(arg, false);
         }
         else if(arg == "-p"){
@@ -498,29 +500,29 @@ private static def print_version() {
 private static def help() {
     println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
     println("Source file must have a .sharp extension to be compiled.\n");
-    println("[-options]\n\n    -V                print compiler version and exit");
-    println(              "    -showvers         print compiler version and continue"               );
-    println(              "    -o<file>          set the output object file"                        );
-    println(              "    -c                compile only and do not generate exe"              );
-    println(              "    -a                enable aggressive error reporting"                 );
-    println(              "    -O -O1            optimize code level 1"                             );
-    println(              "    -O2               optimize code level 2"                             );
-    println(              "    -L<path>          library directory path"                            );
-    println(              "    -w                disable all warnings"                              );
-    println(              "    --clean           flush compiler cache and recompile the project fresh");
-    println(              "    -run              run compiled source after successful compilation"  );
-    println(              "    -g -green         run compiler in \"green\" mode to consume less power");
-    println(              "    -ignoredir<dir>   include a directory to ignore (only works in project mode)");
-    println(              "    -ignore<file>     include a file to ignore"                          );
-    println(              "    -p                enable project mode compilation"                   );
-    println(              "    -P<path>          enable project mode compilation on a specific path");
-    println(              "    --new-project<name> create a new sharp project"                      );
-    println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
-    println(              "    -v<version>       set the application version"                       );
-    println(              "    -target           target the specified platform of sharp to run on"  );
-    println(              "    -release -r       generate a release build exe"                      );
-    println(              "    --hw               display help message for warning options"         );
-    println(              "    --h -?             display this help message"                        );
+    println("[-options]\n\n    -V                print compiler version and exit"                           );
+    println(              "    -showvers         print compiler version and continue"                       );
+    println(              "    -o<file>          set the output object file"                                );
+    println(              "    -c                compile only and do not generate exe"                      );
+    println(              "    -a                enable aggressive error reporting"                         );
+    println(              "    -O -O1            optimize code level 1"                                     );
+    println(              "    -O2               optimize code level 2"                                     );
+    println(              "    -L<path>          library directory path"                                    );
+    println(              "    -w                disable all warnings"                                      );
+    println(              "    --clean           flush compiler cache and recompile the project fresh"      );
+    println(              "    -run              run compiled source after successful compilation"          );
+    println(              "    -g -green         run compiler in \"green\" mode to consume less power"      );
+    println(              "    -ignoredir<dir>   include a directory to ignore"                             );
+    println(              "    -ignore<file>     include a file to ignore"                                  );
+    println(              "    -p                enable project mode compilation"                           );
+    println(              "    -P<path>          enable project mode compilation on a specific path"        );
+    println(              "    --new-project<name> create a new sharp project"                              );
+    println(              "    -errlmt<count>    set max errors the compiler allows before quitting"        );
+    println(              "    -v<version>       set the application version"                               );
+    println(              "    -target           target the specified platform of sharp to run on"          );
+    println(              "    -release -r       generate a release build exe"                              );
+    println(              "    --hw               display help message for warning options"                 );
+    println(              "    --h -?             display this help message"                                );
 }
 
 private static def help_warning() {
@@ -534,6 +536,7 @@ private static def help_warning() {
     println(               "    -wdecl            disable object declaration warnings"                      );
     println(               "    -wmain            disable multiple main method warnings"                    );
     println(               "    -wcast            disable type cast warnings"                               );
+    println(               "    -wnull            disable null type warnings"                               );
     println(               "    -werror           enable warnings as errors"                                );
     println(               "    --hw               display this help message"                               );
 }
