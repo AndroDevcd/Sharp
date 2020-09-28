@@ -20,7 +20,7 @@
 #define THREAD_MAP_SIZE 0x2000
 #define REGISTER_SIZE 12
 
-#define INTERNAL_STACK_SIZE (KB_TO_BYTES(128) / sizeof(StackElement))
+#define INTERNAL_STACK_SIZE (KB_TO_BYTES(64) / sizeof(StackElement))
 #define INTERNAL_STACK_MIN KB_TO_BYTES(1)
 #define STACK_SIZE MB_TO_BYTES(1)
 #define STACK_MIN KB_TO_BYTES(50)

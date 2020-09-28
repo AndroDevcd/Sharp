@@ -869,8 +869,9 @@ class parser {
            expect(branch, "(", false);
            parse_import_module(branch);
 
-           while(peek(1).type == token_type.comma) {
-               expect(branch, ",", false);
+           while(peek(1).type != token_type.right_paren) {
+               if(peek(1).type == token_type.comma)
+                  expect(branch, ",", false);
 
                parse_import_module(branch);
            }
