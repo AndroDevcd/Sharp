@@ -36,6 +36,10 @@ class time {
         return nano_to_mills(nano_time());
     }
 
+    static def micro_time() : var {
+        return nano_to_micro(nano_time());
+    }
+
     static def sleep(time: var) {
         sleep(time_unit.milliseconds, time);
     }

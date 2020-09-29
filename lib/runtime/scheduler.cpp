@@ -78,7 +78,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 
     thread->enableContextSwitch(fib, true);
 
-    const long sMaxRetries = 500000;
+    const long sMaxRetries = 5000;
     long retryCount = 0;
     long spinCount = 0;
     while(thread->next_fiber != NULL) {
@@ -86,8 +86,12 @@ bool try_context_switch(Thread *thread, fiber *fib) {
         {
             spinCount++;
             retryCount = 0;
-            __usleep(LPTSI / CSTL);
-        } else if(spinCount >= CSTL || thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
+            __usleep(CSST);
+        } else if(spinCount >= CSTL) {
+            thread->enableContextSwitch(NULL, false);
+            return false;
+        }
+        else if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
             return false;
     }
 

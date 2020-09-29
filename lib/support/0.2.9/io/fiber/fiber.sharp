@@ -117,10 +117,3 @@ def delay(mills: var) {
       int 0x44
    }
 }
-
-def delay_micro(micros: var) {
-   asm {
-      loadl ebx, {micros}
-      int 0x44
-   }
-}

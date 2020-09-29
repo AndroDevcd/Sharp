@@ -1,7 +1,7 @@
 mod app;
 
 //import std.io;
-//import std.io.task;
+//import std.io.coroutines;
 //import platform;
 //import platform.kernel;
 //
@@ -10,7 +10,8 @@ mod app;
 //
 //def foo() : var {
 //    for(i := 0; i < task_count; i++) {
-//        task.builder()
+//        coroutine.builder()
+//         .unconfined()
 //         .with_args(new int[] { i }) = { args :object[] ->
 //           index := (args[1] as int).get_value();
 //           for(i := 0; i < 100_000_000; i++) {}
@@ -27,9 +28,7 @@ mod app;
 //   chan.read_next(0, task_count);
 //}
 
-import std.io;
-import std.io.task;
-import std.io.fiber;
+import std.io.*;
 import platform;
 import platform.kernel;
 
@@ -55,7 +54,9 @@ def foo() : var {
 }
 
 def main(args: string[]) {
-   foo();
-   delay(1000);
-   println(counter++);
+//   foo();
+   past := time.micro_time();
+   delay(5);
+   elapsed := time.micro_time() - past;
+   println(elapsed);
 }
