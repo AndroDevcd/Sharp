@@ -96,15 +96,17 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     GUARD(fiberMutex)
 
     uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
-    for(Int i = 0; i < fibers.size(); i++) {
-        if(fibers.at(i) == startingFiber) {
-            if((i + 1) < fibers.size()) {
-                for (Int j = i + 1; j < fibers.size(); j++) {
-                    if(!fibers.at(j)->locking && isFiberRunnble(fibers.at(j), loggedTime, thread)) {
-                        return fibers.at(j);
+    if(startingFiber != NULL) {
+        for (Int i = 0; i < fibers.size(); i++) {
+            if (fibers.at(i) == startingFiber) {
+                if ((i + 1) < fibers.size()) {
+                    for (Int j = i + 1; j < fibers.size(); j++) {
+                        if (!fibers.at(j)->locking && isFiberRunnble(fibers.at(j), loggedTime, thread)) {
+                            return fibers.at(j);
+                        }
                     }
-                }
-            } else break;
+                } else break;
+            }
         }
     }
 
