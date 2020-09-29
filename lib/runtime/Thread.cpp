@@ -515,7 +515,10 @@ void Thread::suspendThread(Thread *thread) {
 
 void Thread::term() {
     GUARD(mutex);
-    if(this_fiber) this_fiber->bind(NULL);
+    if(this_fiber) {
+        this_fiber->setAttachedThread(NULL);
+        this_fiber->bind(NULL);
+    }
     sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
 
@@ -628,8 +631,6 @@ void Thread::shutdown() {
 }
 
 void Thread::exit() {
-    if(this_fiber) this_fiber->bind(NULL);
-
     GUARD(mutex);
     if(id == main_threadid) {
         if (this_fiber && this_fiber->dataStack != NULL)

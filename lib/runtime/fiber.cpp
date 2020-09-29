@@ -85,7 +85,7 @@ bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
                 return true;
             }
         }
-    } else if(fib->state == FIB_KILLED && fib->getBoundThread() == NULL) {
+    } else if(fib->state == FIB_KILLED && fib->getBoundThread() == NULL && fib->getAttachedThread() == NULL) {
         fiber::disposeFiber(fib);
     }
 

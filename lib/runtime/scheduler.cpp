@@ -36,6 +36,7 @@ void run_scheduler() {
                     fiber::killBoundFibers(thread);
                     Thread::destroy(thread);
                     i--;
+                    size--;
                 }
                 continue;
             }
