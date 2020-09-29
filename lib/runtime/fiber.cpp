@@ -105,6 +105,8 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
                             return fibers.at(j);
                         }
                     }
+
+                    break;
                 } else break;
             }
         }
