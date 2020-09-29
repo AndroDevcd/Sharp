@@ -48,9 +48,9 @@ class time {
             time = adjust_time(time*1000000);
         } else if(tm_unit == time_unit.milliseconds) {
             time = adjust_time(time*1000);
-        } else if(tm_unit == time_unit.microseconds) {
-            time = adjust_time(time);
         }
+
+        time *= 1000;
 
         asm {
             loadl ebx, {time}

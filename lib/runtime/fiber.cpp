@@ -6,18 +6,72 @@
 #include "VirtualMachine.h"
 
 uInt fiber::fibId=0;
+uInt listSize = 0, fiberCount =0, resizeCount = 500;
 recursive_mutex fiberMutex;
-_List<fiber*> fibers;
+fiber** fibers=NULL;
 
-bool find_fiber(void *arg1, fiber* fib) {
-    return *((uInt*)arg1) == fib->id;
+void increase_fibers() {
+    fibers = (fiber**)__realloc(fibers, sizeof(fiber**) * (listSize + resizeCount), sizeof(fiber**) * listSize);
+    for(Int i = listSize; i < (listSize+resizeCount); i++) {
+        fibers[i]=NULL;
+    }
+
+    listSize += resizeCount;
+    gc.addMemory(sizeof(fiber**) * resizeCount);
+}
+
+void decrease_fibers() {
+    if((listSize - fiberCount) >= resizeCount) {
+        auto result = (fiber **) realloc(fibers, sizeof(fiber **) * (listSize - resizeCount));
+
+        if(result) {
+            fibers = result;
+            listSize -= resizeCount;
+        }
+    }
+}
+
+fiber* locateFiber(Int id) {
+    for(Int i = 0; i < fiberCount; i++) {
+        if(fibers[i] && fibers[i]->id == id) {
+            return fibers[i];
+        }
+    }
+
+    return nullptr;
+}
+
+void addFiber(fiber* fib) {
+    for(Int i = 0; i < fiberCount; i++) {
+        if(fibers[i] == NULL) {
+            fibers[i] = fib;
+            return;
+        }
+    }
+
+    if(fiberCount >= listSize)
+        increase_fibers();
+
+    fibers[fiberCount++] = fib;
+}
+
+void removeFiber(fiber* fib) {
+    for(Int i = 0; i < fiberCount; i++) {
+        if(fibers[i] == fib) {
+            fib->free();
+            std::free(fib);
+            fibers[i] = NULL;
+            break;
+        }
+    }
+
+    decrease_fibers();
 }
 
 fiber* fiber::makeFiber(native_string &name, Method* main) {
     GUARD(fiberMutex)
     // todo: check if space available before allocation
    fiber *fib = (fiber*)malloc(sizeof(fiber));
-   fibers.add(fib);
 
     try {
         fib->id = fibId++;
@@ -67,8 +121,10 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         gc.addMemory(sizeof(Frame) * fib->frameSize);
         gc.addMemory(sizeof(StackElement) * internalStackSize);
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
+        addFiber(fib);
     } catch(Exception &e) {
-        fib->state = FIB_KILLED;
+        fib->free();
+        std::free(fib);
         throw;
     }
     return fib;
@@ -76,12 +132,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
 
 fiber* fiber::getFiber(uInt id) {
     GUARD(fiberMutex)
-    Int pos = fibers.indexof(find_fiber, &id);
-    if(pos >= 0) {
-        return fibers.at(pos);
-    }
-
-    return NULL;
+    return locateFiber(id);
 }
 
 bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
@@ -93,24 +144,27 @@ bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
                 return true;
             }
         }
-    } else if(fib->state == FIB_KILLED && fib->getBoundThread() == NULL && fib->getAttachedThread() == NULL) {
-        fiber::disposeFiber(fib);
     }
 
     return false;
 }
 
 fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
-    GUARD(fiberMutex)
+    Int size;
 
-    uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
+    {
+        GUARD(fiberMutex)
+        size = fiberCount;
+    }
+
+    uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
     if(startingFiber != NULL) {
-        for (Int i = 0; i < fibers.size(); i++) {
-            if (fibers.at(i) == startingFiber) {
-                if ((i + 1) < fibers.size()) {
-                    for (Int j = i + 1; j < fibers.size(); j++) {
-                        if (!fibers.at(j)->locking && isFiberRunnble(fibers.at(j), loggedTime, thread)) {
-                            return fibers.at(j);
+        for (Int i = 0; i < size; i++) {
+            if (fibers[i] == startingFiber) {
+                if ((i + 1) < size) {
+                    for (Int j = i + 1; j < size; j++) {
+                        if (fibers[j] && !fibers[j]->locking && isFiberRunnble(fibers[j], loggedTime, thread)) {
+                            return fibers[j];
                         }
                     }
 
@@ -120,22 +174,25 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
         }
     }
 
-    for(Int i = 0; i < fibers.size(); i++) {
-       if(isFiberRunnble(fibers.at(i), loggedTime, thread))
-           return fibers.at(i);
+    for(Int i = 0; i < size; i++) {
+        auto fib = fibers[i];
+       if(fib && isFiberRunnble(fib, loggedTime, thread))
+           return fib;
+       else if(fib && fib->state == FIB_KILLED && fib->boundThread == NULL && fib->attachedThread == NULL) {
+           fiber::disposeFiber(fib);
+           i--; size--;
+       }
     }
 
     return NULL;
 }
 
 void fiber::disposeFiber(fiber *fib) {
-    fib->free();
-    fibers.remove(fib);
-    std::free(fib);
+    GUARD(fiberMutex)
+    removeFiber(fib);
 }
 
 int fiber::suspend(uInt id) {
-    GUARD(fiberMutex)
     fiber *fib = getFiber(id);
     int result = 0;
 
@@ -159,7 +216,6 @@ int fiber::suspend(uInt id) {
 }
 
 int fiber::unsuspend(uInt id) {
-    GUARD(fiberMutex)
     fiber *fib = getFiber(id);
     int result = 0;
 
@@ -175,7 +231,6 @@ int fiber::unsuspend(uInt id) {
 }
 
 int fiber::kill(uInt id) {
-    GUARD(fiberMutex)
     fiber *fib = getFiber(id);
     int result = 0;
 
@@ -245,7 +300,7 @@ void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
 
     switch(newState) {
         case FIB_RUNNING:
-            thread->lastRanMills = NANO_TOMILL(Clock::realTimeInNSecs());
+            thread->lastRanMicros = NANO_TOMICRO(Clock::realTimeInNSecs());
             state = newState;
             delayTime = -1;
             break;
@@ -286,9 +341,9 @@ void fiber::delay(Int time) {
     if(time < 0)
         time = -1;
 
-    attachedThread->enableContextSwitch(NULL, true);
+    attachedThread->enableContextSwitch(thread_self->next_fiber, true);
     attachedThread->contextSwitching = true;
-    setState(thread_self, FIB_SUSPENDED, NANO_TOMILL(Clock::realTimeInNSecs()) + time);
+    setState(thread_self, FIB_SUSPENDED, NANO_TOMICRO(Clock::realTimeInNSecs()) + time);
 }
 
 int fiber::bind(Thread *thread) {
@@ -326,11 +381,16 @@ Int fiber::boundFiberCount(Thread *thread) {
 }
 
 void fiber::killBoundFibers(Thread *thread) {
-    GUARD(fiberMutex)
+    Int size;
 
-    for(Int i = 0; i < fibers.size(); i++) {
-        fiber *fib = fibers.at(i);
-        if(fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
+    {
+        GUARD(fiberMutex)
+        size = fiberCount;
+    }
+
+    for(Int i = 0; i < size; i++) {
+        fiber *fib = fibers[i];
+        if(fib && fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
             kill(fib->id);
         }
     }

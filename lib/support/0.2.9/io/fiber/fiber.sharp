@@ -110,8 +110,17 @@ class fiber {
 }
 
 def delay(mills: var) {
+   mills *= 1000; // convert mills to microseconds
+
    asm {
       loadl ebx, {mills}
+      int 0x44
+   }
+}
+
+def delay_micro(micros: var) {
+   asm {
+      loadl ebx, {micros}
       int 0x44
    }
 }

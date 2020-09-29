@@ -1631,7 +1631,7 @@ void Thread::waitForContextSwitch() {
     this_fiber=NULL;
 
     wait:
-    const long sMaxRetries = 1000000;
+    const long sMaxRetries = 100;
 
     long retryCount = 0;
     while (next_fiber == NULL) {
@@ -1640,17 +1640,11 @@ void Thread::waitForContextSwitch() {
 
         if (retryCount++ == sMaxRetries)
         {
-            if(fiber::boundFiberCount(this) == 0)
+            if(boundFibers == 0)
                 return;
 
             retryCount = 0;
-            __os_yield();
-#ifdef WIN32_
-            Sleep(1);
-#endif
-#ifdef POSIX_
-            usleep(1*POSIX_USEC_INTERVAL);
-#endif
+            __usleep(2);
         }
     }
 
@@ -1679,10 +1673,5 @@ void Thread::waitForContextSwitch() {
 
 void __os_sleep(Int INTERVAL) {
     if(INTERVAL < 0) return;
-#ifdef WIN32_
-    Sleep(INTERVAL);
-#endif
-#ifdef POSIX_
-    usleep(INTERVAL);
-#endif
+    __usleep(INTERVAL);
 }

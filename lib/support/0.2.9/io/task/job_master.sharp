@@ -36,8 +36,16 @@ class job_master {
 		if(scheduled_job.block_caller)
 			execute_synchronous(scheduled_job);
 		else {
+		    if(!scheduled_job.delay_time) {
+               if(!execute_job(scheduled_job)) {
+			      job_queue.add(scheduled_job);
+			      return;
+               }
+		    }
+
 			// the job scheduler will perform the start
-			job_queue.add(scheduled_job);
+			if(scheduled_job.has_timeout || scheduled_job.delay_time)
+			   job_queue.add(scheduled_job);
 		}
 	}
 

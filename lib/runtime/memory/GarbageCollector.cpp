@@ -12,6 +12,7 @@
 #include "../Exe.h"
 #include "../Manifest.h"
 #include "../VirtualMachine.h"
+#include "../scheduler.h"
 #include <thread>
 #include <algorithm>
 
@@ -744,9 +745,7 @@ void GarbageCollector::printClassRefStatus() {
     gc.mutex.unlock();
 
 }
-extern void printRegs();
 
-bool lockSpin = false;
 recursive_mutex lockCheckMutex;
 bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
     if(o) {
@@ -767,47 +766,41 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         thread->this_fiber->locking =true;
 
         retry:
-        long maxSpin = 1000000;
+        long maxSpin = 100000;
         long spins = 0;
         if(mut->fiberid != thread->this_fiber->id) {
             if (mut->threadid == thread->id) {
+                auto fib = fiber::getFiber(mut->fiberid);
+                auto bound = fib->boundThread;
+
+                if(bound && bound->id == thread->id)
+                  thread->next_fiber = fib;
                 thread->this_fiber->delay(1);
                 return false;
             }
 
             while (mut->fiberid != -1) {
-                if(lockSpin) {
-                    printRegs();
-                    lockSpin = false;
-                }
                 if (spins++ == maxSpin) {
                     spins = 0;
                     if (thread->contextSwitching) {
                         return false;
                     }
-                    else if (hasSignal(thread->signal, tsig_context_switch)) {
-                        if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
-                            thread->try_context_switch();
-
-                            if (thread->contextSwitching) {
-                                thread->this_fiber->delay(1);
-                                return false;
-                            } else {
-                                thread->enableContextSwitch(NULL, false);
-                            }
-                        }
-                    }
                     else if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
                         return true;
                     }
 
-                    __os_yield();
-#ifdef WIN32_
-                    Sleep(1);
-#endif
-#ifdef POSIX_
-                    usleep(1*POSIX_USEC_INTERVAL);
-#endif
+                    __usleep(5);
+                } else if (hasSignal(thread->signal, tsig_context_switch)) {
+                    if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
+                        thread->try_context_switch();
+
+                        if (thread->contextSwitching) {
+                            thread->this_fiber->delay(1);
+                            return false;
+                        } else {
+                            thread->enableContextSwitch(NULL, false);
+                        }
+                    }
                 }
             }
         }

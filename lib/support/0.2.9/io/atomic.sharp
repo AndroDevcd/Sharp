@@ -7,6 +7,10 @@ class atomic<t> {
         value = initial_val;
      }
 
+     def to_string() : string {
+        return "$value";
+     }
+
      def read() : t {
         lock(self) {
           return value;

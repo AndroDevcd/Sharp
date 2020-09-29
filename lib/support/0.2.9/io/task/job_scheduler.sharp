@@ -238,22 +238,24 @@ protected def execute_synchronous(scheduled_job : job) {
 }
 
 protected def execute_job(scheduled_job : job) : var {
-    if(scheduled_job.unconfined) {
-       scheduled_job.execute_async();
-       return true;
-    } else {
-	   fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
-	       : scheduled_job.host;
+    lock(scheduler) {
+       if(scheduled_job.unconfined) {
+          scheduled_job.execute_async();
+          return true;
+       } else {
+	      fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
+	          : scheduled_job.host;
 
-	   if(fib_host != null) {
-	       scheduled_job.host = fib_host;
-	       if(scheduled_job.execute_async() != 0) {
-	          scheduled_job.host = null;
-	          return false;
-	       }
+	      if(fib_host != null) {
+	          scheduled_job.host = fib_host;
+	          if(scheduled_job.execute_async() != 0) {
+	             scheduled_job.host = null;
+	             return false;
+	          }
 
-	       return true;
-	   } else return false;
+	          return true;
+	      } else return false;
+	   }
 	}
 }
 

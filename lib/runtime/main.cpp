@@ -73,7 +73,7 @@ int runtimeStart(int argc, const char* argv[])
      */
     GarbageCollector::initilize();
     GarbageCollector::setMemoryLimit(GC_HEAP_LIMIT);
-    GarbageCollector::setMemoryThreshold(MB_TO_BYTES(64));
+    GarbageCollector::setMemoryThreshold(MB_TO_BYTES(128));
 
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){
@@ -249,6 +249,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 }
 
 void pushArgumentsToStack(std::list<string>& appArgs) {
+    GUARD(Thread::threadsListMutex)
     Thread *main = Thread::threads.at(main_threadid);
     pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs, main);
 }

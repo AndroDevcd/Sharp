@@ -21,7 +21,7 @@
 #define REGISTER_SIZE 12
 
 #define INTERNAL_STACK_SIZE (KB_TO_BYTES(64) / sizeof(StackElement))
-#define INTERNAL_STACK_MIN KB_TO_BYTES(1)
+#define INTERNAL_STACK_MIN KB_TO_BYTES(4)
 #define STACK_SIZE MB_TO_BYTES(1)
 #define STACK_MIN KB_TO_BYTES(50)
 #define STACK_OVERFLOW_BUF KB_TO_BYTES(10) // VERY LARGE OVERFLOW BUFFER FOR jit STACK OFERFLOW CATCHES
@@ -56,7 +56,7 @@ public:
         signal = tsig_empty;
         contextSwitching=false;
         marked=false;
-        lastRanMills=0;
+        lastRanMicros=0;
 #ifdef BUILD_JIT
         jctx = NULL;
 #endif
@@ -151,7 +151,7 @@ public:
     Object currentThread, args;
     fiber *this_fiber, *next_fiber, *last_fiber;
     Method* mainMethod;
-    uInt lastRanMills;
+    uInt lastRanMicros;
     bool contextSwitching;
 
 #ifdef WIN32_

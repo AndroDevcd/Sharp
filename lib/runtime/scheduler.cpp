@@ -8,6 +8,12 @@
 #include "scheduler.h"
 #include "VirtualMachine.h"
 
+void __usleep(unsigned int usec)
+{
+    __os_yield();
+    std::this_thread::sleep_for(std::chrono::microseconds(usec));
+}
+
 atomic<bool> threadReleaseBlock = { false };
 uInt loggedTime = 0;
 void run_scheduler() {
@@ -24,20 +30,22 @@ void run_scheduler() {
 
         for (Int i = 0; i < size; i++) {
             thread = Thread::threads.at(i);
-            loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
+            loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
 
             if (vm.state >= VM_SHUTTING_DOWN) {
                 break;
             }
 
             if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
-                GUARD(Thread::threadsListMutex);
+                Thread::threadsListMutex.lock();
                 if(!threadReleaseBlock) {
                     fiber::killBoundFibers(thread);
                     Thread::destroy(thread);
                     i--;
                     size--;
                 }
+
+                Thread::threadsListMutex.unlock();
                 continue;
             }
 
@@ -59,12 +67,7 @@ void run_scheduler() {
            return;
        }
 
-#ifdef WIN32_
-        Sleep(5);
-#endif
-#ifdef POSIX_
-        usleep(5*POSIX_USEC_INTERVAL);
-#endif
+        __usleep(LPTSI);
     } while(true);
 }
 
@@ -75,7 +78,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 
     thread->enableContextSwitch(fib, true);
 
-    const long sMaxRetries = 5000000;
+    const long sMaxRetries = 500000;
     long retryCount = 0;
     long spinCount = 0;
     while(thread->next_fiber != NULL) {
@@ -83,17 +86,8 @@ bool try_context_switch(Thread *thread, fiber *fib) {
         {
             spinCount++;
             retryCount = 0;
-            __os_yield();
-#ifdef WIN32_
-            Sleep(1);
-#endif
-#ifdef POSIX_
-            usleep(1*POSIX_USEC_INTERVAL);
-#endif
-        } else if(spinCount >= CSTL) {
-            thread->enableContextSwitch(NULL, false);
-            return false;
-        } else if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
+            __usleep(LPTSI / CSTL);
+        } else if(spinCount >= CSTL || thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
             return false;
     }
 
@@ -108,11 +102,11 @@ bool is_thread_ready(Thread *thread) {
 
     switch(thread->priority) {
         case THREAD_PRIORITY_LOW:
-            return (currentTime - thread->lastRanMills) > LPTSI;
+            return (currentTime - thread->lastRanMicros) > LPTSI;
         case THREAD_PRIORITY_NORM:
-            return (currentTime - thread->lastRanMills) > NPTSI;
+            return (currentTime - thread->lastRanMicros) > NPTSI;
         case THREAD_PRIORITY_HIGH:
-            return (currentTime - thread->lastRanMills) > HPTSI;
+            return (currentTime - thread->lastRanMicros) > HPTSI;
     }
 
     return false;

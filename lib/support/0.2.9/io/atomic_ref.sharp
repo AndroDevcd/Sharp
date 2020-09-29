@@ -13,6 +13,10 @@ class atomic_ref<t> {
         value = initial_val;
      }
 
+     def to_string() : string {
+        return "$value";
+     }
+
 	 def write(write_func: (data: t)()) {
         lock(self) {
            try {

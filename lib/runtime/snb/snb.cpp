@@ -113,6 +113,7 @@ object getspObjAt(int32_t spOffset) {
 
 object newVarArray(int32_t size, unsigned short ntype) {
     try {
+        THREAD_STACK_CHECK(thread_self)
         (thread_self->this_fiber->sp + 1)->object =
                 gc.newObject(size, ntype);
         return &(thread_self->this_fiber->sp + 1)->object;
@@ -124,6 +125,7 @@ object newVarArray(int32_t size, unsigned short ntype) {
 
 object newClass(const char* name) {
     try {
+        THREAD_STACK_CHECK(thread_self)
         ClassObject *klass = vm.resolveClass(name);
         if(klass) {
             (thread_self->this_fiber->sp+1)->object =
@@ -140,6 +142,7 @@ object newClass(const char* name) {
 
 object newObjArray(int32_t size) {
     try {
+        THREAD_STACK_CHECK(thread_self)
         (thread_self->this_fiber->sp+1)->object =
                 gc.newObjectArray(size);
         return &(thread_self->this_fiber->sp+1)->object;
@@ -186,10 +189,12 @@ object getItem(object obj, int32_t index) {
 }
 
 void pushNum(double value) {
+    THREAD_STACK_CHECK(thread_self)
     (++thread_self->this_fiber->sp)->var = value;
 }
 
 void pushObj(object value) {
+    THREAD_STACK_CHECK(thread_self)
     (++thread_self->this_fiber->sp)->object =
             ((Object*) value);
 }
