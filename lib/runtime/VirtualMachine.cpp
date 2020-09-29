@@ -165,7 +165,7 @@ bool returnMethod(Thread* thread) {
 
     Frame *frameInfo = thread->this_fiber->callStack+(thread->this_fiber->calls);
 
-    thread->this_fiber->current = frameInfo->returnAddress;
+    thread->this_fiber->current =  &vm.methods[frameInfo->returnAddress];
     thread->this_fiber->cache = thread->this_fiber->current->bytecode;
 
    thread->this_fiber->pc = thread->this_fiber->cache+frameInfo->pc;
@@ -186,6 +186,8 @@ CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     Method *method = vm.methods+address;
     THREAD_STACK_CHECK2(thread, method->stackSize, address);
+    if(thread->this_fiber->calls+1 >= thread->this_fiber->frameSize)
+        thread->this_fiber->growFrame();
 
     thread->this_fiber->callStack[++thread->this_fiber->calls]
             .init(thread->this_fiber->current, PC(thread->this_fiber), thread->this_fiber->sp-method->spOffset, thread->this_fiber->fp, inJit);
@@ -461,7 +463,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                     for (Int i = 1; i <= thread_self->this_fiber->calls; i++) {
                         if (i >= EXCEPTION_PRINT_MAX)
                             break;
-                        methods->object->HEAD[iter] = thread->this_fiber->callStack[i].returnAddress->address;
+                        methods->object->HEAD[iter] =  vm.methods[thread->this_fiber->callStack[i].returnAddress].address;
                         pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc;
                         iter++;
                     }
@@ -470,7 +472,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                         if (iter >= EXCEPTION_PRINT_MAX)
                             break;
                         else if(i==0) continue;
-                        methods->object->HEAD[iter] = thread->this_fiber->callStack[i].returnAddress->address;
+                        methods->object->HEAD[iter] =  vm.methods[thread->this_fiber->callStack[i].returnAddress].address;
                         pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc;
                         iter++;
                     }
@@ -571,10 +573,15 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     throw;
                 }
 
+                Thread *t = Thread::getThread(threadid);
                 fib->fiberObject = (thread_self->this_fiber->sp--)->object;
                 (++fib->sp)->object = (thread_self->this_fiber->sp--)->object; // apply args to fiber's stack
-                fib->bind(Thread::getThread(threadid));
+                fib->bind(t);
                 fib->setState(NULL, FIB_SUSPENDED);
+
+                if(t && t->next_fiber == NULL) {
+                    t->enableContextSwitch(fib, true);
+                }
                 _64EBX = fib->id;
             } else {
                 throw Exception(vm.NullptrExcept, "");
@@ -1153,13 +1160,13 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         for(Int i = 1; i <= thread_self->this_fiber->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->this_fiber->callStack[i].returnAddress, thread_self->this_fiber->callStack[i].pc, ss);
+            fillMethodCall(&vm.methods[thread_self->this_fiber->callStack[i].returnAddress], thread_self->this_fiber->callStack[i].pc, ss);
         }
     } else {
         for(Int i = (thread_self->this_fiber->calls+1) - EXCEPTION_PRINT_MAX; i < thread_self->this_fiber->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->this_fiber->callStack[i].returnAddress, thread_self->this_fiber->callStack[i].pc, ss);
+            fillMethodCall(& vm.methods[thread_self->this_fiber->callStack[i].returnAddress], thread_self->this_fiber->callStack[i].pc, ss);
         }
     }
 

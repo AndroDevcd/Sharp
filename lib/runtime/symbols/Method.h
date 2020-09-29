@@ -163,28 +163,28 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* returnAddress, Int pc, StackElement* sp,
+    Frame(Method* returnAddress, int32_t pc, StackElement* sp,
           StackElement* fp, bool jit)
     {
-        this->returnAddress=returnAddress;
+        this->returnAddress=returnAddress ? returnAddress->address : 0;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
         this->isjit=jit ? 1:0;
     }
 
-    void init(Method* returnAddress, Int pc, StackElement* sp,
+    void init(Method* returnAddress, int32_t pc, StackElement* sp,
               StackElement* fp, bool jit)
     {
-        this->returnAddress=returnAddress;
+        this->returnAddress=returnAddress ? returnAddress->address : 0;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
         this->isjit=jit ? 1: 0;
     }
 
-    Method *returnAddress;
-    Int pc;
+    int32_t returnAddress;
+    int32_t pc;
     StackElement* sp;
     StackElement* fp;
     short isjit: 1;

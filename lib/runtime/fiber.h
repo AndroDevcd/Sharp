@@ -17,6 +17,9 @@ enum fiber_state {
     FIB_KILLED=3
 };
 
+#define INITIAL_FRAME_SIZE 500 // ~16kb
+#define FRAME_GROW_SIZE 250 // ~8kb
+
 class fiber {
 public:
 
@@ -29,6 +32,7 @@ public:
     static Int boundFiberCount(Thread *thread);
     static void killBoundFibers(Thread *thread);
 
+    void growFrame();
     int getState();
     void setState(Thread* thread, fiber_state, Int delay = -1);
     void setWakeable(bool enable);
@@ -59,6 +63,7 @@ public:
     Method *current;
     Frame *callStack;
     uInt frameLimit;
+    uInt frameSize;
     double *registers;
     Object *ptr;
     Int delayTime; // -1 for full suspension >= 0 for timed suspension

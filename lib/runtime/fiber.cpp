@@ -46,7 +46,15 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->stackLimit = internalStackSize;
         fib->registers = (double *) __calloc(REGISTER_SIZE, sizeof(double));
         fib->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
-        fib->callStack = (Frame *) __calloc(internalStackSize - vm.manifest.threadLocals, sizeof(Frame));
+        if(internalStackSize - vm.manifest.threadLocals <= INITIAL_FRAME_SIZE) {
+            fib->frameSize = internalStackSize - vm.manifest.threadLocals;
+            fib->callStack = (Frame *) __calloc(internalStackSize - vm.manifest.threadLocals, sizeof(Frame));
+        }
+        else {
+            fib->frameSize = INITIAL_FRAME_SIZE;
+            fib->callStack = (Frame *) __calloc(INITIAL_FRAME_SIZE, sizeof(Frame));
+        }
+
         fib->frameLimit = internalStackSize - vm.manifest.threadLocals;
         fib->fp = &fib->dataStack[vm.manifest.threadLocals];
         fib->sp = (&fib->dataStack[vm.manifest.threadLocals]) - 1;
@@ -56,7 +64,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
                     gc.newObject(1, vm.tlsInts.at(i).value);
         }
 
-        gc.addMemory(sizeof(Frame) * (internalStackSize - vm.manifest.threadLocals));
+        gc.addMemory(sizeof(Frame) * fib->frameSize);
         gc.addMemory(sizeof(StackElement) * internalStackSize);
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
     } catch(Exception &e) {
@@ -180,7 +188,6 @@ int fiber::kill(uInt id) {
                 fib->attachedThread->enableContextSwitch(NULL, true);
             } else {
                 result = 2;
-                cout << "broken.." << endl;
             }
         } else {
             fib->setState(NULL, FIB_KILLED);
@@ -216,7 +223,7 @@ void fiber::free() {
     }
 
     if(callStack != NULL) {
-        gc.freeMemory(sizeof(Frame) * (internalStackSize - vm.manifest.threadLocals));
+        gc.freeMemory(sizeof(Frame) * frameSize);
         std::free(callStack); callStack = NULL;
     }
 
@@ -326,6 +333,21 @@ void fiber::killBoundFibers(Thread *thread) {
         if(fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
             kill(fib->id);
         }
+    }
+}
+
+void fiber::growFrame() {
+    GUARD(fiberMutex)
+    if(frameSize + FRAME_GROW_SIZE < frameLimit) {
+        callStack = (Frame *) __realloc(callStack, sizeof(Frame) * (frameSize + FRAME_GROW_SIZE),
+                                        sizeof(Frame) * frameSize);
+        frameSize += FRAME_GROW_SIZE;
+        gc.addMemory(sizeof(Frame) * FRAME_GROW_SIZE);
+    }
+    else {
+        callStack = (Frame *) __realloc(callStack, sizeof(Frame) * (frameLimit), sizeof(Frame) * frameSize);
+        gc.addMemory(sizeof(Frame) * (frameLimit - frameSize));
+        frameSize = frameLimit;
     }
 }
 

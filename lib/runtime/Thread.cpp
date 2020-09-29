@@ -1432,10 +1432,15 @@ void Thread::exec() {
 }
 
 bool Thread::try_context_switch() {
+   GUARD(mutex)
    for(Int i = 0; i < this_fiber->calls; i++) {
        Frame &frame = this_fiber->callStack[i];
-       if(frame.isjit && frame.returnAddress->nativeFunc)
+       if(frame.isjit && vm.methods[frame.returnAddress].nativeFunc) {
+           contextSwitching = false;
+           next_fiber = NULL;
+           sendSignal(signal, tsig_context_switch, 0);
            return false;
+       }
    }
 
    contextSwitching = true;
