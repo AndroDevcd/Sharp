@@ -3524,9 +3524,9 @@ scope_begin(std_io_task, job)
 
 scope_end()
 
-scope_begin(std_io_task, job_builder) 
+scope_begin(std_io_task, coroutine_builder)
 
-	void job_builder(object $instance) {
+	void coroutine_builder(object $instance) {
 		pushObj($instance);
 		call(2155);
 
@@ -3535,7 +3535,7 @@ scope_begin(std_io_task, job_builder)
 		}
 	}
 
-	void job_builder2(object $instance, object scheduled_job, object master) {
+	void coroutine_builder2(object $instance, object scheduled_job, object master) {
 		pushObj($instance);
 		pushObj(scheduled_job);
 		pushObj(master);

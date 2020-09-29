@@ -1,9 +1,0 @@
-mod std.io.task;
-
-enum job_state {
-	created = -1,
-	active = 0,
-	completed = 1,
-	cancelled = 2
-};
-
