@@ -13,16 +13,38 @@ uInt loggedTime = 0;
 void run_scheduler() {
     do {
        fiber *fib = NULL;
+       Thread *thread;
+       Int size;
 
        __os_yield();
-       while((fib = fiber::nextFiber()) != NULL) {
-           loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
-           if(vm.state >= VM_SHUTTING_DOWN) {
-               break;
-           }
+        {
+            GUARD(Thread::threadsListMutex);
+            size = Thread::threads.size();
+        }
 
-           try_context_switch(fib);
-       }
+        for (Int i = 0; i < size; i++) {
+            thread = Thread::threads.at(i);
+            loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
+
+            if (vm.state >= VM_SHUTTING_DOWN) {
+                break;
+            }
+
+            if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
+                GUARD(Thread::threadsListMutex);
+                if(!threadReleaseBlock) {
+                    fiber::killBoundFibers(thread);
+                    Thread::destroy(thread);
+                    i--;
+                }
+                continue;
+            }
+
+            fib = fiber::nextFiber(thread->last_fiber, thread);
+            if (fib != NULL && is_thread_ready(thread)) {
+                try_context_switch(thread, fib);
+            }
+        }
 
        if(vm.state >= VM_SHUTTING_DOWN) {
            while(vm.state != VM_TERMINATED) {
@@ -81,6 +103,7 @@ bool is_thread_ready(Thread *thread) {
     uInt currentTime = loggedTime;
     if(thread->state != THREAD_RUNNING || hasSignal(thread->signal, tsig_kill) || hasSignal(thread->signal, tsig_suspend))
         return false;
+    if(thread->this_fiber == NULL) return true;
 
     switch(thread->priority) {
         case THREAD_PRIORITY_LOW:
@@ -89,46 +112,6 @@ bool is_thread_ready(Thread *thread) {
             return (currentTime - thread->lastRanMills) > NPTSI;
         case THREAD_PRIORITY_HIGH:
             return (currentTime - thread->lastRanMills) > HPTSI;
-    }
-
-    return false;
-}
-
-bool try_context_switch(fiber *fib) {
-    Thread *thread;
-    Int size;
-
-    if((thread = fib->getBoundThread()))  {
-        return is_thread_ready(thread) && try_context_switch(thread, fib);
-    }
-
-    {
-        GUARD(Thread::threadsListMutex);
-        size = Thread::threads.size();
-    }
-
-    for (Int i = 0; i < size; i++) {
-        thread = Thread::threads.at(i);
-
-        if (vm.state >= VM_SHUTTING_DOWN) {
-            return false;
-        }
-
-        if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
-            GUARD(Thread::threadsListMutex);
-            if(!threadReleaseBlock) {
-                fiber::killBoundFibers(thread);
-                Thread::destroy(thread);
-                i--;
-            }
-            continue;
-        }
-
-        if (is_thread_ready(thread)) {
-            if (try_context_switch(thread, fib)) {
-                return true;
-            }
-        }
     }
 
     return false;

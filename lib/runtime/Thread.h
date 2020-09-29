@@ -52,6 +52,7 @@ public:
         name.init();
         this_fiber = NULL;
         next_fiber = NULL;
+        last_fiber = NULL;
         signal = tsig_empty;
         contextSwitching=false;
         marked=false;
@@ -148,7 +149,7 @@ public:
     bool marked;
     native_string name;
     Object currentThread, args;
-    fiber *this_fiber, *next_fiber;
+    fiber *this_fiber, *next_fiber, *last_fiber;
     Method* mainMethod;
     uInt lastRanMills;
     bool contextSwitching;

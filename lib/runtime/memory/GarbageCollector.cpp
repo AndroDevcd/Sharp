@@ -746,6 +746,7 @@ void GarbageCollector::printClassRefStatus() {
 }
 extern void printRegs();
 
+bool lockSpin = false;
 recursive_mutex lockCheckMutex;
 bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
     if(o) {
@@ -763,52 +764,62 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         }
         mutex.unlock();
 
-        retry:
-        long maxSpin = 10000000;
-        long spins = 0;
-        while(mut->fiberid != -1) {
-            if (spins++ == maxSpin) {
-                spins = 0;
-                if(thread->contextSwitching) {
-                    return false;
-                } else if (hasSignal(thread->signal, tsig_context_switch)) {
-                    if(!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
-                        if(!contextSwitchCheck) {
-                            contextSwitchCheck = true;
-                            thread->try_context_switch();
-                        }
+        thread->this_fiber->locking =true;
 
-                        if(thread->contextSwitching) {
-                            return false;
+        retry:
+        long maxSpin = 1000000;
+        long spins = 0;
+        if(mut->fiberid != thread->this_fiber->id) {
+            if (mut->threadid == thread->id) {
+                thread->this_fiber->delay(1);
+                return false;
+            }
+
+            while (mut->fiberid != -1) {
+                if(lockSpin) {
+                    printRegs();
+                    lockSpin = false;
+                }
+                if (spins++ == maxSpin) {
+                    spins = 0;
+                    if (thread->contextSwitching) {
+                        return false;
+                    }
+                    else if (hasSignal(thread->signal, tsig_context_switch)) {
+                        if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
+                            thread->try_context_switch();
+
+                            if (thread->contextSwitching) {
+                                thread->this_fiber->delay(1);
+                                return false;
+                            } else {
+                                thread->enableContextSwitch(NULL, false);
+                            }
                         }
                     }
-                } else if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
-                    return true;
-                }
+                    else if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
+                        return true;
+                    }
 
-                __os_yield();
+                    __os_yield();
 #ifdef WIN32_
-                Sleep(1);
+                    Sleep(1);
 #endif
 #ifdef POSIX_
-                usleep(1*POSIX_USEC_INTERVAL);
+                    usleep(1*POSIX_USEC_INTERVAL);
 #endif
-            } else if(mut->fiberid == thread->this_fiber->id)
-                break;
+                }
+            }
         }
 
         mut->fiberid = thread->this_fiber->id;
         lockCheckMutex.lock();
         if(mut->fiberid != thread->this_fiber->id) {
             lockCheckMutex.unlock();
-
-            if(mut->threadid == thread->id) {
-                thread->this_fiber->delay(1);
-                thread->enableContextSwitch(NULL, true);
-                return false;
-            } else goto retry;
+            goto retry;
         }
 
+        thread->this_fiber->locking =false;
         mut->threadid=thread->id;
         mut->lockedCount++;
         lockCheckMutex.unlock();

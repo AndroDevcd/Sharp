@@ -14,7 +14,6 @@ class string_builder : loopable<_int8> {
     init {
       data = new _int8[default_capacity];
       capacity = default_capacity;
-      cursor = -1;
     }
 
     def set_resize_capacity(new_capacity: var) {
@@ -63,7 +62,7 @@ class string_builder : loopable<_int8> {
             }
 
             memcopy(str, data, cursor, offset, sizeof(str));
-            cursor += sizeof(str) - offset - 1;
+            cursor += sizeof(str) - offset;
         }
     }
 
@@ -110,7 +109,7 @@ class string_builder : loopable<_int8> {
             expand(sizeof(immstr));
 
         memcopy(immstr, data, cursor, 0, sizeof(immstr));
-        cursor += sizeof(immstr) - 1;
+        cursor += sizeof(immstr);
         return self;
     }
 
@@ -129,7 +128,7 @@ class string_builder : loopable<_int8> {
             expand(sizeof(immstr));
 
         memcopy(immstr, data, cursor, 0, len);
-        cursor += len - 1;
+        cursor += len;
         return self;
     }
 

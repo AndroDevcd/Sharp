@@ -22,7 +22,7 @@ public:
 
     static fiber* makeFiber(native_string &name, Method* main);
     static fiber* getFiber(uInt id);
-    static fiber* nextFiber();
+    static fiber* nextFiber(fiber *startingFiber, Thread* thread);
     static int suspend(uInt id);
     static int unsuspend(uInt id);
     static int kill(uInt id);
@@ -38,8 +38,6 @@ public:
     void setAttachedThread(Thread *thread);
     void delay(Int time);
     int bind(Thread *thread);
-
-private:
     static void disposeFiber(fiber *);
 
 public:
@@ -60,11 +58,13 @@ public:
     StackElement* dataStack, *sp, *fp;
     Method *current;
     Frame *callStack;
+    uInt frameLimit;
     double *registers;
     Object *ptr;
     Int delayTime; // -1 for full suspension >= 0 for timed suspension
     bool wakeable;
     bool finished;
+    bool locking;
 };
 
 #endif //SHARP_FIBER_H

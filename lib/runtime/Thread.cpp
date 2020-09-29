@@ -832,6 +832,7 @@ unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
+    last_fiber=this_fiber;
     registers = this_fiber->registers;
     Object *tmpPtr;
     SharpObject* tmpShObj;
@@ -1612,13 +1613,15 @@ void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
 
 void Thread::waitForContextSwitch() {
     this_fiber->setAttachedThread(NULL);
+
     if(this_fiber->finished) {
         if(fiber::boundFiberCount(this) > 1) {
             this_fiber->setState(this, FIB_KILLED);
         }
         else return;
-    } else if(this_fiber->state == FIB_RUNNING)
+    } else if(this_fiber->state == FIB_RUNNING) {
         this_fiber->setState(this, FIB_SUSPENDED);
+    }
     this_fiber=NULL;
 
     wait:

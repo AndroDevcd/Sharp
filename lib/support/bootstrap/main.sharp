@@ -381,6 +381,11 @@ def exec_runtime(files: list<string>) {
     all_files_passed := true;
     foreach(p in results) {
        if(p == null || !p.parsed) {
+          if(p != null && !p.parsed) {
+             println("file: ${p.source_file} errors: ${p.errors.get_raw_error_count()}");
+          } else if(p != null)
+             println("null file");
+
           all_files_passed = false;
           break;
        }

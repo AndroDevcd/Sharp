@@ -79,7 +79,8 @@
 
 #define STACK_CHECK  if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackLimit) throw Exception(vm.StackOverflowExcept, "");
 #define THREAD_STACK_CHECK(self)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+1) >= self->this_fiber->stackLimit) throw Exception(vm.StackOverflowExcept, "");
-#define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+stackSize) >= self->this_fiber->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
+#define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+stackSize + 1) >= self->this_fiber->stackLimit \
+ || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF) || (self->this_fiber->calls + 1) >= self->this_fiber->frameLimit) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();

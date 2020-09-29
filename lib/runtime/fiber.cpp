@@ -8,7 +8,6 @@
 uInt fiber::fibId=0;
 recursive_mutex fiberMutex;
 _List<fiber*> fibers;
-uInt lastFiberIndex = 0;
 
 bool find_fiber(void *arg1, fiber* fib) {
     return *((uInt*)arg1) == fib->id;
@@ -33,6 +32,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->delayTime = -1;
         fib->wakeable = true;
         fib->finished = false;
+        fib->locking = false;
         fib->attachedThread = NULL;
         fib->boundThread = NULL;
         fib->exceptionObject.object = NULL;
@@ -47,6 +47,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->registers = (double *) calloc(REGISTER_SIZE, sizeof(double));
         fib->dataStack = (StackElement *) calloc(internalStackSize, sizeof(StackElement));
         fib->callStack = (Frame *) __calloc(internalStackSize - vm.manifest.threadLocals, sizeof(Frame));
+        fib->frameLimit = internalStackSize - vm.manifest.threadLocals;
         fib->fp = &fib->dataStack[vm.manifest.threadLocals];
         fib->sp = (&fib->dataStack[vm.manifest.threadLocals]) - 1;
 
@@ -75,27 +76,41 @@ fiber* fiber::getFiber(uInt id) {
     return NULL;
 }
 
-fiber* fiber::nextFiber() {
-    GUARD(fiberMutex)
-    if(lastFiberIndex >= fibers.size() || lastFiberIndex < 0) {
-        lastFiberIndex = 0;
+bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
+    if(fib->state == FIB_SUSPENDED && fib->wakeable) {
+        if(fib->boundThread == thread || fib->boundThread == NULL) {
+            if (fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
+                return true;
+            } else if (fib->delayTime <= 0) {
+                return true;
+            }
+        }
+    } else if(fib->state == FIB_KILLED && fib->getBoundThread() == NULL) {
+        fiber::disposeFiber(fib);
     }
 
+    return false;
+}
+
+fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
+    GUARD(fiberMutex)
+
     uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
-    for(; lastFiberIndex < fibers.size(); lastFiberIndex++) {
-        fiber *fib = fibers.at(lastFiberIndex);
-        if(fib->state == FIB_SUSPENDED && fib->wakeable) {
-            if(fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
-                lastFiberIndex++;
-                return fib;
-            } else if(fib->delayTime < 0) {
-                lastFiberIndex++;
-                return fib;
-            }
-        } else if(fib->state == FIB_KILLED && fib->getBoundThread() == NULL) {
-            disposeFiber(fib);
-            lastFiberIndex--;
+    for(Int i = 0; i < fibers.size(); i++) {
+        if(fibers.at(i) == startingFiber) {
+            if((i + 1) < fibers.size()) {
+                for (Int j = i + 1; j < fibers.size(); j++) {
+                    if(!fibers.at(j)->locking && isFiberRunnble(fibers.at(j), loggedTime, thread)) {
+                        return fibers.at(j);
+                    }
+                }
+            } else break;
         }
+    }
+
+    for(Int i = 0; i < fibers.size(); i++) {
+       if(isFiberRunnble(fibers.at(i), loggedTime, thread))
+           return fibers.at(i);
     }
 
     return NULL;

@@ -562,3 +562,4 @@ def main() {
 * Live code compiling using the `--watch` compiler option to update changed project files in real time
 * New async functionality
 * deferr keyword added
+* \u0000 unicode strings

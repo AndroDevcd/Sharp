@@ -22,13 +22,14 @@ class parser {
     private tokens: token[];
     public toks: tokenizer;
     private access_types: list<token>;
-    private errors: error_manager;
+    public errors: error_manager;
 
     private static const KEYWORD_MOD           := 0;
     private static const KEYWORD_CLASS         := 3;
     private static const KEYWORD_STATIC        := 4;
     private static const KEYWORD_PROTECTED     := 5;
     private static const KEYWORD_PRIVATE       := 6;
+    private static const KEYWORD_DEF           := 7;
     private static const KEYWORD_IMPORT        := 8;
     private static const KEYWORD_CONST         := 11;
     private static const KEYWORD_PUBLIC        := 12;
@@ -45,6 +46,7 @@ class parser {
     private static const KEYWORD_UINT32        := 40;
     private static const KEYWORD_UINT64        := 41;
     private static const KEYWORD_INTERFACE     := 42;
+    private static const KEYWORD_ENUM          := 44;
     private static const KEYWORD_LOCAL         := 48;
     private static const KEYWORD_EXT           := 49;
     private static const KEYWORD_STABLE        := 50;
@@ -58,6 +60,8 @@ class parser {
     private static const KEYWORD_SET           := 59;
     private static const KEYWORD_THREAD_LOCAL  := 60;
     private static const KEYWORD_DEFER         := 61;
+    private static const KEYWORD_ALIAS         := 62;
+    private static const KEYWORD_INIT          := 63;
 
     public parser(toks: tokenizer)
         {
@@ -132,8 +136,13 @@ class parser {
            }
         } catch(throwable) { /* ignore everything */ }
 
+//        if(!panic && errors.has_errors()) {
+//           lock(operators) {
+//              errors.print_errors();
+//           }
+//        }
 
-        parsed = !panic && !errors.has_errors();
+        parsed = !(panic || errors.has_errors());
         toks = null;
         tokens = null;
         cache_parser(self);
@@ -277,6 +286,34 @@ class parser {
                      && (is_variable_decl(peek(1)) && (peek(2).type == token_type.colon || peek(2).type == token_type.infer))) -> {
                 parse_variable_decl(branch, true);
              }
+             current.tok == keywords[KEYWORD_ALIAS] -> {
+                 parse_alias_declaration(branch);
+             }
+             current.tok == keywords[KEYWORD_ENUM] -> {
+                 parse_enum_declaration(branch);
+             }
+             current.tok == keywords[KEYWORD_INIT] -> {
+                 parse_init_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_DEF] -> {
+                 id_list : ast;
+                 if(peek(1).type == token_type.lessthan) {
+                    expect(branch, "<", false);
+                    parse_generic_identifier_list(branch);
+                    expect(branch, ">", false);
+                    id_list = branch.last();
+                    branch.pop_child();
+                 }
+
+                 if(peek(1).tok == keywords[KEYWORD_OPERATOR])
+                     parse_operator_decl(branch);
+                 else
+                     parse_method_decl(branch);
+
+                 if(id_list != null) {
+                     branch.last().add(id_list);
+                 }
+             }
              else -> {
                 advance();
              }
@@ -287,6 +324,70 @@ class parser {
            errors.new_error(missing_bracket, current, " expected `}` at end of interface declaration");
 
        expect(branch, "}");
+    }
+
+    def parse_operator_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_operator_decl);
+
+    }
+
+    def parse_method_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_method_decl);
+
+    }
+
+    def parse_init_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_init_decl);
+
+       add_access_types(branch);
+       if(peek(1).type == token_type.left_paren) {
+          parse_utype_arg_list(branch, true);
+       }
+
+       parse_block(branch);
+    }
+
+    def parse_enum_identifier(_ast: ast) {
+       branch := get_branch(_ast, ast_enum_identifier);
+       expect_identifier(branch);
+
+       if(peek(1).type == token_type.equals) {
+           expect(branch, "=", false);
+
+           parse_expression(branch);
+       }
+    }
+
+    def parse_enum_block(_ast: ast) {
+       branch := get_branch(_ast, ast_enum_identifier_list);
+       expect(branch, "{", false);
+
+       parse_enum_identifier(branch);
+       while(peek(1).type == token_type.comma) {
+           expect(branch, ",", false);
+           parse_enum_identifier(branch);
+       }
+
+       expect(branch, "}", false);
+    }
+
+    def parse_enum_declaration(_ast: ast) {
+       branch := get_branch(_ast, ast_enum_decl);
+
+       add_access_types(branch);
+
+       expect_identifier(branch);
+       parse_enum_block(branch);
+    }
+
+    def parse_alias_declaration(_ast: ast) {
+       branch := get_branch(_ast, ast_alias_decl);
+       add_access_types(branch);
+
+       parse_utype(branch);
+       expect(branch, keywords[KEYWORD_AS], false);
+       expect_identifier(branch);
+       expect(branch, ";", false);
     }
 
     def parse_variable_decl(_ast: ast, first_variable: var) {
@@ -1019,7 +1120,7 @@ class parser {
     def advance() {
        if(cursor < sizeof(tokens))
           current = tokens[cursor++];
-       else current = tokens[sizeof(tokens)];
+       else current = tokens[sizeof(tokens)-1];
     }
 
     private static keywords := new string[]
@@ -1085,7 +1186,9 @@ class parser {
         "get",
         "set",
         "thread_local",
-        "defer"
+        "defer",
+        "alias",
+        "init"
     };
 
     private def is_keyword(key: string) : var {

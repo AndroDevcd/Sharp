@@ -5491,11 +5491,11 @@ void Compiler::resolveField(Ast* ast) {
             }
         }
 
-        if (ast->hasToken(COLON)) {
+        if (ast->hasToken(COLON)) { // lk : var
             Utype *utype = compileUtype(ast->getSubAst(ast_utype));
             field->utype = NULL;
             resolveFieldType(field, utype, ast);
-        } else if (ast->hasToken(INFER)) {
+        } else if (ast->hasToken(INFER)) { // k := 0
             Expression expr;
             RETAIN_BLOCK_TYPE(field->flags.find(STATIC) ? STATIC_BLOCK : currentScope()->type)
             RETAIN_TYPE_INFERENCE(true)
@@ -5560,7 +5560,7 @@ void Compiler::resolveSetter(Ast *ast, Field *field) {
     params.add(arg0);
 
     if(field->flags.find(flg_CONST)) {
-        errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+        errors->createNewError(GENERIC, ast->line, ast->col,
                                "cannot apply setter to constant field `" + field->name + "`");
     }
 
