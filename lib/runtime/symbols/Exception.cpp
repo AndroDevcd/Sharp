@@ -42,7 +42,7 @@ Exception::Exception(ClassObject* throwable, const std::string &__arg, bool nati
 
 Exception::~Exception()
 {
-    throwable.drop();
+
 }
 
 void Exception::pushException() {

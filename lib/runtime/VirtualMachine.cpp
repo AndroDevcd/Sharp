@@ -568,7 +568,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     fib = fiber::makeFiber(fiberName, &vm.methods[mainFunc % vm.manifest.methods]);
                 } catch(Exception &e) {
                     fiberName.free();
-                    throw e;
+                    throw;
                 }
 
                 fib->fiberObject = (thread_self->this_fiber->sp--)->object;
@@ -1303,6 +1303,7 @@ Object *VirtualMachine::resolveField(std::string name, SharpObject *classObject)
         for(Int i = 0; i < representedClass->totalFieldCount; i++) {
             Field &field = representedClass->fields[i];
             if(field.name == name) {
+                int stat = isStaticObject(classObject);
                 if(isStaticObject(classObject) == IS_STATIC(field.flags)) {
                     return &classObject->node[field.address];
                 }

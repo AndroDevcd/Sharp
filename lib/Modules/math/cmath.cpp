@@ -52,7 +52,7 @@ double __cmath(double n, double n2, int proc) {
         default: {
             stringstream ss;
             ss << "illegal call to math procedure: " << proc;
-            throw new Exception(vm.InvalidOperationExcept, ss.str());
+            throw Exception(vm.InvalidOperationExcept, ss.str());
         }
     }
 }

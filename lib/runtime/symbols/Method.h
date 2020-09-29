@@ -170,7 +170,7 @@ public:
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->isjit=jit;
+        this->isjit=jit ? 1:0;
     }
 
     void init(Method* returnAddress, Int pc, StackElement* sp,
@@ -180,14 +180,14 @@ public:
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->isjit=jit;
+        this->isjit=jit ? 1: 0;
     }
 
     Method *returnAddress;
     Int pc;
     StackElement* sp;
     StackElement* fp;
-    bool isjit;
+    short isjit: 1;
 };
 
 #pragma optimize( "", off )

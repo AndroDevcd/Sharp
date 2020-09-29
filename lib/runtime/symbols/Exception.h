@@ -30,6 +30,10 @@ public:
         native = false;
     }
 
+    ~Throwable() {
+        drop();
+    }
+
     Throwable(ClassObject* throwable, const std::string &message, bool native)
             :
             handlingClass(throwable),

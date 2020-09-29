@@ -44,8 +44,8 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->current = NULL;
         fib->ptr = NULL;
         fib->stackLimit = internalStackSize;
-        fib->registers = (double *) calloc(REGISTER_SIZE, sizeof(double));
-        fib->dataStack = (StackElement *) calloc(internalStackSize, sizeof(StackElement));
+        fib->registers = (double *) __calloc(REGISTER_SIZE, sizeof(double));
+        fib->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
         fib->callStack = (Frame *) __calloc(internalStackSize - vm.manifest.threadLocals, sizeof(Frame));
         fib->frameLimit = internalStackSize - vm.manifest.threadLocals;
         fib->fp = &fib->dataStack[vm.manifest.threadLocals];
@@ -61,7 +61,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
     } catch(Exception &e) {
         fib->state = FIB_KILLED;
-        throw e;
+        throw;
     }
     return fib;
 }
