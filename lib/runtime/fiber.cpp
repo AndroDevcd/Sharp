@@ -442,13 +442,6 @@ Int fiber::boundFiberCount(Thread *thread) {
 }
 
 void fiber::killBoundFibers(Thread *thread) {
-    Int size;
-
-    {
-        GUARD(fiberMutex)
-        size = fiberCount;
-    }
-
     for(Int i = 0; i < fiberCount; i++) {
         fiber *fib = fiberAt(i);
         if(fib && fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {

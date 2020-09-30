@@ -771,11 +771,6 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         long spins = 0;
         if(mut->fiberid != thread->this_fiber->id) {
             if (mut->threadid == thread->id) {
-                auto fib = fiber::getFiber(mut->fiberid);
-                auto bound = fib->boundThread;
-
-                if(bound && bound->id == thread->id)
-                  thread->next_fiber = fib;
                 thread->this_fiber->delay(2000);
                 return false;
             }

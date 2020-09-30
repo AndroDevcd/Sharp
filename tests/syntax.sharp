@@ -42,7 +42,7 @@ def foo() : var {
            println(i);
         }
 
-        launcher = {->
+        coroutine.builder().unconfined() = {->
            for( ;; ) {
               counter++;
               delay(1000);
