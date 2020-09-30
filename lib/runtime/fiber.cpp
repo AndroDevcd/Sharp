@@ -187,6 +187,7 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
            return fib;
        else if(fib && fib->state == FIB_KILLED && fib->boundThread == NULL && fib->attachedThread == NULL) {
            fiber::disposeFiber(fib);
+           size--; i--;
        }
     }
 
