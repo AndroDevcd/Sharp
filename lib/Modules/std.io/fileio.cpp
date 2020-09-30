@@ -169,7 +169,7 @@ Int file_size(native_string &path)
 
 void current_directory(native_string &path) {
     char buff[FILENAME_MAX]; //create string buffer to hold path
-    GetCurrentDir( buff, FILENAME_MAX );
+    char *res = GetCurrentDir( buff, FILENAME_MAX );
     path.set(buff);
 }
 
