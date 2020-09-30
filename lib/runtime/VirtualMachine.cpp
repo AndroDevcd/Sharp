@@ -578,10 +578,6 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 (++fib->sp)->object = (thread_self->this_fiber->sp--)->object; // apply args to fiber's stack
                 fib->bind(t);
                 fib->setState(NULL, FIB_SUSPENDED);
-
-                if(t && t->next_fiber == NULL) {
-                    t->enableContextSwitch(fib, true);
-                }
                 _64EBX = fib->id;
             } else {
                 throw Exception(vm.NullptrExcept, "");

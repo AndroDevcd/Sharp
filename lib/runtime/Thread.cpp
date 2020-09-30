@@ -137,7 +137,7 @@ void Thread::suspendSelf() {
 }
 
 void Thread::waitForUnsuspend() {
-    const long sMaxRetries = 100000;
+    const long sMaxRetries = 1000;
 
     long spinCount = 0;
     long retryCount = 0;
@@ -150,12 +150,8 @@ void Thread::waitForUnsuspend() {
         {
             spinCount++;
             retryCount = 0;
-#ifdef WIN32_
-            Sleep(1);
-#endif
-#ifdef POSIX_
-            usleep(1*POSIX_USEC_INTERVAL);
-#endif
+
+            __usleep(10);
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;
             return;
@@ -1618,6 +1614,7 @@ void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
 }
 
 void Thread::waitForContextSwitch() {
+    waiting = true;
     this_fiber->setAttachedThread(NULL);
 
     if(this_fiber->finished) {
@@ -1631,7 +1628,7 @@ void Thread::waitForContextSwitch() {
     this_fiber=NULL;
 
     wait:
-    const long sMaxRetries = 100;
+    const long sMaxRetries = 5000;
 
     long retryCount = 0;
     while (next_fiber == NULL) {

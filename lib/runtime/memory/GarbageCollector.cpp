@@ -775,7 +775,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 
                 if(bound && bound->id == thread->id)
                   thread->next_fiber = fib;
-                thread->this_fiber->delay(1);
+                thread->this_fiber->delay(2000);
                 return false;
             }
 
@@ -795,7 +795,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                         thread->try_context_switch();
 
                         if (thread->contextSwitching) {
-                            thread->this_fiber->delay(1);
+                            thread->this_fiber->delay(2000);
                             return false;
                         } else {
                             thread->enableContextSwitch(NULL, false);

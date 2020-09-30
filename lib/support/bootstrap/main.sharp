@@ -367,10 +367,11 @@ def exec_runtime(files: list<string>) {
     }
 
     foreach(source_file in files) {
+        println("parsing: $source_file");
+
         coroutine.builder()
          .with_args({ source_file }) = { args: object[] ->
            source_file := args[1] as string;
-           println("parsing: $source_file");
            load_or_parse(source_file);
         };
     }

@@ -142,7 +142,7 @@ private def get_host(long_running : var) : thread {
             if(host != null && fiber.poll(host) > fiber.poll(t)) {
                host = t;
             }
-            else host = t;
+            else if(host == null) host = t;
         }
 
         return false;

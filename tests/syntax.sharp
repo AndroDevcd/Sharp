@@ -54,9 +54,7 @@ def foo() : var {
 }
 
 def main(args: string[]) {
-//   foo();
-   past := time.micro_time();
-   delay(5);
-   elapsed := time.micro_time() - past;
-   println(elapsed);
+   foo();
+   delay(2000);
+   println(counter++);
 }

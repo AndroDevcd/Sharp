@@ -48,6 +48,7 @@ public:
         suspended = false;
         exited = false;
         terminated = false;
+        waiting = false;
         priority = THREAD_PRIORITY_NORM;
         name.init();
         this_fiber = NULL;
@@ -64,7 +65,7 @@ public:
         currentThread.object=NULL;
         new (&mutex) recursive_mutex();
         boundFibers=0;
-        boundFibers=0;
+        waiting=0;
 #ifdef WIN32_
         thread = NULL;
 #endif
@@ -147,6 +148,7 @@ public:
     bool suspended;
     bool exited;
     bool marked;
+    bool waiting;
     native_string name;
     Object currentThread, args;
     fiber *this_fiber, *next_fiber, *last_fiber;

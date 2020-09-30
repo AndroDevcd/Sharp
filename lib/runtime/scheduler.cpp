@@ -37,17 +37,16 @@ void run_scheduler() {
             }
 
             if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
-                Thread::threadsListMutex.lock();
                 if(!threadReleaseBlock) {
+                    GUARD(Thread::threadsListMutex);
                     fiber::killBoundFibers(thread);
                     Thread::destroy(thread);
-                    i--;
                     size--;
                 }
 
-                Thread::threadsListMutex.unlock();
                 continue;
-            }
+            } else if(thread->state != THREAD_RUNNING)
+                continue;
 
             fib = fiber::nextFiber(thread->last_fiber, thread);
             if (fib != NULL && is_thread_ready(thread)) {
@@ -67,7 +66,7 @@ void run_scheduler() {
            return;
        }
 
-        __usleep(LPTSI);
+        __usleep(CSTL);
     } while(true);
 }
 

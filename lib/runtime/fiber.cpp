@@ -7,10 +7,11 @@
 
 uInt fiber::fibId=0;
 uInt listSize = 0, fiberCount =0, resizeCount = 500;
-recursive_mutex fiberMutex;
+recursive_mutex fiberMutex, reallocMutex;
 fiber** fibers=NULL;
 
 void increase_fibers() {
+    GUARD(reallocMutex)
     fibers = (fiber**)__realloc(fibers, sizeof(fiber**) * (listSize + resizeCount), sizeof(fiber**) * listSize);
     for(Int i = listSize; i < (listSize+resizeCount); i++) {
         fibers[i]=NULL;
@@ -21,12 +22,14 @@ void increase_fibers() {
 }
 
 void decrease_fibers() {
-    if((listSize - fiberCount) >= resizeCount) {
+    if(listSize > resizeCount && (listSize - fiberCount) >= resizeCount) {
+        GUARD(reallocMutex)
         auto result = (fiber **) realloc(fibers, sizeof(fiber **) * (listSize - resizeCount));
 
         if(result) {
-            fibers = result;
             listSize -= resizeCount;
+            fibers = result;
+            gc.freeMemory(sizeof(fiber**) * resizeCount);
         }
     }
 }
@@ -65,7 +68,7 @@ void removeFiber(fiber* fib) {
         }
     }
 
-    decrease_fibers();
+    //decrease_fibers();
 }
 
 fiber* fiber::makeFiber(native_string &name, Method* main) {
@@ -132,6 +135,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
 
 fiber* fiber::getFiber(uInt id) {
     GUARD(fiberMutex)
+    std::lock_guard<recursive_mutex> guard2(reallocMutex);
     return locateFiber(id);
 }
 
@@ -153,9 +157,12 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     Int size;
 
     {
-        GUARD(fiberMutex)
+        GUARD(fiberMutex);
         size = fiberCount;
     }
+
+    GUARD(reallocMutex)
+
 
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
     if(startingFiber != NULL) {
@@ -175,12 +182,11 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     }
 
     for(Int i = 0; i < size; i++) {
-        auto fib = fibers[i];
+        fiber* fib = fibers[i];
        if(fib && isFiberRunnble(fib, loggedTime, thread))
            return fib;
        else if(fib && fib->state == FIB_KILLED && fib->boundThread == NULL && fib->attachedThread == NULL) {
            fiber::disposeFiber(fib);
-           i--; size--;
        }
     }
 
@@ -346,11 +352,16 @@ void fiber::delay(Int time) {
     setState(thread_self, FIB_SUSPENDED, NANO_TOMICRO(Clock::realTimeInNSecs()) + time);
 }
 
+extern void printRegs();
 int fiber::bind(Thread *thread) {
     GUARD(fiberMutex)
 
     if(thread != NULL) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
+        if(thread->boundFibers > 1000) {
+            printRegs();
+            int i = 0;
+        }
         if(thread->state != THREAD_KILLED || !hasSignal(thread->signal, tsig_kill)) {
             boundThread = thread;
             thread->boundFibers++;
