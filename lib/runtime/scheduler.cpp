@@ -31,16 +31,21 @@ void __usleep(unsigned int usec)
 }
 
 atomic<bool> threadReleaseBlock = { false };
-uInt loggedTime = 0;
+uInt loggedTime = 0, clocks = 0;
 void run_scheduler() {
     do {
        fiber *fib = NULL;
        Thread *thread;
        Int size;
+       clocks++;
 
         {
             GUARD(Thread::threadsListMutex);
             size = Thread::threads.size();
+        }
+
+        if((clocks % 1000) == 0) {
+            fiber::disposeFibers();// every ~50ms
         }
 
         for (Int i = 0; i < size; i++) {
@@ -65,13 +70,6 @@ void run_scheduler() {
 
             if (is_thread_ready(thread)) {
                 thread->enableContextSwitch(true);
-
-//                if(thread->waiting) {
-//                    fib = fiber::nextFiber(thread->last_fiber, thread);
-//                    if (fib && !try_context_switch(thread, fib))
-//                        cout << "l\n";
-//                } else {
-//                }
             }
         }
 
@@ -87,36 +85,8 @@ void run_scheduler() {
            return;
        }
 
-        __usleep(55);
+        __usleep(CLOCK_CYCLE);
     } while(true);
-}
-
-bool try_context_switch(Thread *thread, fiber *fib) {
-    if(fib->state != FIB_SUSPENDED) {
-        return false; // race condition protect
-    }
-
-    thread->enableContextSwitch(true);
-
-    const long sMaxRetries = 5000;
-    long retryCount = 0;
-    long spinCount = 0;
-    while(thread->next_fiber != NULL) {
-        if (retryCount++ == sMaxRetries)
-        {
-            spinCount++;
-            retryCount = 0;
-            __usleep(CSST);
-        } else if(spinCount >= CSTL) {
-            thread->skipped++;
-            thread->enableContextSwitch(false);
-            return false;
-        }
-        else if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
-            return false;
-    }
-
-    return true;
 }
 
 bool is_thread_ready(Thread *thread) {

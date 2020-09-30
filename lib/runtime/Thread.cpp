@@ -151,7 +151,9 @@ void Thread::waitForUnsuspend() {
             spinCount++;
             retryCount = 0;
 
+#ifdef COROUTINE_DEBUGGING
             timeSleeping += 10;
+#endif
             __usleep(10);
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;
@@ -297,7 +299,6 @@ void Thread::waitForThreadSuspend(Thread *thread) {
     int spinCount = 0;
     int retryCount = 0;
 
-    cout << "k\n";
     while (thread->state == THREAD_RUNNING && !thread->suspended)
     {
         if (retryCount++ == sMaxRetries)
@@ -577,8 +578,10 @@ void Thread::killAll() {
     for(uInt i = 0; i < threads.size(); i++) {
         thread = threads.at(i);
 
+#ifdef COROUTINE_DEBUGGING
         cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
              << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << endl;
+#endif
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
             terminateAndWaitForThreadExit(thread);
@@ -1434,9 +1437,10 @@ bool Thread::try_context_switch() {
        Frame &frame = this_fiber->callStack[i];
        if(frame.isjit && vm.methods[frame.returnAddress].nativeFunc) {
            contextSwitching = false;
-           next_fiber = NULL;
            sendSignal(signal, tsig_context_switch, 0);
+#ifdef COROUTINE_DEBUGGING
            skipped++;
+#endif
            return false;
        }
    }
@@ -1616,7 +1620,9 @@ void Thread::enableContextSwitch(bool enable) {
 
 void Thread::waitForContextSwitch() {
     waiting = true;
+#ifdef COROUTINE_DEBUGGING
     switched++;
+#endif
     this_fiber->setAttachedThread(NULL);
 
     if(this_fiber->finished) {
@@ -1632,30 +1638,23 @@ void Thread::waitForContextSwitch() {
     next_fiber = fiber::nextFiber(last_fiber, this);
 
     wait:
-    const long sMaxRetries = 5000;
-
-    long retryCount = 0;
     while (next_fiber == NULL) {
+        __usleep(CLOCK_CYCLE);
+#ifdef COROUTINE_DEBUGGING
+        timeSleeping += CLOCK_CYCLE;
+#endif
+
         if(state == THREAD_KILLED || hasSignal(signal, tsig_kill))
             break;
-
-        if (retryCount++ == sMaxRetries)
-        {
-            next_fiber = fiber::nextFiber(last_fiber, this);
-            if(boundFibers == 0)
-                return;
-
-            timeSleeping += 2;
-            retryCount = 0;
-            __usleep(2);
-        } else if(hasSignal(signal, tsig_suspend))
+        else if(hasSignal(signal, tsig_suspend))
             suspendSelf();
+        else if(boundFibers == 0)
+            return;
+
+        next_fiber = fiber::nextFiber(last_fiber, this);
     }
 
     {
-        if(state == THREAD_KILLED || hasSignal(signal, tsig_kill))
-            return;
-
         if(next_fiber) {
             {
                 GUARD(mutex);
@@ -1666,8 +1665,10 @@ void Thread::waitForContextSwitch() {
             if(next_fiber && next_fiber->safeStart(this)) {
                 waiting = false;
                 this_fiber = next_fiber; next_fiber = NULL;
-            } else
+            } else {
+                next_fiber = NULL;
                 goto wait;
+            }
         } else {
             goto wait;
         }

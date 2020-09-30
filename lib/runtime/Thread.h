@@ -66,15 +66,19 @@ public:
         new (&mutex) recursive_mutex();
         boundFibers=0;
         waiting=0;
+#ifdef COROUTINE_DEBUGGING
         timeSleeping=0;
         switched=0;
         skipped=0;
+#endif
 #ifdef WIN32_
         thread = NULL;
 #endif
     }
 
+#ifdef COROUTINE_DEBUGGING
     Int timeSleeping, switched, skipped;
+#endif
 
     void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);
     static int32_t generateId();

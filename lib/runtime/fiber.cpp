@@ -79,7 +79,7 @@ void removeFiber(fiber* fib) {
         }
     }
 
-    //decrease_fibers();
+    decrease_fibers();
 }
 
 fiber* fiber::makeFiber(native_string &name, Method* main) {
@@ -100,6 +100,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->wakeable = true;
         fib->finished = false;
         fib->locking = false;
+        fib->marked = false;
         fib->attachedThread = NULL;
         fib->boundThread = NULL;
         fib->exceptionObject.object = NULL;
@@ -198,9 +199,23 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     return NULL;
 }
 
-void fiber::disposeFiber(fiber *fib) {
-    GUARD(fiberMutex)
-    removeFiber(fib);
+void fiber::disposeFibers() {
+    for(Int i = 0; i < fiberCount; i++) {
+        fiber* fib = fiberAt(i);
+        if(fib && fib->state == FIB_KILLED && fib->boundThread == NULL && fib->attachedThread == NULL && fib->finished) {
+            if(fib->marked) {
+                if(fib->state == FIB_KILLED && fib->boundThread == NULL && fib->attachedThread == NULL && fib->finished)
+                {
+                    fiberAt(i) = NULL;
+                    fib->free();
+                    std::free(fib);
+
+                    decrease_fibers();
+                }
+                else fib->marked = false;
+            } else fib->marked = true;
+        }
+    }
 }
 
 int fiber::suspend(uInt id) {

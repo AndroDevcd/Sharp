@@ -7,15 +7,13 @@
 
 #include "../../stdimports.h"
 
-#define LPTSI 15  /* low priority time slice interval 50us */  // ~20k fibers/thread
-#define NPTSI 100  /* norm priority time slice interval 100us */ // ~10k fibers/thread
-#define HPTSI 250 /* high priority time slice interval 150us */ // ~6k fibers/thread
-#define CSTL 15    /* Context switch time limit ~30us */
-#define CSST 2    /* Context switch sleep time 2us */
+#define LPTSI 100  /* low priority time slice interval 100us */  // ~10k fibers/thread
+#define NPTSI 150  /* norm priority time slice interval 150us */ // ~6k fibers/thread
+#define HPTSI 250 /* high priority time slice interval 250us */ // ~4k fibers/thread
+#define CLOCK_CYCLE 55    /* Time between clock cycle switches 55us */
 
 extern atomic<bool> threadReleaseBlock;
 void run_scheduler();
-bool try_context_switch(Thread *thread, fiber *fib);
 bool is_thread_ready(Thread *thread);
 void __usleep(unsigned int usec);
 
