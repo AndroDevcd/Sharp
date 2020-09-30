@@ -104,7 +104,7 @@ public:
     static int threadjoin(Thread*);
     static int destroy(Thread*);
     bool try_context_switch();
-    void enableContextSwitch(fiber *nextFib, bool enable);
+    void enableContextSwitch(bool enable);
 
     static int startDaemon(
 #ifdef WIN32_

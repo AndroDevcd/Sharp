@@ -42,6 +42,7 @@ public:
     void setAttachedThread(Thread *thread);
     void delay(Int time);
     int bind(Thread *thread);
+    bool safeStart(Thread *thread);
     static void disposeFiber(fiber *);
 
 public:
@@ -57,6 +58,8 @@ public:
     Object fiberObject;
     Method *main;
     Int calls;
+    pthread_mutex_t fmutex;
+    pthread_mutexattr_t fattr;
     Thread* attachedThread;
     Thread* boundThread;
     StackElement* dataStack, *sp, *fp;

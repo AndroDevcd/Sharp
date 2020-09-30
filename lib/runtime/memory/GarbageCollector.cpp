@@ -800,7 +800,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                             thread->this_fiber->delay(2000);
                             return false;
                         } else {
-                            thread->enableContextSwitch(NULL, false);
+                            thread->enableContextSwitch(false);
                         }
                     }
                 }

@@ -12,12 +12,21 @@ void __usleep(unsigned int usec)
 {
 
 #ifdef WIN32_
-    __os_yield();
-    std::this_thread::sleep_for(std::chrono::microseconds(usec));
+    HANDLE timer;
+    LARGE_INTEGER ft;
+
+    ft.QuadPart = -(10 * (__int64)usec);
+
+    timer = CreateWaitableTimer(NULL, TRUE, NULL);
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    WaitForSingleObject(timer, INFINITE);
+    CloseHandle(timer);
+//
+//__os_yield();
+//std::this_thread::sleep_for(std::chrono::microseconds(usec));
 #else
-    Int start = NANO_TOMICRO(Clock::realTimeInNSecs());
-    while((NANO_TOMICRO(Clock::realTimeInNSecs()) - start) < usec)
-       __os_yield();
+    __os_yield();
+    usleep(usec);
 #endif
 }
 
@@ -54,10 +63,15 @@ void run_scheduler() {
             } else if(thread->state != THREAD_RUNNING)
                 continue;
 
-            fib = fiber::nextFiber(thread->last_fiber, thread);
-            if (fib != NULL && is_thread_ready(thread)) {
-                if(!try_context_switch(thread, fib))
-                    cout << "l\n";
+            if (is_thread_ready(thread)) {
+                thread->enableContextSwitch(true);
+
+//                if(thread->waiting) {
+//                    fib = fiber::nextFiber(thread->last_fiber, thread);
+//                    if (fib && !try_context_switch(thread, fib))
+//                        cout << "l\n";
+//                } else {
+//                }
             }
         }
 
@@ -73,7 +87,7 @@ void run_scheduler() {
            return;
        }
 
-        __usleep(50);
+        __usleep(55);
     } while(true);
 }
 
@@ -82,7 +96,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
         return false; // race condition protect
     }
 
-    thread->enableContextSwitch(fib, true);
+    thread->enableContextSwitch(true);
 
     const long sMaxRetries = 5000;
     long retryCount = 0;
@@ -95,7 +109,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
             __usleep(CSST);
         } else if(spinCount >= CSTL) {
             thread->skipped++;
-            thread->enableContextSwitch(NULL, false);
+            thread->enableContextSwitch(false);
             return false;
         }
         else if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))

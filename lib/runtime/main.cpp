@@ -49,7 +49,6 @@ void help() {
     cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
-    cout <<               "    -t<size:type>          set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
     cout <<               "    -slowboot              compile entire codebase at startup." << endl;
     cout <<               "    -h -?                 display this help message." << endl;
@@ -96,12 +95,6 @@ int runtimeStart(int argc, const char* argv[])
         else if(opt("-debug")) {
             c_options.debugMode = true;
         }
-        else if(opt("-threshold") || opt("-t")) {
-            if((i+1) >= argc)
-                error("expected argument after option `" + string(argv[i]) + "`");
-            GarbageCollector::setMemoryThreshold(getMemBytes(argv[i+1], argv[i]));
-            i++;
-        }
 #ifdef SHARP_PROF_
         else if(opt("-sort") || opt("-sortby")) {
             if((i+1) >= argc)
@@ -126,6 +119,7 @@ int runtimeStart(int argc, const char* argv[])
                 error("maximum memory limit required after option `" + string(argv[i]) + "`");
             else {
                 GarbageCollector::setMemoryLimit(getMemBytes(argv[i+1], argv[i]));
+                GarbageCollector::setMemoryThreshold((Int) (gc.getMemoryLimit() * 0.35));
                 i++;
             }
         }

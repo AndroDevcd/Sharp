@@ -6,38 +6,48 @@
 #include "VirtualMachine.h"
 
 uInt fiber::fibId=0;
-uInt listSize = 0, fiberCount =0, resizeCount = 500;
-recursive_mutex fiberMutex, reallocMutex;
-fiber** fibers=NULL;
+atomic<uInt> listSize = {0}, fiberCount ={0};
+
+const Int resizeCount = 500;
+recursive_mutex fiberMutex;
+atomic<fiber**> fibers = {NULL };
+
+#define fiberAt(pos) fibers.load(std::memory_order_relaxed)[pos]
 
 void increase_fibers() {
-    GUARD(reallocMutex)
-    fibers = (fiber**)__realloc(fibers, sizeof(fiber**) * (listSize + resizeCount), sizeof(fiber**) * listSize);
-    for(Int i = listSize; i < (listSize+resizeCount); i++) {
-        fibers[i]=NULL;
+    GUARD(fiberMutex)
+    fiber** tmpfibers = (fiber**)__calloc((listSize + resizeCount), sizeof(fiber**)), **old;
+    for(Int i = 0; i < listSize; i++) {
+        tmpfibers[i]=fiberAt(i);
     }
 
     listSize += resizeCount;
+    old = fibers;
+    fibers=tmpfibers;
+    std::free(old);
     gc.addMemory(sizeof(fiber**) * resizeCount);
 }
 
 void decrease_fibers() {
     if(listSize > resizeCount && (listSize - fiberCount) >= resizeCount) {
-        GUARD(reallocMutex)
-        auto result = (fiber **) realloc(fibers, sizeof(fiber **) * (listSize - resizeCount));
-
-        if(result) {
-            listSize -= resizeCount;
-            fibers = result;
-            gc.freeMemory(sizeof(fiber**) * resizeCount);
+        GUARD(fiberMutex)
+        fiber** tmpfibers = (fiber**)__calloc((listSize - resizeCount), sizeof(fiber**)), **old;
+        for(Int i = 0; i < listSize; i++) {
+            tmpfibers[i]=fiberAt(i);
         }
+
+        listSize -= resizeCount;
+        old = fibers;
+        fibers=tmpfibers;
+        std::free(old);
+        gc.freeMemory(sizeof(fiber**) * resizeCount);
     }
 }
 
 fiber* locateFiber(Int id) {
     for(Int i = 0; i < fiberCount; i++) {
-        if(fibers[i] && fibers[i]->id == id) {
-            return fibers[i];
+        if(fiberAt(i) && fiberAt(i)->id == id) {
+            return fiberAt(i);
         }
     }
 
@@ -45,9 +55,10 @@ fiber* locateFiber(Int id) {
 }
 
 void addFiber(fiber* fib) {
+    GUARD(fiberMutex)
     for(Int i = 0; i < fiberCount; i++) {
-        if(fibers[i] == NULL) {
-            fibers[i] = fib;
+        if(fiberAt(i) == NULL) {
+            fiberAt(i) = fib;
             return;
         }
     }
@@ -55,15 +66,15 @@ void addFiber(fiber* fib) {
     if(fiberCount >= listSize)
         increase_fibers();
 
-    fibers[fiberCount++] = fib;
+    fibers.load(std::memory_order_relaxed)[fiberCount++] = fib;
 }
 
 void removeFiber(fiber* fib) {
     for(Int i = 0; i < fiberCount; i++) {
-        if(fibers[i] == fib) {
+        if(fiberAt(i) == fib) {
             fib->free();
             std::free(fib);
-            fibers[i] = NULL;
+            fiberAt(i) = NULL;
             break;
         }
     }
@@ -72,7 +83,6 @@ void removeFiber(fiber* fib) {
 }
 
 fiber* fiber::makeFiber(native_string &name, Method* main) {
-    GUARD(fiberMutex)
     // todo: check if space available before allocation
    fiber *fib = (fiber*)malloc(sizeof(fiber));
 
@@ -103,6 +113,11 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->stackLimit = internalStackSize;
         fib->registers = (double *) __calloc(REGISTER_SIZE, sizeof(double));
         fib->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
+
+        pthread_mutexattr_init(&fib->fattr);
+        pthread_mutexattr_settype(&fib->fattr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&fib->fmutex, &fib->fattr);
+
         if(internalStackSize - vm.manifest.threadLocals <= INITIAL_FRAME_SIZE) {
             fib->frameSize = internalStackSize - vm.manifest.threadLocals;
             fib->callStack = (Frame *) __calloc(internalStackSize - vm.manifest.threadLocals, sizeof(Frame));
@@ -134,8 +149,6 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
 }
 
 fiber* fiber::getFiber(uInt id) {
-    GUARD(fiberMutex)
-    std::lock_guard<recursive_mutex> guard2(reallocMutex);
     return locateFiber(id);
 }
 
@@ -154,24 +167,15 @@ bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 }
 
 fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
-    Int size;
-
-    {
-        GUARD(fiberMutex);
-        size = fiberCount;
-    }
-
-    GUARD(reallocMutex)
-
 
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
     if(startingFiber != NULL) {
-        for (Int i = 0; i < size; i++) {
-            if (fibers[i] == startingFiber) {
-                if ((i + 1) < size) {
-                    for (Int j = i + 1; j < size; j++) {
-                        if (fibers[j] && !fibers[j]->locking && isFiberRunnble(fibers[j], loggedTime, thread)) {
-                            return fibers[j];
+        for (Int i = 0; i < fiberCount; i++) {
+            if (fiberAt(i) == startingFiber) {
+                if ((i + 1) < fiberCount) {
+                    for (Int j = i + 1; j < fiberCount; j++) {
+                        if (fiberAt(j) && !fiberAt(j)->finished && !fiberAt(j)->locking && isFiberRunnble(fiberAt(j), loggedTime, thread)) {
+                            return fiberAt(j);
                         }
                     }
 
@@ -181,13 +185,13 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
         }
     }
 
-    for(Int i = 0; i < size; i++) {
-        fiber* fib = fibers[i];
+    for(Int i = 0; i < fiberCount; i++) {
+        fiber* fib = fiberAt(i);
        if(fib && isFiberRunnble(fib, loggedTime, thread))
            return fib;
        else if(fib && fib->state == FIB_KILLED && fib->boundThread == NULL && fib->attachedThread == NULL) {
-           fiber::disposeFiber(fib);
-           size--; i--;
+//           fiber::disposeFiber(fib);
+//           size--; i--;
        }
     }
 
@@ -204,19 +208,21 @@ int fiber::suspend(uInt id) {
     int result = 0;
 
     if(fib) {
+        pthread_mutex_lock(&fib->fmutex);
         if(fib->state == FIB_SUSPENDED) {
             fib->setWakeable(false);
         } else if(fib->state == FIB_RUNNING) {
             if(fib->attachedThread) {
                 fib->setWakeable(false);
                 fib->setState(fib->attachedThread, FIB_SUSPENDED);
-                fib->attachedThread->enableContextSwitch(NULL, true);
+                fib->attachedThread->enableContextSwitch(true);
             } else {
                 result = 2;
             }
         } else {
             result = 1;
         }
+        pthread_mutex_unlock(&fib->fmutex);
     }
 
     return result;
@@ -227,11 +233,13 @@ int fiber::unsuspend(uInt id) {
     int result = 0;
 
     if(fib) {
+        pthread_mutex_lock(&fib->fmutex);
         if(fib->state == FIB_SUSPENDED) {
             fib->setWakeable(true);
         } else {
             result = 1;
         }
+        pthread_mutex_unlock(&fib->fmutex);
     }
 
     return result;
@@ -242,18 +250,20 @@ int fiber::kill(uInt id) {
     int result = 0;
 
     if(fib) {
+        pthread_mutex_lock(&fib->fmutex);
         if(fib->state == FIB_SUSPENDED) {
             fib->setState(NULL, FIB_KILLED);
         } else if(fib->state == FIB_RUNNING) {
             if(fib->attachedThread) {
                 fib->setState(NULL, FIB_KILLED);
-                fib->attachedThread->enableContextSwitch(NULL, true);
+                fib->attachedThread->enableContextSwitch(true);
             } else {
                 result = 2;
             }
         } else {
             fib->setState(NULL, FIB_KILLED);
         }
+        pthread_mutex_unlock(&fib->fmutex);
     }
 
     return result;
@@ -289,6 +299,8 @@ void fiber::free() {
         std::free(callStack); callStack = NULL;
     }
 
+    pthread_mutex_destroy(&fmutex);
+    pthread_mutexattr_destroy(&fattr);
     fiberObject=(SharpObject*)NULL;
     exceptionObject=(SharpObject*)NULL;
     fp = NULL;
@@ -298,12 +310,14 @@ void fiber::free() {
 }
 
 int fiber::getState() {
-    GUARD(fiberMutex)
-    return (Int)state;
+    pthread_mutex_lock(&fmutex);
+    auto result = (Int)state;
+    pthread_mutex_unlock(&fmutex);
+    return result;
 }
 
 void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
-    GUARD(fiberMutex)
+    pthread_mutex_lock(&fmutex);
 
     switch(newState) {
         case FIB_RUNNING:
@@ -321,46 +335,69 @@ void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
             delayTime = -1;
             break;
     }
+    pthread_mutex_unlock(&fmutex);
 }
 
 void fiber::setWakeable(bool enable) {
-    GUARD(fiberMutex)
+    pthread_mutex_lock(&fmutex);
     wakeable = enable;
+    pthread_mutex_unlock(&fmutex);
 }
 
 Thread *fiber::getAttachedThread() {
-    GUARD(fiberMutex)
-    return attachedThread;
+    pthread_mutex_lock(&fmutex);
+    auto result = attachedThread;
+    pthread_mutex_unlock(&fmutex);
+    return result;
 }
 
 Thread *fiber::getBoundThread() {
-    GUARD(fiberMutex)
-    return boundThread;
+    pthread_mutex_lock(&fmutex);
+    auto result = boundThread;
+    pthread_mutex_unlock(&fmutex);
+    return result;
 }
 
 void fiber::setAttachedThread(Thread *thread) {
-    GUARD(fiberMutex)
+    pthread_mutex_lock(&fmutex);
     attachedThread = thread;
+    pthread_mutex_unlock(&fmutex);
 }
 
 void fiber::delay(Int time) {
-    GUARD(fiberMutex)
+    pthread_mutex_lock(&fmutex);
     if(time < 0)
         time = -1;
 
-    attachedThread->enableContextSwitch(thread_self->next_fiber, true);
+    attachedThread->enableContextSwitch(true);
     attachedThread->contextSwitching = true;
     setState(thread_self, FIB_SUSPENDED, NANO_TOMICRO(Clock::realTimeInNSecs()) + time);
+    pthread_mutex_unlock(&fmutex);
+}
+
+bool fiber::safeStart(Thread *thread) {
+    pthread_mutex_lock(&fmutex);
+    if(state == FIB_SUSPENDED && attachedThread == NULL) {
+        attachedThread = (thread);
+        setState(thread, FIB_RUNNING);
+    } else {
+        pthread_mutex_unlock(&fmutex);
+        return false;
+    }
+
+    pthread_mutex_unlock(&fmutex);
+    return true;
 }
 
 int fiber::bind(Thread *thread) {
-    GUARD(fiberMutex)
+    pthread_mutex_lock(&fmutex);
 
     if(thread != NULL) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
         if(thread->state != THREAD_KILLED || !hasSignal(thread->signal, tsig_kill)) {
             boundThread = thread;
             thread->boundFibers++;
+            pthread_mutex_unlock(&fmutex);
             return 0;
         }
     } else {
@@ -370,10 +407,12 @@ int fiber::bind(Thread *thread) {
         }
 
         boundThread = NULL;
+        pthread_mutex_unlock(&fmutex);
         return 0;
     }
 
 
+    pthread_mutex_unlock(&fmutex);
     return 1;
 }
 
@@ -395,8 +434,8 @@ void fiber::killBoundFibers(Thread *thread) {
         size = fiberCount;
     }
 
-    for(Int i = 0; i < size; i++) {
-        fiber *fib = fibers[i];
+    for(Int i = 0; i < fiberCount; i++) {
+        fiber *fib = fiberAt(i);
         if(fib && fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
             kill(fib->id);
         }
@@ -404,7 +443,8 @@ void fiber::killBoundFibers(Thread *thread) {
 }
 
 void fiber::growFrame() {
-    GUARD(fiberMutex)
+    pthread_mutex_lock(&fmutex);
+
     if(frameSize + FRAME_GROW_SIZE < frameLimit) {
         callStack = (Frame *) __realloc(callStack, sizeof(Frame) * (frameSize + FRAME_GROW_SIZE),
                                         sizeof(Frame) * frameSize);
@@ -416,5 +456,6 @@ void fiber::growFrame() {
         gc.addMemory(sizeof(Frame) * (frameLimit - frameSize));
         frameSize = frameLimit;
     }
+    pthread_mutex_unlock(&fmutex);
 }
 

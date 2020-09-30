@@ -577,10 +577,10 @@ void Thread::killAll() {
     for(uInt i = 0; i < threads.size(); i++) {
         thread = threads.at(i);
 
+        cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
+             << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << endl;
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
-            cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
-              << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << endl;
             terminateAndWaitForThreadExit(thread);
         }
     }
@@ -1609,9 +1609,8 @@ int Thread::destroy(Thread* thread) {
     }
 }
 
-void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
+void Thread::enableContextSwitch(bool enable) {
     GUARD(mutex);
-    next_fiber = nextFib;
     sendSignal(signal, tsig_context_switch, (enable ? 1 : 0));
 }
 
@@ -1630,6 +1629,8 @@ void Thread::waitForContextSwitch() {
     }
     this_fiber=NULL;
 
+    next_fiber = fiber::nextFiber(last_fiber, this);
+
     wait:
     const long sMaxRetries = 5000;
 
@@ -1640,6 +1641,7 @@ void Thread::waitForContextSwitch() {
 
         if (retryCount++ == sMaxRetries)
         {
+            next_fiber = fiber::nextFiber(last_fiber, this);
             if(boundFibers == 0)
                 return;
 
@@ -1661,10 +1663,9 @@ void Thread::waitForContextSwitch() {
                 contextSwitching = false;
             }
 
-            if(next_fiber) {
+            if(next_fiber && next_fiber->safeStart(this)) {
+                waiting = false;
                 this_fiber = next_fiber; next_fiber = NULL;
-                this_fiber->setAttachedThread(this);
-                this_fiber->setState(this, FIB_RUNNING);
             } else
                 goto wait;
         } else {
