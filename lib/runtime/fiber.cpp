@@ -353,16 +353,11 @@ void fiber::delay(Int time) {
     setState(thread_self, FIB_SUSPENDED, NANO_TOMICRO(Clock::realTimeInNSecs()) + time);
 }
 
-extern void printRegs();
 int fiber::bind(Thread *thread) {
     GUARD(fiberMutex)
 
     if(thread != NULL) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
-        if(thread->boundFibers > 1000) {
-            printRegs();
-            int i = 0;
-        }
         if(thread->state != THREAD_KILLED || !hasSignal(thread->signal, tsig_kill)) {
             boundThread = thread;
             thread->boundFibers++;

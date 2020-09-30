@@ -407,8 +407,6 @@ Int disk_space(long request) {
 #endif
 }
 
-extern void printRegs();
-
 void read_file(native_string &path, native_string &outStr) {
     GUARD(fileMutex);
     File::buffer buf;
