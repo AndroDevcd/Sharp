@@ -286,13 +286,14 @@ void GarbageCollector::run() {
             timeSlept += 25;
 #endif
 
-            __os_yield();
-#ifdef WIN32_
-            Sleep(25);
-#endif
-#ifdef POSIX_
-            usleep(25*999);
-#endif
+            __usleep(25*999);
+//            __os_yield();
+//#ifdef WIN32_
+//            Sleep(25);
+//#endif
+//#ifdef POSIX_
+//            usleep(25*999);
+//#endif
             if(state==SLEEPING) sedateSelf();
             if(!messageQueue.empty()) goto message;
 
