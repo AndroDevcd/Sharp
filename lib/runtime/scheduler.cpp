@@ -10,8 +10,15 @@
 
 void __usleep(unsigned int usec)
 {
+
+#ifdef WIN32_
     __os_yield();
     std::this_thread::sleep_for(std::chrono::microseconds(usec));
+#else
+    Int start = NANO_TOMICRO(Clock::realTimeInNSecs());
+    while((NANO_TOMICRO(Clock::realTimeInNSecs()) - start) < usec)
+       __os_yield();
+#endif
 }
 
 atomic<bool> threadReleaseBlock = { false };
@@ -22,7 +29,6 @@ void run_scheduler() {
        Thread *thread;
        Int size;
 
-       __os_yield();
         {
             GUARD(Thread::threadsListMutex);
             size = Thread::threads.size();
@@ -50,7 +56,8 @@ void run_scheduler() {
 
             fib = fiber::nextFiber(thread->last_fiber, thread);
             if (fib != NULL && is_thread_ready(thread)) {
-                try_context_switch(thread, fib);
+                if(!try_context_switch(thread, fib))
+                    cout << "l\n";
             }
         }
 
@@ -66,7 +73,7 @@ void run_scheduler() {
            return;
        }
 
-        __usleep(CSTL);
+        __usleep(50);
     } while(true);
 }
 
@@ -87,6 +94,7 @@ bool try_context_switch(Thread *thread, fiber *fib) {
             retryCount = 0;
             __usleep(CSST);
         } else if(spinCount >= CSTL) {
+            thread->skipped++;
             thread->enableContextSwitch(NULL, false);
             return false;
         }

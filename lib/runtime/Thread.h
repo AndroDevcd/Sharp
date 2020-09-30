@@ -66,10 +66,15 @@ public:
         new (&mutex) recursive_mutex();
         boundFibers=0;
         waiting=0;
+        timeSleeping=0;
+        switched=0;
+        skipped=0;
 #ifdef WIN32_
         thread = NULL;
 #endif
     }
+
+    Int timeSleeping, switched, skipped;
 
     void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);
     static int32_t generateId();

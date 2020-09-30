@@ -151,6 +151,7 @@ void Thread::waitForUnsuspend() {
             spinCount++;
             retryCount = 0;
 
+            timeSleeping += 10;
             __usleep(10);
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;
@@ -291,16 +292,14 @@ void Thread::unsuspendAndWait(Thread *thread) {
 
 void Thread::waitForThreadSuspend(Thread *thread) {
     const int sMaxRetries = 1000000;
-    const int sMaxSpinCount = 5; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
+    const int sMaxSpinCount = 10; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
 
     int spinCount = 0;
     int retryCount = 0;
 
+    cout << "k\n";
     while (thread->state == THREAD_RUNNING && !thread->suspended)
     {
-        if(thread->contextSwitching)
-            return;
-
         if (retryCount++ == sMaxRetries)
         {
             suspendThread(thread);
@@ -320,7 +319,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
 
 void Thread::waitForThreadUnSuspend(Thread *thread) {
     const int sMaxRetries = 1000000;
-    const int sMaxSpinCount = 5;
+    const int sMaxSpinCount = 10;
 
     int spinCount = 0;
     int retryCount = 0;
@@ -328,8 +327,6 @@ void Thread::waitForThreadUnSuspend(Thread *thread) {
 
     while (thread->state != THREAD_RUNNING)
     {
-        if(thread->contextSwitching)
-            return;
 
         if (retryCount++ == sMaxRetries)
         {
@@ -582,6 +579,8 @@ void Thread::killAll() {
 
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
+            cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
+              << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << endl;
             terminateAndWaitForThreadExit(thread);
         }
     }
@@ -1428,6 +1427,8 @@ void Thread::exec() {
 }
 
 bool Thread::try_context_switch() {
+    __os_yield();
+
    GUARD(mutex)
    for(Int i = 0; i < this_fiber->calls; i++) {
        Frame &frame = this_fiber->callStack[i];
@@ -1435,6 +1436,7 @@ bool Thread::try_context_switch() {
            contextSwitching = false;
            next_fiber = NULL;
            sendSignal(signal, tsig_context_switch, 0);
+           skipped++;
            return false;
        }
    }
@@ -1615,10 +1617,11 @@ void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
 
 void Thread::waitForContextSwitch() {
     waiting = true;
+    switched++;
     this_fiber->setAttachedThread(NULL);
 
     if(this_fiber->finished) {
-        if(fiber::boundFiberCount(this) > 1) {
+        if(boundFibers > 1) {
             this_fiber->setState(this, FIB_KILLED);
         }
         else return;
@@ -1640,9 +1643,11 @@ void Thread::waitForContextSwitch() {
             if(boundFibers == 0)
                 return;
 
+            timeSleeping += 2;
             retryCount = 0;
             __usleep(2);
-        }
+        } else if(hasSignal(signal, tsig_suspend))
+            suspendSelf();
     }
 
     {
