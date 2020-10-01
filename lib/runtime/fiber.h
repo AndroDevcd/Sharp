@@ -43,7 +43,6 @@ public:
     void delay(Int time);
     int bind(Thread *thread);
     bool safeStart(Thread *thread);
-    static void disposeFibers();
     static void dispose(fiber *fib);
 
 public:

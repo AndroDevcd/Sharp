@@ -26,7 +26,7 @@ void __usleep(unsigned int usec)
 //__os_yield();
 //std::this_thread::sleep_for(std::chrono::microseconds(usec));
 #else
-    __os_yield();
+    __os_yield()
     usleep(usec);
 #endif
 }
@@ -39,20 +39,19 @@ void run_scheduler() {
     Int size;
 
     do {
+        __os_yield();
        clocks++;
-
-//        if((clocks % 1000) == 0) {
-//            fiber::disposeFibers(); // every ~50ms
-//        }
 
         {
             GUARD(Thread::threadsListMutex)
             size = Thread::threads.size();
         }
 
+        loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
         for (Int i = 0; i < size; i++) {
             thread = Thread::threads.at(i);
-            loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
+
+            if(i == gc_threadid) continue;
 
             if (vm.state >= VM_SHUTTING_DOWN) {
                 break;
@@ -87,7 +86,7 @@ void run_scheduler() {
            return;
        }
 
-        __usleep(CLOCK_CYCLE/2);
+        __usleep(CLOCK_CYCLE);
     } while(true);
 }
 
