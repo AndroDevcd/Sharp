@@ -12,6 +12,7 @@ void __usleep(unsigned int usec)
 {
 
 #ifdef WIN32_
+    __os_yield();
     HANDLE timer;
     LARGE_INTEGER ft;
 
@@ -33,19 +34,20 @@ void __usleep(unsigned int usec)
 atomic<bool> threadReleaseBlock = { false };
 uInt loggedTime = 0, clocks = 0;
 void run_scheduler() {
+    fiber *fib = NULL;
+    Thread *thread;
+    Int size;
+
     do {
-       fiber *fib = NULL;
-       Thread *thread;
-       Int size;
        clocks++;
 
-        {
-            GUARD(Thread::threadsListMutex);
-            size = Thread::threads.size();
-        }
+//        if((clocks % 1000) == 0) {
+//            fiber::disposeFibers(); // every ~50ms
+//        }
 
-        if((clocks % 1000) == 0) {
-            fiber::disposeFibers();// every ~50ms
+        {
+            GUARD(Thread::threadsListMutex)
+            size = Thread::threads.size();
         }
 
         for (Int i = 0; i < size; i++) {
@@ -58,7 +60,7 @@ void run_scheduler() {
 
             if (vm.state != VM_SHUTTING_DOWN && thread->state == THREAD_KILLED) {
                 if(!threadReleaseBlock) {
-                    GUARD(Thread::threadsListMutex);
+                    GUARD(Thread::threadsListMutex)
                     fiber::killBoundFibers(thread);
                     Thread::destroy(thread);
                     size--;
@@ -85,7 +87,7 @@ void run_scheduler() {
            return;
        }
 
-        __usleep(CLOCK_CYCLE);
+        __usleep(CLOCK_CYCLE/2);
     } while(true);
 }
 
@@ -93,7 +95,6 @@ bool is_thread_ready(Thread *thread) {
     uInt currentTime = loggedTime;
     if(thread->state != THREAD_RUNNING || hasSignal(thread->signal, tsig_kill) || hasSignal(thread->signal, tsig_suspend))
         return false;
-    if(thread->this_fiber == NULL) return true;
 
     switch(thread->priority) {
         case THREAD_PRIORITY_LOW:

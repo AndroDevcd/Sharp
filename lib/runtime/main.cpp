@@ -218,6 +218,7 @@ uInt getMemBytes(const char *str, string option) {
 
 int startApplication(string &exe, std::list<string>& appArgs) {
     int result;
+    Thread *main = NULL;
     try {
         if ((result = CreateVirtualMachine(exe)) != 0) {
             fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);

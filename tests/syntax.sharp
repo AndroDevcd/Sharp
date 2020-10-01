@@ -1,23 +1,53 @@
 mod app;
 
-import std.io;
-import std.io.coroutines;
+//import std.io;
+//import std.io.coroutines;
+//import platform;
+//import platform.kernel;
+//
+//chan := new channel<var>(UNLIMITED);
+//task_count := 64;
+//
+//def foo() : var {
+//    set_thread_max(2);
+//    for(i := 0; i < task_count; i++) {
+//        coroutine.builder()
+//         .unconfined()
+//         .with_args(new int[] { i }) = { args :object[] ->
+//           index := (args[1] as int).get_value();
+//           for(i := 0; i < 100_000_000; i++) {}
+//           chan.send(0);
+//           println("task #$index");
+//        };
+//    }
+//
+//    return 0;
+//}
+//
+//def main(args: string[]) {
+//   foo();
+//   chan.read_next(0, task_count);
+//}
+
+import std.io.*;
 import platform;
 import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
-task_count := 64;
+task_count := 12000;
+counter := new atomic<var>{ 0 };
 
 def foo() : var {
-    set_thread_max(2);
     for(i := 0; i < task_count; i++) {
-        coroutine.builder()
-         .unconfined()
-         .with_args(new int[] { i }) = { args :object[] ->
-           index := (args[1] as int).get_value();
-           for(i := 0; i < 100_000_000; i++) {}
-           chan.send(0);
-           println("task #$index");
+        if(i % 100 == 0) {
+           println(i);
+        }
+
+        coroutine.builder().unconfined() = {->
+           for( ;; ) {
+              counter++;
+              delay(1000);
+           }
         };
     }
 
@@ -26,38 +56,8 @@ def foo() : var {
 
 def main(args: string[]) {
    foo();
-   chan.read_next(0, task_count);
-}
-
-//import std.io.*;
-//import platform;
-//import platform.kernel;
-//
-//chan := new channel<var>(UNLIMITED);
-//task_count := 12000;
-//counter := new atomic<var>{ 0 };
-//
-//def foo() : var {
-//    for(i := 0; i < task_count; i++) {
-//        if(i % 100 == 0) {
-//           println(i);
-//        }
-//
-//        coroutine.builder().unconfined() = {->
-//           for( ;; ) {
-//              counter++;
-//              delay(1000);
-//           }
-//        };
-//    }
-//
-//    return 0;
-//}
-//
-//def main(args: string[]) {
-////   foo();
 //   past := time.mills_time();
 //   delay(10);
 //   println(time.mills_time()-past);
-//  // println(counter++);
-//}
+   println(counter++);
+}

@@ -328,7 +328,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
                 goto end;
 
-            Int fibersLeft = thread->boundFibers;
+            Int fibersLeft = fiber::boundFiberCount(thread);
             if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->boundThread == thread))
                 goto end;
             else
@@ -355,7 +355,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                 goto end;
 
             Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->boundThread == thread))
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->getBoundThread() == thread))
                 goto end;
             else
                 goto retry;
@@ -579,9 +579,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 fib->bind(t);
                 fib->setState(NULL, FIB_SUSPENDED);
 
-//                if(t && t->next_fiber == NULL) {
-//                    t->enableContextSwitch(fib, true);
-//                }
+                if(t && t->next_fiber == NULL) {
+                    t->enableContextSwitch(true);
+                }
                 _64EBX = fib->id;
             } else {
                 throw Exception(vm.NullptrExcept, "");

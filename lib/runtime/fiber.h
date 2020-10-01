@@ -44,10 +44,10 @@ public:
     int bind(Thread *thread);
     bool safeStart(Thread *thread);
     static void disposeFibers();
+    static void dispose(fiber *fib);
 
 public:
 
-    static uInt fibId;
     uInt id;
     native_string name;
     Int stackLimit;
@@ -72,7 +72,6 @@ public:
     bool wakeable;
     bool finished;
     bool locking;
-    bool marked;
 };
 
 #endif //SHARP_FIBER_H

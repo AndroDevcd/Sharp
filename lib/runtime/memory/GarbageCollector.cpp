@@ -149,6 +149,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown())
         return;
 
+    cout << "p\n";
     updateMemoryThreshold();
 
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
@@ -771,6 +772,11 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         long spins = 0;
         if(mut->fiberid != thread->this_fiber->id) {
             if (mut->threadid == thread->id) {
+                auto fib = fiber::getFiber(mut->fiberid);
+                auto bound = fib->boundThread;
+
+                if(bound && bound->id == thread->id)
+                  thread->next_fiber = fib;
                 thread->this_fiber->delay(2000);
                 return false;
             }
@@ -785,7 +791,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                         return true;
                     }
 
-                    __usleep(5);
+                    __usleep(10);
                 } else if (hasSignal(thread->signal, tsig_context_switch)) {
                     if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
                         thread->try_context_switch();

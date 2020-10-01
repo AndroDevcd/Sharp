@@ -48,15 +48,14 @@ public:
         suspended = false;
         exited = false;
         terminated = false;
-        waiting = false;
         priority = THREAD_PRIORITY_NORM;
         name.init();
         this_fiber = NULL;
-        next_fiber = NULL;
         last_fiber = NULL;
         signal = tsig_empty;
         contextSwitching=false;
         marked=false;
+        waiting=false;
         lastRanMicros=0;
 #ifdef BUILD_JIT
         jctx = NULL;
@@ -64,8 +63,8 @@ public:
         args.object = NULL;
         currentThread.object=NULL;
         new (&mutex) recursive_mutex();
+        next_fiber = NULL;
         boundFibers=0;
-        waiting=0;
 #ifdef COROUTINE_DEBUGGING
         timeSleeping=0;
         switched=0;
@@ -75,7 +74,6 @@ public:
         thread = NULL;
 #endif
     }
-
 #ifdef COROUTINE_DEBUGGING
     Int timeSleeping, switched, skipped;
 #endif
@@ -157,13 +155,14 @@ public:
     bool suspended;
     bool exited;
     bool marked;
-    bool waiting;
     native_string name;
     Object currentThread, args;
-    fiber *this_fiber, *next_fiber, *last_fiber;
+    fiber *this_fiber, *last_fiber;
+    fiber* next_fiber;
     Method* mainMethod;
     uInt lastRanMicros;
     bool contextSwitching;
+    bool waiting;
 
 #ifdef WIN32_
     HANDLE thread;
