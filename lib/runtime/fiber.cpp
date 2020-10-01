@@ -138,7 +138,7 @@ fiber* fiber::getFiber(uInt id) {
 }
 
 inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
-    if(fib->state == FIB_SUSPENDED && fib->wakeable) {
+    if(fib->state == FIB_SUSPENDED && fib->wakeable && fib->attachedThread == NULL) {
         if(fib->boundThread == thread || fib->boundThread == NULL) {
             if (fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
                 return true;

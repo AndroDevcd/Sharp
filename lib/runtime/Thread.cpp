@@ -1662,7 +1662,7 @@ void Thread::waitForContextSwitch() {
                 contextSwitching = false;
             }
 
-            if(next_fiber && next_fiber->safeStart(this)) {
+            if(next_fiber->safeStart(this)) {
                 waiting = false;
                 this_fiber = next_fiber; next_fiber = NULL;
             } else {

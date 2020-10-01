@@ -52,7 +52,7 @@ using namespace std;
 #endif
 
 //#define SHARP_PROF_
-//#define COROUTINE_DEBUGGING
+#define COROUTINE_DEBUGGING
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"
 #endif
