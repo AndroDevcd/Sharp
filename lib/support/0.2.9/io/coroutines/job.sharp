@@ -16,29 +16,23 @@ public class job {
 
 	protected def execute_async() : var {
 		if(state == created) {
-		    if(unconfined) {
-               fib = slice({ args ->
-                  schdj := args[0] as job;
-                  schdj.execute();
-                  return 0;
-               }, { self });
-			   return 0;
-		    } else {
-			   if(!host.is_active()) {
-			       if(host.start() != result_ok)
-			       {
-			         return 2;
-			       }
-			   }
+            if(!host.is_active()) {
+                if(host.start() != result_ok)
+                {
+                  return 2;
+                }
+            }
 
-               if(fiber.poll(host) >= 1) {
-                   fib = slice({ args ->
-                      schdj := args[0] as job;
-                      schdj.execute();
-                      return 0;
-                   }, host, { self });
-			       return 0;
-               }
+            if(fiber.poll(host) >= 1) {
+                running_host : thread;
+                if(!unconfined) running_host = host;
+
+                slice({ args ->
+                   schdj := args[0] as job;
+                   schdj.execute();
+                   return 0;
+                }, running_host, { self });
+                return 0;
             }
 		} else if(state == active) {
 			return 1;

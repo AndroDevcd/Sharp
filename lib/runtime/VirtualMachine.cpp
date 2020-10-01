@@ -318,7 +318,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             }
         }
 
-        if(thread->this_fiber && thread->this_fiber->getBoundThread() != thread
+        if(thread->this_fiber && thread->this_fiber->boundThread != thread
            && hasSignal(thread->signal, tsig_except)) {
             thread->printException();
         }
@@ -328,8 +328,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
                 goto end;
 
-            Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->getBoundThread() == thread))
+            Int fibersLeft = thread->boundFibers;
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->boundThread == thread))
                 goto end;
             else
                 goto retry;
@@ -347,7 +347,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         }
 
         sendSignal(thread->signal, tsig_except, 1);
-        if(thread->this_fiber && thread->this_fiber->getBoundThread() != thread) {
+        if(thread->this_fiber && thread->this_fiber->boundThread != thread) {
             thread->printException();
 
             thread->waitForContextSwitch();
@@ -355,7 +355,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                 goto end;
 
             Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->getBoundThread() == thread))
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->boundThread == thread))
                 goto end;
             else
                 goto retry;

@@ -58,8 +58,7 @@ public:
     Object fiberObject;
     Method *main;
     Int calls;
-    pthread_mutex_t fmutex;
-    pthread_mutexattr_t fattr;
+    recursive_mutex mut;
     Thread* attachedThread;
     Thread* boundThread;
     StackElement* dataStack, *sp, *fp;
