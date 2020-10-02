@@ -44,7 +44,7 @@ void run_scheduler() {
 #ifdef POSIX_
     pthread_attr_t thAttr;
     int policy = 0;
-    int pthread_prio = 0;
+    int pthread_prio;
 
     pthread_attr_init(&thAttr);
     pthread_attr_getschedpolicy(&thAttr, &policy);
@@ -55,6 +55,9 @@ void run_scheduler() {
 
     do {
        clocks++;
+       if(clocks % 1000 == 0) {
+           fiber::disposeFibers();
+       }
 
         {
             GUARD(Thread::threadsListMutex)

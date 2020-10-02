@@ -1627,7 +1627,7 @@ void Thread::waitForContextSwitch() {
 
     if(this_fiber->finished) {
         if(boundFibers > 1 || this_fiber->boundThread != this) {
-            fiber::dispose(this_fiber);
+            this_fiber->setState(this, FIB_KILLED);
         }
         else {
             waiting = false;

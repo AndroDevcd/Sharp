@@ -43,7 +43,7 @@ public:
     void delay(Int time);
     int bind(Thread *thread);
     bool safeStart(Thread *thread);
-    static void dispose(fiber *fib);
+    static void disposeFibers();
 
 public:
 
@@ -71,6 +71,7 @@ public:
     bool wakeable;
     bool finished;
     bool locking;
+    bool marked;
 };
 
 #endif //SHARP_FIBER_H

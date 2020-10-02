@@ -60,12 +60,12 @@ fiber* locateFiber(Int id) {
 }
 
 void addFiber(fiber* fib) {
+    GUARD(fmut)
     fib->id = fibId++;
 
     Int size = dataSize;
     for(Int i = 0; i < size; i++) {
         if(fibers[i] == NULL) {
-            GUARD(fmut)
             if(fibers[i] == NULL) {
                 fibers[i] = fib;
                 return;
@@ -96,6 +96,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->wakeable = true;
         fib->finished = false;
         fib->locking = false;
+        fib->marked = false;
         fib->attachedThread = NULL;
         fib->boundThread = NULL;
         fib->exceptionObject.object = NULL;
@@ -160,7 +161,6 @@ inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 }
 
 fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
-
     fiber *fib = NULL;
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
     if(startingFiber != NULL) {
@@ -187,20 +187,22 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     return startingFiber;
 }
 
-void fiber::dispose(fiber *f) {
-    GUARD(fmut)
+void fiber::disposeFibers() {
     {
+        for (Int i = 0; i < dataSize; i++) {
+            fiber *fib = fiberAt(i);
+            if (fib && fib->finished && fib->state == FIB_KILLED && fib->attachedThread == NULL) {
+                if(fib->marked) {
+                    fiberAt(i) = NULL;
 
-        for(Int i = 0; i < dataSize; i++) {
-
-            if(fiberAt(i)== f) {
-                fiberAt(i) = NULL;
+                    GUARD(fmut)
+                    fib->free();
+                    std::free(fib);
+                } else fib->marked = true;
             }
         }
     }
 
-    f->free();
-    std::free(f);
     decrease_fibers();
 }
 
@@ -254,7 +256,7 @@ int fiber::kill(uInt id) {
     if(fib) {
         GUARD(fmut)
         if(fib->state == FIB_SUSPENDED) {
-            dispose(fib);
+            fib->setState(NULL, FIB_KILLED);
         } else if(fib->state == FIB_RUNNING) {
             if(fib->attachedThread) {
                 fib->setState(NULL, FIB_KILLED);
@@ -263,7 +265,7 @@ int fiber::kill(uInt id) {
                 result = 2;
             }
         } else {
-            dispose(fib);
+            fib->setState(NULL, FIB_KILLED);
         }
         
     }
@@ -345,16 +347,12 @@ void fiber::setWakeable(bool enable) {
 
 Thread *fiber::getAttachedThread() {
     GUARD(mut)
-    auto result = attachedThread;
-    
-    return result;
+    return attachedThread;
 }
 
 Thread *fiber::getBoundThread() {
     GUARD(mut)
-    auto result = boundThread;
-    
-    return result;
+    return boundThread;
 }
 
 void fiber::setAttachedThread(Thread *thread) {
@@ -372,7 +370,7 @@ void fiber::delay(Int time) {
 }
 
 bool fiber::safeStart(Thread *thread) {
-    GUARD(mut)
+    GUARD(fmut)
     if(state == FIB_SUSPENDED && attachedThread == NULL && (boundThread == NULL || boundThread == thread)) {
         attachedThread = (thread);
         setState(thread, FIB_RUNNING);
@@ -413,8 +411,7 @@ int fiber::bind(Thread *thread) {
 Int fiber::boundFiberCount(Thread *thread) {
     if(thread != NULL) {
         GUARD(thread->mutex)
-        uInt fibs = thread->boundFibers;
-        return fibs;
+        return thread->boundFibers;
     }
     return 0;
 }
