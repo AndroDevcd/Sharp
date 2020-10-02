@@ -149,7 +149,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown())
         return;
 
-    cout << "p\n";
     updateMemoryThreshold();
 
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
