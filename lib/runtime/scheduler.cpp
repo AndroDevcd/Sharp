@@ -83,6 +83,10 @@ void run_scheduler() {
                usleep(1*POSIX_USEC_INTERVAL);
 #endif
            }
+
+#ifdef COROUTINE_DEBUGGING
+           cout << "total sched clocks: " << clocks << endl;
+#endif
            return;
        }
 

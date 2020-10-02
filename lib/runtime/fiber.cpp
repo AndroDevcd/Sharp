@@ -7,7 +7,7 @@
 
 uInt fibId=0 ;
 Int dataSize=0, capacity = 0;
-const Int RESIZE_COUNT = 1000l;
+const Int RESIZE_MIN = 2500l;
 recursive_mutex fmut;
 fiber** fibers;
 
@@ -15,29 +15,35 @@ fiber** fibers;
 
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
+        Thread::suspendAllThreads(true);
         GUARD(fmut)
-        fibers = (fiber**)__realloc(fibers, (capacity + RESIZE_COUNT) * sizeof(fiber **), (capacity) * sizeof(fiber **));
-        for(Int i = capacity; i < (capacity+RESIZE_COUNT); i++)
+        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 4) + RESIZE_MIN;
+        fibers = (fiber**)__realloc(fibers, (capacity + resizeAmnt) * sizeof(fiber **), (capacity) * sizeof(fiber **));
+        for(Int i = capacity; i < (capacity+resizeAmnt); i++)
             fibers[i]=NULL;
 
-        capacity += RESIZE_COUNT;
-        gc.addMemory(sizeof(fiber **) * RESIZE_COUNT);
+        capacity += resizeAmnt;
+        gc.addMemory(sizeof(fiber **) * resizeAmnt);
+        Thread::resumeAllThreads(true);
     }
 }
 
 void decrease_fibers() {
-    if(dataSize > RESIZE_COUNT && (capacity - dataSize) >= RESIZE_COUNT) {
-        GUARD(fmut)
-        fiber** tmpfibers = (fiber**)__calloc((capacity - RESIZE_COUNT), sizeof(fiber**)), **old;
+    GUARD(fmut)
+
+    if(dataSize > RESIZE_MIN && (capacity - dataSize) >= RESIZE_MIN) {
+        Thread::suspendAllThreads(true);
+        fiber** tmpfibers = (fiber**)__calloc((capacity - RESIZE_MIN), sizeof(fiber**)), **old;
         for(Int i = 0; i < dataSize; i++) {
             tmpfibers[i]=fibers[i];
         }
 
-        dataSize -= RESIZE_COUNT;
+        dataSize -= RESIZE_MIN;
         old = fibers;
         fibers=tmpfibers;
         std::free(old);
-        gc.freeMemory(sizeof(fiber**) * RESIZE_COUNT);
+        gc.freeMemory(sizeof(fiber**) * RESIZE_MIN);
+        Thread::resumeAllThreads(true);
     }
 }
 
@@ -54,14 +60,16 @@ fiber* locateFiber(Int id) {
 }
 
 void addFiber(fiber* fib) {
-    GUARD(fmut)
     fib->id = fibId++;
 
     Int size = dataSize;
     for(Int i = 0; i < size; i++) {
         if(fibers[i] == NULL) {
-            fibers[i] = fib;
-            return;
+            GUARD(fmut)
+            if(fibers[i] == NULL) {
+                fibers[i] = fib;
+                return;
+            }
         }
     }
 
@@ -134,7 +142,6 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
 }
 
 fiber* fiber::getFiber(uInt id) {
-    GUARD(fmut)
     return locateFiber(id);
 }
 
@@ -153,7 +160,6 @@ inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 }
 
 fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
-    GUARD(fmut)
 
     fiber *fib = NULL;
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
@@ -182,9 +188,8 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
 }
 
 void fiber::dispose(fiber *f) {
-    fiber *fib = NULL;
+    GUARD(fmut)
     {
-        GUARD(fmut)
 
         for(Int i = 0; i < dataSize; i++) {
 
@@ -194,10 +199,9 @@ void fiber::dispose(fiber *f) {
         }
     }
 
-    if(fib) {
-        fib->free();
-        std::free(fib);
-    }
+    f->free();
+    std::free(f);
+    decrease_fibers();
 }
 
 
