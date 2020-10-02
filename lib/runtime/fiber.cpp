@@ -20,10 +20,10 @@ void increase_fibers() {
         Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 4) + RESIZE_MIN;
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
         fiber ** old = fibers;
-        fibers = tmpfibers;
         for(Int i = 0; i < dataSize; i++)
             tmpfibers[i] = old[i];
 
+        fibers = tmpfibers;
         capacity += resizeAmnt;
         std::free(old);
         gc.addMemory(sizeof(fiber **) * resizeAmnt);
@@ -37,11 +37,11 @@ void decrease_fibers() {
         GUARD(fmut)
         fiber** tmpfibers = (fiber**)__calloc(resizeAmount, sizeof(fiber**));
         fiber **old = fibers;
-        fibers=tmpfibers;
         for(Int i = 0; i < dataSize; i++) {
             tmpfibers[i]=old[i];
         }
 
+        fibers=tmpfibers;
         dataSize -= RESIZE_MIN;
         gc.freeMemory(sizeof(fiber**) * RESIZE_MIN);
         std::free(old);
@@ -190,11 +190,16 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
 
 void fiber::disposeFibers() {
     {
+        GUARD(fmut)
         for (Int i = 0; i < dataSize; i++) {
             fiber *fib = fiberAt(i);
+
+            if (vm.state >= VM_SHUTTING_DOWN) {
+                return;
+            }
+
             if (fib && fib->finished && fib->state == FIB_KILLED && fib->attachedThread == NULL) {
                 if(fib->marked) {
-                    GUARD(fmut)
                     fiberAt(i) = NULL;
 
                     fib->free();
@@ -202,9 +207,10 @@ void fiber::disposeFibers() {
                 } else fib->marked = true;
             }
         }
+
+        decrease_fibers();
     }
 
-    decrease_fibers();
 }
 
 

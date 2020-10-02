@@ -1,10 +1,10 @@
 mod app;
 
-import std.io;
-import std.io.coroutines;
-import platform;
-import platform.kernel;
-
+//import std.io;
+//import std.io.coroutines;
+//import platform;
+//import platform.kernel;
+//
 //chan := new channel<var>(UNLIMITED);
 //task_count := 64;
 //
@@ -12,7 +12,7 @@ import platform.kernel;
 //    set_thread_max(2);
 //    for(i := 0; i < task_count; i++) {
 //        coroutine.builder()
-////         .unconfined()
+//         .unconfined()
 //         .with_args(new int[] { i }) = { args :object[] ->
 //           index := (args[1] as int).get_value();
 //           for(i := 0; i < 100_000_000; i++) {}
@@ -25,10 +25,9 @@ import platform.kernel;
 //}
 //
 //def main(args: string[]) {
-////   foo();
-////   chan.read_next(0, task_count);
 //   past := time.mills_time();
-//    for(i := 0; i < 100_000_000; i++) {}
+//   foo();
+//   chan.read_next(0, task_count);
 //   println(time.mills_time()-past);
 //}
 
@@ -42,11 +41,13 @@ counter := new atomic<var>{ 0 };
 
 def foo() : var {
     for(i := 0; i < task_count; i++) {
-        coroutine.builder().unconfined() = {->
-           for( ;; ) {
+        coroutine.builder()
+        .unconfined()
+        = { ->
+             for( ;; ) {
               counter++;
               delay(1000);
-           }
+             }
         };
     }
 
@@ -56,6 +57,7 @@ def foo() : var {
 def main(args: string[]) {
    past := time.mills_time();
    foo();
+   delay(1000);
    println(time.mills_time()-past);
    println(counter++);
 }

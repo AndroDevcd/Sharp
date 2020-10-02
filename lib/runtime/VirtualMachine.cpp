@@ -579,9 +579,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 fib->bind(t);
                 fib->setState(NULL, FIB_SUSPENDED);
 
-                if(t && t->next_fiber == NULL) {
-                    t->enableContextSwitch(true);
-                }
+//                if(t && t->next_fiber == NULL) {
+//                    t->enableContextSwitch(true);
+//                }
                 _64EBX = fib->id;
             } else {
                 throw Exception(vm.NullptrExcept, "");

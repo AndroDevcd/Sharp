@@ -120,7 +120,7 @@ private def scheduler_main(args : object[]) : var
             kill_threads();
         }
 
-		thread.sleep(5);
+		delay(5);
 	}
 	return 0;
 }
