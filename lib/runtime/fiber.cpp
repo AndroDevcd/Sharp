@@ -4,46 +4,47 @@
 #include "fiber.h"
 #include "Thread.h"
 #include "VirtualMachine.h"
+#include "scheduler.h"
 
 uInt fibId=0 ;
 Int dataSize=0, capacity = 0;
 const Int RESIZE_MIN = 2500l;
 recursive_mutex fmut;
-fiber** fibers;
+atomic<fiber**> fibers = { NULL };
 
 #define fiberAt(pos) fibers[pos]
 
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
-        Thread::suspendAllThreads(true);
         GUARD(fmut)
         Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 4) + RESIZE_MIN;
-        fibers = (fiber**)__realloc(fibers, (capacity + resizeAmnt) * sizeof(fiber **), (capacity) * sizeof(fiber **));
-        for(Int i = capacity; i < (capacity+resizeAmnt); i++)
-            fibers[i]=NULL;
+        fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
+        fiber ** old = fibers;
+        fibers = tmpfibers;
+        for(Int i = 0; i < dataSize; i++)
+            tmpfibers[i] = old[i];
 
         capacity += resizeAmnt;
+        std::free(old);
         gc.addMemory(sizeof(fiber **) * resizeAmnt);
-        Thread::resumeAllThreads(true);
     }
 }
 
 void decrease_fibers() {
 
-    if(dataSize > RESIZE_MIN && (capacity - dataSize) >= RESIZE_MIN) {
+    Int resizeAmount = (dataSize + (0.25 * capacity));
+    if(resizeAmount > RESIZE_MIN && resizeAmount < capacity) {
         GUARD(fmut)
-        Thread::suspendAllThreads(true);
-        fiber** tmpfibers = (fiber**)__calloc((capacity - RESIZE_MIN), sizeof(fiber**)), **old;
+        fiber** tmpfibers = (fiber**)__calloc(resizeAmount, sizeof(fiber**));
+        fiber **old = fibers;
+        fibers=tmpfibers;
         for(Int i = 0; i < dataSize; i++) {
-            tmpfibers[i]=fibers[i];
+            tmpfibers[i]=old[i];
         }
 
         dataSize -= RESIZE_MIN;
-        old = fibers;
-        fibers=tmpfibers;
-        std::free(old);
         gc.freeMemory(sizeof(fiber**) * RESIZE_MIN);
-        Thread::resumeAllThreads(true);
+        std::free(old);
     }
 }
 
@@ -193,9 +194,9 @@ void fiber::disposeFibers() {
             fiber *fib = fiberAt(i);
             if (fib && fib->finished && fib->state == FIB_KILLED && fib->attachedThread == NULL) {
                 if(fib->marked) {
+                    GUARD(fmut)
                     fiberAt(i) = NULL;
 
-                    GUARD(fmut)
                     fib->free();
                     std::free(fib);
                 } else fib->marked = true;

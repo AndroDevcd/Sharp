@@ -86,10 +86,8 @@ void run_scheduler() {
             } else if(thread->state != THREAD_RUNNING)
                 continue;
 
-            if(!threadReleaseBlock) {
-                if (is_thread_ready(thread) && !thread->waiting) {
-                    thread->enableContextSwitch(true);
-                }
+            if (!thread->waiting && is_thread_ready(thread)) {
+                thread->enableContextSwitch(true);
             }
         }
 

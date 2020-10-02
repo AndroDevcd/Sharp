@@ -17,7 +17,7 @@ enum fiber_state {
     FIB_KILLED=3
 };
 
-#define INITIAL_FRAME_SIZE 500 // ~16kb
+#define INITIAL_FRAME_SIZE 250 // ~8kb
 #define FRAME_GROW_SIZE 250 // ~8kb
 
 class fiber {
