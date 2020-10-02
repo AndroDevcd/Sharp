@@ -74,4 +74,6 @@ public:
     bool marked;
 };
 
+extern atomic<Int> unBoundFibers;
+
 #endif //SHARP_FIBER_H

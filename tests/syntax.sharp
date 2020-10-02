@@ -42,7 +42,7 @@ counter := new atomic<var>{ 0 };
 def foo() : var {
     for(i := 0; i < task_count; i++) {
         coroutine.builder()
-        .unconfined()
+//        .unconfined()
         = { ->
              for( ;; ) {
               counter++;

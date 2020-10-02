@@ -86,7 +86,7 @@ void run_scheduler() {
             } else if(thread->state != THREAD_RUNNING)
                 continue;
 
-            if (!thread->waiting && is_thread_ready(thread)) {
+            if ((unBoundFibers >= 1 || thread->boundFibers > 1 || thread->waiting) && is_thread_ready(thread)) {
                 thread->enableContextSwitch(true);
             }
         }

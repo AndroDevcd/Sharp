@@ -11,6 +11,7 @@ Int dataSize=0, capacity = 0;
 const Int RESIZE_MIN = 2500l;
 recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
+atomic<Int> unBoundFibers = { 0 };
 
 #define fiberAt(pos) fibers[pos]
 
@@ -25,7 +26,7 @@ void increase_fibers() {
 
         fibers = tmpfibers;
         capacity += resizeAmnt;
-        std::free(old);
+        std::free(old); // causes crash sometimes...investigate
         gc.addMemory(sizeof(fiber **) * resizeAmnt);
     }
 }
@@ -131,6 +132,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
                     gc.newObject(1, vm.tlsInts.at(i).value);
         }
 
+        unBoundFibers++;
         gc.addMemory(sizeof(Frame) * fib->frameSize);
         gc.addMemory(sizeof(StackElement) * internalStackSize);
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
@@ -394,6 +396,7 @@ int fiber::bind(Thread *thread) {
     if(thread != NULL) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
         if(thread->state != THREAD_KILLED || !hasSignal(thread->signal, tsig_kill)) {
+            unBoundFibers--;
             boundThread = thread;
             thread->boundFibers++;
             
@@ -402,6 +405,7 @@ int fiber::bind(Thread *thread) {
     } else {
         if(boundThread) {
             std::lock_guard<recursive_mutex> guard2(boundThread->mutex);
+            unBoundFibers++;
             boundThread->boundFibers--;
         }
 

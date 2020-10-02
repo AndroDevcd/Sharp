@@ -150,7 +150,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         return;
 
     updateMemoryThreshold();
-
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
         collectGarbage(true);
 
@@ -805,13 +804,15 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
             }
         }
 
-        mut->fiberid = thread->this_fiber->id;
         lockCheckMutex.lock();
         if(mut->fiberid != thread->this_fiber->id) {
-            lockCheckMutex.unlock();
-            goto retry;
+            if (mut->fiberid != -1) {
+                lockCheckMutex.unlock();
+                goto retry;
+            }
         }
 
+        mut->fiberid = thread->this_fiber->id;
         thread->this_fiber->locking =false;
         mut->threadid=thread->id;
         mut->lockedCount++;
