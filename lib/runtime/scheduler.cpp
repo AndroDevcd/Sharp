@@ -38,8 +38,22 @@ void run_scheduler() {
     Thread *thread;
     Int size;
 
+#ifdef WIN32_
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
+#endif
+#ifdef POSIX_
+    pthread_attr_t thAttr;
+    int policy = 0;
+    int pthread_prio = 0;
+
+    pthread_attr_init(&thAttr);
+    pthread_attr_getschedpolicy(&thAttr, &policy);
+    pthread_prio = sched_get_priority_min(policy);
+    pthread_setschedprio(pthread_self(), pthread_prio);
+    pthread_attr_destroy(&thAttr);
+#endif
+
     do {
-        __os_yield();
        clocks++;
 
         {
@@ -69,8 +83,10 @@ void run_scheduler() {
             } else if(thread->state != THREAD_RUNNING)
                 continue;
 
-            if (is_thread_ready(thread)) {
-                thread->enableContextSwitch(true);
+            if(!threadReleaseBlock) {
+                if (is_thread_ready(thread) && !thread->waiting) {
+                    thread->enableContextSwitch(true);
+                }
             }
         }
 

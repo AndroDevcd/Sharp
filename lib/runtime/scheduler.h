@@ -14,10 +14,10 @@
 #define NPTSI 15050  * norm priority time slice interval 150us * // ~6k fibers/thread
 #define HPTSI 20050 * high priority time slice interval 250us * // ~4k fibers/thread
  */
-#define LPTSI 1000  /* low priority time slice interval 100us */  // ~10k fibers/thread
-#define NPTSI 1500  /* norm priority time slice interval 150us */ // ~6k fibers/thread
-#define HPTSI 2500 /* high priority time slice interval 250us */ // ~4k fibers/thread
-#define CLOCK_CYCLE 550    /* Time between clock cycle switches 55us */
+#define LPTSI 1000  /* low priority time slice interval 1ms */  // ~1k fibers/thread
+#define NPTSI 1500  /* norm priority time slice interval 1.5ms */ // ~666 fibers/thread
+#define HPTSI 2500 /* high priority time slice interval 2.5ms */ // ~400 fibers/thread
+#define CLOCK_CYCLE 550    /* Time between clock cycle switches 550us */
 
 extern atomic<bool> threadReleaseBlock;
 void run_scheduler();

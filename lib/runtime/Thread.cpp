@@ -299,7 +299,6 @@ void Thread::waitForThreadSuspend(Thread *thread) {
     int spinCount = 0;
     int retryCount = 0;
 
-    cout << "k\n";
     while (thread->state == THREAD_RUNNING && !thread->suspended)
     {
         if (retryCount++ == sMaxRetries)

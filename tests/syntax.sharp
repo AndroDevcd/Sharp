@@ -39,13 +39,10 @@ counter := new atomic<var>{ 0 };
 
 def foo() : var {
     for(i := 0; i < task_count; i++) {
-        if(i % 100 == 0) {
-           println(i);
-        }
-
         coroutine.builder().unconfined() = {->
            for( ;; ) {
               counter++;
+              past := time.mills_time();
               delay(1000);
            }
         };
@@ -55,9 +52,8 @@ def foo() : var {
 }
 
 def main(args: string[]) {
+   past := time.mills_time();
    foo();
-//   past := time.mills_time();
-//   delay(10);
-//   println(time.mills_time()-past);
+   println(time.mills_time()-past);
    println(counter++);
 }
