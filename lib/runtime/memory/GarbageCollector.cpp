@@ -750,7 +750,6 @@ void GarbageCollector::printClassRefStatus() {
 recursive_mutex lockCheckMutex;
 bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
     if(o) {
-        bool contextSwitchCheck = false;
         mutex_t *mut;
         mutex.lock();
         long long idx = locks.indexof(isLocker, o);
@@ -790,7 +789,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                         return true;
                     }
 
-                    __usleep(10);
+                    __usleep(100);
                 } else if (hasSignal(thread->signal, tsig_context_switch)) {
                     if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
                         thread->try_context_switch();

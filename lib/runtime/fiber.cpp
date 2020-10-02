@@ -29,9 +29,9 @@ void increase_fibers() {
 }
 
 void decrease_fibers() {
-    GUARD(fmut)
 
     if(dataSize > RESIZE_MIN && (capacity - dataSize) >= RESIZE_MIN) {
+        GUARD(fmut)
         Thread::suspendAllThreads(true);
         fiber** tmpfibers = (fiber**)__calloc((capacity - RESIZE_MIN), sizeof(fiber**)), **old;
         for(Int i = 0; i < dataSize; i++) {

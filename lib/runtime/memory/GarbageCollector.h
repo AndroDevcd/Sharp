@@ -53,7 +53,7 @@ class fiber;
 struct mutex_t
 {
     SharpObject* object;
-    uInt lockedCount;
+    Int lockedCount;
     Int fiberid;
     Int threadid;
 
