@@ -8,6 +8,7 @@
 
 uInt fibId=0 ;
 Int dataSize=0, capacity = 0;
+const int MAX_PASSES = 3;
 const Int RESIZE_MIN = 2500l;
 recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
@@ -109,6 +110,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->calls = -1;
         fib->current = NULL;
         fib->ptr = NULL;
+        fib->passed = 0;
         fib->stackLimit = internalStackSize;
         fib->registers = (double *) __calloc(REGISTER_SIZE, sizeof(double));
         fib->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
@@ -171,7 +173,13 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
             if ((fib = fiberAt(i)) != NULL && fib == startingFiber) {
                 if ((i + 1) < dataSize) {
                     for (Int j = i + 1; j < dataSize; j++) {
-                        if ((fib = fiberAt(j)) != NULL && !fib->finished && !fib->locking && isFiberRunnble(fib, loggedTime, thread)) {
+                        if ((fib = fiberAt(j)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread)) {
+                            if(fib->locking) {
+                                if(fib->passed >= MAX_PASSES)
+                                   fib->passed = 0;
+                                else fib->passed++;
+                            }
+
                             return fib;
                         }
                     }

@@ -72,6 +72,7 @@ public:
     bool finished;
     bool locking;
     bool marked;
+    Int passed;
 };
 
 extern atomic<Int> unBoundFibers;
