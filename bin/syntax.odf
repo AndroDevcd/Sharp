@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 93087
-post codebase size: 83831
+pre codebase size: 93086
+post codebase size: 83830
 optimized opcodes: 9256
-net % gain 9.94339
+net % gain 9.94349
 
 
 class: std#__srt_global[0] fields(2) methods(59)
@@ -40748,200 +40748,199 @@ function: std.io.coroutines#__srt_global.scheduler_main[2114] params(1) in file:
 6 [0x6]: line: 80 istorel 12250, fp+2   
 8 [0x8]: line: 81 movi #1, ebx   
 10 [0xa]: line: 82 movr cmt, ebx   
-11 [0xb]:          jne 221   
-12 [0xc]: line: 84 call @2265 // <std.io#thread.yield>   
-13 [0xd]: line: 85 istorel 0, fp+3   
-15 [0xf]:          ipushl #3   
-16 [0x10]:          pushl 1   
-17 [0x11]:          call @3840 // <std#synced_list<std.io.coroutines#job>.size>   
-18 [0x12]:          loadval ebx   
-19 [0x13]:          loadval ecx   
-20 [0x14]:          lt ecx, ebx   
-21 [0x15]:          movr ebx, cmt   
-22 [0x16]:          movr cmt, ebx   
-23 [0x17]:          jne 200   
-24 [0x18]: line: 86 pushl 1   
-25 [0x19]:          ipushl #3   
-26 [0x1a]:          call @3799 // <std#synced_list<std.io.coroutines#job>.at>   
-27 [0x1b]:          popobj2    
-28 [0x1c]:          smovr_3 fp+4   
-29 [0x1d]: line: 88 movl 4   
-30 [0x1e]:          movn #13   
-32 [0x20]:          movi #0, adx   
-34 [0x22]:          iaload ebx, adx   
-35 [0x23]:          rstore ebx   
-36 [0x24]:          movi #0, ebx   
-38 [0x26]:          loadval ecx   
-39 [0x27]:          tne ecx, ebx   
-40 [0x28]:          movr ebx, cmt   
-41 [0x29]:          movr cmt, ebx   
-42 [0x2a]:          jne 97   
-43 [0x2b]: line: 89 call @3655 // <std#time.mills_time>   
-44 [0x2c]:          loadval ebx   
-45 [0x2d]:          rstore ebx   
-46 [0x2e]:          movl 4   
-47 [0x2f]:          movn #13   
-49 [0x31]:          movi #0, adx   
-51 [0x33]:          iaload ebx, adx   
-52 [0x34]:          loadval ecx   
-53 [0x35]:          gte ecx, ebx   
-54 [0x36]:          movr ebx, cmt   
-55 [0x37]:          movr cmt, ebx   
-56 [0x38]:          jne 95   
-57 [0x39]: line: 90 movi #0, ebx   
-59 [0x3b]:          movl 4   
-60 [0x3c]:          movn #13   
-62 [0x3e]:          movi #0, adx   
-64 [0x40]:          rmov adx, ebx   
-65 [0x41]: line: 91 pushl 4   
-66 [0x42]:          call @2118 // <std.io.coroutines#__srt_global.execute_job>   
-67 [0x43]:          ipopl 5   
-68 [0x44]: line: 93 loadl ebx, fp+5   
-69 [0x45]:          skne ebx // pc = 77   
-70 [0x46]:          movl 4   
-71 [0x47]:          movn #9   
-73 [0x49]:          movi #0, adx   
-75 [0x4b]:          iaload ebx, adx   
-76 [0x4c]:          not ebx, ebx   
-77 [0x4d]:          movr cmt, ebx   
-78 [0x4e]:          jne 89   
-79 [0x4f]: line: 94 pushl 1   
-80 [0x50]:          pushl 4   
-81 [0x51]:          istore 4264   
-83 [0x53]:          call @3844 // <std#synced_list<std.io.coroutines#job>.remove>   
-84 [0x54]: line: 95 loadl ebx, fp+3   
-85 [0x55]:          movr egx, ebx   
-86 [0x56]:          dec ebx   
-87 [0x57]:          smovr_2 ebx, fp+3   
-88 [0x58]:          jmp @94   
-89 [0x59]:          loadl ebx, fp+5   
-90 [0x5a]:          not ebx, ebx   
-91 [0x5b]:          movr cmt, ebx   
-92 [0x5c]:          jne 94   
-93 [0x5d]: line: 96 jmp @200   
+11 [0xb]:          jne 220   
+12 [0xc]: line: 84 istorel 0, fp+3   
+14 [0xe]:          ipushl #3   
+15 [0xf]:          pushl 1   
+16 [0x10]:          call @3840 // <std#synced_list<std.io.coroutines#job>.size>   
+17 [0x11]:          loadval ebx   
+18 [0x12]:          loadval ecx   
+19 [0x13]:          lt ecx, ebx   
+20 [0x14]:          movr ebx, cmt   
+21 [0x15]:          movr cmt, ebx   
+22 [0x16]:          jne 199   
+23 [0x17]: line: 85 pushl 1   
+24 [0x18]:          ipushl #3   
+25 [0x19]:          call @3799 // <std#synced_list<std.io.coroutines#job>.at>   
+26 [0x1a]:          popobj2    
+27 [0x1b]:          smovr_3 fp+4   
+28 [0x1c]: line: 87 movl 4   
+29 [0x1d]:          movn #13   
+31 [0x1f]:          movi #0, adx   
+33 [0x21]:          iaload ebx, adx   
+34 [0x22]:          rstore ebx   
+35 [0x23]:          movi #0, ebx   
+37 [0x25]:          loadval ecx   
+38 [0x26]:          tne ecx, ebx   
+39 [0x27]:          movr ebx, cmt   
+40 [0x28]:          movr cmt, ebx   
+41 [0x29]:          jne 96   
+42 [0x2a]: line: 88 call @3655 // <std#time.mills_time>   
+43 [0x2b]:          loadval ebx   
+44 [0x2c]:          rstore ebx   
+45 [0x2d]:          movl 4   
+46 [0x2e]:          movn #13   
+48 [0x30]:          movi #0, adx   
+50 [0x32]:          iaload ebx, adx   
+51 [0x33]:          loadval ecx   
+52 [0x34]:          gte ecx, ebx   
+53 [0x35]:          movr ebx, cmt   
+54 [0x36]:          movr cmt, ebx   
+55 [0x37]:          jne 94   
+56 [0x38]: line: 89 movi #0, ebx   
+58 [0x3a]:          movl 4   
+59 [0x3b]:          movn #13   
+61 [0x3d]:          movi #0, adx   
+63 [0x3f]:          rmov adx, ebx   
+64 [0x40]: line: 90 pushl 4   
+65 [0x41]:          call @2118 // <std.io.coroutines#__srt_global.execute_job>   
+66 [0x42]:          ipopl 5   
+67 [0x43]: line: 92 loadl ebx, fp+5   
+68 [0x44]:          skne ebx // pc = 76   
+69 [0x45]:          movl 4   
+70 [0x46]:          movn #9   
+72 [0x48]:          movi #0, adx   
+74 [0x4a]:          iaload ebx, adx   
+75 [0x4b]:          not ebx, ebx   
+76 [0x4c]:          movr cmt, ebx   
+77 [0x4d]:          jne 88   
+78 [0x4e]: line: 93 pushl 1   
+79 [0x4f]:          pushl 4   
+80 [0x50]:          istore 4264   
+82 [0x52]:          call @3844 // <std#synced_list<std.io.coroutines#job>.remove>   
+83 [0x53]: line: 94 loadl ebx, fp+3   
+84 [0x54]:          movr egx, ebx   
+85 [0x55]:          dec ebx   
+86 [0x56]:          smovr_2 ebx, fp+3   
+87 [0x57]:          jmp @93   
+88 [0x58]:          loadl ebx, fp+5   
+89 [0x59]:          not ebx, ebx   
+90 [0x5a]:          movr cmt, ebx   
+91 [0x5b]:          jne 93   
+92 [0x5c]: line: 95 jmp @199   
+93 [0x5d]:          nop   
 94 [0x5e]:          nop   
-95 [0x5f]:          nop   
-96 [0x60]:          jmp @196   
-97 [0x61]:          movl 4   
-98 [0x62]:          movn #9   
-100 [0x64]:          movi #0, adx   
-102 [0x66]:          iaload ebx, adx   
-103 [0x67]:          movr cmt, ebx   
-104 [0x68]:          jne 179   
-105 [0x69]: line: 99 movl 4   
-106 [0x6a]:          movn #4   
-108 [0x6c]:          pushobj   
-109 [0x6d]:          pushnull    
-110 [0x6e]:          itest ebx   
-111 [0x6f]:          movr cmt, ebx   
-112 [0x70]:          jne 121   
-113 [0x71]: line: 100 pushl 4   
-114 [0x72]:           call @2118 // <std.io.coroutines#__srt_global.execute_job>   
-115 [0x73]:           loadval ebx   
-116 [0x74]:           not ebx, ebx   
-117 [0x75]:           movr cmt, ebx   
-118 [0x76]:           jne 120   
-119 [0x77]: line: 101 jmp @200   
+95 [0x5f]:          jmp @195   
+96 [0x60]:          movl 4   
+97 [0x61]:          movn #9   
+99 [0x63]:          movi #0, adx   
+101 [0x65]:          iaload ebx, adx   
+102 [0x66]:          movr cmt, ebx   
+103 [0x67]:          jne 178   
+104 [0x68]: line: 98 movl 4   
+105 [0x69]:          movn #4   
+107 [0x6b]:          pushobj   
+108 [0x6c]:          pushnull    
+109 [0x6d]:          itest ebx   
+110 [0x6e]:          movr cmt, ebx   
+111 [0x6f]:          jne 120   
+112 [0x70]: line: 99 pushl 4   
+113 [0x71]:          call @2118 // <std.io.coroutines#__srt_global.execute_job>   
+114 [0x72]:          loadval ebx   
+115 [0x73]:          not ebx, ebx   
+116 [0x74]:          movr cmt, ebx   
+117 [0x75]:          jne 119   
+118 [0x76]: line: 100 jmp @199   
+119 [0x77]:           nop   
 120 [0x78]:           nop   
-121 [0x79]:           nop   
-122 [0x7a]: line: 104 movl 4   
-123 [0x7b]:           movn #20   
-125 [0x7d]:           pushobj   
-126 [0x7e]:           movg @31 // @std.io.coroutines#job_state   
-127 [0x7f]:           movn #1   
-129 [0x81]:           pushobj   
-130 [0x82]:           call @1945 // <std#_enum_.operator==>   
-131 [0x83]:           loadval ebx   
-132 [0x84]:           skne ebx // pc = 154   
-133 [0x85]:           call @3655 // <std#time.mills_time>   
-134 [0x86]:           loadval ebx   
-135 [0x87]:           rstore ebx   
-136 [0x88]:           movl 4   
-137 [0x89]:           movn #11   
-139 [0x8b]:           movi #0, adx   
-141 [0x8d]:           iaload ebx, adx   
-142 [0x8e]:           rstore ebx   
-143 [0x8f]:           movl 4   
-144 [0x90]:           movn #10   
-146 [0x92]:           movi #0, adx   
-148 [0x94]:           iaload ebx, adx   
-149 [0x95]:           loadval ecx   
-150 [0x96]:           add ecx, ebx -> ebx   
-151 [0x97]:           loadval ecx   
-152 [0x98]:           gte ecx, ebx   
-153 [0x99]:           movr ebx, cmt   
-154 [0x9a]:           movr cmt, ebx   
-155 [0x9b]:           jne 177   
-156 [0x9c]: line: 105 movl 4   
-157 [0x9d]:           movn #14   
-159 [0x9f]:           pushobj   
-160 [0xa0]:           pushnull    
-161 [0xa1]:           itest ebx   
-162 [0xa2]:           movr cmt, ebx   
-163 [0xa3]:           jne 165   
-164 [0xa4]:           jmp @156   
-165 [0xa5]: line: 106 pushl 4   
-166 [0xa6]:           call @2085 // <std.io.coroutines#job.cancel>   
-167 [0xa7]: line: 107 movg @25 // @std.io.coroutines#__srt_global   
-168 [0xa8]:           movn #0   
-170 [0xaa]:           pushobj   
-171 [0xab]:           pushl 4   
-172 [0xac]:           call @2108 // <std.io.coroutines#job_master.cleanup_job>   
-173 [0xad]: line: 108 loadl ebx, fp+3   
-174 [0xae]:           movr egx, ebx   
-175 [0xaf]:           dec ebx   
-176 [0xb0]:           smovr_2 ebx, fp+3   
-177 [0xb1]:           nop   
-178 [0xb2]:           jmp @196   
-179 [0xb3]: line: 111 pushl 4   
-180 [0xb4]:           call @2118 // <std.io.coroutines#__srt_global.execute_job>   
-181 [0xb5]:           loadval ebx   
-182 [0xb6]:           movr cmt, ebx   
-183 [0xb7]:           jne 194   
-184 [0xb8]: line: 112 pushl 1   
-185 [0xb9]:           pushl 4   
-186 [0xba]:           istore 4265   
-188 [0xbc]:           call @3844 // <std#synced_list<std.io.coroutines#job>.remove>   
-189 [0xbd]: line: 113 loadl ebx, fp+3   
-190 [0xbe]:           movr egx, ebx   
-191 [0xbf]:           dec ebx   
-192 [0xc0]:           smovr_2 ebx, fp+3   
-193 [0xc1]:           jmp @195   
-194 [0xc2]: line: 114 jmp @200   
+121 [0x79]: line: 103 movl 4   
+122 [0x7a]:           movn #20   
+124 [0x7c]:           pushobj   
+125 [0x7d]:           movg @31 // @std.io.coroutines#job_state   
+126 [0x7e]:           movn #1   
+128 [0x80]:           pushobj   
+129 [0x81]:           call @1945 // <std#_enum_.operator==>   
+130 [0x82]:           loadval ebx   
+131 [0x83]:           skne ebx // pc = 153   
+132 [0x84]:           call @3655 // <std#time.mills_time>   
+133 [0x85]:           loadval ebx   
+134 [0x86]:           rstore ebx   
+135 [0x87]:           movl 4   
+136 [0x88]:           movn #11   
+138 [0x8a]:           movi #0, adx   
+140 [0x8c]:           iaload ebx, adx   
+141 [0x8d]:           rstore ebx   
+142 [0x8e]:           movl 4   
+143 [0x8f]:           movn #10   
+145 [0x91]:           movi #0, adx   
+147 [0x93]:           iaload ebx, adx   
+148 [0x94]:           loadval ecx   
+149 [0x95]:           add ecx, ebx -> ebx   
+150 [0x96]:           loadval ecx   
+151 [0x97]:           gte ecx, ebx   
+152 [0x98]:           movr ebx, cmt   
+153 [0x99]:           movr cmt, ebx   
+154 [0x9a]:           jne 176   
+155 [0x9b]: line: 104 movl 4   
+156 [0x9c]:           movn #14   
+158 [0x9e]:           pushobj   
+159 [0x9f]:           pushnull    
+160 [0xa0]:           itest ebx   
+161 [0xa1]:           movr cmt, ebx   
+162 [0xa2]:           jne 164   
+163 [0xa3]:           jmp @155   
+164 [0xa4]: line: 105 pushl 4   
+165 [0xa5]:           call @2085 // <std.io.coroutines#job.cancel>   
+166 [0xa6]: line: 106 movg @25 // @std.io.coroutines#__srt_global   
+167 [0xa7]:           movn #0   
+169 [0xa9]:           pushobj   
+170 [0xaa]:           pushl 4   
+171 [0xab]:           call @2108 // <std.io.coroutines#job_master.cleanup_job>   
+172 [0xac]: line: 107 loadl ebx, fp+3   
+173 [0xad]:           movr egx, ebx   
+174 [0xae]:           dec ebx   
+175 [0xaf]:           smovr_2 ebx, fp+3   
+176 [0xb0]:           nop   
+177 [0xb1]:           jmp @195   
+178 [0xb2]: line: 110 pushl 4   
+179 [0xb3]:           call @2118 // <std.io.coroutines#__srt_global.execute_job>   
+180 [0xb4]:           loadval ebx   
+181 [0xb5]:           movr cmt, ebx   
+182 [0xb6]:           jne 193   
+183 [0xb7]: line: 111 pushl 1   
+184 [0xb8]:           pushl 4   
+185 [0xb9]:           istore 4265   
+187 [0xbb]:           call @3844 // <std#synced_list<std.io.coroutines#job>.remove>   
+188 [0xbc]: line: 112 loadl ebx, fp+3   
+189 [0xbd]:           movr egx, ebx   
+190 [0xbe]:           dec ebx   
+191 [0xbf]:           smovr_2 ebx, fp+3   
+192 [0xc0]:           jmp @194   
+193 [0xc1]: line: 113 jmp @199   
+194 [0xc2]:           nop   
 195 [0xc3]:           nop   
-196 [0xc4]:           nop   
-197 [0xc5]:           iaddl 1, fp@3   
-199 [0xc7]:           jmp @15   
-200 [0xc8]: line: 118 loadl ebx, fp+2   
-201 [0xc9]:           movr egx, ebx   
-202 [0xca]:           dec ebx   
-203 [0xcb]:           smovr_2 ebx, fp+2   
-204 [0xcc]:           movr ebx, egx   
-205 [0xcd]:           rstore ebx   
-206 [0xce]:           movi #0, ebx   
-208 [0xd0]:           loadval ecx   
-209 [0xd1]:           lte ecx, ebx   
-210 [0xd2]:           movr ebx, cmt   
-211 [0xd3]:           movr cmt, ebx   
-212 [0xd4]:           jne 216   
-213 [0xd5]: line: 119 istorel 12250, fp+2   
-215 [0xd7]: line: 120 call @2116 // <std.io.coroutines#__srt_global.kill_threads>   
-216 [0xd8]:           nop   
-217 [0xd9]: line: 123 istore 5   
-219 [0xdb]:           call @2135 // <std.io.fiber#__srt_global.delay>   
-220 [0xdc]:           jmp @8   
-221 [0xdd]: line: 125 istorel 0, fp+0   
-223 [0xdf]:           ret   
+196 [0xc4]:           iaddl 1, fp@3   
+198 [0xc6]:           jmp @14   
+199 [0xc7]: line: 117 loadl ebx, fp+2   
+200 [0xc8]:           movr egx, ebx   
+201 [0xc9]:           dec ebx   
+202 [0xca]:           smovr_2 ebx, fp+2   
+203 [0xcb]:           movr ebx, egx   
+204 [0xcc]:           rstore ebx   
+205 [0xcd]:           movi #0, ebx   
+207 [0xcf]:           loadval ecx   
+208 [0xd0]:           lte ecx, ebx   
+209 [0xd1]:           movr ebx, cmt   
+210 [0xd2]:           movr cmt, ebx   
+211 [0xd3]:           jne 215   
+212 [0xd4]: line: 118 istorel 12250, fp+2   
+214 [0xd6]: line: 119 call @2116 // <std.io.coroutines#__srt_global.kill_threads>   
+215 [0xd7]:           nop   
+216 [0xd8]: line: 122 istore 5   
+218 [0xda]:           call @2135 // <std.io.fiber#__srt_global.delay>   
+219 [0xdb]:           jmp @8   
+220 [0xdc]: line: 124 istorel 0, fp+0   
+222 [0xde]:           ret   
 
 
-function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:132:12: note:  
+function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:131:12: note:  
 		private def get_host(long_running : var) : thread {
 		           ^
 
-0 [0x0]: line: 133 loadl ebx, fp+0   
+0 [0x0]: line: 132 loadl ebx, fp+0   
 1 [0x1]:           movr cmt, ebx   
 2 [0x2]:           jne 14   
-3 [0x3]: line: 134 movg @25 // @std.io.coroutines#__srt_global   
+3 [0x3]: line: 133 movg @25 // @std.io.coroutines#__srt_global   
 4 [0x4]:           movn #0   
 6 [0x6]:           movn #2   
 8 [0x8]:           pushobj   
@@ -40949,7 +40948,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 10 [0xa]:           movn #9   
 12 [0xc]:           popobj   
 13 [0xd]:           jmp @24   
-14 [0xe]: line: 136 movg @25 // @std.io.coroutines#__srt_global   
+14 [0xe]: line: 135 movg @25 // @std.io.coroutines#__srt_global   
 15 [0xf]:           movn #0   
 17 [0x11]:           movn #3   
 19 [0x13]:           pushobj   
@@ -40957,22 +40956,22 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 21 [0x15]:           movn #9   
 23 [0x17]:           popobj   
 24 [0x18]:           nop   
-25 [0x19]: line: 138 istore 0   
+25 [0x19]: line: 137 istore 0   
 27 [0x1b]:           movg @25 // @std.io.coroutines#__srt_global   
 28 [0x1c]:           movn #6   
 30 [0x1e]:           loadval ebx   
 31 [0x1f]:           movi #0, adx   
 33 [0x21]:           rmov adx, ebx   
-34 [0x22]: line: 139 movg @25 // @std.io.coroutines#__srt_global   
+34 [0x22]: line: 138 movg @25 // @std.io.coroutines#__srt_global   
 35 [0x23]:           movn #8   
 37 [0x25]:           del   
-38 [0x26]: line: 140 movg @25 // @std.io.coroutines#__srt_global   
+38 [0x26]: line: 139 movg @25 // @std.io.coroutines#__srt_global   
 39 [0x27]:           movn #9   
 41 [0x29]:           pushobj   
 42 [0x2a]:           istore 4266   
 44 [0x2c]:           call @2292 // <std.io#thread_group.find>   
 45 [0x2d]:           pop   
-46 [0x2e]: line: 155 movg @25 // @std.io.coroutines#__srt_global   
+46 [0x2e]: line: 154 movg @25 // @std.io.coroutines#__srt_global   
 47 [0x2f]:           movn #8   
 49 [0x31]:           pushobj   
 50 [0x32]:           pushnull    
@@ -41010,7 +41009,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 89 [0x59]:           movr ebx, cmt   
 90 [0x5a]:           movr cmt, ebx   
 91 [0x5b]:           jne 126   
-92 [0x5c]: line: 156 loadl ebx, fp+0   
+92 [0x5c]: line: 155 loadl ebx, fp+0   
 93 [0x5d]:           skne ebx // pc = 106   
 94 [0x5e]:           movg @25 // @std.io.coroutines#__srt_global   
 95 [0x5f]:           movn #2   
@@ -41033,22 +41032,22 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 118 [0x76]:           movr ebx, cmt   
 119 [0x77]:           movr cmt, ebx   
 120 [0x78]:           jne 125   
-121 [0x79]: line: 157 movg @25 // @std.io.coroutines#__srt_global   
+121 [0x79]: line: 156 movg @25 // @std.io.coroutines#__srt_global   
 122 [0x7a]:           movn #8   
 124 [0x7c]:           del   
 125 [0x7d]:           nop   
 126 [0x7e]:           nop   
-127 [0x7f]: line: 163 movg @25 // @std.io.coroutines#__srt_global   
+127 [0x7f]: line: 162 movg @25 // @std.io.coroutines#__srt_global   
 128 [0x80]:           movn #8   
 130 [0x82]:           pushobj   
 131 [0x83]:           pushnull    
 132 [0x84]:           itest ebx   
 133 [0x85]:           movr cmt, ebx   
 134 [0x86]:           jne 256   
-135 [0x87]: line: 164 loadl ebx, fp+0   
+135 [0x87]: line: 163 loadl ebx, fp+0   
 136 [0x88]:           movr cmt, ebx   
 137 [0x89]:           jne 197   
-138 [0x8a]: line: 165 movg @25 // @std.io.coroutines#__srt_global   
+138 [0x8a]: line: 164 movg @25 // @std.io.coroutines#__srt_global   
 139 [0x8b]:           movn #2   
 141 [0x8d]:           movi #0, adx   
 143 [0x8f]:           iaload ebx, adx   
@@ -41059,7 +41058,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 149 [0x95]:           movr ebx, cmt   
 150 [0x96]:           movr cmt, ebx   
 151 [0x97]:           jne 195   
-152 [0x98]: line: 166 movg @25 // @std.io.coroutines#__srt_global   
+152 [0x98]: line: 165 movg @25 // @std.io.coroutines#__srt_global   
 153 [0x99]:           movn #2   
 155 [0x9b]:           movi #0, adx   
 157 [0x9d]:           iaload ebx, adx   
@@ -41067,7 +41066,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 159 [0x9f]:           dec ebx   
 160 [0xa0]:           movi #0, adx   
 162 [0xa2]:           rmov adx, ebx   
-163 [0xa3]: line: 167 new_class @37 // std.io#thread   
+163 [0xa3]: line: 166 new_class @37 // std.io#thread   
 165 [0xa5]:           dup    
 166 [0xa6]:           new_class @75 // std#string   
 168 [0xa8]:           dup    
@@ -41094,7 +41093,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 194 [0xc2]:           popobj   
 195 [0xc3]:           nop   
 196 [0xc4]:           jmp @255   
-197 [0xc5]: line: 170 movg @25 // @std.io.coroutines#__srt_global   
+197 [0xc5]: line: 169 movg @25 // @std.io.coroutines#__srt_global   
 198 [0xc6]:           movn #1   
 200 [0xc8]:           movi #0, adx   
 202 [0xca]:           iaload ebx, adx   
@@ -41105,7 +41104,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 208 [0xd0]:           movr ebx, cmt   
 209 [0xd1]:           movr cmt, ebx   
 210 [0xd2]:           jne 254   
-211 [0xd3]: line: 171 movg @25 // @std.io.coroutines#__srt_global   
+211 [0xd3]: line: 170 movg @25 // @std.io.coroutines#__srt_global   
 212 [0xd4]:           movn #1   
 214 [0xd6]:           movi #0, adx   
 216 [0xd8]:           iaload ebx, adx   
@@ -41113,7 +41112,7 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 218 [0xda]:           dec ebx   
 219 [0xdb]:           movi #0, adx   
 221 [0xdd]:           rmov adx, ebx   
-222 [0xde]: line: 172 new_class @37 // std.io#thread   
+222 [0xde]: line: 171 new_class @37 // std.io#thread   
 224 [0xe0]:           dup    
 225 [0xe1]:           new_class @75 // std#string   
 227 [0xe3]:           dup    
@@ -41141,17 +41140,17 @@ function: std.io.coroutines#__srt_global.get_host[2115] params(1) in file: lib/s
 254 [0xfe]:           nop   
 255 [0xff]:           nop   
 256 [0x100]:           nop   
-257 [0x101]: line: 177 movg @25 // @std.io.coroutines#__srt_global   
+257 [0x101]: line: 176 movg @25 // @std.io.coroutines#__srt_global   
 258 [0x102]:           movn #8   
 260 [0x104]:           returnobj   
 261 [0x105]:           ret   
 
 
-function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:180:12: note:  
+function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:179:12: note:  
 		private def kill_threads() {
 		           ^
 
-0 [0x0]: line: 181 movg @25 // @std.io.coroutines#__srt_global   
+0 [0x0]: line: 180 movg @25 // @std.io.coroutines#__srt_global   
 1 [0x1]:           movn #3   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -41162,28 +41161,28 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 15   
-14 [0xe]: line: 182 ret   
+14 [0xe]: line: 181 ret   
 15 [0xf]:           nop   
-16 [0x10]: line: 184 movg @25 // @std.io.coroutines#__srt_global   
+16 [0x10]: line: 183 movg @25 // @std.io.coroutines#__srt_global   
 17 [0x11]:           movn #0   
 19 [0x13]:           movn #2   
 21 [0x15]:           pushobj   
 22 [0x16]:           movg @25 // @std.io.coroutines#__srt_global   
 23 [0x17]:           movn #9   
 25 [0x19]:           popobj   
-26 [0x1a]: line: 186 istore 0   
+26 [0x1a]: line: 185 istore 0   
 28 [0x1c]:           movg @25 // @std.io.coroutines#__srt_global   
 29 [0x1d]:           movn #6   
 31 [0x1f]:           loadval ebx   
 32 [0x20]:           movi #0, adx   
 34 [0x22]:           rmov adx, ebx   
-35 [0x23]: line: 187 movg @25 // @std.io.coroutines#__srt_global   
+35 [0x23]: line: 186 movg @25 // @std.io.coroutines#__srt_global   
 36 [0x24]:           movn #9   
 38 [0x26]:           pushobj   
 39 [0x27]:           istore 4267   
 41 [0x29]:           call @2292 // <std.io#thread_group.find>   
 42 [0x2a]:           pop   
-43 [0x2b]: line: 196 movg @25 // @std.io.coroutines#__srt_global   
+43 [0x2b]: line: 195 movg @25 // @std.io.coroutines#__srt_global   
 44 [0x2c]:           movn #6   
 46 [0x2e]:           movi #0, adx   
 48 [0x30]:           iaload ebx, adx   
@@ -41194,9 +41193,9 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 54 [0x36]:           movr ebx, cmt   
 55 [0x37]:           movr cmt, ebx   
 56 [0x38]:           jne 58   
-57 [0x39]: line: 197 ret   
+57 [0x39]: line: 196 ret   
 58 [0x3a]:           nop   
-59 [0x3b]: line: 199 movg @25 // @std.io.coroutines#__srt_global   
+59 [0x3b]: line: 198 movg @25 // @std.io.coroutines#__srt_global   
 60 [0x3c]:           movn #9   
 62 [0x3e]:           pushobj   
 63 [0x3f]:           istore 4268   
@@ -41204,7 +41203,7 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 66 [0x42]:           movg @25 // @std.io.coroutines#__srt_global   
 67 [0x43]:           movn #8   
 69 [0x45]:           popobj   
-70 [0x46]: line: 207 movg @25 // @std.io.coroutines#__srt_global   
+70 [0x46]: line: 206 movg @25 // @std.io.coroutines#__srt_global   
 71 [0x47]:           movn #8   
 73 [0x49]:           pushobj   
 74 [0x4a]:           pushnull    
@@ -41212,31 +41211,31 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 76 [0x4c]:           not ebx, ebx   
 77 [0x4d]:           movr cmt, ebx   
 78 [0x4e]:           jne 84   
-79 [0x4f]: line: 208 movg @25 // @std.io.coroutines#__srt_global   
+79 [0x4f]: line: 207 movg @25 // @std.io.coroutines#__srt_global   
 80 [0x50]:           movn #8   
 82 [0x52]:           pushobj   
 83 [0x53]:           call @2259 // <std.io#thread.interrupt>   
 84 [0x54]:           nop   
-85 [0x55]: line: 211 movg @25 // @std.io.coroutines#__srt_global   
+85 [0x55]: line: 210 movg @25 // @std.io.coroutines#__srt_global   
 86 [0x56]:           movn #0   
 88 [0x58]:           movn #3   
 90 [0x5a]:           pushobj   
 91 [0x5b]:           movg @25 // @std.io.coroutines#__srt_global   
 92 [0x5c]:           movn #9   
 94 [0x5e]:           popobj   
-95 [0x5f]: line: 213 istore 0   
+95 [0x5f]: line: 212 istore 0   
 97 [0x61]:           movg @25 // @std.io.coroutines#__srt_global   
 98 [0x62]:           movn #6   
 100 [0x64]:           loadval ebx   
 101 [0x65]:           movi #0, adx   
 103 [0x67]:           rmov adx, ebx   
-104 [0x68]: line: 214 movg @25 // @std.io.coroutines#__srt_global   
+104 [0x68]: line: 213 movg @25 // @std.io.coroutines#__srt_global   
 105 [0x69]:           movn #9   
 107 [0x6b]:           pushobj   
 108 [0x6c]:           istore 4269   
 110 [0x6e]:           call @2292 // <std.io#thread_group.find>   
 111 [0x6f]:           pop   
-112 [0x70]: line: 221 movg @25 // @std.io.coroutines#__srt_global   
+112 [0x70]: line: 220 movg @25 // @std.io.coroutines#__srt_global   
 113 [0x71]:           movn #6   
 115 [0x73]:           movi #0, adx   
 117 [0x75]:           iaload ebx, adx   
@@ -41247,9 +41246,9 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 123 [0x7b]:           movr ebx, cmt   
 124 [0x7c]:           movr cmt, ebx   
 125 [0x7d]:           jne 127   
-126 [0x7e]: line: 222 ret   
+126 [0x7e]: line: 221 ret   
 127 [0x7f]:           nop   
-128 [0x80]: line: 224 movg @25 // @std.io.coroutines#__srt_global   
+128 [0x80]: line: 223 movg @25 // @std.io.coroutines#__srt_global   
 129 [0x81]:           movn #9   
 131 [0x83]:           pushobj   
 132 [0x84]:           istore 4270   
@@ -41257,7 +41256,7 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 135 [0x87]:           movg @25 // @std.io.coroutines#__srt_global   
 136 [0x88]:           movn #8   
 138 [0x8a]:           popobj   
-139 [0x8b]: line: 230 movg @25 // @std.io.coroutines#__srt_global   
+139 [0x8b]: line: 229 movg @25 // @std.io.coroutines#__srt_global   
 140 [0x8c]:           movn #8   
 142 [0x8e]:           pushobj   
 143 [0x8f]:           pushnull    
@@ -41265,7 +41264,7 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 145 [0x91]:           not ebx, ebx   
 146 [0x92]:           movr cmt, ebx   
 147 [0x93]:           jne 153   
-148 [0x94]: line: 231 movg @25 // @std.io.coroutines#__srt_global   
+148 [0x94]: line: 230 movg @25 // @std.io.coroutines#__srt_global   
 149 [0x95]:           movn #8   
 151 [0x97]:           pushobj   
 152 [0x98]:           call @2259 // <std.io#thread.interrupt>   
@@ -41273,11 +41272,11 @@ function: std.io.coroutines#__srt_global.kill_threads[2116] params(0) in file: l
 154 [0x9a]:           ret   
 
 
-function: std.io.coroutines#__srt_global.execute_synchronous[2117] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:235:14: note:  
+function: std.io.coroutines#__srt_global.execute_synchronous[2117] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:234:14: note:  
 		protected def execute_synchronous(scheduled_job : job) {
 		             ^
 
-0 [0x0]: line: 236 movl 0   
+0 [0x0]: line: 235 movl 0   
 1 [0x1]:           movn #13   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -41288,7 +41287,7 @@ function: std.io.coroutines#__srt_global.execute_synchronous[2117] params(1) in 
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 37   
-14 [0xe]: line: 237 movl 0   
+14 [0xe]: line: 236 movl 0   
 15 [0xf]:           movn #13   
 17 [0x11]:           movi #0, adx   
 19 [0x13]:           iaload ebx, adx   
@@ -41298,7 +41297,7 @@ function: std.io.coroutines#__srt_global.execute_synchronous[2117] params(1) in 
 23 [0x17]:           loadval ecx   
 24 [0x18]:           sub ecx, ebx -> ebx   
 25 [0x19]:           smovr_2 ebx, fp+1   
-26 [0x1a]: line: 238 ipushl #1   
+26 [0x1a]: line: 237 ipushl #1   
 27 [0x1b]:           movi #0, ebx   
 29 [0x1d]:           loadval ecx   
 30 [0x1e]:           gt ecx, ebx   
@@ -41309,19 +41308,19 @@ function: std.io.coroutines#__srt_global.execute_synchronous[2117] params(1) in 
 35 [0x23]:           call @2135 // <std.io.fiber#__srt_global.delay>   
 36 [0x24]:           nop   
 37 [0x25]:           nop   
-38 [0x26]: line: 240 pushl 0   
+38 [0x26]: line: 239 pushl 0   
 39 [0x27]:           call @2096 // <std.io.coroutines#job.execute>   
 40 [0x28]:           ret   
 
 
-function: std.io.coroutines#__srt_global.execute_job[2118] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:243:14: note:  
+function: std.io.coroutines#__srt_global.execute_job[2118] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:242:14: note:  
 		protected def execute_job(scheduled_job : job) : var {
 		             ^
 
-0 [0x0]: line: 244 movg @25 // @std.io.coroutines#__srt_global   
+0 [0x0]: line: 243 movg @25 // @std.io.coroutines#__srt_global   
 1 [0x1]:           movn #4   
 3 [0x3]:           _lck    
-4 [0x4]: line: 245 movl 0   
+4 [0x4]: line: 244 movl 0   
 5 [0x5]:           movn #4   
 7 [0x7]:           pushobj   
 8 [0x8]:           pushnull    
@@ -41338,16 +41337,16 @@ function: std.io.coroutines#__srt_global.execute_job[2118] params(1) in file: li
 21 [0x15]:           movl 0   
 22 [0x16]:           movn #4   
 24 [0x18]:           smovr_3 fp+1   
-25 [0x19]: line: 248 movl 1   
+25 [0x19]: line: 247 movl 1   
 26 [0x1a]:           checknull   
 27 [0x1b]:           not ebx, ebx   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 66   
-30 [0x1e]: line: 249 pushl 1   
+30 [0x1e]: line: 248 pushl 1   
 31 [0x1f]:           movl 0   
 32 [0x20]:           movn #4   
 34 [0x22]:           popobj   
-35 [0x23]: line: 250 pushl 0   
+35 [0x23]: line: 249 pushl 0   
 36 [0x24]:           call @2084 // <std.io.coroutines#job.execute_async>   
 37 [0x25]:           loadval ebx   
 38 [0x26]:           rstore ebx   
@@ -41357,22 +41356,22 @@ function: std.io.coroutines#__srt_global.execute_job[2118] params(1) in file: li
 43 [0x2b]:           movr ebx, cmt   
 44 [0x2c]:           movr cmt, ebx   
 45 [0x2d]:           jne 57   
-46 [0x2e]: line: 251 movl 0   
+46 [0x2e]: line: 250 movl 0   
 47 [0x2f]:           movn #4   
 49 [0x31]:           del   
-50 [0x32]: line: 252 istorel 0, fp+0   
+50 [0x32]: line: 251 istorel 0, fp+0   
 52 [0x34]:           movg @25 // @std.io.coroutines#__srt_global   
 53 [0x35]:           movn #4   
 55 [0x37]:           _ulck   
 56 [0x38]:           ret   
 57 [0x39]:           nop   
-58 [0x3a]: line: 255 istorel 1, fp+0   
+58 [0x3a]: line: 254 istorel 1, fp+0   
 60 [0x3c]:           movg @25 // @std.io.coroutines#__srt_global   
 61 [0x3d]:           movn #4   
 63 [0x3f]:           _ulck   
 64 [0x40]:           ret   
 65 [0x41]:           jmp @73   
-66 [0x42]: line: 256 istorel 0, fp+0   
+66 [0x42]: line: 255 istorel 0, fp+0   
 68 [0x44]:           movg @25 // @std.io.coroutines#__srt_global   
 69 [0x45]:           movn #4   
 71 [0x47]:           _ulck   
@@ -46532,7 +46531,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 8 [0x8]:          movn #0   
 10 [0xa]:          movn #0   
 12 [0xc]:          popobj   
-13 [0xd]:          movi #50109, ebx   
+13 [0xd]:          movi #74270, ebx   
 15 [0xf]:          movg @24 // @std.io#buffer_type   
 16 [0x10]:          movn #0   
 18 [0x12]:          movn #1   
@@ -46547,7 +46546,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 31 [0x1f]:          movn #1   
 33 [0x21]:          movn #0   
 35 [0x23]:          popobj   
-36 [0x24]:          movi #50110, ebx   
+36 [0x24]:          movi #74271, ebx   
 38 [0x26]:          movg @24 // @std.io#buffer_type   
 39 [0x27]:          movn #1   
 41 [0x29]:          movn #1   
@@ -46562,7 +46561,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 54 [0x36]:          movn #2   
 56 [0x38]:          movn #0   
 58 [0x3a]:          popobj   
-59 [0x3b]:          movi #50111, ebx   
+59 [0x3b]:          movi #74272, ebx   
 61 [0x3d]:          movg @24 // @std.io#buffer_type   
 62 [0x3e]:          movn #2   
 64 [0x40]:          movn #1   
@@ -46577,7 +46576,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 77 [0x4d]:          movn #3   
 79 [0x4f]:          movn #0   
 81 [0x51]:          popobj   
-82 [0x52]:          movi #50112, ebx   
+82 [0x52]:          movi #74273, ebx   
 84 [0x54]:          movg @24 // @std.io#buffer_type   
 85 [0x55]:          movn #3   
 87 [0x57]:          movn #1   
@@ -46652,7 +46651,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 192 [0xc0]:          movn #0   
 194 [0xc2]:          movn #0   
 196 [0xc4]:          popobj   
-197 [0xc5]:          movi #50111, ebx   
+197 [0xc5]:          movi #74272, ebx   
 199 [0xc7]:          movg @34 // @std.io.fiber#fiber_state   
 200 [0xc8]:          movn #0   
 202 [0xca]:          movn #1   
@@ -46667,7 +46666,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 215 [0xd7]:          movn #1   
 217 [0xd9]:          movn #0   
 219 [0xdb]:          popobj   
-220 [0xdc]:          movi #50112, ebx   
+220 [0xdc]:          movi #74273, ebx   
 222 [0xde]:          movg @34 // @std.io.fiber#fiber_state   
 223 [0xdf]:          movn #1   
 225 [0xe1]:          movn #1   
@@ -46682,7 +46681,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 238 [0xee]:          movn #2   
 240 [0xf0]:          movn #0   
 242 [0xf2]:          popobj   
-243 [0xf3]:          movi #50113, ebx   
+243 [0xf3]:          movi #74274, ebx   
 245 [0xf5]:          movg @34 // @std.io.fiber#fiber_state   
 246 [0xf6]:          movn #2   
 248 [0xf8]:          movn #1   
@@ -46697,7 +46696,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 261 [0x105]:          movn #3   
 263 [0x107]:          movn #0   
 265 [0x109]:          popobj   
-266 [0x10a]:          movi #50114, ebx   
+266 [0x10a]:          movi #74275, ebx   
 268 [0x10c]:          movg @34 // @std.io.fiber#fiber_state   
 269 [0x10d]:          movn #3   
 271 [0x10f]:          movn #1   
@@ -46712,7 +46711,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 284 [0x11c]:          movn #4   
 286 [0x11e]:          movn #0   
 288 [0x120]:          popobj   
-289 [0x121]:          movi #50115, ebx   
+289 [0x121]:          movi #74276, ebx   
 291 [0x123]:          movg @34 // @std.io.fiber#fiber_state   
 292 [0x124]:          movn #4   
 294 [0x126]:          movn #1   
@@ -47297,7 +47296,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 1181 [0x49d]:          movn #0   
 1183 [0x49f]:          movn #0   
 1185 [0x4a1]:          popobj   
-1186 [0x4a2]:          movi #50115, ebx   
+1186 [0x4a2]:          movi #74276, ebx   
 1188 [0x4a4]:          movg @70 // @std.reflect#property_type   
 1189 [0x4a5]:          movn #0   
 1191 [0x4a7]:          movn #1   
@@ -47312,7 +47311,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 1204 [0x4b4]:          movn #1   
 1206 [0x4b6]:          movn #0   
 1208 [0x4b8]:          popobj   
-1209 [0x4b9]:          movi #50116, ebx   
+1209 [0x4b9]:          movi #74277, ebx   
 1211 [0x4bb]:          movg @70 // @std.reflect#property_type   
 1212 [0x4bc]:          movn #1   
 1214 [0x4be]:          movn #1   
@@ -47327,7 +47326,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 1227 [0x4cb]:          movn #2   
 1229 [0x4cd]:          movn #0   
 1231 [0x4cf]:          popobj   
-1232 [0x4d0]:          movi #50117, ebx   
+1232 [0x4d0]:          movi #74278, ebx   
 1234 [0x4d2]:          movg @70 // @std.reflect#property_type   
 1235 [0x4d3]:          movn #2   
 1237 [0x4d5]:          movn #1   
@@ -47537,7 +47536,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 1549 [0x60d]:          movn #0   
 1551 [0x60f]:          movn #0   
 1553 [0x611]:          popobj   
-1554 [0x612]:          movi #50118, ebx   
+1554 [0x612]:          movi #74279, ebx   
 1556 [0x614]:          movg @103 // @std.io#channel<t>.channel_state   
 1557 [0x615]:          movn #0   
 1559 [0x617]:          movn #1   
@@ -47552,7 +47551,7 @@ function: platform.kernel#platform.static_init[2355] params(0) in file: lib/supp
 1572 [0x624]:          movn #1   
 1574 [0x626]:          movn #0   
 1576 [0x628]:          popobj   
-1577 [0x629]:          movi #50119, ebx   
+1577 [0x629]:          movi #74280, ebx   
 1579 [0x62b]:          movg @103 // @std.io#channel<t>.channel_state   
 1580 [0x62c]:          movn #1   
 1582 [0x62e]:          movn #1   
@@ -92512,7 +92511,7 @@ function: app#__srt_global.$03internal_static_init[4257] params(0) in file: test
 8 [0x8]:         movg @81 // @app#__srt_global   
 9 [0x9]:         movn #0   
 11 [0xb]:         popobj   
-12 [0xc]:         istore 12000   
+12 [0xc]:         istore 22000   
 14 [0xe]:         movg @81 // @app#__srt_global   
 15 [0xf]:         movn #1   
 17 [0x11]:         loadval ebx   
@@ -92919,11 +92918,11 @@ lambda: std.io.coroutines#__srt_global.anon_func$4263[4263] params(2) in file: l
 16 [0x10]:          ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4264[4264] params(2) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:94:52: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4264[4264] params(2) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:93:52: note:  
 		                        jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 		                                                   ^
 
-0 [0x0]: line: 94 movl 0   
+0 [0x0]: line: 93 movl 0   
 1 [0x1]:          movn #16   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          iaload ebx, adx   
@@ -92938,11 +92937,11 @@ lambda: std.io.coroutines#__srt_global.anon_func$4264[4264] params(2) in file: l
 16 [0x10]:          ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4265[4265] params(2) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:112:48: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4265[4265] params(2) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:111:48: note:  
 		                    jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 		                                               ^
 
-0 [0x0]: line: 112 movl 0   
+0 [0x0]: line: 111 movl 0   
 1 [0x1]:           movn #16   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -92957,11 +92956,11 @@ lambda: std.io.coroutines#__srt_global.anon_func$4265[4265] params(2) in file: l
 16 [0x10]:           ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:140:15: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:139:15: note:  
 		    pool.find({ t ->
 		              ^
 
-0 [0x0]: line: 141 pushl 0   
+0 [0x0]: line: 140 pushl 0   
 1 [0x1]:           movg @25 // @std.io.coroutines#__srt_global   
 2 [0x2]:           movn #4   
 4 [0x4]:           pushobj   
@@ -92972,7 +92971,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: l
 9 [0x9]:           istorel 0, fp+0   
 11 [0xb]:           ret   
 12 [0xc]:           nop   
-13 [0xd]: line: 143 pushl 0   
+13 [0xd]: line: 142 pushl 0   
 14 [0xe]:           call @2278 // <std.io#thread.is_active>   
 15 [0xf]:           loadval ebx   
 16 [0x10]:           not ebx, ebx   
@@ -92988,7 +92987,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: l
 27 [0x1b]:           movr ebx, cmt   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 84   
-30 [0x1e]: line: 144 movg @25 // @std.io.coroutines#__srt_global   
+30 [0x1e]: line: 143 movg @25 // @std.io.coroutines#__srt_global   
 31 [0x1f]:           movn #6   
 33 [0x21]:           movi #0, adx   
 35 [0x23]:           iaload ebx, adx   
@@ -92996,7 +92995,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: l
 37 [0x25]:           inc ebx   
 38 [0x26]:           movi #0, adx   
 40 [0x28]:           rmov adx, ebx   
-41 [0x29]: line: 146 movg @25 // @std.io.coroutines#__srt_global   
+41 [0x29]: line: 145 movg @25 // @std.io.coroutines#__srt_global   
 42 [0x2a]:           movn #8   
 44 [0x2c]:           pushobj   
 45 [0x2d]:           pushnull    
@@ -93017,7 +93016,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: l
 61 [0x3d]:           movr ebx, cmt   
 62 [0x3e]:           movr cmt, ebx   
 63 [0x3f]:           jne 70   
-64 [0x40]: line: 147 pushl 0   
+64 [0x40]: line: 146 pushl 0   
 65 [0x41]:           movg @25 // @std.io.coroutines#__srt_global   
 66 [0x42]:           movn #8   
 68 [0x44]:           popobj   
@@ -93029,21 +93028,21 @@ lambda: std.io.coroutines#__srt_global.anon_func$4266[4266] params(1) in file: l
 75 [0x4b]:           itest ebx   
 76 [0x4c]:           movr cmt, ebx   
 77 [0x4d]:           jne 83   
-78 [0x4e]: line: 149 pushl 0   
+78 [0x4e]: line: 148 pushl 0   
 79 [0x4f]:           movg @25 // @std.io.coroutines#__srt_global   
 80 [0x50]:           movn #8   
 82 [0x52]:           popobj   
 83 [0x53]:           nop   
 84 [0x54]:           nop   
-85 [0x55]: line: 152 istorel 0, fp+0   
+85 [0x55]: line: 151 istorel 0, fp+0   
 87 [0x57]:           ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4267[4267] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:187:15: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4267[4267] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:186:15: note:  
 		    pool.find({ t ->
 		              ^
 
-0 [0x0]: line: 188 pushl 0   
+0 [0x0]: line: 187 pushl 0   
 1 [0x1]:           movg @25 // @std.io.coroutines#__srt_global   
 2 [0x2]:           movn #4   
 4 [0x4]:           pushobj   
@@ -93054,7 +93053,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4267[4267] params(1) in file: l
 9 [0x9]:           istorel 0, fp+0   
 11 [0xb]:           ret   
 12 [0xc]:           nop   
-13 [0xd]: line: 190 pushl 0   
+13 [0xd]: line: 189 pushl 0   
 14 [0xe]:           call @2278 // <std.io#thread.is_active>   
 15 [0xf]:           loadval ebx   
 16 [0x10]:           not ebx, ebx   
@@ -93070,7 +93069,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4267[4267] params(1) in file: l
 27 [0x1b]:           movr ebx, cmt   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 41   
-30 [0x1e]: line: 191 movg @25 // @std.io.coroutines#__srt_global   
+30 [0x1e]: line: 190 movg @25 // @std.io.coroutines#__srt_global   
 31 [0x1f]:           movn #6   
 33 [0x21]:           movi #0, adx   
 35 [0x23]:           iaload ebx, adx   
@@ -93079,15 +93078,15 @@ lambda: std.io.coroutines#__srt_global.anon_func$4267[4267] params(1) in file: l
 38 [0x26]:           movi #0, adx   
 40 [0x28]:           rmov adx, ebx   
 41 [0x29]:           nop   
-42 [0x2a]: line: 193 istorel 0, fp+0   
+42 [0x2a]: line: 192 istorel 0, fp+0   
 44 [0x2c]:           ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4268[4268] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:200:19: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4268[4268] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:199:19: note:  
 		        pool.find({ t ->
 		                  ^
 
-0 [0x0]: line: 201 pushl 0   
+0 [0x0]: line: 200 pushl 0   
 1 [0x1]:           movg @25 // @std.io.coroutines#__srt_global   
 2 [0x2]:           movn #4   
 4 [0x4]:           pushobj   
@@ -93098,7 +93097,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4268[4268] params(1) in file: l
 9 [0x9]:           istorel 0, fp+0   
 11 [0xb]:           ret   
 12 [0xc]:           nop   
-13 [0xd]: line: 203 pushl 0   
+13 [0xd]: line: 202 pushl 0   
 14 [0xe]:           call @2278 // <std.io#thread.is_active>   
 15 [0xf]:           loadval ebx   
 16 [0x10]:           skne ebx // pc = 26   
@@ -93114,11 +93113,11 @@ lambda: std.io.coroutines#__srt_global.anon_func$4268[4268] params(1) in file: l
 27 [0x1b]:           ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4269[4269] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:214:15: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4269[4269] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:213:15: note:  
 		    pool.find({ t ->
 		              ^
 
-0 [0x0]: line: 215 pushl 0   
+0 [0x0]: line: 214 pushl 0   
 1 [0x1]:           call @2278 // <std.io#thread.is_active>   
 2 [0x2]:           loadval ebx   
 3 [0x3]:           not ebx, ebx   
@@ -93134,7 +93133,7 @@ lambda: std.io.coroutines#__srt_global.anon_func$4269[4269] params(1) in file: l
 14 [0xe]:           movr ebx, cmt   
 15 [0xf]:           movr cmt, ebx   
 16 [0x10]:           jne 28   
-17 [0x11]: line: 216 movg @25 // @std.io.coroutines#__srt_global   
+17 [0x11]: line: 215 movg @25 // @std.io.coroutines#__srt_global   
 18 [0x12]:           movn #6   
 20 [0x14]:           movi #0, adx   
 22 [0x16]:           iaload ebx, adx   
@@ -93143,15 +93142,15 @@ lambda: std.io.coroutines#__srt_global.anon_func$4269[4269] params(1) in file: l
 25 [0x19]:           movi #0, adx   
 27 [0x1b]:           rmov adx, ebx   
 28 [0x1c]:           nop   
-29 [0x1d]: line: 218 istorel 0, fp+0   
+29 [0x1d]: line: 217 istorel 0, fp+0   
 31 [0x1f]:           ret   
 
 
-lambda: std.io.coroutines#__srt_global.anon_func$4270[4270] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:225:19: note:  
+lambda: std.io.coroutines#__srt_global.anon_func$4270[4270] params(1) in file: lib/support/0.2.9/io//coroutines//job_scheduler.sharp:224:19: note:  
 		        pool.find({ t ->
 		                  ^
 
-0 [0x0]: line: 226 pushl 0   
+0 [0x0]: line: 225 pushl 0   
 1 [0x1]:           call @2278 // <std.io#thread.is_active>   
 2 [0x2]:           loadval ebx   
 3 [0x3]:           skne ebx // pc = 13   

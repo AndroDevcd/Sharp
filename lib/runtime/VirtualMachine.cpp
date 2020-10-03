@@ -287,9 +287,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             thread->state = THREAD_RUNNING;
             thread->this_fiber->setAttachedThread(thread);
             thread->this_fiber->setState(thread, FIB_RUNNING);
-#ifdef SHARP_PROF_
-            thread->tprof->init(thread->this_fiber->stackLimit);
-#endif
 
             /*
              * Call main method
@@ -362,13 +359,12 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         }
     }
 
-
+    end:
 #ifdef SHARP_PROF_
     if(vm.state != VM_TERMINATED)
         thread_self->tprof->dump();
 #endif
 
-    end:
     fiber::killBoundFibers(thread);
     if(irCount != 0)
         cout << "instructions executed " << irCount << " overflowed " << overflow << endl;

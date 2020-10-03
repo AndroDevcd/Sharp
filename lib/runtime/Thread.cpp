@@ -840,14 +840,6 @@ void Thread::exec() {
     HAS_SIGNAL
 
 #ifdef SHARP_PROF_
-    tprof->starttm=Clock::realTimeInNSecs();
-    for(size_t i = 0; i < vm.manifest.methods; i++) {
-        funcProf prof = funcProf(vm.methods+i);
-        tprof->functions.push_back(prof);
-    }
-#endif
-
-#ifdef SHARP_PROF_
     tprof->hit(this_fiber->current);
 #endif
 
@@ -1472,6 +1464,17 @@ void Thread::setup() {
         setupSigHandler();
     }
 
+
+#ifdef SHARP_PROF_
+    tprof = new Profiler();
+    tprof->init(this_fiber->stackLimit);
+    tprof->starttm=Clock::realTimeInNSecs();
+    for(size_t i = 0; i < vm.manifest.methods; i++) {
+        funcProf prof = funcProf(vm.methods+i);
+        tprof->functions.push_back(prof);
+    }
+#endif
+
     if(currentThread.object != nullptr
        && CLASS(currentThread.object->info) == vm.ThreadClass->address) {
         vm.setFieldClass("fib", currentThread.object, vm.FiberClass);
@@ -1595,11 +1598,6 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
 #ifdef BUILD_JIT
     this->jctx = new jit_context();
 #endif
-#ifdef SHARP_PROF_
-    if(!daemon) {
-        tprof = new Profiler();
-    }
-#endif
 }
 
 int Thread::destroy(Thread* thread) {
@@ -1650,7 +1648,7 @@ void Thread::waitForContextSwitch() {
         else if (hasSignal(signal, tsig_suspend))
             suspendSelf();
 
-        next_fiber = fiber::nextFiber(NULL, this);
+        next_fiber = fiber::nextFiber(last_fiber, this);
     }
 
     {

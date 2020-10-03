@@ -149,7 +149,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown())
         return;
 
-    updateMemoryThreshold();
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
         collectGarbage(true);
 
@@ -163,6 +162,8 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         if(tself->state != THREAD_KILLED)
            Thread::resumeAllThreads(true);
     }
+
+    updateMemoryThreshold();
 }
 
 /**
@@ -769,11 +770,11 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         long spins = 0;
         if(mut->fiberid != thread->this_fiber->id) {
             if (mut->threadid == thread->id) {
-//                auto fib = fiber::getFiber(mut->fiberid);
-//                auto bound = fib->boundThread;
-//
-//                if(bound && bound->id == thread->id)
-//                  thread->next_fiber = fib;
+                auto fib = fiber::getFiber(mut->fiberid);
+                auto bound = fib->boundThread;
+
+                if(bound && bound->id == thread->id)
+                  thread->next_fiber = fib;
                 thread->this_fiber->delay(2000);
                 return false;
             }

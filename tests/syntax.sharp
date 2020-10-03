@@ -36,7 +36,7 @@ import platform;
 import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
-task_count := 12000;
+task_count := 22000;
 counter := new atomic<var>{ 0 };
 
 def foo() : var {

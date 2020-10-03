@@ -14,14 +14,14 @@ recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
 atomic<Int> unBoundFibers = { 0 };
 
-#define fiberAt(pos) fibers[pos]
+#define fiberAt(pos) fibers.load()[pos]
 
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
         GUARD(fmut)
         Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 4) + RESIZE_MIN;
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
-        fiber ** old = fibers;
+        fiber ** old = fibers.load(memory_order_relaxed);
         for(Int i = 0; i < dataSize; i++)
             tmpfibers[i] = old[i];
 
@@ -68,9 +68,9 @@ void addFiber(fiber* fib) {
 
     Int size = dataSize;
     for(Int i = 0; i < size; i++) {
-        if(fibers[i] == NULL) {
-            if(fibers[i] == NULL) {
-                fibers[i] = fib;
+        if(fiberAt(i) == NULL) {
+            if(fiberAt(i) == NULL) {
+                fiberAt(i) = fib;
                 return;
             }
         }
@@ -79,7 +79,7 @@ void addFiber(fiber* fib) {
     if(dataSize >= capacity)
         increase_fibers();
 
-    fibers[dataSize++] = fib;
+    fiberAt(dataSize++) = fib;
 }
 
 fiber* fiber::makeFiber(native_string &name, Method* main) {
@@ -192,12 +192,12 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
         }
     }
 
-    for(Int i = startPos; i < dataSize; i++) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && fib != startingFiber && isFiberRunnble(fib, loggedTime, thread))
+    for(Int i = 0; i < dataSize; i++) {
+       if((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread))
            return fib;
     }
 
-    return NULL;
+    return startingFiber;
 }
 
 void fiber::disposeFibers() {

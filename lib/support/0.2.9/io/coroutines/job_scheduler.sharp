@@ -81,7 +81,6 @@ private def scheduler_main(args : object[]) : var
 	spins_left := SPIN_COUNT;
 	while(true)
 	{
-		thread.yield();
 		for(i := 0; i < jobs.size(); i++) {
         	scheduled_job := jobs.at(i);
 
