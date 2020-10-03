@@ -1639,6 +1639,9 @@ void Thread::waitForContextSwitch() {
     this_fiber=NULL;
     waiting = true;
 
+    if(!next_fiber)
+        next_fiber = fiber::nextFiber(last_fiber, this);
+
     wait:
     while (next_fiber == NULL) {
         __usleep(10);
@@ -1647,7 +1650,7 @@ void Thread::waitForContextSwitch() {
         else if (hasSignal(signal, tsig_suspend))
             suspendSelf();
 
-        next_fiber = fiber::nextFiber(last_fiber, this);
+        next_fiber = fiber::nextFiber(NULL, this);
     }
 
     {

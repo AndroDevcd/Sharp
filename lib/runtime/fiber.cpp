@@ -167,11 +167,13 @@ inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 
 fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     fiber *fib = NULL;
+    Int startPos = 0;
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
     if(startingFiber != NULL) {
         for (Int i = 0; i < dataSize; i++) {
             if ((fib = fiberAt(i)) != NULL && fib == startingFiber) {
                 if ((i + 1) < dataSize) {
+                    startPos = i+1;
                     for (Int j = i + 1; j < dataSize; j++) {
                         if ((fib = fiberAt(j)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread)) {
                             if(fib->locking) {
@@ -190,12 +192,12 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
         }
     }
 
-    for(Int i = 0; i < dataSize; i++) {
+    for(Int i = startPos; i < dataSize; i++) {
        if((fib = fiberAt(i)) != NULL && !fib->finished && fib != startingFiber && isFiberRunnble(fib, loggedTime, thread))
            return fib;
     }
 
-    return startingFiber;
+    return NULL;
 }
 
 void fiber::disposeFibers() {
