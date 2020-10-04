@@ -1,70 +1,22 @@
 mod app;
 
-import std.io;
-import std.io.coroutines;
-import platform;
-import platform.kernel;
-
-chan := new channel<var>(UNLIMITED);
-task_count := 64;
-
-def foo() : var {
-    for(i := 0; i < task_count; i++) {
-        coroutine.builder()
-         .unconfined()
-         .with_args(new int[] { i }) = { args :object[] ->
-           index := (args[1] as int).get_value();
-           for(i := 0; i < 100_000_000; i++) {}
-           chan.send(0);
-           println("task #$index");
-        };
-    }
-
-    return 0;
-}
-
-def main(args: string[]) {
-   past := time.mills_time();
-   foo();
-   chan.read_next(0, task_count);
-   println(time.mills_time()-past);
-}
-
-//import std.io.*;
+//import std.io;
+//import std.io.coroutines;
 //import platform;
 //import platform.kernel;
 //
 //chan := new channel<var>(UNLIMITED);
-//task_count := 10000;
-//counter := new atomic<var>{ 0 };
-//
-//def fib(x: var): var
-//{
-//    number1 := 0;
-//    number2 := 1;
-//    next := 1;
-//
-//    for (i := 0; i < x-1 ; ++i)
-//    {
-//        next = number1 + number2;
-//        number1 = number2;
-//        number2 = next;
-//    }
-//
-//    return next;
-//}
+//task_count := 64;
 //
 //def foo() : var {
 //    for(i := 0; i < task_count; i++) {
 //        coroutine.builder()
-////        .unconfined()
-//        = { ->
-//             for( ;; ) {
-//              for(j := 0; j < 10000; j++){}
-//              fib(10);
-//              counter++;
-//              delay(1000);
-//             }
+//         .unconfined()
+//         .with_args(new int[] { i }) = { args :object[] ->
+//           index := (args[1] as int).get_value();
+//           for(i := 0; i < 100_000_000; i++) {}
+//           chan.send(0);
+//           println("task #$index");
 //        };
 //    }
 //
@@ -74,7 +26,37 @@ def main(args: string[]) {
 //def main(args: string[]) {
 //   past := time.mills_time();
 //   foo();
-//   delay(1000);
+//   chan.read_next(0, task_count);
 //   println(time.mills_time()-past);
-//   println(counter++);
 //}
+
+import std.io.*;
+import platform;
+import platform.kernel;
+
+chan := new channel<var>(UNLIMITED);
+task_count := 10000;
+counter := new atomic<var>{ 0 };
+
+def foo() : var {
+    for(i := 0; i < task_count; i++) {
+        coroutine.builder()
+//        .unconfined()
+        = { ->
+             for( ;; ) {
+              counter++;
+              delay(1000);
+             }
+        };
+    }
+
+    return 0;
+}
+
+def main(args: string[]) {
+   past := time.mills_time();
+   foo();
+   delay(1000);
+   println(time.mills_time()-past);
+   println(counter++);
+}

@@ -14,6 +14,7 @@ const Int RESIZE_MAX = 15000l;
 recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
 atomic<Int> unBoundFibers = { 0 };
+atomic<uInt> staleFibers = { 0 };
 
 #define fiberAt(pos) fibers.load(memory_order_acq_rel)[pos]
 
@@ -26,10 +27,10 @@ void increase_fibers() {
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
         fiber ** old = fibers.load(memory_order_acq_rel);
 
+        fibers.store(tmpfibers);
         for(Int i = 0; i < dataSize; i++)
             tmpfibers[i] = old[i];
 
-        fibers.store(tmpfibers);
         capacity += resizeAmnt;
         free(old); // causes crash sometimes...investigate
         gc.addMemory(sizeof(fiber **) * resizeAmnt);
@@ -43,11 +44,12 @@ void decrease_fibers() {
         GUARD(fmut)
         fiber** tmpfibers = (fiber**)__calloc(resizeAmount, sizeof(fiber**));
         fiber **old = fibers.load(memory_order_acq_rel);
+
+        fibers.store(tmpfibers);
         for(Int i = 0; i < dataSize; i++) {
             tmpfibers[i]=old[i];
         }
 
-        fibers.store(tmpfibers);
         capacity = resizeAmount;
         gc.freeMemory(sizeof(fiber**) * RESIZE_MIN);
         free(old);
@@ -227,7 +229,7 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
 }
 
 void fiber::disposeFibers() {
-    {
+    if(staleFibers.load() > 0) {
         for (Int i = 0; i < dataSize; i++) {
             fiber *fib = fiberAt(i);
 
@@ -239,6 +241,7 @@ void fiber::disposeFibers() {
                 if(fib->marked) {
                     GUARD(fmut)
                     fiberAt(i) = NULL;
+                    staleFibers--;
 
                     fib->free();
                     std::free(fib);
@@ -380,6 +383,7 @@ void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
             state = newState;
             finished = true;
             delayTime = -1;
+            staleFibers++;
             break;
     }
     
