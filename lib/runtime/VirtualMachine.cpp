@@ -185,6 +185,7 @@ bool returnMethod(Thread* thread) {
 CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     Method *method = vm.methods+address;
+    grow_stack3(thread, method->stackSize)
     THREAD_STACK_CHECK2(thread, method->stackSize, address);
     if(thread->this_fiber->calls+1 >= thread->this_fiber->frameSize)
         thread->this_fiber->growFrame();
@@ -626,6 +627,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         }
         case OP_FIBER_CURRENT: {
+            grow_stack2(thread_self)
+            THREAD_STACK_CHECK(thread_self);
             (++thread_self->this_fiber->sp)->object
                = thread_self->this_fiber->fiberObject;
             return;
@@ -684,10 +687,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Thread::suspendFor((Int )_64ADX);
             return;
         case OP_THREAD_CURRENT: // native getCurrentThread()
+            grow_stack2(thread_self)
             THREAD_STACK_CHECK(thread_self);
             (++thread_self->this_fiber->sp)->object = thread_self->currentThread;
             return;
         case OP_THREAD_ARGS: // native getCurrentThreadArgs()
+            grow_stack2(thread_self)
             THREAD_STACK_CHECK(thread_self);
             (++thread_self->this_fiber->sp)->object = thread_self->args;
             return;
@@ -897,6 +902,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             cout << std::flush;
             break;
         case OP_GET_FRAME_INFO:
+            grow_stack2(thread_self)
+            THREAD_STACK_CHECK(thread_self);
             getFrameInfo(&(++thread_self->this_fiber->sp)->object);
             break;
         case OP_GET_STACK_TRACE:

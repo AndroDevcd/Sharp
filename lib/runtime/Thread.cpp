@@ -902,6 +902,7 @@ void Thread::exec() {
                 sendSignal(signal, tsig_kill, 1);
                 _brh
             NEWARRAY: // tested
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->object =
                         gc.newObject(registers[GET_Ca(*this_fiber->pc)], GET_Cb(*this_fiber->pc));
@@ -943,6 +944,7 @@ void Thread::exec() {
                 registers[GET_Ca(*this_fiber->pc)]=(uInt)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             RSTORE: // tested
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->var = registers[GET_Da(*this_fiber->pc)];
                  _brh
@@ -1076,6 +1078,7 @@ void Thread::exec() {
                 registers[GET_Da(*this_fiber->pc)] = PC(this_fiber);
                 _brh
             PUSHOBJ:
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->object = this_fiber->ptr;
                 _brh
@@ -1116,6 +1119,7 @@ void Thread::exec() {
                 context_switch_check(false)
                 _brh_NOINCREMENT
             NEWCLASS:
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->object =
                         gc.newObject(&vm.classes[*(this_fiber->pc+1)]);
@@ -1159,8 +1163,10 @@ void Thread::exec() {
                 )
                 _brh
             NEWOBJARRAY:
+                grow_stack
+                STACK_CHECK
                 (++this_fiber->sp)->object = gc.newObjectArray(registers[GET_Da(*this_fiber->pc)]);
-                STACK_CHECK _brh
+                _brh
             NOT:
                 registers[GET_Ca(*this_fiber->pc)]=!registers[GET_Cb(*this_fiber->pc)];
                 _brh
@@ -1216,11 +1222,13 @@ void Thread::exec() {
                 this_fiber->fp->object=this_fiber->ptr;
                 _brh
             NEWCLASSARRAY:
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->object = gc.newObjectArray(
                         registers[GET_Da(*this_fiber->pc)], &vm.classes[*(this_fiber->pc+1)]);
                 _brh_inc(2)
             NEWSTRING:
+                grow_stack
                 STACK_CHECK
                 gc.createStringArray(&(++this_fiber->sp)->object,
                         vm.strings[GET_Da(*this_fiber->pc)]);
@@ -1310,6 +1318,7 @@ void Thread::exec() {
                 (this_fiber->fp)->var=registers[GET_Da(*this_fiber->pc)];
                 _brh
             ISTORE:
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->var = ((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
@@ -1317,14 +1326,17 @@ void Thread::exec() {
                 (this_fiber->fp+GET_Da(*this_fiber->pc))->var=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             PUSHNULL:
+                grow_stack
                 STACK_CHECK
                 gc.releaseObject(&(++this_fiber->sp)->object);
                 _brh
             IPUSHL:
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->var = (this_fiber->fp+GET_Da(*this_fiber->pc))->var;
                 _brh
             PUSHL:
+                grow_stack
                 STACK_CHECK
                 (++this_fiber->sp)->object = (this_fiber->fp+GET_Da(*this_fiber->pc))->object;
                 _brh

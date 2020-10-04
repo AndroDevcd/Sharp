@@ -55,6 +55,7 @@ void help() {
 }
 
 #define opt(v) strcmp(argv[i], v) == 0
+bool internalStackUpdated = false;
 
 int runtimeStart(int argc, const char* argv[])
 {
@@ -143,6 +144,7 @@ int runtimeStart(int argc, const char* argv[])
             if(i+1 >= argc)
                 error("internal stack limit required after option `-istack`");
             else {
+                internalStackUpdated = true;
                 size_t memoryLimit = getMemBytes(argv[i+1], argv[i]);
                 size_t stackSize = memoryLimit / sizeof(StackElement);
                 i++;
@@ -228,6 +230,16 @@ int startApplication(string &exe, std::list<string>& appArgs) {
         result = OUT_OF_MEMORY;
         fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
         goto bail;
+    }
+
+    if((vm.manifest.threadLocals+1) >= internalStackSize) {
+        unsigned int oldSize = (internalStackSize * sizeof(StackElement)) / KB_TO_BYTES(1);
+        internalStackSize = vm.manifest.threadLocals + (vm.manifest.threadLocals * 0.25);
+        unsigned int updatedBytes = (internalStackSize * sizeof(StackElement)) / KB_TO_BYTES(1);
+        if(internalStackUpdated) {
+            fprintf(stdout, "Internal stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
+                    oldSize, vm.manifest.application.str().c_str(), updatedBytes);
+        }
     }
 
     pushArgumentsToStack(appArgs);

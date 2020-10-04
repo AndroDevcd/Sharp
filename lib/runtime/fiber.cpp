@@ -10,24 +10,28 @@ uInt fibId=0 ;
 Int dataSize=0, capacity = 0;
 const int MAX_PASSES = 3;
 const Int RESIZE_MIN = 2500l;
+const Int RESIZE_MAX = 15000l;
 recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
 atomic<Int> unBoundFibers = { 0 };
 
-#define fiberAt(pos) fibers.load()[pos]
+#define fiberAt(pos) fibers.load(memory_order_acq_rel)[pos]
 
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
         GUARD(fmut)
-        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 4) + RESIZE_MIN;
+        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 2) + RESIZE_MIN;
+        if(resizeAmnt > RESIZE_MAX) resizeAmnt = RESIZE_MAX;
+
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
-        fiber ** old = fibers.load(memory_order_relaxed);
+        fiber ** old = fibers.load(memory_order_acq_rel);
+
         for(Int i = 0; i < dataSize; i++)
             tmpfibers[i] = old[i];
 
-        fibers = tmpfibers;
+        fibers.store(tmpfibers);
         capacity += resizeAmnt;
-        std::free(old); // causes crash sometimes...investigate
+        free(old); // causes crash sometimes...investigate
         gc.addMemory(sizeof(fiber **) * resizeAmnt);
     }
 }
@@ -38,15 +42,15 @@ void decrease_fibers() {
     if(resizeAmount > RESIZE_MIN && resizeAmount < capacity) {
         GUARD(fmut)
         fiber** tmpfibers = (fiber**)__calloc(resizeAmount, sizeof(fiber**));
-        fiber **old = fibers;
+        fiber **old = fibers.load(memory_order_acq_rel);
         for(Int i = 0; i < dataSize; i++) {
             tmpfibers[i]=old[i];
         }
 
-        fibers=tmpfibers;
-        dataSize -= RESIZE_MIN;
+        fibers.store(tmpfibers);
+        capacity = resizeAmount;
         gc.freeMemory(sizeof(fiber**) * RESIZE_MIN);
-        std::free(old);
+        free(old);
     }
 }
 
@@ -63,13 +67,13 @@ fiber* locateFiber(Int id) {
 }
 
 void addFiber(fiber* fib) {
-    GUARD(fmut)
-    fib->id = fibId++;
 
     Int size = dataSize;
     for(Int i = 0; i < size; i++) {
         if(fiberAt(i) == NULL) {
             if(fiberAt(i) == NULL) {
+                GUARD(fmut)
+                fib->id = fibId++;
                 fiberAt(i) = fib;
                 return;
             }
@@ -79,6 +83,8 @@ void addFiber(fiber* fib) {
     if(dataSize >= capacity)
         increase_fibers();
 
+    GUARD(fmut)
+    fib->id = fibId++;
     fiberAt(dataSize++) = fib;
 }
 
@@ -113,16 +119,38 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->passed = 0;
         fib->stackLimit = internalStackSize;
         fib->registers = (double *) __calloc(REGISTER_SIZE, sizeof(double));
-        fib->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
         new (&fib->mut) std::recursive_mutex();
 
-        if(internalStackSize - vm.manifest.threadLocals <= INITIAL_FRAME_SIZE) {
+        if(internalStackSize <= INITIAL_STACK_SIZE) {
+            fib->stackSize = internalStackSize;
+            fib->dataStack = (StackElement *) __malloc(internalStackSize * sizeof(StackElement));
+
+            StackElement *ptr = fib->dataStack;
+            for(Int i = 0; i < internalStackSize; i++) {
+                ptr->object.object = NULL;
+                ptr->var=0;
+                ptr++;
+            }
+        }
+        else {
+            fib->stackSize = vm.manifest.threadLocals + INITIAL_STACK_SIZE;
+            fib->dataStack = (StackElement *) __malloc(fib->stackSize* sizeof(StackElement));
+
+            StackElement *ptr = fib->dataStack;
+            for(Int i = 0; i < fib->stackSize; i++) {
+                ptr->object.object = NULL;
+                ptr->var=0;
+                ptr++;
+            }
+        }
+
+        if(internalStackSize - vm.manifest.threadLocals < INITIAL_FRAME_SIZE) {
             fib->frameSize = internalStackSize - vm.manifest.threadLocals;
-            fib->callStack = (Frame *) __calloc(internalStackSize - vm.manifest.threadLocals, sizeof(Frame));
+            fib->callStack = (Frame *) __malloc(fib->frameSize * sizeof(Frame));
         }
         else {
             fib->frameSize = INITIAL_FRAME_SIZE;
-            fib->callStack = (Frame *) __calloc(INITIAL_FRAME_SIZE, sizeof(Frame));
+            fib->callStack = (Frame *) __malloc(fib->frameSize * sizeof(Frame));
         }
 
         fib->frameLimit = internalStackSize - vm.manifest.threadLocals;
@@ -136,7 +164,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
 
         unBoundFibers++;
         gc.addMemory(sizeof(Frame) * fib->frameSize);
-        gc.addMemory(sizeof(StackElement) * internalStackSize);
+        gc.addMemory(sizeof(StackElement) * fib->stackSize);
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
         addFiber(fib);
     } catch(Exception &e) {
@@ -167,13 +195,11 @@ inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 
 fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
     fiber *fib = NULL;
-    Int startPos = 0;
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
     if(startingFiber != NULL) {
         for (Int i = 0; i < dataSize; i++) {
             if ((fib = fiberAt(i)) != NULL && fib == startingFiber) {
                 if ((i + 1) < dataSize) {
-                    startPos = i+1;
                     for (Int j = i + 1; j < dataSize; j++) {
                         if ((fib = fiberAt(j)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread)) {
                             if(fib->locking) {
@@ -202,7 +228,6 @@ fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
 
 void fiber::disposeFibers() {
     {
-        GUARD(fmut)
         for (Int i = 0; i < dataSize; i++) {
             fiber *fib = fiberAt(i);
 
@@ -212,6 +237,7 @@ void fiber::disposeFibers() {
 
             if (fib && fib->finished && fib->state == FIB_KILLED && fib->attachedThread == NULL) {
                 if(fib->marked) {
+                    GUARD(fmut)
                     fiberAt(i) = NULL;
 
                     fib->free();
@@ -297,9 +323,9 @@ void fiber::free() {
 
     bind(NULL);
     if(dataStack != NULL) {
-        gc.freeMemory(sizeof(StackElement) * stackLimit);
+        gc.freeMemory(sizeof(StackElement) * stackSize);
         StackElement *p = dataStack;
-        for(size_t i = 0; i < stackLimit; i++)
+        for(size_t i = 0; i < stackSize; i++)
         {
             if(p->object.object) {
                 DEC_REF(p->object.object);
@@ -439,9 +465,10 @@ Int fiber::boundFiberCount(Thread *thread) {
 
 void fiber::killBoundFibers(Thread *thread) {
     fiber *fib = NULL;
+    GUARD(fmut)
 
-    for(Int i = 0; i <= fibId; i++) {
-        if((fib = getFiber(i)) != NULL && fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
+    for(Int i = 0; i < dataSize; i++) {
+        if((fib = fiberAt(i)) != NULL && fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
             kill(fib->id);
         }
     }
@@ -456,11 +483,31 @@ void fiber::growFrame() {
         frameSize += FRAME_GROW_SIZE;
         gc.addMemory(sizeof(Frame) * FRAME_GROW_SIZE);
     }
-    else {
+    else if(frameSize != frameLimit) {
         callStack = (Frame *) __realloc(callStack, sizeof(Frame) * (frameLimit), sizeof(Frame) * frameSize);
         gc.addMemory(sizeof(Frame) * (frameLimit - frameSize));
         frameSize = frameLimit;
     }
     
+}
+
+void fiber::growStack(Int requiredSize) {
+    GUARD(mut)
+    if(requiredSize < STACK_GROW_SIZE)
+      requiredSize = STACK_GROW_SIZE;
+    else requiredSize += STACK_GROW_SIZE;
+
+    if(stackSize + requiredSize < stackLimit) {
+        dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackSize + requiredSize),
+                                        sizeof(StackElement) * stackSize);
+        stackSize += requiredSize;
+        gc.addMemory(sizeof(Frame) * requiredSize);
+    }
+    else if(stackSize != stackLimit) {
+        dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackLimit), sizeof(StackElement) * stackSize);
+        gc.addMemory(sizeof(Frame) * (frameLimit - frameSize));
+        stackSize = stackLimit;
+    }
+
 }
 

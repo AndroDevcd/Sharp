@@ -77,6 +77,15 @@
     if(this_fiber->current->branches < JIT_IR_LIMIT) \
         this_fiber->current->branches++;
 
+#define grow_stack \
+     if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackSize) this_fiber->growStack();
+
+#define grow_stack2(self) \
+     if(((self->this_fiber->sp-self->this_fiber->dataStack)+1) >= self->this_fiber->stackSize) self->this_fiber->growStack();
+
+#define grow_stack3(self, requiredSize) \
+     if(((self->this_fiber->sp-self->this_fiber->dataStack)+requiredSize) >= self->this_fiber->stackSize) self->this_fiber->growStack(requiredSize);
+
 #define STACK_CHECK  if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackLimit) throw Exception(vm.StackOverflowExcept, "");
 #define THREAD_STACK_CHECK(self)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+1) >= self->this_fiber->stackLimit) throw Exception(vm.StackOverflowExcept, "");
 #define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+stackSize + 1) >= self->this_fiber->stackLimit \

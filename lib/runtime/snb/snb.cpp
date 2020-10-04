@@ -87,6 +87,7 @@ object staticClassInstance(const char* name) {
 }
 
 void incSp() {
+    grow_stack2(thread_self)
     THREAD_STACK_CHECK(thread_self)
     thread_self->this_fiber->sp++;
 }
@@ -113,6 +114,7 @@ object getspObjAt(int32_t spOffset) {
 
 object newVarArray(int32_t size, unsigned short ntype) {
     try {
+        grow_stack2(thread_self)
         THREAD_STACK_CHECK(thread_self)
         (thread_self->this_fiber->sp + 1)->object =
                 gc.newObject(size, ntype);
@@ -125,6 +127,7 @@ object newVarArray(int32_t size, unsigned short ntype) {
 
 object newClass(const char* name) {
     try {
+        grow_stack2(thread_self)
         THREAD_STACK_CHECK(thread_self)
         ClassObject *klass = vm.resolveClass(name);
         if(klass) {
@@ -142,6 +145,7 @@ object newClass(const char* name) {
 
 object newObjArray(int32_t size) {
     try {
+        grow_stack2(thread_self)
         THREAD_STACK_CHECK(thread_self)
         (thread_self->this_fiber->sp+1)->object =
                 gc.newObjectArray(size);
@@ -189,11 +193,13 @@ object getItem(object obj, int32_t index) {
 }
 
 void pushNum(double value) {
+    grow_stack2(thread_self)
     THREAD_STACK_CHECK(thread_self)
     (++thread_self->this_fiber->sp)->var = value;
 }
 
 void pushObj(object value) {
+    grow_stack2(thread_self)
     THREAD_STACK_CHECK(thread_self)
     (++thread_self->this_fiber->sp)->object =
             ((Object*) value);

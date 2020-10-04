@@ -51,8 +51,13 @@ using namespace std;
 #define __os_yield() sched_yield();
 #endif
 
-//#define SHARP_PROF_
-//#define COROUTINE_DEBUGGING
+//#define GOD_MODE
+
+#ifdef GOD_MODE
+#define SHARP_PROF_
+#define COROUTINE_DEBUGGING
+#endif
+
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"
 #endif
