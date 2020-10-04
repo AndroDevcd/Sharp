@@ -789,7 +789,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                         return true;
                     }
 
-                    __usleep(100);
+                    __usleep(10);
                 } else if (hasSignal(thread->signal, tsig_context_switch)) {
                     if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
                         thread->try_context_switch();
