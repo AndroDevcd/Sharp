@@ -60,7 +60,7 @@ typedef int32_t x86int_t;
 
 #if (_ARCH_X86 == 64)  || \
     (_ARCH_X86 == 32)
-//#define BUILD_JIT 0
+#define BUILD_JIT 0
 #endif
 
 
