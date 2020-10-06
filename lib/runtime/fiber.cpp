@@ -33,7 +33,7 @@ void increase_fibers() {
             tmpfibers[i] = old[i];
 
         capacity += resizeAmnt;
-        free(old); // causes crash sometimes...investigate
+        free(old);
         gc.addMemory(sizeof(fiber **) * resizeAmnt);
     }
 }
@@ -183,6 +183,7 @@ fiber* fiber::getFiber(uInt id) {
 }
 
 inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
+
     if(fib->state == FIB_SUSPENDED && fib->wakeable) {
         return (fib->boundThread == thread || fib->boundThread == NULL) && loggedTime >= fib->delayTime;
     }
@@ -193,26 +194,23 @@ inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
     fiber *fib = NULL, *startingFiber = NULL;
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
-    Int size = dataSize;
+    Int size;
 
     if(startingIndex >= 0 && (startingIndex+1) < dataSize) {
         startingFiber = fiberAt(startingIndex);
 
-        for (Int i = startingIndex+1; i < size; i++) {
-            if ((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread)) {
-                if(fib->locking) {
-                    if(fib->passed >= MAX_PASSES)
-                        fib->passed = 0;
-                    else fib->passed++;
-                }
+        for (Int i = startingIndex+1; i < dataSize; i++) {
+            if ((fib = fiberAt(i)) != NULL && !fib->finished && !fib->locking && isFiberRunnble(fib, loggedTime, thread)) {
 
                 return fib;
             }
         }
-    }
 
-    for(Int i = 0; i < size; i++) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && !fib->locking && isFiberRunnble(fib, loggedTime, thread))
+        size = startingIndex;
+    } else size = dataSize;
+
+    for(Int i = size-1; i >= 0 ; i--) {
+       if((fib = fiberAt(i)) != NULL && !fib->finished && !isFiberRunnble(fib, loggedTime, thread))
            return fib;
     }
 
