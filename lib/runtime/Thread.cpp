@@ -580,7 +580,8 @@ void Thread::killAll() {
 
 #ifdef COROUTINE_DEBUGGING
         cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
-             << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << " actual sleep time: " << thread->actualSleepTime << endl;
+             << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << " actual sleep time: " << thread->actualSleepTime
+             << " context switch time (ms) " << thread->contextSwitchTime << endl;
 #endif
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
@@ -1632,6 +1633,7 @@ void Thread::enableContextSwitch(bool enable) {
 void Thread::waitForContextSwitch() {
 #ifdef COROUTINE_DEBUGGING
     switched++;
+    Int start = NANO_TOMILL(Clock::realTimeInNSecs());
 #endif
     this_fiber->setAttachedThread(NULL);
 
@@ -1641,6 +1643,11 @@ void Thread::waitForContextSwitch() {
         }
         else {
             waiting = false;
+
+#ifdef COROUTINE_DEBUGGING
+            switched++;
+            contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
+#endif
             return;
         }
     } else if(this_fiber->state == FIB_RUNNING) {
@@ -1655,9 +1662,10 @@ void Thread::waitForContextSwitch() {
     wait:
     while (next_fiber == NULL) {
 #ifdef COROUTINE_DEBUGGING
-        actualSleepTime+=1000;
+        actualSleepTime+=100;
 #endif
-        __usleep(1000);
+        __os_yield();
+        __usleep(100);
         if (state == THREAD_KILLED || hasSignal(signal, tsig_kill))
             break;
         else if (hasSignal(signal, tsig_suspend))
@@ -1689,6 +1697,11 @@ void Thread::waitForContextSwitch() {
         }
     }
 
+
+#ifdef COROUTINE_DEBUGGING
+    switched++;
+    contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
+#endif
     waiting = false;
 }
 

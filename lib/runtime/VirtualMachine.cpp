@@ -482,7 +482,6 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
     }
 }
 
-Int total = 0;
 void VirtualMachine::sysInterrupt(int64_t signal) {
     switch (signal) {
         case OP_NOP:

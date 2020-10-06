@@ -68,6 +68,7 @@ public:
 #ifdef COROUTINE_DEBUGGING
         timeSleeping=0;
         actualSleepTime=0;
+        contextSwitchTime=0;
         switched=0;
         skipped=0;
 #endif
@@ -76,7 +77,7 @@ public:
 #endif
     }
 #ifdef COROUTINE_DEBUGGING
-    Int timeSleeping, switched, skipped, actualSleepTime;
+    Int timeSleeping, switched, skipped, actualSleepTime, contextSwitchTime;
 #endif
 
     void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);

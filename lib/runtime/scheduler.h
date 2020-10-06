@@ -7,11 +7,12 @@
 
 #include "../../stdimports.h"
 
-#define LPTSI 1000  /* low priority time slice interval 1ms */  // ~1k fibers/thread
-#define NPTSI 1500  /* norm priority time slice interval 1.5ms */ // ~666 fibers/thread
-#define HPTSI 2500 /* high priority time slice interval 2.5ms */ // ~400 fibers/thread
-#define CLOCK_CYCLE 550    /* Time between clock cycle switches 550us */
+#define LPTSI 500  /* low priority time slice interval 500us */  // ~2k fibers/thread
+#define NPTSI 1000  /* norm priority time slice interval 1ms */ // ~1k fibers/thread
+#define HPTSI 1500 /* high priority time slice interval 1.5ms */ // ~666 fibers/thread
+#define CLOCK_CYCLE 50    /* Time between clock cycle switches 550us */
 
+extern uInt clocks;
 extern atomic<bool> threadReleaseBlock;
 void run_scheduler();
 bool is_thread_ready(Thread *thread);

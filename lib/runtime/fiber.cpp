@@ -10,7 +10,7 @@ uInt fibId=0 ;
 Int dataSize=0, capacity = 0;
 const int MAX_PASSES = 3;
 const Int RESIZE_MIN = 2500l;
-const Int RESIZE_MAX = 15000l;
+const Int RESIZE_MAX = 25000l;
 recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
 atomic<Int> unBoundFibers = { 0 };
@@ -182,10 +182,10 @@ fiber* fiber::getFiber(uInt id) {
     return locateFiber(id);
 }
 
-inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
+inline bool isFiberRunnble(fiber *fib, Thread *thread) {
 
     if(fib->state == FIB_SUSPENDED && fib->wakeable) {
-        return (fib->boundThread == thread || fib->boundThread == NULL) && loggedTime >= fib->delayTime;
+        return (fib->boundThread == thread || fib->boundThread == NULL);
     }
 
     return false;
@@ -193,28 +193,40 @@ inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
 
 fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
     fiber *fib = NULL, *startingFiber = NULL;
-    uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
+    uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
     Int size;
 
     if(startingIndex >= 0 && (startingIndex+1) < dataSize) {
         startingFiber = fiberAt(startingIndex);
 
         for (Int i = startingIndex+1; i < dataSize; i++) {
-            if ((fib = fiberAt(i)) != NULL && !fib->finished && !fib->locking && isFiberRunnble(fib, loggedTime, thread)) {
+            if ((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
+                if(fib->locking) {
+                    if(fib->passed >= MAX_PASSES)
+                        fib->passed = 0;
+                    else {
+                        fib->passed++;
+                        continue;
+                    }
+                }
 
+                if(fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
                 return fib;
             }
         }
 
         size = startingIndex;
-    } else size = dataSize;
+    } else size = dataSize-1;
 
-    for(Int i = size-1; i >= 0 ; i--) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && !isFiberRunnble(fib, loggedTime, thread))
+    __os_yield();
+    __usleep(10);
+    for(Int i = size; i >= 0 ; i--) {
+       if((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
+           if(fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
            return fib;
+       }
     }
-
-    return startingFiber;
+    return nullptr;
 }
 
 void fiber::disposeFibers() {
@@ -364,10 +376,14 @@ void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
             state = newState;
             delayTime = -1;
             break;
-        case FIB_SUSPENDED:
-            delayTime = delay;
+        case FIB_SUSPENDED: {
+
+            if(delay > 0) {
+                delayTime = NANO_TOMILL(Clock::realTimeInNSecs()) + delay;
+            } else delayTime = -1;
             state = newState;
             break;
+        }
         case FIB_KILLED:
             bind(NULL);
             state = newState;
@@ -405,7 +421,7 @@ void fiber::delay(Int time) {
 
     attachedThread->enableContextSwitch(true);
     attachedThread->contextSwitching = true;
-    setState(thread_self, FIB_SUSPENDED, NANO_TOMICRO(Clock::realTimeInNSecs()) + time);
+    setState(thread_self, FIB_SUSPENDED, time);
 }
 
 bool fiber::safeStart(Thread *thread) {
