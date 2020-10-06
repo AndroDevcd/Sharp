@@ -152,9 +152,9 @@ void Thread::waitForUnsuspend() {
             retryCount = 0;
 
 #ifdef COROUTINE_DEBUGGING
-            timeSleeping += 10;
+            timeSleeping += 1000;
 #endif
-            __usleep(10);
+            __usleep(1000);
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;
             return;
@@ -580,7 +580,7 @@ void Thread::killAll() {
 
 #ifdef COROUTINE_DEBUGGING
         cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
-             << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << endl;
+             << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << " actual sleep time: " << thread->actualSleepTime << endl;
 #endif
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
@@ -1650,17 +1650,20 @@ void Thread::waitForContextSwitch() {
     waiting = true;
 
     if(!next_fiber)
-        next_fiber = fiber::nextFiber(last_fiber, this);
+        next_fiber = fiber::nextFiber(last_fiber ? last_fiber->itemIndex : -1, this);
 
     wait:
     while (next_fiber == NULL) {
-        __usleep(10);
+#ifdef COROUTINE_DEBUGGING
+        actualSleepTime+=1000;
+#endif
+        __usleep(1000);
         if (state == THREAD_KILLED || hasSignal(signal, tsig_kill))
             break;
         else if (hasSignal(signal, tsig_suspend))
             suspendSelf();
 
-        next_fiber = fiber::nextFiber(last_fiber, this);
+        next_fiber = fiber::nextFiber(last_fiber ? last_fiber->itemIndex : -1, this);
     }
 
     {
@@ -1692,4 +1695,9 @@ void Thread::waitForContextSwitch() {
 void __os_sleep(Int INTERVAL) {
     if(INTERVAL < 0) return;
     __usleep(INTERVAL);
+
+#ifdef COROUTINE_DEBUGGING
+    if(thread_self)
+       thread_self->actualSleepTime+=INTERVAL;
+#endif
 }

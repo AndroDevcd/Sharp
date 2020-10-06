@@ -55,8 +55,8 @@ using namespace std;
 
 #ifdef GOD_MODE
 #define SHARP_PROF_
-#define COROUTINE_DEBUGGING
 #endif
+#define COROUTINE_DEBUGGING
 
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"

@@ -80,6 +80,7 @@ void addFiber(fiber* fib) {
                     openSpots--;
                     fib->id = fibId++;
                     fiberAt(i) = fib;
+                    fib->itemIndex=i;
                     return;
                 }
             }
@@ -91,6 +92,7 @@ void addFiber(fiber* fib) {
 
     GUARD(fmut)
     fib->id = fibId++;
+    fib->itemIndex = dataSize;
     fiberAt(dataSize++) = fib;
 }
 
@@ -181,46 +183,36 @@ fiber* fiber::getFiber(uInt id) {
 }
 
 inline bool isFiberRunnble(fiber *fib, Int loggedTime, Thread *thread) {
-    if(fib->state == FIB_SUSPENDED && fib->wakeable && fib->attachedThread == NULL) {
-        if(fib->boundThread == thread || fib->boundThread == NULL) {
-            if (fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
-                return true;
-            } else if (fib->delayTime <= 0) {
-                return true;
-            }
-        }
+    if(fib->state == FIB_SUSPENDED && fib->wakeable) {
+        return (fib->boundThread == thread || fib->boundThread == NULL) && loggedTime >= fib->delayTime;
     }
 
     return false;
 }
 
-fiber* fiber::nextFiber(fiber *startingFiber, Thread *thread) {
-    fiber *fib = NULL;
+fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
+    fiber *fib = NULL, *startingFiber = NULL;
     uInt loggedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
-    if(startingFiber != NULL) {
-        for (Int i = 0; i < dataSize; i++) {
-            if ((fib = fiberAt(i)) != NULL && fib == startingFiber) {
-                if ((i + 1) < dataSize) {
-                    for (Int j = i + 1; j < dataSize; j++) {
-                        if ((fib = fiberAt(j)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread)) {
-                            if(fib->locking) {
-                                if(fib->passed >= MAX_PASSES)
-                                   fib->passed = 0;
-                                else fib->passed++;
-                            }
+    Int size = dataSize;
 
-                            return fib;
-                        }
-                    }
+    if(startingIndex >= 0 && (startingIndex+1) < dataSize) {
+        startingFiber = fiberAt(startingIndex);
 
-                    break;
-                } else break;
+        for (Int i = startingIndex+1; i < size; i++) {
+            if ((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread)) {
+                if(fib->locking) {
+                    if(fib->passed >= MAX_PASSES)
+                        fib->passed = 0;
+                    else fib->passed++;
+                }
+
+                return fib;
             }
         }
     }
 
-    for(Int i = 0; i < dataSize; i++) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, loggedTime, thread))
+    for(Int i = 0; i < size; i++) {
+       if((fib = fiberAt(i)) != NULL && !fib->finished && !fib->locking && isFiberRunnble(fib, loggedTime, thread))
            return fib;
     }
 

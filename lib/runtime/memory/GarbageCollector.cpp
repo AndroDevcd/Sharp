@@ -766,17 +766,20 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         thread->this_fiber->locking =true;
 
         retry:
-        long maxSpin = 100000;
+        long maxSpin = 10000;
         long spins = 0;
         if(mut->fiberid != thread->this_fiber->id) {
             if (mut->threadid == thread->id) {
                 auto fib = fiber::getFiber(mut->fiberid);
-                auto bound = fib->boundThread;
 
-                if(bound && bound->id == thread->id)
-                  thread->next_fiber = fib;
-                thread->this_fiber->delay(0);
-                return false;
+                if(fib) {
+                    auto bound = fib->boundThread;
+
+                    if (bound && bound->id == thread->id)
+                        thread->next_fiber = fib;
+                    thread->this_fiber->delay(0);
+                    return false;
+                }
             }
 
             while (mut->fiberid != -1) {
@@ -789,7 +792,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                         return true;
                     }
 
-                    __usleep(10);
+                    __usleep(100);
                 } else if (hasSignal(thread->signal, tsig_context_switch)) {
                     if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
                         thread->try_context_switch();

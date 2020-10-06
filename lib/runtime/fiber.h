@@ -28,7 +28,7 @@ public:
 
     static fiber* makeFiber(native_string &name, Method* main);
     static fiber* getFiber(uInt id);
-    static fiber* nextFiber(fiber *startingFiber, Thread* thread);
+    static fiber* nextFiber(Int startingIndex, Thread* thread);
     static int suspend(uInt id);
     static int unsuspend(uInt id);
     static int kill(uInt id);
@@ -52,6 +52,7 @@ public:
 public:
 
     uInt id;
+    uInt itemIndex;
     native_string name;
     Int stackLimit;
     Cache cache, pc;
@@ -72,7 +73,7 @@ public:
     uInt stackSize;
     double *registers;
     Object *ptr;
-    Int delayTime; // -1 for full suspension >= 0 for timed suspension
+    Int delayTime;
     bool wakeable;
     bool finished;
     bool locking;
