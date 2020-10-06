@@ -15,13 +15,14 @@ recursive_mutex fmut;
 atomic<fiber**> fibers = { NULL };
 atomic<Int> unBoundFibers = { 0 };
 atomic<uInt> staleFibers = { 0 };
+atomic<uInt> openSpots = { 0 };
 
 #define fiberAt(pos) fibers.load(memory_order_acq_rel)[pos]
 
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
         GUARD(fmut)
-        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : (capacity >> 2) + RESIZE_MIN;
+        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : capacity + RESIZE_MIN;
         if(resizeAmnt > RESIZE_MAX) resizeAmnt = RESIZE_MAX;
 
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
@@ -70,14 +71,17 @@ fiber* locateFiber(Int id) {
 
 void addFiber(fiber* fib) {
 
-    Int size = dataSize;
-    for(Int i = 0; i < size; i++) {
-        if(fiberAt(i) == NULL) {
-            if(fiberAt(i) == NULL) {
-                GUARD(fmut)
-                fib->id = fibId++;
-                fiberAt(i) = fib;
-                return;
+    if(openSpots > 0) {
+        Int size = dataSize;
+        for (Int i = 0; i < size; i++) {
+            if (fiberAt(i) == NULL) {
+                if (fiberAt(i) == NULL) {
+                    GUARD(fmut)
+                    openSpots--;
+                    fib->id = fibId++;
+                    fiberAt(i) = fib;
+                    return;
+                }
             }
         }
     }
@@ -123,27 +127,22 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->registers = (double *) __calloc(REGISTER_SIZE, sizeof(double));
         new (&fib->mut) std::recursive_mutex();
 
-        if(internalStackSize <= INITIAL_STACK_SIZE) {
+        if(internalStackSize < INITIAL_STACK_SIZE) {
             fib->stackSize = internalStackSize;
-            fib->dataStack = (StackElement *) __malloc(internalStackSize * sizeof(StackElement));
-
-            StackElement *ptr = fib->dataStack;
-            for(Int i = 0; i < internalStackSize; i++) {
-                ptr->object.object = NULL;
-                ptr->var=0;
-                ptr++;
-            }
+        }
+        else if((vm.manifest.threadLocals + 50) < INITIAL_STACK_SIZE) {
+            fib->stackSize = INITIAL_STACK_SIZE;
         }
         else {
             fib->stackSize = vm.manifest.threadLocals + INITIAL_STACK_SIZE;
-            fib->dataStack = (StackElement *) __malloc(fib->stackSize* sizeof(StackElement));
+        }
 
-            StackElement *ptr = fib->dataStack;
-            for(Int i = 0; i < fib->stackSize; i++) {
-                ptr->object.object = NULL;
-                ptr->var=0;
-                ptr++;
-            }
+        fib->dataStack = (StackElement *) __malloc(fib->stackSize* sizeof(StackElement));
+        StackElement *ptr = fib->dataStack;
+        for(Int i = 0; i < fib->stackSize; i++) {
+            ptr->object.object = NULL;
+            ptr->var=0;
+            ptr++;
         }
 
         if(internalStackSize - vm.manifest.threadLocals < INITIAL_FRAME_SIZE) {
@@ -160,8 +159,8 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->sp = (&fib->dataStack[vm.manifest.threadLocals]) - 1;
 
         for(Int i = 0; i < vm.tlsInts.size(); i++) {
-            fib->dataStack[vm.tlsInts.at(i).key].object =
-                    gc.newObject(1, vm.tlsInts.at(i).value);
+            fib->dataStack[vm.tlsInts._Data[i].key].object =
+                    gc.newObject(1, vm.tlsInts._Data[i].value);
         }
 
         unBoundFibers++;
@@ -242,6 +241,7 @@ void fiber::disposeFibers() {
                     GUARD(fmut)
                     fiberAt(i) = NULL;
                     staleFibers--;
+                    openSpots++;
 
                     fib->free();
                     std::free(fib);

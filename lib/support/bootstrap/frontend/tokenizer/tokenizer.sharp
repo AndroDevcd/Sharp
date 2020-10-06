@@ -30,7 +30,6 @@ class tokenizer {
     public tokenizer(text: string, file: string, start_parser: var)
     {
         line = 1;
-        println("tok $file");
         self->file = file;
         lines = new list<string>();
         self->start_parser = start_parser;

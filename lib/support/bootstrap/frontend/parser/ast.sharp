@@ -255,6 +255,7 @@ enum ast_type {
     ast_access_type,
     ast_obfuscate_block,
     ast_obfuscate_element,
+    ast_base_class_constructor,
 
     /**
      * Encapsulated ast's to make processing expressions easier

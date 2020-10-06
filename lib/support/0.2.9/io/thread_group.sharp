@@ -47,29 +47,35 @@ public class thread_group : loopable<thread> {
     }
 
     def find(find_func: (thread)(var)) : thread {
-        for(i := 0; i < handles.size(); i++) {
-            _thread := handles.at(i);
-            if(_thread != null && find_func(_thread)) {
-                return _thread;
-            }
-        }
+	    lock (self) {
+           for(i := 0; i < handles.size(); i++) {
+               _thread := handles.at(i);
+               if(_thread != null && find_func(_thread)) {
+                   return _thread;
+               }
+           }
 
-        return null;
+           return null;
+        }
     }
 
     def find(id: var) : thread {
-        for(i := 0; i < handles.size(); i++) {
-            if(handles[i].get_id() == id) {
-                return handles[i];
-            }
-        }
+	    lock (self) {
+           for(i := 0; i < handles.size(); i++) {
+               if(handles[i].get_id() == id) {
+                   return handles[i];
+               }
+           }
 
-        return null;
+           return null;
+        }
     }
 	
 	def kill_all() {
-		foreach(t in handles) {
-			t.interrupt();
+	    lock (self) {
+		   foreach(t in handles) {
+		   	  t.interrupt();
+		   }
 		}
 	}
 	

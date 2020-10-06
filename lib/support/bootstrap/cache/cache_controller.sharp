@@ -15,7 +15,7 @@ def load_or_parse(filepath: string) {
         parser_channel.send(p);
         return;
       }
-   } else println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+   }
 
    //try {
       new tokenizer(new file(filepath).read(), filepath, true);

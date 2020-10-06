@@ -9,7 +9,7 @@ native def print_message();
  * to compile simply type the following commands:
  *
  * sharpc helloworld.sharp -o helloworld
- * g++ hello.cpp generated/*.cpp -shared -o hello.so
+ * g++ hello.cpp generated/*.cpp -shared -o hello.so -fPIC
  * sharp helloworld
  *
  * output: Hello, world!

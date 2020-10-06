@@ -563,3 +563,4 @@ def main() {
 * New async functionality
 * deferr keyword added
 * \u0000 unicode strings
+* paramaterized array access i.e 'str[0, 5]' returns a substring from pos 0 to 5

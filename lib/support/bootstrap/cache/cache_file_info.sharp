@@ -91,7 +91,6 @@ def update_cache_info() {
 
          if(cf.exists()) {
             try {
-               println("update cache ${options.project_dir + cache_file_path}");
                file_info = _import_from(options.project_dir + cache_file_path) as cache_info;
                return;
             } catch (throwable) {

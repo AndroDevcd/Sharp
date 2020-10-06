@@ -31,11 +31,15 @@ class parser {
     private static const KEYWORD_PRIVATE       := 6;
     private static const KEYWORD_DEF           := 7;
     private static const KEYWORD_IMPORT        := 8;
+    private static const KEYWORD_RETURN        := 9;
     private static const KEYWORD_CONST         := 11;
     private static const KEYWORD_PUBLIC        := 12;
     private static const KEYWORD_OPERATOR      := 15;
     private static const KEYWORD_BASE          := 16;
+    private static const KEYWORD_IF            := 17;
+    private static const KEYWORD_ELSE          := 27;
     private static const KEYWORD_OBJECT        := 29;
+    private static const KEYWORD_FOR           := 30;
     private static const KEYWORD_VAR           := 33;
     private static const KEYWORD_INT8          := 34;
     private static const KEYWORD_INT16         := 35;
@@ -129,10 +133,53 @@ class parser {
                  current.tok == keywords[KEYWORD_CLASS] -> {
                     parse_class_decl(null);
                  }
+                 current.tok == keywords[KEYWORD_MUTATE] -> {
+                    parse_mutate_decl(null);
+                 }
+                 current.tok == keywords[KEYWORD_DEF] -> {
+                     id_list : ast;
+                     if(peek(1).type == token_type.lessthan) {
+                        expect(null, "<", false);
+                        parse_generic_identifier_list(null);
+                        expect(null, ">", false);
+                        id_list = tree.pop_last();
+                     }
+
+                     parse_method_decl(null);
+
+                     if(id_list != null) {
+                         tree.last().add(id_list);
+                     }
+                 }
+                 current.tok == keywords[KEYWORD_ALIAS] -> {
+                     parse_alias_declaration(null);
+                 }
+                 current.tok == keywords[KEYWORD_INTERFACE] -> {
+                     parse_interface_decl(null);
+                 }
+                 current.tok == keywords[KEYWORD_OBFUSCATE] -> {
+                     parse_obfuscate_decl(null);
+                 }
+                 current.tok == keywords[KEYWORD_ENUM] -> {
+                     parse_enum_declaration(null);
+                 }
+                 (is_variable_decl(current) && (peek(1).type == token_type.colon || peek(1).type == token_type.infer)) ||
+                    (current.tok == keywords[KEYWORD_THREAD_LOCAL]
+                         && (is_variable_decl(peek(1)) && (peek(2).type == token_type.colon || peek(2).type == token_type.infer))) -> {
+                    parse_variable_decl(null, true);
+                 }
+                 current.type == token_type.semicolon -> {
+                    if(access_types.size() > 0)
+                       errors.new_error(illegal_access_declaration, current);
+                    errors.new_warning(generic, current, "unnecessary semicolon ';'");
+                    expect_semicolon();
+                 }
                  else -> {
-                    advance();
+                    parse_all(null);
                  }
               }
+
+              advance();
            }
         } catch(throwable) { /* ignore everything */ }
 
@@ -146,6 +193,10 @@ class parser {
         toks = null;
         tokens = null;
         cache_parser(self);
+    }
+
+    def parse_all(_ast: ast) {
+       advance();
     }
 
     def is_end() := current.type == eof;
@@ -221,6 +272,127 @@ class parser {
        }
     }
 
+    def parse_statement(_ast : ast) : var{
+       branch := get_branch(_ast, ast_statement);
+
+       if(is_access_decl()) {
+          parse_access_types();
+       }
+
+       when {
+          current.tok == keywords[KEYWORD_RETURN] -> {
+             if(access_types.size() > 0)
+                errors.new_error(illegal_access_declaration, current);
+             parse_return_statement(branch);
+             return true;
+          }
+          current.tok == keywords[KEYWORD_IF] -> {
+             if(access_types.size() > 0)
+                errors.new_error(illegal_access_declaration, current);
+             parse_if_statement(branch);
+             return true;
+          }
+          current.tok == keywords[KEYWORD_FOR] -> {
+             if(access_types.size() > 0)
+                errors.new_error(illegal_access_declaration, current);
+             parse_for_statement(branch);
+             return true;
+          }
+          else -> {
+             return false;
+          }
+       }
+    }
+
+    def parse_if_statement(_ast : ast) {
+       branch := get_branch(_ast, ast_if_statement);
+
+       parens := false;
+       if(peek(1).type != token_type.left_paren) {
+          expect(branch, "(", false);
+          parens = true;
+       }
+
+       parse_expression(branch);
+       if(parens) expect(branch, ")", false);
+
+       parse_block(branch);
+
+       tmp: ast;
+       is_else := false;
+       condexpr:
+       if(peek(1).tok == keywords[KEYWORD_ELSE])
+       {
+           if(peek(2).tok == keywords[KEYWORD_IF])
+           {
+               tmp = get_branch(branch, ast_elseif_statement);
+
+               advance();
+               advance();
+
+               parens = false;
+               if(peek(1).type != token_type.left_paren) {
+                  expect(branch, "(", false);
+                  parens = true;
+               }
+
+               parse_expression(tmp);
+               if(parens) expect(branch, ")", false);
+           }
+           else
+           {
+               tmp = get_branch(branch, ast_else_statement);
+
+               advance();
+               is_else = true;
+           }
+
+
+           parse_block(tmp);
+           if(!isElse)
+               goto condexpr;
+       }
+    }
+
+    def parse_return_statement(_ast : ast) {
+       branch := get_branch(_ast, ast_return_stmnt);
+
+       if(peek(1).type != token_type.semicolon) {
+          try_parse(branch, { branch, p ->
+              return p.parse_expression(branch);
+          });
+       }
+
+       expect_semicolon();
+    }
+
+    def parse_for_statement(_ast : ast) {
+       branch := get_branch(_ast, ast_for_statement);
+
+       for val in array { // iterated loop with typed var
+
+       }
+
+       for val,i in array { // iterated lop with typed var & index var
+
+       }
+
+       for i := 0; i < 100; i++ { // standard for loop
+
+       }
+
+       for >= 100 { // dynamic iterated array without index var
+
+       }
+
+       for { // infinite loop
+
+       }
+
+
+       expect_semicolon();
+    }
+
     def parse_expression(_ast : ast) {
        branch := get_branch(_ast, ast_expression);
 
@@ -241,7 +413,7 @@ class parser {
           }
 
           when {
-             current.type == eof -> { break; }
+             current.type == eof -> {  errors.new_error(generic, current, "unexpected end of file"); break; }
              current.tok == keywords[KEYWORD_MOD] -> {
                   if(access_types.size() > 0)
                      errors.new_error(illegal_access_declaration, current);
@@ -314,8 +486,30 @@ class parser {
                      branch.last().add(id_list);
                  }
              }
+             is_constructor_decl() -> {
+                 parse_constructor_decl(branch);
+             }
+             current.type == token_type.left_curly -> {
+                brackets++;
+             }
+             current.type == token_type.right_curly -> {
+                if((brackets - 1) < 0) {
+                   errors.new_error(illegal_bracket_mismatch, current);
+                } else {
+                   brackets--;
+
+                   // end of class block
+                   if(brackets == 0)
+                   {
+                       cursor--;
+                       break;
+                   }
+                }
+             }
              else -> {
-                advance();
+                cursor--;
+                errors.new_error(generic, current, "expected delegate function in interface");
+                parse_all(branch);
              }
           }
        }
@@ -326,14 +520,115 @@ class parser {
        expect(branch, "}");
     }
 
+    def parse_constructor_decl(_ast: ast) {
+       branch := get_branch(_ast, ast_constructor_decl);
+
+       add_access_types(branch);
+       cursor--;
+
+       expect_identifier(branch);
+       parse_utype_arg_list(branch, true);
+
+       if(current.type == token_type.ptr) {
+          cursor--;
+          parse_base_class_constructor(branch);
+       }
+
+       parse_block(branch);
+    }
+
+    def parse_base_class_constructor(_ast: ast) {
+       branch := get_branch(_ast, ast_base_class_constructor);
+       expect(branch, "->", false);
+       expect(branch, keywords[KEYWORD_BASE], false);
+
+       expect(branch, "(", false);
+       parse_expression_list(branch);
+       expect(branch, ")", false);
+    }
+
     def parse_operator_decl(_ast: ast) {
        branch := get_branch(_ast, ast_operator_decl);
 
+       add_access_types(branch);
+       expect(branch, keywords[KEYWORD_OPERATOR], false);
+       expect_override_op(branch);
+       parse_utype_arg_list(branch, true);
+
+       if(peek(1).type == token_type.colon) {
+          parse_method_return_type(branch);
+
+          if(peek(1).type == token_type.equals) {
+             expect(branch, "=");
+             parse_expression(branch);
+             expect_semicolon();
+          } else if(peek(1).type == token_type.left_curly) {
+              parse_block(branch);
+          } else {
+              expect_semicolon();
+              branch.type = ast_delegate_decl;
+          }
+       } else if(peek(1).type == token_type.infer) {
+          expect(branch, ":=");
+          parse_expression(branch);
+          expect_semicolon();
+       } else if(peek(1).type == token_type.left_curly) {
+           parse_block(branch);
+       }
+       else {
+           expect_semicolon();
+           branch.type = ast_delegate_decl;
+       }
     }
 
     def parse_method_decl(_ast: ast) {
        branch := get_branch(_ast, ast_method_decl);
 
+       add_access_types(branch);
+       parse_reference_ptr(branch);
+       if(is_override_op(current))
+          errors.new_error(generic, current, "expected identifier");
+
+       parse_utype_arg_list(branch, true);
+       if(peek(1).type == token_type.colon) {
+          parse_method_return_type(branch);
+
+          if (peek(1).type == token_type.equals) {
+              expect(branch, "=", true);
+              parse_expression(branch);
+              expect_semicolon();
+          } else if(peek(1).type == token_type.left_curly) {
+              parse_block(branch);
+          } else {
+              expect_semicolon();
+              branch.type = ast_delegate_decl;
+          }
+       } else if (peek(1).type == token_type.infer) {
+           expect(branch, ":=", true);
+           parse_expression(branch);
+           expect_semicolon();
+       } else if(peek(1).type == token_type.left_curly) {
+           parse_block(branch);
+       }
+       else {
+           expect_semicolon();
+           branch.type = ast_delegate_decl;
+       }
+    }
+
+    def expect_semicolon() {
+      if(peek(1).type == token_type.semicolon) {
+         expect(null, ";", false);
+
+         if(peek(1).type == token_type.semicolon) {
+            start_tok := current;
+            while(peek(1).type == token_type.semicolon) {
+               advance();
+            }
+
+            errors.new_warning(generic, start_tok, "unnecessary semicolon ';'");
+         }
+      }
     }
 
     def parse_init_decl(_ast: ast) {
@@ -463,7 +758,43 @@ class parser {
     }
 
     def parse_block(_ast: ast) {
+       branch := get_branch(_ast, ast_block);
 
+       curly = false;
+       if(peek(1).type == token_type.left_curly) {
+           expect(branch, "{", false);
+       }
+
+       while(!is_end())
+       {
+          check_error_limit();
+
+          when {
+             current.type == eof -> {  errors.new_error(generic, current, "unexpected end of file"); break; }
+             current.type == token_type.left_curly -> {
+                cursor--;
+                parse_block(branch);
+             }
+             current.type == token_type.right_curly -> {
+                if(!curly)
+                    errors.new_error(unexpected_symbol, current, "`}`");
+                cursor--;
+                break;
+             }
+             else -> {
+                parse_statement(branch);
+                if(peek(1).type == token_type.dot) {
+                    advance();
+                    errors.new_error(generic, current, "unexpected symbol `.`");
+                }
+
+                if(!curly) {
+                    access_types.clear();
+                    break;
+                }
+             }
+          }
+       }
     }
 
     def parse_obfuscate_decl(_ast: ast) {
@@ -561,7 +892,7 @@ class parser {
           }
 
           when {
-             current.type == eof -> { break; }
+             current.type == eof -> {  errors.new_error(generic, current, "unexpected end of file"); break; }
              current.tok == keywords[KEYWORD_MOD] -> {
                   if(access_types.size() > 0)
                      errors.new_error(illegal_access_declaration, current);
@@ -574,15 +905,88 @@ class parser {
                   parse_import_decl(branch);
                }
              current.tok == keywords[KEYWORD_CLASS] -> {
-                  errors.new_error(generic, current, "unexpected class declaration, delegate functions i.e. `def foo()` are only allowed in interfaces. Have you possibly misplaces a bracket somewhere?");
+                  errors.new_error(generic, current, "unexpected class declaration, delegate functions i.e. `def foo()` are only allowed in interfaces. You can however nest interfaces inside each other, so maybe you meant 'interface' instead?");
                 parse_class_decl(branch);
              }
              current.tok == keywords[KEYWORD_MUTATE] -> {
-                  errors.new_error(generic, current, "unexpected mutate declaration, delegate functions i.e. `def foo()` are only allowed in interfaces. Have you possibly misplaces a bracket somewhere?");
+                  errors.new_error(generic, current, "unexpected mutate declaration, delegate functions i.e. `def foo()` are only allowed in interfaces. You can however nest interfaces inside each other, so maybe you meant 'interface' instead?");
                  parse_mutate_decl(branch);
              }
              current.tok == keywords[KEYWORD_INTERFACE] -> {
                  parse_interface_decl(branch);
+             }
+             current.tok == keywords[KEYWORD_GET] -> {
+               if(access_types.size() > 0)
+                   errors.new_error(illegal_access_declaration, current);
+               errors.new_error(generic, current, "unexpected get declaration, getters are only intended to be created immediately after a field declaration. Considering interfaces do not support fields have you possibly misplaced this code?");
+
+               cursor--;
+               parse_getter(branch);
+             }
+             current.tok == keywords[KEYWORD_SET] -> {
+               if(access_types.size() > 0)
+                   errors.new_error(illegal_access_declaration, current);
+               errors.new_error(generic, current, "unexpected set declaration, setters are only intended to be created immediately after a field declaration. Considering interfaces do not support fields have you possibly misplaced this code?");
+
+               cursor--;
+               parse_setter(branch);
+             }
+             current.tok == keywords[KEYWORD_ALIAS] -> {
+                 parse_alias_declaration(branch);
+             }
+             (is_variable_decl(current) && (peek(1).type == token_type.colon || peek(1).type == token_type.infer)) ||
+                (current.tok == keywords[KEYWORD_THREAD_LOCAL]
+                     && (is_variable_decl(peek(1)) && (peek(2).type == token_type.colon || peek(2).type == token_type.infer))) -> {
+                errors.new_error(generic, current, "unexpected variable declaration, variables are only allowed to be created inside of classes or at global scope.");
+                parse_variable_decl(branch, true);
+             }
+             current.tok == keywords[KEYWORD_DEF] -> {
+                 id_list : ast;
+                 if(peek(1).type == token_type.lessthan) {
+                    expect(branch, "<", false);
+                    parse_generic_identifier_list(branch);
+                    expect(branch, ">", false);
+                    id_list = branch.last();
+                    branch.pop_child();
+                 }
+
+                 if(peek(1).tok == keywords[KEYWORD_OPERATOR])
+                     parse_operator_decl(branch);
+                 else
+                     parse_method_decl(branch);
+
+                 if(branch.last().type != ast_delegate_decl) {
+                    errors.new_error(generic, current, "methods in interfaces are not allowed to have a function body or inline-expression, i.e try writing 'def foo()' instead of 'def foo() { .. } or def foo() := <expr>'");
+                 }
+
+                 if(id_list != null) {
+                     branch.last().add(id_list);
+                 }
+             }
+             current.tok == keywords[KEYWORD_INIT] -> {
+                 errors.new_error(missing_bracket, current, "unexpected init declaration, considering interfaces cannot be directly instantiated 'init {}' blocks are only allowed in 'class {}' blocks");
+                 parse_init_decl(branch);
+             }
+             is_constructor_decl() -> {
+                 errors.new_error(missing_bracket, current, "unexpected constructor declaration, considering interfaces cannot be directly instantiated constructors are only allowed in class declarations");
+                 parse_constructor_decl(branch);
+             }
+             current.type == token_type.left_curly -> {
+                brackets++;
+             }
+             current.type == token_type.right_curly -> {
+                if((brackets - 1) < 0) {
+                   errors.new_error(illegal_bracket_mismatch, current);
+                } else {
+                   brackets--;
+
+                   // end of class block
+                   if(brackets == 0)
+                   {
+                       cursor--;
+                       break;
+                   }
+                }
              }
              else -> {
                 advance();
@@ -624,6 +1028,11 @@ class parser {
 
     def is_variable_decl(tok : token) : var {
        return !is_keyword(tok.tok) && tok.id == identifier;
+    }
+
+    def is_constructor_decl() : var {
+        return current.id == identifier && !is_keyword(current.tok) &&
+               peek(1).type == token_type.left_paren;
     }
 
     def parse_utype_arg(_ast : ast, require_name: var) : var {
