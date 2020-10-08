@@ -51,13 +51,6 @@
 #define _ARCH_BE 0
 #endif
 
-
-#if _ARCH_BITS == 64
-typedef int64_t x86int_t;
-#else
-typedef int32_t x86int_t;
-#endif
-
 #if (_ARCH_X86 == 64)  || \
     (_ARCH_X86 == 32)
 #define BUILD_JIT 0

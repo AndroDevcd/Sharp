@@ -200,6 +200,51 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     thread->this_fiber->pc = thread->this_fiber->cache;
 }
 
+fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
+    Int calls = thread->this_fiber->calls;
+    Method *func = nullptr;
+    fiber* fib = thread->this_fiber;
+
+    retry:
+    if(thread->relativeFrame == calls) {
+        thread->stackRebuild = false;
+        return nullptr;
+    }
+
+    if((thread->relativeFrame + 1) == calls) {
+        func = fib->current;
+        thread->relativeFrame++;
+        thread->stackRebuild = false;
+
+        if(func->isjit) {
+            thread->jctx->caller = func;
+            thread->jctx->startingPc = fib->pc-fib->cache;
+            return func->jit_func;
+        } else {
+            if(nativeShift)
+               thread->exec();
+            else goto retry;
+            return nullptr;
+        }
+    }
+
+
+    Frame &frame = thread->this_fiber->callStack[thread->relativeFrame+2];
+    func = vm.methods+frame.returnAddress;
+    thread->relativeFrame++;
+
+   if(func->isjit) {
+       thread->jctx->caller = func;
+       thread->jctx->startingPc = frame.pc;
+       return func->jit_func;
+   } else {
+       if(nativeShift)
+        thread->exec();
+       else goto retry;
+       return nullptr;
+   }
+}
+
 fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwitch) {
 
     Method *method = vm.methods+address;
@@ -219,6 +264,8 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwit
 #ifdef BUILD_JIT
     if(method->isjit) {
         thread->jctx->caller = method;
+        thread->jctx->this_fiber = thread->this_fiber;
+        thread->jctx->startingPc = 0;
         return method->jit_func;
     } else
 #endif

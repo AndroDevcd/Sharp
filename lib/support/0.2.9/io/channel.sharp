@@ -135,6 +135,26 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
           throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
        }
 
+       filtered_channel := filters[filter];
+       if(!filtered_channel.avail_data()) return null;
+
+       data := new list<t>();
+       for(;;) {
+          if(filtered_channel.avail_data()) {
+             data.add(filtered_channel.read(self));
+          } else {
+             return data;
+          }
+       }
+
+       return null;
+    }
+
+    def read_all(filter: var) : list<t> {
+       if(filter >= filters.size() || filter < 0) {
+          throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
+       }
+
        data := new list<t>();
        filtered_channel := filters[filter];
 
@@ -169,8 +189,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
     }
 
     def get_elements() : t[] {
-       els := read_next(DEFAULT_FILTER).get_elements();
-       return els;
+       return read_all(DEFAULT_FILTER).get_elements();
     }
 
     def avail_data(filter: var) : var {

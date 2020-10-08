@@ -77,42 +77,62 @@ def get_thread_max() : var {
 private def scheduler_main(args : object[]) : var
 {
 	jobs := launcher.job_queue;
-	const SPIN_COUNT := 12250;
+	canceled_jobs := launcher.canceled_job_queue;
+	const SPIN_COUNT := 12000;
 	spins_left := SPIN_COUNT;
+	cancel_list := new list<var>();
+
 	while(true)
 	{
-		for(i := 0; i < jobs.size(); i++) {
-        	scheduled_job := jobs.at(i);
+	    when {
+	        jobs.avail_data(0) -> {
+                foreach(scheduled_job in jobs.read_next(0)) {
+                   if(!cancel_list.empty()) {
+                      if(cancel_list.find(scheduled_job.tag, { it, it2 -> return it == it2; }) == scheduled_job.tag)
+                         continue;
+                   }
 
-        	if(scheduled_job.delay_time != 0) {
-        		if(time.mills_time() >= scheduled_job.delay_time) {
-        			scheduled_job.delay_time = 0;
-        			result := execute_job(scheduled_job);
+                   if(scheduled_job.state == cancelled)
+                      continue;
 
-        			if(result && !scheduled_job.has_timeout) {
-                        jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
-                        i--;
-        			} else if(!result) break;
-        		}
-        	} else if(scheduled_job.has_timeout) {
-        	    if(scheduled_job.host == null) {
-        	        if(!execute_job(scheduled_job))
-        	           break;
-        	    }
+                   if(scheduled_job.delay_time != 0) {
+                   		if(time.mills_time() >= scheduled_job.delay_time) {
+                   			scheduled_job.delay_time = 0;
+                   			result := execute_job(scheduled_job);
 
-        		if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
-                    while(scheduled_job.next_task == null){} // wait until the next task is updated
-                    scheduled_job.cancel();
-        			launcher.cleanup_job(scheduled_job);
-                    i--;
-        		}
-        	} else {
-        	    if(execute_job(scheduled_job)) {
-                    jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
-                    i--;
-        		} else break;
-        	}
-        }
+                   			if(!result || scheduled_job.has_timeout) {
+                   			   jobs.send(scheduled_job);
+                   			}
+                   		}
+                   	} else if(scheduled_job.has_timeout) {
+                   	    if(scheduled_job.host == null) {
+                   	        if(!execute_job(scheduled_job)) {
+                   			   jobs.send(scheduled_job);
+                   			   continue;
+                   	        }
+                   	    }
+
+                   		if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
+                            while(scheduled_job.next_task == null){} // wait until the next task is updated
+                            scheduled_job.cancel();
+                   			launcher.cleanup_job(scheduled_job);
+                   		}
+                   	} else {
+                   	    if(!execute_job(scheduled_job)) {
+                   			   jobs.send(scheduled_job);
+                   		}
+                   	}
+                }
+
+                cancel_list.clear();
+	        }
+
+	        canceled_jobs.avail_data(0) -> {
+                foreach(tag in canceled_jobs.read_next(0)) {
+                   cancel_list.add(tag);
+                }
+	        }
+	    }
 
         if(spins_left-- <= 0) {
             spins_left = SPIN_COUNT;

@@ -56,7 +56,9 @@ public:
         contextSwitching=false;
         marked=false;
         waiting=false;
+        stackRebuild=false;
         lastRanMicros=0;
+        relativeFrame=0;
 #ifdef BUILD_JIT
         jctx = NULL;
 #endif
@@ -76,9 +78,6 @@ public:
         thread = NULL;
 #endif
     }
-#ifdef COROUTINE_DEBUGGING
-    Int timeSleeping, switched, skipped, actualSleepTime, contextSwitchTime;
-#endif
 
     void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);
     static int32_t generateId();
@@ -130,12 +129,6 @@ public:
     void waitForContextSwitch();
     void printException();
 
-#ifdef BUILD_JIT
-    jit_context *jctx;
-#endif
-#ifdef SHARP_PROF_
-    Profiler *tprof;
-#endif
     /* tsig_t */ int signal;
 
     static uInt maxThreadId;
@@ -165,7 +158,18 @@ public:
     uInt lastRanMicros;
     bool contextSwitching;
     bool waiting;
+    uInt relativeFrame;
+    bool stackRebuild;
 
+#ifdef BUILD_JIT
+    jit_context *jctx;
+#endif
+#ifdef SHARP_PROF_
+    Profiler *tprof;
+#endif
+#ifdef COROUTINE_DEBUGGING
+    Int timeSleeping, switched, skipped, actualSleepTime, contextSwitchTime;
+#endif
 #ifdef WIN32_
     HANDLE thread;
 #endif

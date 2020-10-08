@@ -146,5 +146,6 @@ bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic);
 CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit);
+fptr shiftToNextMethod(Thread*, bool);
 
 #endif //SHARP_SHARP_H

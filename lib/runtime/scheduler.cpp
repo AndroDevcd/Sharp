@@ -68,7 +68,7 @@ void run_scheduler() {
         for (Int i = 0; i < size; i++) {
             thread = Thread::threads.at(i);
 
-            if(i == gc_threadid) continue;
+            if(i == gc_threadid || i == jit_threadid) continue;
 
             if (vm.state >= VM_SHUTTING_DOWN) {
                 break;

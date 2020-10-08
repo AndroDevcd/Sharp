@@ -8,7 +8,7 @@
 
 uInt fibId=0 ;
 Int dataSize=0, capacity = 0;
-const int MAX_PASSES = 3;
+const int MAX_PASSES = 1;
 const Int RESIZE_MIN = 2500l;
 const Int RESIZE_MAX = 25000l;
 recursive_mutex fmut;
@@ -22,7 +22,7 @@ atomic<uInt> openSpots = { 0 };
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
         GUARD(fmut)
-        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : capacity + RESIZE_MIN;
+        Int resizeAmnt = capacity == 0 ? RESIZE_MAX : capacity + RESIZE_MIN;
         if(resizeAmnt > RESIZE_MAX) resizeAmnt = RESIZE_MAX;
 
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
@@ -304,7 +304,7 @@ int fiber::kill(uInt id) {
     int result = 0;
 
     if(fib) {
-        GUARD(fmut)
+        GUARD(fib->mut)
         if(fib->state == FIB_SUSPENDED) {
             fib->setState(NULL, FIB_KILLED);
         } else if(fib->state == FIB_RUNNING) {
@@ -419,9 +419,12 @@ void fiber::delay(Int time) {
     if(time < 0)
         time = -1;
 
-    attachedThread->enableContextSwitch(true);
-    attachedThread->contextSwitching = true;
-    setState(thread_self, FIB_SUSPENDED, time);
+    thread_self->enableContextSwitch(true);
+
+    if(thread_self->try_context_switch()) {
+        if (state != FIB_KILLED)
+            setState(thread_self, FIB_SUSPENDED, time);
+    } else __usleep(time * 1000); // will become a sleep() call if called from c++ env
 }
 
 bool fiber::safeStart(Thread *thread) {

@@ -28,7 +28,8 @@ struct StackElement;
 
 struct jit_context {
     Thread* self;
-    double *regs;
+    fiber *this_fiber;
+    Int startingPc;
     Method* caller; // current method we are executing only used in initalization of the call
 };
 
@@ -47,7 +48,7 @@ enum os {
 // Jit helper macros
 #define offset_start(s) s
 #define offset_end(e) e
-#define relative_offset(obj, start, end) ((x86int_t)&obj->offset_end(end)-(x86int_t)&obj->offset_start(start))
+#define relative_offset(obj, start, end) ((Int)&obj->offset_end(end)-(Int)&obj->offset_start(start))
 #define is_op(ir, x) (GET_OP(ir)==(x))
 
 class _BaseAssembler {
@@ -65,38 +66,93 @@ public:
 
 protected:
     void initialize();
+    FILE* getLogFile();
+    _List<fptr> functions;
 
     x86::Gp ctx, ctx32;                  // total registers used in jit
     x86::Gp tmp, tmp32, tmp16, tmp8;
     x86::Gp value;
     x86::Gp fnPtr, fnPtr32, arg;
-    x86::Gp regPtr, threadPtr;
+    x86::Gp regPtr, threadPtr, fiberPtr;
     x86::Gp bp, sp;
-    x86::Gp fnArg3, fnArg4;
 
     x86::Xmm vec0, vec1;          // floating point registers
 
-private:
+    x86::Mem Ljit_context[4];     // memory layout of struct jit_context {}
+    x86::Mem Lthread[5];          // memory layout of class Thread {}
+    x86::Mem Lfiber[10];           // memory layout of class fiber {}
+    x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
+    x86::Mem Lmethod[2];          // memory layout of struct Method {}
+    x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
+
+    JitRuntime rt;
+
+private: // virtual functions
+    virtual x86::Mem getMemPtr(Int addr) = 0;
+    virtual x86::Mem getMemBytePtr(Int addr) = 0;
+    virtual x86::Mem getMemPtr(x86::Gp reg, Int addr) = 0;
+    virtual x86::Mem getMemPtr(x86::Gp reg) = 0;
+    virtual Int getRegisterSize() = 0;
+    virtual void initializeRegisters() = 0;
+    virtual void createFunctionPrologue() = 0;
+    virtual void createFunctionEpilogue() = 0;
+    virtual void beginCompilation(Method*) = 0;
+    virtual void endCompilation() = 0;
+    virtual void addUserCode() = 0;
+    virtual void addConstantsSection() = 0;
+
+    // Method Logging fuctions
+    virtual void logComment(std::string) = 0;
+
+    // stack manipulation functions
+    virtual void allocateStackSpace() = 0;
+    virtual void setupStackAndRegisterValues() = 0;
+
+    // conrol flow functions
+    virtual void setupGotoLabels() = 0;
+    virtual void createFunctionLandmarks() = 0;
+    virtual void setupAddressTable() = 0;
+    virtual void storeLabelValues() = 0;
+    virtual void validateVirtualStack() = 0;
+    virtual void addThreadSignalCheck() = 0;
+
+    // setup functions
+    void setupContextFields();
+    void setupThreadFields();
+    void setupFiberFields();
+    void setupStackElementFields();
+    void setupMethodFields();
+    void setupSharpObjectFields();
+
+    // helper functions
+    virtual void incPc() = 0;
+    virtual int createJitFunc() = 0;
+
+
+    int compile(Method*);
+    void updatePc(x86::Assembler &assembler);
+    int jitTryContextSwitch(Thread *thread, bool incPc);
+
     static int jitTryCatch(Method *method);
-    static x86int_t jitGetPc(Thread *thread);
+    static Int jitGetPc(Thread *thread);
     static void __srt_cxx_prepare_throw(Exception &e);
-    static SharpObject* jitNewObject(x86int_t size);
-    static SharpObject* jitNewObject2(x86int_t size);
-    static SharpObject* jitNewClass0(x86int_t classid);
-    static SharpObject* jitNewClass1(x86int_t size, x86int_t classid);
+    static SharpObject* jitNewObject(Int size);
+    static SharpObject* jitNewObject2(Int size);
+    static SharpObject* jitNewClass0(Int classid);
+    static SharpObject* jitNewClass1(Int size, Int classid);
     static void jitNewString(Thread* thread, int64_t strid);
     static void jitPushNil(Thread* thread);
     static void jitSetObject0(SharpObject* o, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject2(Object *dest, Object *src);
     static void jitSetObject3(Object *dest, SharpObject *src);
-    static void jitInvokeDelegate(x86int_t address, x86int_t args, Thread* thread, x86int_t staticAddr);
+    static void jitInvokeDelegate(Int address, Int args, Thread* thread, Int staticAddr);
     static void jitDelete(Object* o);
-    static void jitSysInt(x86int_t signal);
-    static void test(x86int_t proc, x86int_t xtra);
-    static void jitCast(Object *o2, x86int_t klass);
+    static void jitSysInt(Int signal);
+    static void test(Int proc, Int xtra);
+    static void jitCast(Object *o2, Int klass);
     static void jitCastVar(Object *o2, int);
-    static void jit64BitCast(x86int_t,x86int_t);
+    static void jit64BitCast(Int,Int);
     static fptr jitCall(Thread *thread, int64_t addr);
     static fptr jitCallDynamic(Thread *thread, int64_t addr);
     static void jitPut(int reg);
@@ -105,45 +161,21 @@ private:
     static void jitNullPtrException();
     static void jitStackOverflowException();
     static void jitThrow(Thread *thread);
-    static void jitIndexOutOfBoundsException(x86int_t size, x86int_t index);
+    static void jitIndexOutOfBoundsException(Int size, Int index);
     static void jitIllegalStackSwapException(Thread*);
 
-    virtual x86::Mem getMemPtr(x86int_t addr) = 0;
-    virtual x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) = 0;
-    virtual x86::Mem getMemPtr(x86::Gp reg) = 0;
-    virtual x86int_t getRegisterSize() = 0;
-    virtual void initializeRegisters() = 0;
 
-    void setupContextFields();
-    void setupThreadFields();
-    void setupStackElementFields();
-    void setupFrameFields();
-    void setupMethodFields();
-    void setupSharpObjectFields();
-    int compile(Method*);
-    void incPc(x86::Assembler &assembler);
-    void updatePc(x86::Assembler &assembler);
-    void threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr);
+    void threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, Int irAddr);
     void checkMasterShutdown(x86::Assembler &assembler, int64_t pc, const Label &lbl_funcend);
     void emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const);
-    void movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store = true);
-    void checkSystemState(const Label &lbl_func_end, x86int_t pc, x86::Assembler &assembler, Label &lbl_thread_chk);
+    void movRegister(x86::Assembler &assembler, x86::Xmm &vec, Int addr, bool store = true);
+    void checkSystemState(const Label &lbl_func_end, Int pc, x86::Assembler &assembler, Label &lbl_thread_chk);
     void jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr);
-    void checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end, x86int_t pc);
-    void checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, x86int_t pc);
-    void checkO2Object(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread, x86int_t);
-    void checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc, bool checkContents = false);
-    void stackCheck(x86::Assembler &assembler, const Label &lbl_thread_chk, x86int_t pc);
-    FILE* getLogFile();
-
-    JitRuntime rt;
-    _List<fptr> functions;
-    x86::Mem Ljit_context[3];     // memory layout of struct jit_context {}
-    x86::Mem Lthread[13];         // memory layout of class Thread {}
-    x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
-    x86::Mem Lframe[4];           // memory layout of struct Frame {}
-    x86::Mem Lmethod[1];          // memory layout of struct Method {}
-    x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
+    void checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end, Int pc);
+    void checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, Int pc);
+    void checkO2Object(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread, Int);
+    void checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, Int pc, bool checkContents = false);
+    void stackCheck(x86::Assembler &assembler, const Label &lbl_thread_chk, Int pc);
 };
 
 enum ConstKind {
@@ -168,8 +200,8 @@ struct Constants {
         constantLabels.free();
     }
 
-    x86int_t createConstant(x86::Assembler& cc, x86int_t const0) {
-        x86int_t idx = _64ConstIndex(const0);
+    Int createConstant(x86::Assembler& cc, Int const0) {
+        Int idx = _64ConstIndex(const0);
 
         if(idx == -1) {
             Data64 const_;
@@ -183,8 +215,8 @@ struct Constants {
         return idx;
     }
 
-    x86int_t createConstant(x86::Assembler& cc, double const0) {
-        x86int_t idx = _floatConstIndex(const0);
+    Int createConstant(x86::Assembler& cc, double const0) {
+        Int idx = _floatConstIndex(const0);
 
         if(idx == -1) {
 
@@ -199,12 +231,12 @@ struct Constants {
         return idx;
     }
 
-    x86int_t constantSize() {
+    Int constantSize() {
         return constants.size();
     }
 
-    x86int_t _64ConstIndex(x86int_t const0) {
-        for(x86int_t i = 0; i < constants.size(); i++) {
+    Int _64ConstIndex(Int const0) {
+        for(Int i = 0; i < constants.size(); i++) {
             Data64 &const_ = constants.get(i);
             ConstKind kind = constantKinds.get(i);
 
@@ -216,8 +248,8 @@ struct Constants {
         return -1;
     }
 
-    x86int_t _floatConstIndex(double const0) {
-        for(x86int_t i = 0; i < constants.size(); i++) {
+    Int _floatConstIndex(double const0) {
+        for(Int i = 0; i < constants.size(); i++) {
             Data64 &const_ = constants.get(i);
             ConstKind kind = constantKinds.get(i);
 
@@ -229,17 +261,17 @@ struct Constants {
         return -1;
     }
 
-    Data64& getConstant(x86int_t idx) {
+    Data64& getConstant(Int idx) {
         return constants.get(idx);
     }
 
-    Label& getConstantLabel(x86int_t idx) {
+    Label& getConstantLabel(Int idx) {
         return constantLabels.get(idx);
     }
 
     void emitConstants(x86::Assembler& cc) {
 
-        for(x86int_t i = 0; i < constantLabels.size(); i++) {
+        for(Int i = 0; i < constantLabels.size(); i++) {
             cc.bind(constantLabels.get(i));
             Data64 &const0 = constants.get(i);
             ConstKind kind = constantKinds.get(i);
@@ -257,23 +289,28 @@ struct Constants {
 
 // struct jit_context {} fields
 #define jit_context_self   0
-#define jit_context_regs   1
+#define jit_context_fiber  1
 #define jit_context_caller 2
+#define jit_context_starting_pc 3
+
+// class fiber {} fields
+#define fiber_current   0
+#define fiber_callStack 1
+#define fiber_calls     2
+#define fiber_dataStack 3
+#define fiber_sp        4
+#define fiber_fp        5
+#define fiber_stack_lmt 6
+#define fiber_cache     7
+#define fiber_pc        8
+#define fiber_regs      9
 
 // class Thread {} fields
-#define thread_current   0
-#define thread_callStack 1
-#define thread_calls     2
-#define thread_dataStack 3
-#define thread_sp        4
-#define thread_fp        5
-#define thread_stack_lmt 6
-#define thread_cache     7
-#define thread_pc        8
-#define thread_state     9
-#define thread_signal    10
-#define thread_stbase    11
-#define thread_stack     12
+#define thread_state            0
+#define thread_signal           1
+#define thread_stbase           2
+#define thread_stack            3
+#define thread_stack_rebuild    4
 
 // struct StackElement {} fields
 #define stack_element_var    0
@@ -287,6 +324,7 @@ struct Constants {
 
 // struct Method {} fields
 #define method_bytecode 0
+#define method_jit_labels 1
 
 // struct SharpObject {} fields
 #define sharp_object_HEAD 0

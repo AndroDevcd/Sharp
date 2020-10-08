@@ -63,6 +63,11 @@ public class coroutine_builder {
 		return self;
 	}
 
+	def with_tag(tag_id : var) : coroutine_builder {
+		scheduled_job.tag = tag_id;
+		return self;
+	}
+
 	def with_args(args : object[]) : coroutine_builder {
 	    job_args := new object[1 + sizeof(args)];
 	    job_args[0] = scheduled_job;

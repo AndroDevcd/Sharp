@@ -7,7 +7,8 @@ class job_master {
 	job_master() {
 		long_term_pool = new thread_group("Long term jobs", min_priority);
 		short_term_pool = new thread_group("Short term jobs", max_priority);
-		job_queue = new synced_list<job>();
+		job_queue = new channel<job>(UNLIMITED);
+		canceled_job_queue = new channel<var>(UNLIMITED);
 		running_jobs = new synced_list<job>();
 	}
 
@@ -36,16 +37,7 @@ class job_master {
 		if(scheduled_job.block_caller)
 			execute_synchronous(scheduled_job);
 		else {
-		    if(!scheduled_job.delay_time) {
-               if(!execute_job(scheduled_job)) {
-			      job_queue.add(scheduled_job);
-			      return;
-               }
-		    }
-
-			// the job scheduler will perform the start
-			if(scheduled_job.has_timeout || scheduled_job.delay_time)
-			   job_queue.add(scheduled_job);
+		    job_queue.send(scheduled_job);
 		}
 	}
 
@@ -60,21 +52,15 @@ class job_master {
 		scheduled_job.next_task = null;
 		scheduled_job.args = null;
 		scheduled_job.name = null;
-		job_queue.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 		running_jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 	}
 
-	protected def cancel_jobs_by_name(name: string) {
-	   lock(job_queue) {
-           for(i := 0; i < job_queue.size(); i++) {
-              if(job_queue.at(i).name == name) {
-                 job_queue.remove_at(i);
-                 i = 0;
-              }
-           }
+	protected def cancel_jobs_by_tag(tag_id: var) {
+	   canceled_job_queue.send(tag_id);
 
+	   lock(running_jobs) {
            foreach(schdj in running_jobs) {
-               if(schdj.name == name) {
+               if(schdj.tag == tag_id) {
                   schdj.cancel();
 		          running_jobs.remove(schdj, { it, it2 -> return it.id == it2.id; });
                }
@@ -83,7 +69,8 @@ class job_master {
 	}
 
 	protected running_jobs : synced_list<job>;
-	protected job_queue : synced_list<job>;
+	protected job_queue : channel<job>;
+	protected canceled_job_queue : channel<var>;
 	protected long_term_pool : thread_group;
 	protected short_term_pool : thread_group;
 	protected started: var;

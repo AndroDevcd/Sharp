@@ -41,7 +41,7 @@ struct options {
      * the JIT to imediatley compile all functions at startup-time to allow
      * for faster processing at runtime once completed.
      */
-    bool slowBoot = true;
+    bool slowBoot = false;
 
 #ifdef SHARP_PROF_
     int sortBy = profilerSort::tm;

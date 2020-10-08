@@ -11,7 +11,7 @@
 
 Jit *Jit::self = nullptr;
 
-void Jit::startup() { // TODO: update how instructions are processed because they have changed
+void Jit::startup() {
     if(c_options.jit) {
         self = new Jit();
 
@@ -128,7 +128,6 @@ _BaseAssembler *Jit::getAssembler() {
 
 void Jit::tlsSetup() {
     Thread* thread = thread_self;
-    thread->jctx->regs = registers;
     thread->jctx->self = thread;
 }
 #endif

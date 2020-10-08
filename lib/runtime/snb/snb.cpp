@@ -211,7 +211,7 @@ void call(int32_t address) {
         if((jitFun = executeMethod(address, thread_self, true)) != NULL) {
 
     #ifdef BUILD_JIT
-            jitFun(jctx);
+            jitFun(thread_self->jctx);
     #endif
         }
     } catch(Exception &e) {

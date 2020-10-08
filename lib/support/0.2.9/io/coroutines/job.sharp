@@ -45,7 +45,6 @@ public class job {
 	    lock(self) {
             if(state == active) {
                 state = cancelled;
-
                 if(fiber.current() != fib) {
                    fib.kill();
                    launcher.cleanup_job(self);
@@ -53,6 +52,8 @@ public class job {
                 else {
                    throw new cancellation_exception();
                 }
+            } else if(state == created) {
+                state = cancelled;
             }
 	    }
 	}
@@ -219,6 +220,7 @@ public class job {
 	protected next_task : job;
 	protected recurring := false;
 	protected id := 0;
+	protected tag := 0;
 	protected block_caller := false;
 	protected long_term := false;
 	protected unconfined := false;

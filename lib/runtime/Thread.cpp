@@ -456,12 +456,14 @@ void Thread::suspendAllThreads(bool withMarking) {
     for(uInt i = 0; i < threads.size(); i++) {
         thread = threads.at(i);
 
-        if(thread->id != thread_self->id){
-            if(thread->state == THREAD_RUNNING)
-                suspendAndWait(thread);
-            else if(withMarking && thread->state == THREAD_SUSPENDED) {
-                thread->marked = true;
-            }
+        if(thread_self && thread->id != thread_self->id){
+            continue;
+        }
+
+        if(thread->state == THREAD_RUNNING)
+            suspendAndWait(thread);
+        else if(withMarking && thread->state == THREAD_SUSPENDED) {
+            thread->marked = true;
         }
     }
 
@@ -479,12 +481,14 @@ void Thread::resumeAllThreads(bool withMarking) {
     for(uInt i = 0; i < threads.size(); i++) {
         thread = threads.at(i);
 
-        if(thread->id != thread_self->id) {
-            if(withMarking && thread->marked) {
-                thread->marked = false;
-            } else {
-                unsuspendAndWait(thread);
-            }
+        if(thread_self && thread->id != thread_self->id) {
+            continue;
+        }
+
+        if(withMarking && thread->marked) {
+            thread->marked = false;
+        } else {
+            unsuspendAndWait(thread);
         }
     }
 
@@ -499,7 +503,7 @@ int Thread::unsuspendThread(Thread *thread) {
 }
 
 void Thread::suspendThread(Thread *thread) {
-    if(thread->id == thread_self->id)
+    if(thread_self && thread->id == thread_self->id)
         suspendSelf();
     else {
         GUARD(thread->mutex);
@@ -838,6 +842,12 @@ void Thread::exec() {
     SharpObject* tmpShObj;
     Int result;
     fptr jitFun;
+
+    if(stackRebuild) {
+        jitFun = shiftToNextMethod(this, false);
+        if(jitFun) jitFun(jctx);
+    }
+
     HAS_SIGNAL
 
 #ifdef SHARP_PROF_
@@ -1390,7 +1400,7 @@ void Thread::exec() {
                     (this_fiber->sp-1)->var = swappedVar;
                 } else {
                     stringstream ss;
-                    ss << "Illegal stack swap while sp is ( " << (x86int_t )(this_fiber->sp - this_fiber->dataStack) << ") ";
+                    ss << "Illegal stack swap while sp is ( " << (Int )(this_fiber->sp - this_fiber->dataStack) << ") ";
                     throw Exception(vm.ThreadStackExcept, ss.str());
                 }
                 _brh

@@ -51,6 +51,7 @@ enum tsig_t {
     tsig_suspend = 0x002,
     tsig_kill = 0x004,
     tsig_context_switch = 0x008,
+    tsig_fiber_kill = 0x010
 };
 
 #endif //SHARP_THREADSTATES_H

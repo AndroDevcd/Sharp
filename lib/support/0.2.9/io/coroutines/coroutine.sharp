@@ -25,6 +25,12 @@ class coroutine {
         return builder.with_name(job_name);
     }
 
+    static def with_tag(tag_id : var) : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder.with_tag(tag_id);
+    }
+
     static def with_args(args : object[]) : coroutine_builder {
         scheduled_job := launcher.create_job();
         builder := new coroutine_builder(scheduled_job, launcher);
@@ -55,7 +61,7 @@ class coroutine {
         return builder;
     }
 
-	public static def cancel_all_jobs_by_name(name: string) {
-	   launcher.cancel_jobs_by_name(name);
+	public static def cancel_all_jobs_by_name(tag_id: var) {
+	   launcher.cancel_jobs_by_tag(tag_id);
 	}
 }

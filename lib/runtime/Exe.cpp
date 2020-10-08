@@ -489,6 +489,9 @@ int Process_Exe(std::string &exe)
                 Int paramSize = geti32(buffer);
                 method->paramSize = paramSize;
 
+                if(method->address == 2365)
+                    method->isjit=true;
+
                 if(method->utype == NULL)
                     return CORRUPT_FILE;
 
