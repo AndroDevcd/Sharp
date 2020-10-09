@@ -65,6 +65,8 @@ public:
     int tryJit(Method*);
 
 protected:
+    static int jitTryContextSwitch(Thread *thread, bool incPc);
+
     void initialize();
     FILE* getLogFile();
     _List<fptr> functions;
@@ -72,14 +74,14 @@ protected:
     x86::Gp ctx, ctx32;                  // total registers used in jit
     x86::Gp tmp, tmp32, tmp16, tmp8;
     x86::Gp value;
-    x86::Gp fnPtr, fnPtr32, arg;
+    x86::Gp fnPtr, fnPtr32, arg, arg3;
     x86::Gp regPtr, threadPtr, fiberPtr;
     x86::Gp bp, sp;
 
     x86::Xmm vec0, vec1;          // floating point registers
 
     x86::Mem Ljit_context[4];     // memory layout of struct jit_context {}
-    x86::Mem Lthread[5];          // memory layout of class Thread {}
+    x86::Mem Lthread[6];          // memory layout of class Thread {}
     x86::Mem Lfiber[10];           // memory layout of class fiber {}
     x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
     x86::Mem Lmethod[2];          // memory layout of struct Method {}
@@ -131,7 +133,6 @@ private: // virtual functions
 
     int compile(Method*);
     void updatePc(x86::Assembler &assembler);
-    int jitTryContextSwitch(Thread *thread, bool incPc);
 
     static int jitTryCatch(Method *method);
     static Int jitGetPc(Thread *thread);
@@ -306,11 +307,12 @@ struct Constants {
 #define fiber_regs      9
 
 // class Thread {} fields
-#define thread_state            0
-#define thread_signal           1
-#define thread_stbase           2
-#define thread_stack            3
-#define thread_stack_rebuild    4
+#define thread_state             0
+#define thread_signal            1
+#define thread_stbase            2
+#define thread_stack             3
+#define thread_stack_rebuild     4
+#define thread_context_switching 5
 
 // struct StackElement {} fields
 #define stack_element_var    0

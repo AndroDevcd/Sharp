@@ -75,7 +75,7 @@ public:
 
     void shutdown();
     static void sysInterrupt(int64_t i);
-    bool catchException();
+    static bool catchException();
     static void fillStackTrace(SharpObject *frameInfo, SharpObject *stackTrace);
     static void fillStackTrace(native_string &str);
     static void fillStackTrace(Object *methods, Object *pcList, Object *data);

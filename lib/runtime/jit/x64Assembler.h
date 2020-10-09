@@ -65,8 +65,11 @@ private: // virtual functions
     // Helper functions
     void incPc() override ;
     int createJitFunc() override ;
+    void updatePc();
+    static Int getPc(fiber *);
+    void threadStatusCheck(Label &retLbl, Int irAddr, bool incPc);
 
-    // private fields
+        // private fields
     x86::Assembler *assembler;
     CodeHolder *code;
     FileLogger *logger;
@@ -83,10 +86,10 @@ private: // virtual functions
     Label lcodeStart;
     Label lsetupAddressTable;
     Label lendOfFunction;
+    Label lfunctionEpilogue;
     Label ldataSection;
     Label lsignalCheck;
     Label lvirtualStackCheck;
-    Label lcontextSwitchCheck;
 };
 #endif
 

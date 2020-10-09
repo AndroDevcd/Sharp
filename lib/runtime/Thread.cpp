@@ -1427,7 +1427,7 @@ void Thread::exec() {
         return;
     }
 
-    if(!vm.catchException()) {
+    if(!VirtualMachine::catchException()) {
         if(returnMethod(this))
             return;
         this_fiber->pc++;
@@ -1461,6 +1461,8 @@ bool Thread::try_context_switch() {
        }
    }
 
+   stackRebuild = true;
+   relativeFrame = 0;
    contextSwitching = true;
    return true;
 }

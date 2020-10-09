@@ -20,6 +20,8 @@
 #include "termios.h"
 #endif
 
+uInt jitMemory = 0;
+
 void _BaseAssembler::shutdown() {
     for(Int i = 0; i < functions.len; i++) {
         rt.release(functions.get(i));
@@ -66,6 +68,7 @@ void _BaseAssembler::setupThreadFields() {
     Lthread[thread_stbase] = getMemPtr(relative_offset(thread, signal, stbase));
     Lthread[thread_stack] = getMemPtr(relative_offset(thread, signal, stackSize));
     Lthread[thread_stack_rebuild] = getMemBytePtr(relative_offset(thread, signal, stackRebuild));
+    Lthread[thread_context_switching] = getMemBytePtr(relative_offset(thread, signal, contextSwitching));
 }
 
 void _BaseAssembler::setupStackElementFields() {
@@ -1697,6 +1700,13 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 //
             error = createJitFunc();
             endCompilation();
+
+            if(error == jit_error_ok && jitMemory != rt.allocator()->statistics()._reservedSize) {
+                gc.freeMemory(jitMemory);
+
+                jitMemory = rt.allocator()->statistics()._reservedSize;
+                gc.addMemory(jitMemory);
+            }
 
             cout << "used Size " << rt.allocator()->statistics()._usedSize << endl;
             cout << "reserved Size " << rt.allocator()->statistics()._reservedSize << endl;

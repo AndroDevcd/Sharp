@@ -28,7 +28,8 @@ void x64Assembler::initializeRegisters() {
     regPtr    = r14;
     threadPtr = r15;
     fiberPtr  = r8;        // acts as a temporary and 3rd argument for calling functions
-                           // if a 4th argument is needed add a register of $r8
+    arg3      = r9;
+
 
     // stack manip registers
     bp = rbp;
@@ -62,7 +63,8 @@ void x64Assembler::createFunctionPrologue() {
         assembler->push(bp);
         assembler->mov(bp, sp);
 
-        assembler->push(fnPtr);                          // Store used registers (windows x86 convention)
+        assembler->push(arg3);                          // Store used registers (windows x86 convention)
+        assembler->push(fnPtr);
         assembler->push(arg);
         assembler->push(regPtr);
         assembler->push(threadPtr);
@@ -79,12 +81,14 @@ void x64Assembler::createFunctionEpilogue() {
         assembler->call((int64_t) returnMethod);               // we need to update the PC just before this call
         incPc();
 
+        assembler->bind(lfunctionEpilogue);
         assembler->add(sp, (stackSize));
+        assembler->pop(fiberPtr);
         assembler->pop(threadPtr);
         assembler->pop(regPtr);
         assembler->pop(arg);
         assembler->pop(fnPtr);
-        assembler->pop(fiberPtr);
+        assembler->pop(arg3);
         assembler->pop(bp);
         assembler->ret();
     }
@@ -178,7 +182,7 @@ void x64Assembler::createFunctionLandmarks() {
     ldataSection = assembler->newNamedLabel(".data", 5);
     lsignalCheck = assembler->newNamedLabel(".thread_check", 13);
     lvirtualStackCheck = assembler->newNamedLabel(".virtual_stack_check", 20);
-    lcontextSwitchCheck = assembler->newNamedLabel(".context_switch_check", 21);
+    lfunctionEpilogue = assembler->newNamedLabel(".function_epilogue", 18);
 }
 
 void x64Assembler::setupAddressTable() {
@@ -260,16 +264,19 @@ void x64Assembler::validateVirtualStack() {
 
 void x64Assembler::addUserCode() {
     Label opcodeStart = assembler->newNamedLabel(".opcode_start", 13);
+    Label checkStatus = assembler->newLabel();
 
     if(OS_id==win_os) {
         assembler->bind(lcodeStart);
         assembler->test(fnPtr, fnPtr);
-        assembler->jle(opcodeStart);
+        assembler->jle(checkStatus);
         assembler->mov(ctx, labelsPtr);
         assembler->imul(fnPtr, (int64_t)sizeof(int32_t));
         assembler->add(ctx, fnPtr);
         assembler->mov(ctx, qword_ptr(ctx));
         assembler->jmp(ctx);
+        assembler->bind(checkStatus);
+        threadStatusCheck(opcodeStart, 0, false);
         assembler->bind(opcodeStart);
 
         // TODO: add for loop for all opcodes
@@ -277,8 +284,128 @@ void x64Assembler::addUserCode() {
     }
 }
 
-void x64Assembler::addThreadSignalCheck() {
+/**
+ * Requires:
+ * arg register to be set to current PC or -1
+ * fnPtr register to be set hold label address to jump bck to if all is good
+ * arg3 register to hold whether or not to increment the PC in event of context switch
+ */
+void x64Assembler::addThreadSignalCheck() {                      // we need to update the PC just before this addr jump as well as save the return back addr in fnPtr
+    Label isThreadKilled = assembler->newLabel();
+    Label hasException = assembler->newLabel();
+    Label hasKillSignal = assembler->newLabel();
+    Label exceptionCaught = assembler->newLabel();
+    Label contextSwitchCheck = assembler->newLabel();
+    Label signalCheckEnd = assembler->newLabel();
+    Label isContextSwitchEnabled = assembler->newLabel();
 
+    if(OS_id==win_os) {
+
+        /* Thread Suspended Check */
+        assembler->bind(lsignalCheck);
+        assembler->mov(ctx, threadPtr);
+        assembler->mov(tmp32, Lthread[thread_signal]);
+        assembler->sar(tmp32, ((int)tsig_suspend));
+        assembler->and_(tmp32, 1);
+        assembler->test(tmp32, tmp32);
+        assembler->je(isThreadKilled);
+        assembler->call((Int)Thread::suspendSelf);
+        /* end of check */
+
+        /* Thread Killed Check */
+        assembler->bind(isThreadKilled);
+        assembler->mov(ctx, threadPtr);                                      // has it been shut down??
+        assembler->mov(tmp32, Lthread[thread_state]);
+        assembler->cmp(tmp32, THREAD_KILLED);
+        assembler->jne(hasKillSignal);
+        assembler->jmp(lendOfFunction); // verified
+        /* end of check */
+
+        /* Thread Killed Check */
+        assembler->bind(hasKillSignal);
+        assembler->mov(ctx, threadPtr);
+        assembler->mov(tmp32, Lthread[thread_signal]);
+        assembler->sar(tmp32, ((int)tsig_kill));
+        assembler->and_(tmp32, 1);
+        assembler->test(tmp32, tmp32);
+        assembler->je(hasException);
+        assembler->jmp(lendOfFunction); // verified
+        /* end of check */
+
+        /* Thread exception Check */
+        assembler->bind(hasException);
+        assembler->mov(ctx, threadPtr);                                    // Do we have an exception to catch?
+        assembler->mov(tmp32, Lthread[thread_signal]);
+        assembler->sar(tmp32, ((int)tsig_except));
+        assembler->and_(tmp32, 1);
+        assembler->test(tmp32, tmp32);
+        assembler->je(contextSwitchCheck);
+
+        updatePc();                                                      // before we call we need to set arg register to -1 if we already have the pc updated
+
+        assembler->call((Int)VirtualMachine::catchException);
+
+        assembler->cmp(tmp32, 1);
+        assembler->je(exceptionCaught);
+        assembler->jmp(lendOfFunction);
+        assembler->bind(exceptionCaught);
+
+        assembler->mov(ctx, fiberPtr);
+        assembler->call((Int)x64Assembler::getPc);
+
+        assembler->mov(value, labelsPtr);                              // reset pc to find location in function to jump to
+        assembler->imul(tmp, (size_t)sizeof(int32_t));
+        assembler->add(value, tmp);
+        assembler->mov(fnPtr, x86::ptr(value));
+        assembler->jmp(fnPtr);
+        /* end of check */
+
+        /* Thread context switch Check */
+        assembler->bind(contextSwitchCheck);
+        assembler->mov(ctx, threadPtr);
+        assembler->mov(tmp32, Lthread[thread_signal]);
+        assembler->sar(tmp32, ((int)tsig_context_switch));
+        assembler->and_(tmp32, 1);
+        assembler->test(tmp32, tmp32);
+        assembler->je(isContextSwitchEnabled);
+        assembler->mov(ctx, threadPtr);
+        assembler->mov(value, arg3);
+        assembler->call((Int)_BaseAssembler::jitTryContextSwitch);
+
+        assembler->cmp(tmp32, 0);
+        assembler->je(isContextSwitchEnabled);
+        assembler->jmp(lfunctionEpilogue);
+        assembler->bind(isContextSwitchEnabled);
+
+        assembler->mov(ctx, threadPtr);
+        assembler->movzx(tmp32, Lthread[thread_context_switching]);
+        assembler->movzx(tmp32, tmp8);
+        assembler->cmp(tmp32, 1);
+        assembler->jne(signalCheckEnd);
+        assembler->jmp(lfunctionEpilogue);
+
+        assembler->bind(signalCheckEnd);
+        assembler->jmp(fnPtr);
+        /* end of check */
+    }
+}
+
+
+/**
+ * Requires:
+ * arg register to be set to current PC or -1
+ * fnPtr register to be set hold label address to jump bck to if all is good
+ * arg3 register to hold whether or not to increment the PC in event of context switch
+ */
+void x64Assembler::threadStatusCheck(Label &retLbl, Int irAddr, bool incPc) {
+    assembler->lea(fnPtr, x86::ptr(retLbl)); // set return addr
+    assembler->mov(arg3, (incPc ? 1 : 0));
+
+    assembler->mov(arg, irAddr);             // set PC index
+    assembler->mov(ctx, threadPtr);
+    assembler->mov(ctx32, Lthread[thread_signal]);
+    assembler->cmp(ctx32, 0);
+    assembler->jne(lsignalCheck);
 }
 
 void x64Assembler::addConstantsSection() {
@@ -293,6 +420,24 @@ void x64Assembler::addConstantsSection() {
 
 x86::Mem x64Assembler::getMemBytePtr(Int addr) {
     return x86::byte_ptr(ctx, addr);
+}
+
+void x64Assembler::updatePc() {
+    Label end = assembler->newLabel();
+
+    assembler->cmp(arg, -1);
+    assembler->je(end);
+    assembler->mov(ctx, fiberPtr);
+    assembler->mov(tmp, Lfiber[fiber_cache]);
+    assembler->imul(arg, (size_t)sizeof(int32_t*));
+    assembler->add(tmp, arg);
+    assembler->mov(Lfiber[fiber_pc], tmp);
+    assembler->bind(end);
+    assembler->mov(arg, 0);
+}
+
+Int x64Assembler::getPc(fiber *fib) {
+    return fib->pc-fib->cache;
 }
 
 #endif

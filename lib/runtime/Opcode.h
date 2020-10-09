@@ -67,7 +67,7 @@
     if(signal) { \
         if (hasSignal(signal, tsig_suspend)) \
             suspendSelf(); \
-        if (hasSignal(signal, tsig_fiber_kill) || hasSignal(signal, tsig_kill) || state == THREAD_KILLED) \
+        if (hasSignal(signal, tsig_kill) || state == THREAD_KILLED) \
             return; \
         if(hasSignal(signal, tsig_except)) \
             goto exception_catch; \
