@@ -294,10 +294,6 @@ void VirtualMachine::destroy() {
         vm.libs.get(i).name.free();
     }
 
-#ifdef BUILD_JIT
-    Jit::shutdown();
-#endif
-
 #ifdef WIN32_
     if(vm.gui != NULL)
     {
@@ -329,6 +325,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
     retry:
     try {
+        registers = thread->this_fiber->registers;
+
         if(initialSetup) {
             initialSetup = false;
             thread->setup();
@@ -340,9 +338,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
              * Call main method
              */
             if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
-
 #ifdef BUILD_JIT
-                jitFn(thread->jctx);
+                for(Int i = 0; i < 2500; i++) {
+                    jitFn(thread->jctx);
+                }
+                cout << _64BMR << endl;
 #endif
             }
         } else {

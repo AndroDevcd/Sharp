@@ -65,8 +65,6 @@ public:
     int tryJit(Method*);
 
 protected:
-    static int jitTryContextSwitch(Thread *thread, bool incPc);
-
     void initialize();
     FILE* getLogFile();
     _List<fptr> functions;
@@ -74,7 +72,7 @@ protected:
     x86::Gp ctx, ctx32;                  // total registers used in jit
     x86::Gp tmp, tmp32, tmp16, tmp8;
     x86::Gp value;
-    x86::Gp fnPtr, fnPtr32, arg, arg3;
+    x86::Gp fnPtr, fnPtr32, arg, arg3, arg4;
     x86::Gp regPtr, threadPtr, fiberPtr;
     x86::Gp bp, sp;
 
@@ -82,7 +80,7 @@ protected:
 
     x86::Mem Ljit_context[4];     // memory layout of struct jit_context {}
     x86::Mem Lthread[6];          // memory layout of class Thread {}
-    x86::Mem Lfiber[10];           // memory layout of class fiber {}
+    x86::Mem Lfiber[11];           // memory layout of class fiber {}
     x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
     x86::Mem Lmethod[2];          // memory layout of struct Method {}
     x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
@@ -117,6 +115,7 @@ private: // virtual functions
     virtual void storeLabelValues() = 0;
     virtual void validateVirtualStack() = 0;
     virtual void addThreadSignalCheck() = 0;
+    virtual void addStackCheck() = 0;
 
     // setup functions
     void setupContextFields();
@@ -130,26 +129,29 @@ private: // virtual functions
     virtual void incPc() = 0;
     virtual int createJitFunc() = 0;
 
-
     int compile(Method*);
     void updatePc(x86::Assembler &assembler);
 
+protected:
+    static void jitSysInt(Int signal);
+    static int jitTryContextSwitch(Thread *thread, bool incPc);
+    static void growStack(fiber *fib);
+    static void jitStackOverflowException(Thread *);
+    static SharpObject* jitNewObject(Int size, int ntype);
+
     static int jitTryCatch(Method *method);
     static Int jitGetPc(Thread *thread);
-    static void __srt_cxx_prepare_throw(Exception &e);
-    static SharpObject* jitNewObject(Int size);
     static SharpObject* jitNewObject2(Int size);
     static SharpObject* jitNewClass0(Int classid);
     static SharpObject* jitNewClass1(Int size, Int classid);
     static void jitNewString(Thread* thread, int64_t strid);
     static void jitPushNil(Thread* thread);
-    static void jitSetObject0(SharpObject* o, StackElement *sp);
+    static void jitSetObject0(SharpObject* obj, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject2(Object *dest, Object *src);
     static void jitSetObject3(Object *dest, SharpObject *src);
     static void jitInvokeDelegate(Int address, Int args, Thread* thread, Int staticAddr);
     static void jitDelete(Object* o);
-    static void jitSysInt(Int signal);
     static void test(Int proc, Int xtra);
     static void jitCast(Object *o2, Int klass);
     static void jitCastVar(Object *o2, int);
@@ -160,7 +162,6 @@ private: // virtual functions
     static void jitPutC(int op0);
     static void jitGet(int op0);
     static void jitNullPtrException();
-    static void jitStackOverflowException();
     static void jitThrow(Thread *thread);
     static void jitIndexOutOfBoundsException(Int size, Int index);
     static void jitIllegalStackSwapException(Thread*);
@@ -305,6 +306,7 @@ struct Constants {
 #define fiber_cache     7
 #define fiber_pc        8
 #define fiber_regs      9
+#define fiber_stack_sz 10
 
 // class Thread {} fields
 #define thread_state             0

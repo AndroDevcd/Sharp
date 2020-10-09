@@ -78,13 +78,20 @@ private def scheduler_main(args : object[]) : var
 {
 	jobs := launcher.job_queue;
 	canceled_jobs := launcher.canceled_job_queue;
-	const SPIN_COUNT := 12000;
+	const SLEEP_TIME = 2;
+	const SPIN_COUNT := 60000 / SLEEP_TIME;
 	spins_left := SPIN_COUNT;
 	cancel_list := new list<var>();
 
 	while(true)
 	{
 	    when {
+	        canceled_jobs.avail_data(0) -> {
+                foreach(tag in canceled_jobs.read_next(0)) {
+                   cancel_list.add(tag);
+                }
+	        }
+
 	        jobs.avail_data(0) -> {
                 foreach(scheduled_job in jobs.read_next(0)) {
                    if(!cancel_list.empty()) {
@@ -126,12 +133,6 @@ private def scheduler_main(args : object[]) : var
 
                 cancel_list.clear();
 	        }
-
-	        canceled_jobs.avail_data(0) -> {
-                foreach(tag in canceled_jobs.read_next(0)) {
-                   cancel_list.add(tag);
-                }
-	        }
 	    }
 
         if(spins_left-- <= 0) {
@@ -139,7 +140,7 @@ private def scheduler_main(args : object[]) : var
             kill_threads();
         }
 
-		delay(5);
+		delay(SLEEP_TIME);
 	}
 	return 0;
 }

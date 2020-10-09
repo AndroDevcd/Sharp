@@ -106,6 +106,7 @@ Jit::threadStart(void *pVoid) {
      * Check for uncaught exception in thread before exit
      */
     thread_self->exit();
+    Jit::shutdown();
 #ifdef WIN32_
     return 0;
 #endif

@@ -27,8 +27,9 @@ void x64Assembler::initializeRegisters() {
     arg       = r13;
     regPtr    = r14;
     threadPtr = r15;
-    fiberPtr  = r8;        // acts as a temporary and 3rd argument for calling functions
-    arg3      = r9;
+    fiberPtr  = rdi;
+    arg3      = r8;        // acts as a temporary and 3rd argument for calling functions
+    arg4      = r9;
 
 
     // stack manip registers
@@ -64,11 +65,11 @@ void x64Assembler::createFunctionPrologue() {
         assembler->mov(bp, sp);
 
         assembler->push(arg3);                          // Store used registers (windows x86 convention)
+        assembler->push(arg4);                          // Store used registers (windows x86 convention)
         assembler->push(fnPtr);
         assembler->push(arg);
         assembler->push(regPtr);
         assembler->push(threadPtr);
-        assembler->push(fiberPtr);
     } else {
 
     }
@@ -83,11 +84,11 @@ void x64Assembler::createFunctionEpilogue() {
 
         assembler->bind(lfunctionEpilogue);
         assembler->add(sp, (stackSize));
-        assembler->pop(fiberPtr);
         assembler->pop(threadPtr);
         assembler->pop(regPtr);
         assembler->pop(arg);
         assembler->pop(fnPtr);
+        assembler->pop(arg4);
         assembler->pop(arg3);
         assembler->pop(bp);
         assembler->ret();
@@ -151,20 +152,20 @@ void x64Assembler::setupStackAndRegisterValues() {
 void x64Assembler::allocateStackSpace() {
     if(OS_id==win_os) {
         // allocate space for the stack
-        int64_t storedRegs = getRegisterSize() * 5;
+        int64_t storedRegs = getRegisterSize() * 6;
         int ptrSize = sizeof(jit_context *), paddr = storedRegs + ptrSize;
         int labelsSize = sizeof(int64_t *), laddr = paddr + labelsSize;
         int tmpPtrSize = sizeof(Object *), o2addr = laddr + tmpPtrSize;
-        int tmpIntSize = sizeof(int64_t), tmpIntaddr = o2addr +
-                                                       tmpIntSize; // NOTE: make sure the stack is alligned to 16 bits if I add or subtract a stack variable
-        stackSize = ptrSize + labelsSize + tmpPtrSize + tmpIntSize;
+        int tmpIntSize = sizeof(int64_t), tmpIntaddr = o2addr + tmpIntSize; // NOTE: make sure the stack is alligned to 16 bits if I add or subtract a stack variable
+        int returnAddressSize = sizeof(int64_t), returnAddressaddr = tmpIntaddr + returnAddressSize; // NOTE: make sure the stack is alligned to 16 bits if I add or subtract a stack variable
+        stackSize = ptrSize + labelsSize + tmpPtrSize + tmpIntSize + returnAddressSize + sizeof(int64_t);
         assembler->sub(sp, (stackSize));
 
         ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
         labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
         tmpPtr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
-        tmpInt = getMemPtr(bp,
-                           -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
+        tmpInt = getMemPtr(bp, -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
+        returnAddress = getMemPtr(bp, -(returnAddressaddr));  // store memory location of return address for temporary storage to specify where to jump back from
     }
 }
 
@@ -183,6 +184,29 @@ void x64Assembler::createFunctionLandmarks() {
     lsignalCheck = assembler->newNamedLabel(".thread_check", 13);
     lvirtualStackCheck = assembler->newNamedLabel(".virtual_stack_check", 20);
     lfunctionEpilogue = assembler->newNamedLabel(".function_epilogue", 18);
+    lstackCheck = assembler->newNamedLabel(".stack_check", 12);
+}
+
+void x64Assembler::movConstToXmm(x86::Xmm xmm, double _const) {
+    if(_const == 0) {
+        assembler->pxor(xmm, xmm);
+    } else { \
+        Int idx = constants->createConstant(*assembler, _const);
+        x86::Mem lconst = x86::ptr(constants->getConstantLabel(idx));
+        assembler->movsd(xmm, lconst);
+    }
+}
+
+void x64Assembler::movRegister(x86::Xmm &vec, Int addr, bool store) {
+    assembler->mov(ctx, regPtr);        // move the contex var into register
+    if(addr != 0) {
+        assembler->add(ctx, (int64_t )(sizeof(double) * addr));
+    }
+
+    if(store)
+        assembler->movsd(x86::qword_ptr(ctx), vec);  // store into register
+    else
+        assembler->movsd(vec, x86::qword_ptr(ctx)); // get value from register
 }
 
 void x64Assembler::setupAddressTable() {
@@ -209,20 +233,20 @@ void x64Assembler::storeLabelValues() {
 
         // labeles[] setting here
         logComment("; setting label values");
-//        assembler->mov(tmp, labelsPtr);
-//
-//        x86::Mem ptrIdx = getMemPtr(tmp);
-//        x86::Mem lbl;
-//        for (int64_t i = 0; i < compiledMethod->cacheSize; i++) {
-//            lbl = x86::ptr(labels[i]);
-//            assembler->lea(ctx, lbl);
-//            assembler->mov(ptrIdx, ctx);
-//
-//            if ((i + 1) < compiledMethod->cacheSize)                       // omit unessicary add instruction
-//                assembler->add(tmp, (int64_t) sizeof(int32_t));
-//        }
-//
-//        assembler->nop();
+        assembler->mov(tmp, labelsPtr);
+
+        x86::Mem ptrIdx = getMemPtr(tmp);
+        x86::Mem lbl;
+        for (int64_t i = 0; i < compiledMethod->cacheSize; i++) {
+            lbl = x86::ptr(labels[i]);
+            assembler->lea(ctx, lbl);
+            assembler->mov(ptrIdx, ctx);
+
+            if ((i + 1) < compiledMethod->cacheSize)                       // omit unessicary add instruction
+                assembler->add(tmp, (int32_t) sizeof(int32_t));
+        }
+
+        assembler->nop();
         assembler->jmp(lvirtualStackCheck);                          // jump back to top to execute user code
     }
 }
@@ -278,6 +302,97 @@ void x64Assembler::addUserCode() {
         assembler->bind(checkStatus);
         threadStatusCheck(opcodeStart, 0, false);
         assembler->bind(opcodeStart);
+
+        Int Ir = 0, Ir2 = 0, result=0;
+        for(Int i = 0; i < compiledMethod->cacheSize; i++) {
+            Ir = compiledMethod->bytecode[i];
+            if((i+1) < compiledMethod->cacheSize)
+                Ir2 = compiledMethod->bytecode[i+1];
+
+            if(GET_OP(Ir) == Opcode::JNE || GET_OP(Ir) == Opcode::JMP
+             || GET_OP(Ir) == Opcode::BRH || GET_OP(Ir) == Opcode::IFE
+             || GET_OP(Ir) == Opcode::IFNE) {
+                threadStatusCheck(labels[i], i, false);
+            }
+
+            stringstream tmpStream;
+            tmpStream <<  "; instr " << i;
+            logComment(tmpStream.str());
+            assembler->bind(labels[i]);
+
+            switch(GET_OP(Ir)) {
+                case Opcode::NOP: {
+                    assembler->nop();
+                    break;
+                }
+                case Opcode::INT: {
+                    assembler->mov(ctx, GET_Da(Ir));
+                    assembler->call((Int)_BaseAssembler::jitSysInt);
+                    checkMasterShutdown(i);
+                    Label continueLabel = assembler->newLabel();
+                    threadStatusCheck(continueLabel, i, true);
+                    break;
+                }
+
+                case Opcode::MOVI: {
+                    Int num = Ir2;
+                    i++; assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+
+                    movConstToXmm(vec0, num);
+                    movRegister(vec0, GET_Da(Ir), true);
+                    break;
+                }
+                case Opcode::RET: {
+                    result = GET_Da(Ir);
+
+                    if(result == ERR_STATE) {
+                       assembler->mov(ctx, fiberPtr);
+                       assembler->call((Int)popExceptionObject);
+                    }
+
+                    assembler->mov(ctx, threadPtr);
+                    assembler->call((int64_t) returnMethod);
+                    incPc();
+
+                    if(result == ERR_STATE) {
+                        assembler->mov(ctx, threadPtr);
+                        assembler->call((Int)enableExceptionSignal);
+                    }
+
+                    assembler->jmp(lfunctionEpilogue);
+                    break;
+                }
+                case Opcode::HLT: {
+                    assembler->mov(ctx, threadPtr);
+                    assembler->call((Int)enableThreadKillSignal);
+                    break;
+                }
+                case Opcode::NEWARRAY: {
+                    Label afterCheck = assembler->newLabel();
+                    Label pushObj = assembler->newLabel();
+                    stackCheck(i, afterCheck);
+
+                    assembler->bind(afterCheck);
+                    movRegister(vec0, GET_Ca(Ir), false);
+                    assembler->cvttsd2si(ctx, vec0); // double to int
+                    assembler->mov(value, GET_Cb(Ir));
+                    assembler->call((Int)_BaseAssembler::jitNewObject);
+                    assembler->mov(tmpInt, tmp);
+
+                    threadStatusCheck(pushObj, i, false);
+
+                    assembler->bind(pushObj);
+                    assembler->mov(ctx, fiberPtr);
+                    assembler->mov(value, Lfiber[fiber_sp]);
+                    assembler->lea(value, x86::ptr(value, sizeof(StackElement)));
+                    assembler->mov(Lfiber[fiber_sp], value);
+
+                    assembler->mov(ctx, tmpInt);
+                    assembler->call((Int)_BaseAssembler::jitSetObject0);
+                    break;
+                }
+            }
+        }
 
         // TODO: add for loop for all opcodes
         assembler->jmp(lendOfFunction);                  // if we reach the end of our function we dont want to set the labels again
@@ -369,7 +484,7 @@ void x64Assembler::addThreadSignalCheck() {                      // we need to u
         assembler->test(tmp32, tmp32);
         assembler->je(isContextSwitchEnabled);
         assembler->mov(ctx, threadPtr);
-        assembler->mov(value, arg3);
+        assembler->mov(value, arg4);
         assembler->call((Int)_BaseAssembler::jitTryContextSwitch);
 
         assembler->cmp(tmp32, 0);
@@ -391,6 +506,18 @@ void x64Assembler::addThreadSignalCheck() {                      // we need to u
 }
 
 
+void x64Assembler::checkMasterShutdown(int64_t pc) {
+    using namespace asmjit::x86;
+
+    assembler->movzx(tmp32, word_ptr((Int)&vm.state));
+    assembler->cmp(tmp16, VM_TERMINATED);
+    Label ifFalse = assembler->newLabel();
+    assembler->je(ifFalse);
+    assembler->jmp(lendOfFunction);
+
+    assembler->bind(ifFalse);
+}
+
 /**
  * Requires:
  * arg register to be set to current PC or -1
@@ -399,9 +526,20 @@ void x64Assembler::addThreadSignalCheck() {                      // we need to u
  */
 void x64Assembler::threadStatusCheck(Label &retLbl, Int irAddr, bool incPc) {
     assembler->lea(fnPtr, x86::ptr(retLbl)); // set return addr
-    assembler->mov(arg3, (incPc ? 1 : 0));
+    assembler->mov(arg4, (incPc ? 1 : 0));
 
     assembler->mov(arg, irAddr);             // set PC index
+    assembler->mov(ctx, threadPtr);
+    assembler->mov(ctx32, Lthread[thread_signal]);
+    assembler->cmp(ctx32, 0);
+    assembler->jne(lsignalCheck);
+}
+
+void x64Assembler::threadStatusCheck(Label &retLbl, bool incPc) {
+    assembler->lea(fnPtr, x86::ptr(retLbl)); // set return addr
+    assembler->mov(arg4, (incPc ? 1 : 0));
+
+    assembler->mov(arg, tmpInt);             // set PC index
     assembler->mov(ctx, threadPtr);
     assembler->mov(ctx32, Lthread[thread_signal]);
     assembler->cmp(ctx32, 0);
@@ -438,6 +576,74 @@ void x64Assembler::updatePc() {
 
 Int x64Assembler::getPc(fiber *fib) {
     return fib->pc-fib->cache;
+}
+
+void x64Assembler::popExceptionObject(fiber *fib) {
+    fib->exceptionObject
+            = (fib->sp--)->object.object;
+}
+
+void x64Assembler::enableExceptionSignal(Thread *thread) {
+    GUARD(thread->mutex);
+    sendSignal(thread->signal, tsig_except, 1);
+}
+
+void x64Assembler::enableThreadKillSignal(Thread *thread) {
+    GUARD(thread->mutex);
+    sendSignal(thread->signal, tsig_kill, 1);
+}
+
+/**
+ * Requirement for branching to this section:
+ * set tmpInt variabale to the current program counter value
+ */
+void x64Assembler::addStackCheck() {
+    Label overflowCheck = assembler->newLabel();
+
+    assembler->bind(lstackCheck);
+    assembler->mov(ctx, fiberPtr);
+    assembler->mov(value, Lfiber[fiber_sp]);
+    assembler->mov(tmp, Lfiber[fiber_dataStack]);
+    assembler->mov(fnPtr, Lfiber[fiber_stack_sz]);
+    assembler->sub(value, tmp);
+    assembler->sar(value, 4);
+    assembler->add(value, 1);
+    assembler->cmp(value, fnPtr);
+    assembler->jb(overflowCheck);
+    assembler->mov(arg, tmpInt);
+    updatePc();
+    assembler->mov(ctx, fiberPtr);
+    assembler->call((Int) growStack);
+    assembler->mov(arg, -1);
+    threadStatusCheck(overflowCheck, false);
+
+    assembler->bind(overflowCheck);
+    //check for stack overflow
+    assembler->mov(ctx, fiberPtr);
+    assembler->mov(value, Lfiber[fiber_sp]);
+    assembler->mov(tmp, Lfiber[fiber_dataStack]);
+    assembler->mov(fnPtr, Lfiber[fiber_stack_lmt]);
+    assembler->sub(value, tmp);
+    assembler->sar(value, 4);
+    assembler->add(value, 1);
+    assembler->cmp(value, fnPtr);
+    Label end = assembler->newLabel();
+    assembler->jb(end);
+    assembler->mov(arg, tmpInt);
+    updatePc();
+    assembler->mov(ctx, threadPtr);
+    assembler->call((Int) jitStackOverflowException);
+    assembler->mov(arg, -1);
+    threadStatusCheck(end, false);
+    assembler->bind(end);
+    assembler->jmp(returnAddress);
+}
+
+void x64Assembler::stackCheck(Int pc, Label &returnAddr) {
+    assembler->mov(tmpInt, pc);
+    assembler->lea(ctx, x86::ptr(returnAddr));
+    assembler->mov(returnAddress, ctx);
+    assembler->jmp(lstackCheck);
 }
 
 #endif

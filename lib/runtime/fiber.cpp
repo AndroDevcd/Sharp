@@ -511,14 +511,36 @@ void fiber::growStack(Int requiredSize) {
     else requiredSize += STACK_GROW_SIZE;
 
     if(stackSize + requiredSize < stackLimit) {
+        Int spIdx = sp-dataStack, fpIdx = fp-dataStack;
         dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackSize + requiredSize),
                                         sizeof(StackElement) * stackSize);
+
+        StackElement *stackItem = dataStack+stackSize;
+        for(Int i = stackSize; i < stackSize+requiredSize; i++) {
+            stackItem->object.object = NULL;
+            stackItem->var=0;
+            stackItem++;
+        }
+
+        sp = dataStack+spIdx;
+        fp = dataStack+fpIdx;
         stackSize += requiredSize;
-        gc.addMemory(sizeof(Frame) * requiredSize);
+        gc.addMemory(sizeof(StackElement) * requiredSize);
     }
     else if(stackSize != stackLimit) {
+        Int spIdx = sp-dataStack, fpIdx = fp-dataStack;
         dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackLimit), sizeof(StackElement) * stackSize);
-        gc.addMemory(sizeof(Frame) * (frameLimit - frameSize));
+        gc.addMemory(sizeof(Frame) * (stackLimit - stackSize));
+
+        StackElement *stackItem = dataStack+stackSize;
+        for(Int i = stackSize; i < stackLimit; i++) {
+            stackItem->object.object = NULL;
+            stackItem->var=0;
+            stackItem++;
+        }
+
+        sp = dataStack+spIdx;
+        fp = dataStack+fpIdx;
         stackSize = stackLimit;
     }
 

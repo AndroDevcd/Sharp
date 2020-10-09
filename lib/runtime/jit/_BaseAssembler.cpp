@@ -59,6 +59,7 @@ void _BaseAssembler::setupFiberFields() {
     Lfiber[fiber_cache] = getMemPtr(relative_offset((&f), id, cache));
     Lfiber[fiber_pc] = getMemPtr(relative_offset((&f), id, pc));
     Lfiber[fiber_regs] = getMemPtr(relative_offset((&f), id, registers));
+    Lfiber[fiber_stack_sz] = getMemPtr(relative_offset((&f), id, stackSize));
 }
 
 void _BaseAssembler::setupThreadFields() {
@@ -202,6 +203,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
             addUserCode();
 
+            addStackCheck();
             addThreadSignalCheck();
             storeLabelValues();
             createFunctionEpilogue();
@@ -1956,7 +1958,7 @@ void _BaseAssembler::jitInvokeDelegate(Int address, Int args, Thread* thread, In
     try {
         invokeDelegate(address, args, thread, staticAddr);
     } catch(Exception &e) {
-        __srt_cxx_prepare_throw(e);
+        sendSignal(thread_self->signal, tsig_except, 1);
     }
 }
 
@@ -2026,19 +2028,19 @@ void _BaseAssembler::jitSysInt(Int signal) {
     try {
         VirtualMachine::sysInterrupt(signal);
     } catch(Exception &e) {
-        __srt_cxx_prepare_throw(e);
+        sendSignal(thread_self->signal, tsig_except, 1);
     }
 }
 
-SharpObject* _BaseAssembler::jitNewObject(Int size) {
-//    try {
-//        return GarbageCollector::self->newObject(size);
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//        return NULL;
-//    }
+SharpObject* _BaseAssembler::jitNewObject(Int size, int ntype) {
+    try {
+        return gc.newObject(size, ntype);
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+        return NULL;
+    }
 
-return NULL;
+    return NULL;
 }
 
 SharpObject* _BaseAssembler::jitNewObject2(Int size) {
@@ -2089,9 +2091,10 @@ void _BaseAssembler::jitNullPtrException() {
 //    __srt_cxx_prepare_throw(nptr);
 }
 
-void _BaseAssembler::jitStackOverflowException() {
-//    Exception nptr(Environment::StackOverflowErr, "");
-//    __srt_cxx_prepare_throw(nptr);
+void _BaseAssembler::jitStackOverflowException(Thread *thread) {
+    GUARD(thread->mutex);
+    Exception err(vm.StackOverflowExcept, "");
+    sendSignal(thread->signal, tsig_except, 1);
 }
 
 void _BaseAssembler::jitIndexOutOfBoundsException(Int size, Int index) {
@@ -2114,8 +2117,8 @@ void _BaseAssembler::jitThrow(Thread *thread) {
 //    __srt_cxx_prepare_throw(e);
 }
 
-void _BaseAssembler::jitSetObject0(SharpObject* o, StackElement *sp) {
-    sp->object = o;
+void _BaseAssembler::jitSetObject0(SharpObject* obj, StackElement *sp) {
+    sp->object = obj;
 }
 
 void _BaseAssembler::jitSetObject1(StackElement *dest, StackElement *src) {
@@ -2132,20 +2135,6 @@ void _BaseAssembler::jitSetObject3(Object *dest, SharpObject *src) {
 
 void _BaseAssembler::jitDelete(Object* o) {
 //    GarbageCollector::self->releaseObject(o);
-}
-
-void _BaseAssembler::__srt_cxx_prepare_throw(Exception &e) {
-//    Thread *self = thread_self;
-//    self->throwable = e.getThrowable();
-//    Object *eobj = &self->exceptionObject;
-//
-//    if(eobj->object == NULL) {
-//        VirtualMachine::fillStackTrace(self->throwable.stackTrace);
-//    } else {
-//        VirtualMachine::fillStackTrace(eobj);
-//        self->throwable.handlingClass = &env->classes[CLASS(eobj->object->info)];
-//    }
-//    sendSignal(self->signal, tsig_except, 1);
 }
 
 void
@@ -2189,12 +2178,17 @@ int _BaseAssembler::jitTryCatch(Method *method) {
 }
 
 FILE *_BaseAssembler::getLogFile() {
-    ofstream outfile ("JIT.s");        // Quickly create file
-    outfile.close();
-
     FILE * pFile;                           // out logging file
-    pFile = fopen ("JIT.s" , "rw+");
+    pFile = fopen ("C:\\Users\\bnunnally\\OneDrive\\Documents\\Clion\\Sharp\\JIT.s" , "rw+");
     return pFile;
+}
+
+void _BaseAssembler::growStack(fiber *fib) {
+    try {
+        fib->growStack();
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
 }
 
 #endif

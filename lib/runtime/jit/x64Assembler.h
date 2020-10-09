@@ -60,7 +60,8 @@ private: // virtual functions
     void setupAddressTable() override ;
     void storeLabelValues() override ;
     void validateVirtualStack() override ;
-    void addThreadSignalCheck() override;
+    void addThreadSignalCheck() override ;
+    void addStackCheck() override ;
 
     // Helper functions
     void incPc() override ;
@@ -68,8 +69,16 @@ private: // virtual functions
     void updatePc();
     static Int getPc(fiber *);
     void threadStatusCheck(Label &retLbl, Int irAddr, bool incPc);
+    void threadStatusCheck(Label &retLbl, bool incPc);
+    void checkMasterShutdown(int64_t pc);
+    void movConstToXmm(x86::Xmm xmm, double _const);
+    void movRegister(x86::Xmm &vec, Int addr, bool store);
+    static void popExceptionObject(fiber*);
+    static void enableExceptionSignal(Thread*);
+    static void enableThreadKillSignal(Thread*);
+    void stackCheck(Int, Label&);
 
-        // private fields
+    // private fields
     x86::Assembler *assembler;
     CodeHolder *code;
     FileLogger *logger;
@@ -80,6 +89,7 @@ private: // virtual functions
     x86::Mem tmpPtr;
     x86::Mem labelsPtr;
     x86::Mem tmpInt;
+    x86::Mem returnAddress;
     Int stackSize;
 
     // Function Landmarks
@@ -90,6 +100,7 @@ private: // virtual functions
     Label ldataSection;
     Label lsignalCheck;
     Label lvirtualStackCheck;
+    Label lstackCheck;
 };
 #endif
 
