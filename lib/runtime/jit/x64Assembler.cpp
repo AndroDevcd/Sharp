@@ -14,22 +14,22 @@ using namespace asmjit::x86;
 
 void x64Assembler::initializeRegisters() {
     /* x86 Windows standard convention is followed */
-    ctx   = rcx;           // registers ctx, value, and tmp are volitle and must be stored on the stack if deemed to be preserved
-    ctx32 = ecx;
+/* volatile */ ctx   = rcx;           // registers ctx, value, and tmp are volitle and must be stored on the stack if deemed to be preserved
+               ctx32 = ecx;
 
-    tmp       = rax;        // tmp acts as a return value from functions
-    tmp32     = eax;
-    tmp16     = ax;
-    tmp8      = al;
-    value     = rdx;        // value acts as the second argument for function params
-    fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr are non volitile and do not have to be saved
-    fnPtr32   = r12d;
-    arg       = r13;
-    regPtr    = r14;
-    threadPtr = r15;
-    fiberPtr  = rdi;
-    arg3      = r8;        // acts as a temporary and 3rd argument for calling functions
-    arg4      = r9;
+/* volatile */ tmp       = rax;        // tmp acts as a return value from functions
+               tmp32     = eax;
+               tmp16     = ax;
+               tmp8      = al;
+               value     = rdx;        // value acts as the second argument for function params
+               fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr are non volitile and do not have to be saved
+               fnPtr32   = r12d;
+               arg       = r13;
+               regPtr    = r14;
+               threadPtr = r15;
+               fiberPtr  = rdi;
+/* volatile */ arg3      = r8;        // acts as a temporary and 3rd argument for calling functions
+/* volatile */ arg4      = r9;
 
 
     // stack manip registers
@@ -69,6 +69,7 @@ void x64Assembler::createFunctionPrologue() {
         assembler->push(fnPtr);
         assembler->push(arg);
         assembler->push(regPtr);
+        assembler->push(fiberPtr);
         assembler->push(threadPtr);
     } else {
 
@@ -85,6 +86,7 @@ void x64Assembler::createFunctionEpilogue() {
         assembler->bind(lfunctionEpilogue);
         assembler->add(sp, (stackSize));
         assembler->pop(threadPtr);
+        assembler->pop(fiberPtr);
         assembler->pop(regPtr);
         assembler->pop(arg);
         assembler->pop(fnPtr);
@@ -152,13 +154,13 @@ void x64Assembler::setupStackAndRegisterValues() {
 void x64Assembler::allocateStackSpace() {
     if(OS_id==win_os) {
         // allocate space for the stack
-        int64_t storedRegs = getRegisterSize() * 6;
+        int64_t storedRegs = getRegisterSize() * 7;
         int ptrSize = sizeof(jit_context *), paddr = storedRegs + ptrSize;
         int labelsSize = sizeof(int64_t *), laddr = paddr + labelsSize;
         int tmpPtrSize = sizeof(Object *), o2addr = laddr + tmpPtrSize;
         int tmpIntSize = sizeof(int64_t), tmpIntaddr = o2addr + tmpIntSize; // NOTE: make sure the stack is alligned to 16 bits if I add or subtract a stack variable
         int returnAddressSize = sizeof(int64_t), returnAddressaddr = tmpIntaddr + returnAddressSize; // NOTE: make sure the stack is alligned to 16 bits if I add or subtract a stack variable
-        stackSize = ptrSize + labelsSize + tmpPtrSize + tmpIntSize + returnAddressSize + sizeof(int64_t);
+        stackSize = ptrSize + labelsSize + tmpPtrSize + tmpIntSize + returnAddressSize;
         assembler->sub(sp, (stackSize));
 
         ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
