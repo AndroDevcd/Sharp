@@ -44,7 +44,7 @@ private: // virtual functions
     void createFunctionEpilogue() override ;
     void beginCompilation(Method *method) override ;
     void endCompilation() override ;
-    void addUserCode() override ;
+    int addUserCode() override ;
     void addConstantsSection() override;
 
     // Logging methods
@@ -77,6 +77,9 @@ private: // virtual functions
     static void enableExceptionSignal(Thread*);
     static void enableThreadKillSignal(Thread*);
     void stackCheck(Int, Label&);
+    void jmpToLabel();
+    void checkTmpPtr(Int IrAddr);
+    void checkTmpPtrAsObject(Int IrAddr);
 
     // private fields
     x86::Assembler *assembler;
@@ -89,6 +92,7 @@ private: // virtual functions
     x86::Mem tmpPtr;
     x86::Mem labelsPtr;
     x86::Mem tmpInt;
+    x86::Mem tmpPc;
     x86::Mem returnAddress;
     Int stackSize;
 

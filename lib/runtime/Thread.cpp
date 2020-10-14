@@ -749,7 +749,7 @@ void printRegs() {
     if(thread_self && thread_self->this_fiber) {
         cout << "sp -> " << (thread_self->this_fiber->sp - thread_self->this_fiber->dataStack) << endl;
         cout << "fp -> " << (thread_self->this_fiber->fp - thread_self->this_fiber->dataStack) << endl;
-        cout << "pc -> " << PC(thread_self->this_fiber) << endl;
+        cout << "pc -> " << PC(thread_self) << endl;
 
 
         native_string stackTrace;
@@ -837,14 +837,17 @@ unsigned long irCount = 0, overflow = 0;
 void Thread::exec() {
 
     Object *tmpPtr;
-    SharpObject* tmpShObj;
     Int result;
     fptr jitFun;
 
+#ifdef BUILD_JIT
     if(stackRebuild) {
         jitFun = shiftToNextMethod(this, false);
-        if(jitFun) jitFun(jctx);
+        if(jitFun) {
+            jitFun(jctx);
+        }
     }
+#endif
 
     HAS_SIGNAL
 
@@ -857,7 +860,7 @@ void Thread::exec() {
     try {
         for (;;) {
             top:
-                if(this_fiber->current->address == 2097 && (PC(this_fiber) >= 8)) { // tutoriall!!!!!!!!!!!!!!!!!!
+                if(this_fiber->current->address == 2097 && (PC(this) >= 8)) { // tutoriall!!!!!!!!!!!!!!!!!!
 //                    if(this_fiber->sp->object.object) this_fiber->sp->object.object->print();
                     Int i = 0;
                 }
@@ -877,6 +880,7 @@ void Thread::exec() {
                 VirtualMachine::sysInterrupt(GET_Da(*this_fiber->pc));
                 if(vm.state == VM_TERMINATED) return;
 
+            HAS_SIGNAL
             context_switch_check(true)
             _brh
             _MOVI: // tested
@@ -895,6 +899,7 @@ void Thread::exec() {
                         GUARD(mutex);
                         sendSignal(signal, tsig_except, 1);
                     }
+
                     return;
                 }
 
@@ -903,8 +908,6 @@ void Thread::exec() {
                     sendSignal(signal, tsig_except, 1);
                     goto exception_catch;
                 }
-
-                context_switch_check(true)
                 LONG_CALL();
                 _brh
             HLT: // tested
@@ -923,7 +926,7 @@ void Thread::exec() {
                 CHECK_NULL2(
                         result = GET_Ca(*this_fiber->pc) < FNPTR ? GET_Ca(*this_fiber->pc) : NTYPE_VAR; // ntype
                         if(!(TYPE(this_fiber->ptr->object->info) == _stype_var && this_fiber->ptr->object->ntype == result)) {
-                            throw Exception(vm.ClassCastExcept,
+                            throw Exception(vm.IllStateExcept,
                                     getVarCastExceptionMsg((DataType)GET_Ca(*this_fiber->pc), GET_Cb(*this_fiber->pc), this_fiber->ptr->object));
                         }
                 )
@@ -967,7 +970,6 @@ void Thread::exec() {
                 registers[GET_Bc(*this_fiber->pc)]=registers[GET_Ba(*this_fiber->pc)]*registers[GET_Bb(*this_fiber->pc)];
                 _brh
             DIV: // tested
-                if(registers[GET_Ba(*this_fiber->pc)]==0 && registers[GET_Bb(*this_fiber->pc)]==0) throw Exception("divide by 0");
                 registers[GET_Bc(*this_fiber->pc)]=registers[GET_Ba(*this_fiber->pc)]/registers[GET_Bb(*this_fiber->pc)];
                 _brh
             MOD: // tested
@@ -1084,7 +1086,7 @@ void Thread::exec() {
                 context_switch_check(false)
                 _brh_NOINCREMENT
             LOADPC: // tested
-                registers[GET_Da(*this_fiber->pc)] = PC(this_fiber);
+                registers[GET_Da(*this_fiber->pc)] = PC(this);
                 _brh
             PUSHOBJ:
                 grow_stack
@@ -1106,6 +1108,7 @@ void Thread::exec() {
 #endif
                 }
 
+                HAS_SIGNAL
                 context_switch_check(false)
                 _brh_NOINCREMENT
             CALLD:
@@ -1124,7 +1127,7 @@ void Thread::exec() {
                     jitFun(jctx);
 #endif
                 }
-
+                HAS_SIGNAL
                 context_switch_check(false)
                 _brh_NOINCREMENT
             NEWCLASS:
@@ -1442,8 +1445,10 @@ void Thread::exec() {
     goto run;
 }
 
-bool Thread::try_context_switch() {
-   if(this_fiber == NULL || this_fiber->callStack == NULL) return false;
+bool Thread::try_context_switch(bool incPc) {
+    if(contextSwitching) return true;
+   if(this_fiber == NULL || this_fiber->callStack == NULL
+    || this_fiber->current->nativeFunc) return false;
 
    for(Int i = 0; i < this_fiber->calls; i++) {
        Frame &frame = this_fiber->callStack[i];
@@ -1459,7 +1464,7 @@ bool Thread::try_context_switch() {
        }
    }
 
-   stackRebuild = true;
+   if(incPc) this_fiber->pc++;
    relativeFrame = 0;
    contextSwitching = true;
    return true;
@@ -1667,6 +1672,8 @@ void Thread::waitForContextSwitch() {
     last_fiber = this_fiber;
     this_fiber=NULL;
     waiting = true;
+    stackRebuild = true;
+    relativeFrame = 0;
 
     if(!next_fiber)
         next_fiber = fiber::nextFiber(last_fiber ? last_fiber->itemIndex : -1, this);
@@ -1697,6 +1704,7 @@ void Thread::waitForContextSwitch() {
             if(next_fiber->safeStart(this)) {
                 this_fiber = next_fiber;
                 next_fiber = NULL;
+                jctx->this_fiber = this_fiber;
             } else {
 #ifdef COROUTINE_DEBUGGING
                 skipped++;

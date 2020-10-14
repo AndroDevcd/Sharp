@@ -613,9 +613,9 @@ uInt GarbageCollector::getManagedMemory() {
 
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {
     if(o != NULL && TYPE(o->info) == _stype_var) {
+        GUARD(mutex);
         o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz, sizeof(double)*o->size);
 
-        GUARD(mutex);
         if(sz < o->size)
             managedBytes -= (sizeof(double)*(o->size-sz));
         else
@@ -632,6 +632,7 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
 
 void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
     if(o != NULL && TYPE(o->info) == _stype_struct && o->node != NULL) {
+        GUARD(mutex);
         if(sz < o->size) {
             for(size_t i = sz; i < o->size; i++) {
                 if(o->node[i].object != nullptr) {
@@ -641,7 +642,6 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
         }
 
         o->node = (Object*)__realloc(o->node, sizeof(Object)*sz, sizeof(Object)*o->size);
-        GUARD(mutex);
         if(sz < o->size)
             managedBytes -= (sizeof(Object)*(o->size-sz));
         else
@@ -765,61 +765,46 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 
         thread->this_fiber->locking =true;
 
-        retry:
-        long maxSpin = 10000;
-        long spins = 0;
-        if(mut->fiberid != thread->this_fiber->id) {
-            if (mut->threadid == thread->id) {
-                auto fib = fiber::getFiber(mut->fiberid);
+        lockCheckMutex.lock();
+        if(mut->fiberid == thread->this_fiber->id) {
+            thread->this_fiber->locking =false;
+            mut->threadid=thread->id;
+            mut->lockedCount++;
+            lockCheckMutex.unlock();
+            return true;
+        }
+        lockCheckMutex.unlock();
 
-                if(fib) {
-                    auto bound = fib->boundThread;
-
-                    if (bound && bound->id == thread->id)
-                        thread->next_fiber = fib;
-                    thread->this_fiber->delay(0);
-                    return false;
-                }
-            }
-
-            while (mut->fiberid != -1) {
-                if (spins++ == maxSpin) {
-                    spins = 0;
-                    if (thread->contextSwitching) {
-                        return false;
-                    }
-                    else if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
-                        return true;
-                    }
-
-                    __usleep(10);
-                } else if (hasSignal(thread->signal, tsig_context_switch)) {
-                    if (!(hasSignal(thread->signal, tsig_suspend) || hasSignal(thread->signal, tsig_except))) {
-                        thread->try_context_switch();
-
-                        if (thread->contextSwitching) {
-                            thread->this_fiber->delay(0);
-                            return false;
-                        } else {
-                            thread->enableContextSwitch(false);
-                        }
-                    }
-                }
+        lockObject:
+        int count = 0, limit = 1000000;
+        while(mut->fiberid != -1) {
+            if(hasSignal(thread->signal, tsig_suspend))
+                Thread::suspendSelf();
+            else if(hasSignal(thread->signal, tsig_context_switch)
+                && !(hasSignal(thread->signal, tsig_except))
+                && thread->try_context_switch(false))
+                return false;
+            else if(count++ >= limit) {
+                __usleep(1);
+                count = 0;
+            } else if(hasSignal(thread->signal, tsig_kill)) {
+                thread->enableContextSwitch(true);
+                return false;
             }
         }
+
 
         lockCheckMutex.lock();
-        if(mut->fiberid != thread->this_fiber->id) {
-            if (mut->fiberid != -1) {
-                lockCheckMutex.unlock();
-                goto retry;
-            }
+        if(mut->fiberid == -1) {
+            thread->this_fiber->locking =false;
+            mut->fiberid = thread->this_fiber->id;
+            mut->threadid = thread->id;
+            mut->lockedCount++;
+        } else {
+            lockCheckMutex.unlock();
+            goto lockObject;
         }
 
-        mut->fiberid = thread->this_fiber->id;
-        thread->this_fiber->locking =false;
-        mut->threadid=thread->id;
-        mut->lockedCount++;
         lockCheckMutex.unlock();
     }
 
@@ -837,15 +822,15 @@ void GarbageCollector::unlock(SharpObject *o) {
         if(mut) {
 
             lockCheckMutex.lock();
-            if (mut->fiberid != -1) {
+            if (mut->fiberid == thread_self->this_fiber->id) {
                 mut->lockedCount--;
+
                 if(mut->lockedCount <= 0) {
                     mut->fiberid = -1;
                     mut->threadid = -1;
                     mut->lockedCount=0;
                 }
             }
-
             lockCheckMutex.unlock();
 
         }
@@ -862,6 +847,7 @@ void GarbageCollector::reconcileLocks(Thread* thread) {
         mutex_t *mut = locks.get(i);
         if(mut->threadid==thread->id) {
             mut->threadid = -1;
+            mut->fiberid = -1;
             mut->lockedCount = 0;
         }
 
@@ -875,17 +861,17 @@ void GarbageCollector::reconcileLocks(fiber* fib) {
         return;
 
     mutex.lock();
-    lockCheckMutex.lock();
     for(long long i = 0; i < locks.size(); i++) {
         mutex_t *mut = locks.get(i);
         if(mut->fiberid==fib->id) {
-            mut->fiberid = -1;
+            lockCheckMutex.lock();
             mut->threadid = -1;
             mut->lockedCount = 0;
+            mut->fiberid = -1;
+            lockCheckMutex.unlock();
         }
 
     }
-    lockCheckMutex.unlock();
     mutex.unlock();
 }
 

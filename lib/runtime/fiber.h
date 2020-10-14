@@ -44,7 +44,7 @@ public:
     Thread *getAttachedThread();
     Thread *getBoundThread();
     void setAttachedThread(Thread *thread);
-    void delay(Int time);
+    void delay(Int time, bool incPc = true);
     int bind(Thread *thread);
     bool safeStart(Thread *thread);
     static void disposeFibers();

@@ -65,60 +65,60 @@ class platform
     }
 
     private static def srt_init(args: object[]) : var {
-          asm {
-             nop
-             movi ebx, 1
-             newVarArray ebx, 1
-          }
+//          asm {
+//             movl 0
+//             lock
+//             ret 0
+//          }
+//
+//          return 0;
+        build.app_name = "${args[0] as _int8[]}";
+        build.version = "${args[1] as _int8[]}";
+        build.platform = "${args[2] as _int8[]}";
+        build.os = "${args[3] as _int8[]}";
 
-          return 0;
-//        build.app_name = "${args[0] as _int8[]}";
-//        build.version = "${args[1] as _int8[]}";
-//        build.platform = "${args[2] as _int8[]}";
-//        build.os = "${args[3] as _int8[]}";
-//
-//        static_init();
-//        tls_init();
-//
-//        main_thread := args[4] as thread;
-//        vm.set_thread(main_thread);
-//
-//        priority := max_priority;
-//        thread_group.main_group.add(main_thread);
-//
-//        asm {
-//            movg {thread_group}
-//            movn {thread_group.main_group}
-//            pushObj
-//
-//            movl {main_thread}
-//            movn {thread.parent_group}
-//            popObj
-//
-//            movl {priority}
-//            pushObj
-//
-//            movl {main_thread}
-//            movn {thread.priority}
-//            popObj
-//        }
-//
-//        const min_args := 5;
-//        user_args := new string[sizeof(args) - min_args];
-//        iter := 0;
-//
-//        for(i := min_args; i < sizeof(args); i++) {
-//            user_args[iter++] = new string(args[i] as _int8[]);
-//        }
-//
-//        result := 0;
-//        when {
-//            main != 0 -> result = main(user_args);
-//            main2 != 0 -> main2(user_args);
-//            main3 != 0 -> main3();
-//            main4 != 0 -> result = main4();
-//        }
-//
-//        return result;
+        static_init();
+        tls_init();
+
+        main_thread := args[4] as thread;
+        vm.set_thread(main_thread);
+
+        priority := max_priority;
+        thread_group.main_group.add(main_thread);
+
+        asm {
+            movg {thread_group}
+            movn {thread_group.main_group}
+            pushObj
+
+            movl {main_thread}
+            movn {thread.parent_group}
+            popObj
+
+            movl {priority}
+            pushObj
+
+            movl {main_thread}
+            movn {thread.priority}
+            popObj
+        }
+
+        const min_args := 5;
+        user_args := new string[sizeof(args) - min_args];
+        iter := 0;
+
+        for(i := min_args; i < sizeof(args); i++) {
+            user_args[iter++] = new string(args[i] as _int8[]);
+        }
+
+        result := 0;
+        when {
+            main != 0 -> result = main(user_args);
+            main2 != 0 -> main2(user_args);
+            main3 != 0 -> main3();
+            main4 != 0 -> result = main4();
+        }
+
+        return result;
     }
 }

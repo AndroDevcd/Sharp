@@ -60,6 +60,7 @@ void _BaseAssembler::setupFiberFields() {
     Lfiber[fiber_pc] = getMemPtr(relative_offset((&f), id, pc));
     Lfiber[fiber_regs] = getMemPtr(relative_offset((&f), id, registers));
     Lfiber[fiber_stack_sz] = getMemPtr(relative_offset((&f), id, stackSize));
+    Lfiber[fiber_ptr] = getMemPtr(relative_offset((&f), id, ptr));
 }
 
 void _BaseAssembler::setupThreadFields() {
@@ -201,7 +202,10 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
             setupAddressTable();
             validateVirtualStack();
 
-            addUserCode();
+            if((error = addUserCode()) != jit_error_ok) {
+                endCompilation();
+                return error;
+            }
 
             addStackCheck();
             addThreadSignalCheck();
@@ -1710,6 +1714,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                 gc.addMemory(jitMemory);
             }
 
+            cout << "compiled " << func->name.str() << " " << func->address << endl;
             cout << "used Size " << rt.allocator()->statistics()._usedSize << endl;
             cout << "reserved Size " << rt.allocator()->statistics()._reservedSize << endl;
             cout << "overhead Size " << rt.allocator()->statistics()._overheadSize << endl;
@@ -1729,8 +1734,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
 
 int _BaseAssembler::jitTryContextSwitch(Thread *thread, bool incPc) {
-    if((thread->contextSwitching || thread->try_context_switch())) {
-        if(incPc) thread->this_fiber->pc++;
+    if((thread->contextSwitching || thread->try_context_switch(incPc))) {
         return 1;
     }
 
@@ -1876,43 +1880,39 @@ _BaseAssembler::checkSystemState(const Label &lbl_func_end, Int pc, x86::Assembl
 }
 
 void _BaseAssembler::jitCast(Object *obj, Int klass) {
-//    try {
-//        if(obj!=NULL) {
-//            obj->castObject(klass);
-//        } else {
-//            Exception nptr(Environment::NullptrException, "");
-//            __srt_cxx_prepare_throw(nptr);
-//        }
-//    }catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//    }
+    try {
+        if(obj!=NULL) {
+            obj->castObject(klass);
+        } else {
+            Exception nptr(vm.NullptrExcept, "");
+            sendSignal(thread_self->signal, tsig_except, 1);
+        }
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
 }
 
-void _BaseAssembler::jitCastVar(Object *obj, int array) {
-//    if(obj!=NULL && obj->object != NULL) {
-//        if(TYPE(obj->object->info) != _stype_var) {
-//            stringstream ss;
-//            ss << "illegal cast to var" << (array ? "[]" : "");
-//            Exception err(Environment::ClassCastException, ss.str());
-//            __srt_cxx_prepare_throw(err);
-//        }
-//    } else {
-//        Exception nptr(Environment::NullptrException, "");
-//        __srt_cxx_prepare_throw(nptr);
-//    }
+void _BaseAssembler::jitCastVar(Object *obj, int arrayType, int dataType) {
+
+    if(obj!=NULL && obj->object != NULL) {
+        int type = dataType < FNPTR ? dataType : NTYPE_VAR; // ntype
+        if(!(TYPE(obj->object->info) == _stype_var && obj->object->ntype == type)) {
+            Exception(vm.IllStateExcept,
+                            getVarCastExceptionMsg((DataType)dataType, arrayType, obj->object));
+            sendSignal(thread_self->signal, tsig_except, 1);
+        }
+    } else {
+        Exception nptr(vm.NullptrExcept, "");
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
 }
 
 fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
-//    try {
-//        if ((thread->calls + 1) >= thread->stackLimit) {
-//            Exception e(Environment::StackOverflowErr, "");
-//            __srt_cxx_prepare_throw(e);
-//            return NULL;
-//        }
-//        return executeMethod(addr, thread, true);
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//    }
+    try {
+        return executeMethod(addr, thread, true);
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
 
     return NULL;
 }
@@ -1939,11 +1939,11 @@ fptr _BaseAssembler::jitCallDynamic(Thread *thread, int64_t addr) {
     return NULL;
 }
 
-void _BaseAssembler::jitPut(int reg) {
-    cout << registers[reg];
+void _BaseAssembler::jitPut(int reg, double *regs) {
+    cout << regs[reg];
 }
 
-void _BaseAssembler::jitPutC(int reg) {
+void _BaseAssembler::jitPutC(int reg, double *regs) {
     printf("%c", (char)registers[reg]);
 }
 
@@ -1972,6 +1972,11 @@ void _BaseAssembler::test(Int proc, Int xtra) {
 // had a hard time with this one so will do this for now
 void _BaseAssembler::jit64BitCast(Int dest, Int src) {
     registers[dest] = (int64_t)registers[src];
+}
+
+void _BaseAssembler::jitPop(fiber *fib) {
+    fib->sp->object = (SharpObject*)NULL;
+    fib->sp--;
 }
 
 void _BaseAssembler::emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const) {
@@ -2043,24 +2048,22 @@ SharpObject* _BaseAssembler::jitNewObject(Int size, int ntype) {
     return NULL;
 }
 
-SharpObject* _BaseAssembler::jitNewObject2(Int size) {
-//    try {
-//        return GarbageCollector::self->newObjectArray(size);
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//        return NULL;
-//    }
-    return NULL;
+SharpObject* _BaseAssembler::jitNewObject2(Int size, Thread *thread) {
+    try {
+        return gc.newObjectArray(size);
+    } catch(Exception &e) {
+        sendSignal(thread->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
-SharpObject* _BaseAssembler::jitNewClass0(Int classid) {
-//    try {
-//        return GarbageCollector::self->newObject(&env->classes[classid]);
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//        return NULL;
-//    }
-return NULL;
+SharpObject* _BaseAssembler::jitNewClass0(Int classid, Thread *thread) {
+    try {
+        return gc.newObject(&vm.classes[classid]);
+    } catch(Exception &e) {
+        sendSignal(thread->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
 SharpObject* _BaseAssembler::jitNewClass1(Int size, Int classid) {
@@ -2086,9 +2089,9 @@ void _BaseAssembler::jitPushNil(Thread* thread) {
 //    GarbageCollector::self->releaseObject(&(++thread->sp)->object);
 }
 
-void _BaseAssembler::jitNullPtrException() {
-//    Exception nptr(Environment::NullptrException, "");
-//    __srt_cxx_prepare_throw(nptr);
+void _BaseAssembler::jitNullPtrException(Thread *thread) {
+    Exception nptr(vm.NullptrExcept, "");
+    sendSignal(thread->signal, tsig_except, 1);
 }
 
 void _BaseAssembler::jitStackOverflowException(Thread *thread) {
@@ -2097,11 +2100,11 @@ void _BaseAssembler::jitStackOverflowException(Thread *thread) {
     sendSignal(thread->signal, tsig_except, 1);
 }
 
-void _BaseAssembler::jitIndexOutOfBoundsException(Int size, Int index) {
-//    stringstream ss;
-//    ss << "Access to Object at: " << index << " size is " << size;
-//    Exception outOfBounds(Environment::IndexOutOfBoundsException, ss.str());
-//    __srt_cxx_prepare_throw(outOfBounds);
+void _BaseAssembler::jitIndexOutOfBoundsException(Int size, Int index, Thread *thread) {
+    stringstream ss;
+    ss << "Access to Object at: " << index << " size is " << size;
+    Exception outOfBounds(vm.IndexOutOfBoundsExcept, ss.str());
+    sendSignal(thread->signal, tsig_except, 1);
 }
 
 void _BaseAssembler::jitIllegalStackSwapException(Thread *thread) {
@@ -2134,7 +2137,7 @@ void _BaseAssembler::jitSetObject3(Object *dest, SharpObject *src) {
 }
 
 void _BaseAssembler::jitDelete(Object* o) {
-//    GarbageCollector::self->releaseObject(o);
+    gc.releaseObject(o);
 }
 
 void

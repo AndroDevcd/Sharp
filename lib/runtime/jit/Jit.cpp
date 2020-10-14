@@ -6,6 +6,7 @@
 #include "../main.h"
 #include "../Thread.h"
 #include "../VirtualMachine.h"
+#include "../scheduler.h"
 
 #ifdef BUILD_JIT
 
@@ -59,7 +60,7 @@ void Jit::run() {
         }
 
         message:
-        if(!messageQueue.empty()) {
+        while(!messageQueue.empty()) {
             mutex.lock();
             int32_t function = messageQueue.last();
             messageQueue.pop_back();
@@ -69,17 +70,14 @@ void Jit::run() {
              * We only want to run a concurrent compilation
              * of a function
              */
-            getAssembler()->tryJit(vm.methods+function);
+//            if(function != 2111)
+               getAssembler()->tryJit(vm.methods+function);
+            __usleep(50);
         }
 
         do {
 
-#ifdef WIN32_
-            Sleep(1);
-#endif
-#ifdef POSIX_
-            usleep(1*999);
-#endif
+            __usleep(5000);
             if(!messageQueue.empty()) goto message;
         } while(!hasSignal(tSelf->signal, tsig_suspend) && tSelf->state == THREAD_RUNNING);
     }

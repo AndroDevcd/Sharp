@@ -106,7 +106,7 @@ public:
     static void resumeAllThreads(bool withMarking = false);
     static int threadjoin(Thread*);
     static int destroy(Thread*);
-    bool try_context_switch();
+    bool try_context_switch(bool incPc);
     void enableContextSwitch(bool enable);
 
     static int startDaemon(
@@ -211,11 +211,12 @@ extern thread_local double *registers;
 #define _64BMR registers[BMR]
 
 #define PC(thread_self) \
-    (thread_self->pc-thread_self->cache)
+    (thread_self->this_fiber->pc-thread_self->this_fiber->cache)
 
 extern unsigned long irCount, overflow;
 extern size_t threadStackSize;
 extern size_t internalStackSize;
 extern string dataTypeToString(DataType varType, bool isArray);
+extern string getVarCastExceptionMsg(DataType varType, bool isArray, SharpObject *obj);
 
 #endif //SHARP_THREAD_H

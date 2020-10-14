@@ -87,7 +87,7 @@ void addFiber(fiber* fib) {
         }
     }
 
-    if(dataSize >= capacity)
+    if((dataSize+1) >= capacity)
         increase_fibers();
 
     GUARD(fmut)
@@ -221,12 +221,12 @@ fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
     __os_yield();
     __usleep(10);
     for(Int i = size; i >= 0 ; i--) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
+       if((fib = fiberAt(i)) != NULL && !fib->finished && fib != startingFiber  && isFiberRunnble(fib, thread)) {
            if(fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
            return fib;
        }
     }
-    return nullptr;
+    return startingFiber;
 }
 
 void fiber::disposeFibers() {
@@ -240,8 +240,8 @@ void fiber::disposeFibers() {
 
             if (fib && fib->finished && fib->state == FIB_KILLED && fib->attachedThread == NULL) {
                 if(fib->marked) {
-                    GUARD(fmut)
                     fiberAt(i) = NULL;
+                    GUARD(fmut)
                     staleFibers--;
                     openSpots++;
 
@@ -412,23 +412,26 @@ Thread *fiber::getBoundThread() {
 
 void fiber::setAttachedThread(Thread *thread) {
     GUARD(mut)
+    if(thread && attachedThread) {
+        int i = 0;
+    }
     attachedThread = thread;
 }
 
-void fiber::delay(Int time) {
+void fiber::delay(Int time, bool incPc) {
     if(time < 0)
         time = -1;
 
     thread_self->enableContextSwitch(true);
 
-    if(thread_self->try_context_switch()) {
+    if(thread_self->try_context_switch(incPc)) {
         if (state != FIB_KILLED)
             setState(thread_self, FIB_SUSPENDED, time);
     } else __usleep(time * 1000); // will become a sleep() call if called from c++ env
 }
 
 bool fiber::safeStart(Thread *thread) {
-    GUARD(fmut)
+    GUARD(mut)
     if(state == FIB_SUSPENDED && attachedThread == NULL && (boundThread == NULL || boundThread == thread)) {
         attachedThread = (thread);
         setState(thread, FIB_RUNNING);
@@ -511,7 +514,17 @@ void fiber::growStack(Int requiredSize) {
     else requiredSize += STACK_GROW_SIZE;
 
     if(stackSize + requiredSize < stackLimit) {
-        Int spIdx = sp-dataStack, fpIdx = fp-dataStack;
+        Int spIdx = sp-dataStack, fpIdx = fp-dataStack, ptrIdx = -1;
+        if(ptr) {
+            for(Int i = 0; i < stackSize; i++) {
+                if(ptr == &dataStack[i].object)
+                {
+                    ptrIdx = i;
+                    break;
+                }
+            }
+        }
+
         dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackSize + requiredSize),
                                         sizeof(StackElement) * stackSize);
 
@@ -522,13 +535,24 @@ void fiber::growStack(Int requiredSize) {
             stackItem++;
         }
 
+        if(ptrIdx >= 0) ptr = &dataStack[ptrIdx].object;
         sp = dataStack+spIdx;
         fp = dataStack+fpIdx;
         stackSize += requiredSize;
         gc.addMemory(sizeof(StackElement) * requiredSize);
     }
     else if(stackSize != stackLimit) {
-        Int spIdx = sp-dataStack, fpIdx = fp-dataStack;
+        Int spIdx = sp-dataStack, fpIdx = fp-dataStack, ptrIdx = -1;
+        if(ptr) {
+            for(Int i = 0; i < stackSize; i++) {
+                if(ptr == &dataStack[i].object)
+                {
+                    ptrIdx = i;
+                    break;
+                }
+            }
+        }
+
         dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackLimit), sizeof(StackElement) * stackSize);
         gc.addMemory(sizeof(Frame) * (stackLimit - stackSize));
 
@@ -539,6 +563,7 @@ void fiber::growStack(Int requiredSize) {
             stackItem++;
         }
 
+        if(ptrIdx >= 0) ptr = &dataStack[ptrIdx].object;
         sp = dataStack+spIdx;
         fp = dataStack+fpIdx;
         stackSize = stackLimit;

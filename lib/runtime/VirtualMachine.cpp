@@ -191,7 +191,7 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
         thread->this_fiber->growFrame();
 
     thread->this_fiber->callStack[++thread->this_fiber->calls]
-            .init(thread->this_fiber->current, PC(thread->this_fiber), thread->this_fiber->sp-method->spOffset, thread->this_fiber->fp, inJit);
+            .init(thread->this_fiber->current, PC(thread), thread->this_fiber->sp-method->spOffset, thread->this_fiber->fp, inJit);
 
     thread->this_fiber->current = method;
     thread->this_fiber->cache = method->bytecode;
@@ -201,6 +201,8 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
 }
 
 fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
+    if(!thread->stackRebuild) return nullptr;
+
     Int calls = thread->this_fiber->calls;
     Method *func = nullptr;
     fiber* fib = thread->this_fiber;
@@ -208,13 +210,7 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
     retry:
     if(thread->relativeFrame == calls) {
         thread->stackRebuild = false;
-        return nullptr;
-    }
-
-    if((thread->relativeFrame + 1) == calls) {
         func = fib->current;
-        thread->relativeFrame++;
-        thread->stackRebuild = false;
 
         if(func->isjit) {
             thread->jctx->caller = func;
@@ -222,24 +218,23 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
             return func->jit_func;
         } else {
             if(nativeShift)
-               thread->exec();
-            else goto retry;
+                thread->exec();
             return nullptr;
         }
+        return nullptr;
     }
 
-
-    Frame &frame = thread->this_fiber->callStack[thread->relativeFrame+2];
+    Frame &frame = thread->this_fiber->callStack[thread->relativeFrame+1];
     func = vm.methods+frame.returnAddress;
     thread->relativeFrame++;
 
-   if(func->isjit) {
+   if(frame.isjit) {
        thread->jctx->caller = func;
        thread->jctx->startingPc = frame.pc;
        return func->jit_func;
    } else {
        if(nativeShift)
-        thread->exec();
+          thread->exec();
        else goto retry;
        return nullptr;
    }
@@ -249,6 +244,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwit
 
     Method *method = vm.methods+address;
     setupMethodStack(address, thread, inJit);
+    thread->this_fiber->ptr = NULL;
 
 #ifdef BUILD_JIT
     if(!method->isjit) {
@@ -325,27 +321,32 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
     retry:
     try {
-        registers = thread->this_fiber->registers;
-
         if(initialSetup) {
             initialSetup = false;
             thread->setup();
             thread->state = THREAD_RUNNING;
             thread->this_fiber->setAttachedThread(thread);
             thread->this_fiber->setState(thread, FIB_RUNNING);
+            registers = thread->this_fiber->registers;
+            thread->jctx->this_fiber = thread->this_fiber;
 
             /*
              * Call main method
              */
             if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
 #ifdef BUILD_JIT
-                for(Int i = 0; i < 2500; i++) {
+//                thread->this_fiber->ptr = &thread->this_fiber->dataStack->object;
+//                for(Int i = 0; i < 10500; i++) {
+//                    if(i >= 245) {
+//                        int kkl = 0;
+//                    }
                     jitFn(thread->jctx);
-                }
-                cout << _64BMR << endl;
+//                }
+                cout << _64EBX << endl;
 #endif
             }
         } else {
+            registers = thread->this_fiber->registers;
             if(thread->this_fiber->state == FIB_RUNNING && !thread->this_fiber->finished) {
                 if(thread->this_fiber->calls == -1) {
 
@@ -358,8 +359,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                         jitFn(thread->jctx);
 #endif
                     }
-                } else
-                    thread->exec();
+                } else {
+                    if((jitFn = shiftToNextMethod(thread, true))) {
+                        jitFn(thread->jctx);
+                    }
+                }
             }
         }
 
@@ -1079,7 +1083,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
 bool VirtualMachine::catchException() {
     Thread *thread = thread_self;
-    Int pc = PC(thread->this_fiber);
+    Int pc = PC(thread);
     TryCatchData *tbl=NULL;
     ClassObject *handlingClass = &vm.classes[CLASS(thread->this_fiber->exceptionObject.object->info)];
     for(Int i = 0; i < thread->this_fiber->current->tryCatchTable.len; i++) {
@@ -1219,7 +1223,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         }
     }
 
-    fillMethodCall(thread_self->this_fiber->current, PC(thread_self->this_fiber), ss);
+    fillMethodCall(thread_self->this_fiber->current, PC(thread_self), ss);
     str = ss.str(); ss.str("");
 }
 

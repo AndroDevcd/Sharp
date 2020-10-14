@@ -65,6 +65,7 @@
 
 #define HAS_SIGNAL \
     if(signal) { \
+        if(contextSwitching) return; \
         if (hasSignal(signal, tsig_suspend)) \
             suspendSelf(); \
         if (hasSignal(signal, tsig_kill) || state == THREAD_KILLED) \
@@ -106,16 +107,9 @@
 #define _brh_inc(x)  this_fiber->pc+=x; _brh_NOINCREMENT
 
 #define context_switch_check(incPc) \
-if(hasSignal(signal, tsig_context_switch) && !(hasSignal(signal, tsig_suspend) \
-      || hasSignal(signal, tsig_kill) \
-      || state == THREAD_KILLED \
-      || hasSignal(signal, tsig_except)))  { \
-    if((contextSwitching || try_context_switch())) { \
-        if(incPc) \
-           this_fiber->pc++; \
+    if((contextSwitching || (hasSignal(signal, tsig_context_switch) && try_context_switch(incPc)))) { \
         return; \
     } \
-}
 
 #define CHECK_NULL(x) \
     if(this_fiber->ptr==NULL) { \

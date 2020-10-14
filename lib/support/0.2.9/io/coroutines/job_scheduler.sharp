@@ -78,7 +78,7 @@ private def scheduler_main(args : object[]) : var
 {
 	jobs := launcher.job_queue;
 	canceled_jobs := launcher.canceled_job_queue;
-	const SLEEP_TIME = 2;
+	const SLEEP_TIME := 2;
 	const SPIN_COUNT := 60000 / SLEEP_TIME;
 	spins_left := SPIN_COUNT;
 	cancel_list := new list<var>();
