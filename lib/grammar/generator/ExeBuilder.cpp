@@ -1199,7 +1199,7 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"iadd ";
                 ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
+                ss<< code.ir32.get(++x);
 
                 break;
             }
@@ -1208,7 +1208,7 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"isub ";
                 ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
+                ss<< code.ir32.get(++x);
 
                 break;
             }
@@ -1217,7 +1217,7 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"imul ";
                 ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
+                ss<< code.ir32.get(++x);
 
                 break;
             }
@@ -1226,7 +1226,7 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"idiv ";
                 ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
+                ss<< code.ir32.get(++x);
 
                 break;
             }
@@ -1235,7 +1235,7 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"imod ";
                 ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
+                ss<< code.ir32.get(++x);
 
                 break;
             }

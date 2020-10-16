@@ -517,6 +517,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "newVarArray") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
+        expect(branch, ",", false);
         parseAsmLiteral(branch);
     } else if(*peek(1)  == "cast") {
         expect(branch, peek(1)->getValue());
@@ -2377,9 +2378,9 @@ bool parser::parseAsmLiteral(Ast* ast) {
     Ast* branch = getBranch(ast, ast_assembly_literal);
 
     if(*peek(1) == "-"
-        && peek(2)->getId() == CHAR_LITERAL || peek(2)->getId() == INTEGER_LITERAL
+        && (peek(2)->getId() == CHAR_LITERAL || peek(2)->getId() == INTEGER_LITERAL
        || peek(2)->getId() == STRING_LITERAL || peek(2)->getId() == HEX_LITERAL
-       || peek(2)->getValue() == "true" || peek(2)->getValue() == "false") {
+       || peek(2)->getValue() == "true" || peek(2)->getValue() == "false")) {
         Ast *preDec = getBranch(branch, ast_pre_inc_e);
         advance();
         preDec->addToken(current());

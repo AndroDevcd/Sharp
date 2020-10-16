@@ -2066,23 +2066,22 @@ SharpObject* _BaseAssembler::jitNewClass0(Int classid, Thread *thread) {
     }
 }
 
-SharpObject* _BaseAssembler::jitNewClass1(Int size, Int classid) {
-//    try {
-//        return GarbageCollector::self->newObjectArray(size, &env->classes[classid]);
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//        return NULL;
-//    }
-    return NULL;
+SharpObject* _BaseAssembler::jitNewClass1(Int size, Int classid, Thread *thread) {
+    try {
+        return gc.newObjectArray(size, &vm.classes[classid]);
+    } catch(Exception &e) {
+        sendSignal(thread->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
 void _BaseAssembler::jitNewString(Thread* thread, int64_t strid) {
-//    try {
-//        GarbageCollector::self->createStringArray(&(++thread->sp)->object,
-//                                                  env->getStringById(strid));
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//    }
+    try {
+        gc.createStringArray(&(++thread->this_fiber->sp)->object,
+                                                  vm.strings[strid]);
+    } catch(Exception &e) {
+        sendSignal(thread->signal, tsig_except, 1);
+    }
 }
 
 void _BaseAssembler::jitPushNil(Thread* thread) {
@@ -2097,6 +2096,13 @@ void _BaseAssembler::jitNullPtrException(Thread *thread) {
 void _BaseAssembler::jitStackOverflowException(Thread *thread) {
     GUARD(thread->mutex);
     Exception err(vm.StackOverflowExcept, "");
+    sendSignal(thread->signal, tsig_except, 1);
+    sendSignal(thread->signal, tsig_except, 1);
+}
+
+void _BaseAssembler::jitStackUnderflowException(Thread *thread) {
+    GUARD(thread->mutex);
+    Exception err(vm.StackOverflowExcept, "underflow");
     sendSignal(thread->signal, tsig_except, 1);
 }
 
@@ -2115,9 +2121,8 @@ void _BaseAssembler::jitIllegalStackSwapException(Thread *thread) {
 }
 
 void _BaseAssembler::jitThrow(Thread *thread) {
-//    thread->exceptionObject = thread->sp->object;
-//    Exception e("", false);
-//    __srt_cxx_prepare_throw(e);
+    thread->this_fiber->exceptionObject = thread->this_fiber->sp->object;
+    sendSignal(thread->signal, tsig_except, 1);
 }
 
 void _BaseAssembler::jitSetObject0(SharpObject* obj, StackElement *sp) {

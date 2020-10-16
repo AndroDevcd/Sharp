@@ -244,7 +244,6 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwit
 
     Method *method = vm.methods+address;
     setupMethodStack(address, thread, inJit);
-    thread->this_fiber->ptr = NULL;
 
 #ifdef BUILD_JIT
     if(!method->isjit) {
@@ -335,14 +334,14 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
              */
             if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
 #ifdef BUILD_JIT
-//                thread->this_fiber->ptr = &thread->this_fiber->dataStack->object;
-//                for(Int i = 0; i < 10500; i++) {
-//                    if(i >= 245) {
-//                        int kkl = 0;
-//                    }
+                for(Int i = 0; i < 1; i++) {
+                    if(i >= 245) {
+                        int kkl = 0;
+                    }
+////                    (++thread->this_fiber->sp)->var = 125125;
                     jitFn(thread->jctx);
-//                }
-                cout << _64EBX << endl;
+                }
+//                cout << "done" << endl;
 #endif
             }
         } else {

@@ -78,8 +78,9 @@ private: // virtual functions
     static void enableThreadKillSignal(Thread*);
     void stackCheck(Int, Label&);
     void jmpToLabel();
-    void checkTmpPtr(Int IrAddr);
+    void checkTmpPtr(Int IrAddr, bool accessInnerObj = true);
     void checkTmpPtrAsObject(Int IrAddr);
+    void checkTmpPtrAsNumber(Int IrAddr);
 
     // private fields
     x86::Assembler *assembler;

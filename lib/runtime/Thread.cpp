@@ -845,11 +845,10 @@ void Thread::exec() {
         jitFun = shiftToNextMethod(this, false);
         if(jitFun) {
             jitFun(jctx);
+            HAS_SIGNAL
         }
     }
 #endif
-
-    HAS_SIGNAL
 
 #ifdef SHARP_PROF_
     tprof->hit(this_fiber->current);

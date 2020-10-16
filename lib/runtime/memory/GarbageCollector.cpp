@@ -780,9 +780,9 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         while(mut->fiberid != -1) {
             if(hasSignal(thread->signal, tsig_suspend))
                 Thread::suspendSelf();
-            else if(hasSignal(thread->signal, tsig_context_switch)
+            else if(thread->contextSwitching || (hasSignal(thread->signal, tsig_context_switch)
                 && !(hasSignal(thread->signal, tsig_except))
-                && thread->try_context_switch(false))
+                && thread->try_context_switch(false)))
                 return false;
             else if(count++ >= limit) {
                 __usleep(1);

@@ -2118,7 +2118,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
         code.addIr(OpBuilder::te(
                 compileAsmRegister(branch->getSubAst(0)),
                 compileAsmRegister(branch->getSubAst(1))));
-    } else if(opcode == "te") {
+    } else if(opcode == "tne") {
         code.addIr(OpBuilder::tne(
                 compileAsmRegister(branch->getSubAst(0)),
                 compileAsmRegister(branch->getSubAst(1))));

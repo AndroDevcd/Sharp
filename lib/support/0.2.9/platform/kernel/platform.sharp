@@ -66,9 +66,165 @@ class platform
 
     private static def srt_init(args: object[]) : var {
 //          asm {
-//             movl 0
-//             lock
-//             ret 0
+//            nop
+//            int 0x0
+//            movi ebx, 1
+//            newVarArray ebx, 1
+//            movl 0
+//            popObj
+//            newClass 1
+//            movl 0
+//            popObj
+//            cast ebx
+//            mov8 ebx, ebx
+//            mov16 ebx, ebx
+//            mov32 ebx, ebx
+//            mov64 ebx, ebx
+//            movu8 ebx, ebx
+//            movu16 ebx, ebx
+//            movu32 ebx, ebx
+//            movu64 ebx, ebx
+//            rstore ebx
+//            pop
+//            add ebx, ebx, ebx
+//            sub ebx, ebx, ebx
+//            mul ebx, ebx, ebx
+//            div ebx, ebx, ebx
+//            mod ebx, ebx, ebx
+//
+//            iadd ebx, 10
+//            isub ebx, 10
+//            idiv ebx, 10
+//            imod ebx, 10
+//            inc ebx
+//            dec ebx
+//            movr ebx, egx
+//            movi adx, @skipme
+//            movi cmt, 1
+//            brh
+//
+//            .skipme:
+//               nop
+//
+//            movi adx, @skipme2
+//            ife
+//
+//            .skipme2:
+//               nop
+//
+//            lt egx, ebx
+//            gt egx, ebx
+//            le egx, ebx
+//            ge egx, ebx
+//            movl 0
+//            movsl 0
+//            sizeof ebx
+//            put ebx
+//            putc egx
+//            movi ebx, '\n'
+//            putc ebx
+//            movi ebx, 1
+//            newVarArray ebx, 1
+//            movl 0
+//            popObj
+//            movi ebx, 0
+//            checklen ebx
+//            jmp @brhme
+//
+//            .brhme:
+//              nop
+//
+//            loadpc ebx
+//            movl 0
+//            pushObj
+//            popObj
+//
+//            movsl 5
+//            del
+//
+//            //call {foo}
+//            newClass 30 // thread
+//            movl 0
+//            popObj
+//            movn 0
+//            pushObj
+//            pop
+//            movi ebx, 1000
+//            sleep ebx
+//
+//            te ebx, egx
+//            tne ebx, egx
+//            movl 0
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            nop
+//            lock
+//            ulock
+//            movl 0
+//            movi ebx, 0
+//            movnd ebx
+//            movi ebx, 1
+//            newObjArray ebx
+//            pop
+//            not ebx, ebx
+//            skip 1
+//            nop
+//            nop
+//            nop
+//            loadVal  ebx
+//            shr ebx, ebx, ebx
+//            shl ebx, ebx, ebx
+//            skipife ebx, 1
+//            nop
+//            nop
+//            nop
+//            and ebx, ebx
+//            uand ebx, ebx
+//            movl 0
+//            checknull ebx
+//            movi ebx, 1
+//            newClassArray ebx, 1
+//            pop
+//            newString 1
+//            pop
+//            addl ebx, 1
+//            subl ebx, 1
+//            modl ebx, 1
+//            iaddl 1, 1
+//            isubl 1, 1
+//            imodl 1, 1
+//            loadl ebx, 1
+//            movl 0
+//            movi ebx, 2
+//            newVarArray ebx, 1
+//            popObj
+//            movi ebx, 0
+//            iaload ebx, ebx
+//            smovr ebx, 0
+//            andl ebx, 0
+//            orl ebx, 0
+//            istore 10
+//            pop
+//            smovr2 10, ebx
+//            istorel 1, 1
+//            pop
+//            tlsMovl 0
+//            movl 0
+//            movi ebx, 2
+//            newVarArray ebx, 1
+//            popObj
+//            varCast 1, 1
 //          }
 //
 //          return 0;

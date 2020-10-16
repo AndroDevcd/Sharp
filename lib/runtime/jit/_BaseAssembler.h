@@ -138,6 +138,7 @@ protected:
     static int jitTryContextSwitch(Thread *thread, bool incPc);
     static void growStack(fiber *fib);
     static void jitStackOverflowException(Thread *);
+    static void jitStackUnderflowException(Thread *);
     static SharpObject* jitNewObject(Int size, int ntype);
     static void jitCast(Object *o2, Int klass);
     static void jit64BitCast(Int,Int);
@@ -153,12 +154,12 @@ protected:
     static fptr jitCall(Thread *thread, int64_t addr);
     static SharpObject* jitNewClass0(Int classid, Thread* thread);
     static SharpObject* jitNewObject2(Int size, Thread *thread);
+    static SharpObject* jitNewClass1(Int size, Int classid, Thread *);
+    static void jitNewString(Thread* thread, int64_t strid);
 
 
     static int jitTryCatch(Method *method);
     static Int jitGetPc(Thread *thread);
-    static SharpObject* jitNewClass1(Int size, Int classid);
-    static void jitNewString(Thread* thread, int64_t strid);
     static void jitPushNil(Thread* thread);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject3(Object *dest, SharpObject *src);

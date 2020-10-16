@@ -2,7 +2,7 @@
 // Created by braxtonn on 8/23/2019.
 //
 
-#include "x64assembler.h"
+#include "x64Assembler.h"
 #include "../symbols/Method.h"
 #include "../VirtualMachine.h"
 #include "Jit.h"
@@ -307,6 +307,10 @@ int x64Assembler::createJitFunc() {
 ////    Sleep(1);
 //}
 
+void numprint(Int num) {
+    cout << num << endl;
+}
+
 void x64Assembler::validateVirtualStack() {
     if(OS_id==win_os) {
         assembler->bind(lvirtualStackCheck);
@@ -346,6 +350,13 @@ int x64Assembler::addUserCode() {
         if ((i + 1) < compiledMethod->cacheSize)
             Ir2 = compiledMethod->bytecode[i + 1];
 
+//        assembler->nop();
+//        assembler->nop();
+//        assembler->mov(ctx, i);
+//        assembler->nop();
+//        assembler->nop();
+        assembler->mov(arg, i);
+        updatePc();
         if (GET_OP(Ir) == Opcode::JNE || GET_OP(Ir) == Opcode::JMP
             || GET_OP(Ir) == Opcode::BRH || GET_OP(Ir) == Opcode::IFE
             || GET_OP(Ir) == Opcode::IFNE) {
@@ -408,7 +419,9 @@ int x64Assembler::addUserCode() {
                 assembler->bind(afterCheck);
                 movRegister(vec0, GET_Ca(Ir), false);
                 assembler->cvttsd2si(ctx, vec0); // double to int
-                assembler->mov(value, GET_Cb(Ir));
+                int rult = GET_Cb(Ir);
+                int rult2 = GET_Ca(Ir);
+                assembler->mov(value, (Int)GET_Cb(Ir));
                 assembler->call((Int) _BaseAssembler::jitNewObject);
                 assembler->mov(tmpInt, tmp);
 
@@ -517,7 +530,7 @@ int x64Assembler::addUserCode() {
                 assembler->mov(ctx, fiberPtr);
                 assembler->add(Lfiber[fiber_sp], (Int) sizeof(StackElement));
                 assembler->mov(value, Lfiber[fiber_sp]); // sp++
-                assembler->movsd(getMemPtr(value), vec0);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
                 break;
             }
             case Opcode::ADD: {
@@ -525,7 +538,7 @@ int x64Assembler::addUserCode() {
                 movRegister(vec1, GET_Bb(Ir), false);
                 assembler->addsd(vec0, vec1);
 
-                movRegister(vec0, GET_Bc(Ir), false);
+                movRegister(vec0, GET_Bc(Ir), true);
                 break;
             }
             case Opcode::SUB: {
@@ -533,7 +546,7 @@ int x64Assembler::addUserCode() {
                 movRegister(vec1, GET_Bb(Ir), false);
                 assembler->subsd(vec0, vec1);
 
-                movRegister(vec0, GET_Bc(Ir), false);
+                movRegister(vec0, GET_Bc(Ir), true);
                 break;
             }
             case Opcode::MUL: {
@@ -541,7 +554,7 @@ int x64Assembler::addUserCode() {
                 movRegister(vec1, GET_Bb(Ir), false);
                 assembler->mulsd(vec0, vec1);
 
-                movRegister(vec0, GET_Bc(Ir), false);
+                movRegister(vec0, GET_Bc(Ir), true);
                 break;
             }
             case Opcode::DIV: {
@@ -549,7 +562,7 @@ int x64Assembler::addUserCode() {
                 movRegister(vec1, GET_Bb(Ir), false);
                 assembler->divsd(vec0, vec1);
 
-                movRegister(vec0, GET_Bc(Ir), false);
+                movRegister(vec0, GET_Bc(Ir), true);
                 break;
             }
             case Opcode::MOD: {
@@ -575,6 +588,8 @@ int x64Assembler::addUserCode() {
                 movConstToXmm(vec1, Ir2);
                 assembler->addsd(vec1, vec0);
                 movRegister(vec1, GET_Da(Ir), true);
+//                assembler->cvttsd2si(ctx, vec1); // double to int
+//                assembler->call((Int)numprint);
                 break;
             }
             case Opcode::ISUB: {
@@ -648,7 +663,7 @@ int x64Assembler::addUserCode() {
             }
             case Opcode::MOVR: {
                 movRegister(vec0, GET_Cb(Ir), false);
-                movRegister(vec0, GET_Ca(Ir), false);
+                movRegister(vec0, GET_Ca(Ir), true);
                 break;
             }
             case Opcode::BRH: {
@@ -794,7 +809,7 @@ int x64Assembler::addUserCode() {
                 break;
             }
             case Opcode::LOADPC: {
-                assembler->movsd(vec0, i);
+                movConstToXmm(vec0, i);
                 movRegister(vec0, GET_Da(Ir), true);
                 break;
             }
@@ -814,8 +829,8 @@ int x64Assembler::addUserCode() {
                 break;
             }
             case Opcode::DEL: {
-                assembler->mov(value, tmpPtr);
-                assembler->mov(value, x86::ptr(value));
+                assembler->mov(ctx, tmpPtr);
+                assembler->mov(ctx, x86::ptr(ctx));
                 assembler->call((Int)_BaseAssembler::jitDelete);
                 break;
             }
@@ -967,8 +982,484 @@ int x64Assembler::addUserCode() {
                 assembler->call((Int)_BaseAssembler::jitSetObject0);
                 break;
             }
+            case Opcode::NOT: {
+                Label ifTrue = assembler->newLabel(), end = assembler->newLabel();
+                movRegister(vec0, GET_Cb(Ir), false);
+                assembler->cvttsd2si(tmp, vec0); // double to int
+
+                assembler->cmp(tmp, 0);
+                assembler->ja(ifTrue);
+                assembler->mov(tmp, 1);
+                assembler->jmp(end);
+
+                assembler->bind(ifTrue);
+                assembler->mov(tmp, 0);
+                assembler->bind(end);
+
+                assembler->cvtsi2sd(vec0, tmp); // int to Double
+                movRegister(vec0, GET_Ca(Ir), true);
+                break;
+            }
+            case Opcode::SKIP: {
+                if(GET_Da(Ir) > 0) {
+                    assembler->jmp(labels[i+GET_Da(Ir)+1]);
+                }
+                break;
+            }
+            case Opcode::LOADVAL: {
+                Label afterCheck = assembler->newLabel();
+
+                stackCheck(i, afterCheck);
+                assembler->bind(afterCheck);
+
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(tmp, Lfiber[fiber_sp]); // sp--
+                assembler->sub(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+
+                assembler->mov(ctx, tmp);
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+
+                movRegister(vec0, GET_Da(Ir), true);
+                break;
+            }
+            case Opcode::SHR:
+            case Opcode::SHL: {
+                movRegister(vec0, GET_Ba(Ir), false);
+                assembler->cvttsd2si(tmp, vec0); // double to int
+                movRegister(vec1, GET_Bb(Ir), false);
+                assembler->cvttsd2si(value, vec1); // double to int
+
+                assembler->mov(assembler->zcx(), value);
+                if(GET_OP(Ir) == Opcode::SHL)
+                    assembler->sal(tmp, x86::cl);
+                else
+                    assembler->sar(tmp, x86::cl);
+
+                assembler->cvtsi2sd(vec0, tmp); // int to Double
+                movRegister(vec0, GET_Bc(Ir), true);
+                break;
+            }
+            case Opcode::SKNE:
+            case Opcode::SKPE: {
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->cvttsd2si(tmp, vec0); // double to int
+                assembler->cmp(tmp, 1);
+                Label ifEnd = assembler->newLabel();
+                if(GET_OP(Ir) == Opcode::SKPE)
+                    assembler->jne(ifEnd);
+                else
+                    assembler->je(ifEnd);
+                assembler->jmp(labels[i+GET_Cb(Ir)]);
+
+                assembler->bind(ifEnd);
+                break;
+            }
+            case Opcode::AND: {
+                Label ifFalse = assembler->newLabel();
+                Label end = assembler->newLabel();
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->cvttsd2si(tmp, vec0); // double to int
+                movRegister(vec1, GET_Cb(Ir), false);
+                assembler->cvttsd2si(value, vec0); // double to int
+
+                assembler->cmp(tmp, 0);
+                assembler->je(ifFalse);
+                assembler->cmp(value, 0);
+                assembler->je(ifFalse);
+                movConstToXmm(vec0, 1);
+                assembler->jmp(end);
+
+                assembler->bind(ifFalse);
+                movConstToXmm(vec0, 0);
+
+                assembler->bind(end);
+                movRegister(vec0, CMT, true);
+                break;
+            }
+            case Opcode::UAND:
+            case Opcode::OR:
+            case Opcode::XOR: {
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->cvttsd2si(tmp, vec0); // double to int
+                movRegister(vec0, GET_Cb(Ir), false);
+                assembler->cvttsd2si(ctx, vec0); // double to int
+                if(GET_OP(Ir) == Opcode::UAND)
+                    assembler->and_(tmp, ctx);
+                else if(GET_OP(Ir) == Opcode::OR)
+                    assembler->or_(tmp, ctx);
+                else if(GET_OP(Ir) == Opcode::XOR)
+                    assembler->xor_(tmp, ctx);
+
+                assembler->cvtsi2sd(vec0, tmp); // int to Double
+                movRegister(vec0, CMT, true);
+                break;
+            }
+            case Opcode::THROW: { // untested from here
+                Label end = assembler->newLabel();
+                assembler->mov(arg, i);
+                updatePc();
+
+                assembler->mov(ctx, threadPtr);
+                assembler->call((int64_t)_BaseAssembler::jitThrow);
+
+                threadStatusCheck(end, i, true);
+                assembler->bind(end);
+                break;
+            }
+            case Opcode::CHECKNULL: {
+                Label end = assembler->newLabel();
+
+                assembler->mov(ctx, tmpPtr);
+                assembler->mov(ctx, x86::ptr(ctx));
+                assembler->cmp(ctx, 0);
+                Label ifTrue = assembler->newLabel(), error = assembler->newLabel(), ifFalse = assembler->newLabel();
+                assembler->jne(ifTrue);
+                movConstToXmm(vec0, 1);
+                assembler->jmp(end);
+
+                assembler->bind(ifTrue);
+                assembler->mov(ctx, qword_ptr(ctx));
+                assembler->cmp(ctx, 0);
+                assembler->jne(ifFalse);
+                movConstToXmm(vec0, 1);
+                assembler->jmp(end);
+                assembler->bind(ifFalse);
+                movConstToXmm(vec0, 0);
+                assembler->bind(end);
+
+                movRegister(vec0, GET_Da(Ir), true);
+                break;
+            }
+            case Opcode::RETURNOBJ: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                assembler->lea(ctx, Lstack_element[stack_element_object]);
+
+                assembler->mov(value, tmpPtr);
+                assembler->mov(value, x86::ptr(value));
+                assembler->call((int64_t)_BaseAssembler::jitSetObject2);
+                break;
+            }
+            case Opcode::NEWCLASSARRAY: {
+                i++;
+                assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                Label afterCheck = assembler->newLabel();
+
+                stackCheck(i-1, afterCheck);
+                assembler->bind(afterCheck);
+
+                movRegister(vec0, GET_Da(Ir), false);
+                assembler->cvttsd2si(ctx, vec0); // double to int
+
+                Label pushObj = assembler->newLabel();
+                assembler->mov(value, Ir2);
+                assembler->mov(arg3, threadPtr);
+                assembler->call((Int)_BaseAssembler::jitNewClass1);
+                assembler->mov(tmpInt, tmp);
+
+                threadStatusCheck(pushObj, i-1,
+                                  false);
+
+                assembler->bind(pushObj);
+                assembler->mov(ctx, fiberPtr);
+                assembler->add(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+                assembler->mov(value, Lfiber[fiber_sp]); // sp++
+
+                assembler->mov(ctx, tmpInt);
+                assembler->call((Int)_BaseAssembler::jitSetObject0);
+                break;
+            }
+            case Opcode::NEWSTRING: {
+                Label afterCheck = assembler->newLabel();
+                Label end = assembler->newLabel();
+
+                stackCheck(i, afterCheck);
+                assembler->bind(afterCheck);
+
+                assembler->mov(ctx, threadPtr);
+                assembler->mov(value, GET_Da(Ir));
+                assembler->call((Int)_BaseAssembler::jitNewString);
+
+                threadStatusCheck(end, i,true);
+                assembler->bind(end);
+                break;
+            }
+            case Opcode::ADDL: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->mov(tmp, ctx);
+                assembler->movsd(vec1, Lstack_element[stack_element_var]);
+
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->addsd(vec0, vec1);
+                assembler->mov(ctx, tmp);
+
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::SUBL:
+            case Opcode::MULL:
+            case Opcode::DIVL: {
+                assembler->mov(ctx, fiberPtr); // ctx->current
+                assembler->mov(ctx, Lfiber[fiber_fp]); // ctx->current->fp
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->mov(tmp, ctx);
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+
+                movRegister(vec1, GET_Ca(Ir), false);
+                if(GET_OP(Ir) == Opcode::SUBL)
+                    assembler->subsd(vec0, vec1);
+                else if(GET_OP(Ir) == Opcode::MULL)
+                    assembler->mulsd(vec0, vec1);
+                else if(GET_OP(Ir) == Opcode::DIVL)
+                    assembler->divsd(vec0, vec1);
+                assembler->mov(ctx, tmp);
+
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::MODL: {
+                assembler->mov(ctx, fiberPtr); // ctx->current
+                assembler->mov(ctx, Lfiber[fiber_fp]); // ctx->current->fp
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->mov(fnPtr, ctx);
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+                assembler->cvttsd2si(assembler->zax(), vec0);
+
+                movRegister(vec1, GET_Ca(Ir), false);
+                assembler->cvttsd2si(assembler->zcx(), vec1);
+
+                assembler->cqo();
+                assembler->idiv(assembler->zcx());
+                assembler->cvtsi2sd(vec0, assembler->zdx()); // int to Double
+
+                assembler->mov(ctx, fnPtr);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::IADDL: {
+                i++;
+                assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Da(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+                movConstToXmm(vec1, Ir2);
+                assembler->addsd(vec0, vec1);
+
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL: {
+                i++;
+                assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Da(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+                movConstToXmm(vec1, Ir2);
+                if(GET_OP(Ir) == Opcode::ISUBL)
+                    assembler->subsd(vec0, vec1);
+                else if(GET_OP(Ir) == Opcode::IMULL)
+                    assembler->mulsd(vec0, vec1);
+                else if(GET_OP(Ir) == Opcode::IDIVL)
+                    assembler->divsd(vec0, vec1);
+
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::IMODL: {
+                i++;
+                assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Da(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                assembler->mov(fnPtr, ctx);
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+                assembler->cvttsd2si(assembler->zax(), vec0);
+
+                assembler->mov(assembler->zcx(), Ir2);
+
+                assembler->cqo();
+                assembler->idiv(assembler->zcx());
+                assembler->cvtsi2sd(vec0, assembler->zdx()); // int to Double
+
+                assembler->mov(ctx, fnPtr);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::LOADL: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+                movRegister(vec0, GET_Ca(Ir), true);
+                break;
+            }
+            case Opcode::IALOAD: {
+                movRegister(vec0, GET_Cb(Ir), false);
+                checkTmpPtrAsNumber(i);
+                assembler->cvttsd2si(tmp, vec0);
+
+                assembler->imul(tmp, (Int)sizeof(double));
+                assembler->add(ctx, tmp);
+                assembler->movsd(vec0, x86::qword_ptr(ctx));
+                movRegister(vec0, GET_Ca(Ir), true);
+                break;
+            }
+            case Opcode::POPOBJ: {
+                checkTmpPtr(i, false);
+                assembler->mov(arg3, ctx);
+
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(tmp, Lfiber[fiber_sp]); // sp--
+                assembler->sub(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+
+                assembler->mov(ctx, tmp);
+                assembler->lea(value, Lstack_element[stack_element_object]);
+                assembler->mov(ctx, arg3);
+
+                assembler->call((int64_t)_BaseAssembler::jitSetObject2);
+                break;
+            }
+            case Opcode::SMOVR: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_sp]);
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->mov(tmp, ctx);
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->mov(ctx, tmp);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::ANDL:
+            case Opcode::ORL:
+            case Opcode::XORL: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->mov(value, ctx);
+                assembler->movsd(vec0, Lstack_element[stack_element_var]);
+                assembler->cvttsd2si(tmp, vec0); // double to int
+
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->cvttsd2si(ctx, vec0); // double to int
+                if(GET_OP(Ir) == Opcode::ANDL)
+                    assembler->and_(tmp, ctx);
+                else if(GET_OP(Ir) == Opcode::ORL)
+                    assembler->or_(tmp, ctx);
+                else if(GET_OP(Ir) == Opcode::XORL)
+                    assembler->xor_(tmp, ctx);
+
+                assembler->cvtsi2sd(vec0, tmp); // int to Double
+                assembler->mov(ctx, value);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::RETURNVAL: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+
+                assembler->mov(tmp, ctx);
+                movRegister(vec0, GET_Da(Ir), false);
+                assembler->mov(ctx, tmp);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::ISTORE: {
+                i++;
+                assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                Label afterCheck = assembler->newLabel();
+
+                stackCheck(i, afterCheck);
+                assembler->bind(afterCheck);
+
+                movConstToXmm(vec0, Ir2);
+
+                assembler->mov(ctx, fiberPtr);
+                assembler->add(Lfiber[fiber_sp], (Int)sizeof(StackElement));
+                assembler->mov(value, Lfiber[fiber_sp]); // sp++
+
+                assembler->mov(ctx, value);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::SMOVR_2: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Cb(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                assembler->mov(tmp, ctx);
+                movRegister(vec0, GET_Ca(Ir), false);
+                assembler->mov(ctx, tmp);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::ISTOREL: {
+                i++;
+                assembler->bind(labels[i]); // we wont use it but we need to bind it anyway
+
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Da(Ir) != 0) {
+                    assembler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                movConstToXmm(vec0, Ir2);
+                assembler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::TLS_MOVL: {
+                assembler->mov(ctx, fiberPtr);
+                assembler->mov(ctx, Lfiber[fiber_dataStack]);
+
+                if (GET_Da(Ir) != 0) {
+                    assembler->add(ctx, (Int) (sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                assembler->lea(value, Lstack_element[stack_element_object]);
+
+                assembler->mov(arg, tmpPtr);  //  how to assign pointer
+                assembler->mov(x86::ptr(arg), value);
+                break;
+            }
             case Opcode::VARCAST: {
                 Label end = assembler->newLabel();
+                assembler->mov(arg, i);
+                updatePc();
+
                 assembler->mov(ctx, tmpPtr);
                 assembler->mov(ctx, x86::ptr(ctx));
                 assembler->mov(value, (Int) GET_Ca(Ir));
@@ -989,25 +1480,30 @@ int x64Assembler::addUserCode() {
     return jit_error_ok;
 }
 
-void x64Assembler::checkTmpPtr(Int irAddr) {
+void x64Assembler::checkTmpPtr(Int irAddr, bool accessInnerObj) {
     assembler->mov(ctx, tmpPtr);
     assembler->mov(ctx, x86::ptr(ctx));
     assembler->cmp(ctx, 0);
-    Label ifTrue = assembler->newLabel(), error = assembler->newLabel(), ifFalse = assembler->newLabel();
+    Label ifTrue = assembler->newLabel(), error = assembler->newLabel();
     assembler->jne(ifTrue);
     assembler->bind(error);
+    assembler->mov(arg, irAddr);
+    updatePc();
     assembler->mov(ctx, threadPtr);
     assembler->call((Int)_BaseAssembler::jitNullPtrException);
-    threadStatusCheck(ifTrue, irAddr, false);
+    threadStatusCheck(ifTrue, irAddr, true);
     assembler->bind(ifTrue);
-    assembler->mov(ctx, qword_ptr(ctx));
-    assembler->cmp(ctx, 0);
-    assembler->jne(ifFalse);
-    assembler->jmp(error);
-    assembler->bind(ifFalse);
+
+    if(accessInnerObj) {
+        Label ifFalse = assembler->newLabel();
+        assembler->mov(ctx, qword_ptr(ctx));
+        assembler->cmp(ctx, 0);
+        assembler->jne(ifFalse);
+        assembler->jmp(error);
+        assembler->bind(ifFalse);
+    }
 
 }
-
 
 void x64Assembler::checkTmpPtrAsObject(Int irAddr) {
     assembler->mov(ctx, tmpPtr);
@@ -1020,9 +1516,11 @@ void x64Assembler::checkTmpPtrAsObject(Int irAddr) {
 
     assembler->jne(ifTrue);
     assembler->bind(error);
+    assembler->mov(arg, irAddr);
+    updatePc();
     assembler->mov(ctx, threadPtr);
     assembler->call((Int)_BaseAssembler::jitNullPtrException);
-    threadStatusCheck(ifTrue, irAddr, false);
+    threadStatusCheck(ifTrue, irAddr, true);
     assembler->bind(ifTrue);
     assembler->mov(ctx, qword_ptr(ctx));
     assembler->cmp(ctx, 0);
@@ -1036,12 +1534,44 @@ void x64Assembler::checkTmpPtrAsObject(Int irAddr) {
     assembler->bind(nodeIsGood);
 }
 
+void x64Assembler::checkTmpPtrAsNumber(Int irAddr) {
+    assembler->mov(ctx, tmpPtr);
+    assembler->mov(ctx, x86::ptr(ctx));
+    assembler->cmp(ctx, 0);
+    Label ifTrue = assembler->newLabel(),
+    error = assembler->newLabel(),
+    ifFalse = assembler->newLabel(),
+    headIsGood = assembler->newLabel();
+
+    assembler->jne(ifTrue);
+    assembler->bind(error);
+    assembler->mov(arg, irAddr);
+    updatePc();
+    assembler->mov(ctx, threadPtr);
+    assembler->call((Int)_BaseAssembler::jitNullPtrException);
+    threadStatusCheck(ifTrue, irAddr, true);
+    assembler->bind(ifTrue);
+    assembler->mov(ctx, qword_ptr(ctx));
+    assembler->cmp(ctx, 0);
+    assembler->jne(ifFalse);
+    assembler->jmp(error);
+    assembler->bind(ifFalse);
+    assembler->mov(ctx, Lsharp_object[sharp_object_HEAD]);
+    assembler->cmp(ctx, 0);
+    assembler->jne(headIsGood);
+    assembler->jmp(error);
+    assembler->bind(headIsGood);
+}
+
 /**
  * Requires:
  * tmp register to be set inotder to jump to address value dynamically
  */
 void x64Assembler::jmpToLabel() {
-
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
     assembler->mov(ctx, labelsPtr);      // were just using these registers because we can, makes life so much easier
     assembler->cmp(tmp, 0);
     Label ifTrue = assembler->newLabel();
@@ -1050,7 +1580,7 @@ void x64Assembler::jmpToLabel() {
     assembler->add(ctx, tmp);
     assembler->bind(ifTrue);
 
-    assembler->mov(ctx, x86::ptr(ctx));
+    assembler->mov(ctx32, x86::ptr(ctx));
     assembler->jmp(ctx);
 }
 
@@ -1166,7 +1696,7 @@ void x64Assembler::checkMasterShutdown(int64_t pc) {
     assembler->movzx(tmp32, word_ptr((Int)&vm.state));
     assembler->cmp(tmp16, VM_TERMINATED);
     Label ifFalse = assembler->newLabel();
-    assembler->je(ifFalse);
+    assembler->jne(ifFalse);
     assembler->jmp(lendOfFunction);
 
     assembler->bind(ifFalse);
@@ -1254,6 +1784,7 @@ void x64Assembler::enableThreadKillSignal(Thread *thread) {
  */
 void x64Assembler::addStackCheck() {
     Label overflowCheck = assembler->newLabel();
+    Label underflowErr = assembler->newLabel();
 
     assembler->bind(lstackCheck);
     assembler->mov(ctx, fiberPtr);
@@ -1291,7 +1822,15 @@ void x64Assembler::addStackCheck() {
     assembler->mov(arg, -1);
     threadStatusCheck(end, false);
     assembler->bind(end);
+    assembler->sub(value, 1);
+    assembler->cmp(value, 0);
+    assembler->jl(underflowErr);
     assembler->jmp(returnAddress);
+    assembler->bind(underflowErr);
+    assembler->mov(ctx, threadPtr);
+    assembler->call((Int) jitStackUnderflowException);
+    assembler->mov(arg, -1);
+    threadStatusCheck(end, false);
 }
 
 void x64Assembler::stackCheck(Int pc, Label &returnAddr) {
