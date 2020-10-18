@@ -214,14 +214,13 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
 
         if(func->isjit) {
             thread->jctx->caller = func;
-            thread->jctx->startingPc = fib->pc-fib->cache;
+            thread->jctx->startingPc = 0;
             return func->jit_func;
         } else {
             if(nativeShift)
                 thread->exec();
             return nullptr;
         }
-        return nullptr;
     }
 
     Frame &frame = thread->this_fiber->callStack[thread->relativeFrame+1];
@@ -230,7 +229,7 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
 
    if(frame.isjit) {
        thread->jctx->caller = func;
-       thread->jctx->startingPc = frame.pc;
+       thread->jctx->startingPc = 0;
        return func->jit_func;
    } else {
        if(nativeShift)
@@ -332,16 +331,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             /*
              * Call main method
              */
-            if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
+            if ((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
 #ifdef BUILD_JIT
-                for(Int i = 0; i < 1; i++) {
-                    if(i >= 245) {
-                        int kkl = 0;
-                    }
-////                    (++thread->this_fiber->sp)->var = 125125;
-                    jitFn(thread->jctx);
-                }
-//                cout << "done" << endl;
+                jitFn(thread->jctx);
 #endif
             }
         } else {
@@ -697,6 +689,18 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 Object *stackSize = vm.resolveField("stack_size", thread->currentThread.object);
                 if(stackSize != NULL) {
                     thread->stackSize = (int) vm.numberValue(0, stackSize->object);
+                }
+
+                Object *name = vm.resolveField("name", thread->currentThread.object);
+                if(name != NULL) {
+                    Object *data = vm.resolveField("data", name->object);
+
+                    if(data) {
+                        string threadName = vm.stringValue(data->object);
+                        if(threadName != "") {
+                            thread->name = threadName;
+                        }
+                    }
                 }
             }
             registers[CMT]=Thread::start((int32_t )_64ADX, (size_t )_64EBX);

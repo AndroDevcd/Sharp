@@ -3,7 +3,7 @@ mod std.io.fiber;
 import std.io;
 import platform.kernel;
 
-class fiber {
+class fiber { // Thread 1mb fiber 6kb <starting size>
 
    private fiber() {}
 

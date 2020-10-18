@@ -119,10 +119,10 @@ class platform
 //            movl 0
 //            movsl 0
 //            sizeof ebx
-//            put ebx
-//            putc egx
+////            put ebx
+////            putc egx
 //            movi ebx, '\n'
-//            putc ebx
+////            putc ebx
 //            movi ebx, 1
 //            newVarArray ebx, 1
 //            movl 0
@@ -225,6 +225,19 @@ class platform
 //            newVarArray ebx, 1
 //            popObj
 //            varCast 1, 1
+//          }
+//
+//            asm {
+//                movl 0
+//                movi ebx, 2
+//                newVarArray ebx, 1
+//                popObj
+//                movi adx, 0
+//                iaload ebx, adx
+//            }
+
+//          for(;;) {
+//             std.io.fiber#delay(1);
 //          }
 //
 //          return 0;

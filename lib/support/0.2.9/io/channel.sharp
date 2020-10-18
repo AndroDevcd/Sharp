@@ -2,6 +2,18 @@ mod std.io;
 
 import std.io.fiber;
 
+/*
+    [Master]
+       [0] *[item]
+       [1]  [2]
+       [2]  [item] [item] [item] ...
+       [3]  *[] [] []
+       [4]
+
+       index
+          * = blocking
+*/
+
 class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
     private filters : list<filter<t> >;

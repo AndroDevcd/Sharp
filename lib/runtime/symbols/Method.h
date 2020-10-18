@@ -20,12 +20,12 @@ struct LineData;
 struct jit_context;
 #endif
 
-#define JIT_IR_LIMIT 25000
+#define JIT_IR_LIMIT 15000
 
 /**
  * The JIT will not waste time JIT'ing functions with only 5 instructions or less
  */
-#define JIT_IR_MIN 1
+#define JIT_IR_MIN 2
 
 typedef opcode_instr* Cache;
 typedef void (*fptr)(void *);

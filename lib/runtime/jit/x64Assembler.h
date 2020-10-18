@@ -99,6 +99,7 @@ private: // virtual functions
 
     // Function Landmarks
     Label lcodeStart;
+    Label lopcodeStart;
     Label lsetupAddressTable;
     Label lendOfFunction;
     Label lfunctionEpilogue;

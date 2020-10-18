@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 96110
-post codebase size: 86514
-optimized opcodes: 9596
-net % gain 9.98439
+pre codebase size: 96128
+post codebase size: 86530
+optimized opcodes: 9598
+net % gain 9.9846
 
 
 class: main#__srt_global[0] fields(3) methods(5)
@@ -36300,28 +36300,42 @@ function: main#__srt_global.foo[1895] params(0) in file: tests/corouting_test.sh
 13 [0xd]:          lt ecx, ebx   
 14 [0xe]:          movr ebx, cmt   
 15 [0xf]:          movr cmt, ebx   
-16 [0x10]:          jne 25   
-17 [0x11]: line: 14 call @2066 // <std.io.coroutines#coroutine.builder>   
-18 [0x12]:          istore 4339   
-20 [0x14]:          call @2081 // <std.io.coroutines#coroutine_builder.operator=>   
-21 [0x15]:          pop   
-22 [0x16]:          iaddl 1, fp@0   
-24 [0x18]:          jmp @5   
-25 [0x19]: line: 23 istorel 0, fp+0   
-27 [0x1b]:          ret   
+16 [0x10]:          jne 41   
+17 [0x11]: line: 14 ipushl #0   
+18 [0x12]:          movi #10000, ebx   
+20 [0x14]:          loadval ecx   
+21 [0x15]:          mod ecx, ebx -> ebx   
+22 [0x16]:          rstore ebx   
+23 [0x17]:          movi #0, ebx   
+25 [0x19]:          loadval ecx   
+26 [0x1a]:          test ecx, ebx   
+27 [0x1b]:          movr ebx, cmt   
+28 [0x1c]:          movr cmt, ebx   
+29 [0x1d]:          jne 32   
+30 [0x1e]: line: 15 ipushl #0   
+31 [0x1f]:          call @1912 // <std#__srt_global.println>   
+32 [0x20]:          nop   
+33 [0x21]: line: 16 call @2066 // <std.io.coroutines#coroutine.builder>   
+34 [0x22]:          istore 4339   
+36 [0x24]:          call @2081 // <std.io.coroutines#coroutine_builder.operator=>   
+37 [0x25]:          pop   
+38 [0x26]:          iaddl 1, fp@0   
+40 [0x28]:          jmp @5   
+41 [0x29]: line: 25 istorel 0, fp+0   
+43 [0x2b]:          ret   
 
 
-function: main#__srt_global.main[1896] params(1) in file: tests/corouting_test.sharp:26:4: note:  
+function: main#__srt_global.main[1896] params(1) in file: tests/corouting_test.sharp:28:4: note:  
 		def main(args: string[]) {
 		   ^
 
-0 [0x0]: line: 27 call @3659 // <std#time.mills_time>   
+0 [0x0]: line: 29 call @3659 // <std#time.mills_time>   
 1 [0x1]:          ipopl 1   
-2 [0x2]: line: 28 call @1895 // <main#__srt_global.foo>   
+2 [0x2]: line: 30 call @1895 // <main#__srt_global.foo>   
 3 [0x3]:          pop   
-4 [0x4]: line: 29 istore 1000   
+4 [0x4]: line: 31 istore 1000   
 6 [0x6]:          call @2139 // <std.io.fiber#__srt_global.delay>   
-7 [0x7]: line: 30 call @3659 // <std#time.mills_time>   
+7 [0x7]: line: 32 call @3659 // <std#time.mills_time>   
 8 [0x8]:          loadval ebx   
 9 [0x9]:          rstore ebx   
 10 [0xa]:          loadl ebx, fp+1   
@@ -36329,7 +36343,7 @@ function: main#__srt_global.main[1896] params(1) in file: tests/corouting_test.s
 12 [0xc]:          sub ecx, ebx -> ebx   
 13 [0xd]:          rstore ebx   
 14 [0xe]:          call @1912 // <std#__srt_global.println>   
-15 [0xf]: line: 31 movg @0 // @main#__srt_global   
+15 [0xf]: line: 33 movg @0 // @main#__srt_global   
 16 [0x10]:          movn #2   
 18 [0x12]:          pushobj   
 19 [0x13]:          istore 1   
@@ -46642,7 +46656,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 8 [0x8]:          movn #0   
 10 [0xa]:          movn #0   
 12 [0xc]:          popobj   
-13 [0xd]:          movi #62148, ebx   
+13 [0xd]:          movi #51646, ebx   
 15 [0xf]:          movg @25 // @std.io#buffer_type   
 16 [0x10]:          movn #0   
 18 [0x12]:          movn #1   
@@ -46657,7 +46671,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 31 [0x1f]:          movn #1   
 33 [0x21]:          movn #0   
 35 [0x23]:          popobj   
-36 [0x24]:          movi #62149, ebx   
+36 [0x24]:          movi #51647, ebx   
 38 [0x26]:          movg @25 // @std.io#buffer_type   
 39 [0x27]:          movn #1   
 41 [0x29]:          movn #1   
@@ -46672,7 +46686,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 54 [0x36]:          movn #2   
 56 [0x38]:          movn #0   
 58 [0x3a]:          popobj   
-59 [0x3b]:          movi #62150, ebx   
+59 [0x3b]:          movi #51648, ebx   
 61 [0x3d]:          movg @25 // @std.io#buffer_type   
 62 [0x3e]:          movn #2   
 64 [0x40]:          movn #1   
@@ -46687,7 +46701,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 77 [0x4d]:          movn #3   
 79 [0x4f]:          movn #0   
 81 [0x51]:          popobj   
-82 [0x52]:          movi #62151, ebx   
+82 [0x52]:          movi #51649, ebx   
 84 [0x54]:          movg @25 // @std.io#buffer_type   
 85 [0x55]:          movn #3   
 87 [0x57]:          movn #1   
@@ -46762,7 +46776,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 192 [0xc0]:          movn #0   
 194 [0xc2]:          movn #0   
 196 [0xc4]:          popobj   
-197 [0xc5]:          movi #62150, ebx   
+197 [0xc5]:          movi #51648, ebx   
 199 [0xc7]:          movg @35 // @std.io.fiber#fiber_state   
 200 [0xc8]:          movn #0   
 202 [0xca]:          movn #1   
@@ -46777,7 +46791,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 215 [0xd7]:          movn #1   
 217 [0xd9]:          movn #0   
 219 [0xdb]:          popobj   
-220 [0xdc]:          movi #62151, ebx   
+220 [0xdc]:          movi #51649, ebx   
 222 [0xde]:          movg @35 // @std.io.fiber#fiber_state   
 223 [0xdf]:          movn #1   
 225 [0xe1]:          movn #1   
@@ -46792,7 +46806,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 238 [0xee]:          movn #2   
 240 [0xf0]:          movn #0   
 242 [0xf2]:          popobj   
-243 [0xf3]:          movi #62152, ebx   
+243 [0xf3]:          movi #51650, ebx   
 245 [0xf5]:          movg @35 // @std.io.fiber#fiber_state   
 246 [0xf6]:          movn #2   
 248 [0xf8]:          movn #1   
@@ -46807,7 +46821,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 261 [0x105]:          movn #3   
 263 [0x107]:          movn #0   
 265 [0x109]:          popobj   
-266 [0x10a]:          movi #62153, ebx   
+266 [0x10a]:          movi #51651, ebx   
 268 [0x10c]:          movg @35 // @std.io.fiber#fiber_state   
 269 [0x10d]:          movn #3   
 271 [0x10f]:          movn #1   
@@ -46822,7 +46836,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 284 [0x11c]:          movn #4   
 286 [0x11e]:          movn #0   
 288 [0x120]:          popobj   
-289 [0x121]:          movi #62154, ebx   
+289 [0x121]:          movi #51652, ebx   
 291 [0x123]:          movg @35 // @std.io.fiber#fiber_state   
 292 [0x124]:          movn #4   
 294 [0x126]:          movn #1   
@@ -47407,7 +47421,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 1181 [0x49d]:          movn #0   
 1183 [0x49f]:          movn #0   
 1185 [0x4a1]:          popobj   
-1186 [0x4a2]:          movi #62154, ebx   
+1186 [0x4a2]:          movi #51652, ebx   
 1188 [0x4a4]:          movg @71 // @std.reflect#property_type   
 1189 [0x4a5]:          movn #0   
 1191 [0x4a7]:          movn #1   
@@ -47422,7 +47436,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 1204 [0x4b4]:          movn #1   
 1206 [0x4b6]:          movn #0   
 1208 [0x4b8]:          popobj   
-1209 [0x4b9]:          movi #62155, ebx   
+1209 [0x4b9]:          movi #51653, ebx   
 1211 [0x4bb]:          movg @71 // @std.reflect#property_type   
 1212 [0x4bc]:          movn #1   
 1214 [0x4be]:          movn #1   
@@ -47437,7 +47451,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 1227 [0x4cb]:          movn #2   
 1229 [0x4cd]:          movn #0   
 1231 [0x4cf]:          popobj   
-1232 [0x4d0]:          movi #62156, ebx   
+1232 [0x4d0]:          movi #51654, ebx   
 1234 [0x4d2]:          movg @71 // @std.reflect#property_type   
 1235 [0x4d3]:          movn #2   
 1237 [0x4d5]:          movn #1   
@@ -47647,7 +47661,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 1549 [0x60d]:          movn #0   
 1551 [0x60f]:          movn #0   
 1553 [0x611]:          popobj   
-1554 [0x612]:          movi #62157, ebx   
+1554 [0x612]:          movi #51655, ebx   
 1556 [0x614]:          movg @98 // @std.io#channel<t>.channel_state   
 1557 [0x615]:          movn #0   
 1559 [0x617]:          movn #1   
@@ -47662,7 +47676,7 @@ function: platform.kernel#platform.static_init[2359] params(0) in file: lib/supp
 1572 [0x624]:          movn #1   
 1574 [0x626]:          movn #0   
 1576 [0x628]:          popobj   
-1577 [0x629]:          movi #62158, ebx   
+1577 [0x629]:          movi #51656, ebx   
 1579 [0x62b]:          movg @98 // @std.io#channel<t>.channel_state   
 1580 [0x62c]:          movn #1   
 1582 [0x62e]:          movn #1   
@@ -47784,7 +47798,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 		    private static def srt_init(args: object[]) : var {
 		                      ^
 
-0 [0x0]: line: 231 new_class @76 // std#string   
+0 [0x0]: line: 244 new_class @76 // std#string   
 2 [0x2]:           dup    
 3 [0x3]:           newstr @4 //    
 4 [0x4]:           call @3550 // <std#string.string>   
@@ -47800,7 +47814,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 15 [0xf]:           movg @49 // @platform#build   
 16 [0x10]:           movn #1   
 18 [0x12]:           popobj   
-19 [0x13]: line: 232 new_class @76 // std#string   
+19 [0x13]: line: 245 new_class @76 // std#string   
 21 [0x15]:           dup    
 22 [0x16]:           newstr @4 //    
 23 [0x17]:           call @3550 // <std#string.string>   
@@ -47816,7 +47830,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 34 [0x22]:           movg @49 // @platform#build   
 35 [0x23]:           movn #3   
 37 [0x25]:           popobj   
-38 [0x26]: line: 233 new_class @76 // std#string   
+38 [0x26]: line: 246 new_class @76 // std#string   
 40 [0x28]:           dup    
 41 [0x29]:           newstr @4 //    
 42 [0x2a]:           call @3550 // <std#string.string>   
@@ -47832,7 +47846,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 53 [0x35]:           movg @49 // @platform#build   
 54 [0x36]:           movn #2   
 56 [0x38]:           popobj   
-57 [0x39]: line: 234 new_class @76 // std#string   
+57 [0x39]: line: 247 new_class @76 // std#string   
 59 [0x3b]:           dup    
 60 [0x3c]:           newstr @4 //    
 61 [0x3d]:           call @3550 // <std#string.string>   
@@ -47848,9 +47862,9 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 72 [0x48]:           movg @49 // @platform#build   
 73 [0x49]:           movn #0   
 75 [0x4b]:           popobj   
-76 [0x4c]: line: 236 call @2359 // <platform.kernel#platform.static_init>   
-77 [0x4d]: line: 237 call @2358 // <platform.kernel#platform.tls_init>   
-78 [0x4e]: line: 239 pushl 0   
+76 [0x4c]: line: 249 call @2359 // <platform.kernel#platform.static_init>   
+77 [0x4d]: line: 250 call @2358 // <platform.kernel#platform.tls_init>   
+78 [0x4e]: line: 252 pushl 0   
 79 [0x4f]:           movi #4, ebx   
 81 [0x51]:           popobj2    
 82 [0x52]:           movr adx, ebx   
@@ -47859,17 +47873,17 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 85 [0x55]:           movi #38, cmt   
 87 [0x57]:           cast cmt   
 88 [0x58]:           smovr_3 fp+1   
-89 [0x59]: line: 240 pushl 1   
+89 [0x59]: line: 253 pushl 1   
 90 [0x5a]:           call @2389 // <platform.kernel#vm.set_thread>   
-91 [0x5b]: line: 242 movg @40 // @std.io#thread_priority   
+91 [0x5b]: line: 255 movg @40 // @std.io#thread_priority   
 92 [0x5c]:           movn #2   
 94 [0x5e]:           smovr_3 fp+2   
-95 [0x5f]: line: 243 movg @39 // @std.io#thread_group   
+95 [0x5f]: line: 256 movg @39 // @std.io#thread_group   
 96 [0x60]:           movn #0   
 98 [0x62]:           pushobj   
 99 [0x63]:           pushl 1   
 100 [0x64]:           call @2290 // <std.io#thread_group.add>   
-101 [0x65]: line: 245 movg @39 // @std.io#thread_group   : protected asm start
+101 [0x65]: line: 258 movg @39 // @std.io#thread_group   : protected asm start
 102 [0x66]:           movn #0   
 104 [0x68]:           pushobj   
 105 [0x69]:           movl 1   
@@ -47880,8 +47894,8 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 111 [0x6f]:           movl 1   
 112 [0x70]:           movn #3   
 114 [0x72]:           popobj   
-115 [0x73]: line: 262 movl 0   : protected asm end
-116 [0x74]: line: 263 sizeof ebx   
+115 [0x73]: line: 275 movl 0   : protected asm end
+116 [0x74]: line: 276 sizeof ebx   
 117 [0x75]:           rstore ebx   
 118 [0x76]:           movi #5, ebx   
 120 [0x78]:           loadval ecx   
@@ -47889,8 +47903,8 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 122 [0x7a]:           new_classarray ebx  // std#string[]   
 124 [0x7c]:           popobj2    
 125 [0x7d]:           smovr_3 fp+3   
-126 [0x7e]: line: 264 istorel 0, fp+4   
-128 [0x80]: line: 266 istorel 5, fp+5   
+126 [0x7e]: line: 277 istorel 0, fp+4   
+128 [0x80]: line: 279 istorel 5, fp+5   
 130 [0x82]:           ipushl #5   
 131 [0x83]:           movl 0   
 132 [0x84]:           sizeof ebx   
@@ -47899,7 +47913,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 135 [0x87]:           movr ebx, cmt   
 136 [0x88]:           movr cmt, ebx   
 137 [0x89]:           jne 164   
-138 [0x8a]: line: 267 new_class @76 // std#string   
+138 [0x8a]: line: 280 new_class @76 // std#string   
 140 [0x8c]:           dup    
 141 [0x8d]:           pushl 0   
 142 [0x8e]:           loadl ebx, fp+5   
@@ -47923,8 +47937,8 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 160 [0xa0]:           popobj   
 161 [0xa1]:           iaddl 1, fp@5   
 163 [0xa3]:           jmp @130   
-164 [0xa4]: line: 270 istorel 0, fp+6   
-166 [0xa6]: line: 271 movg @51 // @platform.kernel#platform   
+164 [0xa4]: line: 283 istorel 0, fp+6   
+166 [0xa6]: line: 284 movg @51 // @platform.kernel#platform   
 167 [0xa7]:           movn #0   
 169 [0xa9]:           movi #0, adx   
 171 [0xab]:           iaload ebx, adx   
@@ -47935,7 +47949,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 177 [0xb1]:           movr ebx, cmt   
 178 [0xb2]:           movr cmt, ebx   
 179 [0xb3]:           jne 194   
-180 [0xb4]: line: 272 movg @51 // @platform.kernel#platform   
+180 [0xb4]: line: 285 movg @51 // @platform.kernel#platform   
 181 [0xb5]:           movn #0   
 183 [0xb7]:           movi #0, adx   
 185 [0xb9]:           iaload ebx, adx   
@@ -47958,7 +47972,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 205 [0xcd]:           movr ebx, cmt   
 206 [0xce]:           movr cmt, ebx   
 207 [0xcf]:           jne 220   
-208 [0xd0]: line: 273 movg @51 // @platform.kernel#platform   
+208 [0xd0]: line: 286 movg @51 // @platform.kernel#platform   
 209 [0xd1]:           movn #1   
 211 [0xd3]:           movi #0, adx   
 213 [0xd5]:           iaload ebx, adx   
@@ -47979,7 +47993,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 231 [0xe7]:           movr ebx, cmt   
 232 [0xe8]:           movr cmt, ebx   
 233 [0xe9]:           jne 244   
-234 [0xea]: line: 274 movg @51 // @platform.kernel#platform   
+234 [0xea]: line: 287 movg @51 // @platform.kernel#platform   
 235 [0xeb]:           movn #2   
 237 [0xed]:           movi #0, adx   
 239 [0xef]:           iaload ebx, adx   
@@ -47998,7 +48012,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 255 [0xff]:           movr ebx, cmt   
 256 [0x100]:           movr cmt, ebx   
 257 [0x101]:           jne 268   
-258 [0x102]: line: 275 movg @51 // @platform.kernel#platform   
+258 [0x102]: line: 288 movg @51 // @platform.kernel#platform   
 259 [0x103]:           movn #3   
 261 [0x105]:           movi #0, adx   
 263 [0x107]:           iaload ebx, adx   
@@ -48007,7 +48021,7 @@ function: platform.kernel#platform.srt_init[2365] params(1) in file: lib/support
 266 [0x10a]:           calld ebx   
 267 [0x10b]:           ipopl 6   
 268 [0x10c]:           nop   
-269 [0x10d]: line: 278 loadl ebx, fp+6   
+269 [0x10d]: line: 291 loadl ebx, fp+6   
 270 [0x10e]:           return_val ebx   
 271 [0x10f]:           ret   
 
@@ -78918,7 +78932,7 @@ constructor: std#loopable<var>.loopable[3775] params(0) in file: lib/support/0.2
 1 [0x1]:         ret   
 
 
-constructor: std.io#channel<var>.channel[3776] params(1) in file: lib/support/0.2.9/io//channel.sharp:16:12: note:  
+constructor: std.io#channel<var>.channel[3776] params(1) in file: lib/support/0.2.9/io//channel.sharp:28:12: note:  
 		    channel(capacity : var) {
 		           ^
 
@@ -78929,14 +78943,14 @@ constructor: std.io#channel<var>.channel[3776] params(1) in file: lib/support/0.
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 17 pushl 0   
+9 [0x9]: line: 29 pushl 0   
 10 [0xa]:          ipushl #1   
 11 [0xb]:          istore 1   
 13 [0xd]:          call @3777 // <std.io#channel<var>.channel>   
 14 [0xe]:          ret   
 
 
-constructor: std.io#channel<var>.channel[3777] params(2) in file: lib/support/0.2.9/io//channel.sharp:20:12: note:  
+constructor: std.io#channel<var>.channel[3777] params(2) in file: lib/support/0.2.9/io//channel.sharp:32:12: note:  
 		    channel(capacity : var, filters: var) {
 		           ^
 
@@ -78947,37 +78961,37 @@ constructor: std.io#channel<var>.channel[3777] params(2) in file: lib/support/0.
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 21 pushl 0   
+9 [0x9]: line: 33 pushl 0   
 10 [0xa]:          ipushl #2   
 11 [0xb]:          call @3780 // <std.io#channel<var>.add_filters>   
-12 [0xc]: line: 23 ipushl #1   
+12 [0xc]: line: 35 ipushl #1   
 13 [0xd]:          movi #0, ebx   
 15 [0xf]:          loadval ecx   
 16 [0x10]:          gt ecx, ebx   
 17 [0x11]:          movr ebx, cmt   
 18 [0x12]:          movr cmt, ebx   
 19 [0x13]:          jne 55   
-20 [0x14]: line: 24 ipushl #1   
+20 [0x14]: line: 36 ipushl #1   
 21 [0x15]:          movl 0   
 22 [0x16]:          movn #2   
 24 [0x18]:          loadval ebx   
 25 [0x19]:          movi #0, adx   
 27 [0x1b]:          rmov adx, ebx   
-28 [0x1c]: line: 25 ipushl #1   
+28 [0x1c]: line: 37 ipushl #1   
 29 [0x1d]:          movi #1, ebx   
 31 [0x1f]:          loadval ecx   
 32 [0x20]:          test ecx, ebx   
 33 [0x21]:          movr ebx, cmt   
 34 [0x22]:          movr cmt, ebx   
 35 [0x23]:          jne 45   
-36 [0x24]: line: 26 movg @25 // @std.io#buffer_type   
+36 [0x24]: line: 38 movg @25 // @std.io#buffer_type   
 37 [0x25]:          movn #1   
 39 [0x27]:          pushobj   
 40 [0x28]:          movl 0   
 41 [0x29]:          movn #1   
 43 [0x2b]:          popobj   
 44 [0x2c]:          jmp @53   
-45 [0x2d]: line: 28 movg @25 // @std.io#buffer_type   
+45 [0x2d]: line: 40 movg @25 // @std.io#buffer_type   
 46 [0x2e]:          movn #3   
 48 [0x30]:          pushobj   
 49 [0x31]:          movl 0   
@@ -78985,7 +78999,7 @@ constructor: std.io#channel<var>.channel[3777] params(2) in file: lib/support/0.
 52 [0x34]:          popobj   
 53 [0x35]:          nop   
 54 [0x36]:          jmp @61   
-55 [0x37]: line: 31 new_class @6 // std#illegal_state_exception   
+55 [0x37]: line: 43 new_class @6 // std#illegal_state_exception   
 57 [0x39]:          dup    
 58 [0x3a]:          newstr @125 // channel capacity cannot be < 0   
 59 [0x3b]:          call @1964 // <std#illegal_state_exception.illegal_state_exception>   
@@ -78994,7 +79008,7 @@ constructor: std.io#channel<var>.channel[3777] params(2) in file: lib/support/0.
 62 [0x3e]:          ret   
 
 
-constructor: std.io#channel<var>.channel[3778] params(1) in file: lib/support/0.2.9/io//channel.sharp:35:12: note:  
+constructor: std.io#channel<var>.channel[3778] params(1) in file: lib/support/0.2.9/io//channel.sharp:47:12: note:  
 		    channel(buff_type : buffer_type) {
 		           ^
 
@@ -79005,14 +79019,14 @@ constructor: std.io#channel<var>.channel[3778] params(1) in file: lib/support/0.
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 36 pushl 0   
+9 [0x9]: line: 48 pushl 0   
 10 [0xa]:          pushl 1   
 11 [0xb]:          istore 1   
 13 [0xd]:          call @3779 // <std.io#channel<var>.channel>   
 14 [0xe]:          ret   
 
 
-constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.2.9/io//channel.sharp:40:12: note:  
+constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.2.9/io//channel.sharp:52:12: note:  
 		    channel(buff_type : buffer_type, filters: var) {
 		           ^
 
@@ -79023,14 +79037,14 @@ constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 41 pushl 1   
+9 [0x9]: line: 53 pushl 1   
 10 [0xa]:          movl 0   
 11 [0xb]:          movn #1   
 13 [0xd]:          popobj   
-14 [0xe]: line: 42 pushl 0   
+14 [0xe]: line: 54 pushl 0   
 15 [0xf]:          ipushl #2   
 16 [0x10]:          call @3780 // <std.io#channel<var>.add_filters>   
-17 [0x11]: line: 44 pushl 1   
+17 [0x11]: line: 56 pushl 1   
 18 [0x12]:          movg @25 // @std.io#buffer_type   
 19 [0x13]:          movn #0   
 21 [0x15]:          pushobj   
@@ -79046,7 +79060,7 @@ constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.
 32 [0x20]:          loadval ebx   
 33 [0x21]:          movr cmt, ebx   
 34 [0x22]:          jne 44   
-35 [0x23]: line: 46 movi #1, ebx   
+35 [0x23]: line: 58 movi #1, ebx   
 37 [0x25]:          movl 0   
 38 [0x26]:          movn #2   
 40 [0x28]:          movi #0, adx   
@@ -79060,7 +79074,7 @@ constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.
 50 [0x32]:          loadval ebx   
 51 [0x33]:          movr cmt, ebx   
 52 [0x34]:          jne 62   
-53 [0x35]: line: 49 movi #-1, ebx   
+53 [0x35]: line: 61 movi #-1, ebx   
 55 [0x37]:          movl 0   
 56 [0x38]:          movn #2   
 58 [0x3a]:          movi #0, adx   
@@ -79074,7 +79088,7 @@ constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.
 68 [0x44]:          loadval ebx   
 69 [0x45]:          movr cmt, ebx   
 70 [0x46]:          jne 79   
-71 [0x47]: line: 52 movi #10, ebx   
+71 [0x47]: line: 64 movi #10, ebx   
 73 [0x49]:          movl 0   
 74 [0x4a]:          movn #2   
 76 [0x4c]:          movi #0, adx   
@@ -79083,31 +79097,31 @@ constructor: std.io#channel<var>.channel[3779] params(2) in file: lib/support/0.
 80 [0x50]:          ret   
 
 
-function: std.io#channel<var>.add_filters[3780] params(1) in file: lib/support/0.2.9/io//channel.sharp:57:16: note:  
+function: std.io#channel<var>.add_filters[3780] params(1) in file: lib/support/0.2.9/io//channel.sharp:69:16: note:  
 		    private def add_filters(filter_count : var) {
 		               ^
 
-0 [0x0]: line: 58 ipushl #1   
+0 [0x0]: line: 70 ipushl #1   
 1 [0x1]:          movi #0, ebx   
 3 [0x3]:          loadval ecx   
 4 [0x4]:          lte ecx, ebx   
 5 [0x5]:          movr ebx, cmt   
 6 [0x6]:          movr cmt, ebx   
 7 [0x7]:          jne 14   
-8 [0x8]: line: 59 new_class @6 // std#illegal_state_exception   
+8 [0x8]: line: 71 new_class @6 // std#illegal_state_exception   
 10 [0xa]:          dup    
 11 [0xb]:          newstr @126 // channels must have at least 1 filter   
 12 [0xc]:          call @1964 // <std#illegal_state_exception.illegal_state_exception>   
 13 [0xd]:          throw    
 14 [0xe]:          nop   
-15 [0xf]: line: 62 new_class @113 // main#filter<var>   
+15 [0xf]: line: 74 new_class @113 // main#filter<var>   
 17 [0x11]:          dup    
 18 [0x12]:          ipushl #1   
 19 [0x13]:          call @4254 // <std#list<main#filter<var>>.list>   
 20 [0x14]:          movl 0   
 21 [0x15]:          movn #0   
 23 [0x17]:          popobj   
-24 [0x18]: line: 63 istorel 0, fp+2   
+24 [0x18]: line: 75 istorel 0, fp+2   
 26 [0x1a]:          ipushl #2   
 27 [0x1b]:          loadl ebx, fp+1   
 28 [0x1c]:          loadval ecx   
@@ -79115,7 +79129,7 @@ function: std.io#channel<var>.add_filters[3780] params(1) in file: lib/support/0
 30 [0x1e]:          movr ebx, cmt   
 31 [0x1f]:          movr cmt, ebx   
 32 [0x20]:          jne 45   
-33 [0x21]: line: 64 movl 0   
+33 [0x21]: line: 76 movl 0   
 34 [0x22]:          movn #0   
 36 [0x24]:          pushobj   
 37 [0x25]:          new_class @112 // std#list<var>   
@@ -79127,11 +79141,11 @@ function: std.io#channel<var>.add_filters[3780] params(1) in file: lib/support/0
 45 [0x2d]:          ret   
 
 
-function: std.io#channel<var>.get_capacity[3781] params(0) in file: lib/support/0.2.9/io//channel.sharp:68:8: note:  
+function: std.io#channel<var>.get_capacity[3781] params(0) in file: lib/support/0.2.9/io//channel.sharp:80:8: note:  
 		    def get_capacity() := capacity;
 		       ^
 
-0 [0x0]: line: 68 movl 0   
+0 [0x0]: line: 80 movl 0   
 1 [0x1]:          movn #2   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          iaload ebx, adx   
@@ -79139,23 +79153,23 @@ function: std.io#channel<var>.get_capacity[3781] params(0) in file: lib/support/
 7 [0x7]:          ret   
 
 
-function: std.io#channel<var>.get_buffer_type[3782] params(0) in file: lib/support/0.2.9/io//channel.sharp:69:8: note:  
+function: std.io#channel<var>.get_buffer_type[3782] params(0) in file: lib/support/0.2.9/io//channel.sharp:81:8: note:  
 		    def get_buffer_type() := buff_type;
 		       ^
 
-0 [0x0]: line: 69 movl 0   
+0 [0x0]: line: 81 movl 0   
 1 [0x1]:          movn #1   
 3 [0x3]:          returnobj   
 4 [0x4]:          ret   
 
 
-function: std.io#channel<var>.is_closed[3783] params(0) in file: lib/support/0.2.9/io//channel.sharp:70:8: note:  
+function: std.io#channel<var>.is_closed[3783] params(0) in file: lib/support/0.2.9/io//channel.sharp:82:8: note:  
 		    def is_closed() : var {
 		       ^
 
-0 [0x0]: line: 71 movl 0   
+0 [0x0]: line: 83 movl 0   
 1 [0x1]:          _lck    
-2 [0x2]: line: 72 movl 0   
+2 [0x2]: line: 84 movl 0   
 3 [0x3]:          movn #3   
 5 [0x5]:          pushobj   
 6 [0x6]:          movg @98 // @std.io#channel<t>.channel_state   
@@ -79171,11 +79185,11 @@ function: std.io#channel<var>.is_closed[3783] params(0) in file: lib/support/0.2
 17 [0x11]:          _ulck   
 
 
-function: std.io#channel<var>.send[3784] params(1) in file: lib/support/0.2.9/io//channel.sharp:76:8: note:  
+function: std.io#channel<var>.send[3784] params(1) in file: lib/support/0.2.9/io//channel.sharp:88:8: note:  
 		    def send(data : t) {
 		       ^
 
-0 [0x0]: line: 77 pushl 0   
+0 [0x0]: line: 89 pushl 0   
 1 [0x1]:          ipushl #1   
 2 [0x2]:          ldc ebx // 0   
 3 [0x3]:          rstore ebx   
@@ -79183,11 +79197,11 @@ function: std.io#channel<var>.send[3784] params(1) in file: lib/support/0.2.9/io
 5 [0x5]:          ret   
 
 
-function: std.io#channel<var>.send[3785] params(2) in file: lib/support/0.2.9/io//channel.sharp:80:8: note:  
+function: std.io#channel<var>.send[3785] params(2) in file: lib/support/0.2.9/io//channel.sharp:92:8: note:  
 		    def send(data : t, filter: var) {
 		       ^
 
-0 [0x0]: line: 81 ipushl #2   
+0 [0x0]: line: 93 ipushl #2   
 1 [0x1]:          movl 0   
 2 [0x2]:          movn #0   
 4 [0x4]:          pushobj   
@@ -79203,7 +79217,7 @@ function: std.io#channel<var>.send[3785] params(2) in file: lib/support/0.2.9/io
 15 [0xf]:          movr ebx, cmt   
 16 [0x10]:          movr cmt, ebx   
 17 [0x11]:          jne 38   
-18 [0x12]: line: 82 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 94 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:          dup    
 21 [0x15]:          new_class @76 // std#string   
 23 [0x17]:          dup    
@@ -79221,7 +79235,7 @@ function: std.io#channel<var>.send[3785] params(2) in file: lib/support/0.2.9/io
 36 [0x24]:          call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:          throw    
 38 [0x26]:          nop   
-39 [0x27]: line: 85 movl 0   
+39 [0x27]: line: 97 movl 0   
 40 [0x28]:          movn #0   
 42 [0x2a]:          pushobj   
 43 [0x2b]:          ipushl #2   
@@ -79232,76 +79246,76 @@ function: std.io#channel<var>.send[3785] params(2) in file: lib/support/0.2.9/io
 48 [0x30]:          ret   
 
 
-function: std.io#channel<var>.read[3786] params(0) in file: lib/support/0.2.9/io//channel.sharp:88:8: note:  
+function: std.io#channel<var>.read[3786] params(0) in file: lib/support/0.2.9/io//channel.sharp:100:8: note:  
 		    def read() : t {
 		       ^
 
-0 [0x0]: line: 89 pushl 0   
-1 [0x1]:          ldc ebx // 0   
-2 [0x2]:          rstore ebx   
-3 [0x3]:          call @3787 // <std.io#channel<var>.read>   
-4 [0x4]:          loadval ebx   
-5 [0x5]:          return_val ebx   
-6 [0x6]:          ret   
+0 [0x0]: line: 101 pushl 0   
+1 [0x1]:           ldc ebx // 0   
+2 [0x2]:           rstore ebx   
+3 [0x3]:           call @3787 // <std.io#channel<var>.read>   
+4 [0x4]:           loadval ebx   
+5 [0x5]:           return_val ebx   
+6 [0x6]:           ret   
 
 
-function: std.io#channel<var>.read[3787] params(1) in file: lib/support/0.2.9/io//channel.sharp:92:8: note:  
+function: std.io#channel<var>.read[3787] params(1) in file: lib/support/0.2.9/io//channel.sharp:104:8: note:  
 		    def read(filter: var) : t {
 		       ^
 
-0 [0x0]: line: 93 ipushl #1   
-1 [0x1]:          movl 0   
-2 [0x2]:          movn #0   
-4 [0x4]:          pushobj   
-5 [0x5]:          call @4272 // <std#list<main#filter<var>>.size>   
-6 [0x6]:          loadval ebx   
-7 [0x7]:          loadval ecx   
-8 [0x8]:          gte ecx, ebx   
-9 [0x9]:          movr ebx, cmt   
-10 [0xa]:          skpe ebx // pc = 16   
-11 [0xb]:          loadl ecx, fp+1   
-12 [0xc]:          movi #0, ebx   
-14 [0xe]:          lt ecx, ebx   
-15 [0xf]:          movr ebx, cmt   
-16 [0x10]:          movr cmt, ebx   
-17 [0x11]:          jne 38   
-18 [0x12]: line: 94 new_class @7 // std#out_of_bounds_exception   
-20 [0x14]:          dup    
-21 [0x15]:          new_class @76 // std#string   
-23 [0x17]:          dup    
-24 [0x18]:          newstr @127 // invalid send on filter (   
-25 [0x19]:          call @3550 // <std#string.string>   
-26 [0x1a]:          ipushl #1   
-27 [0x1b]:          call @3582 // <std#string.operator+>   
-28 [0x1c]:          newstr @128 // ) when max filter is    
-29 [0x1d]:          call @3562 // <std#string.operator+>   
-30 [0x1e]:          movl 0   
-31 [0x1f]:          movn #0   
-33 [0x21]:          pushobj   
-34 [0x22]:          call @4272 // <std#list<main#filter<var>>.size>   
-35 [0x23]:          call @3582 // <std#string.operator+>   
-36 [0x24]:          call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
-37 [0x25]:          throw    
-38 [0x26]:          nop   
-39 [0x27]: line: 97 movl 0   
-40 [0x28]:          movn #0   
-42 [0x2a]:          pushobj   
-43 [0x2b]:          ipushl #1   
-44 [0x2c]:          call @4259 // <std#list<main#filter<var>>.operator[>   
-45 [0x2d]:          pushl 0   
-46 [0x2e]:          call @4248 // <main#filter<var>.read>   
-47 [0x2f]:          loadval ebx   
-48 [0x30]:          return_val ebx   
-49 [0x31]:          ret   
+0 [0x0]: line: 105 ipushl #1   
+1 [0x1]:           movl 0   
+2 [0x2]:           movn #0   
+4 [0x4]:           pushobj   
+5 [0x5]:           call @4272 // <std#list<main#filter<var>>.size>   
+6 [0x6]:           loadval ebx   
+7 [0x7]:           loadval ecx   
+8 [0x8]:           gte ecx, ebx   
+9 [0x9]:           movr ebx, cmt   
+10 [0xa]:           skpe ebx // pc = 16   
+11 [0xb]:           loadl ecx, fp+1   
+12 [0xc]:           movi #0, ebx   
+14 [0xe]:           lt ecx, ebx   
+15 [0xf]:           movr ebx, cmt   
+16 [0x10]:           movr cmt, ebx   
+17 [0x11]:           jne 38   
+18 [0x12]: line: 106 new_class @7 // std#out_of_bounds_exception   
+20 [0x14]:           dup    
+21 [0x15]:           new_class @76 // std#string   
+23 [0x17]:           dup    
+24 [0x18]:           newstr @127 // invalid send on filter (   
+25 [0x19]:           call @3550 // <std#string.string>   
+26 [0x1a]:           ipushl #1   
+27 [0x1b]:           call @3582 // <std#string.operator+>   
+28 [0x1c]:           newstr @128 // ) when max filter is    
+29 [0x1d]:           call @3562 // <std#string.operator+>   
+30 [0x1e]:           movl 0   
+31 [0x1f]:           movn #0   
+33 [0x21]:           pushobj   
+34 [0x22]:           call @4272 // <std#list<main#filter<var>>.size>   
+35 [0x23]:           call @3582 // <std#string.operator+>   
+36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
+37 [0x25]:           throw    
+38 [0x26]:           nop   
+39 [0x27]: line: 109 movl 0   
+40 [0x28]:           movn #0   
+42 [0x2a]:           pushobj   
+43 [0x2b]:           ipushl #1   
+44 [0x2c]:           call @4259 // <std#list<main#filter<var>>.operator[>   
+45 [0x2d]:           pushl 0   
+46 [0x2e]:           call @4248 // <main#filter<var>.read>   
+47 [0x2f]:           loadval ebx   
+48 [0x30]:           return_val ebx   
+49 [0x31]:           ret   
 
 
-function: std.io#channel<var>.close[3788] params(0) in file: lib/support/0.2.9/io//channel.sharp:100:8: note:  
+function: std.io#channel<var>.close[3788] params(0) in file: lib/support/0.2.9/io//channel.sharp:112:8: note:  
 		    def close() {
 		       ^
 
-0 [0x0]: line: 101 movl 0   
+0 [0x0]: line: 113 movl 0   
 1 [0x1]:           _lck    
-2 [0x2]: line: 102 movg @98 // @std.io#channel<t>.channel_state   
+2 [0x2]: line: 114 movg @98 // @std.io#channel<t>.channel_state   
 3 [0x3]:           movn #1   
 5 [0x5]:           pushobj   
 6 [0x6]:           movl 0   
@@ -79312,13 +79326,13 @@ function: std.io#channel<var>.close[3788] params(0) in file: lib/support/0.2.9/i
 12 [0xc]:           ret   
 
 
-function: std.io#channel<var>.open[3789] params(0) in file: lib/support/0.2.9/io//channel.sharp:106:8: note:  
+function: std.io#channel<var>.open[3789] params(0) in file: lib/support/0.2.9/io//channel.sharp:118:8: note:  
 		    def open() {
 		       ^
 
-0 [0x0]: line: 107 movl 0   
+0 [0x0]: line: 119 movl 0   
 1 [0x1]:           _lck    
-2 [0x2]: line: 108 movg @98 // @std.io#channel<t>.channel_state   
+2 [0x2]: line: 120 movg @98 // @std.io#channel<t>.channel_state   
 3 [0x3]:           movn #0   
 5 [0x5]:           pushobj   
 6 [0x6]:           movl 0   
@@ -79329,11 +79343,11 @@ function: std.io#channel<var>.open[3789] params(0) in file: lib/support/0.2.9/io
 12 [0xc]:           ret   
 
 
-function: std.io#channel<var>.read_next[3790] params(2) in file: lib/support/0.2.9/io//channel.sharp:112:8: note:  
+function: std.io#channel<var>.read_next[3790] params(2) in file: lib/support/0.2.9/io//channel.sharp:124:8: note:  
 		    def read_next(filter: var, count: var) : list<t> {
 		       ^
 
-0 [0x0]: line: 113 ipushl #1   
+0 [0x0]: line: 125 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -79349,7 +79363,7 @@ function: std.io#channel<var>.read_next[3790] params(2) in file: lib/support/0.2
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 114 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 126 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -79367,19 +79381,19 @@ function: std.io#channel<var>.read_next[3790] params(2) in file: lib/support/0.2
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 117 new_class @111 // std.io#send_channel<std.io.coroutines#job>   
+39 [0x27]: line: 129 new_class @111 // std.io#send_channel<std.io.coroutines#job>   
 41 [0x29]:           dup    
 42 [0x2a]:           call @4213 // <std#list<var>.list>   
 43 [0x2b]:           popobj2    
 44 [0x2c]:           smovr_3 fp+3   
-45 [0x2d]: line: 118 movl 0   
+45 [0x2d]: line: 130 movl 0   
 46 [0x2e]:           movn #0   
 48 [0x30]:           pushobj   
 49 [0x31]:           ipushl #1   
 50 [0x32]:           call @4259 // <std#list<main#filter<var>>.operator[>   
 51 [0x33]:           popobj2    
 52 [0x34]:           smovr_3 fp+4   
-53 [0x35]: line: 120 istorel 0, fp+5   
+53 [0x35]: line: 132 istorel 0, fp+5   
 55 [0x37]:           ipushl #5   
 56 [0x38]:           loadl ebx, fp+2   
 57 [0x39]:           loadval ecx   
@@ -79387,36 +79401,36 @@ function: std.io#channel<var>.read_next[3790] params(2) in file: lib/support/0.2
 59 [0x3b]:           movr ebx, cmt   
 60 [0x3c]:           movr cmt, ebx   
 61 [0x3d]:           jne 83   
-62 [0x3e]: line: 121 pushl 4   
+62 [0x3e]: line: 133 pushl 4   
 63 [0x3f]:           pushl 0   
 64 [0x40]:           call @4246 // <main#filter<var>.wait_for_data_or_close>   
-65 [0x41]: line: 123 pushl 4   
+65 [0x41]: line: 135 pushl 4   
 66 [0x42]:           call @4247 // <main#filter<var>.avail_data>   
 67 [0x43]:           loadval ebx   
 68 [0x44]:           movr cmt, ebx   
 69 [0x45]:           jne 76   
-70 [0x46]: line: 124 pushl 3   
+70 [0x46]: line: 136 pushl 3   
 71 [0x47]:           pushl 4   
 72 [0x48]:           pushl 0   
 73 [0x49]:           call @4248 // <main#filter<var>.read>   
 74 [0x4a]:           call @4227 // <std#list<var>.add>   
 75 [0x4b]:           jmp @79   
-76 [0x4c]: line: 126 movl 3   
+76 [0x4c]: line: 138 movl 3   
 77 [0x4d]:           returnobj   
 78 [0x4e]:           ret   
 79 [0x4f]:           nop   
 80 [0x50]:           iaddl 1, fp@5   
 82 [0x52]:           jmp @55   
-83 [0x53]: line: 130 movl 3   
+83 [0x53]: line: 142 movl 3   
 84 [0x54]:           returnobj   
 85 [0x55]:           ret   
 
 
-function: std.io#channel<var>.read_next[3791] params(1) in file: lib/support/0.2.9/io//channel.sharp:133:8: note:  
+function: std.io#channel<var>.read_next[3791] params(1) in file: lib/support/0.2.9/io//channel.sharp:145:8: note:  
 		    def read_next(filter: var) : list<t> {
 		       ^
 
-0 [0x0]: line: 134 ipushl #1   
+0 [0x0]: line: 146 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -79432,7 +79446,7 @@ function: std.io#channel<var>.read_next[3791] params(1) in file: lib/support/0.2
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 135 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 147 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -79450,14 +79464,14 @@ function: std.io#channel<var>.read_next[3791] params(1) in file: lib/support/0.2
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 138 movl 0   
+39 [0x27]: line: 150 movl 0   
 40 [0x28]:           movn #0   
 42 [0x2a]:           pushobj   
 43 [0x2b]:           ipushl #1   
 44 [0x2c]:           call @4259 // <std#list<main#filter<var>>.operator[>   
 45 [0x2d]:           popobj2    
 46 [0x2e]:           smovr_3 fp+2   
-47 [0x2f]: line: 139 pushl 2   
+47 [0x2f]: line: 151 pushl 2   
 48 [0x30]:           call @4247 // <main#filter<var>.avail_data>   
 49 [0x31]:           loadval ebx   
 50 [0x32]:           not ebx, ebx   
@@ -79468,38 +79482,38 @@ function: std.io#channel<var>.read_next[3791] params(1) in file: lib/support/0.2
 55 [0x37]:           returnobj   
 56 [0x38]:           ret   
 57 [0x39]:           nop   
-58 [0x3a]: line: 141 new_class @111 // std.io#send_channel<std.io.coroutines#job>   
+58 [0x3a]: line: 153 new_class @111 // std.io#send_channel<std.io.coroutines#job>   
 60 [0x3c]:           dup    
 61 [0x3d]:           call @4213 // <std#list<var>.list>   
 62 [0x3e]:           popobj2    
 63 [0x3f]:           smovr_3 fp+3   
-64 [0x40]: line: 142 pushl 2   
-65 [0x41]: line: 143 call @4247 // <main#filter<var>.avail_data>   
+64 [0x40]: line: 154 pushl 2   
+65 [0x41]: line: 155 call @4247 // <main#filter<var>.avail_data>   
 66 [0x42]:           loadval ebx   
 67 [0x43]:           movr cmt, ebx   
 68 [0x44]:           jne 75   
-69 [0x45]: line: 144 pushl 3   
+69 [0x45]: line: 156 pushl 3   
 70 [0x46]:           pushl 2   
 71 [0x47]:           pushl 0   
 72 [0x48]:           call @4248 // <main#filter<var>.read>   
 73 [0x49]:           call @4227 // <std#list<var>.add>   
 74 [0x4a]:           jmp @78   
-75 [0x4b]: line: 146 movl 3   
+75 [0x4b]: line: 158 movl 3   
 76 [0x4c]:           returnobj   
 77 [0x4d]:           ret   
 78 [0x4e]:           nop   
 79 [0x4f]:           jmp @64   
-80 [0x50]: line: 150 pushnull    
+80 [0x50]: line: 162 pushnull    
 81 [0x51]:           popobj2    
 82 [0x52]:           returnobj   
 83 [0x53]:           ret   
 
 
-function: std.io#channel<var>.read_all[3792] params(1) in file: lib/support/0.2.9/io//channel.sharp:153:8: note:  
+function: std.io#channel<var>.read_all[3792] params(1) in file: lib/support/0.2.9/io//channel.sharp:165:8: note:  
 		    def read_all(filter: var) : list<t> {
 		       ^
 
-0 [0x0]: line: 154 ipushl #1   
+0 [0x0]: line: 166 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -79515,7 +79529,7 @@ function: std.io#channel<var>.read_all[3792] params(1) in file: lib/support/0.2.
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 155 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 167 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -79533,49 +79547,49 @@ function: std.io#channel<var>.read_all[3792] params(1) in file: lib/support/0.2.
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 158 new_class @111 // std.io#send_channel<std.io.coroutines#job>   
+39 [0x27]: line: 170 new_class @111 // std.io#send_channel<std.io.coroutines#job>   
 41 [0x29]:           dup    
 42 [0x2a]:           call @4213 // <std#list<var>.list>   
 43 [0x2b]:           popobj2    
 44 [0x2c]:           smovr_3 fp+2   
-45 [0x2d]: line: 159 movl 0   
+45 [0x2d]: line: 171 movl 0   
 46 [0x2e]:           movn #0   
 48 [0x30]:           pushobj   
 49 [0x31]:           ipushl #1   
 50 [0x32]:           call @4259 // <std#list<main#filter<var>>.operator[>   
 51 [0x33]:           popobj2    
 52 [0x34]:           smovr_3 fp+3   
-53 [0x35]: line: 161 pushl 3   
-54 [0x36]: line: 162 pushl 0   
+53 [0x35]: line: 173 pushl 3   
+54 [0x36]: line: 174 pushl 0   
 55 [0x37]:           call @4246 // <main#filter<var>.wait_for_data_or_close>   
-56 [0x38]: line: 164 pushl 3   
+56 [0x38]: line: 176 pushl 3   
 57 [0x39]:           call @4247 // <main#filter<var>.avail_data>   
 58 [0x3a]:           loadval ebx   
 59 [0x3b]:           movr cmt, ebx   
 60 [0x3c]:           jne 67   
-61 [0x3d]: line: 165 pushl 2   
+61 [0x3d]: line: 177 pushl 2   
 62 [0x3e]:           pushl 3   
 63 [0x3f]:           pushl 0   
 64 [0x40]:           call @4248 // <main#filter<var>.read>   
 65 [0x41]:           call @4227 // <std#list<var>.add>   
 66 [0x42]:           jmp @70   
-67 [0x43]: line: 167 movl 2   
+67 [0x43]: line: 179 movl 2   
 68 [0x44]:           returnobj   
 69 [0x45]:           ret   
 70 [0x46]:           nop   
 71 [0x47]:           jmp @53   
-72 [0x48]: line: 171 pushnull    
+72 [0x48]: line: 183 pushnull    
 73 [0x49]:           popobj2    
 74 [0x4a]:           returnobj   
 75 [0x4b]:           ret   
 
 
-function: std.io#channel<var>.next[3793] params(0) in file: lib/support/0.2.9/io//channel.sharp:174:8: note:  
+function: std.io#channel<var>.next[3793] params(0) in file: lib/support/0.2.9/io//channel.sharp:186:8: note:  
 		    def next() : var {
 		       ^
 
-0 [0x0]: line: 175 movl 0   
-1 [0x1]: line: 176 movn #3   
+0 [0x0]: line: 187 movl 0   
+1 [0x1]: line: 188 movn #3   
 3 [0x3]:           pushobj   
 4 [0x4]:           movg @98 // @std.io#channel<t>.channel_state   
 5 [0x5]:           movn #1   
@@ -79584,10 +79598,10 @@ function: std.io#channel<var>.next[3793] params(0) in file: lib/support/0.2.9/io
 9 [0x9]:           loadval ebx   
 10 [0xa]:           movr cmt, ebx   
 11 [0xb]:           jne 15   
-12 [0xc]: line: 177 istorel -1, fp+0   
+12 [0xc]: line: 189 istorel -1, fp+0   
 14 [0xe]:           ret   
 15 [0xf]:           nop   
-16 [0x10]: line: 179 istorel 0, fp+1   
+16 [0x10]: line: 191 istorel 0, fp+1   
 18 [0x12]:           ipushl #1   
 19 [0x13]:           movl 0   
 20 [0x14]:           movn #0   
@@ -79599,7 +79613,7 @@ function: std.io#channel<var>.next[3793] params(0) in file: lib/support/0.2.9/io
 27 [0x1b]:           movr ebx, cmt   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 47   
-30 [0x1e]: line: 180 movl 0   
+30 [0x1e]: line: 192 movl 0   
 31 [0x1f]:           movn #0   
 33 [0x21]:           pushobj   
 34 [0x22]:           ipushl #1   
@@ -79608,24 +79622,24 @@ function: std.io#channel<var>.next[3793] params(0) in file: lib/support/0.2.9/io
 37 [0x25]:           loadval ebx   
 38 [0x26]:           movr cmt, ebx   
 39 [0x27]:           jne 43   
-40 [0x28]: line: 181 loadl ebx, fp+1   
+40 [0x28]: line: 193 loadl ebx, fp+1   
 41 [0x29]:           return_val ebx   
 42 [0x2a]:           ret   
 43 [0x2b]:           nop   
 44 [0x2c]:           iaddl 1, fp@1   
 46 [0x2e]:           jmp @18   
-47 [0x2f]: line: 185 istore 2   
+47 [0x2f]: line: 197 istore 2   
 49 [0x31]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 50 [0x32]:           jmp @0   
-51 [0x33]: line: 188 istorel 0, fp+0   
+51 [0x33]: line: 200 istorel 0, fp+0   
 53 [0x35]:           ret   
 
 
-function: std.io#channel<var>.get_elements[3794] params(0) in file: lib/support/0.2.9/io//channel.sharp:191:8: note:  
+function: std.io#channel<var>.get_elements[3794] params(0) in file: lib/support/0.2.9/io//channel.sharp:203:8: note:  
 		    def get_elements() : t[] {
 		       ^
 
-0 [0x0]: line: 192 pushl 0   
+0 [0x0]: line: 204 pushl 0   
 1 [0x1]:           ldc ebx // 0   
 2 [0x2]:           rstore ebx   
 3 [0x3]:           call @3792 // <std.io#channel<var>.read_all>   
@@ -79635,11 +79649,11 @@ function: std.io#channel<var>.get_elements[3794] params(0) in file: lib/support/
 7 [0x7]:           ret   
 
 
-function: std.io#channel<var>.avail_data[3795] params(1) in file: lib/support/0.2.9/io//channel.sharp:195:8: note:  
+function: std.io#channel<var>.avail_data[3795] params(1) in file: lib/support/0.2.9/io//channel.sharp:207:8: note:  
 		    def avail_data(filter: var) : var {
 		       ^
 
-0 [0x0]: line: 196 ipushl #1   
+0 [0x0]: line: 208 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -79655,7 +79669,7 @@ function: std.io#channel<var>.avail_data[3795] params(1) in file: lib/support/0.
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 197 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 209 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -79673,21 +79687,21 @@ function: std.io#channel<var>.avail_data[3795] params(1) in file: lib/support/0.
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 200 movl 0   
+39 [0x27]: line: 212 movl 0   
 40 [0x28]:           movn #0   
 42 [0x2a]:           pushobj   
 43 [0x2b]:           ipushl #1   
 44 [0x2c]:           call @4259 // <std#list<main#filter<var>>.operator[>   
 45 [0x2d]:           popobj2    
 46 [0x2e]:           smovr_3 fp+2   
-47 [0x2f]: line: 201 pushl 2   
+47 [0x2f]: line: 213 pushl 2   
 48 [0x30]:           call @4247 // <main#filter<var>.avail_data>   
 49 [0x31]:           loadval ebx   
 50 [0x32]:           return_val ebx   
 51 [0x33]:           ret   
 
 
-constructor: std.io#channel<var>.channel[3796] params(0) in file: lib/support/0.2.9/io//channel.sharp:5:6: note:  
+constructor: std.io#channel<var>.channel[3796] params(0) in file: lib/support/0.2.9/io//channel.sharp:17:6: note:  
 		class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 		     ^
 
@@ -89524,7 +89538,7 @@ constructor: std.io#send_channel<std.io.coroutines#job>.send_channel[4188] param
 1 [0x1]:         ret   
 
 
-constructor: std.io#channel<std.io.coroutines#job>.channel[4189] params(1) in file: lib/support/0.2.9/io//channel.sharp:16:12: note:  
+constructor: std.io#channel<std.io.coroutines#job>.channel[4189] params(1) in file: lib/support/0.2.9/io//channel.sharp:28:12: note:  
 		    channel(capacity : var) {
 		           ^
 
@@ -89535,14 +89549,14 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4189] params(1) in fi
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 17 pushl 0   
+9 [0x9]: line: 29 pushl 0   
 10 [0xa]:          ipushl #1   
 11 [0xb]:          istore 1   
 13 [0xd]:          call @4190 // <std.io#channel<std.io.coroutines#job>.channel>   
 14 [0xe]:          ret   
 
 
-constructor: std.io#channel<std.io.coroutines#job>.channel[4190] params(2) in file: lib/support/0.2.9/io//channel.sharp:20:12: note:  
+constructor: std.io#channel<std.io.coroutines#job>.channel[4190] params(2) in file: lib/support/0.2.9/io//channel.sharp:32:12: note:  
 		    channel(capacity : var, filters: var) {
 		           ^
 
@@ -89553,37 +89567,37 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4190] params(2) in fi
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 21 pushl 0   
+9 [0x9]: line: 33 pushl 0   
 10 [0xa]:          ipushl #2   
 11 [0xb]:          call @4193 // <std.io#channel<std.io.coroutines#job>.add_filters>   
-12 [0xc]: line: 23 ipushl #1   
+12 [0xc]: line: 35 ipushl #1   
 13 [0xd]:          movi #0, ebx   
 15 [0xf]:          loadval ecx   
 16 [0x10]:          gt ecx, ebx   
 17 [0x11]:          movr ebx, cmt   
 18 [0x12]:          movr cmt, ebx   
 19 [0x13]:          jne 55   
-20 [0x14]: line: 24 ipushl #1   
+20 [0x14]: line: 36 ipushl #1   
 21 [0x15]:          movl 0   
 22 [0x16]:          movn #2   
 24 [0x18]:          loadval ebx   
 25 [0x19]:          movi #0, adx   
 27 [0x1b]:          rmov adx, ebx   
-28 [0x1c]: line: 25 ipushl #1   
+28 [0x1c]: line: 37 ipushl #1   
 29 [0x1d]:          movi #1, ebx   
 31 [0x1f]:          loadval ecx   
 32 [0x20]:          test ecx, ebx   
 33 [0x21]:          movr ebx, cmt   
 34 [0x22]:          movr cmt, ebx   
 35 [0x23]:          jne 45   
-36 [0x24]: line: 26 movg @25 // @std.io#buffer_type   
+36 [0x24]: line: 38 movg @25 // @std.io#buffer_type   
 37 [0x25]:          movn #1   
 39 [0x27]:          pushobj   
 40 [0x28]:          movl 0   
 41 [0x29]:          movn #1   
 43 [0x2b]:          popobj   
 44 [0x2c]:          jmp @53   
-45 [0x2d]: line: 28 movg @25 // @std.io#buffer_type   
+45 [0x2d]: line: 40 movg @25 // @std.io#buffer_type   
 46 [0x2e]:          movn #3   
 48 [0x30]:          pushobj   
 49 [0x31]:          movl 0   
@@ -89591,7 +89605,7 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4190] params(2) in fi
 52 [0x34]:          popobj   
 53 [0x35]:          nop   
 54 [0x36]:          jmp @61   
-55 [0x37]: line: 31 new_class @6 // std#illegal_state_exception   
+55 [0x37]: line: 43 new_class @6 // std#illegal_state_exception   
 57 [0x39]:          dup    
 58 [0x3a]:          newstr @125 // channel capacity cannot be < 0   
 59 [0x3b]:          call @1964 // <std#illegal_state_exception.illegal_state_exception>   
@@ -89600,7 +89614,7 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4190] params(2) in fi
 62 [0x3e]:          ret   
 
 
-constructor: std.io#channel<std.io.coroutines#job>.channel[4191] params(1) in file: lib/support/0.2.9/io//channel.sharp:35:12: note:  
+constructor: std.io#channel<std.io.coroutines#job>.channel[4191] params(1) in file: lib/support/0.2.9/io//channel.sharp:47:12: note:  
 		    channel(buff_type : buffer_type) {
 		           ^
 
@@ -89611,14 +89625,14 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4191] params(1) in fi
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 36 pushl 0   
+9 [0x9]: line: 48 pushl 0   
 10 [0xa]:          pushl 1   
 11 [0xb]:          istore 1   
 13 [0xd]:          call @4192 // <std.io#channel<std.io.coroutines#job>.channel>   
 14 [0xe]:          ret   
 
 
-constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in file: lib/support/0.2.9/io//channel.sharp:40:12: note:  
+constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in file: lib/support/0.2.9/io//channel.sharp:52:12: note:  
 		    channel(buff_type : buffer_type, filters: var) {
 		           ^
 
@@ -89629,14 +89643,14 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in fi
 5 [0x5]:         movn #3   
 7 [0x7]:         popobj   
 8 [0x8]:         pushl 0   
-9 [0x9]: line: 41 pushl 1   
+9 [0x9]: line: 53 pushl 1   
 10 [0xa]:          movl 0   
 11 [0xb]:          movn #1   
 13 [0xd]:          popobj   
-14 [0xe]: line: 42 pushl 0   
+14 [0xe]: line: 54 pushl 0   
 15 [0xf]:          ipushl #2   
 16 [0x10]:          call @4193 // <std.io#channel<std.io.coroutines#job>.add_filters>   
-17 [0x11]: line: 44 pushl 1   
+17 [0x11]: line: 56 pushl 1   
 18 [0x12]:          movg @25 // @std.io#buffer_type   
 19 [0x13]:          movn #0   
 21 [0x15]:          pushobj   
@@ -89652,7 +89666,7 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in fi
 32 [0x20]:          loadval ebx   
 33 [0x21]:          movr cmt, ebx   
 34 [0x22]:          jne 44   
-35 [0x23]: line: 46 movi #1, ebx   
+35 [0x23]: line: 58 movi #1, ebx   
 37 [0x25]:          movl 0   
 38 [0x26]:          movn #2   
 40 [0x28]:          movi #0, adx   
@@ -89666,7 +89680,7 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in fi
 50 [0x32]:          loadval ebx   
 51 [0x33]:          movr cmt, ebx   
 52 [0x34]:          jne 62   
-53 [0x35]: line: 49 movi #-1, ebx   
+53 [0x35]: line: 61 movi #-1, ebx   
 55 [0x37]:          movl 0   
 56 [0x38]:          movn #2   
 58 [0x3a]:          movi #0, adx   
@@ -89680,7 +89694,7 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in fi
 68 [0x44]:          loadval ebx   
 69 [0x45]:          movr cmt, ebx   
 70 [0x46]:          jne 79   
-71 [0x47]: line: 52 movi #10, ebx   
+71 [0x47]: line: 64 movi #10, ebx   
 73 [0x49]:          movl 0   
 74 [0x4a]:          movn #2   
 76 [0x4c]:          movi #0, adx   
@@ -89689,31 +89703,31 @@ constructor: std.io#channel<std.io.coroutines#job>.channel[4192] params(2) in fi
 80 [0x50]:          ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.add_filters[4193] params(1) in file: lib/support/0.2.9/io//channel.sharp:57:16: note:  
+function: std.io#channel<std.io.coroutines#job>.add_filters[4193] params(1) in file: lib/support/0.2.9/io//channel.sharp:69:16: note:  
 		    private def add_filters(filter_count : var) {
 		               ^
 
-0 [0x0]: line: 58 ipushl #1   
+0 [0x0]: line: 70 ipushl #1   
 1 [0x1]:          movi #0, ebx   
 3 [0x3]:          loadval ecx   
 4 [0x4]:          lte ecx, ebx   
 5 [0x5]:          movr ebx, cmt   
 6 [0x6]:          movr cmt, ebx   
 7 [0x7]:          jne 14   
-8 [0x8]: line: 59 new_class @6 // std#illegal_state_exception   
+8 [0x8]: line: 71 new_class @6 // std#illegal_state_exception   
 10 [0xa]:          dup    
 11 [0xb]:          newstr @126 // channels must have at least 1 filter   
 12 [0xc]:          call @1964 // <std#illegal_state_exception.illegal_state_exception>   
 13 [0xd]:          throw    
 14 [0xe]:          nop   
-15 [0xf]: line: 62 new_class @116 // std.io.coroutines#filter<std.io.coroutines#job>   
+15 [0xf]: line: 74 new_class @116 // std.io.coroutines#filter<std.io.coroutines#job>   
 17 [0x11]:          dup    
 18 [0x12]:          ipushl #1   
 19 [0x13]:          call @4294 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.list>   
 20 [0x14]:          movl 0   
 21 [0x15]:          movn #0   
 23 [0x17]:          popobj   
-24 [0x18]: line: 63 istorel 0, fp+2   
+24 [0x18]: line: 75 istorel 0, fp+2   
 26 [0x1a]:          ipushl #2   
 27 [0x1b]:          loadl ebx, fp+1   
 28 [0x1c]:          loadval ecx   
@@ -89721,7 +89735,7 @@ function: std.io#channel<std.io.coroutines#job>.add_filters[4193] params(1) in f
 30 [0x1e]:          movr ebx, cmt   
 31 [0x1f]:          movr cmt, ebx   
 32 [0x20]:          jne 45   
-33 [0x21]: line: 64 movl 0   
+33 [0x21]: line: 76 movl 0   
 34 [0x22]:          movn #0   
 36 [0x24]:          pushobj   
 37 [0x25]:          new_class @115 // std#loopable<main#filter<var>>   
@@ -89733,11 +89747,11 @@ function: std.io#channel<std.io.coroutines#job>.add_filters[4193] params(1) in f
 45 [0x2d]:          ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.get_capacity[4194] params(0) in file: lib/support/0.2.9/io//channel.sharp:68:8: note:  
+function: std.io#channel<std.io.coroutines#job>.get_capacity[4194] params(0) in file: lib/support/0.2.9/io//channel.sharp:80:8: note:  
 		    def get_capacity() := capacity;
 		       ^
 
-0 [0x0]: line: 68 movl 0   
+0 [0x0]: line: 80 movl 0   
 1 [0x1]:          movn #2   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          iaload ebx, adx   
@@ -89745,23 +89759,23 @@ function: std.io#channel<std.io.coroutines#job>.get_capacity[4194] params(0) in 
 7 [0x7]:          ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.get_buffer_type[4195] params(0) in file: lib/support/0.2.9/io//channel.sharp:69:8: note:  
+function: std.io#channel<std.io.coroutines#job>.get_buffer_type[4195] params(0) in file: lib/support/0.2.9/io//channel.sharp:81:8: note:  
 		    def get_buffer_type() := buff_type;
 		       ^
 
-0 [0x0]: line: 69 movl 0   
+0 [0x0]: line: 81 movl 0   
 1 [0x1]:          movn #1   
 3 [0x3]:          returnobj   
 4 [0x4]:          ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.is_closed[4196] params(0) in file: lib/support/0.2.9/io//channel.sharp:70:8: note:  
+function: std.io#channel<std.io.coroutines#job>.is_closed[4196] params(0) in file: lib/support/0.2.9/io//channel.sharp:82:8: note:  
 		    def is_closed() : var {
 		       ^
 
-0 [0x0]: line: 71 movl 0   
+0 [0x0]: line: 83 movl 0   
 1 [0x1]:          _lck    
-2 [0x2]: line: 72 movl 0   
+2 [0x2]: line: 84 movl 0   
 3 [0x3]:          movn #3   
 5 [0x5]:          pushobj   
 6 [0x6]:          movg @98 // @std.io#channel<t>.channel_state   
@@ -89777,11 +89791,11 @@ function: std.io#channel<std.io.coroutines#job>.is_closed[4196] params(0) in fil
 17 [0x11]:          _ulck   
 
 
-function: std.io#channel<std.io.coroutines#job>.send[4197] params(1) in file: lib/support/0.2.9/io//channel.sharp:76:8: note:  
+function: std.io#channel<std.io.coroutines#job>.send[4197] params(1) in file: lib/support/0.2.9/io//channel.sharp:88:8: note:  
 		    def send(data : t) {
 		       ^
 
-0 [0x0]: line: 77 pushl 0   
+0 [0x0]: line: 89 pushl 0   
 1 [0x1]:          pushl 1   
 2 [0x2]:          ldc ebx // 0   
 3 [0x3]:          rstore ebx   
@@ -89789,11 +89803,11 @@ function: std.io#channel<std.io.coroutines#job>.send[4197] params(1) in file: li
 5 [0x5]:          ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.send[4198] params(2) in file: lib/support/0.2.9/io//channel.sharp:80:8: note:  
+function: std.io#channel<std.io.coroutines#job>.send[4198] params(2) in file: lib/support/0.2.9/io//channel.sharp:92:8: note:  
 		    def send(data : t, filter: var) {
 		       ^
 
-0 [0x0]: line: 81 ipushl #2   
+0 [0x0]: line: 93 ipushl #2   
 1 [0x1]:          movl 0   
 2 [0x2]:          movn #0   
 4 [0x4]:          pushobj   
@@ -89809,7 +89823,7 @@ function: std.io#channel<std.io.coroutines#job>.send[4198] params(2) in file: li
 15 [0xf]:          movr ebx, cmt   
 16 [0x10]:          movr cmt, ebx   
 17 [0x11]:          jne 38   
-18 [0x12]: line: 82 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 94 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:          dup    
 21 [0x15]:          new_class @76 // std#string   
 23 [0x17]:          dup    
@@ -89827,7 +89841,7 @@ function: std.io#channel<std.io.coroutines#job>.send[4198] params(2) in file: li
 36 [0x24]:          call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:          throw    
 38 [0x26]:          nop   
-39 [0x27]: line: 85 movl 0   
+39 [0x27]: line: 97 movl 0   
 40 [0x28]:          movn #0   
 42 [0x2a]:          pushobj   
 43 [0x2b]:          ipushl #2   
@@ -89838,76 +89852,76 @@ function: std.io#channel<std.io.coroutines#job>.send[4198] params(2) in file: li
 48 [0x30]:          ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.read[4199] params(0) in file: lib/support/0.2.9/io//channel.sharp:88:8: note:  
+function: std.io#channel<std.io.coroutines#job>.read[4199] params(0) in file: lib/support/0.2.9/io//channel.sharp:100:8: note:  
 		    def read() : t {
 		       ^
 
-0 [0x0]: line: 89 pushl 0   
-1 [0x1]:          ldc ebx // 0   
-2 [0x2]:          rstore ebx   
-3 [0x3]:          call @4200 // <std.io#channel<std.io.coroutines#job>.read>   
-4 [0x4]:          popobj2    
-5 [0x5]:          returnobj   
-6 [0x6]:          ret   
+0 [0x0]: line: 101 pushl 0   
+1 [0x1]:           ldc ebx // 0   
+2 [0x2]:           rstore ebx   
+3 [0x3]:           call @4200 // <std.io#channel<std.io.coroutines#job>.read>   
+4 [0x4]:           popobj2    
+5 [0x5]:           returnobj   
+6 [0x6]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.read[4200] params(1) in file: lib/support/0.2.9/io//channel.sharp:92:8: note:  
+function: std.io#channel<std.io.coroutines#job>.read[4200] params(1) in file: lib/support/0.2.9/io//channel.sharp:104:8: note:  
 		    def read(filter: var) : t {
 		       ^
 
-0 [0x0]: line: 93 ipushl #1   
-1 [0x1]:          movl 0   
-2 [0x2]:          movn #0   
-4 [0x4]:          pushobj   
-5 [0x5]:          call @4312 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.size>   
-6 [0x6]:          loadval ebx   
-7 [0x7]:          loadval ecx   
-8 [0x8]:          gte ecx, ebx   
-9 [0x9]:          movr ebx, cmt   
-10 [0xa]:          skpe ebx // pc = 16   
-11 [0xb]:          loadl ecx, fp+1   
-12 [0xc]:          movi #0, ebx   
-14 [0xe]:          lt ecx, ebx   
-15 [0xf]:          movr ebx, cmt   
-16 [0x10]:          movr cmt, ebx   
-17 [0x11]:          jne 38   
-18 [0x12]: line: 94 new_class @7 // std#out_of_bounds_exception   
-20 [0x14]:          dup    
-21 [0x15]:          new_class @76 // std#string   
-23 [0x17]:          dup    
-24 [0x18]:          newstr @127 // invalid send on filter (   
-25 [0x19]:          call @3550 // <std#string.string>   
-26 [0x1a]:          ipushl #1   
-27 [0x1b]:          call @3582 // <std#string.operator+>   
-28 [0x1c]:          newstr @128 // ) when max filter is    
-29 [0x1d]:          call @3562 // <std#string.operator+>   
-30 [0x1e]:          movl 0   
-31 [0x1f]:          movn #0   
-33 [0x21]:          pushobj   
-34 [0x22]:          call @4312 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.size>   
-35 [0x23]:          call @3582 // <std#string.operator+>   
-36 [0x24]:          call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
-37 [0x25]:          throw    
-38 [0x26]:          nop   
-39 [0x27]: line: 97 movl 0   
-40 [0x28]:          movn #0   
-42 [0x2a]:          pushobj   
-43 [0x2b]:          ipushl #1   
-44 [0x2c]:          call @4299 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.operator[>   
-45 [0x2d]:          pushl 0   
-46 [0x2e]:          call @4288 // <std.io.coroutines#filter<std.io.coroutines#job>.read>   
-47 [0x2f]:          popobj2    
-48 [0x30]:          returnobj   
-49 [0x31]:          ret   
+0 [0x0]: line: 105 ipushl #1   
+1 [0x1]:           movl 0   
+2 [0x2]:           movn #0   
+4 [0x4]:           pushobj   
+5 [0x5]:           call @4312 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.size>   
+6 [0x6]:           loadval ebx   
+7 [0x7]:           loadval ecx   
+8 [0x8]:           gte ecx, ebx   
+9 [0x9]:           movr ebx, cmt   
+10 [0xa]:           skpe ebx // pc = 16   
+11 [0xb]:           loadl ecx, fp+1   
+12 [0xc]:           movi #0, ebx   
+14 [0xe]:           lt ecx, ebx   
+15 [0xf]:           movr ebx, cmt   
+16 [0x10]:           movr cmt, ebx   
+17 [0x11]:           jne 38   
+18 [0x12]: line: 106 new_class @7 // std#out_of_bounds_exception   
+20 [0x14]:           dup    
+21 [0x15]:           new_class @76 // std#string   
+23 [0x17]:           dup    
+24 [0x18]:           newstr @127 // invalid send on filter (   
+25 [0x19]:           call @3550 // <std#string.string>   
+26 [0x1a]:           ipushl #1   
+27 [0x1b]:           call @3582 // <std#string.operator+>   
+28 [0x1c]:           newstr @128 // ) when max filter is    
+29 [0x1d]:           call @3562 // <std#string.operator+>   
+30 [0x1e]:           movl 0   
+31 [0x1f]:           movn #0   
+33 [0x21]:           pushobj   
+34 [0x22]:           call @4312 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.size>   
+35 [0x23]:           call @3582 // <std#string.operator+>   
+36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
+37 [0x25]:           throw    
+38 [0x26]:           nop   
+39 [0x27]: line: 109 movl 0   
+40 [0x28]:           movn #0   
+42 [0x2a]:           pushobj   
+43 [0x2b]:           ipushl #1   
+44 [0x2c]:           call @4299 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.operator[>   
+45 [0x2d]:           pushl 0   
+46 [0x2e]:           call @4288 // <std.io.coroutines#filter<std.io.coroutines#job>.read>   
+47 [0x2f]:           popobj2    
+48 [0x30]:           returnobj   
+49 [0x31]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.close[4201] params(0) in file: lib/support/0.2.9/io//channel.sharp:100:8: note:  
+function: std.io#channel<std.io.coroutines#job>.close[4201] params(0) in file: lib/support/0.2.9/io//channel.sharp:112:8: note:  
 		    def close() {
 		       ^
 
-0 [0x0]: line: 101 movl 0   
+0 [0x0]: line: 113 movl 0   
 1 [0x1]:           _lck    
-2 [0x2]: line: 102 movg @98 // @std.io#channel<t>.channel_state   
+2 [0x2]: line: 114 movg @98 // @std.io#channel<t>.channel_state   
 3 [0x3]:           movn #1   
 5 [0x5]:           pushobj   
 6 [0x6]:           movl 0   
@@ -89918,13 +89932,13 @@ function: std.io#channel<std.io.coroutines#job>.close[4201] params(0) in file: l
 12 [0xc]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.open[4202] params(0) in file: lib/support/0.2.9/io//channel.sharp:106:8: note:  
+function: std.io#channel<std.io.coroutines#job>.open[4202] params(0) in file: lib/support/0.2.9/io//channel.sharp:118:8: note:  
 		    def open() {
 		       ^
 
-0 [0x0]: line: 107 movl 0   
+0 [0x0]: line: 119 movl 0   
 1 [0x1]:           _lck    
-2 [0x2]: line: 108 movg @98 // @std.io#channel<t>.channel_state   
+2 [0x2]: line: 120 movg @98 // @std.io#channel<t>.channel_state   
 3 [0x3]:           movn #0   
 5 [0x5]:           pushobj   
 6 [0x6]:           movl 0   
@@ -89935,11 +89949,11 @@ function: std.io#channel<std.io.coroutines#job>.open[4202] params(0) in file: li
 12 [0xc]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.read_next[4203] params(2) in file: lib/support/0.2.9/io//channel.sharp:112:8: note:  
+function: std.io#channel<std.io.coroutines#job>.read_next[4203] params(2) in file: lib/support/0.2.9/io//channel.sharp:124:8: note:  
 		    def read_next(filter: var, count: var) : list<t> {
 		       ^
 
-0 [0x0]: line: 113 ipushl #1   
+0 [0x0]: line: 125 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -89955,7 +89969,7 @@ function: std.io#channel<std.io.coroutines#job>.read_next[4203] params(2) in fil
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 114 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 126 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -89973,19 +89987,19 @@ function: std.io#channel<std.io.coroutines#job>.read_next[4203] params(2) in fil
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 117 new_class @107 // std#loopable<std.io.coroutines#job>   
+39 [0x27]: line: 129 new_class @107 // std#loopable<std.io.coroutines#job>   
 41 [0x29]:           dup    
 42 [0x2a]:           call @4130 // <std#list<std.io.coroutines#job>.list>   
 43 [0x2b]:           popobj2    
 44 [0x2c]:           smovr_3 fp+3   
-45 [0x2d]: line: 118 movl 0   
+45 [0x2d]: line: 130 movl 0   
 46 [0x2e]:           movn #0   
 48 [0x30]:           pushobj   
 49 [0x31]:           ipushl #1   
 50 [0x32]:           call @4299 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.operator[>   
 51 [0x33]:           popobj2    
 52 [0x34]:           smovr_3 fp+4   
-53 [0x35]: line: 120 istorel 0, fp+5   
+53 [0x35]: line: 132 istorel 0, fp+5   
 55 [0x37]:           ipushl #5   
 56 [0x38]:           loadl ebx, fp+2   
 57 [0x39]:           loadval ecx   
@@ -89993,36 +90007,36 @@ function: std.io#channel<std.io.coroutines#job>.read_next[4203] params(2) in fil
 59 [0x3b]:           movr ebx, cmt   
 60 [0x3c]:           movr cmt, ebx   
 61 [0x3d]:           jne 83   
-62 [0x3e]: line: 121 pushl 4   
+62 [0x3e]: line: 133 pushl 4   
 63 [0x3f]:           pushl 0   
 64 [0x40]:           call @4286 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close>   
-65 [0x41]: line: 123 pushl 4   
+65 [0x41]: line: 135 pushl 4   
 66 [0x42]:           call @4287 // <std.io.coroutines#filter<std.io.coroutines#job>.avail_data>   
 67 [0x43]:           loadval ebx   
 68 [0x44]:           movr cmt, ebx   
 69 [0x45]:           jne 76   
-70 [0x46]: line: 124 pushl 3   
+70 [0x46]: line: 136 pushl 3   
 71 [0x47]:           pushl 4   
 72 [0x48]:           pushl 0   
 73 [0x49]:           call @4288 // <std.io.coroutines#filter<std.io.coroutines#job>.read>   
 74 [0x4a]:           call @4144 // <std#list<std.io.coroutines#job>.add>   
 75 [0x4b]:           jmp @79   
-76 [0x4c]: line: 126 movl 3   
+76 [0x4c]: line: 138 movl 3   
 77 [0x4d]:           returnobj   
 78 [0x4e]:           ret   
 79 [0x4f]:           nop   
 80 [0x50]:           iaddl 1, fp@5   
 82 [0x52]:           jmp @55   
-83 [0x53]: line: 130 movl 3   
+83 [0x53]: line: 142 movl 3   
 84 [0x54]:           returnobj   
 85 [0x55]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.read_next[4204] params(1) in file: lib/support/0.2.9/io//channel.sharp:133:8: note:  
+function: std.io#channel<std.io.coroutines#job>.read_next[4204] params(1) in file: lib/support/0.2.9/io//channel.sharp:145:8: note:  
 		    def read_next(filter: var) : list<t> {
 		       ^
 
-0 [0x0]: line: 134 ipushl #1   
+0 [0x0]: line: 146 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -90038,7 +90052,7 @@ function: std.io#channel<std.io.coroutines#job>.read_next[4204] params(1) in fil
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 135 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 147 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -90056,14 +90070,14 @@ function: std.io#channel<std.io.coroutines#job>.read_next[4204] params(1) in fil
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 138 movl 0   
+39 [0x27]: line: 150 movl 0   
 40 [0x28]:           movn #0   
 42 [0x2a]:           pushobj   
 43 [0x2b]:           ipushl #1   
 44 [0x2c]:           call @4299 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.operator[>   
 45 [0x2d]:           popobj2    
 46 [0x2e]:           smovr_3 fp+2   
-47 [0x2f]: line: 139 pushl 2   
+47 [0x2f]: line: 151 pushl 2   
 48 [0x30]:           call @4287 // <std.io.coroutines#filter<std.io.coroutines#job>.avail_data>   
 49 [0x31]:           loadval ebx   
 50 [0x32]:           not ebx, ebx   
@@ -90074,38 +90088,38 @@ function: std.io#channel<std.io.coroutines#job>.read_next[4204] params(1) in fil
 55 [0x37]:           returnobj   
 56 [0x38]:           ret   
 57 [0x39]:           nop   
-58 [0x3a]: line: 141 new_class @107 // std#loopable<std.io.coroutines#job>   
+58 [0x3a]: line: 153 new_class @107 // std#loopable<std.io.coroutines#job>   
 60 [0x3c]:           dup    
 61 [0x3d]:           call @4130 // <std#list<std.io.coroutines#job>.list>   
 62 [0x3e]:           popobj2    
 63 [0x3f]:           smovr_3 fp+3   
-64 [0x40]: line: 142 pushl 2   
-65 [0x41]: line: 143 call @4287 // <std.io.coroutines#filter<std.io.coroutines#job>.avail_data>   
+64 [0x40]: line: 154 pushl 2   
+65 [0x41]: line: 155 call @4287 // <std.io.coroutines#filter<std.io.coroutines#job>.avail_data>   
 66 [0x42]:           loadval ebx   
 67 [0x43]:           movr cmt, ebx   
 68 [0x44]:           jne 75   
-69 [0x45]: line: 144 pushl 3   
+69 [0x45]: line: 156 pushl 3   
 70 [0x46]:           pushl 2   
 71 [0x47]:           pushl 0   
 72 [0x48]:           call @4288 // <std.io.coroutines#filter<std.io.coroutines#job>.read>   
 73 [0x49]:           call @4144 // <std#list<std.io.coroutines#job>.add>   
 74 [0x4a]:           jmp @78   
-75 [0x4b]: line: 146 movl 3   
+75 [0x4b]: line: 158 movl 3   
 76 [0x4c]:           returnobj   
 77 [0x4d]:           ret   
 78 [0x4e]:           nop   
 79 [0x4f]:           jmp @64   
-80 [0x50]: line: 150 pushnull    
+80 [0x50]: line: 162 pushnull    
 81 [0x51]:           popobj2    
 82 [0x52]:           returnobj   
 83 [0x53]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.read_all[4205] params(1) in file: lib/support/0.2.9/io//channel.sharp:153:8: note:  
+function: std.io#channel<std.io.coroutines#job>.read_all[4205] params(1) in file: lib/support/0.2.9/io//channel.sharp:165:8: note:  
 		    def read_all(filter: var) : list<t> {
 		       ^
 
-0 [0x0]: line: 154 ipushl #1   
+0 [0x0]: line: 166 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -90121,7 +90135,7 @@ function: std.io#channel<std.io.coroutines#job>.read_all[4205] params(1) in file
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 155 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 167 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -90139,49 +90153,49 @@ function: std.io#channel<std.io.coroutines#job>.read_all[4205] params(1) in file
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 158 new_class @107 // std#loopable<std.io.coroutines#job>   
+39 [0x27]: line: 170 new_class @107 // std#loopable<std.io.coroutines#job>   
 41 [0x29]:           dup    
 42 [0x2a]:           call @4130 // <std#list<std.io.coroutines#job>.list>   
 43 [0x2b]:           popobj2    
 44 [0x2c]:           smovr_3 fp+2   
-45 [0x2d]: line: 159 movl 0   
+45 [0x2d]: line: 171 movl 0   
 46 [0x2e]:           movn #0   
 48 [0x30]:           pushobj   
 49 [0x31]:           ipushl #1   
 50 [0x32]:           call @4299 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.operator[>   
 51 [0x33]:           popobj2    
 52 [0x34]:           smovr_3 fp+3   
-53 [0x35]: line: 161 pushl 3   
-54 [0x36]: line: 162 pushl 0   
+53 [0x35]: line: 173 pushl 3   
+54 [0x36]: line: 174 pushl 0   
 55 [0x37]:           call @4286 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close>   
-56 [0x38]: line: 164 pushl 3   
+56 [0x38]: line: 176 pushl 3   
 57 [0x39]:           call @4287 // <std.io.coroutines#filter<std.io.coroutines#job>.avail_data>   
 58 [0x3a]:           loadval ebx   
 59 [0x3b]:           movr cmt, ebx   
 60 [0x3c]:           jne 67   
-61 [0x3d]: line: 165 pushl 2   
+61 [0x3d]: line: 177 pushl 2   
 62 [0x3e]:           pushl 3   
 63 [0x3f]:           pushl 0   
 64 [0x40]:           call @4288 // <std.io.coroutines#filter<std.io.coroutines#job>.read>   
 65 [0x41]:           call @4144 // <std#list<std.io.coroutines#job>.add>   
 66 [0x42]:           jmp @70   
-67 [0x43]: line: 167 movl 2   
+67 [0x43]: line: 179 movl 2   
 68 [0x44]:           returnobj   
 69 [0x45]:           ret   
 70 [0x46]:           nop   
 71 [0x47]:           jmp @53   
-72 [0x48]: line: 171 pushnull    
+72 [0x48]: line: 183 pushnull    
 73 [0x49]:           popobj2    
 74 [0x4a]:           returnobj   
 75 [0x4b]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.next[4206] params(0) in file: lib/support/0.2.9/io//channel.sharp:174:8: note:  
+function: std.io#channel<std.io.coroutines#job>.next[4206] params(0) in file: lib/support/0.2.9/io//channel.sharp:186:8: note:  
 		    def next() : var {
 		       ^
 
-0 [0x0]: line: 175 movl 0   
-1 [0x1]: line: 176 movn #3   
+0 [0x0]: line: 187 movl 0   
+1 [0x1]: line: 188 movn #3   
 3 [0x3]:           pushobj   
 4 [0x4]:           movg @98 // @std.io#channel<t>.channel_state   
 5 [0x5]:           movn #1   
@@ -90190,10 +90204,10 @@ function: std.io#channel<std.io.coroutines#job>.next[4206] params(0) in file: li
 9 [0x9]:           loadval ebx   
 10 [0xa]:           movr cmt, ebx   
 11 [0xb]:           jne 15   
-12 [0xc]: line: 177 istorel -1, fp+0   
+12 [0xc]: line: 189 istorel -1, fp+0   
 14 [0xe]:           ret   
 15 [0xf]:           nop   
-16 [0x10]: line: 179 istorel 0, fp+1   
+16 [0x10]: line: 191 istorel 0, fp+1   
 18 [0x12]:           ipushl #1   
 19 [0x13]:           movl 0   
 20 [0x14]:           movn #0   
@@ -90205,7 +90219,7 @@ function: std.io#channel<std.io.coroutines#job>.next[4206] params(0) in file: li
 27 [0x1b]:           movr ebx, cmt   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 47   
-30 [0x1e]: line: 180 movl 0   
+30 [0x1e]: line: 192 movl 0   
 31 [0x1f]:           movn #0   
 33 [0x21]:           pushobj   
 34 [0x22]:           ipushl #1   
@@ -90214,24 +90228,24 @@ function: std.io#channel<std.io.coroutines#job>.next[4206] params(0) in file: li
 37 [0x25]:           loadval ebx   
 38 [0x26]:           movr cmt, ebx   
 39 [0x27]:           jne 43   
-40 [0x28]: line: 181 loadl ebx, fp+1   
+40 [0x28]: line: 193 loadl ebx, fp+1   
 41 [0x29]:           return_val ebx   
 42 [0x2a]:           ret   
 43 [0x2b]:           nop   
 44 [0x2c]:           iaddl 1, fp@1   
 46 [0x2e]:           jmp @18   
-47 [0x2f]: line: 185 istore 2   
+47 [0x2f]: line: 197 istore 2   
 49 [0x31]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 50 [0x32]:           jmp @0   
-51 [0x33]: line: 188 istorel 0, fp+0   
+51 [0x33]: line: 200 istorel 0, fp+0   
 53 [0x35]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.get_elements[4207] params(0) in file: lib/support/0.2.9/io//channel.sharp:191:8: note:  
+function: std.io#channel<std.io.coroutines#job>.get_elements[4207] params(0) in file: lib/support/0.2.9/io//channel.sharp:203:8: note:  
 		    def get_elements() : t[] {
 		       ^
 
-0 [0x0]: line: 192 pushl 0   
+0 [0x0]: line: 204 pushl 0   
 1 [0x1]:           ldc ebx // 0   
 2 [0x2]:           rstore ebx   
 3 [0x3]:           call @4205 // <std.io#channel<std.io.coroutines#job>.read_all>   
@@ -90241,11 +90255,11 @@ function: std.io#channel<std.io.coroutines#job>.get_elements[4207] params(0) in 
 7 [0x7]:           ret   
 
 
-function: std.io#channel<std.io.coroutines#job>.avail_data[4208] params(1) in file: lib/support/0.2.9/io//channel.sharp:195:8: note:  
+function: std.io#channel<std.io.coroutines#job>.avail_data[4208] params(1) in file: lib/support/0.2.9/io//channel.sharp:207:8: note:  
 		    def avail_data(filter: var) : var {
 		       ^
 
-0 [0x0]: line: 196 ipushl #1   
+0 [0x0]: line: 208 ipushl #1   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           pushobj   
@@ -90261,7 +90275,7 @@ function: std.io#channel<std.io.coroutines#job>.avail_data[4208] params(1) in fi
 15 [0xf]:           movr ebx, cmt   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 38   
-18 [0x12]: line: 197 new_class @7 // std#out_of_bounds_exception   
+18 [0x12]: line: 209 new_class @7 // std#out_of_bounds_exception   
 20 [0x14]:           dup    
 21 [0x15]:           new_class @76 // std#string   
 23 [0x17]:           dup    
@@ -90279,21 +90293,21 @@ function: std.io#channel<std.io.coroutines#job>.avail_data[4208] params(1) in fi
 36 [0x24]:           call @1968 // <std#out_of_bounds_exception.out_of_bounds_exception>   
 37 [0x25]:           throw    
 38 [0x26]:           nop   
-39 [0x27]: line: 200 movl 0   
+39 [0x27]: line: 212 movl 0   
 40 [0x28]:           movn #0   
 42 [0x2a]:           pushobj   
 43 [0x2b]:           ipushl #1   
 44 [0x2c]:           call @4299 // <std#list<std.io.coroutines#filter<std.io.coroutines#job>>.operator[>   
 45 [0x2d]:           popobj2    
 46 [0x2e]:           smovr_3 fp+2   
-47 [0x2f]: line: 201 pushl 2   
+47 [0x2f]: line: 213 pushl 2   
 48 [0x30]:           call @4287 // <std.io.coroutines#filter<std.io.coroutines#job>.avail_data>   
 49 [0x31]:           loadval ebx   
 50 [0x32]:           return_val ebx   
 51 [0x33]:           ret   
 
 
-constructor: std.io#channel<std.io.coroutines#job>.channel[4209] params(0) in file: lib/support/0.2.9/io//channel.sharp:5:6: note:  
+constructor: std.io#channel<std.io.coroutines#job>.channel[4209] params(0) in file: lib/support/0.2.9/io//channel.sharp:17:6: note:  
 		class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 		     ^
 
@@ -91511,44 +91525,44 @@ function: std#list<var>.out_of_bounds_msg[4242] params(1) in file: lib/support/0
 19 [0x13]:           ret   
 
 
-function: main#filter<var>.filo[4243] params(0) in file: lib/support/0.2.9/io//channel.sharp:214:11: note:  
+function: main#filter<var>.filo[4243] params(0) in file: lib/support/0.2.9/io//channel.sharp:226:11: note:  
 		       def filo() : t {
 		          ^
 
-0 [0x0]: line: 215 movl 0   
+0 [0x0]: line: 227 movl 0   
 1 [0x1]:           movn #0   
 3 [0x3]:           movn #0   
 5 [0x5]:           movi #0, adx   
 7 [0x7]:           iaload ebx, adx   
 8 [0x8]:           smovr_2 ebx, fp+1   
-9 [0x9]: line: 216 movl 0   
+9 [0x9]: line: 228 movl 0   
 10 [0xa]:           movn #0   
 12 [0xc]:           movn #1   
 14 [0xe]:           pushobj   
 15 [0xf]:           movl 0   
 16 [0x10]:           movn #0   
 18 [0x12]:           popobj   
-19 [0x13]: line: 217 movl 0   
+19 [0x13]: line: 229 movl 0   
 20 [0x14]:           movn #0   
 22 [0x16]:           pushobj   
 23 [0x17]:           pushnull    
 24 [0x18]:           itest ebx   
 25 [0x19]:           movr cmt, ebx   
 26 [0x1a]:           jne 31   
-27 [0x1b]: line: 218 movl 0   
+27 [0x1b]: line: 230 movl 0   
 28 [0x1c]:           movn #1   
 30 [0x1e]:           del   
 31 [0x1f]:           nop   
-32 [0x20]: line: 219 loadl ebx, fp+1   
+32 [0x20]: line: 231 loadl ebx, fp+1   
 33 [0x21]:           return_val ebx   
 34 [0x22]:           ret   
 
 
-function: main#filter<var>.wait_for_data[4244] params(0) in file: lib/support/0.2.9/io//channel.sharp:222:19: note:  
+function: main#filter<var>.wait_for_data[4244] params(0) in file: lib/support/0.2.9/io//channel.sharp:234:19: note:  
 		       private def wait_for_data() {
 		                  ^
 
-0 [0x0]: line: 223 movl 0   
+0 [0x0]: line: 235 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -91559,9 +91573,9 @@ function: main#filter<var>.wait_for_data[4244] params(0) in file: lib/support/0.
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 36   
-14 [0xe]: line: 224 pushl 0   
+14 [0xe]: line: 236 pushl 0   
 15 [0xf]:           call @2348 // <std#_object_._unlock>   
-16 [0x10]: line: 225 movl 0   
+16 [0x10]: line: 237 movl 0   
 17 [0x11]:           movn #2   
 19 [0x13]:           movi #0, adx   
 21 [0x15]:           iaload ebx, adx   
@@ -91572,20 +91586,20 @@ function: main#filter<var>.wait_for_data[4244] params(0) in file: lib/support/0.
 27 [0x1b]:           movr ebx, cmt   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 34   
-30 [0x1e]: line: 226 istore 1   
+30 [0x1e]: line: 238 istore 1   
 32 [0x20]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 33 [0x21]:           jmp @16   
-34 [0x22]: line: 229 pushl 0   
+34 [0x22]: line: 241 pushl 0   
 35 [0x23]:           call @2347 // <std#_object_._lock>   
 36 [0x24]:           nop   
 37 [0x25]:           ret   
 
 
-function: main#filter<var>.wait_for_consume[4245] params(0) in file: lib/support/0.2.9/io//channel.sharp:233:19: note:  
+function: main#filter<var>.wait_for_consume[4245] params(0) in file: lib/support/0.2.9/io//channel.sharp:245:19: note:  
 		       private def wait_for_consume() {
 		                  ^
 
-0 [0x0]: line: 234 movl 0   
+0 [0x0]: line: 246 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -91596,17 +91610,17 @@ function: main#filter<var>.wait_for_consume[4245] params(0) in file: lib/support
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 18   
-14 [0xe]: line: 235 istore 1   
+14 [0xe]: line: 247 istore 1   
 16 [0x10]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 17 [0x11]:           jmp @0   
 18 [0x12]:           ret   
 
 
-function: main#filter<var>.wait_for_data_or_close[4246] params(1) in file: lib/support/0.2.9/io//channel.sharp:239:11: note:  
+function: main#filter<var>.wait_for_data_or_close[4246] params(1) in file: lib/support/0.2.9/io//channel.sharp:251:11: note:  
 		       def wait_for_data_or_close(chan: channel<t>) {
 		          ^
 
-0 [0x0]: line: 240 movl 0   
+0 [0x0]: line: 252 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -91617,7 +91631,7 @@ function: main#filter<var>.wait_for_data_or_close[4246] params(1) in file: lib/s
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 46   
-14 [0xe]: line: 241 movl 0   
+14 [0xe]: line: 253 movl 0   
 15 [0xf]:           movn #2   
 17 [0x11]:           movi #0, adx   
 19 [0x13]:           iaload ebx, adx   
@@ -91628,7 +91642,7 @@ function: main#filter<var>.wait_for_data_or_close[4246] params(1) in file: lib/s
 25 [0x19]:           movr ebx, cmt   
 26 [0x1a]:           movr cmt, ebx   
 27 [0x1b]:           jne 46   
-28 [0x1c]: line: 242 movl 1   
+28 [0x1c]: line: 254 movl 1   
 29 [0x1d]:           movn #3   
 31 [0x1f]:           pushobj   
 32 [0x20]:           movg @98 // @std.io#channel<t>.channel_state   
@@ -91638,20 +91652,20 @@ function: main#filter<var>.wait_for_data_or_close[4246] params(1) in file: lib/s
 37 [0x25]:           loadval ebx   
 38 [0x26]:           movr cmt, ebx   
 39 [0x27]:           jne 41   
-40 [0x28]: line: 243 jmp @46   
+40 [0x28]: line: 255 jmp @46   
 41 [0x29]:           nop   
-42 [0x2a]: line: 245 istore 1   
+42 [0x2a]: line: 257 istore 1   
 44 [0x2c]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 45 [0x2d]:           jmp @14   
 46 [0x2e]:           nop   
 47 [0x2f]:           ret   
 
 
-function: main#filter<var>.avail_data[4247] params(0) in file: lib/support/0.2.9/io//channel.sharp:250:11: note:  
+function: main#filter<var>.avail_data[4247] params(0) in file: lib/support/0.2.9/io//channel.sharp:262:11: note:  
 		       def avail_data() : var {
 		          ^
 
-0 [0x0]: line: 251 movl 0   
+0 [0x0]: line: 263 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -91659,13 +91673,13 @@ function: main#filter<var>.avail_data[4247] params(0) in file: lib/support/0.2.9
 7 [0x7]:           ret   
 
 
-function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//channel.sharp:254:11: note:  
+function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//channel.sharp:266:11: note:  
 		       def read(chan: channel<t>) : t {
 		          ^
 
-0 [0x0]: line: 255 pushl 0   
+0 [0x0]: line: 267 pushl 0   
 1 [0x1]:           call @2347 // <std#_object_._lock>   
-2 [0x2]: line: 256 movl 1   
+2 [0x2]: line: 268 movl 1   
 3 [0x3]:           movn #1   
 5 [0x5]:           pushobj   
 6 [0x6]:           movg @25 // @std.io#buffer_type   
@@ -91675,28 +91689,28 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 11 [0xb]:           loadval ebx   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 47   
-14 [0xe]: line: 258 pushl 0   
+14 [0xe]: line: 270 pushl 0   
 15 [0xf]:           call @4244 // <main#filter<var>.wait_for_data>   
-16 [0x10]: line: 260 movl 0   
+16 [0x10]: line: 272 movl 0   
 17 [0x11]:           movn #0   
 19 [0x13]:           movn #0   
 21 [0x15]:           movi #0, adx   
 23 [0x17]:           iaload ebx, adx   
 24 [0x18]:           smovr_2 ebx, fp+2   
-25 [0x19]: line: 261 movl 0   
+25 [0x19]: line: 273 movl 0   
 26 [0x1a]:           movn #1   
 28 [0x1c]:           del   
-29 [0x1d]: line: 262 movl 0   
+29 [0x1d]: line: 274 movl 0   
 30 [0x1e]:           movn #0   
 32 [0x20]:           del   
-33 [0x21]: line: 263 movi #0, ebx   
+33 [0x21]: line: 275 movi #0, ebx   
 35 [0x23]:           movl 0   
 36 [0x24]:           movn #2   
 38 [0x26]:           movi #0, adx   
 40 [0x28]:           rmov adx, ebx   
-41 [0x29]: line: 265 pushl 0   
+41 [0x29]: line: 277 pushl 0   
 42 [0x2a]:           call @2348 // <std#_object_._unlock>   
-43 [0x2b]: line: 266 loadl ebx, fp+2   
+43 [0x2b]: line: 278 loadl ebx, fp+2   
 44 [0x2c]:           return_val ebx   
 45 [0x2d]:           ret   
 46 [0x2e]:           jmp @206   
@@ -91710,28 +91724,28 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 56 [0x38]:           loadval ebx   
 57 [0x39]:           movr cmt, ebx   
 58 [0x3a]:           jne 92   
-59 [0x3b]: line: 269 pushl 0   
+59 [0x3b]: line: 281 pushl 0   
 60 [0x3c]:           call @4244 // <main#filter<var>.wait_for_data>   
-61 [0x3d]: line: 271 movl 0   
+61 [0x3d]: line: 283 movl 0   
 62 [0x3e]:           movn #0   
 64 [0x40]:           movn #0   
 66 [0x42]:           movi #0, adx   
 68 [0x44]:           iaload ebx, adx   
 69 [0x45]:           smovr_2 ebx, fp+3   
-70 [0x46]: line: 272 movl 0   
+70 [0x46]: line: 284 movl 0   
 71 [0x47]:           movn #1   
 73 [0x49]:           del   
-74 [0x4a]: line: 273 movl 0   
+74 [0x4a]: line: 285 movl 0   
 75 [0x4b]:           movn #0   
 77 [0x4d]:           del   
-78 [0x4e]: line: 274 movi #0, ebx   
+78 [0x4e]: line: 286 movi #0, ebx   
 80 [0x50]:           movl 0   
 81 [0x51]:           movn #2   
 83 [0x53]:           movi #0, adx   
 85 [0x55]:           rmov adx, ebx   
-86 [0x56]: line: 275 pushl 0   
+86 [0x56]: line: 287 pushl 0   
 87 [0x57]:           call @2348 // <std#_object_._unlock>   
-88 [0x58]: line: 276 loadl ebx, fp+3   
+88 [0x58]: line: 288 loadl ebx, fp+3   
 89 [0x59]:           return_val ebx   
 90 [0x5a]:           ret   
 91 [0x5b]:           jmp @206   
@@ -91745,9 +91759,9 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 101 [0x65]:           loadval ebx   
 102 [0x66]:           movr cmt, ebx   
 103 [0x67]:           jne 126   
-104 [0x68]: line: 279 pushl 0   
+104 [0x68]: line: 291 pushl 0   
 105 [0x69]:           call @4244 // <main#filter<var>.wait_for_data>   
-106 [0x6a]: line: 281 movl 0   
+106 [0x6a]: line: 293 movl 0   
 107 [0x6b]:           movn #2   
 109 [0x6d]:           movi #0, adx   
 111 [0x6f]:           iaload ebx, adx   
@@ -91755,12 +91769,12 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 113 [0x71]:           dec ebx   
 114 [0x72]:           movi #0, adx   
 116 [0x74]:           rmov adx, ebx   
-117 [0x75]: line: 282 pushl 0   
+117 [0x75]: line: 294 pushl 0   
 118 [0x76]:           call @4243 // <main#filter<var>.filo>   
 119 [0x77]:           ipopl 4   
-120 [0x78]: line: 284 pushl 0   
+120 [0x78]: line: 296 pushl 0   
 121 [0x79]:           call @2348 // <std#_object_._unlock>   
-122 [0x7a]: line: 285 loadl ebx, fp+4   
+122 [0x7a]: line: 297 loadl ebx, fp+4   
 123 [0x7b]:           return_val ebx   
 124 [0x7c]:           ret   
 125 [0x7d]:           jmp @206   
@@ -91774,9 +91788,9 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 135 [0x87]:           loadval ebx   
 136 [0x88]:           movr cmt, ebx   
 137 [0x89]:           jne 199   
-138 [0x8a]: line: 288 pushl 0   
+138 [0x8a]: line: 300 pushl 0   
 139 [0x8b]:           call @4244 // <main#filter<var>.wait_for_data>   
-140 [0x8c]: line: 290 movl 0   
+140 [0x8c]: line: 302 movl 0   
 141 [0x8d]:           movn #2   
 143 [0x8f]:           movi #0, adx   
 145 [0x91]:           iaload ebx, adx   
@@ -91790,7 +91804,7 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 155 [0x9b]:           movr ebx, cmt   
 156 [0x9c]:           movr cmt, ebx   
 157 [0x9d]:           jne 178   
-158 [0x9e]: line: 291 movl 0   
+158 [0x9e]: line: 303 movl 0   
 159 [0x9f]:           movn #2   
 161 [0xa1]:           movi #0, adx   
 163 [0xa3]:           iaload ebx, adx   
@@ -91798,16 +91812,16 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 165 [0xa5]:           dec ebx   
 166 [0xa6]:           movi #0, adx   
 168 [0xa8]:           rmov adx, ebx   
-169 [0xa9]: line: 292 pushl 0   
+169 [0xa9]: line: 304 pushl 0   
 170 [0xaa]:           call @4243 // <main#filter<var>.filo>   
 171 [0xab]:           ipopl 5   
-172 [0xac]: line: 294 pushl 0   
+172 [0xac]: line: 306 pushl 0   
 173 [0xad]:           call @2348 // <std#_object_._unlock>   
-174 [0xae]: line: 295 loadl ebx, fp+5   
+174 [0xae]: line: 307 loadl ebx, fp+5   
 175 [0xaf]:           return_val ebx   
 176 [0xb0]:           ret   
 177 [0xb1]:           jmp @197   
-178 [0xb2]: line: 297 movl 0   
+178 [0xb2]: line: 309 movl 0   
 179 [0xb3]:           movn #2   
 181 [0xb5]:           movi #0, adx   
 183 [0xb7]:           iaload ebx, adx   
@@ -91815,32 +91829,32 @@ function: main#filter<var>.read[4248] params(1) in file: lib/support/0.2.9/io//c
 185 [0xb9]:           dec ebx   
 186 [0xba]:           movi #0, adx   
 188 [0xbc]:           rmov adx, ebx   
-189 [0xbd]: line: 298 pushl 0   
+189 [0xbd]: line: 310 pushl 0   
 190 [0xbe]:           call @4243 // <main#filter<var>.filo>   
 191 [0xbf]:           ipopl 6   
-192 [0xc0]: line: 299 pushl 0   
+192 [0xc0]: line: 311 pushl 0   
 193 [0xc1]:           call @2348 // <std#_object_._unlock>   
-194 [0xc2]: line: 300 loadl ebx, fp+6   
+194 [0xc2]: line: 312 loadl ebx, fp+6   
 195 [0xc3]:           return_val ebx   
 196 [0xc4]:           ret   
 197 [0xc5]:           nop   
 198 [0xc6]:           jmp @206   
-199 [0xc7]: line: 304 istorel 0, fp+7   
-201 [0xc9]: line: 305 pushl 0   
+199 [0xc7]: line: 316 istorel 0, fp+7   
+201 [0xc9]: line: 317 pushl 0   
 202 [0xca]:           call @2348 // <std#_object_._unlock>   
-203 [0xcb]: line: 306 loadl ebx, fp+7   
+203 [0xcb]: line: 318 loadl ebx, fp+7   
 204 [0xcc]:           return_val ebx   
 205 [0xcd]:           ret   
 206 [0xce]:           nop   
 
 
-function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//channel.sharp:311:11: note:  
+function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//channel.sharp:323:11: note:  
 		       def send(data : t, chan: channel<t>) {
 		          ^
 
-0 [0x0]: line: 312 pushl 0   
+0 [0x0]: line: 324 pushl 0   
 1 [0x1]:           call @2347 // <std#_object_._lock>   
-2 [0x2]: line: 314 movl 2   
+2 [0x2]: line: 326 movl 2   
 3 [0x3]:           movn #3   
 5 [0x5]:           pushobj   
 6 [0x6]:           movg @98 // @std.io#channel<t>.channel_state   
@@ -91850,7 +91864,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 11 [0xb]:           loadval ebx   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 345   
-14 [0xe]: line: 315 movl 2   
+14 [0xe]: line: 327 movl 2   
 15 [0xf]:           movn #1   
 17 [0x11]:           pushobj   
 18 [0x12]:           movg @25 // @std.io#buffer_type   
@@ -91860,7 +91874,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 23 [0x17]:           loadval ebx   
 24 [0x18]:           movr cmt, ebx   
 25 [0x19]:           jne 62   
-26 [0x1a]: line: 317 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
+26 [0x1a]: line: 329 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
 28 [0x1c]:           loadl ebx, fp+1   
 29 [0x1d]:           movsl #0   
 30 [0x1e]:           movn #0   
@@ -91870,22 +91884,22 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 36 [0x24]:           movl 0   
 37 [0x25]:           movn #0   
 39 [0x27]:           popobj   
-40 [0x28]: line: 318 movl 0   
+40 [0x28]: line: 330 movl 0   
 41 [0x29]:           movn #0   
 43 [0x2b]:           pushobj   
 44 [0x2c]:           movl 0   
 45 [0x2d]:           movn #1   
 47 [0x2f]:           popobj   
-48 [0x30]: line: 319 movi #1, ebx   
+48 [0x30]: line: 331 movi #1, ebx   
 50 [0x32]:           movl 0   
 51 [0x33]:           movn #2   
 53 [0x35]:           movi #0, adx   
 55 [0x37]:           rmov adx, ebx   
-56 [0x38]: line: 320 pushl 0   
+56 [0x38]: line: 332 pushl 0   
 57 [0x39]:           call @2348 // <std#_object_._unlock>   
-58 [0x3a]: line: 321 pushl 0   
+58 [0x3a]: line: 333 pushl 0   
 59 [0x3b]:           call @4245 // <main#filter<var>.wait_for_consume>   
-60 [0x3c]: line: 322 ret   
+60 [0x3c]: line: 334 ret   
 61 [0x3d]:           jmp @344   
 62 [0x3e]:           movl 2   
 63 [0x3f]:           movn #1   
@@ -91897,14 +91911,14 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 71 [0x47]:           loadval ebx   
 72 [0x48]:           movr cmt, ebx   
 73 [0x49]:           jne 125   
-74 [0x4a]: line: 325 movl 0   
+74 [0x4a]: line: 337 movl 0   
 75 [0x4b]:           movn #0   
 77 [0x4d]:           pushobj   
 78 [0x4e]:           pushnull    
 79 [0x4f]:           itest ebx   
 80 [0x50]:           movr cmt, ebx   
 81 [0x51]:           jne 105   
-82 [0x52]: line: 326 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
+82 [0x52]: line: 338 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
 84 [0x54]:           loadl ebx, fp+1   
 85 [0x55]:           movsl #0   
 86 [0x56]:           movn #0   
@@ -91914,14 +91928,14 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 92 [0x5c]:           movl 0   
 93 [0x5d]:           movn #0   
 95 [0x5f]:           popobj   
-96 [0x60]: line: 327 movl 0   
+96 [0x60]: line: 339 movl 0   
 97 [0x61]:           movn #0   
 99 [0x63]:           pushobj   
 100 [0x64]:           movl 0   
 101 [0x65]:           movn #1   
 103 [0x67]:           popobj   
 104 [0x68]:           jmp @115   
-105 [0x69]: line: 329 ipushl #1   
+105 [0x69]: line: 341 ipushl #1   
 106 [0x6a]:           movl 0   
 107 [0x6b]:           movn #0   
 109 [0x6d]:           movn #0   
@@ -91929,7 +91943,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 112 [0x70]:           movi #0, adx   
 114 [0x72]:           rmov adx, ebx   
 115 [0x73]:           nop   
-116 [0x74]: line: 332 movi #1, ebx   
+116 [0x74]: line: 344 movi #1, ebx   
 118 [0x76]:           movl 0   
 119 [0x77]:           movn #2   
 121 [0x79]:           movi #0, adx   
@@ -91945,14 +91959,14 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 134 [0x86]:           loadval ebx   
 135 [0x87]:           movr cmt, ebx   
 136 [0x88]:           jne 207   
-137 [0x89]: line: 335 movl 0   
+137 [0x89]: line: 347 movl 0   
 138 [0x8a]:           movn #0   
 140 [0x8c]:           pushobj   
 141 [0x8d]:           pushnull    
 142 [0x8e]:           itest ebx   
 143 [0x8f]:           movr cmt, ebx   
 144 [0x90]:           jne 168   
-145 [0x91]: line: 336 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
+145 [0x91]: line: 348 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
 147 [0x93]:           loadl ebx, fp+1   
 148 [0x94]:           movsl #0   
 149 [0x95]:           movn #0   
@@ -91962,14 +91976,14 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 155 [0x9b]:           movl 0   
 156 [0x9c]:           movn #0   
 158 [0x9e]:           popobj   
-159 [0x9f]: line: 337 movl 0   
+159 [0x9f]: line: 349 movl 0   
 160 [0xa0]:           movn #0   
 162 [0xa2]:           pushobj   
 163 [0xa3]:           movl 0   
 164 [0xa4]:           movn #1   
 166 [0xa6]:           popobj   
 167 [0xa7]:           jmp @194   
-168 [0xa8]: line: 339 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
+168 [0xa8]: line: 351 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
 170 [0xaa]:           loadl ebx, fp+1   
 171 [0xab]:           movsl #0   
 172 [0xac]:           movn #0   
@@ -91980,7 +91994,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 179 [0xb3]:           movn #1   
 181 [0xb5]:           movn #1   
 183 [0xb7]:           popobj   
-184 [0xb8]: line: 340 movl 0   
+184 [0xb8]: line: 352 movl 0   
 185 [0xb9]:           movn #1   
 187 [0xbb]:           movn #1   
 189 [0xbd]:           pushobj   
@@ -91988,7 +92002,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 191 [0xbf]:           movn #1   
 193 [0xc1]:           popobj   
 194 [0xc2]:           nop   
-195 [0xc3]: line: 343 movl 0   
+195 [0xc3]: line: 355 movl 0   
 196 [0xc4]:           movn #2   
 198 [0xc6]:           movi #0, adx   
 200 [0xc8]:           iaload ebx, adx   
@@ -92007,7 +92021,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 216 [0xd8]:           loadval ebx   
 217 [0xd9]:           movr cmt, ebx   
 218 [0xda]:           jne 344   
-219 [0xdb]: line: 346 movl 0   
+219 [0xdb]: line: 358 movl 0   
 220 [0xdc]:           movn #2   
 222 [0xde]:           movi #0, adx   
 224 [0xe0]:           iaload ebx, adx   
@@ -92021,9 +92035,9 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 234 [0xea]:           movr ebx, cmt   
 235 [0xeb]:           movr cmt, ebx   
 236 [0xec]:           jne 263   
-237 [0xed]: line: 347 pushl 0   
+237 [0xed]: line: 359 pushl 0   
 238 [0xee]:           call @2348 // <std#_object_._unlock>   
-239 [0xef]: line: 348 movl 0   
+239 [0xef]: line: 360 movl 0   
 240 [0xf0]:           movn #2   
 242 [0xf2]:           movi #0, adx   
 244 [0xf4]:           iaload ebx, adx   
@@ -92037,20 +92051,20 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 254 [0xfe]:           movr ebx, cmt   
 255 [0xff]:           movr cmt, ebx   
 256 [0x100]:           jne 261   
-257 [0x101]: line: 349 istore 1   
+257 [0x101]: line: 361 istore 1   
 259 [0x103]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 260 [0x104]:           jmp @239   
-261 [0x105]: line: 351 pushl 0   
+261 [0x105]: line: 363 pushl 0   
 262 [0x106]:           call @2347 // <std#_object_._lock>   
 263 [0x107]:           nop   
-264 [0x108]: line: 354 movl 0   
+264 [0x108]: line: 366 movl 0   
 265 [0x109]:           movn #0   
 267 [0x10b]:           pushobj   
 268 [0x10c]:           pushnull    
 269 [0x10d]:           itest ebx   
 270 [0x10e]:           movr cmt, ebx   
 271 [0x10f]:           jne 306   
-272 [0x110]: line: 355 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
+272 [0x110]: line: 367 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
 274 [0x112]:           loadl ebx, fp+1   
 275 [0x113]:           movsl #0   
 276 [0x114]:           movn #0   
@@ -92060,13 +92074,13 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 282 [0x11a]:           movl 0   
 283 [0x11b]:           movn #0   
 285 [0x11d]:           popobj   
-286 [0x11e]: line: 356 movl 0   
+286 [0x11e]: line: 368 movl 0   
 287 [0x11f]:           movn #0   
 289 [0x121]:           pushobj   
 290 [0x122]:           movl 0   
 291 [0x123]:           movn #1   
 293 [0x125]:           popobj   
-294 [0x126]: line: 357 movl 0   
+294 [0x126]: line: 369 movl 0   
 295 [0x127]:           movn #2   
 297 [0x129]:           movi #0, adx   
 299 [0x12b]:           iaload ebx, adx   
@@ -92075,7 +92089,7 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 302 [0x12e]:           movi #0, adx   
 304 [0x130]:           rmov adx, ebx   
 305 [0x131]:           jmp @343   
-306 [0x132]: line: 359 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
+306 [0x132]: line: 371 new_class @118 // std#loopable<std.io.coroutines#filter<std.io.coroutines#job>>   
 308 [0x134]:           loadl ebx, fp+1   
 309 [0x135]:           movsl #0   
 310 [0x136]:           movn #0   
@@ -92086,14 +92100,14 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 317 [0x13d]:           movn #1   
 319 [0x13f]:           movn #1   
 321 [0x141]:           popobj   
-322 [0x142]: line: 360 movl 0   
+322 [0x142]: line: 372 movl 0   
 323 [0x143]:           movn #1   
 325 [0x145]:           movn #1   
 327 [0x147]:           pushobj   
 328 [0x148]:           movl 0   
 329 [0x149]:           movn #1   
 331 [0x14b]:           popobj   
-332 [0x14c]: line: 361 movl 0   
+332 [0x14c]: line: 373 movl 0   
 333 [0x14d]:           movn #2   
 335 [0x14f]:           movi #0, adx   
 337 [0x151]:           iaload ebx, adx   
@@ -92104,12 +92118,12 @@ function: main#filter<var>.send[4249] params(2) in file: lib/support/0.2.9/io//c
 343 [0x157]:           nop   
 344 [0x158]:           nop   
 345 [0x159]:           nop   
-346 [0x15a]: line: 367 pushl 0   
+346 [0x15a]: line: 379 pushl 0   
 347 [0x15b]:           call @2348 // <std#_object_._unlock>   
 348 [0x15c]:           ret   
 
 
-constructor: main#filter<var>.filter[4250] params(0) in file: lib/support/0.2.9/io//channel.sharp:209:10: note:  
+constructor: main#filter<var>.filter[4250] params(0) in file: lib/support/0.2.9/io//channel.sharp:221:10: note:  
 		    class filter<t> {
 		         ^
 
@@ -93321,42 +93335,42 @@ function: std#list<main#filter<var>>.out_of_bounds_msg[4282] params(1) in file: 
 19 [0x13]:           ret   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.filo[4283] params(0) in file: lib/support/0.2.9/io//channel.sharp:214:11: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.filo[4283] params(0) in file: lib/support/0.2.9/io//channel.sharp:226:11: note:  
 		       def filo() : t {
 		          ^
 
-0 [0x0]: line: 215 movl 0   
+0 [0x0]: line: 227 movl 0   
 1 [0x1]:           movn #0   
 3 [0x3]:           movn #0   
 5 [0x5]:           smovr_3 fp+1   
-6 [0x6]: line: 216 movl 0   
+6 [0x6]: line: 228 movl 0   
 7 [0x7]:           movn #0   
 9 [0x9]:           movn #1   
 11 [0xb]:           pushobj   
 12 [0xc]:           movl 0   
 13 [0xd]:           movn #0   
 15 [0xf]:           popobj   
-16 [0x10]: line: 217 movl 0   
+16 [0x10]: line: 229 movl 0   
 17 [0x11]:           movn #0   
 19 [0x13]:           pushobj   
 20 [0x14]:           pushnull    
 21 [0x15]:           itest ebx   
 22 [0x16]:           movr cmt, ebx   
 23 [0x17]:           jne 28   
-24 [0x18]: line: 218 movl 0   
+24 [0x18]: line: 230 movl 0   
 25 [0x19]:           movn #1   
 27 [0x1b]:           del   
 28 [0x1c]:           nop   
-29 [0x1d]: line: 219 movl 1   
+29 [0x1d]: line: 231 movl 1   
 30 [0x1e]:           returnobj   
 31 [0x1f]:           ret   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data[4284] params(0) in file: lib/support/0.2.9/io//channel.sharp:222:19: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data[4284] params(0) in file: lib/support/0.2.9/io//channel.sharp:234:19: note:  
 		       private def wait_for_data() {
 		                  ^
 
-0 [0x0]: line: 223 movl 0   
+0 [0x0]: line: 235 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -93367,9 +93381,9 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data[4284] pa
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 36   
-14 [0xe]: line: 224 pushl 0   
+14 [0xe]: line: 236 pushl 0   
 15 [0xf]:           call @2348 // <std#_object_._unlock>   
-16 [0x10]: line: 225 movl 0   
+16 [0x10]: line: 237 movl 0   
 17 [0x11]:           movn #2   
 19 [0x13]:           movi #0, adx   
 21 [0x15]:           iaload ebx, adx   
@@ -93380,20 +93394,20 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data[4284] pa
 27 [0x1b]:           movr ebx, cmt   
 28 [0x1c]:           movr cmt, ebx   
 29 [0x1d]:           jne 34   
-30 [0x1e]: line: 226 istore 1   
+30 [0x1e]: line: 238 istore 1   
 32 [0x20]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 33 [0x21]:           jmp @16   
-34 [0x22]: line: 229 pushl 0   
+34 [0x22]: line: 241 pushl 0   
 35 [0x23]:           call @2347 // <std#_object_._lock>   
 36 [0x24]:           nop   
 37 [0x25]:           ret   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_consume[4285] params(0) in file: lib/support/0.2.9/io//channel.sharp:233:19: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_consume[4285] params(0) in file: lib/support/0.2.9/io//channel.sharp:245:19: note:  
 		       private def wait_for_consume() {
 		                  ^
 
-0 [0x0]: line: 234 movl 0   
+0 [0x0]: line: 246 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -93404,17 +93418,17 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_consume[4285]
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 18   
-14 [0xe]: line: 235 istore 1   
+14 [0xe]: line: 247 istore 1   
 16 [0x10]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 17 [0x11]:           jmp @0   
 18 [0x12]:           ret   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close[4286] params(1) in file: lib/support/0.2.9/io//channel.sharp:239:11: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close[4286] params(1) in file: lib/support/0.2.9/io//channel.sharp:251:11: note:  
 		       def wait_for_data_or_close(chan: channel<t>) {
 		          ^
 
-0 [0x0]: line: 240 movl 0   
+0 [0x0]: line: 252 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -93425,7 +93439,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close
 11 [0xb]:           movr ebx, cmt   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 46   
-14 [0xe]: line: 241 movl 0   
+14 [0xe]: line: 253 movl 0   
 15 [0xf]:           movn #2   
 17 [0x11]:           movi #0, adx   
 19 [0x13]:           iaload ebx, adx   
@@ -93436,7 +93450,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close
 25 [0x19]:           movr ebx, cmt   
 26 [0x1a]:           movr cmt, ebx   
 27 [0x1b]:           jne 46   
-28 [0x1c]: line: 242 movl 1   
+28 [0x1c]: line: 254 movl 1   
 29 [0x1d]:           movn #3   
 31 [0x1f]:           pushobj   
 32 [0x20]:           movg @98 // @std.io#channel<t>.channel_state   
@@ -93446,20 +93460,20 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data_or_close
 37 [0x25]:           loadval ebx   
 38 [0x26]:           movr cmt, ebx   
 39 [0x27]:           jne 41   
-40 [0x28]: line: 243 jmp @46   
+40 [0x28]: line: 255 jmp @46   
 41 [0x29]:           nop   
-42 [0x2a]: line: 245 istore 1   
+42 [0x2a]: line: 257 istore 1   
 44 [0x2c]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 45 [0x2d]:           jmp @14   
 46 [0x2e]:           nop   
 47 [0x2f]:           ret   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.avail_data[4287] params(0) in file: lib/support/0.2.9/io//channel.sharp:250:11: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.avail_data[4287] params(0) in file: lib/support/0.2.9/io//channel.sharp:262:11: note:  
 		       def avail_data() : var {
 		          ^
 
-0 [0x0]: line: 251 movl 0   
+0 [0x0]: line: 263 movl 0   
 1 [0x1]:           movn #2   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -93467,13 +93481,13 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.avail_data[4287] param
 7 [0x7]:           ret   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) in file: lib/support/0.2.9/io//channel.sharp:254:11: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) in file: lib/support/0.2.9/io//channel.sharp:266:11: note:  
 		       def read(chan: channel<t>) : t {
 		          ^
 
-0 [0x0]: line: 255 pushl 0   
+0 [0x0]: line: 267 pushl 0   
 1 [0x1]:           call @2347 // <std#_object_._lock>   
-2 [0x2]: line: 256 movl 1   
+2 [0x2]: line: 268 movl 1   
 3 [0x3]:           movn #1   
 5 [0x5]:           pushobj   
 6 [0x6]:           movg @25 // @std.io#buffer_type   
@@ -93483,26 +93497,26 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 11 [0xb]:           loadval ebx   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 44   
-14 [0xe]: line: 258 pushl 0   
+14 [0xe]: line: 270 pushl 0   
 15 [0xf]:           call @4284 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data>   
-16 [0x10]: line: 260 movl 0   
+16 [0x10]: line: 272 movl 0   
 17 [0x11]:           movn #0   
 19 [0x13]:           movn #0   
 21 [0x15]:           smovr_3 fp+2   
-22 [0x16]: line: 261 movl 0   
+22 [0x16]: line: 273 movl 0   
 23 [0x17]:           movn #1   
 25 [0x19]:           del   
-26 [0x1a]: line: 262 movl 0   
+26 [0x1a]: line: 274 movl 0   
 27 [0x1b]:           movn #0   
 29 [0x1d]:           del   
-30 [0x1e]: line: 263 movi #0, ebx   
+30 [0x1e]: line: 275 movi #0, ebx   
 32 [0x20]:           movl 0   
 33 [0x21]:           movn #2   
 35 [0x23]:           movi #0, adx   
 37 [0x25]:           rmov adx, ebx   
-38 [0x26]: line: 265 pushl 0   
+38 [0x26]: line: 277 pushl 0   
 39 [0x27]:           call @2348 // <std#_object_._unlock>   
-40 [0x28]: line: 266 movl 2   
+40 [0x28]: line: 278 movl 2   
 41 [0x29]:           returnobj   
 42 [0x2a]:           ret   
 43 [0x2b]:           jmp @203   
@@ -93516,26 +93530,26 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 53 [0x35]:           loadval ebx   
 54 [0x36]:           movr cmt, ebx   
 55 [0x37]:           jne 86   
-56 [0x38]: line: 269 pushl 0   
+56 [0x38]: line: 281 pushl 0   
 57 [0x39]:           call @4284 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data>   
-58 [0x3a]: line: 271 movl 0   
+58 [0x3a]: line: 283 movl 0   
 59 [0x3b]:           movn #0   
 61 [0x3d]:           movn #0   
 63 [0x3f]:           smovr_3 fp+3   
-64 [0x40]: line: 272 movl 0   
+64 [0x40]: line: 284 movl 0   
 65 [0x41]:           movn #1   
 67 [0x43]:           del   
-68 [0x44]: line: 273 movl 0   
+68 [0x44]: line: 285 movl 0   
 69 [0x45]:           movn #0   
 71 [0x47]:           del   
-72 [0x48]: line: 274 movi #0, ebx   
+72 [0x48]: line: 286 movi #0, ebx   
 74 [0x4a]:           movl 0   
 75 [0x4b]:           movn #2   
 77 [0x4d]:           movi #0, adx   
 79 [0x4f]:           rmov adx, ebx   
-80 [0x50]: line: 275 pushl 0   
+80 [0x50]: line: 287 pushl 0   
 81 [0x51]:           call @2348 // <std#_object_._unlock>   
-82 [0x52]: line: 276 movl 3   
+82 [0x52]: line: 288 movl 3   
 83 [0x53]:           returnobj   
 84 [0x54]:           ret   
 85 [0x55]:           jmp @203   
@@ -93549,9 +93563,9 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 95 [0x5f]:           loadval ebx   
 96 [0x60]:           movr cmt, ebx   
 97 [0x61]:           jne 121   
-98 [0x62]: line: 279 pushl 0   
+98 [0x62]: line: 291 pushl 0   
 99 [0x63]:           call @4284 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data>   
-100 [0x64]: line: 281 movl 0   
+100 [0x64]: line: 293 movl 0   
 101 [0x65]:           movn #2   
 103 [0x67]:           movi #0, adx   
 105 [0x69]:           iaload ebx, adx   
@@ -93559,13 +93573,13 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 107 [0x6b]:           dec ebx   
 108 [0x6c]:           movi #0, adx   
 110 [0x6e]:           rmov adx, ebx   
-111 [0x6f]: line: 282 pushl 0   
+111 [0x6f]: line: 294 pushl 0   
 112 [0x70]:           call @4283 // <std.io.coroutines#filter<std.io.coroutines#job>.filo>   
 113 [0x71]:           popobj2    
 114 [0x72]:           smovr_3 fp+4   
-115 [0x73]: line: 284 pushl 0   
+115 [0x73]: line: 296 pushl 0   
 116 [0x74]:           call @2348 // <std#_object_._unlock>   
-117 [0x75]: line: 285 movl 4   
+117 [0x75]: line: 297 movl 4   
 118 [0x76]:           returnobj   
 119 [0x77]:           ret   
 120 [0x78]:           jmp @203   
@@ -93579,9 +93593,9 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 130 [0x82]:           loadval ebx   
 131 [0x83]:           movr cmt, ebx   
 132 [0x84]:           jne 196   
-133 [0x85]: line: 288 pushl 0   
+133 [0x85]: line: 300 pushl 0   
 134 [0x86]:           call @4284 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_data>   
-135 [0x87]: line: 290 movl 0   
+135 [0x87]: line: 302 movl 0   
 136 [0x88]:           movn #2   
 138 [0x8a]:           movi #0, adx   
 140 [0x8c]:           iaload ebx, adx   
@@ -93595,7 +93609,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 150 [0x96]:           movr ebx, cmt   
 151 [0x97]:           movr cmt, ebx   
 152 [0x98]:           jne 174   
-153 [0x99]: line: 291 movl 0   
+153 [0x99]: line: 303 movl 0   
 154 [0x9a]:           movn #2   
 156 [0x9c]:           movi #0, adx   
 158 [0x9e]:           iaload ebx, adx   
@@ -93603,17 +93617,17 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 160 [0xa0]:           dec ebx   
 161 [0xa1]:           movi #0, adx   
 163 [0xa3]:           rmov adx, ebx   
-164 [0xa4]: line: 292 pushl 0   
+164 [0xa4]: line: 304 pushl 0   
 165 [0xa5]:           call @4283 // <std.io.coroutines#filter<std.io.coroutines#job>.filo>   
 166 [0xa6]:           popobj2    
 167 [0xa7]:           smovr_3 fp+5   
-168 [0xa8]: line: 294 pushl 0   
+168 [0xa8]: line: 306 pushl 0   
 169 [0xa9]:           call @2348 // <std#_object_._unlock>   
-170 [0xaa]: line: 295 movl 5   
+170 [0xaa]: line: 307 movl 5   
 171 [0xab]:           returnobj   
 172 [0xac]:           ret   
 173 [0xad]:           jmp @194   
-174 [0xae]: line: 297 movl 0   
+174 [0xae]: line: 309 movl 0   
 175 [0xaf]:           movn #2   
 177 [0xb1]:           movi #0, adx   
 179 [0xb3]:           iaload ebx, adx   
@@ -93621,34 +93635,34 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.read[4288] params(1) i
 181 [0xb5]:           dec ebx   
 182 [0xb6]:           movi #0, adx   
 184 [0xb8]:           rmov adx, ebx   
-185 [0xb9]: line: 298 pushl 0   
+185 [0xb9]: line: 310 pushl 0   
 186 [0xba]:           call @4283 // <std.io.coroutines#filter<std.io.coroutines#job>.filo>   
 187 [0xbb]:           popobj2    
 188 [0xbc]:           smovr_3 fp+6   
-189 [0xbd]: line: 299 pushl 0   
+189 [0xbd]: line: 311 pushl 0   
 190 [0xbe]:           call @2348 // <std#_object_._unlock>   
-191 [0xbf]: line: 300 movl 6   
+191 [0xbf]: line: 312 movl 6   
 192 [0xc0]:           returnobj   
 193 [0xc1]:           ret   
 194 [0xc2]:           nop   
 195 [0xc3]:           jmp @203   
-196 [0xc4]: line: 304 movl 7   
+196 [0xc4]: line: 316 movl 7   
 197 [0xc5]:           del   
-198 [0xc6]: line: 305 pushl 0   
+198 [0xc6]: line: 317 pushl 0   
 199 [0xc7]:           call @2348 // <std#_object_._unlock>   
-200 [0xc8]: line: 306 movl 7   
+200 [0xc8]: line: 318 movl 7   
 201 [0xc9]:           returnobj   
 202 [0xca]:           ret   
 203 [0xcb]:           nop   
 
 
-function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) in file: lib/support/0.2.9/io//channel.sharp:311:11: note:  
+function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) in file: lib/support/0.2.9/io//channel.sharp:323:11: note:  
 		       def send(data : t, chan: channel<t>) {
 		          ^
 
-0 [0x0]: line: 312 pushl 0   
+0 [0x0]: line: 324 pushl 0   
 1 [0x1]:           call @2347 // <std#_object_._lock>   
-2 [0x2]: line: 314 movl 2   
+2 [0x2]: line: 326 movl 2   
 3 [0x3]:           movn #3   
 5 [0x5]:           pushobj   
 6 [0x6]:           movg @98 // @std.io#channel<t>.channel_state   
@@ -93658,7 +93672,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 11 [0xb]:           loadval ebx   
 12 [0xc]:           movr cmt, ebx   
 13 [0xd]:           jne 324   
-14 [0xe]: line: 315 movl 2   
+14 [0xe]: line: 327 movl 2   
 15 [0xf]:           movn #1   
 17 [0x11]:           pushobj   
 18 [0x12]:           movg @25 // @std.io#buffer_type   
@@ -93668,7 +93682,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 23 [0x17]:           loadval ebx   
 24 [0x18]:           movr cmt, ebx   
 25 [0x19]:           jne 59   
-26 [0x1a]: line: 317 new_class @119 // main#channel_data<var>   
+26 [0x1a]: line: 329 new_class @119 // main#channel_data<var>   
 28 [0x1c]:           pushl 1   
 29 [0x1d]:           movsl #-1   
 30 [0x1e]:           movn #0   
@@ -93676,22 +93690,22 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 33 [0x21]:           movl 0   
 34 [0x22]:           movn #0   
 36 [0x24]:           popobj   
-37 [0x25]: line: 318 movl 0   
+37 [0x25]: line: 330 movl 0   
 38 [0x26]:           movn #0   
 40 [0x28]:           pushobj   
 41 [0x29]:           movl 0   
 42 [0x2a]:           movn #1   
 44 [0x2c]:           popobj   
-45 [0x2d]: line: 319 movi #1, ebx   
+45 [0x2d]: line: 331 movi #1, ebx   
 47 [0x2f]:           movl 0   
 48 [0x30]:           movn #2   
 50 [0x32]:           movi #0, adx   
 52 [0x34]:           rmov adx, ebx   
-53 [0x35]: line: 320 pushl 0   
+53 [0x35]: line: 332 pushl 0   
 54 [0x36]:           call @2348 // <std#_object_._unlock>   
-55 [0x37]: line: 321 pushl 0   
+55 [0x37]: line: 333 pushl 0   
 56 [0x38]:           call @4285 // <std.io.coroutines#filter<std.io.coroutines#job>.wait_for_consume>   
-57 [0x39]: line: 322 ret   
+57 [0x39]: line: 334 ret   
 58 [0x3a]:           jmp @323   
 59 [0x3b]:           movl 2   
 60 [0x3c]:           movn #1   
@@ -93703,14 +93717,14 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 68 [0x44]:           loadval ebx   
 69 [0x45]:           movr cmt, ebx   
 70 [0x46]:           jne 116   
-71 [0x47]: line: 325 movl 0   
+71 [0x47]: line: 337 movl 0   
 72 [0x48]:           movn #0   
 74 [0x4a]:           pushobj   
 75 [0x4b]:           pushnull    
 76 [0x4c]:           itest ebx   
 77 [0x4d]:           movr cmt, ebx   
 78 [0x4e]:           jne 99   
-79 [0x4f]: line: 326 new_class @119 // main#channel_data<var>   
+79 [0x4f]: line: 338 new_class @119 // main#channel_data<var>   
 81 [0x51]:           pushl 1   
 82 [0x52]:           movsl #-1   
 83 [0x53]:           movn #0   
@@ -93718,20 +93732,20 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 86 [0x56]:           movl 0   
 87 [0x57]:           movn #0   
 89 [0x59]:           popobj   
-90 [0x5a]: line: 327 movl 0   
+90 [0x5a]: line: 339 movl 0   
 91 [0x5b]:           movn #0   
 93 [0x5d]:           pushobj   
 94 [0x5e]:           movl 0   
 95 [0x5f]:           movn #1   
 97 [0x61]:           popobj   
 98 [0x62]:           jmp @106   
-99 [0x63]: line: 329 pushl 1   
+99 [0x63]: line: 341 pushl 1   
 100 [0x64]:           movl 0   
 101 [0x65]:           movn #0   
 103 [0x67]:           movn #0   
 105 [0x69]:           popobj   
 106 [0x6a]:           nop   
-107 [0x6b]: line: 332 movi #1, ebx   
+107 [0x6b]: line: 344 movi #1, ebx   
 109 [0x6d]:           movl 0   
 110 [0x6e]:           movn #2   
 112 [0x70]:           movi #0, adx   
@@ -93747,14 +93761,14 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 125 [0x7d]:           loadval ebx   
 126 [0x7e]:           movr cmt, ebx   
 127 [0x7f]:           jne 192   
-128 [0x80]: line: 335 movl 0   
+128 [0x80]: line: 347 movl 0   
 129 [0x81]:           movn #0   
 131 [0x83]:           pushobj   
 132 [0x84]:           pushnull    
 133 [0x85]:           itest ebx   
 134 [0x86]:           movr cmt, ebx   
 135 [0x87]:           jne 156   
-136 [0x88]: line: 336 new_class @119 // main#channel_data<var>   
+136 [0x88]: line: 348 new_class @119 // main#channel_data<var>   
 138 [0x8a]:           pushl 1   
 139 [0x8b]:           movsl #-1   
 140 [0x8c]:           movn #0   
@@ -93762,14 +93776,14 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 143 [0x8f]:           movl 0   
 144 [0x90]:           movn #0   
 146 [0x92]:           popobj   
-147 [0x93]: line: 337 movl 0   
+147 [0x93]: line: 349 movl 0   
 148 [0x94]:           movn #0   
 150 [0x96]:           pushobj   
 151 [0x97]:           movl 0   
 152 [0x98]:           movn #1   
 154 [0x9a]:           popobj   
 155 [0x9b]:           jmp @179   
-156 [0x9c]: line: 339 new_class @119 // main#channel_data<var>   
+156 [0x9c]: line: 351 new_class @119 // main#channel_data<var>   
 158 [0x9e]:           pushl 1   
 159 [0x9f]:           movsl #-1   
 160 [0xa0]:           movn #0   
@@ -93778,7 +93792,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 164 [0xa4]:           movn #1   
 166 [0xa6]:           movn #1   
 168 [0xa8]:           popobj   
-169 [0xa9]: line: 340 movl 0   
+169 [0xa9]: line: 352 movl 0   
 170 [0xaa]:           movn #1   
 172 [0xac]:           movn #1   
 174 [0xae]:           pushobj   
@@ -93786,7 +93800,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 176 [0xb0]:           movn #1   
 178 [0xb2]:           popobj   
 179 [0xb3]:           nop   
-180 [0xb4]: line: 343 movl 0   
+180 [0xb4]: line: 355 movl 0   
 181 [0xb5]:           movn #2   
 183 [0xb7]:           movi #0, adx   
 185 [0xb9]:           iaload ebx, adx   
@@ -93805,7 +93819,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 201 [0xc9]:           loadval ebx   
 202 [0xca]:           movr cmt, ebx   
 203 [0xcb]:           jne 323   
-204 [0xcc]: line: 346 movl 0   
+204 [0xcc]: line: 358 movl 0   
 205 [0xcd]:           movn #2   
 207 [0xcf]:           movi #0, adx   
 209 [0xd1]:           iaload ebx, adx   
@@ -93819,9 +93833,9 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 219 [0xdb]:           movr ebx, cmt   
 220 [0xdc]:           movr cmt, ebx   
 221 [0xdd]:           jne 248   
-222 [0xde]: line: 347 pushl 0   
+222 [0xde]: line: 359 pushl 0   
 223 [0xdf]:           call @2348 // <std#_object_._unlock>   
-224 [0xe0]: line: 348 movl 0   
+224 [0xe0]: line: 360 movl 0   
 225 [0xe1]:           movn #2   
 227 [0xe3]:           movi #0, adx   
 229 [0xe5]:           iaload ebx, adx   
@@ -93835,20 +93849,20 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 239 [0xef]:           movr ebx, cmt   
 240 [0xf0]:           movr cmt, ebx   
 241 [0xf1]:           jne 246   
-242 [0xf2]: line: 349 istore 1   
+242 [0xf2]: line: 361 istore 1   
 244 [0xf4]:           call @2139 // <std.io.fiber#__srt_global.delay>   
 245 [0xf5]:           jmp @224   
-246 [0xf6]: line: 351 pushl 0   
+246 [0xf6]: line: 363 pushl 0   
 247 [0xf7]:           call @2347 // <std#_object_._lock>   
 248 [0xf8]:           nop   
-249 [0xf9]: line: 354 movl 0   
+249 [0xf9]: line: 366 movl 0   
 250 [0xfa]:           movn #0   
 252 [0xfc]:           pushobj   
 253 [0xfd]:           pushnull    
 254 [0xfe]:           itest ebx   
 255 [0xff]:           movr cmt, ebx   
 256 [0x100]:           jne 288   
-257 [0x101]: line: 355 new_class @119 // main#channel_data<var>   
+257 [0x101]: line: 367 new_class @119 // main#channel_data<var>   
 259 [0x103]:           pushl 1   
 260 [0x104]:           movsl #-1   
 261 [0x105]:           movn #0   
@@ -93856,13 +93870,13 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 264 [0x108]:           movl 0   
 265 [0x109]:           movn #0   
 267 [0x10b]:           popobj   
-268 [0x10c]: line: 356 movl 0   
+268 [0x10c]: line: 368 movl 0   
 269 [0x10d]:           movn #0   
 271 [0x10f]:           pushobj   
 272 [0x110]:           movl 0   
 273 [0x111]:           movn #1   
 275 [0x113]:           popobj   
-276 [0x114]: line: 357 movl 0   
+276 [0x114]: line: 369 movl 0   
 277 [0x115]:           movn #2   
 279 [0x117]:           movi #0, adx   
 281 [0x119]:           iaload ebx, adx   
@@ -93871,7 +93885,7 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 284 [0x11c]:           movi #0, adx   
 286 [0x11e]:           rmov adx, ebx   
 287 [0x11f]:           jmp @322   
-288 [0x120]: line: 359 new_class @119 // main#channel_data<var>   
+288 [0x120]: line: 371 new_class @119 // main#channel_data<var>   
 290 [0x122]:           pushl 1   
 291 [0x123]:           movsl #-1   
 292 [0x124]:           movn #0   
@@ -93880,14 +93894,14 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 296 [0x128]:           movn #1   
 298 [0x12a]:           movn #1   
 300 [0x12c]:           popobj   
-301 [0x12d]: line: 360 movl 0   
+301 [0x12d]: line: 372 movl 0   
 302 [0x12e]:           movn #1   
 304 [0x130]:           movn #1   
 306 [0x132]:           pushobj   
 307 [0x133]:           movl 0   
 308 [0x134]:           movn #1   
 310 [0x136]:           popobj   
-311 [0x137]: line: 361 movl 0   
+311 [0x137]: line: 373 movl 0   
 312 [0x138]:           movn #2   
 314 [0x13a]:           movi #0, adx   
 316 [0x13c]:           iaload ebx, adx   
@@ -93898,12 +93912,12 @@ function: std.io.coroutines#filter<std.io.coroutines#job>.send[4289] params(2) i
 322 [0x142]:           nop   
 323 [0x143]:           nop   
 324 [0x144]:           nop   
-325 [0x145]: line: 367 pushl 0   
+325 [0x145]: line: 379 pushl 0   
 326 [0x146]:           call @2348 // <std#_object_._unlock>   
 327 [0x147]:           ret   
 
 
-constructor: std.io.coroutines#filter<std.io.coroutines#job>.filter[4290] params(0) in file: lib/support/0.2.9/io//channel.sharp:209:10: note:  
+constructor: std.io.coroutines#filter<std.io.coroutines#job>.filter[4290] params(0) in file: lib/support/0.2.9/io//channel.sharp:221:10: note:  
 		    class filter<t> {
 		         ^
 
@@ -95115,7 +95129,7 @@ function: std#list<std.io.coroutines#filter<std.io.coroutines#job>>.out_of_bound
 19 [0x13]:           ret   
 
 
-constructor: main#channel_data<var>.channel_data[4323] params(0) in file: lib/support/0.2.9/io//channel.sharp:371:10: note:  
+constructor: main#channel_data<var>.channel_data[4323] params(0) in file: lib/support/0.2.9/io//channel.sharp:383:10: note:  
 		    class channel_data<t> {
 		         ^
 
@@ -95123,7 +95137,7 @@ constructor: main#channel_data<var>.channel_data[4323] params(0) in file: lib/su
 1 [0x1]:         ret   
 
 
-constructor: std.io.coroutines#channel_data<std.io.coroutines#job>.channel_data[4324] params(0) in file: lib/support/0.2.9/io//channel.sharp:371:10: note:  
+constructor: std.io.coroutines#channel_data<std.io.coroutines#job>.channel_data[4324] params(0) in file: lib/support/0.2.9/io//channel.sharp:383:10: note:  
 		    class channel_data<t> {
 		         ^
 
@@ -95661,17 +95675,17 @@ function: std#tmp.$03internal_static_init[4338] params(0) in file: lib/support/0
 24 [0x18]:          ret   
 
 
-lambda: main#__srt_global.anon_func$4339[4339] params(0) in file: tests/corouting_test.sharp:15:11: note:  
+lambda: main#__srt_global.anon_func$4339[4339] params(0) in file: tests/corouting_test.sharp:17:11: note:  
 		        = { ->
 		          ^
 
-0 [0x0]: line: 16 movg @0 // @main#__srt_global   
-1 [0x1]: line: 17 movn #2   
+0 [0x0]: line: 18 movg @0 // @main#__srt_global   
+1 [0x1]: line: 19 movn #2   
 3 [0x3]:          pushobj   
 4 [0x4]:          istore 1   
 6 [0x6]:          call @3995 // <std.io#atomic<var>.operator++>   
 7 [0x7]:          pop   
-8 [0x8]: line: 18 istore 1000   
+8 [0x8]: line: 20 istore 1000   
 10 [0xa]:          call @2139 // <std.io.fiber#__srt_global.delay>   
 11 [0xb]:          jmp @0   
 12 [0xc]:          ret   

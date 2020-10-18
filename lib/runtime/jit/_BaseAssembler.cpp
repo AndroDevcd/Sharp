@@ -1714,10 +1714,10 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                 gc.addMemory(jitMemory);
             }
 
-            cout << "compiled " << func->name.str() << " " << func->address << endl;
-            cout << "used Size " << rt.allocator()->statistics()._usedSize << endl;
-            cout << "reserved Size " << rt.allocator()->statistics()._reservedSize << endl;
-            cout << "overhead Size " << rt.allocator()->statistics()._overheadSize << endl;
+//            cout << "compiled " << func->name.str() << " " << func->address << endl;
+//            cout << "used Size " << rt.allocator()->statistics()._usedSize << endl;
+//            cout << "reserved Size " << rt.allocator()->statistics()._reservedSize << endl;
+//            cout << "overhead Size " << rt.allocator()->statistics()._overheadSize << endl;
             return error;
         } else {
             error = jit_error_size;
@@ -2085,7 +2085,7 @@ void _BaseAssembler::jitNewString(Thread* thread, int64_t strid) {
 }
 
 void _BaseAssembler::jitPushNil(Thread* thread) {
-//    GarbageCollector::self->releaseObject(&(++thread->sp)->object);
+    (++thread->this_fiber->sp)->object = (SharpObject*)NULL;
 }
 
 void _BaseAssembler::jitNullPtrException(Thread *thread) {
@@ -2096,7 +2096,6 @@ void _BaseAssembler::jitNullPtrException(Thread *thread) {
 void _BaseAssembler::jitStackOverflowException(Thread *thread) {
     GUARD(thread->mutex);
     Exception err(vm.StackOverflowExcept, "");
-    sendSignal(thread->signal, tsig_except, 1);
     sendSignal(thread->signal, tsig_except, 1);
 }
 

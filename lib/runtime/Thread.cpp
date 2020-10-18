@@ -841,7 +841,7 @@ void Thread::exec() {
     fptr jitFun;
 
 #ifdef BUILD_JIT
-    if(stackRebuild) {
+    if(stackRebuild) { // relatibeCalls
         jitFun = shiftToNextMethod(this, false);
         if(jitFun) {
             jitFun(jctx);
@@ -1162,7 +1162,7 @@ void Thread::exec() {
             ULOCK:
                 CHECK_NULL2(Object::monitorUnLock(this_fiber->ptr);)
                 _brh
-            MOVG:
+            MOVG: // TODO: update to 2 part instruction to support 16M classes
                 this_fiber->ptr = vm.staticHeap+GET_Da(*this_fiber->pc);
                 _brh
             MOVND:
@@ -1447,7 +1447,16 @@ void Thread::exec() {
 bool Thread::try_context_switch(bool incPc) {
     if(contextSwitching) return true;
    if(this_fiber == NULL || this_fiber->callStack == NULL
-    || this_fiber->current->nativeFunc) return false;
+    || this_fiber->current->nativeFunc)  {
+       GUARD(mutex)
+       contextSwitching = false;
+       next_fiber = NULL;
+       sendSignal(signal, tsig_context_switch, 0);
+#ifdef COROUTINE_DEBUGGING
+       skipped++;
+#endif
+       return false;
+   }
 
    for(Int i = 0; i < this_fiber->calls; i++) {
        Frame &frame = this_fiber->callStack[i];

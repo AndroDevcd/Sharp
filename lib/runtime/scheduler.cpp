@@ -22,9 +22,6 @@ void __usleep(unsigned int usec)
     SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
     WaitForSingleObject(timer, INFINITE);
     CloseHandle(timer);
-//
-//__os_yield();
-//std::this_thread::sleep_for(std::chrono::microseconds(usec));
 #else
     __os_yield()
     usleep(usec);
@@ -113,7 +110,8 @@ void run_scheduler() {
 
 bool is_thread_ready(Thread *thread) {
     uInt currentTime = loggedTime;
-    if(thread->state != THREAD_RUNNING || hasSignal(thread->signal, tsig_kill) || hasSignal(thread->signal, tsig_suspend))
+    if(thread->state != THREAD_RUNNING || hasSignal(thread->signal, tsig_kill)
+    || hasSignal(thread->signal, tsig_suspend))
         return false;
 
     switch(thread->priority) {

@@ -72,7 +72,7 @@ void Jit::run() {
              */
 //            if(function != 2111)
                getAssembler()->tryJit(vm.methods+function);
-            __usleep(50);
+               __os_yield();
         }
 
         do {

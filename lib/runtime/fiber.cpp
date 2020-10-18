@@ -22,7 +22,7 @@ atomic<uInt> openSpots = { 0 };
 void increase_fibers() {
     if((dataSize + 1) >= capacity) {
         GUARD(fmut)
-        Int resizeAmnt = capacity == 0 ? RESIZE_MAX : capacity + RESIZE_MIN;
+        Int resizeAmnt = capacity == 0 ? RESIZE_MIN : capacity + RESIZE_MIN;
         if(resizeAmnt > RESIZE_MAX) resizeAmnt = RESIZE_MAX;
 
         fiber** tmpfibers = (fiber**)__calloc((capacity + resizeAmnt), sizeof(fiber**));
@@ -98,7 +98,12 @@ void addFiber(fiber* fib) {
 
 fiber* fiber::makeFiber(native_string &name, Method* main) {
     // todo: check if space available before allocation
+    // todo: check to see if fib is null first
    fiber *fib = (fiber*)malloc(sizeof(fiber));
+
+   if(fib == nullptr) {
+       cout << "null\n" << std::flush << endl;
+   }
 
     try {
         fib->name.init();
@@ -192,7 +197,7 @@ inline bool isFiberRunnble(fiber *fib, Thread *thread) {
 }
 
 fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
-    fiber *fib = NULL, *startingFiber = NULL;
+    fiber *fib = NULL, *startingFiber;
     uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
     Int size;
 
@@ -220,13 +225,13 @@ fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
 
     __os_yield();
     __usleep(10);
-    for(Int i = size; i >= 0 ; i--) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && fib != startingFiber  && isFiberRunnble(fib, thread)) {
+    for(Int i = 0; i < dataSize; i++) {
+       if((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
            if(fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
            return fib;
        }
     }
-    return startingFiber;
+    return NULL;
 }
 
 void fiber::disposeFibers() {
@@ -489,6 +494,14 @@ void fiber::killBoundFibers(Thread *thread) {
         }
     }
 }
+
+/*
+ * foo(var, var, string) { [5 locals] } [3]
+ *
+ * 5
+ * 10
+ * "hello"
+ */
 
 void fiber::growFrame() {
     GUARD(mut)

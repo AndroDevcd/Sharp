@@ -134,7 +134,6 @@ private: // virtual functions
 
 protected:
     static void jitSysInt(Int signal);
-    static void jitThreadMutex(Thread *thread, int lock);
     static int jitTryContextSwitch(Thread *thread, bool incPc);
     static void growStack(fiber *fib);
     static void jitStackOverflowException(Thread *);
@@ -156,11 +155,11 @@ protected:
     static SharpObject* jitNewObject2(Int size, Thread *thread);
     static SharpObject* jitNewClass1(Int size, Int classid, Thread *);
     static void jitNewString(Thread* thread, int64_t strid);
+    static void jitPushNil(Thread* thread);
 
 
     static int jitTryCatch(Method *method);
     static Int jitGetPc(Thread *thread);
-    static void jitPushNil(Thread* thread);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject3(Object *dest, SharpObject *src);
     static void jitInvokeDelegate(Int address, Int args, Thread* thread, Int staticAddr);
