@@ -1,11 +1,28 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_X86_X86FEATURES_H
-#define _ASMJIT_X86_X86FEATURES_H
+#ifndef ASMJIT_X86_X86FEATURES_H_INCLUDED
+#define ASMJIT_X86_X86FEATURES_H_INCLUDED
 
 #include "../core/features.h"
 
@@ -23,6 +40,8 @@ class Features : public BaseFeatures {
 public:
   //! CPU feature ID.
   enum Id : uint32_t {
+    // @EnumValuesBegin{"enum": "x86::Features::Id"}@
+
     kNone = 0,                 //!< No feature (never set, used internally).
 
     kMT,                       //!< CPU has multi-threading capabilities.
@@ -33,6 +52,9 @@ public:
     kADX,                      //!< CPU has ADX              (multi-precision add-carry instruction extensions).
     kAESNI,                    //!< CPU has AESNI            (AES encode/decode instructions).
     kALTMOVCR8,                //!< CPU has LOCK MOV R<->CR0 (supports `MOV R<->CR8` via `LOCK MOV R<->CR0` in 32-bit mode) [AMD].
+    kAMX_BF16,                 //!< CPU has AMX_BF16         (advanced matrix extensions - BF16 instructions).
+    kAMX_INT8,                 //!< CPU has AMX_INT8         (advanced matrix extensions - INT8 instructions).
+    kAMX_TILE,                 //!< CPU has AMX_TILE         (advanced matrix extensions).
     kAVX,                      //!< CPU has AVX              (advanced vector extensions).
     kAVX2,                     //!< CPU has AVX2             (advanced vector extensions 2).
     kAVX512_4FMAPS,            //!< CPU has AVX512_FMAPS     (FMA packed single).
@@ -54,6 +76,8 @@ public:
     kAVX512_VPOPCNTDQ,         //!< CPU has AVX512_VPOPCNTDQ (VPOPCNT[D|Q] instructions).
     kBMI,                      //!< CPU has BMI              (bit manipulation instructions #1).
     kBMI2,                     //!< CPU has BMI2             (bit manipulation instructions #2).
+    kCET_IBT,                  //!< CPU has CET-IBT.
+    kCET_SS,                   //!< CPU has CET-SS.
     kCLDEMOTE,                 //!< CPU has CLDEMOTE         (cache line demote).
     kCLFLUSH,                  //!< CPU has CLFUSH           (Cache Line flush).
     kCLFLUSHOPT,               //!< CPU has CLFUSHOPT        (Cache Line flush - optimized).
@@ -79,6 +103,7 @@ public:
     kLAHFSAHF,                 //!< CPU has LAHF/SAHF        (LAHF/SAHF in 64-bit mode) [X86_64].
     kLWP,                      //!< CPU has LWP              (lightweight profiling) [AMD].
     kLZCNT,                    //!< CPU has LZCNT            (LZCNT instruction).
+    kMCOMMIT,                  //!< CPU has MCOMMIT          (MCOMMIT instruction).
     kMMX,                      //!< CPU has MMX              (MMX base instructions).
     kMMX2,                     //!< CPU has MMX2             (MMX extensions or MMX2).
     kMONITOR,                  //!< CPU has MONITOR          (MONITOR/MWAIT instructions).
@@ -90,23 +115,27 @@ public:
     kMSR,                      //!< CPU has MSR              (RDMSR/WRMSR instructions).
     kMSSE,                     //!< CPU has MSSE             (misaligned SSE support).
     kOSXSAVE,                  //!< CPU has OSXSAVE          (XSAVE enabled by OS).
+    kOSPKE,                    //!< CPU has OSPKE            (PKE enabled by OS).
     kPCLMULQDQ,                //!< CPU has PCLMULQDQ        (packed carry-less multiplication).
-    kPCOMMIT,                  //!< CPU has PCOMMIT          (PCOMMIT instruction).
     kPCONFIG,                  //!< CPU has PCONFIG          (PCONFIG instruction).
     kPOPCNT,                   //!< CPU has POPCNT           (POPCNT instruction).
     kPREFETCHW,                //!< CPU has PREFETCHW.
     kPREFETCHWT1,              //!< CPU has PREFETCHWT1.
+    kPTWRITE,                  //!< CPU has PTWRITE.
     kRDPID,                    //!< CPU has RDPID.
+    kRDPRU,                    //!< CPU has RDPRU.
     kRDRAND,                   //!< CPU has RDRAND.
     kRDSEED,                   //!< CPU has RDSEED.
     kRDTSC,                    //!< CPU has RDTSC.
     kRDTSCP,                   //!< CPU has RDTSCP.
     kRTM,                      //!< CPU has RTM.
+    kSERIALIZE,                //!< CPU has SERIALIZE.
     kSHA,                      //!< CPU has SHA              (SHA-1 and SHA-256 instructions).
     kSKINIT,                   //!< CPU has SKINIT           (SKINIT/STGI instructions) [AMD].
     kSMAP,                     //!< CPU has SMAP             (supervisor-mode access prevention).
     kSMEP,                     //!< CPU has SMEP             (supervisor-mode execution prevention).
     kSMX,                      //!< CPU has SMX              (safer mode extensions).
+    kSNP,                      //!< CPU has SNP.
     kSSE,                      //!< CPU has SSE.
     kSSE2,                     //!< CPU has SSE2.
     kSSE3,                     //!< CPU has SSE3.
@@ -117,6 +146,7 @@ public:
     kSVM,                      //!< CPU has SVM              (virtualization) [AMD].
     kTBM,                      //!< CPU has TBM              (trailing bit manipulation) [AMD].
     kTSX,                      //!< CPU has TSX.
+    kTSXLDTRK,                 //!< CPU has TSXLDTRK.
     kVAES,                     //!< CPU has VAES             (vector AES 256|512 bit support).
     kVMX,                      //!< CPU has VMX              (virtualization) [INTEL].
     kVPCLMULQDQ,               //!< CPU has VPCLMULQDQ       (vector PCLMULQDQ 256|512-bit support).
@@ -128,6 +158,8 @@ public:
     kXSAVEOPT,                 //!< CPU has XSAVEOPT.
     kXSAVES,                   //!< CPU has XSAVES.
 
+    // @EnumValuesEnd@
+
     kCount                     //!< Count of X86 CPU features.
   };
 
@@ -136,6 +168,7 @@ public:
 
   inline Features() noexcept
     : BaseFeatures() {}
+
   inline Features(const Features& other) noexcept
     : BaseFeatures(other) {}
 
@@ -162,6 +195,9 @@ public:
   ASMJIT_X86_FEATURE(ADX)
   ASMJIT_X86_FEATURE(AESNI)
   ASMJIT_X86_FEATURE(ALTMOVCR8)
+  ASMJIT_X86_FEATURE(AMX_BF16)
+  ASMJIT_X86_FEATURE(AMX_INT8)
+  ASMJIT_X86_FEATURE(AMX_TILE)
   ASMJIT_X86_FEATURE(AVX)
   ASMJIT_X86_FEATURE(AVX2)
   ASMJIT_X86_FEATURE(AVX512_4FMAPS)
@@ -208,6 +244,7 @@ public:
   ASMJIT_X86_FEATURE(LAHFSAHF)
   ASMJIT_X86_FEATURE(LWP)
   ASMJIT_X86_FEATURE(LZCNT)
+  ASMJIT_X86_FEATURE(MCOMMIT)
   ASMJIT_X86_FEATURE(MMX)
   ASMJIT_X86_FEATURE(MMX2)
   ASMJIT_X86_FEATURE(MONITOR)
@@ -220,22 +257,25 @@ public:
   ASMJIT_X86_FEATURE(MSSE)
   ASMJIT_X86_FEATURE(OSXSAVE)
   ASMJIT_X86_FEATURE(PCLMULQDQ)
-  ASMJIT_X86_FEATURE(PCOMMIT)
   ASMJIT_X86_FEATURE(PCONFIG)
   ASMJIT_X86_FEATURE(POPCNT)
   ASMJIT_X86_FEATURE(PREFETCHW)
   ASMJIT_X86_FEATURE(PREFETCHWT1)
+  ASMJIT_X86_FEATURE(PTWRITE)
   ASMJIT_X86_FEATURE(RDPID)
+  ASMJIT_X86_FEATURE(RDPRU)
   ASMJIT_X86_FEATURE(RDRAND)
   ASMJIT_X86_FEATURE(RDSEED)
   ASMJIT_X86_FEATURE(RDTSC)
   ASMJIT_X86_FEATURE(RDTSCP)
   ASMJIT_X86_FEATURE(RTM)
+  ASMJIT_X86_FEATURE(SERIALIZE)
   ASMJIT_X86_FEATURE(SHA)
   ASMJIT_X86_FEATURE(SKINIT)
   ASMJIT_X86_FEATURE(SMAP)
   ASMJIT_X86_FEATURE(SMEP)
   ASMJIT_X86_FEATURE(SMX)
+  ASMJIT_X86_FEATURE(SNP)
   ASMJIT_X86_FEATURE(SSE)
   ASMJIT_X86_FEATURE(SSE2)
   ASMJIT_X86_FEATURE(SSE3)
@@ -246,6 +286,7 @@ public:
   ASMJIT_X86_FEATURE(SVM)
   ASMJIT_X86_FEATURE(TBM)
   ASMJIT_X86_FEATURE(TSX)
+  ASMJIT_X86_FEATURE(TSXLDTRK)
   ASMJIT_X86_FEATURE(XSAVE)
   ASMJIT_X86_FEATURE(XSAVEC)
   ASMJIT_X86_FEATURE(XSAVEOPT)
@@ -266,4 +307,4 @@ public:
 
 ASMJIT_END_SUB_NAMESPACE
 
-#endif // _ASMJIT_X86_X86FEATURES_H
+#endif // ASMJIT_X86_X86FEATURES_H_INCLUDED

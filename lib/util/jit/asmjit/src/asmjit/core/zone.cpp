@@ -1,11 +1,27 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/support.h"
 #include "../core/zone.h"
 
@@ -128,7 +144,7 @@ void* Zone::_alloc(size_t size, size_t alignment) noexcept {
   size_t newSize = Support::max(blockSize(), size);
 
   // Prevent arithmetic overflow.
-  if (ASMJIT_UNLIKELY(newSize > std::numeric_limits<size_t>::max() - kBlockSize - blockAlignmentOverhead))
+  if (ASMJIT_UNLIKELY(newSize > SIZE_MAX - kBlockSize - blockAlignmentOverhead))
     return nullptr;
 
   // Allocate new block - we add alignment overhead to `newSize`, which becomes the
@@ -184,7 +200,7 @@ void* Zone::dup(const void* data, size_t size, bool nullTerminate) noexcept {
   if (ASMJIT_UNLIKELY(!data || !size))
     return nullptr;
 
-  ASMJIT_ASSERT(size != std::numeric_limits<size_t>::max());
+  ASMJIT_ASSERT(size != SIZE_MAX);
   uint8_t* m = allocT<uint8_t>(size + nullTerminate);
   if (ASMJIT_UNLIKELY(!m)) return nullptr;
 
@@ -302,7 +318,7 @@ void* ZoneAllocator::_alloc(size_t size, size_t& allocatedSize) noexcept {
     size_t kBlockOverhead = sizeof(DynamicBlock) + sizeof(DynamicBlock*) + kBlockAlignment;
 
     // Handle a possible overflow.
-    if (ASMJIT_UNLIKELY(kBlockOverhead >= std::numeric_limits<size_t>::max() - size))
+    if (ASMJIT_UNLIKELY(kBlockOverhead >= SIZE_MAX - size))
       return nullptr;
 
     void* p = ::malloc(size + kBlockOverhead);
@@ -341,7 +357,7 @@ void* ZoneAllocator::_allocZeroed(size_t size, size_t& allocatedSize) noexcept {
 }
 
 void ZoneAllocator::_releaseDynamic(void* p, size_t size) noexcept {
-  ASMJIT_UNUSED(size);
+  DebugUtils::unused(size);
   ASMJIT_ASSERT(isInitialized());
 
   // Pointer to `DynamicBlock` is stored at [-1].

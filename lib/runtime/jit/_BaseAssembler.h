@@ -190,7 +190,7 @@ enum ConstKind {
 };
 
 struct Constants {
-    _List<Data64> constants;
+    _List<double> constants;
     _List<ConstKind> constantKinds;
     _List<Label> constantLabels;
 
@@ -210,9 +210,7 @@ struct Constants {
         Int idx = _64ConstIndex(const0);
 
         if(idx == -1) {
-            Data64 const_;
-            const_.setI64(const0);
-            constants.push_back(const_);
+            constants.add(const0);
             constantKinds.add(kConst64);
             constantLabels.add(cc.newLabel());
             return constants.size();
@@ -225,10 +223,7 @@ struct Constants {
         Int idx = _floatConstIndex(const0);
 
         if(idx == -1) {
-
-            Data64 const_;
-            const_.setF64(const0);
-            constants.push_back(const_);
+            constants.add(const0);
             constantKinds.add(kConstFloat);
             constantLabels.add(cc.newLabel());
             return constants.size() - 1;
@@ -243,10 +238,10 @@ struct Constants {
 
     Int _64ConstIndex(Int const0) {
         for(Int i = 0; i < constants.size(); i++) {
-            Data64 &const_ = constants.get(i);
+            Int const_ = constants.get(i);
             ConstKind kind = constantKinds.get(i);
 
-            if(kind == kConst64 && const_.sq[0] == const0) {
+            if(kind == kConst64 && const_ == const0) {
                 return i;
             }
         }
@@ -256,19 +251,15 @@ struct Constants {
 
     Int _floatConstIndex(double const0) {
         for(Int i = 0; i < constants.size(); i++) {
-            Data64 &const_ = constants.get(i);
+            double const_ = constants.get(i);
             ConstKind kind = constantKinds.get(i);
 
-            if(kind == kConstFloat && const_.df[0] == const0) {
+            if(kind == kConstFloat && const_ == const0) {
                 return i;
             }
         }
 
         return -1;
-    }
-
-    Data64& getConstant(Int idx) {
-        return constants.get(idx);
     }
 
     Label& getConstantLabel(Int idx) {
@@ -279,13 +270,13 @@ struct Constants {
 
         for(Int i = 0; i < constantLabels.size(); i++) {
             cc.bind(constantLabels.get(i));
-            Data64 &const0 = constants.get(i);
+            double const0 = constants.get(i);
             ConstKind kind = constantKinds.get(i);
 
             if(kind == kConst64) {
-                cc.dint64(const0.sq[0]);
+                cc.embedInt64(const0);
             } else if(kind == kConstFloat) {
-                cc.dmm(const0);
+                cc.embedDouble(const0);
             }
         }
     }

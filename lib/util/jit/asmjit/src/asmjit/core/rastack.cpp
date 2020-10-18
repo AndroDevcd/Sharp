@@ -1,12 +1,27 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#define ASMJIT_EXPORTS
-
-#include "../core/build.h"
+#include "../core/api-build_p.h"
 #ifndef ASMJIT_NO_COMPILER
 
 #include "../core/rastack_p.h"
@@ -28,11 +43,9 @@ RAStackSlot* RAStackAllocator::newSlot(uint32_t baseRegId, uint32_t size, uint32
 
   slot->_baseRegId = uint8_t(baseRegId);
   slot->_alignment = uint8_t(Support::max<uint32_t>(alignment, 1));
-  slot->_reserved[0] = 0;
-  slot->_reserved[1] = 0;
+  slot->_flags = uint16_t(flags);
   slot->_useCount = 0;
   slot->_size = size;
-  slot->_flags = flags;
 
   slot->_weight = 0;
   slot->_offset = 0;
@@ -77,7 +90,7 @@ Error RAStackAllocator::calculateStackFrame() noexcept {
     uint32_t alignment = slot->alignment();
     ASMJIT_ASSERT(alignment > 0);
 
-    uint32_t power = Support::ctz(alignment);
+    uint32_t power = Support::min<uint32_t>(Support::ctz(alignment), 6);
     uint64_t weight;
 
     if (slot->isRegHome())
@@ -113,7 +126,8 @@ Error RAStackAllocator::calculateStackFrame() noexcept {
   ZoneVector<RAStackGap> gaps[kSizeCount - 1];
 
   for (RAStackSlot* slot : _slots) {
-    if (slot->isStackArg()) continue;
+    if (slot->isStackArg())
+      continue;
 
     uint32_t slotAlignment = slot->alignment();
     uint32_t alignedOffset = Support::alignUp(offset, slotAlignment);

@@ -1,31 +1,55 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_CODEBUFFERWRITER_P_H
-#define _ASMJIT_CORE_CODEBUFFERWRITER_P_H
+#ifndef ASMJIT_CORE_CODEBUFFERWRITER_P_H_INCLUDED
+#define ASMJIT_CORE_CODEBUFFERWRITER_P_H_INCLUDED
 
 #include "../core/assembler.h"
+#include "../core/codebuffer.h"
 #include "../core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
 //! \cond INTERNAL
-//! \addtogroup asmjit_core
+//! \addtogroup asmjit_assembler
 //! \{
 
 // ============================================================================
-// [asmjit::CodeBufferWriter]
+// [Forward Declarations]
 // ============================================================================
 
-//! Helper that is used to write into a `CodeBuffer` held by `BaseAssembler`.
-class CodeBufferWriter {
+struct OffsetFormat;
+
+// ============================================================================
+// [asmjit::CodeWriter]
+// ============================================================================
+
+//! Helper that is used to write into a \ref CodeBuffer held by \ref BaseAssembler.
+class CodeWriter {
 public:
   uint8_t* _cursor;
 
-  ASMJIT_INLINE explicit CodeBufferWriter(BaseAssembler* a) noexcept
+  ASMJIT_INLINE explicit CodeWriter(BaseAssembler* a) noexcept
     : _cursor(a->_bufferPtr) {}
 
   ASMJIT_INLINE Error ensureSpace(BaseAssembler* a, size_t n) noexcept {
@@ -163,9 +187,22 @@ public:
   }
 };
 
+// ============================================================================
+// [asmjit::CodeWriterUtils]
+// ============================================================================
+
+namespace CodeWriterUtils {
+
+bool encodeOffset32(uint32_t* dst, int64_t offset64, const OffsetFormat& format) noexcept;
+bool encodeOffset64(uint64_t* dst, int64_t offset64, const OffsetFormat& format) noexcept;
+
+bool writeOffset(void* dst, int64_t offset64, const OffsetFormat& format) noexcept;
+
+} // {CodeWriterUtils}
+
 //! \}
 //! \endcond
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_CODEBUFFERWRITER_P_H
+#endif // ASMJIT_CORE_CODEBUFFERWRITER_P_H_INCLUDED

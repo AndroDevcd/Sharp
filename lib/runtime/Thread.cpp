@@ -818,6 +818,9 @@ string getVarCastExceptionMsg(DataType varType, bool isArray, SharpObject *obj) 
     return ss.str();
 }
 
+void callFunc(jit_context *j, fptr jitFun) {
+    jitFun(j);
+}
 
 /**
  * TODO: update exception system
@@ -844,7 +847,7 @@ void Thread::exec() {
     if(stackRebuild) { // relatibeCalls
         jitFun = shiftToNextMethod(this, false);
         if(jitFun) {
-            jitFun(jctx);
+            callFunc(jctx, jitFun);
             HAS_SIGNAL
         }
     }
@@ -1103,7 +1106,7 @@ void Thread::exec() {
                 if((jitFun = executeMethod(GET_Da(*this_fiber->pc), this)) != NULL) {
 
 #ifdef BUILD_JIT
-                    jitFun(jctx);
+                    callFunc(jctx, jitFun);
 #endif
                 }
 
@@ -1123,7 +1126,7 @@ void Thread::exec() {
                 if((jitFun = executeMethod(result, this)) != NULL) {
 
 #ifdef BUILD_JIT
-                    jitFun(jctx);
+                    callFunc(jctx, jitFun);
 #endif
                 }
                 HAS_SIGNAL

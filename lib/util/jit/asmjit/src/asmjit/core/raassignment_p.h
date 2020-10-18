@@ -1,13 +1,30 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_RAASSIGNMENT_P_H
-#define _ASMJIT_CORE_RAASSIGNMENT_P_H
+#ifndef ASMJIT_CORE_RAASSIGNMENT_P_H_INCLUDED
+#define ASMJIT_CORE_RAASSIGNMENT_P_H_INCLUDED
 
-#include "../core/build.h"
+#include "../core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
 #include "../core/radefs_p.h"
@@ -37,6 +54,17 @@ public:
   };
 
   struct Layout {
+    //! Index of architecture registers per group.
+    RARegIndex physIndex;
+    //! Count of architecture registers per group.
+    RARegCount physCount;
+    //! Count of physical registers of all groups.
+    uint32_t physTotal;
+    //! Count of work registers.
+    uint32_t workCount;
+    //! WorkRegs data (vector).
+    const RAWorkRegs* workRegs;
+
     inline void reset() noexcept {
       physIndex.reset();
       physCount.reset();
@@ -44,54 +72,52 @@ public:
       workCount = 0;
       workRegs = nullptr;
     }
-
-    RARegIndex physIndex;                //!< Index of architecture registers per group.
-    RARegCount physCount;                //!< Count of architecture registers per group.
-    uint32_t physTotal;                  //!< Count of physical registers of all groups.
-    uint32_t workCount;                  //!< Count of work registers.
-    const RAWorkRegs* workRegs;          //!< WorkRegs data (vector).
   };
 
   struct PhysToWorkMap {
-    static inline size_t sizeOf(uint32_t count) noexcept {
-      return sizeof(PhysToWorkMap) - sizeof(uint32_t) + size_t(count) * sizeof(uint32_t);
+    //! Assigned registers (each bit represents one physical reg).
+    RARegMask assigned;
+    //! Dirty registers (spill slot out of sync or no spill slot).
+    RARegMask dirty;
+    //! PhysReg to WorkReg mapping.
+    uint32_t workIds[1 /* ... */];
+
+    static inline size_t sizeOf(size_t count) noexcept {
+      return sizeof(PhysToWorkMap) - sizeof(uint32_t) + count * sizeof(uint32_t);
     }
 
-    inline void reset(uint32_t count) noexcept {
+    inline void reset(size_t count) noexcept {
       assigned.reset();
       dirty.reset();
 
-      for (uint32_t i = 0; i < count; i++)
+      for (size_t i = 0; i < count; i++)
         workIds[i] = kWorkNone;
     }
 
-    inline void copyFrom(const PhysToWorkMap* other, uint32_t count) noexcept {
+    inline void copyFrom(const PhysToWorkMap* other, size_t count) noexcept {
       size_t size = sizeOf(count);
       memcpy(this, other, size);
     }
-
-    RARegMask assigned;                  //!< Assigned registers (each bit represents one physical reg).
-    RARegMask dirty;                     //!< Dirty registers (spill slot out of sync or no spill slot).
-    uint32_t workIds[1 /* ... */];       //!< PhysReg to WorkReg mapping.
   };
 
   struct WorkToPhysMap {
-    static inline size_t sizeOf(uint32_t count) noexcept {
+    //! WorkReg to PhysReg mapping
+    uint8_t physIds[1 /* ... */];
+
+    static inline size_t sizeOf(size_t count) noexcept {
       return size_t(count) * sizeof(uint8_t);
     }
 
-    inline void reset(uint32_t count) noexcept {
-      for (uint32_t i = 0; i < count; i++)
+    inline void reset(size_t count) noexcept {
+      for (size_t i = 0; i < count; i++)
         physIds[i] = kPhysNone;
     }
 
-    inline void copyFrom(const WorkToPhysMap* other, uint32_t count) noexcept {
+    inline void copyFrom(const WorkToPhysMap* other, size_t count) noexcept {
       size_t size = sizeOf(count);
       if (ASMJIT_LIKELY(size))
         memcpy(this, other, size);
     }
-
-    uint8_t physIds[1 /* ... */];        //!< WorkReg to PhysReg mapping
   };
 
   //! Physical registers layout.
@@ -155,7 +181,7 @@ public:
   inline uint32_t dirty(uint32_t group) const noexcept { return _physToWorkMap->dirty[group]; }
 
   inline uint32_t workToPhysId(uint32_t group, uint32_t workId) const noexcept {
-    ASMJIT_UNUSED(group);
+    DebugUtils::unused(group);
     ASMJIT_ASSERT(workId != kWorkNone);
     ASMJIT_ASSERT(workId < _layout.workCount);
     return _workToPhysMap->physIds[workId];
@@ -272,15 +298,13 @@ public:
   }
 
   inline void makeClean(uint32_t group, uint32_t workId, uint32_t physId) noexcept {
-    ASMJIT_UNUSED(workId);
-
+    DebugUtils::unused(workId);
     uint32_t regMask = Support::bitMask(physId);
     _physToWorkMap->dirty[group] &= ~regMask;
   }
 
   inline void makeDirty(uint32_t group, uint32_t workId, uint32_t physId) noexcept {
-    ASMJIT_UNUSED(workId);
-
+    DebugUtils::unused(workId);
     uint32_t regMask = Support::bitMask(physId);
     _physToWorkMap->dirty[group] |= regMask;
   }
@@ -381,4 +405,4 @@ public:
 ASMJIT_END_NAMESPACE
 
 #endif // !ASMJIT_NO_COMPILER
-#endif // _ASMJIT_CORE_RAASSIGNMENT_P_H
+#endif // ASMJIT_CORE_RAASSIGNMENT_P_H_INCLUDED

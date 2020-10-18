@@ -1,11 +1,27 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/globals.h"
 #include "../core/support.h"
 
@@ -17,77 +33,91 @@ ASMJIT_BEGIN_NAMESPACE
 
 ASMJIT_FAVOR_SIZE const char* DebugUtils::errorAsString(Error err) noexcept {
 #ifndef ASMJIT_NO_TEXT
-  static const char errorMessages[] =
+  // @EnumStringBegin{"enum": "ErrorCode", "output": "sError", "strip": "kError"}@
+  static const char sErrorString[] =
     "Ok\0"
-    "Out of memory\0"
-    "Invalid argument\0"
-    "Invalid state\0"
-    "Invalid architecture\0"
-    "Not initialized\0"
-    "Already initialized\0"
-    "Feature not enabled\0"
-    "Too many handles or file descriptors\0"
-    "Too large (code or memory request)\0"
-    "No code generated\0"
-    "Invalid directive\0"
-    "Invalid label\0"
-    "Too many labels\0"
-    "Label already bound\0"
-    "Label already defined\0"
-    "Label name too long\0"
-    "Invalid label name\0"
-    "Invalid parent label\0"
-    "Non-local label can't have parent\0"
-    "Invalid section\0"
-    "Too many sections\0"
-    "Invalid section name\0"
-    "Too many relocations\0"
-    "Invalid relocation entry\0"
-    "Relocation offset out of range\0"
-    "Invalid assignment\0"
-    "Invalid instruction\0"
-    "Invalid register type\0"
-    "Invalid register group\0"
-    "Invalid register physical id\0"
-    "Invalid register virtual id\0"
-    "Invalid prefix combination\0"
-    "Invalid lock prefix\0"
-    "Invalid xacquire prefix\0"
-    "Invalid xrelease prefix\0"
-    "Invalid rep prefix\0"
-    "Invalid rex prefix\0"
-    "Invalid {...} register \0"
-    "Invalid use of {k}\0"
-    "Invalid use of {k}{z}\0"
-    "Invalid broadcast {1tox}\0"
-    "Invalid {er} or {sae} option\0"
-    "Invalid address\0"
-    "Invalid address index\0"
-    "Invalid address scale\0"
-    "Invalid use of 64-bit address or offset\0"
-    "Invalid use of 64-bit address or offset that requires 32-bit zero-extension\0"
-    "Invalid displacement\0"
-    "Invalid segment\0"
-    "Invalid immediate value\0"
-    "Invalid operand size\0"
-    "Ambiguous operand size\0"
-    "Operand size mismatch\0"
-    "Invalid option\0"
-    "Option already defined\0"
-    "Invalid type-info\0"
-    "Invalid use of a low 8-bit GPB register\0"
-    "Invalid use of a 64-bit GPQ register in 32-bit mode\0"
-    "Invalid use of an 80-bit float\0"
-    "Not consecutive registers\0"
-    "No more physical registers\0"
-    "Overlapped registers\0"
-    "Overlapping register and arguments base-address register\0"
-    "Unbound label cannot be evaluated by expression\0"
-    "Arithmetic overflow during expression evaluation\0"
-    "Unknown error\0";
-  return Support::findPackedString(errorMessages, Support::min<Error>(err, kErrorCount));
+    "OutOfMemory\0"
+    "InvalidArgument\0"
+    "InvalidState\0"
+    "InvalidArch\0"
+    "NotInitialized\0"
+    "AlreadyInitialized\0"
+    "FeatureNotEnabled\0"
+    "TooManyHandles\0"
+    "TooLarge\0"
+    "NoCodeGenerated\0"
+    "InvalidDirective\0"
+    "InvalidLabel\0"
+    "TooManyLabels\0"
+    "LabelAlreadyBound\0"
+    "LabelAlreadyDefined\0"
+    "LabelNameTooLong\0"
+    "InvalidLabelName\0"
+    "InvalidParentLabel\0"
+    "NonLocalLabelCannotHaveParent\0"
+    "InvalidSection\0"
+    "TooManySections\0"
+    "InvalidSectionName\0"
+    "TooManyRelocations\0"
+    "InvalidRelocEntry\0"
+    "RelocOffsetOutOfRange\0"
+    "InvalidAssignment\0"
+    "InvalidInstruction\0"
+    "InvalidRegType\0"
+    "InvalidRegGroup\0"
+    "InvalidPhysId\0"
+    "InvalidVirtId\0"
+    "InvalidElementIndex\0"
+    "InvalidPrefixCombination\0"
+    "InvalidLockPrefix\0"
+    "InvalidXAcquirePrefix\0"
+    "InvalidXReleasePrefix\0"
+    "InvalidRepPrefix\0"
+    "InvalidRexPrefix\0"
+    "InvalidExtraReg\0"
+    "InvalidKMaskUse\0"
+    "InvalidKZeroUse\0"
+    "InvalidBroadcast\0"
+    "InvalidEROrSAE\0"
+    "InvalidAddress\0"
+    "InvalidAddressIndex\0"
+    "InvalidAddressScale\0"
+    "InvalidAddress64Bit\0"
+    "InvalidAddress64BitZeroExtension\0"
+    "InvalidDisplacement\0"
+    "InvalidSegment\0"
+    "InvalidImmediate\0"
+    "InvalidOperandSize\0"
+    "AmbiguousOperandSize\0"
+    "OperandSizeMismatch\0"
+    "InvalidOption\0"
+    "OptionAlreadyDefined\0"
+    "InvalidTypeId\0"
+    "InvalidUseOfGpbHi\0"
+    "InvalidUseOfGpq\0"
+    "InvalidUseOfF80\0"
+    "NotConsecutiveRegs\0"
+    "IllegalVirtReg\0"
+    "TooManyVirtRegs\0"
+    "NoMorePhysRegs\0"
+    "OverlappedRegs\0"
+    "OverlappingStackRegWithRegArg\0"
+    "ExpressionLabelNotBound\0"
+    "ExpressionOverflow\0"
+    "<Unknown>\0";
+
+  static const uint16_t sErrorIndex[] = {
+    0, 3, 15, 31, 44, 56, 71, 90, 108, 123, 132, 148, 165, 178, 192, 210, 230,
+    247, 264, 283, 313, 328, 344, 363, 382, 400, 422, 440, 459, 474, 490, 504,
+    518, 538, 563, 581, 603, 625, 642, 659, 675, 691, 707, 724, 739, 754, 774,
+    794, 814, 847, 867, 882, 899, 918, 939, 959, 973, 994, 1008, 1026, 1042,
+    1058, 1077, 1092, 1108, 1123, 1138, 1168, 1192, 1211
+  };
+  // @EnumStringEnd@
+
+  return sErrorString + sErrorIndex[Support::min<Error>(err, kErrorCount)];
 #else
-  ASMJIT_UNUSED(err);
+  DebugUtils::unused(err);
   static const char noMessage[] = "";
   return noMessage;
 #endif

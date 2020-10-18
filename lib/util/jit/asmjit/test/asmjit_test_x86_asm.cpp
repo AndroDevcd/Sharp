@@ -1,14 +1,34 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
+
+#include <asmjit/core.h>
+
+#if defined(ASMJIT_BUILD_X86) && ASMJIT_ARCH_X86
+#include <asmjit/x86.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "./asmjit.h"
 
 using namespace asmjit;
 
@@ -32,7 +52,7 @@ static void makeRawFunc(x86::Emitter* emitter) noexcept {
 
   // Create and initialize `FuncDetail` and `FuncFrame`.
   FuncDetail func;
-  func.init(FuncSignatureT<void, int*, const int*, const int*>(CallConv::kIdHost));
+  func.init(FuncSignatureT<void, int*, const int*, const int*>(CallConv::kIdHost), emitter->environment());
 
   FuncFrame frame;
   frame.init(func);
@@ -59,6 +79,7 @@ static void makeRawFunc(x86::Emitter* emitter) noexcept {
   emitter->emitEpilog(frame);
 }
 
+#ifndef ASMJIT_NO_COMPILER
 // This function works with x86::Compiler, provided for comparison.
 static void makeCompiledFunc(x86::Compiler* cc) noexcept {
   x86::Gp dst   = cc->newIntPtr();
@@ -79,13 +100,20 @@ static void makeCompiledFunc(x86::Compiler* cc) noexcept {
   cc->movdqu(x86::ptr(dst), vec0);
   cc->endFunc();
 }
+#endif
 
 static uint32_t testFunc(JitRuntime& rt, uint32_t emitterType) noexcept {
+#ifndef ASMJIT_NO_LOGGING
   FileLogger logger(stdout);
+  logger.setIndentation(FormatOptions::kIndentationCode, 2);
+#endif
 
   CodeHolder code;
-  code.init(rt.codeInfo());
+  code.init(rt.environment());
+
+#ifndef ASMJIT_NO_LOGGING
   code.setLogger(&logger);
+#endif
 
   Error err = kErrorOk;
   switch (emitterType) {
@@ -96,6 +124,7 @@ static uint32_t testFunc(JitRuntime& rt, uint32_t emitterType) noexcept {
       break;
     }
 
+#ifndef ASMJIT_NO_BUILDER
     case BaseEmitter::kTypeBuilder: {
       printf("Using x86::Builder:\n");
       x86::Builder cb(&code);
@@ -108,7 +137,9 @@ static uint32_t testFunc(JitRuntime& rt, uint32_t emitterType) noexcept {
       }
       break;
     }
+#endif
 
+#ifndef ASMJIT_NO_COMPILER
     case BaseEmitter::kTypeCompiler: {
       printf("Using x86::Compiler:\n");
       x86::Compiler cc(&code);
@@ -121,6 +152,7 @@ static uint32_t testFunc(JitRuntime& rt, uint32_t emitterType) noexcept {
       }
       break;
     }
+#endif
   }
 
   // Add the code generated to the runtime.
@@ -145,21 +177,32 @@ static uint32_t testFunc(JitRuntime& rt, uint32_t emitterType) noexcept {
   return !(out[0] == 5 && out[1] == 8 && out[2] == 4 && out[3] == 9);
 }
 
-int main(int argc, char* argv[]) {
-  ASMJIT_UNUSED(argc);
-  ASMJIT_UNUSED(argv);
+int main() {
+  printf("AsmJit X86 Emitter Test\n\n");
 
-  unsigned nFailed = 0;
   JitRuntime rt;
+  unsigned nFailed = 0;
 
   nFailed += testFunc(rt, BaseEmitter::kTypeAssembler);
+
+#ifndef ASMJIT_NO_BUILDER
   nFailed += testFunc(rt, BaseEmitter::kTypeBuilder);
+#endif
+
+#ifndef ASMJIT_NO_COMPILER
   nFailed += testFunc(rt, BaseEmitter::kTypeCompiler);
+#endif
 
   if (!nFailed)
-    printf("[PASSED] All tests passed\n");
+    printf("Success:\n  All tests passed\n");
   else
-    printf("[FAILED] %u %s failed\n", nFailed, nFailed == 1 ? "test" : "tests");
+    printf("Failure:\n  %u %s failed\n", nFailed, nFailed == 1 ? "test" : "tests");
 
   return nFailed ? 1 : 0;
 }
+#else
+int main() {
+  printf("AsmJit X86 Emitter Test is disabled on non-x86 host\n\n");
+  return 0;
+}
+#endif

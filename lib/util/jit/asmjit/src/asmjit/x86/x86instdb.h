@@ -1,11 +1,28 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_X86_X86INSTDB_H
-#define _ASMJIT_X86_X86INSTDB_H
+#ifndef ASMJIT_X86_X86INSTDB_H_INCLUDED
+#define ASMJIT_X86_X86INSTDB_H_INCLUDED
 
 #include "../x86/x86globals.h"
 
@@ -29,9 +46,9 @@ enum Mode : uint32_t {
   kModeAny                = 0x03u        //!< Both X86 and X64 modes supported.
 };
 
-static constexpr uint32_t modeFromArchId(uint32_t archId) noexcept {
-  return archId == ArchInfo::kIdX86 ? kModeX86 :
-         archId == ArchInfo::kIdX64 ? kModeX64 : kModeNone;
+static constexpr uint32_t modeFromArch(uint32_t arch) noexcept {
+  return arch == Environment::kArchX86 ? kModeX86 :
+         arch == Environment::kArchX64 ? kModeX64 : kModeNone;
 }
 
 // ============================================================================
@@ -57,17 +74,18 @@ enum OpFlags : uint32_t {
   kOpDReg                 = 0x00001000u, //!< Operand can be DReg (debug register).
   kOpSt                   = 0x00002000u, //!< Operand can be 80-bit ST register (X87).
   kOpBnd                  = 0x00004000u, //!< Operand can be 128-bit BND register.
-  kOpAllRegs              = 0x00007FFFu, //!< Combination of all possible registers.
+  kOpTmm                  = 0x00008000u, //!< Operand can be 0..8192-bit TMM register.
+  kOpAllRegs              = 0x0000FFFFu, //!< Combination of all possible registers.
 
-  kOpI4                   = 0x00010000u, //!< Operand can be unsigned 4-bit  immediate.
-  kOpU4                   = 0x00020000u, //!< Operand can be unsigned 4-bit  immediate.
-  kOpI8                   = 0x00040000u, //!< Operand can be signed   8-bit  immediate.
-  kOpU8                   = 0x00080000u, //!< Operand can be unsigned 8-bit  immediate.
-  kOpI16                  = 0x00100000u, //!< Operand can be signed   16-bit immediate.
+  kOpI4                   = 0x00010000u, //!< Operand can be unsigned 4-bit immediate.
+  kOpU4                   = 0x00020000u, //!< Operand can be unsigned 4-bit immediate.
+  kOpI8                   = 0x00040000u, //!< Operand can be signed 8-bit immediate.
+  kOpU8                   = 0x00080000u, //!< Operand can be unsigned 8-bit immediate.
+  kOpI16                  = 0x00100000u, //!< Operand can be signed 16-bit immediate.
   kOpU16                  = 0x00200000u, //!< Operand can be unsigned 16-bit immediate.
-  kOpI32                  = 0x00400000u, //!< Operand can be signed   32-bit immediate.
+  kOpI32                  = 0x00400000u, //!< Operand can be signed 32-bit immediate.
   kOpU32                  = 0x00800000u, //!< Operand can be unsigned 32-bit immediate.
-  kOpI64                  = 0x01000000u, //!< Operand can be signed   64-bit immediate.
+  kOpI64                  = 0x01000000u, //!< Operand can be signed 64-bit immediate.
   kOpU64                  = 0x02000000u, //!< Operand can be unsigned 64-bit immediate.
   kOpAllImm               = 0x03FF0000u, //!< Operand can be any immediate.
 
@@ -112,7 +130,8 @@ enum MemFlags : uint32_t {
   kMemOpDs                = 0x1000u,     //!< Implicit memory operand's DS segment.
   kMemOpEs                = 0x2000u,     //!< Implicit memory operand's ES segment.
 
-  kMemOpMib               = 0x4000u      //!< Operand must be MIB (base+index) pointer.
+  kMemOpMib               = 0x4000u,     //!< Operand must be MIB (base+index) pointer.
+  kMemOpTMem              = 0x8000u      //!< Operand is a sib_mem (ADX memory operand).
 };
 
 // ============================================================================
@@ -124,12 +143,6 @@ enum MemFlags : uint32_t {
 //! Details about instruction encoding, operation, features, and some limitations.
 enum Flags : uint32_t {
   kFlagNone               = 0x00000000u, //!< No flags.
-
-  // TODO: Deprecated
-  // ----------------
-
-  kFlagVolatile           = 0x00000040u,
-  kFlagPrivileged         = 0x00000080u, //!< This is a privileged operation that cannot run in user mode.
 
   // Instruction Family
   // ------------------
@@ -145,6 +158,7 @@ enum Flags : uint32_t {
   //
   // These describe optional X86 prefixes that can be used to change the instruction's operation.
 
+  kFlagTsib               = 0x00000800u, //!< Instruction uses TSIB (or SIB_MEM) encoding (MODRM followed by SIB).
   kFlagRep                = 0x00001000u, //!< Instruction can be prefixed with using the REP(REPE) or REPNE prefix.
   kFlagRepIgnored         = 0x00002000u, //!< Instruction ignores REP|REPNE prefixes, but they are accepted.
   kFlagLock               = 0x00004000u, //!< Instruction can be prefixed with using the LOCK prefix.
@@ -308,6 +322,8 @@ struct CommonInfo {
   inline bool isMibOp() const noexcept { return hasFlag(kFlagMib); }
   //! Tests whether the instruction uses VSIB.
   inline bool isVsibOp() const noexcept { return hasFlag(kFlagVsib); }
+  //! Tests whether the instruction uses TSIB (AMX, instruction requires MOD+SIB).
+  inline bool isTsibOp() const noexcept { return hasFlag(kFlagTsib); }
   //! Tests whether the instruction uses VEX (can be set together with EVEX if both are encodable).
   inline bool isVex() const noexcept { return hasFlag(kFlagVex); }
   //! Tests whether the instruction uses EVEX (can be set together with VEX if both are encodable).
@@ -350,21 +366,21 @@ ASMJIT_VARAPI const CommonInfo _commonInfoTable[];
 
 //! Instruction information (X86).
 struct InstInfo {
-  //! Index to `_nameData`.
+  //! Index to \ref _nameData.
   uint32_t _nameDataIndex : 14;
-  //! Index to `_commonInfoTable`.
+  //! Index to \ref _commonInfoTable.
   uint32_t _commonInfoIndex : 10;
-  //! Index to `InstDB::_commonInfoTableB`.
+  //! Index to \ref _commonInfoTableB.
   uint32_t _commonInfoIndexB : 8;
 
-  //! Instruction encoding, see `InstDB::EncodingId`.
+  //! Instruction encoding (internal encoding identifier used by \ref Assembler).
   uint8_t _encoding;
-  //! Main opcode value (0.255).
+  //! Main opcode value (0..255).
   uint8_t _mainOpcodeValue;
-  //! Index to `InstDB::_mainOpcodeTable` that is combined with `_mainOpcodeValue`
+  //! Index to \ref _mainOpcodeTable` that is combined with \ref _mainOpcodeValue
   //! to form the final opcode.
   uint8_t _mainOpcodeIndex;
-  //! Index to `InstDB::_altOpcodeTable` that contains a full alternative opcode.
+  //! Index to \ref _altOpcodeTable that contains a full alternative opcode.
   uint8_t _altOpcodeIndex;
 
   // --------------------------------------------------------------------------
@@ -440,7 +456,7 @@ struct InstInfo {
 
 ASMJIT_VARAPI const InstInfo _instInfoTable[];
 
-inline const InstInfo& infoById(uint32_t instId) noexcept {
+static inline const InstInfo& infoById(uint32_t instId) noexcept {
   ASMJIT_ASSERT(Inst::isDefinedId(instId));
   return _instInfoTable[instId];
 }
@@ -451,4 +467,4 @@ inline const InstInfo& infoById(uint32_t instId) noexcept {
 
 ASMJIT_END_SUB_NAMESPACE
 
-#endif // _ASMJIT_X86_X86INSTDB_H
+#endif // ASMJIT_X86_X86INSTDB_H_INCLUDED

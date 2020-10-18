@@ -1,14 +1,29 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_X86_X86OPCODE_P_H
-#define _ASMJIT_X86_X86OPCODE_P_H
+#ifndef ASMJIT_X86_X86OPCODE_P_H_INCLUDED
+#define ASMJIT_X86_X86OPCODE_P_H_INCLUDED
 
-#include "../core/logging.h"
-#include "../core/string.h"
 #include "../x86/x86globals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
@@ -144,7 +159,7 @@ struct Opcode {
     // cases (similar to forcing REX prefix). Force EVEX will force emitting
     // EVEX prefix instead of VEX2|VEX3. EVEX-only instructions will have
     // ForceEvex always set, however. instructions that can be encoded by
-    // either VEX or EVEX prefix shall not have ForceEvex set.
+    // either VEX or EVEX prefix should not have ForceEvex set.
 
     kMM_ForceVex3  = 0x04u << kMM_Shift,   // Force 3-BYTE VEX prefix.
     kMM_ForceEvex  = 0x10u << kMM_Shift,   // Force 4-BYTE EVEX prefix.
@@ -215,21 +230,41 @@ struct Opcode {
 
     kCDTT_T4X      = kCDTT_T1_4X,          // Alias to have only 3 letters.
 
-    // `O` Field in MorR/M
-    // -------------------
+    // `O` Field in ModR/M (??:xxx:???)
+    // --------------------------------
 
-    kO_Shift       = 18,
-    kO_Mask        = 0x7u << kO_Shift,
+    kModO_Shift    = 18,
+    kModO_Mask     = 0x7u << kModO_Shift,
 
-    kO__           = 0x0u,
-    kO_0           = 0x0u << kO_Shift,
-    kO_1           = 0x1u << kO_Shift,
-    kO_2           = 0x2u << kO_Shift,
-    kO_3           = 0x3u << kO_Shift,
-    kO_4           = 0x4u << kO_Shift,
-    kO_5           = 0x5u << kO_Shift,
-    kO_6           = 0x6u << kO_Shift,
-    kO_7           = 0x7u << kO_Shift,
+    kModO__        = 0x0u,
+    kModO_0        = 0x0u << kModO_Shift,
+    kModO_1        = 0x1u << kModO_Shift,
+    kModO_2        = 0x2u << kModO_Shift,
+    kModO_3        = 0x3u << kModO_Shift,
+    kModO_4        = 0x4u << kModO_Shift,
+    kModO_5        = 0x5u << kModO_Shift,
+    kModO_6        = 0x6u << kModO_Shift,
+    kModO_7        = 0x7u << kModO_Shift,
+
+    // `RM` Field in ModR/M (??:???:xxx)
+    // ---------------------------------
+    //
+    // Second data field used by ModR/M byte. This is only used by few
+    // instructions that use OPCODE+MOD/RM where both values in Mod/RM
+    // are part of the opcode.
+
+    kModRM_Shift    = 10,
+    kModRM_Mask     = 0x7u << kModRM_Shift,
+
+    kModRM__        = 0x0u,
+    kModRM_0        = 0x0u << kModRM_Shift,
+    kModRM_1        = 0x1u << kModRM_Shift,
+    kModRM_2        = 0x2u << kModRM_Shift,
+    kModRM_3        = 0x3u << kModRM_Shift,
+    kModRM_4        = 0x4u << kModRM_Shift,
+    kModRM_5        = 0x5u << kModRM_Shift,
+    kModRM_6        = 0x6u << kModRM_Shift,
+    kModRM_7        = 0x7u << kModRM_Shift,
 
     // `PP` Field
     // ----------
@@ -322,14 +357,17 @@ struct Opcode {
     k000F3A = kPP_00 | kMM_0F3A,           // '0F3A'
     k660000 = kPP_66 | kMM_00,             // '66'
     k660F00 = kPP_66 | kMM_0F,             // '660F'
+    k660F01 = kPP_66 | kMM_0F01,           // '660F01'
     k660F38 = kPP_66 | kMM_0F38,           // '660F38'
     k660F3A = kPP_66 | kMM_0F3A,           // '660F3A'
     kF20000 = kPP_F2 | kMM_00,             // 'F2'
     kF20F00 = kPP_F2 | kMM_0F,             // 'F20F'
+    kF20F01 = kPP_F2 | kMM_0F01,           // 'F20F01'
     kF20F38 = kPP_F2 | kMM_0F38,           // 'F20F38'
     kF20F3A = kPP_F2 | kMM_0F3A,           // 'F20F3A'
     kF30000 = kPP_F3 | kMM_00,             // 'F3'
     kF30F00 = kPP_F3 | kMM_0F,             // 'F30F'
+    kF30F01 = kPP_F3 | kMM_0F01,           // 'F30F01'
     kF30F38 = kPP_F3 | kMM_0F38,           // 'F30F38'
     kF30F3A = kPP_F3 | kMM_0F3A,           // 'F30F3A'
     kFPU_00 = kPP_00 | kMM_00,             // '__' (FPU)
@@ -394,9 +432,14 @@ struct Opcode {
     return operator|=(mask[size & 0xF]);
   }
 
-  //! Extract `O` field from the opcode.
-  ASMJIT_INLINE uint32_t extractO() const noexcept {
-    return (v >> kO_Shift) & 0x07;
+  //! Extract `O` field (R) from the opcode (specified as /0..7 in instruction manuals).
+  ASMJIT_INLINE uint32_t extractModO() const noexcept {
+    return (v >> kModO_Shift) & 0x07;
+  }
+
+  //! Extract `RM` field (RM) from the opcode (usually specified as another opcode value).
+  ASMJIT_INLINE uint32_t extractModRM() const noexcept {
+    return (v >> kModRM_Shift) & 0x07;
   }
 
   //! Extract `REX` prefix from opcode combined with `options`.
@@ -432,4 +475,4 @@ struct Opcode {
 
 ASMJIT_END_SUB_NAMESPACE
 
-#endif // _ASMJIT_X86_X86OPCODE_P_H
+#endif // ASMJIT_X86_X86OPCODE_P_H_INCLUDED

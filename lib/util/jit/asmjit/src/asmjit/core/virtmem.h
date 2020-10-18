@@ -1,20 +1,37 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_VIRTMEM_H
-#define _ASMJIT_CORE_VIRTMEM_H
+#ifndef ASMJIT_CORE_VIRTMEM_H_INCLUDED
+#define ASMJIT_CORE_VIRTMEM_H_INCLUDED
 
-#include "../core/build.h"
+#include "../core/api-config.h"
 #ifndef ASMJIT_NO_JIT
 
 #include "../core/globals.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-//! \addtogroup asmjit_jit
+//! \addtogroup asmjit_virtual_memory
 //! \{
 
 // ============================================================================
@@ -38,9 +55,16 @@ enum Flags : uint32_t {
   //! A combination of `kAccessRead | kAccessWrite`
   kAccessReadWrite = 0x00000003u,
 
+  //! Use a `MAP_JIT` flag available on Apple platforms (OSX Mojave+), which
+  //! allows JIT code to be executed in OSX bundles. This flag is not turned
+  //! on by default, because when a process uses `fork()` the child process
+  //! has no access to the pages mapped with `MAP_JIT`, which could break code
+  //! that doesn't expect this behavior.
+  kMMapEnableMapJit = 0x00000010u,
+
   //! Not an access flag, only used by `allocDualMapping()` to override the
-  //! default allocation strategy to always use a temporary directory instead
-  //! on "/dev/shm" (on POSIX systems). Please note that this flag will be
+  //! default allocation strategy to always use a 'tmp' directory instead of
+  //! "/dev/shm" (on POSIX platforms). Please note that this flag will be
   //! ignored if the operating system allows to allocate an executable memory
   //! by a different API than `open()` or `shm_open()`. For example on Linux
   //! `memfd_create()` is preferred and on BSDs `shm_open(SHM_ANON, ...)` is
@@ -118,4 +142,4 @@ ASMJIT_API Error releaseDualMapping(DualMapping* dm, size_t size) noexcept;
 ASMJIT_END_NAMESPACE
 
 #endif
-#endif // _ASMJIT_CORE_VIRTMEM_H
+#endif // ASMJIT_CORE_VIRTMEM_H_INCLUDED

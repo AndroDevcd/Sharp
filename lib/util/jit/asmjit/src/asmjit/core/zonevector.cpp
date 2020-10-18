@@ -1,11 +1,27 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/support.h"
 #include "../core/zone.h"
 #include "../core/zonevector.h"
@@ -296,6 +312,8 @@ static void test_zone_vector(ZoneAllocator* allocator, const char* typeName) {
   EXPECT(vec.size() == uint32_t(kMax));
   EXPECT(vec.indexOf(T(kMax - 1)) == uint32_t(kMax - 1));
 
+  EXPECT(vec.rbegin()[0] == kMax - 1);
+
   vec.release(allocator);
 }
 
@@ -346,7 +364,7 @@ static void test_zone_bitvector(ZoneAllocator* allocator) {
   }
 }
 
-UNIT(asmjit_zone_vector) {
+UNIT(zone_vector) {
   Zone zone(8096 - Zone::kBlockOverhead);
   ZoneAllocator allocator(&zone);
 

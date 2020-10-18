@@ -1,20 +1,37 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_CPUINFO_H
-#define _ASMJIT_CORE_CPUINFO_H
+#ifndef ASMJIT_CORE_CPUINFO_H_INCLUDED
+#define ASMJIT_CORE_CPUINFO_H_INCLUDED
 
-#include "../core/arch.h"
+#include "../core/archtraits.h"
 #include "../core/features.h"
 #include "../core/globals.h"
 #include "../core/string.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-//! \addtogroup asmjit_support
+//! \addtogroup asmjit_core
 //! \{
 
 // ============================================================================
@@ -24,8 +41,12 @@ ASMJIT_BEGIN_NAMESPACE
 //! CPU information.
 class CpuInfo {
 public:
-  //! CPU architecture information.
-  ArchInfo _archInfo;
+  //! Architecture.
+  uint8_t _arch;
+  //! Sub-architecture.
+  uint8_t _subArch;
+  //! Reserved for future use.
+  uint16_t _reserved;
   //! CPU family ID.
   uint32_t _familyId;
   //! CPU model ID.
@@ -57,15 +78,15 @@ public:
   inline CpuInfo(const CpuInfo& other) noexcept = default;
 
   inline explicit CpuInfo(Globals::NoInit_) noexcept
-    : _archInfo(Globals::NoInit),
-      _features(Globals::NoInit) {};
+    : _features(Globals::NoInit) {};
 
   //! Returns the host CPU information.
   ASMJIT_API static const CpuInfo& host() noexcept;
 
-  //! Initializes CpuInfo to the given architecture, see `ArchInfo`.
-  inline void initArch(uint32_t archId, uint32_t archMode = 0) noexcept {
-    _archInfo.init(archId, archMode);
+  //! Initializes CpuInfo to the given architecture, see \ref Environment.
+  inline void initArch(uint32_t arch, uint32_t subArch = 0u) noexcept {
+    _arch = uint8_t(arch);
+    _subArch = uint8_t(subArch);
   }
 
   inline void reset() noexcept { memset(this, 0, sizeof(*this)); }
@@ -82,12 +103,10 @@ public:
   //! \name Accessors
   //! \{
 
-  //! Returns the CPU architecture information.
-  inline const ArchInfo& archInfo() const noexcept { return _archInfo; }
-  //! Returns the CPU architecture id, see `ArchInfo::Id`.
-  inline uint32_t archId() const noexcept { return _archInfo.archId(); }
-  //! Returns the CPU architecture sub-id, see `ArchInfo::SubId`.
-  inline uint32_t archSubId() const noexcept { return _archInfo.archSubId(); }
+  //! Returns the CPU architecture id, see \ref Environment::Arch.
+  inline uint32_t arch() const noexcept { return _arch; }
+  //! Returns the CPU architecture sub-id, see \ref Environment::SubArch.
+  inline uint32_t subArch() const noexcept { return _subArch; }
 
   //! Returns the CPU family ID.
   inline uint32_t familyId() const noexcept { return _familyId; }
@@ -132,4 +151,4 @@ public:
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_CPUINFO_H
+#endif // ASMJIT_CORE_CPUINFO_H_INCLUDED

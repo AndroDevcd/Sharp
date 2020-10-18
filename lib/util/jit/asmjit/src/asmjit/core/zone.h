@@ -1,11 +1,28 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_ZONE_H
-#define _ASMJIT_CORE_ZONE_H
+#ifndef ASMJIT_CORE_ZONE_H_INCLUDED
+#define ASMJIT_CORE_ZONE_H_INCLUDED
 
 #include "../core/support.h"
 
@@ -333,12 +350,12 @@ public:
   }
 
   //! Like `new(std::nothrow) T(...)`, but allocated by `Zone`.
-  template<typename T, typename... ArgsT>
-  ASMJIT_INLINE T* newT(ArgsT&&... args) noexcept {
+  template<typename T, typename... Args>
+  ASMJIT_INLINE T* newT(Args&&... args) noexcept {
     void* p = alloc(sizeof(T), alignof(T));
     if (ASMJIT_UNLIKELY(!p))
       return nullptr;
-    return new(p) T(std::forward<ArgsT>(args)...);
+    return new(p) T(std::forward<Args>(args)...);
   }
 
   //! \cond INTERNAL
@@ -366,15 +383,22 @@ public:
 // [b2d::ZoneTmp]
 // ============================================================================
 
+//! \ref Zone with `N` bytes of a static storage, used for the initial block.
+//!
+//! Temporary zones are used in cases where it's known that some memory will be
+//! required, but in many cases it won't exceed N bytes, so the whole operation
+//! can be performed without a dynamic memory allocation.
 template<size_t N>
 class ZoneTmp : public Zone {
 public:
   ASMJIT_NONCOPYABLE(ZoneTmp<N>)
 
+  //! Temporary storage, embedded after \ref Zone.
   struct Storage {
     char data[N];
   } _storage;
 
+  //! Creates a temporary zone. Dynamic block size is specified by `blockSize`.
   ASMJIT_INLINE explicit ZoneTmp(size_t blockSize, size_t blockAlignment = 1) noexcept
     : Zone(blockSize, blockAlignment, Support::Temporary(_storage.data, N)) {}
 };
@@ -589,12 +613,12 @@ public:
     return new(p) T();
   }
   //! Like `new(std::nothrow) T(...)`, but allocated by `Zone`.
-  template<typename T, typename... ArgsT>
-  inline T* newT(ArgsT&&... args) noexcept {
+  template<typename T, typename... Args>
+  inline T* newT(Args&&... args) noexcept {
     void* p = allocT<T>();
     if (ASMJIT_UNLIKELY(!p))
       return nullptr;
-    return new(p) T(std::forward<ArgsT>(args)...);
+    return new(p) T(std::forward<Args>(args)...);
   }
 
   //! Releases the memory previously allocated by `alloc()`. The `size` argument
@@ -622,4 +646,4 @@ public:
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_ZONE_H
+#endif // ASMJIT_CORE_ZONE_H_INCLUDED

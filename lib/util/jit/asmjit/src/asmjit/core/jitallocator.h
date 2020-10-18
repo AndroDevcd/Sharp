@@ -1,13 +1,30 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_JITALLOCATOR_H
-#define _ASMJIT_CORE_JITALLOCATOR_H
+#ifndef ASMJIT_CORE_JITALLOCATOR_H_INCLUDED
+#define ASMJIT_CORE_JITALLOCATOR_H_INCLUDED
 
-#include "../core/build.h"
+#include "../core/api-config.h"
 #ifndef ASMJIT_NO_JIT
 
 #include "../core/globals.h"
@@ -15,7 +32,7 @@
 
 ASMJIT_BEGIN_NAMESPACE
 
-//! \addtogroup asmjit_jit
+//! \addtogroup asmjit_virtual_memory
 //! \{
 
 // ============================================================================
@@ -115,9 +132,6 @@ public:
   //! JitAllocator allocator(&params);
   //! ```
   struct CreateParams {
-    // Reset the content of `CreateParams`.
-    inline void reset() noexcept { memset(this, 0, sizeof(*this)); }
-
     //! Allocator options, see \ref JitAllocator::Options.
     //!
     //! No options are used by default.
@@ -144,6 +158,9 @@ public:
     //!
     //! Only used if \ref kOptionCustomFillPattern is set.
     uint32_t fillPattern;
+
+    // Reset the content of `CreateParams`.
+    inline void reset() noexcept { memset(this, 0, sizeof(*this)); }
   };
 
   //! Creates a `JitAllocator` instance.
@@ -204,6 +221,15 @@ public:
 
   //! Statistics about `JitAllocator`.
   struct Statistics {
+    //! Number of blocks `JitAllocator` maintains.
+    size_t _blockCount;
+    //! How many bytes are currently used / allocated.
+    size_t _usedSize;
+    //! How many bytes are currently reserved by the allocator.
+    size_t _reservedSize;
+    //! Allocation overhead (in bytes) required to maintain all blocks.
+    size_t _overheadSize;
+
     inline void reset() noexcept {
       _blockCount = 0;
       _usedSize = 0;
@@ -234,15 +260,6 @@ public:
     inline double overheadSizeAsPercent() const noexcept {
       return (double(overheadSize()) / (double(reservedSize()) + 1e-16)) * 100.0;
     }
-
-    //! Number of blocks `JitAllocator` maintains.
-    size_t _blockCount;
-    //! How many bytes are currently used / allocated.
-    size_t _usedSize;
-    //! How many bytes are currently reserved by the allocator.
-    size_t _reservedSize;
-    //! Allocation overhead (in bytes) required to maintain all blocks.
-    size_t _overheadSize;
   };
 
   //! Returns JIT allocator statistics.

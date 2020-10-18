@@ -1,25 +1,41 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_DATATYPES_H
-#define _ASMJIT_CORE_DATATYPES_H
+#ifndef ASMJIT_CORE_DATATYPES_H_INCLUDED
+#define ASMJIT_CORE_DATATYPES_H_INCLUDED
 
 #include "../core/globals.h"
 
-ASMJIT_BEGIN_NAMESPACE
+#ifndef ASMJIT_NO_DEPRECATED
 
-//! \addtogroup asmjit_support
-//! \{
+ASMJIT_BEGIN_NAMESPACE
 
 // ============================================================================
 // [asmjit::Data64]
 // ============================================================================
 
 //! 64-bit data useful for creating SIMD constants.
-union Data64 {
+union ASMJIT_DEPRECATED_STRUCT("Data64 is deprecated and will be removed in the future") Data64 {
   //! Array of eight 8-bit signed integers.
   int8_t sb[8];
   //! Array of eight 8-bit unsigned integers.
@@ -286,7 +302,7 @@ union Data64 {
 // ============================================================================
 
 //! 128-bit data useful for creating SIMD constants.
-union Data128 {
+union ASMJIT_DEPRECATED_STRUCT("Data128 is deprecated and will be removed in the future") Data128 {
   //! Array of sixteen 8-bit signed integers.
   int8_t sb[16];
   //! Array of sixteen 8-bit unsigned integers.
@@ -631,7 +647,7 @@ union Data128 {
 // ============================================================================
 
 //! 256-bit data useful for creating SIMD constants.
-union Data256 {
+union ASMJIT_DEPRECATED_STRUCT("Data256 is deprecated and will be removed in the future") Data256 {
   //! Array of thirty two 8-bit signed integers.
   int8_t sb[32];
   //! Array of thirty two 8-bit unsigned integers.
@@ -1049,8 +1065,7 @@ union Data256 {
   //! \}
 };
 
-//! \}
-
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_DATATYPES_H
+#endif // !ASMJIT_NO_DEPRECATED
+#endif // ASMJIT_CORE_DATATYPES_H_INCLUDED

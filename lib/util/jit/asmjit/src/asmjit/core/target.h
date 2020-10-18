@@ -1,13 +1,30 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_CORE_TARGET_H
-#define _ASMJIT_CORE_TARGET_H
+#ifndef ASMJIT_CORE_TARGET_H_INCLUDED
+#define ASMJIT_CORE_TARGET_H_INCLUDED
 
-#include "../core/arch.h"
+#include "../core/archtraits.h"
 #include "../core/func.h"
 
 ASMJIT_BEGIN_NAMESPACE
@@ -19,20 +36,13 @@ ASMJIT_BEGIN_NAMESPACE
 // [asmjit::CodeInfo]
 // ============================================================================
 
+#ifndef ASMJIT_NO_DEPRECATED
 //! Basic information about a code (or target). It describes its architecture,
 //! code generation mode (or optimization level), and base address.
-class CodeInfo {
+class ASMJIT_DEPRECATED_STRUCT("Use Environment instead of CodeInfo") CodeInfo {
 public:
-  //!< Architecture information.
-  ArchInfo _archInfo;
-  //! Natural stack alignment (ARCH+OS).
-  uint8_t _stackAlignment;
-  //! Default CDECL calling convention.
-  uint8_t _cdeclCallConv;
-  //! Default STDCALL calling convention.
-  uint8_t _stdCallConv;
-  //! Default FASTCALL calling convention.
-  uint8_t _fastCallConv;
+  //!< Environment information.
+  Environment _environment;
   //! Base address.
   uint64_t _baseAddress;
 
@@ -40,46 +50,35 @@ public:
   //! \{
 
   inline CodeInfo() noexcept
-    : _archInfo(),
-      _stackAlignment(0),
-      _cdeclCallConv(CallConv::kIdNone),
-      _stdCallConv(CallConv::kIdNone),
-      _fastCallConv(CallConv::kIdNone),
+    : _environment(),
       _baseAddress(Globals::kNoBaseAddress) {}
 
-  inline explicit CodeInfo(uint32_t archId, uint32_t archMode = 0, uint64_t baseAddress = Globals::kNoBaseAddress) noexcept
-    : _archInfo(archId, archMode),
-      _stackAlignment(0),
-      _cdeclCallConv(CallConv::kIdNone),
-      _stdCallConv(CallConv::kIdNone),
-      _fastCallConv(CallConv::kIdNone),
+  inline explicit CodeInfo(uint32_t arch, uint32_t subArch = 0, uint64_t baseAddress = Globals::kNoBaseAddress) noexcept
+    : _environment(arch, subArch),
       _baseAddress(baseAddress) {}
+
+  inline explicit CodeInfo(const Environment& environment, uint64_t baseAddress = Globals::kNoBaseAddress) noexcept
+    : _environment(environment),
+      _baseAddress(baseAddress) {}
+
 
   inline CodeInfo(const CodeInfo& other) noexcept { init(other); }
 
   inline bool isInitialized() const noexcept {
-    return _archInfo.archId() != ArchInfo::kIdNone;
+    return _environment.arch() != Environment::kArchUnknown;
   }
 
   inline void init(const CodeInfo& other) noexcept {
     *this = other;
   }
 
-  inline void init(uint32_t archId, uint32_t archMode = 0, uint64_t baseAddress = Globals::kNoBaseAddress) noexcept {
-    _archInfo.init(archId, archMode);
-    _stackAlignment = 0;
-    _cdeclCallConv = CallConv::kIdNone;
-    _stdCallConv = CallConv::kIdNone;
-    _fastCallConv = CallConv::kIdNone;
+  inline void init(uint32_t arch, uint32_t subArch = 0, uint64_t baseAddress = Globals::kNoBaseAddress) noexcept {
+    _environment.init(arch, subArch);
     _baseAddress = baseAddress;
   }
 
   inline void reset() noexcept {
-    _archInfo.reset();
-    _stackAlignment = 0;
-    _cdeclCallConv = CallConv::kIdNone;
-    _stdCallConv = CallConv::kIdNone;
-    _fastCallConv = CallConv::kIdNone;
+    _environment.reset();
     _baseAddress = Globals::kNoBaseAddress;
   }
 
@@ -98,39 +97,28 @@ public:
   //! \name Accessors
   //! \{
 
-  //! Returns the target architecture information, see `ArchInfo`.
-  inline const ArchInfo& archInfo() const noexcept { return _archInfo; }
+  //! Returns the target environment information, see \ref Environment.
+  inline const Environment& environment() const noexcept { return _environment; }
 
-  //! Returns the target architecture id, see `ArchInfo::Id`.
-  inline uint32_t archId() const noexcept { return _archInfo.archId(); }
-  //! Returns the target architecture sub-type, see `ArchInfo::SubId`.
-  inline uint32_t archSubId() const noexcept { return _archInfo.archSubId(); }
+  //! Returns the target architecture, see \ref Environment::Arch.
+  inline uint32_t arch() const noexcept { return _environment.arch(); }
+  //! Returns the target sub-architecture, see \ref Environment::SubArch.
+  inline uint32_t subArch() const noexcept { return _environment.subArch(); }
   //! Returns the native size of the target's architecture GP register.
-  inline uint32_t gpSize() const noexcept { return _archInfo.gpSize(); }
-  //! Returns the number of GP registers of the target's architecture.
-  inline uint32_t gpCount() const noexcept { return _archInfo.gpCount(); }
+  inline uint32_t gpSize() const noexcept { return _environment.registerSize(); }
 
-  //! Returns a natural stack alignment that must be honored (or 0 if not known).
-  inline uint32_t stackAlignment() const noexcept { return _stackAlignment; }
-  //! Sets a natural stack alignment that must be honored.
-  inline void setStackAlignment(uint32_t sa) noexcept { _stackAlignment = uint8_t(sa); }
-
-  inline uint32_t cdeclCallConv() const noexcept { return _cdeclCallConv; }
-  inline void setCdeclCallConv(uint32_t cc) noexcept { _cdeclCallConv = uint8_t(cc); }
-
-  inline uint32_t stdCallConv() const noexcept { return _stdCallConv; }
-  inline void setStdCallConv(uint32_t cc) noexcept { _stdCallConv = uint8_t(cc); }
-
-  inline uint32_t fastCallConv() const noexcept { return _fastCallConv; }
-  inline void setFastCallConv(uint32_t cc) noexcept { _fastCallConv = uint8_t(cc); }
-
+  //! Tests whether this CodeInfo has a base address set.
   inline bool hasBaseAddress() const noexcept { return _baseAddress != Globals::kNoBaseAddress; }
+  //! Returns the base address or \ref Globals::kNoBaseAddress if it's not set.
   inline uint64_t baseAddress() const noexcept { return _baseAddress; }
+  //! Sets base address to `p`.
   inline void setBaseAddress(uint64_t p) noexcept { _baseAddress = p; }
+  //! Resets base address (implicitly sets it to \ref Globals::kNoBaseAddress).
   inline void resetBaseAddress() noexcept { _baseAddress = Globals::kNoBaseAddress; }
 
   //! \}
 };
+#endif // !ASMJIT_NO_DEPRECATED
 
 // ============================================================================
 // [asmjit::Target]
@@ -142,19 +130,8 @@ public:
   ASMJIT_BASE_CLASS(Target)
   ASMJIT_NONCOPYABLE(Target)
 
-  //! Tartget type, see `TargetType`.
-  uint8_t _targetType;
-  //! Reserved for future use.
-  uint8_t _reserved[7];
-  //! Basic information about the Runtime's code.
-  CodeInfo _codeInfo;
-
-  enum TargetType : uint32_t {
-    //! Uninitialized target or unknown target type.
-    kTargetNone = 0,
-    //! JIT target type, see `JitRuntime`.
-    kTargetJit = 1
-  };
+  //! Target environment information.
+  Environment _environment;
 
   //! \name Construction & Destruction
   //! \{
@@ -173,15 +150,20 @@ public:
   //!
   //! CodeInfo can be used to setup a CodeHolder in case you plan to generate a
   //! code compatible and executable by this Runtime.
-  inline const CodeInfo& codeInfo() const noexcept { return _codeInfo; }
+  inline const Environment& environment() const noexcept { return _environment; }
 
-  //! Returns the target architecture id, see `ArchInfo::Id`.
-  inline uint32_t archId() const noexcept { return _codeInfo.archId(); }
-  //! Returns the target architecture sub-id, see `ArchInfo::SubId`.
-  inline uint32_t archSubId() const noexcept { return _codeInfo.archSubId(); }
+  //! Returns the target architecture, see \ref Environment::Arch.
+  inline uint32_t arch() const noexcept { return _environment.arch(); }
+  //! Returns the target sub-architecture, see \ref Environment::SubArch.
+  inline uint32_t subArch() const noexcept { return _environment.subArch(); }
 
-  //! Returns the target type, see `TargetType`.
-  inline uint32_t targetType() const noexcept { return _targetType; }
+#ifndef ASMJIT_NO_DEPRECATED
+  ASMJIT_DEPRECATED("Use environment() instead")
+  inline CodeInfo codeInfo() const noexcept { return CodeInfo(_environment); }
+
+  ASMJIT_DEPRECATED("Use environment().format() instead")
+  inline uint32_t targetType() const noexcept { return _environment.format(); }
+#endif // !ASMJIT_NO_DEPRECATED
 
   //! \}
 };
@@ -190,4 +172,4 @@ public:
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_TARGET_H
+#endif // ASMJIT_CORE_TARGET_H_INCLUDED

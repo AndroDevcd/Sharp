@@ -1,13 +1,30 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _ASMJIT_X86_X86GLOBALS_H
-#define _ASMJIT_X86_X86GLOBALS_H
+#ifndef ASMJIT_X86_X86GLOBALS_H_INCLUDED
+#define ASMJIT_X86_X86GLOBALS_H_INCLUDED
 
-#include "../core/arch.h"
+#include "../core/archtraits.h"
 #include "../core/inst.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
@@ -102,6 +119,7 @@ struct Inst : public BaseInst {
     kIdClflushopt,                       //!< Instruction 'clflushopt' {CLFLUSHOPT}.
     kIdClgi,                             //!< Instruction 'clgi' {SVM}.
     kIdCli,                              //!< Instruction 'cli'.
+    kIdClrssbsy,                         //!< Instruction 'clrssbsy' {CET_SS}.
     kIdClts,                             //!< Instruction 'clts'.
     kIdClwb,                             //!< Instruction 'clwb' {CLWB}.
     kIdClzero,                           //!< Instruction 'clzero' {CLZERO}.
@@ -185,6 +203,8 @@ struct Inst : public BaseInst {
     kIdDppd,                             //!< Instruction 'dppd' {SSE4_1}.
     kIdDpps,                             //!< Instruction 'dpps' {SSE4_1}.
     kIdEmms,                             //!< Instruction 'emms' {MMX}.
+    kIdEndbr32,                          //!< Instruction 'endbr32' {CET_IBT}.
+    kIdEndbr64,                          //!< Instruction 'endbr64' {CET_IBT}.
     kIdEnqcmd,                           //!< Instruction 'enqcmd' {ENQCMD}.
     kIdEnqcmds,                          //!< Instruction 'enqcmds' {ENQCMD}.
     kIdEnter,                            //!< Instruction 'enter'.
@@ -301,6 +321,8 @@ struct Inst : public BaseInst {
     kIdImul,                             //!< Instruction 'imul'.
     kIdIn,                               //!< Instruction 'in'.
     kIdInc,                              //!< Instruction 'inc'.
+    kIdIncsspd,                          //!< Instruction 'incsspd' {CET_SS}.
+    kIdIncsspq,                          //!< Instruction 'incsspq' {CET_SS} (X64).
     kIdIns,                              //!< Instruction 'ins'.
     kIdInsertps,                         //!< Instruction 'insertps' {SSE4_1}.
     kIdInsertq,                          //!< Instruction 'insertq' {SSE4A}.
@@ -405,6 +427,7 @@ struct Inst : public BaseInst {
     kIdLddqu,                            //!< Instruction 'lddqu' {SSE3}.
     kIdLdmxcsr,                          //!< Instruction 'ldmxcsr' {SSE}.
     kIdLds,                              //!< Instruction 'lds' (X86).
+    kIdLdtilecfg,                        //!< Instruction 'ldtilecfg' {AMX_TILE} (X64).
     kIdLea,                              //!< Instruction 'lea'.
     kIdLeave,                            //!< Instruction 'leave'.
     kIdLes,                              //!< Instruction 'les' (X86).
@@ -432,6 +455,7 @@ struct Inst : public BaseInst {
     kIdMaxps,                            //!< Instruction 'maxps' {SSE}.
     kIdMaxsd,                            //!< Instruction 'maxsd' {SSE2}.
     kIdMaxss,                            //!< Instruction 'maxss' {SSE}.
+    kIdMcommit,                          //!< Instruction 'mcommit' {MCOMMIT}.
     kIdMfence,                           //!< Instruction 'mfence' {SSE2}.
     kIdMinpd,                            //!< Instruction 'minpd' {SSE2}.
     kIdMinps,                            //!< Instruction 'minps' {SSE}.
@@ -532,7 +556,7 @@ struct Inst : public BaseInst {
     kIdPcmpgtw,                          //!< Instruction 'pcmpgtw' {MMX|SSE2}.
     kIdPcmpistri,                        //!< Instruction 'pcmpistri' {SSE4_2}.
     kIdPcmpistrm,                        //!< Instruction 'pcmpistrm' {SSE4_2}.
-    kIdPcommit,                          //!< Instruction 'pcommit' {PCOMMIT}.
+    kIdPconfig,                          //!< Instruction 'pconfig' {PCONFIG}.
     kIdPdep,                             //!< Instruction 'pdep' {BMI2}.
     kIdPext,                             //!< Instruction 'pext' {BMI2}.
     kIdPextrb,                           //!< Instruction 'pextrb' {SSE4_1}.
@@ -636,6 +660,7 @@ struct Inst : public BaseInst {
     kIdPslldq,                           //!< Instruction 'pslldq' {SSE2}.
     kIdPsllq,                            //!< Instruction 'psllq' {MMX|SSE2}.
     kIdPsllw,                            //!< Instruction 'psllw' {MMX|SSE2}.
+    kIdPsmash,                           //!< Instruction 'psmash' {SNP} (X64).
     kIdPsrad,                            //!< Instruction 'psrad' {MMX|SSE2}.
     kIdPsraw,                            //!< Instruction 'psraw' {MMX|SSE2}.
     kIdPsrld,                            //!< Instruction 'psrld' {MMX|SSE2}.
@@ -652,6 +677,7 @@ struct Inst : public BaseInst {
     kIdPsubw,                            //!< Instruction 'psubw' {MMX|SSE2}.
     kIdPswapd,                           //!< Instruction 'pswapd' {3DNOW2}.
     kIdPtest,                            //!< Instruction 'ptest' {SSE4_1}.
+    kIdPtwrite,                          //!< Instruction 'ptwrite' {PTWRITE}.
     kIdPunpckhbw,                        //!< Instruction 'punpckhbw' {MMX|SSE2}.
     kIdPunpckhdq,                        //!< Instruction 'punpckhdq' {MMX|SSE2}.
     kIdPunpckhqdq,                       //!< Instruction 'punpckhqdq' {SSE2}.
@@ -666,6 +692,7 @@ struct Inst : public BaseInst {
     kIdPushf,                            //!< Instruction 'pushf'.
     kIdPushfd,                           //!< Instruction 'pushfd' (X86).
     kIdPushfq,                           //!< Instruction 'pushfq' (X64).
+    kIdPvalidate,                        //!< Instruction 'pvalidate' {SNP}.
     kIdPxor,                             //!< Instruction 'pxor' {MMX|SSE2}.
     kIdRcl,                              //!< Instruction 'rcl'.
     kIdRcpps,                            //!< Instruction 'rcpps' {SSE}.
@@ -675,12 +702,18 @@ struct Inst : public BaseInst {
     kIdRdgsbase,                         //!< Instruction 'rdgsbase' {FSGSBASE} (X64).
     kIdRdmsr,                            //!< Instruction 'rdmsr' {MSR}.
     kIdRdpid,                            //!< Instruction 'rdpid' {RDPID}.
+    kIdRdpkru,                           //!< Instruction 'rdpkru' {OSPKE}.
     kIdRdpmc,                            //!< Instruction 'rdpmc'.
+    kIdRdpru,                            //!< Instruction 'rdpru' {RDPRU}.
     kIdRdrand,                           //!< Instruction 'rdrand' {RDRAND}.
     kIdRdseed,                           //!< Instruction 'rdseed' {RDSEED}.
+    kIdRdsspd,                           //!< Instruction 'rdsspd' {CET_SS}.
+    kIdRdsspq,                           //!< Instruction 'rdsspq' {CET_SS} (X64).
     kIdRdtsc,                            //!< Instruction 'rdtsc' {RDTSC}.
     kIdRdtscp,                           //!< Instruction 'rdtscp' {RDTSCP}.
     kIdRet,                              //!< Instruction 'ret'.
+    kIdRmpadjust,                        //!< Instruction 'rmpadjust' {SNP} (X64).
+    kIdRmpupdate,                        //!< Instruction 'rmpupdate' {SNP} (X64).
     kIdRol,                              //!< Instruction 'rol'.
     kIdRor,                              //!< Instruction 'ror'.
     kIdRorx,                             //!< Instruction 'rorx' {BMI2}.
@@ -691,12 +724,15 @@ struct Inst : public BaseInst {
     kIdRsm,                              //!< Instruction 'rsm' (X86).
     kIdRsqrtps,                          //!< Instruction 'rsqrtps' {SSE}.
     kIdRsqrtss,                          //!< Instruction 'rsqrtss' {SSE}.
+    kIdRstorssp,                         //!< Instruction 'rstorssp' {CET_SS}.
     kIdSahf,                             //!< Instruction 'sahf' {LAHFSAHF}.
     kIdSal,                              //!< Instruction 'sal'.
     kIdSar,                              //!< Instruction 'sar'.
     kIdSarx,                             //!< Instruction 'sarx' {BMI2}.
+    kIdSaveprevssp,                      //!< Instruction 'saveprevssp' {CET_SS}.
     kIdSbb,                              //!< Instruction 'sbb'.
     kIdScas,                             //!< Instruction 'scas'.
+    kIdSerialize,                        //!< Instruction 'serialize' {SERIALIZE}.
     kIdSeta,                             //!< Instruction 'seta'.
     kIdSetae,                            //!< Instruction 'setae'.
     kIdSetb,                             //!< Instruction 'setb'.
@@ -726,6 +762,7 @@ struct Inst : public BaseInst {
     kIdSetpe,                            //!< Instruction 'setpe'.
     kIdSetpo,                            //!< Instruction 'setpo'.
     kIdSets,                             //!< Instruction 'sets'.
+    kIdSetssbsy,                         //!< Instruction 'setssbsy' {CET_SS}.
     kIdSetz,                             //!< Instruction 'setz'.
     kIdSfence,                           //!< Instruction 'sfence' {MMX2}.
     kIdSgdt,                             //!< Instruction 'sgdt'.
@@ -761,6 +798,7 @@ struct Inst : public BaseInst {
     kIdStmxcsr,                          //!< Instruction 'stmxcsr' {SSE}.
     kIdStos,                             //!< Instruction 'stos'.
     kIdStr,                              //!< Instruction 'str'.
+    kIdSttilecfg,                        //!< Instruction 'sttilecfg' {AMX_TILE} (X64).
     kIdSub,                              //!< Instruction 'sub'.
     kIdSubpd,                            //!< Instruction 'subpd' {SSE2}.
     kIdSubps,                            //!< Instruction 'subps' {SSE}.
@@ -774,12 +812,27 @@ struct Inst : public BaseInst {
     kIdSysret,                           //!< Instruction 'sysret' (X64).
     kIdSysret64,                         //!< Instruction 'sysret64' (X64).
     kIdT1mskc,                           //!< Instruction 't1mskc' {TBM}.
+    kIdTdpbf16ps,                        //!< Instruction 'tdpbf16ps' {AMX_BF16} (X64).
+    kIdTdpbssd,                          //!< Instruction 'tdpbssd' {AMX_INT8} (X64).
+    kIdTdpbsud,                          //!< Instruction 'tdpbsud' {AMX_INT8} (X64).
+    kIdTdpbusd,                          //!< Instruction 'tdpbusd' {AMX_INT8} (X64).
+    kIdTdpbuud,                          //!< Instruction 'tdpbuud' {AMX_INT8} (X64).
     kIdTest,                             //!< Instruction 'test'.
+    kIdTileloadd,                        //!< Instruction 'tileloadd' {AMX_TILE} (X64).
+    kIdTileloaddt1,                      //!< Instruction 'tileloaddt1' {AMX_TILE} (X64).
+    kIdTilerelease,                      //!< Instruction 'tilerelease' {AMX_TILE} (X64).
+    kIdTilestored,                       //!< Instruction 'tilestored' {AMX_TILE} (X64).
+    kIdTilezero,                         //!< Instruction 'tilezero' {AMX_TILE} (X64).
+    kIdTpause,                           //!< Instruction 'tpause' {WAITPKG}.
     kIdTzcnt,                            //!< Instruction 'tzcnt' {BMI}.
     kIdTzmsk,                            //!< Instruction 'tzmsk' {TBM}.
     kIdUcomisd,                          //!< Instruction 'ucomisd' {SSE2}.
     kIdUcomiss,                          //!< Instruction 'ucomiss' {SSE}.
+    kIdUd0,                              //!< Instruction 'ud0'.
+    kIdUd1,                              //!< Instruction 'ud1'.
     kIdUd2,                              //!< Instruction 'ud2'.
+    kIdUmonitor,                         //!< Instruction 'umonitor' {WAITPKG}.
+    kIdUmwait,                           //!< Instruction 'umwait' {WAITPKG}.
     kIdUnpckhpd,                         //!< Instruction 'unpckhpd' {SSE2}.
     kIdUnpckhps,                         //!< Instruction 'unpckhps' {SSE}.
     kIdUnpcklpd,                         //!< Instruction 'unpcklpd' {SSE2}.
@@ -1102,6 +1155,8 @@ struct Inst : public BaseInst {
     kIdVmxon,                            //!< Instruction 'vmxon' {VMX}.
     kIdVorpd,                            //!< Instruction 'vorpd' {AVX|AVX512_DQ+VL}.
     kIdVorps,                            //!< Instruction 'vorps' {AVX|AVX512_DQ+VL}.
+    kIdVp2intersectd,                    //!< Instruction 'vp2intersectd' {AVX512_VP2INTERSECT}.
+    kIdVp2intersectq,                    //!< Instruction 'vp2intersectq' {AVX512_VP2INTERSECT}.
     kIdVp4dpwssd,                        //!< Instruction 'vp4dpwssd' {AVX512_4VNNIW}.
     kIdVp4dpwssds,                       //!< Instruction 'vp4dpwssds' {AVX512_4VNNIW}.
     kIdVpabsb,                           //!< Instruction 'vpabsb' {AVX|AVX2|AVX512_BW+VL}.
@@ -1192,8 +1247,8 @@ struct Inst : public BaseInst {
     kIdVpermil2ps,                       //!< Instruction 'vpermil2ps' {XOP}.
     kIdVpermilpd,                        //!< Instruction 'vpermilpd' {AVX|AVX512_F+VL}.
     kIdVpermilps,                        //!< Instruction 'vpermilps' {AVX|AVX512_F+VL}.
-    kIdVpermpd,                          //!< Instruction 'vpermpd' {AVX2}.
-    kIdVpermps,                          //!< Instruction 'vpermps' {AVX2}.
+    kIdVpermpd,                          //!< Instruction 'vpermpd' {AVX2|AVX512_F+VL}.
+    kIdVpermps,                          //!< Instruction 'vpermps' {AVX2|AVX512_F+VL}.
     kIdVpermq,                           //!< Instruction 'vpermq' {AVX2|AVX512_F+VL}.
     kIdVpermt2b,                         //!< Instruction 'vpermt2b' {AVX512_VBMI+VL}.
     kIdVpermt2d,                         //!< Instruction 'vpermt2d' {AVX512_F+VL}.
@@ -1511,6 +1566,10 @@ struct Inst : public BaseInst {
     kIdWrfsbase,                         //!< Instruction 'wrfsbase' {FSGSBASE} (X64).
     kIdWrgsbase,                         //!< Instruction 'wrgsbase' {FSGSBASE} (X64).
     kIdWrmsr,                            //!< Instruction 'wrmsr' {MSR}.
+    kIdWrssd,                            //!< Instruction 'wrssd' {CET_SS}.
+    kIdWrssq,                            //!< Instruction 'wrssq' {CET_SS} (X64).
+    kIdWrussd,                           //!< Instruction 'wrussd' {CET_SS}.
+    kIdWrussq,                           //!< Instruction 'wrussq' {CET_SS} (X64).
     kIdXabort,                           //!< Instruction 'xabort' {RTM}.
     kIdXadd,                             //!< Instruction 'xadd' {I486}.
     kIdXbegin,                           //!< Instruction 'xbegin' {RTM}.
@@ -1521,6 +1580,7 @@ struct Inst : public BaseInst {
     kIdXor,                              //!< Instruction 'xor'.
     kIdXorpd,                            //!< Instruction 'xorpd' {SSE2}.
     kIdXorps,                            //!< Instruction 'xorps' {SSE}.
+    kIdXresldtrk,                        //!< Instruction 'xresldtrk' {TSXLDTRK}.
     kIdXrstor,                           //!< Instruction 'xrstor' {XSAVE}.
     kIdXrstor64,                         //!< Instruction 'xrstor64' {XSAVE} (X64).
     kIdXrstors,                          //!< Instruction 'xrstors' {XSAVES}.
@@ -1534,6 +1594,7 @@ struct Inst : public BaseInst {
     kIdXsaves,                           //!< Instruction 'xsaves' {XSAVES}.
     kIdXsaves64,                         //!< Instruction 'xsaves64' {XSAVES} (X64).
     kIdXsetbv,                           //!< Instruction 'xsetbv' {XSAVE}.
+    kIdXsusldtrk,                        //!< Instruction 'xsusldtrk' {TSXLDTRK}.
     kIdXtest,                            //!< Instruction 'xtest' {TSX}.
     _kIdCount
     // ${InstId:End}
@@ -1635,14 +1696,14 @@ namespace Condition {
     kUnsignedGT           = kA,          //!< Unsigned   `a >  b`.
     kUnsignedGE           = kAE,         //!< Unsigned   `a >= b`.
 
-    kZero                 = kZ,
-    kNotZero              = kNZ,
+    kZero                 = kZ,          //!< Zero flag.
+    kNotZero              = kNZ,         //!< Non-zero flag.
 
-    kNegative             = kS,
-    kPositive             = kNS,
+    kNegative             = kS,          //!< Sign flag.
+    kPositive             = kNS,         //!< No sign flag.
 
-    kParityEven           = kP,
-    kParityOdd            = kPO
+    kParityEven           = kP,          //!< Even parity flag.
+    kParityOdd            = kPO          //!< Odd parity flag.
   };
 
   static constexpr uint8_t reverseTable[kCount] = {
@@ -1662,16 +1723,16 @@ namespace Condition {
   static constexpr uint16_t cmovccTable[] = { ASMJIT_INST_FROM_COND(Inst::kIdCmov) };
   #undef ASMJIT_INST_FROM_COND
 
-  //! Reverse a condition code (reverses the corresponding operands of a comparison).
+  //! Reverses a condition code (reverses the corresponding operands of a comparison).
   static constexpr uint32_t reverse(uint32_t cond) noexcept { return reverseTable[cond]; }
-  //! Negate a condition code.
+  //! Negates a condition code.
   static constexpr uint32_t negate(uint32_t cond) noexcept { return cond ^ 1u; }
 
-  //! Translate a condition code `cond` to a `jcc` instruction id.
+  //! Translates a condition code `cond` to a `jcc` instruction id.
   static constexpr uint32_t toJcc(uint32_t cond) noexcept { return jccTable[cond]; }
-  //! Translate a condition code `cond` to a `setcc` instruction id.
+  //! Translates a condition code `cond` to a `setcc` instruction id.
   static constexpr uint32_t toSetcc(uint32_t cond) noexcept { return setccTable[cond]; }
-  //! Translate a condition code `cond` to a `cmovcc` instruction id.
+  //! Translates a condition code `cond` to a `cmovcc` instruction id.
   static constexpr uint32_t toCmovcc(uint32_t cond) noexcept { return cmovccTable[cond]; }
 }
 
@@ -1679,54 +1740,92 @@ namespace Condition {
 // [asmjit::x86::FpuWord]
 // ============================================================================
 
-//! FPU control and status word.
+//! FPU control and status words.
 namespace FpuWord {
   //! FPU status word.
   enum Status : uint32_t {
+    //! Invalid operation.
     kStatusInvalid        = 0x0001u,
+    //! Denormalized operand.
     kStatusDenormalized   = 0x0002u,
+    //! Division by zero.
     kStatusDivByZero      = 0x0004u,
+    //! Overflown.
     kStatusOverflow       = 0x0008u,
+    //! Underflown.
     kStatusUnderflow      = 0x0010u,
+    //! Precision lost.
     kStatusPrecision      = 0x0020u,
+    //! Stack fault.
     kStatusStackFault     = 0x0040u,
+    //! Interrupt.
     kStatusInterrupt      = 0x0080u,
+    //! C0 flag.
     kStatusC0             = 0x0100u,
+    //! C1 flag.
     kStatusC1             = 0x0200u,
+    //! C2 flag.
     kStatusC2             = 0x0400u,
+    //! Top of the stack.
     kStatusTop            = 0x3800u,
+    //! C3 flag.
     kStatusC3             = 0x4000u,
+    //! FPU is busy.
     kStatusBusy           = 0x8000u
   };
 
   //! FPU control word.
   enum Control : uint32_t {
-    // Bits 0-5.
+    // [Bits 0-5]
+
+    //! Exception mask (0x3F).
     kControlEM_Mask       = 0x003Fu,
+    //! Invalid operation exception.
     kControlEM_Invalid    = 0x0001u,
+    //! Denormalized operand exception.
     kControlEM_Denormal   = 0x0002u,
+    //! Division by zero exception.
     kControlEM_DivByZero  = 0x0004u,
+    //! Overflow exception.
     kControlEM_Overflow   = 0x0008u,
+    //! Underflow exception.
     kControlEM_Underflow  = 0x0010u,
+    //! Inexact operation exception.
     kControlEM_Inexact    = 0x0020u,
 
-    // Bits 8-9.
+    // [Bits 8-9]
+
+    //! Precision control mask.
     kControlPC_Mask       = 0x0300u,
+    //! Single precision (24 bits).
     kControlPC_Float      = 0x0000u,
+    //! Reserved.
     kControlPC_Reserved   = 0x0100u,
+    //! Double precision (53 bits).
     kControlPC_Double     = 0x0200u,
+    //! Extended precision (64 bits).
     kControlPC_Extended   = 0x0300u,
 
-    // Bits 10-11.
+    // [Bits 10-11]
+
+    //! Rounding control mask.
     kControlRC_Mask       = 0x0C00u,
+    //! Round to nearest even.
     kControlRC_Nearest    = 0x0000u,
+    //! Round down (floor).
     kControlRC_Down       = 0x0400u,
+    //! Round up (ceil).
     kControlRC_Up         = 0x0800u,
+    //! Round towards zero (truncate).
     kControlRC_Truncate   = 0x0C00u,
 
-    // Bit 12.
+    // [Bit 12]
+
+    //! Infinity control.
     kControlIC_Mask       = 0x1000u,
+    //! Projective (not supported on X64).
     kControlIC_Projective = 0x0000u,
+    //! Affine (default).
     kControlIC_Affine     = 0x1000u
   };
 }
@@ -1743,26 +1842,39 @@ namespace Status {
     // [Architecture Neutral Flags - 0x000000FF]
     // ------------------------------------------------------------------------
 
-    kCF = 0x00000001u, //!< Carry flag.
-    kOF = 0x00000002u, //!< Signed overflow flag.
-    kSF = 0x00000004u, //!< Sign flag (negative/sign, if set).
-    kZF = 0x00000008u, //!< Zero and/or equality flag (1 if zero/equal).
+    //! Carry flag.
+    kCF = 0x00000001u,
+    //! Signed overflow flag.
+    kOF = 0x00000002u,
+    //! Sign flag (negative/sign, if set).
+    kSF = 0x00000004u,
+    //! Zero and/or equality flag (1 if zero/equal).
+    kZF = 0x00000008u,
 
     // ------------------------------------------------------------------------
     // [Architecture Specific Flags - 0xFFFFFF00]
     // ------------------------------------------------------------------------
 
-    kAF = 0x00000100u, //!< Adjust flag.
-    kPF = 0x00000200u, //!< Parity flag.
-    kDF = 0x00000400u, //!< Direction flag.
-    kIF = 0x00000800u, //!< Interrupt enable flag.
+    //! Adjust flag.
+    kAF = 0x00000100u,
+    //! Parity flag.
+    kPF = 0x00000200u,
+    //! Direction flag.
+    kDF = 0x00000400u,
+    //! Interrupt enable flag.
+    kIF = 0x00000800u,
 
-    kAC = 0x00001000u, //!< Alignment check.
+    //! Alignment check.
+    kAC = 0x00001000u,
 
-    kC0 = 0x00010000u, //!< FPU C0 status flag.
-    kC1 = 0x00020000u, //!< FPU C1 status flag.
-    kC2 = 0x00040000u, //!< FPU C2 status flag.
-    kC3 = 0x00080000u  //!< FPU C3 status flag.
+    //! FPU C0 status flag.
+    kC0 = 0x00010000u,
+    //! FPU C1 status flag.
+    kC1 = 0x00020000u,
+    //! FPU C2 status flag.
+    kC2 = 0x00040000u,
+    //! FPU C3 status flag.
+    kC3 = 0x00080000u
   };
 }
 
@@ -1817,12 +1929,18 @@ namespace Predicate {
 
   //! A predicate used by ROUND[PD|PS|SD|SS] instructions.
   enum Round : uint32_t {
-    kRoundNearest         = 0x00u,       //!< Round to nearest (even).
-    kRoundDown            = 0x01u,       //!< Round to down toward -INF (floor),
-    kRoundUp              = 0x02u,       //!< Round to up toward +INF (ceil).
-    kRoundTrunc           = 0x03u,       //!< Round toward zero (truncate).
-    kRoundCurrent         = 0x04u,       //!< Round to the current rounding mode set (ignores other RC bits).
-    kRoundInexact         = 0x08u        //!< Avoids inexact exception, if set.
+    //! Round to nearest (even).
+    kRoundNearest = 0x00u,
+    //! Round to down toward -INF (floor),
+    kRoundDown = 0x01u,
+    //! Round to up toward +INF (ceil).
+    kRoundUp = 0x02u,
+    //! Round toward zero (truncate).
+    kRoundTrunc = 0x03u,
+    //! Round to the current rounding mode set (ignores other RC bits).
+    kRoundCurrent = 0x04u,
+    //! Avoids inexact exception, if set.
+    kRoundInexact = 0x08u
   };
 
   //! A predicate used by VCMP[PD|PS|SD|SS] instructions.
@@ -1981,25 +2099,46 @@ namespace Predicate {
 //! Bitwise ternary logic between 3 operands introduced by AVX-512.
 namespace TLog {
   //! A predicate that can be used to create a common predicate for VPTERNLOG[D|Q].
+  //!
+  //! There are 3 inputs to the instruction (\ref kA, \ref kB, \ref kC), and
+  //! ternary logic can define any combination that would be performed on these
+  //! 3 inputs to get the desired output - any combination of AND, OR, XOR, NOT.
   enum Operator : uint32_t {
-    k0                    = 0x00u,       //!< 0 value.
-    k1                    = 0xFFu,       //!< 1 value.
-    kA                    = 0xF0u,       //!< A value.
-    kB                    = 0xCCu,       //!< B value.
-    kC                    = 0xAAu,       //!< C value.
-    kNotA                 = kA ^ k1,     //!< `!A` expression.
-    kNotB                 = kB ^ k1,     //!< `!B` expression.
-    kNotC                 = kC ^ k1,     //!< `!C` expression.
+    //! 0 value.
+    k0 = 0x00u,
+    //! 1 value.
+    k1 = 0xFFu,
+    //! A value.
+    kA = 0xF0u,
+    //! B value.
+    kB = 0xCCu,
+    //! C value.
+    kC = 0xAAu,
 
-    kAB                   = kA & kB,     //!< `A & B` expression.
-    kAC                   = kA & kC,     //!< `A & C` expression.
-    kBC                   = kB & kC,     //!< `B & C` expression.
-    kNotAB                = kAB ^ k1,    //!< `!(A & B)` expression.
-    kNotAC                = kAC ^ k1,    //!< `!(A & C)` expression.
-    kNotBC                = kBC ^ k1,    //!< `!(B & C)` expression.
+    //! `!A` expression.
+    kNotA = kA ^ k1,
+    //! `!B` expression.
+    kNotB = kB ^ k1,
+    //! `!C` expression.
+    kNotC = kC ^ k1,
 
-    kABC                  = kAB & kC,    //!< `A & B & C` expression.
-    kNotABC               = kABC ^ k1    //!< `!(A & B & C)` expression.
+    //! `A & B` expression.
+    kAB = kA & kB,
+    //! `A & C` expression.
+    kAC = kA & kC,
+    //! `B & C` expression.
+    kBC = kB & kC,
+    //! `!(A & B)` expression.
+    kNotAB = kAB ^ k1,
+    //! `!(A & C)` expression.
+    kNotAC = kAC ^ k1,
+    //! `!(B & C)` expression.
+    kNotBC = kBC ^ k1,
+
+    //! `A & B & C` expression.
+    kABC = kAB & kC,
+    //! `!(A & B & C)` expression.
+    kNotABC = kABC ^ k1
   };
 
   //! Creates an immediate that can be used by VPTERNLOG[D|Q] instructions.
@@ -2019,4 +2158,4 @@ namespace TLog {
 
 ASMJIT_END_SUB_NAMESPACE
 
-#endif // _ASMJIT_X86_X86GLOBALS_H
+#endif // ASMJIT_X86_X86GLOBALS_H_INCLUDED

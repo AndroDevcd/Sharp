@@ -1,17 +1,32 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#define ASMJIT_EXPORTS
-
-#include "../core/build.h"
+#include "../core/api-build_p.h"
 #ifndef ASMJIT_NO_JIT
 
-#include "../core/arch.h"
+#include "../core/archtraits.h"
 #include "../core/jitallocator.h"
-#include "../core/osutils.h"
+#include "../core/osutils_p.h"
 #include "../core/support.h"
 #include "../core/virtmem.h"
 #include "../core/zone.h"
@@ -455,7 +470,7 @@ static JitAllocatorBlock* JitAllocatorImpl_newBlock(JitAllocatorPrivateImpl* imp
 }
 
 static void JitAllocatorImpl_deleteBlock(JitAllocatorPrivateImpl* impl, JitAllocatorBlock* block) noexcept {
-  ASMJIT_UNUSED(impl);
+  DebugUtils::unused(impl);
 
   if (block->flags & JitAllocatorBlock::kFlagDualMapped)
     VirtMem::releaseDualMapping(&block->mapping, block->blockSize);
@@ -601,7 +616,7 @@ JitAllocator::Statistics JitAllocator::statistics() const noexcept {
 
   if (ASMJIT_LIKELY(_impl != &JitAllocatorImpl_none)) {
     JitAllocatorPrivateImpl* impl = static_cast<JitAllocatorPrivateImpl*>(_impl);
-    ScopedLock locked(impl->lock);
+    LockGuard guard(impl->lock);
 
     size_t poolCount = impl->poolCount;
     for (size_t poolId = 0; poolId < poolCount; poolId++) {
@@ -638,7 +653,7 @@ Error JitAllocator::alloc(void** roPtrOut, void** rwPtrOut, size_t size) noexcep
   if (ASMJIT_UNLIKELY(size > std::numeric_limits<uint32_t>::max() / 2))
     return DebugUtils::errored(kErrorTooLarge);
 
-  ScopedLock locked(impl->lock);
+  LockGuard guard(impl->lock);
   JitAllocatorPool* pool = &impl->pools[JitAllocatorImpl_sizeToPoolId(impl, size)];
 
   uint32_t areaIndex = kNoIndex;
@@ -763,7 +778,7 @@ Error JitAllocator::release(void* ro) noexcept {
     return DebugUtils::errored(kErrorInvalidArgument);
 
   JitAllocatorPrivateImpl* impl = static_cast<JitAllocatorPrivateImpl*>(_impl);
-  ScopedLock locked(impl->lock);
+  LockGuard guard(impl->lock);
 
   JitAllocatorBlock* block = impl->tree.get(static_cast<uint8_t*>(ro));
   if (ASMJIT_UNLIKELY(!block))
@@ -822,7 +837,7 @@ Error JitAllocator::shrink(void* ro, size_t newSize) noexcept {
     return release(ro);
 
   JitAllocatorPrivateImpl* impl = static_cast<JitAllocatorPrivateImpl*>(_impl);
-  ScopedLock locked(impl->lock);
+  LockGuard guard(impl->lock);
   JitAllocatorBlock* block = impl->tree.get(static_cast<uint8_t*>(ro));
 
   if (ASMJIT_UNLIKELY(!block))
@@ -923,7 +938,7 @@ public:
 // Helper class to verify that JitAllocator doesn't return addresses that overlap.
 class JitAllocatorWrapper {
 public:
-  explicit inline JitAllocatorWrapper(const JitAllocator::CreateParams* params) noexcept
+  inline explicit JitAllocatorWrapper(const JitAllocator::CreateParams* params) noexcept
     : _zone(1024 * 1024),
       _heap(&_zone),
       _allocator(params) {}
@@ -1022,7 +1037,7 @@ static void JitAllocatorTest_usage(JitAllocator& allocator) noexcept {
   INFO("  Overhead (HeapMem): %9llu [Bytes] (%.1f%%)", (unsigned long long)(stats.overheadSize()), stats.overheadSizeAsPercent());
 }
 
-UNIT(asmjit_jit_allocator) {
+UNIT(jit_allocator) {
   size_t kCount = BrokenAPI::hasArg("--quick") ? 1000 : 100000;
 
   struct TestParams {

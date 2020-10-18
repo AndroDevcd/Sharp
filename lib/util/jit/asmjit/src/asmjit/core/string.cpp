@@ -1,11 +1,27 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// AsmJit - Machine code generation for C++
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+//  * Official AsmJit Home Page: https://asmjit.com
+//  * Official Github Repository: https://github.com/asmjit/asmjit
+//
+// Copyright (c) 2008-2020 The AsmJit Authors
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/string.h"
 #include "../core/support.h"
 
@@ -18,7 +34,7 @@ ASMJIT_BEGIN_NAMESPACE
 static const char String_baseN[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 constexpr size_t kMinAllocSize = 64;
-constexpr size_t kMaxAllocSize = std::numeric_limits<size_t>::max() - Globals::kGrowThreshold;
+constexpr size_t kMaxAllocSize = SIZE_MAX - Globals::kGrowThreshold;
 
 // ============================================================================
 // [asmjit::String]
@@ -134,7 +150,7 @@ char* String::prepare(uint32_t op, size_t size) noexcept {
   }
 }
 
-Error String::assignString(const char* data, size_t size) noexcept {
+Error String::assign(const char* data, size_t size) noexcept {
   char* dst = nullptr;
 
   // Null terminated string without `size` specified.
@@ -206,7 +222,8 @@ Error String::_opString(uint32_t op, const char* str, size_t size) noexcept {
     return kErrorOk;
 
   char* p = prepare(op, size);
-  if (!p) return DebugUtils::errored(kErrorOutOfMemory);
+  if (!p)
+    return DebugUtils::errored(kErrorOutOfMemory);
 
   memcpy(p, str, size);
   return kErrorOk;
@@ -214,7 +231,8 @@ Error String::_opString(uint32_t op, const char* str, size_t size) noexcept {
 
 Error String::_opChar(uint32_t op, char c) noexcept {
   char* p = prepare(op, 1);
-  if (!p) return DebugUtils::errored(kErrorOutOfMemory);
+  if (!p)
+    return DebugUtils::errored(kErrorOutOfMemory);
 
   *p = c;
   return kErrorOk;
@@ -225,7 +243,8 @@ Error String::_opChars(uint32_t op, char c, size_t n) noexcept {
     return kErrorOk;
 
   char* p = prepare(op, n);
-  if (!p) return DebugUtils::errored(kErrorOutOfMemory);
+  if (!p)
+    return DebugUtils::errored(kErrorOutOfMemory);
 
   memset(p, c, n);
   return kErrorOk;
@@ -333,7 +352,7 @@ Error String::_opHex(uint32_t op, const void* data, size_t size, char separator)
     return kErrorOk;
 
   if (separator) {
-    if (ASMJIT_UNLIKELY(size >= std::numeric_limits<size_t>::max() / 3))
+    if (ASMJIT_UNLIKELY(size >= SIZE_MAX / 3))
       return DebugUtils::errored(kErrorOutOfMemory);
 
     dst = prepare(op, size * 3 - 1);
@@ -353,7 +372,7 @@ Error String::_opHex(uint32_t op, const void* data, size_t size, char separator)
     }
   }
   else {
-    if (ASMJIT_UNLIKELY(size >= std::numeric_limits<size_t>::max() / 2))
+    if (ASMJIT_UNLIKELY(size >= SIZE_MAX / 2))
       return DebugUtils::errored(kErrorOutOfMemory);
 
     dst = prepare(op, size * 2);
@@ -388,6 +407,9 @@ Error String::_opVFormat(uint32_t op, const char* fmt, va_list ap) noexcept {
   int fmtResult;
   size_t outputSize;
 
+  va_list apCopy;
+  va_copy(apCopy, ap);
+
   if (remainingCapacity >= 128) {
     fmtResult = vsnprintf(data() + startAt, remainingCapacity, fmt, ap);
     outputSize = size_t(fmtResult);
@@ -412,7 +434,7 @@ Error String::_opVFormat(uint32_t op, const char* fmt, va_list ap) noexcept {
   if (ASMJIT_UNLIKELY(!p))
     return DebugUtils::errored(kErrorOutOfMemory);
 
-  fmtResult = vsnprintf(p, outputSize + 1, fmt, ap);
+  fmtResult = vsnprintf(p, outputSize + 1, fmt, apCopy);
   ASMJIT_ASSERT(size_t(fmtResult) == outputSize);
 
   return kErrorOk;
@@ -461,13 +483,13 @@ bool String::eq(const char* other, size_t size) const noexcept {
 // ============================================================================
 
 #if defined(ASMJIT_TEST)
-UNIT(asmjit_core_string) {
+UNIT(core_string) {
   String s;
 
   EXPECT(s.isLarge() == false);
   EXPECT(s.isExternal() == false);
 
-  EXPECT(s.assignChar('a') == kErrorOk);
+  EXPECT(s.assign('a') == kErrorOk);
   EXPECT(s.size() == 1);
   EXPECT(s.capacity() == String::kSSOCapacity);
   EXPECT(s.data()[0] == 'a');
@@ -486,7 +508,7 @@ UNIT(asmjit_core_string) {
   EXPECT(s.eq("bbbb") == true);
   EXPECT(s.eq("bbbb", 4) == true);
 
-  EXPECT(s.assignString("abc") == kErrorOk);
+  EXPECT(s.assign("abc") == kErrorOk);
   EXPECT(s.size() == 3);
   EXPECT(s.capacity() == String::kSSOCapacity);
   EXPECT(s.data()[0] == 'a');
@@ -497,7 +519,7 @@ UNIT(asmjit_core_string) {
   EXPECT(s.eq("abc", 3) == true);
 
   const char* large = "Large string that will not fit into SSO buffer";
-  EXPECT(s.assignString(large) == kErrorOk);
+  EXPECT(s.assign(large) == kErrorOk);
   EXPECT(s.isLarge() == true);
   EXPECT(s.size() == strlen(large));
   EXPECT(s.capacity() > String::kSSOCapacity);
@@ -506,7 +528,7 @@ UNIT(asmjit_core_string) {
 
   const char* additional = " (additional content)";
   EXPECT(s.isLarge() == true);
-  EXPECT(s.appendString(additional) == kErrorOk);
+  EXPECT(s.append(additional) == kErrorOk);
   EXPECT(s.size() == strlen(large) + strlen(additional));
 
   EXPECT(s.clear() == kErrorOk);
