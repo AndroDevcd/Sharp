@@ -773,6 +773,16 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
             lockCheckMutex.unlock();
             return true;
         }
+        else if(mut->fiberid != -1 && mut->threadid == thread->id) {
+            fiber *fib = fiber::getFiber(mut->fiberid);
+
+            if(fib && !fib->finished && fib->state != FIB_KILLED && (fib->boundThread == NULL || fib->boundThread == thread)
+                && thread->try_context_switch(false)) {
+                thread->next_fiber = fib;
+                lockCheckMutex.unlock();
+                return false;
+            }
+        }
         lockCheckMutex.unlock();
 
         lockObject:
@@ -782,8 +792,9 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                 Thread::suspendSelf();
             else if(thread->contextSwitching || (hasSignal(thread->signal, tsig_context_switch)
                 && !(hasSignal(thread->signal, tsig_except))
-                && thread->try_context_switch(false)))
+                && thread->try_context_switch(false))) {
                 return false;
+            }
             else if(count++ >= limit) {
                 __usleep(1);
                 count = 0;

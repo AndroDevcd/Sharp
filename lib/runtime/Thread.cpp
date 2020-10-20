@@ -902,6 +902,8 @@ void Thread::exec() {
                         sendSignal(signal, tsig_except, 1);
                     }
 
+                    if((this_fiber->callStack+(this_fiber->calls+1))->isjit)
+                        this_fiber->pc++;
                     return;
                 }
 

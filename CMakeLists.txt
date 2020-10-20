@@ -3,12 +3,12 @@ project(Sharp)
 
 set(CMAKE_C_STANDARD 11)
 
-set(POSIX "os")
+#set(POSIX "os")
 if (POSIX)
 
     set(BUILD_SHARED_LIBS OFF)
 #-fsanitize=address -fno-omit-frame-pointer
-    set(CMAKE_CXX_FLAGS_DEBUG  " -fsanitize=address -fno-omit-frame-pointer -std=c++11 -O0 -Werror -pthread -lstdc++ -g ${CMAKE_CXX_FLAGS_DEBUG}")
+    set(CMAKE_CXX_FLAGS_DEBUG  " -fsanitize=address -fno-omit-frame-pointer -mno-red-zone -std=c++11 -O0 -Werror -pthread -lstdc++ -g ${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -mno-red-zone -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO   "-fsanitize=address  -mno-red-zone -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
     set(CMAKE_CXX_FLAGS_RELEASE   " -fsanitize=address -mno-red-zone  -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")

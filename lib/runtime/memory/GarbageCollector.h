@@ -201,9 +201,7 @@ public:
      * @param bytes
      */
     CXX11_INLINE void freeMemory(size_t bytes) {
-        mutex.lock();
         managedBytes -= bytes;
-        mutex.unlock();
     }
 
     CXX11_INLINE bool spaceAvailable(uInt bytes) {

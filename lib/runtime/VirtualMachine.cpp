@@ -214,7 +214,6 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
 
         if(func->isjit) {
             thread->jctx->caller = func;
-            thread->jctx->startingPc = 0;
             return func->jit_func;
         } else {
             if(nativeShift)
@@ -223,13 +222,11 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
         }
     }
 
-    Frame &frame = thread->this_fiber->callStack[thread->relativeFrame+1];
+    Frame &frame = thread->this_fiber->callStack[++thread->relativeFrame];
     func = vm.methods+frame.returnAddress;
-    thread->relativeFrame++;
 
    if(frame.isjit) {
        thread->jctx->caller = func;
-       thread->jctx->startingPc = 0;
        return func->jit_func;
    } else {
        if(nativeShift)
@@ -259,7 +256,6 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwit
     if(method->isjit) {
         thread->jctx->caller = method;
         thread->jctx->this_fiber = thread->this_fiber;
-        thread->jctx->startingPc = 0;
         return method->jit_func;
     } else
 #endif
@@ -1180,6 +1176,7 @@ void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
     if(c_options.debugMode) {
         ss << " ["
            << func->address << "] $" << pc;
+        ss << " " << (func->isjit ? "(jit)" : "");
     }
 
     if(line != -1 && vm.metaData.files.size() > 0) {

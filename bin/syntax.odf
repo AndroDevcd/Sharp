@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 96139
-post codebase size: 86533
-optimized opcodes: 9606
-net % gain 9.99178
+pre codebase size: 96146
+post codebase size: 86543
+optimized opcodes: 9603
+net % gain 9.98794
 
 
 class: main#__srt_global[0] fields(3) methods(6)
@@ -36345,17 +36345,27 @@ function: main#__srt_global.main[1897] params(1) in file: tests/corouting_test.s
 		def main(args: string[]) {
 		   ^
 
-0 [0x0]: line: 33 istorel 0, fp+1   
-2 [0x2]:          loadl ecx, fp+1   
-3 [0x3]:          movi #10, ebx   
-5 [0x5]:          lt ecx, ebx   
-6 [0x6]:          movr ebx, cmt   
-7 [0x7]:          movr cmt, ebx   
-8 [0x8]:          jne 13   
-9 [0x9]: line: 34 call @1896 // <main#__srt_global.loop>   
-10 [0xa]:          iaddl 1, fp@1   
-12 [0xc]:          jmp @2   
-13 [0xd]:          ret   
+0 [0x0]: line: 45 call @3660 // <std#time.mills_time>   
+1 [0x1]:          ipopl 1   
+2 [0x2]: line: 46 call @1895 // <main#__srt_global.foo>   
+3 [0x3]:          pop   
+4 [0x4]: line: 47 istore 1000   
+6 [0x6]:          call @2140 // <std.io.fiber#__srt_global.delay>   
+7 [0x7]: line: 48 call @3660 // <std#time.mills_time>   
+8 [0x8]:          loadval ebx   
+9 [0x9]:          rstore ebx   
+10 [0xa]:          loadl ebx, fp+1   
+11 [0xb]:          loadval ecx   
+12 [0xc]:          sub ecx, ebx -> ebx   
+13 [0xd]:          rstore ebx   
+14 [0xe]:          call @1913 // <std#__srt_global.println>   
+15 [0xf]: line: 49 movg @0 // @main#__srt_global   
+16 [0x10]:          movn #2   
+18 [0x12]:          pushobj   
+19 [0x13]:          istore 1   
+21 [0x15]:          call @3996 // <std.io#atomic<var>.operator++>   
+22 [0x16]:          call @1913 // <std#__srt_global.println>   
+23 [0x17]:          ret   
 
 
 function: std#__srt_global.strtod[1898] params(1) in file: lib/support/0.2.9/console.sharp:5:4: note:  
@@ -46662,7 +46672,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 8 [0x8]:          movn #0   
 10 [0xa]:          movn #0   
 12 [0xc]:          popobj   
-13 [0xd]:          movi #23207, ebx   
+13 [0xd]:          movi #106261, ebx   
 15 [0xf]:          movg @25 // @std.io#buffer_type   
 16 [0x10]:          movn #0   
 18 [0x12]:          movn #1   
@@ -46677,7 +46687,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 31 [0x1f]:          movn #1   
 33 [0x21]:          movn #0   
 35 [0x23]:          popobj   
-36 [0x24]:          movi #23208, ebx   
+36 [0x24]:          movi #106262, ebx   
 38 [0x26]:          movg @25 // @std.io#buffer_type   
 39 [0x27]:          movn #1   
 41 [0x29]:          movn #1   
@@ -46692,7 +46702,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 54 [0x36]:          movn #2   
 56 [0x38]:          movn #0   
 58 [0x3a]:          popobj   
-59 [0x3b]:          movi #23209, ebx   
+59 [0x3b]:          movi #106263, ebx   
 61 [0x3d]:          movg @25 // @std.io#buffer_type   
 62 [0x3e]:          movn #2   
 64 [0x40]:          movn #1   
@@ -46707,7 +46717,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 77 [0x4d]:          movn #3   
 79 [0x4f]:          movn #0   
 81 [0x51]:          popobj   
-82 [0x52]:          movi #23210, ebx   
+82 [0x52]:          movi #106264, ebx   
 84 [0x54]:          movg @25 // @std.io#buffer_type   
 85 [0x55]:          movn #3   
 87 [0x57]:          movn #1   
@@ -46782,7 +46792,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 192 [0xc0]:          movn #0   
 194 [0xc2]:          movn #0   
 196 [0xc4]:          popobj   
-197 [0xc5]:          movi #23209, ebx   
+197 [0xc5]:          movi #106263, ebx   
 199 [0xc7]:          movg @35 // @std.io.fiber#fiber_state   
 200 [0xc8]:          movn #0   
 202 [0xca]:          movn #1   
@@ -46797,7 +46807,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 215 [0xd7]:          movn #1   
 217 [0xd9]:          movn #0   
 219 [0xdb]:          popobj   
-220 [0xdc]:          movi #23210, ebx   
+220 [0xdc]:          movi #106264, ebx   
 222 [0xde]:          movg @35 // @std.io.fiber#fiber_state   
 223 [0xdf]:          movn #1   
 225 [0xe1]:          movn #1   
@@ -46812,7 +46822,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 238 [0xee]:          movn #2   
 240 [0xf0]:          movn #0   
 242 [0xf2]:          popobj   
-243 [0xf3]:          movi #23211, ebx   
+243 [0xf3]:          movi #106265, ebx   
 245 [0xf5]:          movg @35 // @std.io.fiber#fiber_state   
 246 [0xf6]:          movn #2   
 248 [0xf8]:          movn #1   
@@ -46827,7 +46837,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 261 [0x105]:          movn #3   
 263 [0x107]:          movn #0   
 265 [0x109]:          popobj   
-266 [0x10a]:          movi #23212, ebx   
+266 [0x10a]:          movi #106266, ebx   
 268 [0x10c]:          movg @35 // @std.io.fiber#fiber_state   
 269 [0x10d]:          movn #3   
 271 [0x10f]:          movn #1   
@@ -46842,7 +46852,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 284 [0x11c]:          movn #4   
 286 [0x11e]:          movn #0   
 288 [0x120]:          popobj   
-289 [0x121]:          movi #23213, ebx   
+289 [0x121]:          movi #106267, ebx   
 291 [0x123]:          movg @35 // @std.io.fiber#fiber_state   
 292 [0x124]:          movn #4   
 294 [0x126]:          movn #1   
@@ -47427,7 +47437,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 1181 [0x49d]:          movn #0   
 1183 [0x49f]:          movn #0   
 1185 [0x4a1]:          popobj   
-1186 [0x4a2]:          movi #23213, ebx   
+1186 [0x4a2]:          movi #106267, ebx   
 1188 [0x4a4]:          movg @71 // @std.reflect#property_type   
 1189 [0x4a5]:          movn #0   
 1191 [0x4a7]:          movn #1   
@@ -47442,7 +47452,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 1204 [0x4b4]:          movn #1   
 1206 [0x4b6]:          movn #0   
 1208 [0x4b8]:          popobj   
-1209 [0x4b9]:          movi #23214, ebx   
+1209 [0x4b9]:          movi #106268, ebx   
 1211 [0x4bb]:          movg @71 // @std.reflect#property_type   
 1212 [0x4bc]:          movn #1   
 1214 [0x4be]:          movn #1   
@@ -47457,7 +47467,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 1227 [0x4cb]:          movn #2   
 1229 [0x4cd]:          movn #0   
 1231 [0x4cf]:          popobj   
-1232 [0x4d0]:          movi #23215, ebx   
+1232 [0x4d0]:          movi #106269, ebx   
 1234 [0x4d2]:          movg @71 // @std.reflect#property_type   
 1235 [0x4d3]:          movn #2   
 1237 [0x4d5]:          movn #1   
@@ -47667,7 +47677,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 1549 [0x60d]:          movn #0   
 1551 [0x60f]:          movn #0   
 1553 [0x611]:          popobj   
-1554 [0x612]:          movi #23216, ebx   
+1554 [0x612]:          movi #106270, ebx   
 1556 [0x614]:          movg @98 // @std.io#channel<t>.channel_state   
 1557 [0x615]:          movn #0   
 1559 [0x617]:          movn #1   
@@ -47682,7 +47692,7 @@ function: platform.kernel#platform.static_init[2360] params(0) in file: lib/supp
 1572 [0x624]:          movn #1   
 1574 [0x626]:          movn #0   
 1576 [0x628]:          popobj   
-1577 [0x629]:          movi #23217, ebx   
+1577 [0x629]:          movi #106271, ebx   
 1579 [0x62b]:          movg @98 // @std.io#channel<t>.channel_state   
 1580 [0x62c]:          movn #1   
 1582 [0x62e]:          movn #1   

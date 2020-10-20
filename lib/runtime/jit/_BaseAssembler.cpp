@@ -30,7 +30,6 @@ void _BaseAssembler::shutdown() {
 }
 
 void _BaseAssembler::initialize() {
-    initializeRegisters();
     setupContextFields();
     setupFiberFields();
     setupThreadFields();
@@ -44,7 +43,6 @@ void _BaseAssembler::setupContextFields() {
     Ljit_context[jit_context_self] = getMemPtr(relative_offset((self->jctx), self, self));
     Ljit_context[jit_context_fiber] = getMemPtr(relative_offset((self->jctx), self, this_fiber));
     Ljit_context[jit_context_caller] = getMemPtr(relative_offset((self->jctx), self, caller));
-    Ljit_context[jit_context_starting_pc] = getMemPtr(relative_offset((self->jctx), self, startingPc));
 }
 
 void _BaseAssembler::setupFiberFields() {
@@ -192,8 +190,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
             logComment("; method " + func->fullName.str() + "\n");
             logComment("; starting prologue");
 
-            createFunctionPrologue();
-            allocateStackSpace();
+            createFunctionAndAllocateRegisters();
+            initialize();
 
             setupGotoLabels();
             setupStackAndRegisterValues();
@@ -1714,10 +1712,12 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                 gc.addMemory(jitMemory);
             }
 
-//            cout << "compiled " << func->name.str() << " " << func->address << endl;
-//            cout << "used Size " << rt.allocator()->statistics()._usedSize << endl;
-//            cout << "reserved Size " << rt.allocator()->statistics()._reservedSize << endl;
-//            cout << "overhead Size " << rt.allocator()->statistics()._overheadSize << endl;
+//            if(error == jit_error_ok) {
+//                cout << "compiled " << func->name.str() << " " << func->address << endl;
+//                cout << "used Size " << rt.allocator()->statistics()._usedSize << endl;
+//                cout << "reserved Size " << rt.allocator()->statistics()._reservedSize << endl;
+//                cout << "overhead Size " << rt.allocator()->statistics()._overheadSize << endl;
+//            }
             return error;
         } else {
             error = jit_error_size;
@@ -1739,144 +1739,6 @@ int _BaseAssembler::jitTryContextSwitch(Thread *thread, bool incPc) {
     }
 
     return 0;
-}
-
-void _BaseAssembler::stackCheck(x86::Assembler &assembler, const Label &lbl_thread_chk, Int pc) {
-//    assembler.mov(ctx, threadPtr);
-//    assembler.mov(value, Lthread[thread_sp]);
-//    assembler.mov(tmp, Lthread[thread_dataStack]);
-//    assembler.mov(fnPtr, Lthread[thread_stack_lmt]);
-//    assembler.sub(value, tmp);
-//    assembler.sar(value, 4);
-//    assembler.add(value, 1);
-//    assembler.cmp(value, fnPtr);
-//    Label end = assembler.newLabel();
-//    assembler.jb(end);
-//    assembler.mov(arg, pc);
-//    updatePc(assembler);
-//    assembler.call((x86int_t) jitStackOverflowException);
-//    assembler.mov(arg, -1);
-//    assembler.jmp(lbl_thread_chk);
-//    assembler.bind(end);
-}
-
-void _BaseAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, Int pc, bool checkContents) {
-    assembler.mov(ctx, o2Ptr);
-    assembler.cmp(ctx, 0); // 02==NULL
-    Label nullCheckPassed = assembler.newLabel();
-    Label nullCheckFailed = assembler.newLabel();
-    assembler.je(nullCheckFailed);
-
-    if(checkContents) {
-
-        assembler.mov(ctx, qword_ptr(ctx));
-        assembler.cmp(ctx, 0);
-        assembler.jne(nullCheckPassed);
-    } else {
-        assembler.jmp(nullCheckPassed);
-    }
-
-    assembler.bind(nullCheckFailed);
-    assembler.mov(arg, pc);
-    updatePc(assembler);
-    assembler.call((Int) jitNullPtrException);
-    assembler.mov(arg, -1);
-    assembler.jmp(lbl_thread_chk);
-    assembler.bind(nullCheckPassed);
-}
-
-void _BaseAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, Int pc) {
-    assembler.mov(ctx, o2Ptr);
-    assembler.cmp(ctx, 0); // 02==NULL
-    Label nullCheckPassed = assembler.newLabel();
-    Label nullCheckFailed = assembler.newLabel();
-    assembler.je(nullCheckFailed);
-
-    assembler.mov(ctx, qword_ptr(ctx));
-    assembler.cmp(ctx, 0);
-    assembler.je(nullCheckFailed);
-
-    assembler.mov(tmp32, Lsharp_object[sharp_object_info]);
-    assembler.shr(tmp32, 24);
-    assembler.mov(tmp32, tmp32);
-    assembler.and_(tmp32, TYPE_MASK);
-    assembler.cmp(tmp8, _stype_struct);
-    assembler.jne(nullCheckFailed);
-
-    assembler.mov(ctx, Lsharp_object[sharp_object_node]);
-    assembler.jmp(nullCheckPassed);
-
-    assembler.bind(nullCheckFailed);
-    assembler.mov(arg, pc);
-    updatePc(assembler);
-    assembler.call((Int) jitNullPtrException);
-    assembler.mov(arg, -1);
-    assembler.jmp(thread_check);
-    assembler.bind(nullCheckPassed);
-}
-
-
-void _BaseAssembler::checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, Int pc) {
-    assembler.mov(ctx, o2Ptr);
-    assembler.cmp(ctx, 0); // 02==NULL
-    Label nullCheckPassed = assembler.newLabel();
-    Label nullCheckFailed = assembler.newLabel();
-    assembler.je(nullCheckFailed);
-
-    assembler.mov(ctx, qword_ptr(ctx));
-    assembler.cmp(ctx, 0);
-    assembler.je(nullCheckFailed);
-
-    assembler.mov(tmp32, Lsharp_object[sharp_object_info]);
-    assembler.shr(tmp32, 24);
-    assembler.mov(tmp32, tmp32);
-    assembler.and_(tmp32, TYPE_MASK);
-    assembler.cmp(tmp8, _stype_var);
-    assembler.jne(nullCheckFailed);
-
-    assembler.mov(ctx, Lsharp_object[sharp_object_HEAD]);
-    assembler.jmp(nullCheckPassed);
-
-    assembler.bind(nullCheckFailed);
-    assembler.mov(arg, pc);
-    updatePc(assembler);
-    assembler.call((Int) jitNullPtrException);
-    assembler.mov(arg, -1);
-    assembler.jmp(thread_check);
-    assembler.bind(nullCheckPassed);
-}
-
-void _BaseAssembler::checkO2Object(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_check,
-                                   Int pc) {
-    assembler.mov(ctx, o2Ptr);
-    assembler.cmp(ctx, 0); // 02==NULL
-    Label nullCheckPassed = assembler.newLabel();
-    Label nullCheckFailed = assembler.newLabel();
-    assembler.je(nullCheckFailed);
-
-    assembler.mov(ctx, qword_ptr(ctx));
-    assembler.cmp(ctx, 0);
-    assembler.je(nullCheckFailed);
-    assembler.jmp(nullCheckPassed);
-
-    assembler.bind(nullCheckFailed);
-    assembler.mov(arg, pc);
-    updatePc(assembler);
-    assembler.call((Int) jitNullPtrException);
-    assembler.mov(arg, -1);
-    assembler.jmp(lbl_thread_check);
-    assembler.bind(nullCheckPassed);
-}
-
-/*
- * Very expensive procedure so use it sparingly
- */
-void
-_BaseAssembler::checkSystemState(const Label &lbl_func_end, Int pc, x86::Assembler &assembler, Label &lbl_thread_chk) {
-    Label thread_check_end = assembler.newLabel();
-    threadStatusCheck(assembler, thread_check_end, lbl_thread_chk, pc);
-    assembler.bind(thread_check_end);
-    checkMasterShutdown(assembler, pc, lbl_func_end);
 }
 
 void _BaseAssembler::jitCast(Object *obj, Int klass) {
@@ -1977,56 +1839,6 @@ void _BaseAssembler::jit64BitCast(Int dest, Int src) {
 void _BaseAssembler::jitPop(fiber *fib) {
     fib->sp->object = (SharpObject*)NULL;
     fib->sp--;
-}
-
-void _BaseAssembler::emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const) {
-    if(_const == 0) {
-        assembler.pxor(xmm, xmm);
-    } else { \
-        Int idx = cpool.createConstant(assembler, _const);
-        x86::Mem lconst = x86::ptr(cpool.getConstantLabel(idx));
-        assembler.movsd(xmm, lconst);
-    }
-}
-
-void _BaseAssembler::jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr) {
-    using namespace asmjit::x86;
-
-    assembler.mov(dest, labelsPtr);      // were just using these registers because we can, makes life so much easier
-    assembler.cmp(idx, 0);
-    Label ifTrue = assembler.newLabel();
-    assembler.je(ifTrue);
-    assembler.imul(idx, (size_t)sizeof(int32_t));      // offset = labelAddr*sizeof(int64_t)
-    assembler.add(dest, idx);
-    assembler.bind(ifTrue);
-
-    assembler.mov(dest, x86::ptr(dest));
-    assembler.jmp(dest);
-}
-
-void _BaseAssembler::movRegister(x86::Assembler &assembler, x86::Xmm &vec, Int addr, bool store) {
-    assembler.mov(ctx, regPtr);        // move the contex var into register
-    if(addr != 0) {
-        assembler.add(ctx, (int64_t )(sizeof(double) * addr));
-    }
-
-    if(store)
-        assembler.movsd(x86::qword_ptr(ctx), vec);  // store into register
-    else
-        assembler.movsd(vec, x86::qword_ptr(ctx)); // get value from register
-}
-
-void _BaseAssembler::checkMasterShutdown(x86::Assembler &assembler, int64_t pc, const Label &lbl_funcend) {
-    using namespace asmjit::x86;
-
-//    assembler.movzx(ctx32, (x86int_t)&masterShutdown);
-//    assembler.cmp(ctx32, 0);
-//    Label ifFalse = assembler.newLabel();
-//    assembler.je(ifFalse);
-//    assembler.mov(arg, pc);
-//    assembler.jmp(lbl_funcend);
-//
-//    assembler.bind(ifFalse);
 }
 
 void _BaseAssembler::jitSysInt(Int signal) {
@@ -2142,38 +1954,6 @@ void _BaseAssembler::jitSetObject3(Object *dest, SharpObject *src) {
 
 void _BaseAssembler::jitDelete(Object* o) {
     gc.releaseObject(o);
-}
-
-void
-_BaseAssembler::threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, Int irAddr) {
-    assembler.lea(fnPtr, x86::ptr(retLbl)); // set return addr
-
-    assembler.mov(arg, irAddr);             // set PC index
-    assembler.mov(ctx, threadPtr);
-    assembler.mov(ctx32, Lthread[thread_signal]);
-    assembler.cmp(ctx32, 0);
-    assembler.jne(lbl_thread_sec);
-}
-
-/**
- * You must pass the index of opcode you are processing in order to
- * successfully update the pc in thread.
- *
- * This will simply update the pc to whatever opcode index you specify.
- * @param assembler
- */
-void _BaseAssembler::updatePc(x86::Assembler &assembler) {
-//    Label end = assembler.newLabel();
-//
-//    assembler.cmp(arg, -1);
-//    assembler.je(end);
-//    assembler.mov(ctx, threadPtr);
-//    assembler.mov(tmp, Lthread[thread_cache]);
-//    assembler.imul(arg, (size_t)sizeof(x86int_t*));
-//    assembler.add(tmp, arg);
-//    assembler.mov(Lthread[thread_pc], tmp);
-//    assembler.bind(end);
-//    assembler.mov(arg, 0);
 }
 
 Int _BaseAssembler::jitGetPc(Thread *thread) {

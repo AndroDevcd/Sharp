@@ -8,12 +8,19 @@
 #include "_BaseAssembler.h"
 
 #ifdef BUILD_JIT
+class JitErrorHandler : public ErrorHandler {
+public:
+    void handleError(Error err, const char* message, BaseEmitter* origin) override {
+        printf("AsmJit error: %s\n", message);
+    }
+};
+
 class x64Assembler : public _BaseAssembler {
 public:
     x64Assembler()
     :
             _BaseAssembler(),
-            assembler(NULL),
+            compiler(NULL),
             code(NULL),
             logger(NULL),
             constants(NULL),
@@ -28,7 +35,8 @@ public:
             lsetupAddressTable(),
             lendOfFunction(),
             ldataSection(),
-            lsignalCheck()
+            lsignalCheck(),
+            errorHandler()
     {
         initialize();
     }
@@ -39,8 +47,7 @@ private: // virtual functions
     x86::Mem getMemPtr(x86::Gp reg, Int addr) override ;
     x86::Mem getMemPtr(x86::Gp reg) override ;
     Int getRegisterSize() override ;
-    void initializeRegisters() override ;
-    void createFunctionPrologue() override ;
+    void createFunctionAndAllocateRegisters() override ;
     void createFunctionEpilogue() override ;
     void beginCompilation(Method *method) override ;
     void endCompilation() override ;
@@ -51,7 +58,6 @@ private: // virtual functions
     void logComment(std::string) override ;
 
     // stack manip functions
-    void allocateStackSpace() override ;
     void setupStackAndRegisterValues() override ;
 
     // control flow functions
@@ -83,23 +89,23 @@ private: // virtual functions
     void checkTmpPtrAsNumber(Int IrAddr);
 
     // private fields
-    x86::Assembler *assembler;
+    JitErrorHandler errorHandler;
+    x86::Compiler *compiler;
     CodeHolder *code;
     FileLogger *logger;
     Constants* constants;
     Label *labels;
     Method *compiledMethod;
-    x86::Mem ctxPtr;
-    x86::Mem tmpPtr;
-    x86::Mem labelsPtr;
-    x86::Mem tmpInt;
-    x86::Mem tmpPc;
-    x86::Mem returnAddress;
+    x86::Gp ctxPtr;
+    x86::Gp tmpPtr;
+    x86::Gp labelsPtr;
+    x86::Gp tmpInt;
+    x86::Gp tmpPc;
+    x86::Gp returnAddress;
     Int stackSize;
 
     // Function Landmarks
     Label lcodeStart;
-    Label lopcodeStart;
     Label lsetupAddressTable;
     Label lendOfFunction;
     Label lfunctionEpilogue;

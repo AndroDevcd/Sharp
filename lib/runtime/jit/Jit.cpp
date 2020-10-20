@@ -70,7 +70,7 @@ void Jit::run() {
              * We only want to run a concurrent compilation
              * of a function
              */
-//            if(function != 2111)
+            if(function == 1896)
                getAssembler()->tryJit(vm.methods+function);
                __os_yield();
         }

@@ -29,7 +29,6 @@ struct StackElement;
 struct jit_context {
     Thread* self;
     fiber *this_fiber;
-    Int startingPc;
     Method* caller; // current method we are executing only used in initalization of the call
 };
 
@@ -55,7 +54,8 @@ class _BaseAssembler {
 public:
     _BaseAssembler()
     :
-        rt()
+        rt(),
+        initialized(false)
     {
         functions.init();
     }
@@ -66,19 +66,19 @@ public:
 
 protected:
     void initialize();
+    bool initialized;
     FILE* getLogFile();
     _List<fptr> functions;
 
     x86::Gp ctx, ctx32;                  // total registers used in jit
     x86::Gp tmp, tmp32, tmp16, tmp8;
-    x86::Gp value;
+    x86::Gp arg2;
     x86::Gp fnPtr, fnPtr32, arg, arg3, arg4;
     x86::Gp regPtr, threadPtr, fiberPtr;
-    x86::Gp bp, sp;
 
     x86::Xmm vec0, vec1;          // floating point registers
 
-    x86::Mem Ljit_context[4];     // memory layout of struct jit_context {}
+    x86::Mem Ljit_context[3];     // memory layout of struct jit_context {}
     x86::Mem Lthread[6];          // memory layout of class Thread {}
     x86::Mem Lfiber[12];           // memory layout of class fiber {}
     x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
@@ -93,8 +93,7 @@ private: // virtual functions
     virtual x86::Mem getMemPtr(x86::Gp reg, Int addr) = 0;
     virtual x86::Mem getMemPtr(x86::Gp reg) = 0;
     virtual Int getRegisterSize() = 0;
-    virtual void initializeRegisters() = 0;
-    virtual void createFunctionPrologue() = 0;
+    virtual void createFunctionAndAllocateRegisters() = 0;
     virtual void createFunctionEpilogue() = 0;
     virtual void beginCompilation(Method*) = 0;
     virtual void endCompilation() = 0;
@@ -105,7 +104,6 @@ private: // virtual functions
     virtual void logComment(std::string) = 0;
 
     // stack manipulation functions
-    virtual void allocateStackSpace() = 0;
     virtual void setupStackAndRegisterValues() = 0;
 
     // conrol flow functions
@@ -130,7 +128,6 @@ private: // virtual functions
     virtual int createJitFunc() = 0;
 
     int compile(Method*);
-    void updatePc(x86::Assembler &assembler);
 
 protected:
     static void jitSysInt(Int signal);
@@ -170,18 +167,6 @@ protected:
     static void jitThrow(Thread *thread);
     static void jitIllegalStackSwapException(Thread*);
 
-
-    void threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, Int irAddr);
-    void checkMasterShutdown(x86::Assembler &assembler, int64_t pc, const Label &lbl_funcend);
-    void emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const);
-    void movRegister(x86::Assembler &assembler, x86::Xmm &vec, Int addr, bool store = true);
-    void checkSystemState(const Label &lbl_func_end, Int pc, x86::Assembler &assembler, Label &lbl_thread_chk);
-    void jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr);
-    void checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end, Int pc);
-    void checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, Int pc);
-    void checkO2Object(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread, Int);
-    void checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, Int pc, bool checkContents = false);
-    void stackCheck(x86::Assembler &assembler, const Label &lbl_thread_chk, Int pc);
 };
 
 enum ConstKind {
@@ -206,7 +191,7 @@ struct Constants {
         constantLabels.free();
     }
 
-    Int createConstant(x86::Assembler& cc, Int const0) {
+    Int createConstant(x86::Compiler& cc, Int const0) {
         Int idx = _64ConstIndex(const0);
 
         if(idx == -1) {
@@ -219,7 +204,7 @@ struct Constants {
         return idx;
     }
 
-    Int createConstant(x86::Assembler& cc, double const0) {
+    Int createConstant(x86::Compiler& cc, double const0) {
         Int idx = _floatConstIndex(const0);
 
         if(idx == -1) {
@@ -266,7 +251,7 @@ struct Constants {
         return constantLabels.get(idx);
     }
 
-    void emitConstants(x86::Assembler& cc) {
+    void emitConstants(x86::Compiler& cc) {
 
         for(Int i = 0; i < constantLabels.size(); i++) {
             cc.bind(constantLabels.get(i));
@@ -288,7 +273,6 @@ struct Constants {
 #define jit_context_self   0
 #define jit_context_fiber  1
 #define jit_context_caller 2
-#define jit_context_starting_pc 3
 
 // class fiber {} fields
 #define fiber_current   0
