@@ -29,14 +29,15 @@ public:
             stackSize(0),
             ctxPtr(),
             tmpPtr(),
-            labelsPtr(),
             tmpInt(),
             lcodeStart(),
-            lsetupAddressTable(),
             lendOfFunction(),
             ldataSection(),
             lsignalCheck(),
-            errorHandler()
+            errorHandler(),
+            labelTable(),
+            buildStackSection(false),
+            buildThreadSection(false)
     {
         initialize();
     }
@@ -63,7 +64,6 @@ private: // virtual functions
     // control flow functions
     void setupGotoLabels() override ;
     void createFunctionLandmarks() override ;
-    void setupAddressTable() override ;
     void storeLabelValues() override ;
     void validateVirtualStack() override ;
     void addThreadSignalCheck() override ;
@@ -95,18 +95,19 @@ private: // virtual functions
     FileLogger *logger;
     Constants* constants;
     Label *labels;
+    Label labelTable;
     Method *compiledMethod;
     x86::Gp ctxPtr;
     x86::Gp tmpPtr;
-    x86::Gp labelsPtr;
     x86::Gp tmpInt;
     x86::Gp tmpPc;
     x86::Gp returnAddress;
     Int stackSize;
+    bool buildThreadSection;
+    bool buildStackSection;
 
     // Function Landmarks
     Label lcodeStart;
-    Label lsetupAddressTable;
     Label lendOfFunction;
     Label lfunctionEpilogue;
     Label ldataSection;

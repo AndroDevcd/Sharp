@@ -32,8 +32,7 @@ string signalToString(int signal) {
     return "?";
 }
 
-void os_signal(int signal)
-{
+void os_signal(int signal) {
     gSignalStatus = signal;
 
     if(signal != SIGINT) {

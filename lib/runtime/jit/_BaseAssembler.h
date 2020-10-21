@@ -55,7 +55,8 @@ public:
     _BaseAssembler()
     :
         rt(),
-        initialized(false)
+        initialized(false),
+        jumpAnnotationGraph(NULL)
     {
         functions.init();
     }
@@ -75,6 +76,7 @@ protected:
     x86::Gp arg2;
     x86::Gp fnPtr, fnPtr32, arg, arg3, arg4;
     x86::Gp regPtr, threadPtr, fiberPtr;
+    JumpAnnotation* jumpAnnotationGraph;
 
     x86::Xmm vec0, vec1;          // floating point registers
 
@@ -82,7 +84,7 @@ protected:
     x86::Mem Lthread[6];          // memory layout of class Thread {}
     x86::Mem Lfiber[12];           // memory layout of class fiber {}
     x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
-    x86::Mem Lmethod[2];          // memory layout of struct Method {}
+    x86::Mem Lmethod[1];          // memory layout of struct Method {}
     x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
 
     JitRuntime rt;
@@ -109,7 +111,6 @@ private: // virtual functions
     // conrol flow functions
     virtual void setupGotoLabels() = 0;
     virtual void createFunctionLandmarks() = 0;
-    virtual void setupAddressTable() = 0;
     virtual void storeLabelValues() = 0;
     virtual void validateVirtualStack() = 0;
     virtual void addThreadSignalCheck() = 0;
@@ -308,7 +309,6 @@ struct Constants {
 
 // struct Method {} fields
 #define method_bytecode 0
-#define method_jit_labels 1
 
 // struct SharpObject {} fields
 #define sharp_object_HEAD 0

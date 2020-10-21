@@ -40,7 +40,6 @@ typedef short (*lib_handshake)(void *lib_funcs[], int);
  */
 class Method : public Symbol {
 public:
-    int32_t* jit_labels;
     uint32_t* bytecode;
     function_type fnType;
     int stackSize;
@@ -110,10 +109,6 @@ public:
         if(bytecode != NULL) {
             std::free(bytecode);
         }
-
-        if(jit_labels != NULL) {
-            std::free(jit_labels);
-        }
     }
 
     void init() {
@@ -132,7 +127,6 @@ public:
         params = NULL;
         owner = NULL;
         utype = NULL;
-        jit_labels = NULL;
         stackSize = 0;
         bytecode = NULL;
         address = 0;

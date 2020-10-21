@@ -30,7 +30,7 @@ int64_t x64Assembler::getRegisterSize() {
 
 void x64Assembler::createFunctionAndAllocateRegisters() {
     compiler->addFunc(FuncSignatureT<void, jit_context*>());// Begin a function of `int fn(void)` signature.
-    ctx = compiler->newIntPtr("jctx");// Create `dst` register (destination pointer).
+    ctx = compiler->newI64("jctx");// Create `dst` register (destination pointer).
 
     compiler->setArg(0, ctx);                // Assign `jctx` argument.
     ctx32     = ctx.r32();
@@ -53,11 +53,12 @@ void x64Assembler::createFunctionAndAllocateRegisters() {
     vec1 = compiler->newXmm();
 
     ctxPtr = compiler->newInt64();              // store memory location of ctx pointer in the stack
-    labelsPtr = compiler->newInt64();           // store memory location of labels* pointer in the stack
     tmpPtr = compiler->newInt64();              // store memory location of o2 pointer in the stack
     tmpInt = compiler->newInt64();           // store memory location of tmiInt for temporary stored integers in the stack
     tmpPc = compiler->newInt64();           // store memory location of tmiInt for temporary stored integers in the stack
     returnAddress = compiler->newInt64();  // store memory location of return address for temporary storage to specify where to jump back from
+
+    jumpAnnotationGraph = compiler->newJumpAnnotation();
 }
 
 void x64Assembler::createFunctionEpilogue() {
@@ -73,7 +74,6 @@ void x64Assembler::createFunctionEpilogue() {
 
     compiler->bind(lfunctionEpilogue);
     compiler->ret();
-    compiler->endFunc();
 }
 
 void x64Assembler::incPc() {
@@ -86,16 +86,23 @@ void x64Assembler::beginCompilation(Method *method) {
     code->init(rt.environment());
     code->setErrorHandler(&errorHandler);
 
-    logger = new FileLogger(getLogFile());
-    code->setLogger(logger);                           // Initialize logger temporarily to ensure quality of code
+//    logger = new FileLogger(getLogFile());
+//    logger->addFlags(FormatOptions::kFlagPositions);
+//    logger->addFlags(FormatOptions::kFlagDebugPasses);
+//    logger->addFlags(FormatOptions::kFlagAnnotations);
+//    logger->addFlags(FormatOptions::kFlagDebugRA);
+//    code->setLogger(logger);                           // Initialize logger temporarily to ensure quality of code
 
     compiler = new Compiler(code);
     constants = new Constants();
     compiledMethod = method;
+    buildThreadSection = false;
+    buildStackSection = false;
 }
 
 void x64Assembler::endCompilation() {
    compiledMethod->compiling = false;
+   jumpAnnotationGraph = NULL;
    delete compiler; compiler = NULL;
    delete code; code = NULL;
    delete logger; logger = NULL;
@@ -113,7 +120,6 @@ void x64Assembler::setupStackAndRegisterValues() {
 
     // zero out registers & memory
     compiler->xor_(arg, arg);
-    compiler->mov(labelsPtr, 0);
     compiler->mov(tmpPc, 0);
     compiler->mov(tmpInt, 0);
     compiler->mov(returnAddress, 0);
@@ -133,12 +139,13 @@ void x64Assembler::setupGotoLabels() {
     labels = new Label[compiledMethod->cacheSize];                        // Each opcode has its own label but not all labels will be used
     for(Int i = 0; i < compiledMethod->cacheSize; i++) {       // Iterate through all the addresses to create labels for each address
         labels[i] = compiler->newLabel();
+        jumpAnnotationGraph->addLabel(labels[i]);
     }
 }
 
 void x64Assembler::createFunctionLandmarks() {
+    labelTable = compiler->newNamedLabel(".label_table", 12);
     lcodeStart = compiler->newNamedLabel(".code_start", 11);
-    lsetupAddressTable = compiler->newNamedLabel(".init_addr_tbl", 14);
     lendOfFunction = compiler->newNamedLabel(".func_end", 9);
     ldataSection = compiler->newNamedLabel(".data", 5);
     lsignalCheck = compiler->newNamedLabel(".thread_check", 13);
@@ -169,45 +176,19 @@ void x64Assembler::movRegister(x86::Xmm &vec, Int addr, bool store) {
         compiler->movsd(vec, x86::qword_ptr(ctx)); // get value from register
 }
 
-void x64Assembler::setupAddressTable() {
-    compiler->nop();
-    compiler->mov(ctx, ctxPtr);
-    compiler->mov(ctx,
-                   Ljit_context[jit_context_caller]);              // First we gain access to the int32_t* jit_labels; field
-    compiler->mov(ctx, Lmethod[method_jit_labels]);
-    compiler->mov(labelsPtr, ctx);
-
-    // Next we need to see if we need to jump to setup all the address labels
-    compiler->mov(ctx32, dword_ptr(ctx));                    // if(ctx->func->jit_labels[0]==0)
-    compiler->test(ctx, ctx);                                              //      goto setupAddresses;
-    compiler->jne(lvirtualStackCheck);
-    compiler->jmp(lsetupAddressTable);
-}
-
 void x64Assembler::storeLabelValues() {
-    compiler->bind(lsetupAddressTable);
-    compiler->nop();
-
-    // labeles[] setting here
-    logComment("; setting label values");
-    compiler->mov(tmp, labelsPtr);
-
-    x86::Mem ptrIdx = dword_ptr(tmp);
+    compiler->align(kAlignData, 32);
+    compiler->bind(labelTable);
     for (int64_t i = 0; i < compiledMethod->cacheSize; i++) {
-        compiler->lea(ctx, x86::ptr(labels[i]));
-        compiler->mov(ptrIdx, ctx);
-
-        if ((i + 1) < compiledMethod->cacheSize)                       // omit unessicary add instruction
-            compiler->add(tmp, (int32_t) sizeof(int32_t));
+        compiler->embedLabelDelta(labels[i], labelTable, 4);
     }
-
-    compiler->nop();
-    compiler->jmp(lvirtualStackCheck);                          // jump back to top to execute user code
-
 }
 
 int x64Assembler::createJitFunc() {
     compiledMethod->compiling = false;
+
+    storeLabelValues();
+    compiler->endFunc();
     compiler->finalize();                    // Translate and assemble the whole 'cc' content.
 
     fptr fn;
@@ -317,15 +298,16 @@ int x64Assembler::addUserCode() {
         if ((i + 1) < compiledMethod->cacheSize)
             Ir2 = compiledMethod->bytecode[i + 1];
 
-        compiler->nop();
-        compiler->nop();
-        compiler->mov(ctx, i);
-        compiler->nop();
-        compiler->nop();
-//        Label safetyCheckEnd = compiler->newLabel();
-//
-//        stackCheck(i, safetyCheckEnd);
-//        compiler->bind(safetyCheckEnd);
+        stringstream tmpStream;
+        tmpStream << "; instr " << i;
+        logComment(tmpStream.str());
+        compiler->bind(labels[i]);
+
+//        compiler->nop();
+//        compiler->nop();
+//        compiler->mov(ctx, i);
+//        compiler->nop();
+//        compiler->nop();
         if (GET_OP(Ir) == Opcode::JNE || GET_OP(Ir) == Opcode::JMP
             || GET_OP(Ir) == Opcode::BRH || GET_OP(Ir) == Opcode::IFE
             || GET_OP(Ir) == Opcode::IFNE) {
@@ -335,10 +317,6 @@ int x64Assembler::addUserCode() {
             threadStatusCheck(labels[i], i, false);
         }
 
-        stringstream tmpStream;
-        tmpStream << "; instr " << i;
-        logComment(tmpStream.str());
-        compiler->bind(labels[i]);
         switch (GET_OP(Ir)) {
             case Opcode::NOP: {
                 compiler->nop();
@@ -846,9 +824,7 @@ int x64Assembler::addUserCode() {
                 else
                     compiler->jne(ifTrue);
 
-                compiler->mov(tmp, (Int)GET_Da(Ir)); // double to int
-
-                jmpToLabel();
+                compiler->jmp(labels[GET_Da(Ir)]);
                 compiler->bind(ifTrue);
                 break;
             }
@@ -1701,7 +1677,6 @@ int x64Assembler::addUserCode() {
         }
     }
 
-    compiler->jmp(lendOfFunction);                  // if we reach the end of our function we dont want to set the labels again
     return jit_error_ok;
 }
 
@@ -1809,20 +1784,13 @@ void x64Assembler::checkTmpPtrAsNumber(Int irAddr) {
  * tmp register to be set inotder to jump to address value dynamically
  */
 void x64Assembler::jmpToLabel() {
-    compiler->nop();
-    compiler->nop();
-    compiler->nop();
-    compiler->nop();
-    compiler->mov(ctx, labelsPtr);      // were just using these registers because we can, makes life so much easier
-    compiler->cmp(tmp, 0);
-    Label ifTrue = compiler->newLabel();
-    compiler->je(ifTrue);
-    compiler->imul(tmp, (size_t)sizeof(int32_t));      // offset = labelAddr*sizeof(int64_t)
-    compiler->add(ctx, tmp);
-    compiler->bind(ifTrue);
-
-    compiler->mov(ctx32, x86::ptr(ctx));
-    compiler->jmp(ctx);
+    compiler->lea(arg2, x86::ptr(labelTable));
+    if (compiler->is64Bit())
+        compiler->movsxd(ctx, x86::dword_ptr(arg2, tmp.cloneAs(arg2), 2));
+    else
+        compiler->mov(ctx, x86::dword_ptr(arg2, tmp.cloneAs(arg2), 2));
+    compiler->add(ctx, arg2);
+    compiler->jmp(ctx, jumpAnnotationGraph);
 }
 
 /**
@@ -1832,112 +1800,111 @@ void x64Assembler::jmpToLabel() {
  * arg3 register to hold whether or not to increment the PC in event of context switch
  */
 void x64Assembler::addThreadSignalCheck() {                      // we need to update the PC just before this addr jump as well as save the return back addr in fnPtr
-    InvokeNode* invokeNode;
 
-    Label isThreadKilled = compiler->newLabel();
-    Label hasException = compiler->newLabel();
-    Label hasKillSignal = compiler->newLabel();
-    Label hasSuspend = compiler->newLabel();
-    Label exceptionCaught = compiler->newLabel();
-    Label contextSwitchCheck = compiler->newLabel();
-    Label signalCheckEnd = compiler->newLabel();
-    Label isContextSwitchEnabled = compiler->newLabel();
+    if(buildThreadSection) {
+        InvokeNode *invokeNode;
 
-    /* Thread Suspended Check */
-    compiler->bind(lsignalCheck);
-    compiler->mov(ctx, threadPtr);
-    compiler->movzx(tmp32, Lthread[thread_context_switching]);
-    compiler->movzx(tmp32, tmp8);
-    compiler->cmp(tmp32, 0);
-    compiler->je(hasSuspend);
-    compiler->jmp(lfunctionEpilogue);
-    compiler->bind(hasSuspend);
+        Label isThreadKilled = compiler->newLabel();
+        Label hasException = compiler->newLabel();
+        Label hasKillSignal = compiler->newLabel();
+        Label hasSuspend = compiler->newLabel();
+        Label exceptionCaught = compiler->newLabel();
+        Label contextSwitchCheck = compiler->newLabel();
+        Label signalCheckEnd = compiler->newLabel();
+        Label isContextSwitchEnabled = compiler->newLabel();
 
-    updatePc();                                                      // before we call we need to set arg register to -1 if we already have the pc updated
-    compiler->mov(ctx, threadPtr);
-    compiler->mov(tmp32, Lthread[thread_signal]);
-    compiler->sar(tmp32, ((int)tsig_suspend));
-    compiler->and_(tmp32, 1);
-    compiler->test(tmp32, tmp32);
-    compiler->je(isThreadKilled);
-    compiler->invoke(&invokeNode,
-                     Thread::suspendSelf,
-                     FuncSignatureT<void>());
+        /* Thread Suspended Check */
+        compiler->bind(lsignalCheck);
+        compiler->mov(ctx, threadPtr);
+        compiler->movzx(tmp32, Lthread[thread_context_switching]);
+        compiler->movzx(tmp32, tmp8);
+        compiler->cmp(tmp32, 0);
+        compiler->je(hasSuspend);
+        compiler->jmp(lfunctionEpilogue);
+        compiler->bind(hasSuspend);
 
-    /* end of check */
+        updatePc();                                                      // before we call we need to set arg register to -1 if we already have the pc updated
+        compiler->mov(ctx, threadPtr);
+        compiler->mov(tmp32, Lthread[thread_signal]);
+        compiler->sar(tmp32, ((int) tsig_suspend));
+        compiler->and_(tmp32, 1);
+        compiler->test(tmp32, tmp32);
+        compiler->je(isThreadKilled);
+        compiler->invoke(&invokeNode,
+                         Thread::suspendSelf,
+                         FuncSignatureT<void>());
 
-    /* Thread Killed Check */
-    compiler->bind(isThreadKilled);
-    compiler->mov(ctx, threadPtr);                                      // has it been shut down??
-    compiler->mov(tmp32, Lthread[thread_state]);
-    compiler->cmp(tmp32, THREAD_KILLED);
-    compiler->jne(hasKillSignal);
-    compiler->jmp(lendOfFunction); // verified
-    /* end of check */
+        /* end of check */
 
-    /* Thread Killed Check */
-    compiler->bind(hasKillSignal);
-    compiler->mov(ctx, threadPtr);
-    compiler->mov(tmp32, Lthread[thread_signal]);
-    compiler->sar(tmp32, ((int)tsig_kill));
-    compiler->and_(tmp32, 1);
-    compiler->test(tmp32, tmp32);
-    compiler->je(hasException);
-    compiler->jmp(lendOfFunction); // verified
-    /* end of check */
+        /* Thread Killed Check */
+        compiler->bind(isThreadKilled);
+        compiler->mov(ctx, threadPtr);                                      // has it been shut down??
+        compiler->mov(tmp32, Lthread[thread_state]);
+        compiler->cmp(tmp32, THREAD_KILLED);
+        compiler->jne(hasKillSignal);
+        compiler->jmp(lendOfFunction); // verified
+        /* end of check */
 
-    /* Thread exception Check */
-    compiler->bind(hasException);
-    compiler->mov(ctx, threadPtr);                                    // Do we have an exception to catch?
-    compiler->mov(tmp32, Lthread[thread_signal]);
-    compiler->sar(tmp32, ((int)tsig_except));
-    compiler->and_(tmp32, 1);
-    compiler->test(tmp32, tmp32);
-    compiler->je(contextSwitchCheck);
-    compiler->invoke(&invokeNode,
-                     VirtualMachine::catchException,
-                     FuncSignatureT<bool>());
-    invokeNode->setRet(0, tmp);
+        /* Thread Killed Check */
+        compiler->bind(hasKillSignal);
+        compiler->mov(ctx, threadPtr);
+        compiler->mov(tmp32, Lthread[thread_signal]);
+        compiler->sar(tmp32, ((int) tsig_kill));
+        compiler->and_(tmp32, 1);
+        compiler->test(tmp32, tmp32);
+        compiler->je(hasException);
+        compiler->jmp(lendOfFunction); // verified
+        /* end of check */
 
-    compiler->cmp(tmp32, 1);
-    compiler->je(exceptionCaught);
-    compiler->jmp(lendOfFunction);
-    compiler->bind(exceptionCaught);
-    compiler->invoke(&invokeNode,
-                     x64Assembler::getPc,
-                     FuncSignatureT<Int, fiber*>());
-    invokeNode->setArg(0, fiberPtr);
-    invokeNode->setRet(0, tmp);
+        /* Thread exception Check */
+        compiler->bind(hasException);
+        compiler->mov(ctx, threadPtr);                                    // Do we have an exception to catch?
+        compiler->mov(tmp32, Lthread[thread_signal]);
+        compiler->sar(tmp32, ((int) tsig_except));
+        compiler->and_(tmp32, 1);
+        compiler->test(tmp32, tmp32);
+        compiler->je(contextSwitchCheck);
+        compiler->invoke(&invokeNode,
+                         VirtualMachine::catchException,
+                         FuncSignatureT<bool>());
+        invokeNode->setRet(0, tmp);
 
-    compiler->mov(arg2, labelsPtr);                              // reset pc to find location in function to jump to
-    compiler->imul(tmp, (size_t)sizeof(int32_t));
-    compiler->add(arg2, tmp);
-    compiler->mov(fnPtr, x86::ptr(arg2));
-    compiler->jmp(fnPtr);
-    /* end of check */
+        compiler->cmp(tmp32, 1);
+        compiler->je(exceptionCaught);
+        compiler->jmp(lendOfFunction);
+        compiler->bind(exceptionCaught);
+        compiler->invoke(&invokeNode,
+                         x64Assembler::getPc,
+                         FuncSignatureT<Int, fiber *>());
+        invokeNode->setArg(0, fiberPtr);
+        invokeNode->setRet(0, tmp);
 
-    /* Thread context switch Check */
-    compiler->bind(contextSwitchCheck);
-    compiler->mov(ctx, threadPtr);
-    compiler->mov(tmp32, Lthread[thread_signal]);
-    compiler->sar(tmp32, ((int)tsig_context_switch));
-    compiler->and_(tmp32, 1);
-    compiler->test(tmp32, tmp32);
-    compiler->je(isContextSwitchEnabled);
-    compiler->invoke(&invokeNode,
-                     _BaseAssembler::jitTryContextSwitch,
-                     FuncSignatureT<int, Thread*, bool>());
-    invokeNode->setArg(0, threadPtr);
-    invokeNode->setArg(1, tmpPc);
-    invokeNode->setRet(0, tmp);
+        jmpToLabel();
+        /* end of check */
 
-    compiler->cmp(tmp32, 0);
-    compiler->je(isContextSwitchEnabled);
-    compiler->jmp(lfunctionEpilogue);
-    compiler->bind(isContextSwitchEnabled);
+        /* Thread context switch Check */
+        compiler->bind(contextSwitchCheck);
+        compiler->mov(ctx, threadPtr);
+        compiler->mov(tmp32, Lthread[thread_signal]);
+        compiler->sar(tmp32, ((int) tsig_context_switch));
+        compiler->and_(tmp32, 1);
+        compiler->test(tmp32, tmp32);
+        compiler->je(isContextSwitchEnabled);
+        compiler->invoke(&invokeNode,
+                         _BaseAssembler::jitTryContextSwitch,
+                         FuncSignatureT<int, Thread *, bool>());
+        invokeNode->setArg(0, threadPtr);
+        invokeNode->setArg(1, tmpPc);
+        invokeNode->setRet(0, tmp);
 
-    compiler->jmp(fnPtr);
-    /* end of check */
+        compiler->cmp(tmp32, 0);
+        compiler->je(isContextSwitchEnabled);
+        compiler->jmp(lfunctionEpilogue);
+        compiler->bind(isContextSwitchEnabled);
+
+        compiler->jmp(fnPtr);
+        /* end of check */
+    }
 }
 
 
@@ -1969,6 +1936,8 @@ void x64Assembler::threadStatusCheck(Label &retLbl, Int irAddr, bool incPc) {
     compiler->mov(ctx32, Lthread[thread_signal]);
     compiler->cmp(ctx32, 0);
     compiler->jne(lsignalCheck);
+    buildThreadSection = true;
+
 }
 
 void x64Assembler::threadStatusCheck(Label &retLbl, bool incPc) {
@@ -1980,6 +1949,7 @@ void x64Assembler::threadStatusCheck(Label &retLbl, bool incPc) {
     compiler->mov(ctx32, Lthread[thread_signal]);
     compiler->cmp(ctx32, 0);
     compiler->jne(lsignalCheck);
+    buildThreadSection = true;
 }
 
 void x64Assembler::addConstantsSection() {
@@ -2034,64 +2004,66 @@ void x64Assembler::enableThreadKillSignal(Thread *thread) {
  * set tmpInt variabale to the current program counter value
  */
 void x64Assembler::addStackCheck() {
-    InvokeNode* invokeNode;
+    if(buildStackSection) {
+        InvokeNode *invokeNode;
 
-    Label overflowCheck = compiler->newLabel();
-    Label underflowErr = compiler->newLabel();
+        Label overflowCheck = compiler->newLabel();
+        Label underflowErr = compiler->newLabel();
 
-    compiler->bind(lstackCheck);
-    compiler->mov(ctx, fiberPtr);
-    compiler->mov(arg2, Lfiber[fiber_sp]);
-    compiler->mov(tmp, Lfiber[fiber_dataStack]);
-    compiler->mov(fnPtr, Lfiber[fiber_stack_sz]);
-    compiler->sub(arg2, tmp);
-    compiler->sar(arg2, 4);
-    compiler->add(arg2, 1);
-    compiler->cmp(arg2, fnPtr);
-    compiler->jb(overflowCheck);
-    compiler->mov(arg, tmpInt);
-    updatePc();
-    compiler->invoke(&invokeNode,
-                     growStack,
-                     FuncSignatureT<void, fiber*>());
-    invokeNode->setArg(0, fiberPtr);
-    compiler->mov(arg, -1);
-    threadStatusCheck(overflowCheck, false);
+        compiler->bind(lstackCheck);
+        compiler->mov(ctx, fiberPtr);
+        compiler->mov(arg2, Lfiber[fiber_sp]);
+        compiler->mov(tmp, Lfiber[fiber_dataStack]);
+        compiler->mov(fnPtr, Lfiber[fiber_stack_sz]);
+        compiler->sub(arg2, tmp);
+        compiler->sar(arg2, 4);
+        compiler->add(arg2, 1);
+        compiler->cmp(arg2, fnPtr);
+        compiler->jb(overflowCheck);
+        compiler->mov(arg, tmpInt);
+        updatePc();
+        compiler->invoke(&invokeNode,
+                         growStack,
+                         FuncSignatureT<void, fiber *>());
+        invokeNode->setArg(0, fiberPtr);
+        compiler->mov(arg, -1);
+        threadStatusCheck(overflowCheck, false);
 
-    compiler->bind(overflowCheck);
-    //check for stack overflow
-    compiler->mov(ctx, fiberPtr);
-    compiler->mov(arg2, Lfiber[fiber_sp]);
-    compiler->mov(tmp, Lfiber[fiber_dataStack]);
-    compiler->mov(fnPtr, Lfiber[fiber_stack_lmt]);
-    compiler->sub(arg2, tmp);
-    compiler->sar(arg2, 4);
-    compiler->add(arg2, 1);
-    compiler->cmp(arg2, fnPtr);
-    Label end = compiler->newLabel();
-    compiler->jb(end);
-    compiler->mov(arg, tmpInt);
-    updatePc();
-    compiler->invoke(&invokeNode,
-                     jitStackOverflowException,
-                     FuncSignatureT<void, Thread*>());
-    invokeNode->setArg(0, threadPtr);
-    compiler->mov(arg, -1);
-    threadStatusCheck(end, false);
-    compiler->bind(end);
-    compiler->sub(arg2, 1);
-    compiler->cmp(arg2, 0);
-    compiler->jl(underflowErr);
-    compiler->jmp(returnAddress);
-    compiler->bind(underflowErr);
-    compiler->mov(arg, tmpInt);
-    updatePc();
-    compiler->invoke(&invokeNode,
-                     jitStackUnderflowException,
-                     FuncSignatureT<void, Thread*>());
-    invokeNode->setArg(0, threadPtr);
-    compiler->mov(arg, -1);
-    threadStatusCheck(end, false);
+        compiler->bind(overflowCheck);
+        //check for stack overflow
+        compiler->mov(ctx, fiberPtr);
+        compiler->mov(arg2, Lfiber[fiber_sp]);
+        compiler->mov(tmp, Lfiber[fiber_dataStack]);
+        compiler->mov(fnPtr, Lfiber[fiber_stack_lmt]);
+        compiler->sub(arg2, tmp);
+        compiler->sar(arg2, 4);
+        compiler->add(arg2, 1);
+        compiler->cmp(arg2, fnPtr);
+        Label end = compiler->newLabel();
+        compiler->jb(end);
+        compiler->mov(arg, tmpInt);
+        updatePc();
+        compiler->invoke(&invokeNode,
+                         jitStackOverflowException,
+                         FuncSignatureT<void, Thread *>());
+        invokeNode->setArg(0, threadPtr);
+        compiler->mov(arg, -1);
+        threadStatusCheck(end, false);
+        compiler->bind(end);
+        compiler->sub(arg2, 1);
+        compiler->cmp(arg2, 0);
+        compiler->jl(underflowErr);
+        compiler->jmp(returnAddress);
+        compiler->bind(underflowErr);
+        compiler->mov(arg, tmpInt);
+        updatePc();
+        compiler->invoke(&invokeNode,
+                         jitStackUnderflowException,
+                         FuncSignatureT<void, Thread *>());
+        invokeNode->setArg(0, threadPtr);
+        compiler->mov(arg, -1);
+        threadStatusCheck(end, false);
+    }
 }
 
 void x64Assembler::stackCheck(Int pc, Label &returnAddr) {
@@ -2099,6 +2071,7 @@ void x64Assembler::stackCheck(Int pc, Label &returnAddr) {
     compiler->lea(ctx, x86::ptr(returnAddr));
     compiler->mov(returnAddress, ctx);
     compiler->jmp(lstackCheck);
+    buildStackSection = true;
 }
 
 #endif

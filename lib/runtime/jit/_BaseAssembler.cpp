@@ -80,7 +80,6 @@ void _BaseAssembler::setupStackElementFields() {
 void _BaseAssembler::setupMethodFields() {
     Method m;
     Lmethod[method_bytecode] = getMemPtr(relative_offset((&m), address, bytecode));
-    Lmethod[method_jit_labels] = getMemPtr(relative_offset((&m), address, jit_labels));
 }
 
 void _BaseAssembler::setupSharpObjectFields() {
@@ -96,6 +95,7 @@ int _BaseAssembler::performInitialCompile() {
     for(Int i = 0; i < vm.manifest.methods; i++) {
         if(c_options.jit && (c_options.slowBoot || vm.methods[i].isjit)) {
             vm.methods[i].isjit=false;
+//            cout << "compiling @" << i << " - " << vm.methods[i].fullName.str() << endl << flush;
             error = tryJit(vm.methods+i);
 
             switch (error) {
@@ -176,15 +176,6 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
     {
         if(func->cacheSize >= JIT_IR_MIN)
         {
-            // make it easier for the JIT Compiler
-            func->jit_labels = (int32_t *)malloc(sizeof(int32_t)*func->cacheSize);
-            if(!func->jit_labels) {
-                error = jit_error_mem;
-                goto finish;
-            }
-            else
-                std::memset(func->jit_labels, 0, sizeof(int32_t)*func->cacheSize);
-
             beginCompilation(func);
 
             logComment("; method " + func->fullName.str() + "\n");
@@ -197,7 +188,6 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
             setupStackAndRegisterValues();
             createFunctionLandmarks();
 
-            setupAddressTable();
             validateVirtualStack();
 
             if((error = addUserCode()) != jit_error_ok) {
@@ -205,10 +195,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                 return error;
             }
 
+            createFunctionEpilogue();
             addStackCheck();
             addThreadSignalCheck();
-            storeLabelValues();
-            createFunctionEpilogue();
             addConstantsSection();
 
             /*
