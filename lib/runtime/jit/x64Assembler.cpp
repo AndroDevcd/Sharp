@@ -558,20 +558,18 @@ int x64Assembler::addUserCode() {
                 break;
             }
             case Opcode::MOD: {
-//
-//                movRegister(vec0, GET_Ba(Ir), false);
-//                compiler->cvttsd2si(compiler->zax(), vec0); // double to int
-//
-//                movRegister(vec1, GET_Bb(Ir), false);
-//                compiler->cvttsd2si(compiler->zcx(), vec1); // double to int
-//
-//                compiler->cqo();
-//                compiler->idiv(compiler->zcx());
-//                compiler->cvtsi2sd(vec0, compiler->zdx());
-//
-//                movRegister(vec0, GET_Bc(Ir), true);
-//                break;
-                return jit_error_compile;
+                movRegister(vec0, GET_Ba(Ir), false);
+                compiler->cvttsd2si(compiler->zax(), vec0); // double to int
+
+                movRegister(vec1, GET_Bb(Ir), false);
+                compiler->cvttsd2si(compiler->zcx(), vec1); // double to int
+
+                compiler->cqo(compiler->zdx(), compiler->zax());
+                compiler->idiv(compiler->zdx(), compiler->zdx(), compiler->zcx());
+                compiler->cvtsi2sd(vec0, compiler->zdx());
+
+                movRegister(vec0, GET_Bc(Ir), true);
+                break;
             }
             case Opcode::IADD: {
                 i++;
@@ -615,20 +613,19 @@ int x64Assembler::addUserCode() {
             }
             case Opcode::IMOD: {
                 i++;
-//                compiler->bind(labels[i]); // we wont use it but we need to bind it anyway
-//                movRegister(vec0, GET_Da(Ir), false);
-//                compiler->cvttsd2si(compiler->zax(), vec0); // double to int
-//
-//                movConstToXmm(vec1, Ir2);
-//                compiler->cvttsd2si(compiler->zcx(), vec1); // double to int
-//
-//                compiler->cqo();
-//                compiler->idiv(compiler->zcx());
-//                compiler->cvtsi2sd(vec0, compiler->zdx());
-//
-//                movRegister(vec0, GET_Da(Ir), true);
-//                break;
-                return jit_error_compile;
+                compiler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                movRegister(vec0, GET_Da(Ir), false);
+                compiler->cvttsd2si(compiler->zax(), vec0); // double to int
+
+                movConstToXmm(vec1, Ir2);
+                compiler->cvttsd2si(compiler->zcx(), vec1); // double to int
+
+                compiler->cqo(compiler->zdx(), compiler->zax());
+                compiler->idiv(compiler->zdx(), compiler->zdx(), compiler->zcx());
+                compiler->cvtsi2sd(vec0, compiler->zdx());
+
+                movRegister(vec0, GET_Da(Ir), true);
+                break;
             }
             case Opcode::POP: {
                 compiler->invoke(&invokeNode,
@@ -1337,27 +1334,26 @@ int x64Assembler::addUserCode() {
                 break;
             }
             case Opcode::MODL: {
-//                compiler->mov(ctx, fiberPtr); // ctx->current
-//                compiler->mov(ctx, Lfiber[fiber_fp]); // ctx->current->fp
-//                if(GET_Cb(Ir) != 0) {
-//                    compiler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
-//                }
-//
-//                compiler->mov(fnPtr, ctx);
-//                compiler->movsd(vec0, Lstack_element[stack_element_var]);
-//                compiler->cvttsd2si(compiler->zax(), vec0);
-//
-//                movRegister(vec1, GET_Ca(Ir), false);
-//                compiler->cvttsd2si(compiler->zcx(), vec1);
-//
-//                compiler->cqo();
-//                compiler->idiv(compiler->zcx());
-//                compiler->cvtsi2sd(vec0, compiler->zdx()); // int to Double
-//
-//                compiler->mov(ctx, fnPtr);
-//                compiler->movsd(Lstack_element[stack_element_var], vec0);
-//                break;
-                return jit_error_compile;
+                compiler->mov(ctx, fiberPtr); // ctx->current
+                compiler->mov(ctx, Lfiber[fiber_fp]); // ctx->current->fp
+                if(GET_Cb(Ir) != 0) {
+                    compiler->add(ctx, (Int )(sizeof(StackElement) * GET_Cb(Ir)));
+                }
+
+                compiler->mov(fnPtr, ctx);
+                compiler->movsd(vec0, Lstack_element[stack_element_var]);
+                compiler->cvttsd2si(compiler->zax(), vec0);
+
+                movRegister(vec1, GET_Ca(Ir), false);
+                compiler->cvttsd2si(compiler->zcx(), vec1);
+
+                compiler->cqo(compiler->zdx(), compiler->zax());
+                compiler->idiv(compiler->zdx(), compiler->zdx(), compiler->zcx());
+                compiler->cvtsi2sd(vec0, compiler->zdx()); // int to Double
+
+                compiler->mov(ctx, fnPtr);
+                compiler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
             }
             case Opcode::IADDL: {
                 i++;
@@ -1400,27 +1396,26 @@ int x64Assembler::addUserCode() {
             }
             case Opcode::IMODL: {
                 i++;
-//                compiler->bind(labels[i]); // we wont use it but we need to bind it anyway
-//                compiler->mov(ctx, fiberPtr);
-//                compiler->mov(ctx, Lfiber[fiber_fp]);
-//                if(GET_Da(Ir) != 0) {
-//                    compiler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
-//                }
-//
-//                compiler->mov(fnPtr, ctx);
-//                compiler->movsd(vec0, Lstack_element[stack_element_var]);
-//                compiler->cvttsd2si(compiler->zax(), vec0);
-//
-//                compiler->mov(compiler->zcx(), Ir2);
-//
-//                compiler->cqo();
-//                compiler->idiv(compiler->zcx());
-//                compiler->cvtsi2sd(vec0, compiler->zdx()); // int to Double
-//
-//                compiler->mov(ctx, fnPtr);
-//                compiler->movsd(Lstack_element[stack_element_var], vec0);
-//                break;
-                return jit_error_compile;
+                compiler->bind(labels[i]); // we wont use it but we need to bind it anyway
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(ctx, Lfiber[fiber_fp]);
+                if(GET_Da(Ir) != 0) {
+                    compiler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                compiler->mov(fnPtr, ctx);
+                compiler->movsd(vec0, Lstack_element[stack_element_var]);
+                compiler->cvttsd2si(compiler->zax(), vec0);
+
+                compiler->mov(compiler->zcx(), Ir2);
+
+                compiler->cqo(compiler->zdx(), compiler->zax());
+                compiler->idiv(compiler->zdx(), compiler->zdx(), compiler->zcx());
+                compiler->cvtsi2sd(vec0, compiler->zdx()); // int to Double
+
+                compiler->mov(ctx, fnPtr);
+                compiler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
             }
             case Opcode::LOADL: {
                 compiler->mov(ctx, fiberPtr);
