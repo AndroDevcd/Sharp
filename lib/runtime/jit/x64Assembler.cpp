@@ -292,7 +292,7 @@ int x64Assembler::addUserCode() {
 
     jmpToLabel();
 
-    Int Ir = 0, Ir2 = 0, result=0;
+    int32_t Ir = 0, Ir2 = 0, result=0;
     for(Int i = 0; i < compiledMethod->cacheSize; i++) {
         Ir = compiledMethod->bytecode[i];
         if ((i + 1) < compiledMethod->cacheSize)
@@ -739,7 +739,7 @@ int x64Assembler::addUserCode() {
                 Label ifTrue = compiler->newLabel(), end = compiler->newLabel(), ifFalse = compiler->newLabel();
                 compiler->jne(ifTrue);
                 compiler->bind(ifFalse);
-                movConstToXmm(vec0, 1);
+                movConstToXmm(vec0, 0);
 
                 movRegister(vec0, GET_Da(Ir), true);
                 compiler->jmp(end);
@@ -1630,6 +1630,180 @@ int x64Assembler::addUserCode() {
 
                 invokeNode->setArg(0, ctx);
                 invokeNode->setArg(1, arg2);
+                break;
+            }
+            case Opcode::ITEST: { // untested
+                Label afterCheck = compiler->newLabel();
+
+                stackCheck(i, afterCheck);
+                compiler->bind(afterCheck);
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(fnPtr, Lfiber[fiber_sp]); // sp--
+                compiler->sub(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+                compiler->mov(ctx, fnPtr);
+                compiler->lea(ctx, Lstack_element[stack_element_object]);
+                compiler->mov(fnPtr, qword_ptr(ctx));
+
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(tmp, Lfiber[fiber_sp]); // sp--
+                compiler->sub(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+                compiler->mov(ctx, tmp);
+                compiler->lea(ctx, Lstack_element[stack_element_object]);
+                compiler->mov(ctx, qword_ptr(ctx));
+
+                compiler->cmp(fnPtr, ctx);
+                Label ifTrue = compiler->newLabel(), end = compiler->newLabel();
+                compiler->je(ifTrue);
+                movConstToXmm(vec0, 0);
+                compiler->jmp(end);
+
+                compiler->bind(ifTrue);
+                movConstToXmm(vec0, 1);
+
+                compiler->bind(end);
+                movRegister(vec0, GET_Da(Ir), true);
+                break;
+            }
+            case Opcode::INVOKE_DELEGATE: {
+                Label end = compiler->newLabel();
+                i++;
+                compiler->bind(labels[i]); // we wont use it but we need to bind it anyway
+
+                compiler->invoke(&invokeNode,
+                                 _BaseAssembler::jitInvokeDelegate,
+                                 FuncSignatureT<void, int64_t, int32_t, Thread*, bool>());
+
+                invokeNode->setArg(0, GET_Da(Ir));
+                invokeNode->setArg(1, GET_Cb(Ir2));
+                invokeNode->setArg(2, threadPtr);
+                invokeNode->setArg(3, (GET_Ca(Ir2) == 1 ? 1 : 0));
+
+                threadStatusCheck(end, i-1, true);
+                compiler->bind(end);
+                break;
+            }
+            case Opcode::GET: {
+                compiler->invoke(&invokeNode,
+                                 _BaseAssembler::jitGet,
+                                 FuncSignatureT<void, int64_t, int32_t, Thread*, bool>());
+
+                invokeNode->setArg(0, GET_Da(Ir));
+                break;
+            }
+            case Opcode::ISADD: {
+                compiler->mov(ctx, fiberPtr); // ctx->current
+                compiler->mov(ctx, Lfiber[fiber_sp]); // ctx->current->fp
+                if(GET_Da(Ir) != 0) {
+                    compiler->add(ctx, (Int )(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                compiler->movsd(vec0, getMemPtr(ctx));
+
+                movConstToXmm(vec1, Ir2);
+                compiler->addsd(vec0, vec1);
+
+                compiler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::IPOPL: {
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(tmp, Lfiber[fiber_sp]); // sp--
+                compiler->sub(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+                compiler->mov(ctx, tmp);
+                compiler->movsd(vec0, Lstack_element[stack_element_var]);
+
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(ctx, Lfiber[fiber_fp]);
+
+                if(GET_Da(Ir) != 0) {
+                    compiler->add(ctx, (Int)(sizeof(StackElement) * GET_Da(Ir)));
+                }
+
+                compiler->movsd(Lstack_element[stack_element_var], vec0);
+                break;
+            }
+            case Opcode::CMP: {
+                i++;
+                compiler->bind(labels[i]); // we wont use it but we need to bind it anyway
+
+
+                movRegister(vec0, GET_Da(Ir), false);
+                compiler->cvttsd2si(tmp, vec0); // double to int
+
+                compiler->mov(ctx, Ir2);
+                compiler->cmp(tmp, ctx);
+                Label ifFalse = compiler->newLabel(), end = compiler->newLabel();
+                compiler->jne(ifFalse);
+                movConstToXmm(vec0, 1);
+                compiler->jmp(end);
+
+                compiler->bind(ifFalse);
+                movConstToXmm(vec0, 0);
+
+                compiler->bind(end);
+                movRegister(vec0, CMT, true);
+                break;
+            }
+            case Opcode::CALLD: {
+
+                Label end = compiler->newLabel();
+                compiler->mov(arg, i);
+                updatePc();
+
+                movRegister(vec0, GET_Da(Ir), false);
+                compiler->cvttsd2si(arg2, vec0); // double to int
+
+                compiler->invoke(&invokeNode,
+                                 _BaseAssembler::jitCallDynamic,
+                                 FuncSignatureT<fptr, Thread*, int64_t>());
+
+                invokeNode->setArg(0, threadPtr);
+                invokeNode->setArg(1, arg2);
+                invokeNode->setRet(0, tmp);
+
+                compiler->cmp(tmp, 0);
+                Label ifTrue = compiler->newLabel();
+                compiler->je(end);
+
+                compiler->invoke(&invokeNode,
+                                 tmp,
+                                 FuncSignatureT<void, jit_context*>());
+
+                invokeNode->setArg(0, ctxPtr);
+                compiler->bind(end);
+                Label after = compiler->newLabel();
+                threadStatusCheck(after, i, true);
+                compiler->bind(after);
+                break;
+            }
+            case Opcode::DUP: {
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(ctx, Lfiber[fiber_sp]); // sp--
+                compiler->lea(arg2, Lstack_element[stack_element_object]);
+
+                compiler->mov(ctx, fiberPtr);
+                compiler->add(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+                compiler->mov(ctx, Lfiber[fiber_sp]); // sp--
+
+                compiler->lea(ctx, Lstack_element[stack_element_object]);
+
+                compiler->invoke(&invokeNode,
+                                 _BaseAssembler::jitSetObject2,
+                                 FuncSignatureT<void, Object*, Object*>());
+
+                invokeNode->setArg(0, ctx);
+                invokeNode->setArg(1, arg2);
+                break;
+            }
+            case Opcode::POPOBJ_2: {
+                compiler->mov(ctx, fiberPtr);
+                compiler->mov(tmp, Lfiber[fiber_sp]); // sp--
+                compiler->sub(Lfiber[fiber_sp], (Int) sizeof(StackElement));
+                compiler->mov(ctx, tmp);
+                compiler->lea(ctx, Lstack_element[stack_element_object]);
+
+                compiler->mov(arg, tmpPtr);  //  how to assign pointer
+                compiler->mov(x86::ptr(arg), ctx);
                 break;
             }
             case Opcode::TLS_MOVL: {

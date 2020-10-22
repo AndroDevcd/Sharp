@@ -1770,22 +1770,19 @@ fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
 
 fptr _BaseAssembler::jitCallDynamic(Thread *thread, int64_t addr) {
 
-//    try {
-//        if(addr <= 0 || addr >= manifest.methods) {
-//            stringstream ss;
-//            ss << "invalid call to pointer of " << addr;
-//            Exception e(ss.str());
-//            __srt_cxx_prepare_throw(e);
-//        }
-//        if ((thread->calls + 1) >= thread->stackLimit) {
-//            Exception e(Environment::StackOverflowErr, "");
-//            __srt_cxx_prepare_throw(e);
-//        }
-//
-//        return executeMethod(addr, thread, true);
-//    } catch(Exception &e) {
-//        __srt_cxx_prepare_throw(e);
-//    }
+    try {
+        if(addr <= 0 || addr >= vm.manifest.methods) {
+            stringstream ss;
+            ss << "invalid call to pointer of " << addr;
+            Exception e(ss.str());
+            sendSignal(thread_self->signal, tsig_except, 1);
+            return NULL;
+        }
+
+        return executeMethod(addr, thread, true);
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
 
     return NULL;
 }
@@ -1799,10 +1796,10 @@ void _BaseAssembler::jitPutC(int reg, double *regs) {
 }
 
 void _BaseAssembler::jitGet(int reg) {
-//    if(registers[i64cmt])
-//        registers[reg] = getche();
-//    else
-//        registers[reg] = getch();
+    if((bool)registers[CMT])
+        registers[reg] = getche();
+    else
+        registers[reg] = getch();
 }
 
 void _BaseAssembler::jitInvokeDelegate(Int address, Int args, Thread* thread, Int staticAddr) {
