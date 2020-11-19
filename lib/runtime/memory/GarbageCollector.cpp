@@ -763,6 +763,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         }
         mutex.unlock();
 
+        Int past = NANO_TOMILL(Clock::realTimeInNSecs());
         thread->this_fiber->locking =true;
 
         lockCheckMutex.lock();
@@ -776,8 +777,9 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         else if(mut->fiberid != -1 && mut->threadid == thread->id) {
             fiber *fib = fiber::getFiber(mut->fiberid);
 
-            if(fib && !fib->finished && fib->state != FIB_KILLED && (fib->boundThread == NULL || fib->boundThread == thread)
+            if(fib && !fib->finished && fiber::isFiberRunnble(fib, thread)
                 && thread->try_context_switch(false)) {
+                thread->enableContextSwitch(true);
                 thread->next_fiber = fib;
                 lockCheckMutex.unlock();
                 return false;
@@ -786,7 +788,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         lockCheckMutex.unlock();
 
         lockObject:
-        int count = 0, limit = 1000000;
+        int count = 0, limit = 100000;
         while(mut->fiberid != -1) {
             if(hasSignal(thread->signal, tsig_suspend))
                 Thread::suspendSelf();
@@ -816,6 +818,9 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
             goto lockObject;
         }
 
+#ifdef COROUTINE_DEBUGGING
+        thread->timeLocking += NANO_TOMILL(Clock::realTimeInNSecs())-past;
+#endif
         lockCheckMutex.unlock();
     }
 

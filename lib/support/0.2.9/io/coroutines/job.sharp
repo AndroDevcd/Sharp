@@ -9,9 +9,6 @@ public class job {
 
 	job(name : string) {
 		self->name = name;
-		lock(launcher) {
-		    id = guid++;
-		}
 	}
 
 	protected def execute_async() : var {
@@ -85,7 +82,7 @@ public class job {
 
 	public def get_state() := state;
 	public def get_name() := name;
-	public def get_id() := id;
+	public def get_tag() := tag;
 
 	protected def operator=(block: ()()) {
 		self->main0 = block;
@@ -219,11 +216,9 @@ public class job {
 	protected delay_time := 0;
 	protected next_task : job;
 	protected recurring := false;
-	protected id := 0;
 	protected tag := 0;
 	protected block_caller := false;
 	protected long_term := false;
 	protected unconfined := false;
 	protected state := created;
-	protected static guid := 0;
 }

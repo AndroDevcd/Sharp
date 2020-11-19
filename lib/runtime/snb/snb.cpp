@@ -207,13 +207,7 @@ void pushObj(object value) {
 
 void call(int32_t address) {
     try {
-        fptr jitFun;
-        if((jitFun = executeMethod(address, thread_self, true)) != NULL) {
-
-    #ifdef BUILD_JIT
-            jitFun(thread_self->jctx);
-    #endif
-        }
+        executeMethod(address, thread_self, true);
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
     }

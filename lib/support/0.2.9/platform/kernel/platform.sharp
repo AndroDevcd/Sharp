@@ -1,6 +1,7 @@
 mod platform.kernel;
 
 import std.io;
+import std.io.coroutines;
 import platform;
 
 class platform
@@ -248,6 +249,7 @@ class platform
 
         static_init();
         tls_init();
+        start_scheduler();
 
         main_thread := args[4] as thread;
         vm.set_thread(main_thread);

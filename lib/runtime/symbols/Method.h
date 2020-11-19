@@ -25,10 +25,9 @@ struct jit_context;
 /**
  * The JIT will not waste time JIT'ing functions with only 5 instructions or less
  */
-#define JIT_IR_MIN 2
+#define JIT_IR_MIN 5
 
 typedef opcode_instr* Cache;
-typedef void (*fptr)(void *);
 typedef void (*bridgeFun)(long handle);
 typedef long (*linkProc)(const char* funcName);
 typedef short (*lib_handshake)(void *lib_funcs[], int);
@@ -59,47 +58,11 @@ public:
     _List<TryCatchData> tryCatchTable;
     _List<LineData> lineTable;
 
-    /**
-     * Below are all the jit related fields
-     *
-     * This will contain the total number of calls to a single function.
-     * It is called long calls because it holds the calls made to a function as well as
-     * "back calls" as explained below
-     *
-     * def foo() {
-     *
-     * }
-     *
-     * def main() { // main is called 1 times
-     *      for < 10:
-     *          foo(); // foo is called 10 times
-     *      // with backlogging calls main is actually "called" 11 times
-     * }
-     *
-     * We also track how many branches are performed inside a function. branches in a function
-     * will be tracked only at the interpreted level. They are treated as long calls as well because
-     * they give further information that this particular function is doing quite a bit of work.
-     *
-     * Currently the limit for long calls will JIT any function that exceeds the max long call limit of
-     * 25,000. This includes any branches included in this number
-     */
-    int16_t branches;
-    int8_t jitAttempts; // we only allow 3 attempts to JIT a method
-    int isjit;
-    bool compiling; // are we compiling the function?
-    fptr jit_func;
-
-
     void free() {
         Symbol::free();
         sourceFile=0;
         tryCatchTable.free();
         lineTable.free();
-        isjit=0;
-        branches=0;
-        jit_func=0;
-        compiling=false;
-        jitAttempts=0;
         linkAddr=0;
         if(params != NULL) {
             std::free(params);
@@ -115,11 +78,6 @@ public:
         Symbol::init();
         name.init();
         fullName.init();
-        isjit=false;
-        branches=0;
-        jit_func=0;
-        compiling=false;
-        jitAttempts=0;
         sourceFile=0;
         linkAddr=0;
         tryCatchTable.init();
@@ -157,31 +115,31 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* returnAddress, int32_t pc, StackElement* sp,
-          StackElement* fp, bool jit)
+    Frame(Method* returnAddress, int32_t pc, int32_t sp,
+          int32_t fp, bool nativeCall)
     {
         this->returnAddress=returnAddress ? returnAddress->address : 0;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->isjit=jit ? 1:0;
+        this->isNative= nativeCall ? 1 : 0;
     }
 
-    void init(Method* returnAddress, int32_t pc, StackElement* sp,
-              StackElement* fp, bool jit)
+    void init(Method* returnAddress, int32_t pc, int32_t sp,
+              int32_t fp, bool nativeCall)
     {
         this->returnAddress=returnAddress ? returnAddress->address : 0;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->isjit=jit ? 1: 0;
+        this->isNative= nativeCall ? 1 : 0;
     }
 
     int32_t returnAddress;
     int32_t pc;
-    StackElement* sp;
-    StackElement* fp;
-    short isjit: 1;
+    int32_t sp;
+    int32_t fp;
+    unsigned short isNative: 1;
 };
 
 #pragma optimize( "", off )

@@ -17,8 +17,8 @@ enum fiber_state {
     FIB_KILLED=3
 };
 
-#define INITIAL_FRAME_SIZE 50 // ~2kb
-#define FRAME_GROW_SIZE 150 // ~6kb
+#define INITIAL_FRAME_SIZE 100 // ~2kb
+#define FRAME_GROW_SIZE 150 // ~3kb
 
 #define INITIAL_STACK_SIZE 250 // ~4kb
 #define STACK_GROW_SIZE 512 // ~8kb
@@ -29,6 +29,7 @@ public:
     static fiber* makeFiber(native_string &name, Method* main);
     static fiber* getFiber(uInt id);
     static fiber* nextFiber(Int startingIndex, Thread* thread);
+    static bool isFiberRunnble(fiber *fib, Thread *thread);
     static int suspend(uInt id);
     static int unsuspend(uInt id);
     static int kill(uInt id);

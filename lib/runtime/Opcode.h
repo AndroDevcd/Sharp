@@ -74,16 +74,6 @@
             goto exception_catch; \
     }
 
-#define LONG_CALL() \
-    if(this_fiber->current->branches < JIT_IR_LIMIT) \
-        this_fiber->current->branches++; \
-    else {  \
-       if(!this_fiber->current->isjit && !this_fiber->current->compiling && this_fiber->current->jitAttempts < JIT_MAX_ATTEMPTS) \
-          Jit::sendMessage(this_fiber->current);  \
-       else if(this_fiber->current->isjit) { \
-       } \
-    }
-
 #define grow_stack \
      if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackSize) this_fiber->growStack();
 

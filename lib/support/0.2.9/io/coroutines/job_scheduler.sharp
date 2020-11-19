@@ -12,12 +12,14 @@ private scheduler : thread;
 
 private const FIBER_THRESHOLD_TRIGGER  := 15; // create a new thread after 15 fibers
 
-protected def start_scheduler() {
+public def start_scheduler() {
     lock(launcher) {
-        if(max_threads == 0)
-            calculate_max_threads();
-        scheduler = new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
-        scheduler.start(null);
+         if(scheduler == null) {
+            if(max_threads == 0)
+                calculate_max_threads();
+            scheduler = new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
+            scheduler.start(null);
+        }
 	}
 }
 
@@ -74,6 +76,7 @@ def get_thread_max() : var {
     }
 }
 
+total := 0, started = 0;
 private def scheduler_main(args : object[]) : var
 {
 	jobs := launcher.job_queue;
@@ -82,6 +85,7 @@ private def scheduler_main(args : object[]) : var
 	const SPIN_COUNT := 60000 / SLEEP_TIME;
 	spins_left := SPIN_COUNT;
 	cancel_list := new list<var>();
+    count := 0;
 
 	while(true)
 	{
@@ -93,7 +97,14 @@ private def scheduler_main(args : object[]) : var
 	        }
 
 	        jobs.avail_data(0) -> {
+	            total := jobs.avail_data(0);
+	            println("jobs: $total started: $started");
                 foreach(scheduled_job in jobs.read_next(0)) {
+                   count++;
+
+                   if((count % 1000) == 0) {
+                      println("%");
+                   }
                    if(!cancel_list.empty()) {
                       if(cancel_list.find(scheduled_job.tag, { it, it2 -> return it == it2; }) == scheduled_job.tag)
                          continue;
@@ -262,19 +273,20 @@ protected def execute_synchronous(scheduled_job : job) {
 }
 
 protected def execute_job(scheduled_job : job) : var {
-    lock(scheduler) {
-        fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
-       	    : scheduled_job.host;
+    fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
+           	    : scheduled_job.host;
 
-       	if(fib_host != null) {
-       	    scheduled_job.host = fib_host;
-       	    if(scheduled_job.execute_async() != 0) {
-       	       scheduled_job.host = null;
-       	       return false;
-       	    }
+    if(fib_host != null) {
+        scheduled_job.host = fib_host;
+        if(scheduled_job.execute_async() != 0) {
+           scheduled_job.host = null;
+           return false;
+        }
 
-       	    return true;
-       	} else return false;
-	}
+        started++;
+        return true;
+    } else {
+        return false;
+    }
 }
 

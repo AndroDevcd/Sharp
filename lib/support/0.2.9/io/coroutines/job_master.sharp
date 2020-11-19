@@ -19,18 +19,11 @@ class job_master {
 		return scheduled_job;
 	}
 
-	protected def create_job() := new job("job#${job.guid}");
+	protected def create_job() := new job("unnamed_job");
 
 	protected def create_job(name : string) := new job(name);
 
 	protected def start_job(scheduled_job : job) {
-	    lock(self) {
-            if(!started) {
-                start_scheduler();
-                started = true;
-            }
-		}
-
 		if(scheduled_job.delay_time)
 			scheduled_job.delay_time = scheduled_job.delay_time + time.mills_time();
 
@@ -52,7 +45,7 @@ class job_master {
 		scheduled_job.next_task = null;
 		scheduled_job.args = null;
 		scheduled_job.name = null;
-		running_jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
+		running_jobs.remove(scheduled_job);
 	}
 
 	protected def cancel_jobs_by_tag(tag_id: var) {
@@ -62,7 +55,7 @@ class job_master {
            foreach(schdj in running_jobs) {
                if(schdj.tag == tag_id) {
                   schdj.cancel();
-		          running_jobs.remove(schdj, { it, it2 -> return it.id == it2.id; });
+		          running_jobs.remove(schdj);
                }
            }
        }
@@ -73,5 +66,4 @@ class job_master {
 	protected canceled_job_queue : channel<var>;
 	protected long_term_pool : thread_group;
 	protected short_term_pool : thread_group;
-	protected started: var;
 }

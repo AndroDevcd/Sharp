@@ -11,7 +11,7 @@
 #include "symbols/Method.h"
 #include "profiler.h"
 #include "../Modules/std/Random.h"
-#include "jit/architecture.h"
+#include "architecture.h"
 #include "../util/HashMap.h"
 #include "ThreadStates.h"
 #include "fiber.h"
@@ -59,9 +59,6 @@ public:
         stackRebuild=false;
         lastRanMicros=0;
         relativeFrame=0;
-#ifdef BUILD_JIT
-        jctx = NULL;
-#endif
         args.object = NULL;
         currentThread.object=NULL;
         new (&mutex) recursive_mutex();
@@ -73,6 +70,7 @@ public:
         contextSwitchTime=0;
         switched=0;
         skipped=0;
+        timeLocking=0;
 #endif
 #ifdef WIN32_
         thread = NULL;
@@ -161,14 +159,12 @@ public:
     uInt relativeFrame;
     bool stackRebuild;
 
-#ifdef BUILD_JIT
-    jit_context *jctx;
-#endif
 #ifdef SHARP_PROF_
     Profiler *tprof;
 #endif
 #ifdef COROUTINE_DEBUGGING
-    Int timeSleeping, switched, skipped, actualSleepTime, contextSwitchTime;
+    Int timeSleeping, switched, skipped,
+        actualSleepTime, contextSwitchTime, timeLocking;
 #endif
 #ifdef WIN32_
     HANDLE thread;

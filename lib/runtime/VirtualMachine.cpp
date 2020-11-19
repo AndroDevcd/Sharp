@@ -20,7 +20,6 @@
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
 #include "../Modules/math/cmath.h"
-#include "jit/Jit.h"
 #include "main.h"
 #include "../Modules/std.io/memory.h"
 #include "snb/snb.h"
@@ -100,7 +99,7 @@ int CreateVirtualMachine(string &exe)
     return 0;
 }
 
-void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic) {
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic, bool inJit) {
     ClassObject* klass = NULL;
     fptr jitFn;
     thread->this_fiber->pc++;
@@ -131,11 +130,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
             search:
             for (Int i = klass->methodCount - 1; i >= 0; i--) {
                 if (klass->methods[i]->delegateAddress == address) {
-                    if ((jitFn = executeMethod(klass->methods[i]->address, thread)) != NULL) {
-#ifdef BUILD_JIT
-                        jitFn(thread->jctx);
-#endif
-                    }
+                    executeMethod(klass->methods[i]->address, thread, inJit);
                     return;
                 }
             }
@@ -158,7 +153,7 @@ bool returnMethod(Thread* thread) {
         thread->this_fiber->finished = true;
 #ifdef SHARP_PROF_
         thread->tprof->endtm=Clock::realTimeInNSecs();
-                thread->tprof->profile();
+        thread->tprof->profile();
 #endif
         return true;
     }
@@ -169,8 +164,8 @@ bool returnMethod(Thread* thread) {
     thread->this_fiber->cache = thread->this_fiber->current->bytecode;
 
    thread->this_fiber->pc = thread->this_fiber->cache+frameInfo->pc;
-   thread->this_fiber->sp = frameInfo->sp;
-   thread->this_fiber->fp = frameInfo->fp;
+   thread->this_fiber->sp = thread->this_fiber->dataStack+frameInfo->sp;
+   thread->this_fiber->fp = thread->this_fiber->dataStack+frameInfo->fp;
    thread->this_fiber->calls--;
 #ifdef SHARP_PROF_
     thread->tprof->profile();
@@ -179,7 +174,7 @@ bool returnMethod(Thread* thread) {
     /**
      * We need to return back to the JIT context
      */
-    return frameInfo->isjit;
+    return frameInfo->isNative;
 }
 
 CXX11_INLINE
@@ -191,7 +186,8 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
         thread->this_fiber->growFrame();
 
     thread->this_fiber->callStack[++thread->this_fiber->calls]
-            .init(thread->this_fiber->current, PC(thread), thread->this_fiber->sp-method->spOffset, thread->this_fiber->fp, inJit);
+            .init(thread->this_fiber->current, PC(thread), (thread->this_fiber->sp-method->spOffset)-thread->this_fiber->dataStack,
+                    thread->this_fiber->fp-thread->this_fiber->dataStack, inJit);
 
     thread->this_fiber->current = method;
     thread->this_fiber->cache = method->bytecode;
@@ -201,70 +197,52 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
 }
 
 fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
-    if(!thread->stackRebuild) return nullptr;
-
-    Int calls = thread->this_fiber->calls;
-    Method *func = nullptr;
-    fiber* fib = thread->this_fiber;
-
-    retry:
-    if(thread->relativeFrame == calls) {
-        thread->stackRebuild = false;
-        func = fib->current;
-
-        if(func->isjit) {
-            thread->jctx->caller = func;
-            return func->jit_func;
-        } else {
-            if(nativeShift)
-                thread->exec();
-            return nullptr;
-        }
-    }
-
-    Frame &frame = thread->this_fiber->callStack[++thread->relativeFrame];
-    func = vm.methods+frame.returnAddress;
-
-   if(frame.isjit) {
-       thread->jctx->caller = func;
-       return func->jit_func;
-   } else {
-       if(nativeShift)
-          thread->exec();
-       else goto retry;
-       return nullptr;
-   }
+//    if(!thread->stackRebuild) return nullptr;
+//
+//    Int calls = thread->this_fiber->calls;
+//    Method *func = nullptr;
+//    fiber* fib = thread->this_fiber;
+//
+//    retry:
+//    if(thread->relativeFrame == calls) {
+//        thread->stackRebuild = false;
+//        func = fib->current;
+//
+//        if(func->isjit) {
+//            thread->jctx->caller = func;
+//            return func->jit_func;
+//        } else {
+//            if(nativeShift)
+//                thread->exec();
+//            return nullptr;
+//        }
+//    }
+//
+//    Frame &frame = thread->this_fiber->callStack[++thread->relativeFrame];
+//    func = vm.methods+frame.returnAddress;
+//
+//   if(frame.isNative) {
+//       thread->jctx->caller = func;
+//       return func->jit_func;
+//   } else {
+//       if(nativeShift)
+//          thread->exec();
+//       else goto retry;
+//       return nullptr;
+//   }
+return nullptr;
 }
 
-fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwitch) {
+void executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
 
     Method *method = vm.methods+address;
-    setupMethodStack(address, thread, inJit);
-
-#ifdef BUILD_JIT
-    if(!method->isjit) {
-        if(method->branches >= JIT_IR_LIMIT)
-        {
-            if(!method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
-                Jit::sendMessage(method);
-        } else method->branches++;
-    }
+    setupMethodStack(address, thread, inNativeEnv);
+#ifdef SHARP_PROF_
+    thread->tprof->hit(method);
 #endif
-
-
-#ifdef BUILD_JIT
-    if(method->isjit) {
-        thread->jctx->caller = method;
-        thread->jctx->this_fiber = thread->this_fiber;
-        return method->jit_func;
-    } else
-#endif
-
-    if(inJit || thread->this_fiber->calls==0 || contextSwitch) {
+    if(inNativeEnv || thread->this_fiber->calls==0) {
         thread->exec();
     }
-
-    return NULL;
 }
 
 void VirtualMachine::destroy() {
@@ -322,16 +300,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             thread->this_fiber->setAttachedThread(thread);
             thread->this_fiber->setState(thread, FIB_RUNNING);
             registers = thread->this_fiber->registers;
-            thread->jctx->this_fiber = thread->this_fiber;
 
             /*
              * Call main method
              */
-            if ((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
-#ifdef BUILD_JIT
-                jitFn(thread->jctx);
-#endif
-            }
+            executeMethod(thread->this_fiber->main->address, thread);
         } else {
             registers = thread->this_fiber->registers;
             if(thread->this_fiber->state == FIB_RUNNING && !thread->this_fiber->finished) {
@@ -340,16 +313,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                     /*
                      * Call main method
                      */
-                    if ((jitFn = executeMethod(thread->this_fiber->main->address, thread, false, true)) != NULL) {
-
-#ifdef BUILD_JIT
-                        jitFn(thread->jctx);
-#endif
-                    }
+                    executeMethod(thread->this_fiber->main->address, thread);
                 } else {
-                    if((jitFn = shiftToNextMethod(thread, true))) {
-                        jitFn(thread->jctx);
-                    }
+                    thread->exec();
                 }
             }
         }
@@ -650,7 +616,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         }
         case OP_FIBER_BOUND_COUNT: {
             Int threadId = (thread_self->this_fiber->sp--)->var;
-            _64EBX = fiber::boundFiberCount(Thread::getThread(threadId));
+            Thread *thread = Thread::getThread(threadId);
+            _64EBX = thread ? thread->boundFibers : 0;
             return;
         }
         case OP_FIBER_STATE: {
@@ -783,6 +750,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             __os_yield();
             return;
         case OP_EXIT:
+#ifdef SHARP_PROF_
+            thread_self->tprof->endtm=Clock::realTimeInNSecs();
+            thread_self->tprof->profile();
+            thread_self->tprof->dump();
+
+#endif
             thread_self->this_fiber->exitVal = (int)(thread_self->this_fiber->sp--)->var;
             vm.shutdown();
             return;
@@ -1176,7 +1149,7 @@ void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
     if(c_options.debugMode) {
         ss << " ["
            << func->address << "] $" << pc;
-        ss << " " << (func->isjit ? "(jit)" : "");
+        ss << " " << (func->nativeFunc ? "(jit)" : "");
     }
 
     if(line != -1 && vm.metaData.files.size() > 0) {
@@ -1534,7 +1507,7 @@ bool VirtualMachine::link(native_string &func, native_string &libame) {
     return false;
 }
 
-double VirtualMachine::isType(Object *obj, int32_t type) {
+bool VirtualMachine::isType(Object *obj, int32_t type) {
     if(obj && obj->object) {
         if(TYPE(obj->object->info) == _stype_var) {
             if (type == -1) { // _int8
@@ -1562,4 +1535,14 @@ double VirtualMachine::isType(Object *obj, int32_t type) {
         }
     } else throw Exception(vm.NullptrExcept, "");
     return 0;
+}
+
+/**
+ * This is used for inter-state transfer between high level and low level
+ * @param thread
+ * @return
+ */
+bool VirtualMachine::shouldReturn(Thread *thread) {
+    return thread->this_fiber->calls == 0
+           || thread->this_fiber->callStack[thread->this_fiber->calls].isNative;
 }

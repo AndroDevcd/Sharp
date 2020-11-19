@@ -15,7 +15,6 @@
 #include "register.h"
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
-#include "jit/_BaseAssembler.h"
 #include "scheduler.h"
 
 options c_options;

@@ -89,7 +89,8 @@ public:
 
     static void fillMethodCall(Method* func, Int pc, stringstream &ss);
     static void __snprintf(int cfmt, double val, int precision);
-    double isType(Object *obj, int32_t type);
+    static bool isType(Object *obj, int32_t type);
+    static bool shouldReturn(Thread*);
 
     Library* getLib(std::string name);
     int freeLib(std::string name);
@@ -133,6 +134,7 @@ public:
     _List<Library> libs;
     _List<KeyPair<Int, int>> tlsInts;
     int exitVal;
+    int64_t sectionIdentifier;
     short state;
 };
 
@@ -141,9 +143,9 @@ public:
 extern VirtualMachine vm;
 
 int CreateVirtualMachine(string&);
-fptr executeMethod(int64_t address, Thread* thread, bool inJit = false, bool contextSwitch = false);
+void executeMethod(int64_t address, Thread* thread, bool inNativeEnv = false);
 bool returnMethod(Thread* thread);
-void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic);
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic, bool inJit);
 CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit);
 fptr shiftToNextMethod(Thread*, bool);

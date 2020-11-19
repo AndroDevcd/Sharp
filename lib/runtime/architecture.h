@@ -1,7 +1,6 @@
 //
-// Created by BraxtonN on 9/25/2019.
+// Created by BNunnally on 11/18/2020.
 //
-
 #ifndef SHARP_ARCHITECTURE_H
 #define SHARP_ARCHITECTURE_H
 
@@ -49,11 +48,6 @@
 #else
 #define _ARCH_LE 1
 #define _ARCH_BE 0
-#endif
-
-#if (_ARCH_X86 == 64)  || \
-    (_ARCH_X86 == 32)
-#define BUILD_JIT 0
 #endif
 
 

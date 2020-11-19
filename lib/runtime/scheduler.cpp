@@ -10,9 +10,12 @@
 
 void __usleep(unsigned int usec)
 {
+#ifdef COROUTINE_DEBUGGING
+    if(thread_self)
+        thread_self->actualSleepTime += usec;
+#endif
 
 #ifdef WIN32_
-    __os_yield();
     HANDLE timer;
     LARGE_INTEGER ft;
 
@@ -83,7 +86,7 @@ void run_scheduler() {
             } else if(thread->state != THREAD_RUNNING)
                 continue;
 
-            if ((unBoundFibers >= 1 || thread->boundFibers > 1 || thread->waiting) && is_thread_ready(thread)) {
+            if ((unBoundFibers >= 1 || thread->boundFibers > 1) && !thread->waiting && is_thread_ready(thread)) {
                 thread->enableContextSwitch(true);
             }
         }

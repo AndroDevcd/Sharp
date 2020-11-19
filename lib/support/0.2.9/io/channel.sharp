@@ -148,14 +148,18 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        }
 
        filtered_channel := filters[filter];
-       if(!filtered_channel.avail_data()) return null;
+       if(filtered_channel.avail_data() == 0) {
+          return null;
+       }
 
        data := new list<t>();
-       for(;;) {
-          if(filtered_channel.avail_data()) {
-             data.add(filtered_channel.read(self));
-          } else {
-             return data;
+       lock(filtered_channel) {
+          for(;;) {
+             if(filtered_channel.avail_data()) {
+                data.add(filtered_channel.read(self));
+             } else {
+                return data;
+             }
           }
        }
 

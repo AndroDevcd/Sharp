@@ -35,7 +35,9 @@ void Profiler::profile() {
     }
 }
 
+recursive_mutex profMut;
 void Profiler::dump() {
+    GUARD(profMut)
     stringstream ss;
     ss << "\n%%%%%=====================================================%%%%%" << endl;
     ss <<    "                     Sharp Speed Profiler" << endl;
@@ -95,7 +97,7 @@ void Profiler::dump() {
             else
                 ss << (prof.ir/prof.hits);
         }
-        ss << "   " << setw(39) << prof.func->fullName.str() << "      " << setw(22) << source;
+        ss << "   " << setw(39) << prof.func->fullName.str() << " " << (prof.func->nativeFunc ? "(jit)" : "") << "      " << setw(22) << source;
         ss << endl;
 
         switch(c_options.sortBy) {

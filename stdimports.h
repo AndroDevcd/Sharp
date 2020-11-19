@@ -14,7 +14,7 @@
 #include <cstdio>
 #include <cstring>
 #include <thread>
-#include "lib/runtime/jit/architecture.h"
+#include "lib/runtime/architecture.h"
 
 using namespace std;
 

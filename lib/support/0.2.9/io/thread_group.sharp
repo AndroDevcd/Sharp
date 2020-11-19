@@ -80,7 +80,7 @@ public class thread_group : loopable<thread> {
 	}
 	
 	public static main_group := new thread_group("main");
-	private handles := new synced_list<thread>();
+	private handles := new list<thread>();
 	private name : string;
 	private default_priority : thread_priority;
 	private n_threads := 0;

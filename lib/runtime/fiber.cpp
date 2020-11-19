@@ -187,7 +187,7 @@ fiber* fiber::getFiber(uInt id) {
     return locateFiber(id);
 }
 
-inline bool isFiberRunnble(fiber *fib, Thread *thread) {
+bool fiber::isFiberRunnble(fiber *fib, Thread *thread) {
 
     if(fib->state == FIB_SUSPENDED && fib->wakeable) {
         return (fib->boundThread == thread || fib->boundThread == NULL);
@@ -197,40 +197,47 @@ inline bool isFiberRunnble(fiber *fib, Thread *thread) {
 }
 
 fiber* fiber::nextFiber(Int startingIndex, Thread *thread) {
-    fiber *fib = NULL, *startingFiber;
+    fiber *fib = NULL;
     uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
     Int size;
 
-    if(startingIndex >= 0 && (startingIndex+1) < dataSize) {
-        startingFiber = fiberAt(startingIndex);
+    if(unBoundFibers > 0 || thread->boundFibers > 0) {
+        if (startingIndex >= 0 && (startingIndex + 1) < dataSize) {
 
-        for (Int i = startingIndex+1; i < dataSize; i++) {
-            if ((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
-                if(fib->locking) {
-                    if(fib->passed >= MAX_PASSES)
-                        fib->passed = 0;
-                    else {
-                        fib->passed++;
-                        continue;
+            for (Int i = startingIndex + 1; i < dataSize; i++) {
+                if (thread->signal) return NULL;
+
+                if ((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
+                    if (fib->locking) {
+                        if (fib->passed >= MAX_PASSES)
+                            fib->passed = 0;
+                        else {
+                            fib->passed++;
+                            continue;
+                        }
                     }
-                }
 
-                if(fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
+                    if (fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
+                    return fib;
+                }
+            }
+
+            size = startingIndex + 1;
+        } else size = dataSize;
+
+        for (Int i = 0; i < size; i++) {
+            if (thread->signal) return NULL;
+
+            if ((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
+                if (fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
                 return fib;
             }
         }
-
-        size = startingIndex;
-    } else size = dataSize-1;
-
-    __os_yield();
-    __usleep(10);
-    for(Int i = 0; i < dataSize; i++) {
-       if((fib = fiberAt(i)) != NULL && !fib->finished && isFiberRunnble(fib, thread)) {
-           if(fib->delayTime > 0 && loggedTime < fib->delayTime) continue;
-           return fib;
-       }
+    } else if(!thread->last_fiber->finished && isFiberRunnble(thread->last_fiber, thread)) {
+        if (thread->last_fiber->delayTime > 0 && loggedTime < thread->last_fiber->delayTime) return NULL;
+        return thread->last_fiber;
     }
+
     return NULL;
 }
 
@@ -417,9 +424,6 @@ Thread *fiber::getBoundThread() {
 
 void fiber::setAttachedThread(Thread *thread) {
     GUARD(mut)
-    if(thread && attachedThread) {
-        int i = 0;
-    }
     attachedThread = thread;
 }
 
@@ -427,12 +431,14 @@ void fiber::delay(Int time, bool incPc) {
     if(time < 0)
         time = -1;
 
-    thread_self->enableContextSwitch(true);
 
     if(thread_self->try_context_switch(incPc)) {
+        thread_self->enableContextSwitch(true);
         if (state != FIB_KILLED)
             setState(thread_self, FIB_SUSPENDED, time);
-    } else __usleep(time * 1000); // will become a sleep() call if called from c++ env
+    } else  {
+        __usleep(time * 1000); // will become a sleep() call if called from c++ env
+    }
 }
 
 bool fiber::safeStart(Thread *thread) {
@@ -486,7 +492,6 @@ Int fiber::boundFiberCount(Thread *thread) {
 
 void fiber::killBoundFibers(Thread *thread) {
     fiber *fib = NULL;
-    GUARD(fmut)
 
     for(Int i = 0; i < dataSize; i++) {
         if((fib = fiberAt(i)) != NULL && fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
