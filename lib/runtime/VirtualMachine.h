@@ -143,7 +143,7 @@ public:
 extern VirtualMachine vm;
 
 int CreateVirtualMachine(string&);
-void executeMethod(int64_t address, Thread* thread, bool inNativeEnv = false);
+SharpMethod executeMethod(int64_t address, Thread* thread, bool inNativeEnv = false);
 bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic, bool inJit);
 CXX11_INLINE

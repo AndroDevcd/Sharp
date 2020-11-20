@@ -56,7 +56,7 @@ public:
     uInt itemIndex;
     native_string name;
     Int stackLimit;
-    Cache cache, pc;
+    Int pc;
     fiber_state state;
     int exitVal;
     Object exceptionObject;

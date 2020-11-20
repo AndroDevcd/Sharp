@@ -28,6 +28,7 @@ struct jit_context;
 #define JIT_IR_MIN 5
 
 typedef opcode_instr* Cache;
+typedef void (*SharpMethod)(Thread*);
 typedef void (*bridgeFun)(long handle);
 typedef long (*linkProc)(const char* funcName);
 typedef short (*lib_handshake)(void *lib_funcs[], int);

@@ -233,7 +233,12 @@ fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
 return nullptr;
 }
 
-void executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
+SharpMethod executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
+    if(address >= vm.manifest.methods || address < 0){
+        stringstream ss;
+        ss << "invalid call to method with address of " << address;
+        throw Exception(ss.str());
+    }
 
     Method *method = vm.methods+address;
     setupMethodStack(address, thread, inNativeEnv);
@@ -243,6 +248,8 @@ void executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
     if(inNativeEnv || thread->this_fiber->calls==0) {
         thread->exec();
     }
+
+    return nullptr;
 }
 
 void VirtualMachine::destroy() {
