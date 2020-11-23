@@ -48,6 +48,8 @@ private:
     void appendMainFunctions(ClassObject*, stringstream&);
     void createCallFunc(stringstream&);
     void appendCallFunctions(ClassObject*, stringstream&);
+    void createClassFunctions();
+    void deleteTempFiles();
     void buildExe();
     void dumpClassInfo(ClassObject*);
     void addClass(ClassObject*);

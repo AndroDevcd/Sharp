@@ -116,23 +116,23 @@
 #define inj_op_movr(resultReg, right) \
     registers[resultReg]=registers[right];
 
-#define inj_op_brh(resultReg, ctx_check) \
+#define inj_op_brh(ctx_check) \
     this_fiber->pc=(Int)registers[ADX]; \
     ctx_check \
-    goto *opcode_table[this_fiber->pc];
+    goto *label_table[this_fiber->pc];
 
 #define inj_op_ife(ctx_check) \
     if(registers[CMT]) { \
         this_fiber->pc=(Int)registers[ADX]; \
         ctx_check \
-        goto *opcode_table[this_fiber->pc]; \
+        goto *label_table[this_fiber->pc]; \
     }
 
 #define inj_op_ifne(ctx_check) \
     if(registers[CMT] == 0) { \
         this_fiber->pc=(Int)registers[ADX]; \
         ctx_check \
-        goto *opcode_table[this_fiber->pc]; \
+        goto *label_table[this_fiber->pc]; \
     }
 
 #define inj_op_lt(left, right) \
@@ -192,7 +192,7 @@
 #define inj_op_jmp(addr, ctx_check) \
     this_fiber->pc=addr; \
     ctx_check \
-    goto *opcode_table[addr]; \
+    goto *label_table[addr]; \
 
 #define  inj_op_loadpc(resutReg, pc) \
     registers[resultReg] = pc;
@@ -246,7 +246,7 @@
 
 #define inj_op_skip(skippedOpcodes) \
     this_fiber->pc = this_fiber->pc+skippedOpcodes; \
-    goto *opcode_table[this_fiber->pc]; \
+    goto *label_table[this_fiber->pc]; \
 
 #define inj_op_loadval(resultReg) \
     registers[resultReg]=(this_fiber->sp--)->var;
@@ -260,13 +260,13 @@
 #define inj_op_skpe(condReg, skippedOpcodes) \
     if(registers[condReg] != 0) { \
         this_fiber->pc = this_fiber->pc+skippedOpcodes; \
-        goto *opcode_table[this_fiber->pc]; \
+        goto *label_table[this_fiber->pc]; \
     }
 
 #define inj_op_skpne(condReg, skippedOpcodes) \
     if(registers[condReg] == 0) { \
         this_fiber->pc = this_fiber->pc+skippedOpcodes; \
-        goto *opcode_table[this_fiber->pc]; \
+        goto *label_table[this_fiber->pc]; \
     }
 
 #define inj_op_cmp(cmpReg, cmpNum) \
@@ -287,7 +287,7 @@
 #define inj_op_throw(pc) \
     this_fiber->pc = pc; \
     this_fiber->exceptionObject = (this_fiber->sp--)->object; \
-    sendSignal(signal, tsig_except, 1); \
+    sendSignal(thread->signal, tsig_except, 1); \
     goto exception_catch;
 
 #define inj_op_checknull(resultReg) \
@@ -301,5 +301,149 @@
 
 #define inj_op_newString(stringAddr) \
     gc.createStringArray(&(++this_fiber->sp)->object, vm.strings[stringAddr]);
+
+#define inj_op_addl(frameAddr, reg) \
+   (this_fiber->fp+frameAddr)->var+=registers[reg];
+
+#define inj_op_subl(frameAddr, reg) \
+   (this_fiber->fp+frameAddr)->var-=registers[reg];
+
+#define inj_op_mull(frameAddr, reg) \
+   (this_fiber->fp+frameAddr)->var*=registers[reg];
+
+#define inj_op_divl(frameAddr, reg) \
+   (this_fiber->fp+frameAddr)->var/=registers[reg];
+
+#define inj_op_modl(frameAddr, reg) \
+   (this_fiber->fp+frameAddr)->var = (Int)(this_fiber->fp+frameAddr)->var % (Int)registers[reg];
+
+#define inj_op_iaddl(frameAddr, value) \
+   (this_fiber->fp+frameAddr)->var+=value;
+
+#define inj_op_isubl(frameAddr, value) \
+   (this_fiber->fp+frameAddr)->var-=value;
+
+#define inj_op_imull(frameAddr, value) \
+   (this_fiber->fp+frameAddr)->var*=value;
+
+#define inj_op_idivl(frameAddr, value) \
+   (this_fiber->fp+frameAddr)->var/=value;
+
+#define inj_op_imodl(frameAddr, value) \
+   (this_fiber->fp+frameAddr)->var = (Int)(this_fiber->fp+frameAddr)->var % value;
+
+#define inj_op_loadl(resultReg, frameAddr) \
+   registers[resultReg]=(this_fiber->fp+frameAddr)->var;
+
+#define inj_op_iaload(resultReg, indexReg) \
+    registers[resultReg] = this_fiber->ptr->object->HEAD[(Int)registers[indexReg]];
+
+#define inj_op_popObj \
+    *this_fiber->ptr = (this_fiber->sp--)->object;
+
+#define inj_op_smovr(stackAddr, valueReg) \
+    (this_fiber->sp+stackAddr)->var=registers[valueReg];
+
+#define inj_op_smovr2(frameAddr, valueReg) \
+    (this_fiber->fp+frameAddr)->var=registers[valueReg];
+
+#define inj_op_smovr3(frameAddr) \
+    (this_fiber->fp+frameAddr)->object=this_fiber->ptr;
+
+#define inj_op_andl(frameAddr, valueReg) \
+    (this_fiber->fp+frameAddr)->var = (Int)(this_fiber->fp+frameAddr)->var & (Int)registers[valueReg];
+
+#define inj_op_orl(frameAddr, valueReg) \
+    (this_fiber->fp+frameAddr)->var = (Int)(this_fiber->fp+frameAddr)->var | (Int)registers[valueReg];
+
+#define inj_op_xorl(frameAddr, valueReg) \
+    (this_fiber->fp+frameAddr)->var = (Int)(this_fiber->fp+frameAddr)->var ^ (Int)registers[valueReg];
+
+#define inj_op_rmov(indexReg, valueReg) \
+    this_fiber->ptr->object->HEAD[(Int)registers[indexReg]] = \
+        registers[valueReg];
+
+#define inj_op_neg(resultReg, valueReg) \
+    registers[resultReg]=-registers[valueReg];
+
+#define inj_op_smov(resultReg, stackAddr) \
+    registers[resultReg]=(this_fiber->sp+stackAddr)->var;
+
+#define inj_op_returnVal(valueReg) \
+    (this_fiber->fp)->var=registers[valueReg];
+
+#define inj_op_istore(value) \
+    (++this_fiber->sp)->var = value;
+
+#define inj_op_istorel(frameAddr, value) \
+    (this_fiber->fp+frameAddr)->var=value;
+
+#define inj_op_pushnull \
+    gc.releaseObject(&(++this_fiber->sp)->object);
+
+#define inj_op_ipushl(frameAddr) \
+    (++this_fiber->sp)->var = (this_fiber->fp+frameAddr)->var;
+
+#define inj_op_pushl(frameAddr) \
+    (++this_fiber->sp)->object = (this_fiber->fp+frameAddress)->object;
+
+#define inj_op_itest(resultReg) \
+    tmpPtr = &(this_fiber->sp--)->object; \
+    registers[resultReg] = tmpPtr->object == (this_fiber->sp--)->object.object;
+
+#define inj_op_invokeDelegate(address, args, thread, isStatic, injit) \
+    invokeDelegate(address, args, thread, isStatic, false);
+
+#define inj_op_isadd(stackAddr, value) \
+    (this_fiber->sp+stackAddr)->var+=value;
+
+#define inj_op_je(pc, ctx_check) \
+    if(registers[CMT]) { \
+        this_fiber->pc=pc; \
+        ctx_check \
+        goto *label_table[pc]; \
+    }
+
+#define inj_op_jne(pc, ctx_check) \
+    if(registers[CMT] == 0) { \
+        this_fiber->pc=pc; \
+        ctx_check \
+        goto *label_table[pc]; \
+    }
+
+#define inj_op_tls_movl(stackAddr)  \
+    this_fiber->ptr = &(this_fiber->dataStack+stackAddr)->object;
+
+#define inj_op_dup \
+    tmpPtr = &this_fiber->sp->object; \
+    (++this_fiber->sp)->object = tmpPtr;
+
+#define inj_op_popObj2 \
+    this_fiber->ptr = &(this_fiber->sp--)->object;
+
+#define inj_op_swap \
+    if((this_fiber->sp-this_fiber->dataStack) >= 2) { \
+        SharpObject *swappedObj = this_fiber->sp->object.object; \
+        (this_fiber->sp)->object = (this_fiber->sp-1)->object; \
+        (this_fiber->sp-1)->object = swappedObj; \
+        double swappedVar = this_fiber->sp->var; \
+        (this_fiber->sp)->var = (this_fiber->sp-1)->var; \
+        (this_fiber->sp-1)->var = swappedVar; \
+    } else { \
+        stringstream ss; \
+        ss << "Illegal stack swap while sp is ( " << (Int )(this_fiber->sp - this_fiber->dataStack) << ") "; \
+        throw Exception(vm.ThreadStackExcept, ss.str()); \
+    }
+
+#define inj_op_exp(resultReg, baseReg, exponentReg) \
+    registers[resultReg]=pow(registers[baseReg], registers[exponentReg]);
+
+#define inj_op_ldc(resultReg, constantAddr) \
+    registers[resultReg]=vm.constants[constantAddr];
+
+#define inj_op_is(resultReg, type) \
+    registers[resultReg] = VirtualMachine::isType(this_fiber->ptr, type);
+
+
 
 #endif //SHARP_OPCODEINJECTION_H

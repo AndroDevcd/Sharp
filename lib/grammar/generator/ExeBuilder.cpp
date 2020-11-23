@@ -20,85 +20,6 @@
 #include <sys/stat.h>
 #endif
 
-bool sortMethods(Method *m1, Method *m2) {
-    return m1->address > m2->address;
-}
-
-bool sortClasses(ClassObject *c1, ClassObject *c2) {
-    return c1->address > c2->address;
-}
-
-bool sortFields(Field *f1, Field *f2) {
-    return f1->address > f2->address;
-}
-
-bool locateMethod(Method **m1, void *m2) {
-    return Compiler::simpleParameterMatch((*m1)->params, ((Method*)m2)->params) && (*m1)->utype->equals(((Method*)m2)->utype);
-}
-
-string putInt32(int32_t i32)
-{
-    string str;
-
-    str+=(uint8_t)GET_i32w(i32);
-    str+=(uint8_t)GET_i32x(i32);
-    str+=(uint8_t)GET_i32y(i32);
-    str+=(uint8_t)GET_i32z(i32);
-    return str;
-}
-
-void ExeBuilder::buildExe() {
-    buf.str("");
-    buildHeader();
-    buildSymbolSection();
-    buildStringSection();
-    buildConstantSection();
-
-    buildDataSection();
-    buildMetaDataSection();
-
-    string data = dataSec.str();
-    if(data.size() >= data_compress_threshold) {
-        dataSec.str("");
-
-        buf << (char)data_compress;
-        stringstream __outbuf__;
-        Zlib zlib;
-
-        Zlib::AUTO_CLEAN=(true);
-        zlib.Compress_Buffer2Buffer(data, __outbuf__, ZLIB_LAST_SEGMENT);
-        data.clear();
-
-        buf << __outbuf__.str(); __outbuf__.str("");
-    } else {
-        buf << dataSec.str();
-        dataSec.str("");
-    }
-
-    if(File::write(c_options.out.c_str(), buf.str())) {
-        cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
-    }
-}
-
-void parseGenericName(Int &i, string &name, stringstream &ss) {
-    ss << '$';
-    i++;
-    for(; i < name.size(); i++) {
-        if(name[i] == '>')
-        {
-            ss << '$';
-            return;
-        }
-
-        if(name[i] == ',')
-            ss << "_0_";
-        else if(name[i] == '<') {
-            parseGenericName(i, name, ss);
-        }
-        else ss << name[i];
-    }
-}
-
 string classToCPPName(string &name) {
     bool hashFound = false;
     stringstream ss;
@@ -129,6 +50,488 @@ string moduleToCPPName(string &name) {
         else ss << name[i];
     }
     return ss.str();
+}
+
+bool sortMethods(Method *m1, Method *m2) {
+    return m1->address > m2->address;
+}
+
+bool sortClasses(ClassObject *c1, ClassObject *c2) {
+    return c1->address > c2->address;
+}
+
+bool sortFields(Field *f1, Field *f2) {
+    return f1->address > f2->address;
+}
+
+bool locateMethod(Method **m1, void *m2) {
+    return Compiler::simpleParameterMatch((*m1)->params, ((Method*)m2)->params) && (*m1)->utype->equals(((Method*)m2)->utype);
+}
+
+string putInt32(int32_t i32)
+{
+    string str;
+
+    str+=(uint8_t)GET_i32w(i32);
+    str+=(uint8_t)GET_i32x(i32);
+    str+=(uint8_t)GET_i32y(i32);
+    str+=(uint8_t)GET_i32z(i32);
+    return str;
+}
+
+void ExeBuilder::deleteTempFiles() {
+    for(Int i = 1; i < allClasses.size(); i++) {
+        stringstream fileName;
+
+        fileName << c_options.nativeCodeDir
+                 #ifdef WIN32_
+                 << "\\"
+                 #endif
+                 #ifdef POSIX_
+                 << "/"
+                 #endif
+                 << "_$Tmp_Sharp_class_" << i << ".cpp";
+
+        remove(fileName.str().c_str());
+    }
+
+    if(!compiler->nativeCodeFound) {
+#ifdef WIN32_
+        _rmdir(c_options.nativeCodeDir.c_str());
+#endif
+
+#ifdef POSIX_
+        rmdir(c_options.nativeCodeDir.c_str());
+#endif
+    }
+}
+
+void ExeBuilder::createClassFunctions() {
+//    const char *longString = R""""(
+//            This is
+//            a very ())"""
+//            long
+//            string
+//            )"""";
+
+    for(Int i = 0; i < allClasses.size(); i++) {
+        stringstream fileName, fileData;
+        ClassObject *klass = allClasses.get(i);
+
+        fileName << c_options.nativeCodeDir
+#ifdef WIN32_
+        << "\\"
+#endif
+#ifdef POSIX_
+        << "/"
+#endif
+        << "_$Tmp_Sharp_class_" << i << ".cpp";
+
+        fileData << "#include <runtime/Thread.h>" << endl;
+        fileData << "#include <runtime/fiber.h>" << endl;
+        fileData << "#include <runtime/Opcode.h>" << endl << endl;
+
+        for(Int j = 0; j < klass->getFunctionCount(); j++) {
+            Method *function = klass->getFunction(j);
+
+            fileData << endl << "void " << classToCPPName(function->fullName)
+                << "(Thread *thread) {" << endl;
+
+            fileData << "\tregister fiber *this_fiber = thread->this_fiber;" << endl;
+
+            fileData << endl << "\tstatic void* label_table[] = {";
+            for(Int k = 0; k < function->data.code.size(); k++) {
+                if(k > 0 && (k % 5 == 0)) fileData << endl << "\t\t\t";
+                fileData << " &&INS_" << k;
+
+                if((k + 1) < function->data.code.size())
+                    fileData << ",";
+            }
+            fileData << " };" << endl;
+
+            fileData << endl <<  "\ttry {" << endl;
+            CodeHolder &code = function->data.code;
+            for(Int k = 0; k < function->data.code.size(); k++) {
+                fileData << endl << "\t\t";
+                fileData << "INS_" << k << ':' << endl << "\t\t ";
+                switch(GET_OP(code.ir32.at(k))) {
+                    case Opcode::NOP: {
+                        fileData << "inj_op_nop";
+                        break;
+                    }
+                    case Opcode::INT: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_int(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVI: {
+                        fileData << "inj_op_movi(" << GET_Da(code.ir32.at(k)) << ", "
+                            << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::RET: {
+                        fileData << "inj_op_ret(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::HLT: {
+                        fileData << "inj_op_hlt";
+                        break;
+                    }
+                    case Opcode::NEWARRAY: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_newrray(" << GET_Ca(code.ir32.at(k)) << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::CAST: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULL(inj_op_cast(" << GET_Da(code.ir32.at(k)) << "))";
+                        break;
+                    }
+                    case Opcode::VARCAST: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULL2(inj_op_varcast(" << GET_Ca(code.ir32.at(k)) << ", " << GET_Cb(code.ir32.at(k)) << "))";
+                        break;
+                    }
+                    case Opcode::MOV8: {
+                        fileData << "inj_op_mov8(" << GET_Ca(code.ir32.at(k))
+                            << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOV16: {
+                        fileData << "inj_op_mov16(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOV32: {
+                        fileData << "inj_op_mov32(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOV64: {
+                        fileData << "inj_op_mov64(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVU8: {
+                        fileData << "inj_op_movu8(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVU16: {
+                        fileData << "inj_op_movu16(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVU32: {
+                        fileData << "inj_op_movu32(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVU64: {
+                        fileData << "inj_op_movu64(" << GET_Ca(code.ir32.at(k))
+                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::RSTORE: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_rstore(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::ADD: {
+                        fileData << "inj_op_add(" << GET_Bc(code.ir32.at(k))
+                            << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SUB: {
+                        fileData << "inj_op_sub(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::DIV: {
+                        fileData << "inj_op_div(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOD: {
+                        fileData << "inj_op_mod(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::IADD: {
+                        fileData << "inj_op_iadd(" << GET_Da(code.ir32.at(k))
+                                 << ", " << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::ISUB: {
+                        fileData << "inj_op_isub(" << GET_Da(code.ir32.at(k))
+                                 << ", " << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::IMUL: {
+                        fileData << "inj_op_imul(" << GET_Da(code.ir32.at(k))
+                                 << ", " << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::IDIV: {
+                        fileData << "inj_op_idiv(" << GET_Da(code.ir32.at(k))
+                                 << ", " << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::IMOD: {
+                        fileData << "inj_op_imod(" << GET_Da(code.ir32.at(k))
+                                 << ", " << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::POP: {
+                        fileData << "inj_op_pop";
+                        break;
+                    }
+                    case Opcode::INC: {
+                        fileData << "inj_op_inc(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::DEC: {
+                        fileData << "inj_op_dec(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVR: {
+                        fileData << "inj_op_movr(" << GET_Ca(code.ir32.at(k)) << ", "
+                            << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::BRH: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_brh(context_switch_check(false))";
+                        break;
+                    }
+                    case Opcode::IFE: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_ife(context_switch_check(false))";
+                        break;
+                    }
+                    case Opcode::IFNE: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_ifne(context_switch_check(false))";
+                        break;
+                    }
+                    case Opcode::LT: {
+                        fileData << "inj_op_lt(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::GT: {
+                        fileData << "inj_op_gt(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::LTE: {
+                        fileData << "inj_op_lte(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::GTE: {
+                        fileData << "inj_op_gte(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVL: {
+                        fileData << "inj_op_movl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::POPL: {
+                        fileData << "inj_op_popl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::IPOPL: {
+                        fileData << "inj_op_ipopl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVSL: {
+                        fileData << "inj_op_movsl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SIZEOF: {
+                        fileData << "inj_op_sizeof(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::PUT: {
+                        fileData << "inj_op_put(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::PUTC: {
+                        fileData << "inj_op_putc(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::GET: {
+                        fileData << "inj_op_get(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::CHECKLEN: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_checklen(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::JMP: {
+                        fileData << "inj_op_jmp(" << GET_Da(code.ir32.at(k)) << ", context_switch_check(false))";
+                        break;
+                    }
+                    case Opcode::LOADPC: {
+                        fileData << "inj_op_loadpc(" << GET_Da(code.ir32.at(k)) << ", " << k << ")";
+                        break;
+                    }
+                    case Opcode::PUSHOBJ: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_pushobj";
+                        break;
+                    }
+                    case Opcode::DEL: {
+                        fileData << "inj_op_del";
+                        break;
+                    }
+                    case Opcode::CALL: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_call(" <<  GET_Da(code.ir32.at(k)) << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        break;
+                    }
+                    case Opcode::CALLD: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_calld(" <<  GET_Da(code.ir32.at(k)) << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        break;
+                    }
+                }
+            }
+
+            fileData << endl << "\t}";
+
+    const char *exceptionCatchSection = R""""(
+    catch (Exception &e) {
+        sendSignal(thread->signal, tsig_except, 1);
+    }
+
+    exception_catch:
+    if(state == THREAD_KILLED) {
+        sendSignal(thread->signal, tsig_except, 1);
+        return;
+    }
+
+    if(!VirtualMachine::catchException()) {
+        returnMethod(thread);
+        return;
+    }
+
+    goto *label_table[this_fiber->pc];)"""";
+
+            fileData << exceptionCatchSection << endl << "}" << endl;
+        }
+
+        if(File::write(fileName.str().c_str(), fileData.str())) {
+            cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
+            exit(1);
+        }
+    }
+}
+
+void ExeBuilder::buildExe() {
+#ifdef WIN32_
+    _mkdir(c_options.nativeCodeDir.c_str());
+#endif
+#ifdef POSIX_
+    mkdir(c_options.nativeCodeDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+
+    // C:\Program Files\Sharp\include
+    createClassFunctions();
+    deleteTempFiles();
+//    buildHeader();
+//    buildSymbolSection();
+//    buildStringSection();
+//    buildConstantSection();
+//
+//    buildDataSection();
+//    buildMetaDataSection();
+//
+//    string data = dataSec.str();
+//    if(data.size() >= data_compress_threshold) {
+//        dataSec.str("");
+//
+//        buf << (char)data_compress;
+//        stringstream __outbuf__;
+//        Zlib zlib;
+//
+//        Zlib::AUTO_CLEAN=(true);
+//        zlib.Compress_Buffer2Buffer(data, __outbuf__, ZLIB_LAST_SEGMENT);
+//        data.clear();
+//
+//        buf << __outbuf__.str(); __outbuf__.str("");
+//    } else {
+//        buf << dataSec.str();
+//        dataSec.str("");
+//    }
+//
+//    if(File::write(c_options.out.c_str(), buf.str())) {
+//        cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
+//    }
+}
+
+void parseGenericName(Int &i, string &name, stringstream &ss) {
+    ss << '$';
+    i++;
+    for(; i < name.size(); i++) {
+        if(name[i] == '>')
+        {
+            ss << '$';
+            return;
+        }
+
+        if(name[i] == ',')
+            ss << "_0_";
+        else if(name[i] == '<') {
+            parseGenericName(i, name, ss);
+        }
+        else ss << name[i];
+    }
 }
 
 Int getDuplicateCount(Method *func, List<Method*> methods, Int index) {

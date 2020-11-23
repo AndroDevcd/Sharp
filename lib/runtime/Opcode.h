@@ -64,13 +64,13 @@
 #define DISPATCH() /*if(GET_OP((*pc))> 0x76 || PC(this) >= current->cacheSize) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*this_fiber->pc)];
 
 #define HAS_SIGNAL \
-    if(signal) { \
-        if(contextSwitching) return; \
-        if (hasSignal(signal, tsig_suspend)) \
-            suspendSelf(); \
-        if (hasSignal(signal, tsig_kill) || state == THREAD_KILLED) \
+    if(thread->signal) { \
+        if(thread->contextSwitching) return; \
+        if (hasSignal(thread->signal, tsig_suspend)) \
+            thread->suspendSelf(); \
+        if (hasSignal(thread->signal, tsig_kill) || state == THREAD_KILLED) \
             return; \
-        if(hasSignal(signal, tsig_except)) \
+        if(hasSignal(thread->signal, tsig_except)) \
             goto exception_catch; \
     }
 
@@ -103,30 +103,30 @@
 
 #define CHECK_NULL(x) \
     if(this_fiber->ptr==NULL) { \
-        GUARD(mutex); \
+        GUARD(thread->mutex); \
         Exception err(vm.NullptrExcept, ""); \
-        sendSignal(signal, tsig_except, 1); \
+        sendSignal(thread->signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULL2(x) \
     if(this_fiber->ptr==NULL|this_fiber->ptr->object == NULL) { \
-        GUARD(mutex); \
+        GUARD(thread->mutex); \
         Exception err(vm.NullptrExcept, ""); \
-        sendSignal(signal, tsig_except, 1); \
+        sendSignal(thread->signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLOBJ(x) \
     if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL || TYPE(this_fiber->ptr->object->info) != _stype_struct) { \
-        GUARD(mutex); \
+        GUARD(thread->mutex); \
         Exception err(vm.NullptrExcept, ""); \
-        sendSignal(signal, tsig_except, 1); \
+        sendSignal(thread->signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLVAR(x) \
     if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL || TYPE(this_fiber->ptr->object->info) != _stype_var) { \
-        GUARD(mutex); \
+        GUARD(thread->mutex); \
         Exception err(vm.NullptrExcept, ""); \
-        sendSignal(signal, tsig_except, 1); \
+        sendSignal(thread->signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 
