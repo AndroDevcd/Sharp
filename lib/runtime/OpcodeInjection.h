@@ -22,7 +22,7 @@
             = (this_fiber->sp--)->object.object; \
     } \
      \
-    returnMethod(this); \
+    returnMethod(thread); \
      \
     if(err_state == ERR_STATE) { \
         GUARD(thread->mutex); \
@@ -404,11 +404,11 @@
         goto *label_table[pc]; \
     }
 
-#define inj_op_jne(pc, ctx_check) \
+#define inj_op_jne(pcVal, ctx_check) \
     if(registers[CMT] == 0) { \
-        this_fiber->pc=pc; \
+        this_fiber->pc=pcVal; \
         ctx_check \
-        goto *label_table[pc]; \
+        goto *label_table[pcVal]; \
     }
 
 #define inj_op_tls_movl(stackAddr)  \

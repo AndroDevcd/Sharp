@@ -829,6 +829,7 @@ unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
+    /*
     Object *tmpPtr;
     Int result;
 
@@ -1393,15 +1394,16 @@ void Thread::exec() {
         this_fiber->pc++;
     }
 
-    /**
+    *
      * Exception may still be live and must make its transition to low
      * level Sharp
-     */
+     *
     if(this_fiber->current->nativeFunc) {
         return;
     }
 
     goto run;
+     */
 }
 
 bool Thread::try_context_switch(bool incPc) {

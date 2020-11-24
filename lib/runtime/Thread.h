@@ -207,7 +207,7 @@ extern thread_local double *registers;
 #define _64BMR registers[BMR]
 
 #define PC(thread_self) \
-    (thread_self->this_fiber->pc-thread_self->this_fiber->cache)
+    (thread_self->this_fiber->pc)
 
 extern unsigned long irCount, overflow;
 extern size_t threadStackSize;

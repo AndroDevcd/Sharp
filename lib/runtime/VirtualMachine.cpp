@@ -161,9 +161,8 @@ bool returnMethod(Thread* thread) {
     Frame *frameInfo = thread->this_fiber->callStack+(thread->this_fiber->calls);
 
     thread->this_fiber->current =  &vm.methods[frameInfo->returnAddress];
-    thread->this_fiber->cache = thread->this_fiber->current->bytecode;
 
-   thread->this_fiber->pc = thread->this_fiber->cache+frameInfo->pc;
+   thread->this_fiber->pc = frameInfo->pc;
    thread->this_fiber->sp = thread->this_fiber->dataStack+frameInfo->sp;
    thread->this_fiber->fp = thread->this_fiber->dataStack+frameInfo->fp;
    thread->this_fiber->calls--;
@@ -190,10 +189,9 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
                     thread->this_fiber->fp-thread->this_fiber->dataStack, inJit);
 
     thread->this_fiber->current = method;
-    thread->this_fiber->cache = method->bytecode;
     thread->this_fiber->fp = thread->this_fiber->sp - method->fpOffset;
     thread->this_fiber->sp += method->frameStackOffset;
-    thread->this_fiber->pc = thread->this_fiber->cache;
+    thread->this_fiber->pc = 0;
 }
 
 fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
@@ -487,7 +485,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                 }
 
                 methods->object->HEAD[iter] = thread->this_fiber->current->address;
-                pcList->object->HEAD[iter] = thread->this_fiber->pc - thread->this_fiber->cache;
+                pcList->object->HEAD[iter] = thread->this_fiber->pc;
             }
         }
     }
@@ -1077,7 +1075,7 @@ bool VirtualMachine::catchException() {
                     || tbl->catchTable._Data[j].caughtException == vm.Throwable) {
                     if(tbl->catchTable._Data[j].localFieldAddress >= 0)
                         (thread->this_fiber->fp+tbl->catchTable._Data[j].localFieldAddress)->object = thread->this_fiber->exceptionObject;
-                    thread->this_fiber->pc = thread->this_fiber->cache+tbl->catchTable._Data[j].handler_pc;
+                    thread->this_fiber->pc = tbl->catchTable._Data[j].handler_pc;
 
                     thread->this_fiber->exceptionObject = (SharpObject*)NULL;
                     sendSignal(thread->signal, tsig_except, 0);
@@ -1094,7 +1092,7 @@ bool VirtualMachine::catchException() {
         if (tbl->try_start_pc <= pc && tbl->try_end_pc >= pc)
         {
             if(tbl->finallyData != NULL) {
-                thread->this_fiber->pc = thread->this_fiber->cache+tbl->finallyData->start_pc;
+                thread->this_fiber->pc = tbl->finallyData->start_pc;
                 (thread->this_fiber->fp+tbl->finallyData->exception_object_field_address)->object = thread->this_fiber->exceptionObject;
                 thread->this_fiber->exceptionObject = (SharpObject*)NULL;
                 sendSignal(thread->signal, tsig_except, 0); // TODO: this may be causing an out of memory error (look to see if the ref is 1 after exception has been handled)

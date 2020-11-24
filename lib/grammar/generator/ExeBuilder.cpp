@@ -138,6 +138,7 @@ void ExeBuilder::createClassFunctions() {
                 << "(Thread *thread) {" << endl;
 
             fileData << "\tregister fiber *this_fiber = thread->this_fiber;" << endl;
+            fileData << "\tregister double *registers = this_fiber->registers;" << endl;
 
             fileData << endl << "\tstatic void* label_table[] = {";
             for(Int k = 0; k < function->data.code.size(); k++) {
@@ -149,7 +150,9 @@ void ExeBuilder::createClassFunctions() {
             }
             fileData << " };" << endl;
 
-            fileData << endl <<  "\ttry {" << endl;
+            fileData << endl <<  "\trun:" << endl << "\ttry {"
+            << endl << "\t\tgoto *label_table[this_fiber->pc];"
+            << endl << endl;
             CodeHolder &code = function->data.code;
             for(Int k = 0; k < function->data.code.size(); k++) {
                 fileData << endl << "\t\t";
@@ -166,6 +169,7 @@ void ExeBuilder::createClassFunctions() {
                         break;
                     }
                     case Opcode::MOVI: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_movi(" << GET_Da(code.ir32.at(k)) << ", "
                             << code.ir32.at(k + 1) << ")";
                         k++;
@@ -272,30 +276,35 @@ void ExeBuilder::createClassFunctions() {
                         break;
                     }
                     case Opcode::IADD: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_iadd(" << GET_Da(code.ir32.at(k))
                                  << ", " << code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::ISUB: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_isub(" << GET_Da(code.ir32.at(k))
                                  << ", " << code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IMUL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_imul(" << GET_Da(code.ir32.at(k))
                                  << ", " << code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IDIV: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_idiv(" << GET_Da(code.ir32.at(k))
                                  << ", " << code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IMOD: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_imod(" << GET_Da(code.ir32.at(k))
                                  << ", " << code.ir32.at(k + 1) << ")";
                         k++;
@@ -397,8 +406,6 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::CHECKLEN: {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        fileData << endl << "\t\t ";
                         fileData << "inj_op_checklen(" << GET_Da(code.ir32.at(k)) << ")";
                         break;
                     }
@@ -440,6 +447,407 @@ void ExeBuilder::createClassFunctions() {
                         fileData << "HAS_SIGNAL";
                         break;
                     }
+                    case Opcode::NEWCLASS: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_newclass(" << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::MOVN: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULLOBJ(inj_op_movn(" << code.ir32.at(k + 1) << "))";
+                        k++;
+                        break;
+                    }
+                    case Opcode::SLEEP: {
+                        fileData << "inj_op_sleep(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::TEST: {
+                        fileData << "inj_op_test(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::TNE: {
+                        fileData << "inj_op_testne(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::LOCK: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULL2(inj_op_lock)";
+                        break;
+                    }
+                    case Opcode::ULOCK: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULL2(inj_op_ulock)";
+                        break;
+                    }
+                    case Opcode::MOVG: {
+                        fileData << "inj_op_movg(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MOVND: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULLOBJ(inj_op_movnd(" << GET_Da(code.ir32.at(k)) << "))";
+                        break;
+                    }
+                    case Opcode::NEWOBJARRAY: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_newobjarray(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::NOT: {
+                        fileData << "inj_op_not(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SKIP: {
+                        fileData << "inj_op_skip(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::LOADVAL: {
+                        fileData << "inj_op_loadval(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SHL: {
+                        fileData << "inj_op_shl(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SHR: {
+                        fileData << "inj_op_shr(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SKPE: {
+                        fileData << "inj_op_skpe(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SKNE: {
+                        fileData << "inj_op_skpne(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::CMP: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_cmp(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::AND: {
+                        fileData << "inj_op_and(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::UAND: {
+                        fileData << "inj_op_uand(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::OR: {
+                        fileData << "inj_op_or(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::XOR: {
+                        fileData << "inj_op_xor(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::THROW: {
+                        fileData << "inj_op_throw(" << k << ")";
+                        break;
+                    }
+                    case Opcode::CHECKNULL: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_checknull(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::RETURNOBJ: {
+                        fileData << "inj_op_return_obj";
+                        break;
+                    }
+                    case Opcode::NEWCLASSARRAY: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_newClassArray(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::NEWSTRING: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_newString(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::ADDL: {
+                        fileData << "inj_op_addl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SUBL: {
+                        fileData << "inj_op_subl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MULL: {
+                        fileData << "inj_op_mull(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::DIVL: {
+                        fileData << "inj_op_divl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::MODL: {
+                        fileData << "inj_op_modl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::IADDL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_iaddl(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::ISUBL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_isubl(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::IMULL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_imull(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::IDIVL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_idivl(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::IMODL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_imodl(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::LOADL: {
+                        fileData << "inj_op_loadl(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::IALOAD: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULLVAR(inj_op_loadl(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << "))";
+                        break;
+                    }
+                    case Opcode::POPOBJ: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULLVAR(inj_op_popObj)";
+                        break;
+                    }
+                    case Opcode::SMOVR: {
+                        fileData << "inj_op_smovr(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SMOVR_2: {
+                        fileData << "inj_op_smovr2(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::SMOVR_3: {
+                        fileData << "inj_op_smovr3(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::ANDL: {
+                        fileData << "inj_op_andl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::ORL: {
+                        fileData << "inj_op_orl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::XORL: {
+                        fileData << "inj_op_xorl(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::RMOV: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULLVAR(inj_op_rmov(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << "))";
+                        break;
+                    }
+                    case Opcode::NEG: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "CHECK_NULLVAR(inj_op_neg(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << "))";
+                        break;
+                    }
+                    case Opcode::SMOV: {
+                        fileData << "inj_op_smov(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::RETURNVAL: {
+                        fileData << "inj_op_returnVal(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::ISTORE: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_istore(" << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::ISTOREL: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_istorel(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::PUSHNULL: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_pushnull";
+                        break;
+                    }
+                    case Opcode::IPUSHL: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_ipushl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::PUSHL: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_pushl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::ITEST: {
+                        fileData << "inj_op_itest(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::INVOKE_DELEGATE: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_invokeDelegate(" <<  GET_Da(code.ir32.at(k))
+                            << ", " << GET_Cb(code.ir32.at(k + 1)) << ", thread"
+                            << ", " << (GET_Ca(code.ir32.at(k + 1)) == 1)
+                            << ", false)";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        break;
+                    }
+                    case Opcode::ISADD: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_isadd(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
+                    case Opcode::JE: {
+                        fileData << "inj_op_je(" << GET_Da(code.ir32.at(k)) << ", context_switch_check(false))";
+                        break;
+                    }
+                    case Opcode::JNE: {
+                        fileData << "inj_op_jne(" << GET_Da(code.ir32.at(k)) << ", context_switch_check(false))";
+                        break;
+                    }
+                    case Opcode::TLS_MOVL: {
+                        fileData << "inj_op_tls_movl(" << GET_Da(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::DUP: {
+                        fileData << "update_pc(" << k << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "grow_stack";
+                        fileData << endl << "\t\t ";
+                        fileData << "STACK_CHECK";
+                        fileData << endl << "\t\t ";
+                        fileData << "inj_op_dup";
+                        break;
+                    }
+                    case Opcode::POPOBJ_2: {
+                        fileData << "inj_op_popObj2";
+                        break;
+                    }
+                    case Opcode::SWAP: {
+                        fileData << "inj_op_swap";
+                        break;
+                    }
+                    case Opcode::EXP: {
+                        fileData << "inj_op_exp(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::LDC: {
+                        fileData << "inj_op_ldc(" << GET_Cb(code.ir32.at(k)) << ", "
+                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        break;
+                    }
+                    case Opcode::IS: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
+                        fileData << "inj_op_is(" << GET_Da(code.ir32.at(k)) << ", "
+                                 << code.ir32.at(k + 1) << ")";
+                        k++;
+                        break;
+                    }
                 }
             }
 
@@ -451,7 +859,7 @@ void ExeBuilder::createClassFunctions() {
     }
 
     exception_catch:
-    if(state == THREAD_KILLED) {
+    if(thread->state == THREAD_KILLED) {
         sendSignal(thread->signal, tsig_except, 1);
         return;
     }
@@ -461,7 +869,7 @@ void ExeBuilder::createClassFunctions() {
         return;
     }
 
-    goto *label_table[this_fiber->pc];)"""";
+    goto run;)"""";
 
             fileData << exceptionCatchSection << endl << "}" << endl;
         }

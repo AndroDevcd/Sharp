@@ -109,9 +109,7 @@ fiber* fiber::makeFiber(native_string &name, Method* main) {
         fib->name.init();
         fib->name = name;
         fib->main = main;
-        fib->cache = NULL;
-        fib->pc = NULL;
-        fib->pc = NULL;
+        fib->pc = 0;
         fib->state = FIB_CREATED;
         fib->exitVal = 0;
         fib->delayTime = -1;
