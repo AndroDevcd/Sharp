@@ -106,14 +106,501 @@ void ExeBuilder::deleteTempFiles() {
     }
 }
 
-void ExeBuilder::createClassFunctions() {
-//    const char *longString = R""""(
-//            This is
-//            a very ())"""
-//            long
-//            string
-//            )"""";
+string getSymbolType(Utype *utype) {
+    stringstream symbolStr;
+    DataType type = utype->getResolvedType()->type;
 
+    if((type >= _INT8 && type <= _UINT64)
+       || type == VAR || type == OBJECT
+       || type == NIL) {
+        symbolStr << "&vm.nativeSymbols[" << (int)type << "];";
+        return symbolStr.str();
+    } else if(type == CLASS) {
+        symbolStr << "&vm.classes[" << utype->getClass()->address
+            << "];";
+        return symbolStr.str();
+    } else if(type == FNPTR) {
+        symbolStr << "&vm.funcPtrSymbols[" << utype->getMethod()->address
+                  << "];";
+        return symbolStr.str();
+    } else {
+        cout << "unknown field type: " << type;
+        exit(1);
+    }
+}
+
+void buildFieldData(Field* field, stringstream &fileData) {
+    const char *updateFieldPtr = R""""(
+    field = &klass->fields[fieldsProcessed++];
+    field->init();
+)"""";
+
+    fileData << updateFieldPtr << endl;
+
+    fileData << "\tfield->name = \"" << field->name << "\";" << endl;
+    fileData << "\tfield->fullName = \"" << field->fullName << "\";" << endl;
+    fileData << "\tfield->address = " << field->address << ";" << endl;
+    fileData << "\tfield->type = (DataType)" << (int)field->type << ";" << endl;
+    fileData << "\tfield->guid = " << field->guid << ";" << endl;
+
+    Int accessTypes = 0;
+    for(Int j = 0; j < field->flags.size(); j++) {
+        accessTypes |= field->flags.get(j);
+    }
+
+    fileData << "\tfield->flags = " << accessTypes << ";" << endl;
+    fileData << "\tfield->isArray = " << field->isArray << ";" << endl;
+    fileData << "\tfield->threadLocal = " << (field->locality == stl_thread) << ";" << endl;
+    fileData << "\tfield->utype = " << getSymbolType(field->utype) << endl;
+    fileData << "\tfield->owner = &vm.classes[" << field->owner->address << "];" << endl;
+
+    if(field->locality == stl_thread && field->type <= VAR && !field->isArray)
+        fileData << "\tvm.tlsInts.add(KeyPair<Int, int>(field->address, field->type < FNPTR ? field->type : NTYPE_VAR));" << endl;
+}
+
+void buildFieldData(ClassObject *klass, stringstream &fileData) {
+    List<Field*> instanceFields;
+
+    ClassObject *tmp = klass;
+    while(tmp != NULL) {
+        for(Int i = 0; i < tmp->fieldCount(); i++) {
+            if(!tmp->getField(i)->flags.find(STATIC)) {
+                instanceFields.add(tmp->getField(i));
+            }
+        }
+
+        tmp = tmp->getSuperClass();
+    }
+
+
+    instanceFields.linearSort(sortFields);
+    for (Int i = 0; i < instanceFields.size(); i++) {
+        Field *field = instanceFields.get(i);
+        buildFieldData(field, fileData);
+    }
+
+    for (Int i = 0; i < klass->fieldCount(); i++) {
+        Field *field = klass->getField(i);
+        if(field->flags.find(STATIC)) {
+            buildFieldData(field, fileData);
+        }
+    }
+}
+
+void buildMethodData(ClassObject *klass, stringstream &fileData) {
+    if(klass->getSuperClass() != NULL)
+        buildMethodData(klass->getSuperClass(), fileData);
+
+    for(Int i = 0; i < klass->getFunctionCount(); i++) {
+        Method *function = klass->getFunction(i);
+        fileData << "\tklass->methods[fieldsProcessed++] = &vm.methods[" << function->address << "];" << endl;
+    }
+}
+
+void buildInterfaceData(ClassObject *klass, stringstream &fileData) {
+    if(klass->getSuperClass() != NULL)
+        buildInterfaceData(klass->getSuperClass(), fileData);
+
+    List<ClassObject*> &interfaces = klass->getInterfaces();
+    for(Int i = 0; i < interfaces.size(); i++) {
+        ClassObject *_interface = interfaces.get(i);
+        fileData << "\tklass->interfaces[fieldsProcessed++] = &vm.methods[" << _interface->address << "];" << endl;
+    }
+}
+
+
+void ExeBuilder::putMethodData(Method *fun, stringstream &fileData) {
+    fileData << "\tmethod = &vm.methods[methodsProcessed++];" << endl;
+    fileData << "\tmethod->init();" << endl;
+    fileData << "\tmethod->address = " << fun->address << ";" << endl;
+    fileData << "\tmethod->guid = " << fun->guid << ";" << endl;
+    fileData << "\tmethod->name = \"" << fun->name << "\";" << endl;
+    fileData << "\tmethod->fullName = \"" << fun->fullName << "\";" << endl;
+    fileData << "\tmethod->sourceFile = " << Obfuscater::files.indexof(fun->meta.file) << ";" << endl;
+    fileData << "\tmethod->owner = &vm.classes[" << fun->owner->address << "];" << endl;
+    fileData << "\tmethod->fnType = " << fun->fnType << ";" << endl;
+    fileData << "\tmethod->stackSize = " << fun->data.localVariablesSize << ";" << endl;
+    fileData << "\tmethod->cacheSize = " << fun->data.code.size() << ";" << endl;
+
+    Int accessTypes = 0;
+    for(Int j = 0; j < fun->flags.size(); j++) {
+        accessTypes |= fun->flags.get(j);
+    }
+    fileData << "\tmethod->flags = " << accessTypes << ";" << endl;
+    fileData << "\tmethod->nativeFunc = " << fun->isNative() << ";" << endl;
+    fileData << "\tmethod->delegateAddress = " << fun->delegateAddr << ";" << endl;
+    fileData << "\tmethod->fpOffset = " << getFpOffset(fun) << ";" << endl;
+    fileData << "\tmethod->spOffset = " << getSpOffset(fun) << ";" << endl;
+    fileData << "\tmethod->frameStackOffset = " << getSecondarySpOffset(fun) << ";" << endl;
+    fileData << "\tmethod->utype = " << getSymbolType(fun->utype) << endl;
+    fileData << "\tmethod->arrayUtype = " << fun->utype->isArray() << endl;
+    fileData << "\tmethod->paramSize = " << fun->params.size() << endl;
+
+    if(fun->params.size() > 0) {
+        fileData << "\tmethod->params = (Param *) malloc(sizeof(Param) * "
+        << fun->params.size() << ");\n" << endl;
+
+        for(Int j = 0; j < fun->params.size(); j++) {
+            Field *field = fun->params.get(j);
+            fileData << "\tmethod->params[" << j << "].utype = " << getSymbolType(field->utype) << ";" << endl;
+            fileData << "\tmethod->params[" << j << "].isArray == " << field->isArray << ";" << endl;
+        }
+
+        fileData << endl;
+    }
+
+    for(Int i = 0; i < fun->data.lineTable.size(); i++) {
+        LineData &ld = fun->data.lineTable.get(i);
+        fileData << "\tmethod->lineTable.add(LineData(" << ld.start_pc << ", " << ld.line << "));" << endl;
+    }
+
+    if(fun->data.tryCatchTable.size() > 0) {
+        for (Int i = 0; i < fun->data.tryCatchTable.size(); i++) {
+            TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
+
+            fileData << "\ttryCatchData = &method->tryCatchTable.__new();" << endl;
+            fileData << "\ttryCatchData->init();" << endl;
+            fileData << "\ttryCatchData->try_start_pc= " << tryCatchData.try_start_pc << ";" << endl;
+            fileData << "\ttryCatchData->try_end_pc= " << tryCatchData.try_end_pc << ";" << endl;
+            fileData << "\ttryCatchData->block_start_pc= " << tryCatchData.block_start_pc << ";" << endl;
+            fileData << "\ttryCatchData->block_end_pc= " << tryCatchData.block_end_pc << ";" << endl;
+
+            for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
+                CatchData &catchData = tryCatchData.catchTable.get(j);
+
+                fileData << "\tcatchData = &tryCatchData.catchTable.__new();" << endl;
+                fileData << "\tcatchData.handler_pc = " << catchData.handler_pc << ";" << endl;
+                fileData << "\tcatchData.localFieldAddress = " << catchData.localFieldAddress << ";" << endl;
+                fileData << "\tcatchData.caughtException = &vm.classes[" << catchData.classAddress << "];" << endl;
+            }
+
+            if(tryCatchData.finallyData != NULL) {
+                fileData << "\ttryCatchData.finallyData = (FinallyData*)malloc(sizeof(FinallyData));" << endl;
+                fileData << "\ttryCatchData.finallyData->start_pc = " << tryCatchData.finallyData->start_pc << ";" << endl;
+                fileData << "\ttryCatchData.finallyData->end_pc = " << tryCatchData.finallyData->end_pc << ";" << endl;
+                fileData << "\ttryCatchData.finallyData->exception_object_field_address = " << tryCatchData.finallyData->exception_object_field_address << ";" << endl;
+            }
+        }
+    }
+}
+
+void ExeBuilder::addFileMetaData() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_$Tmp_Sharp_File_Meta.cpp";
+
+    fileData << "#include <runtime/Thread.h>" << endl;
+    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+
+    fileData << "void __srt_setup_FileData() {" << endl;
+    fileData << "\tSourceFile *sourceFile = nullptr;" << endl;
+    fileData << "\tString sourceFileData;" << endl;
+    fileData << "\tconst char* fileData = nullptr;" << endl;
+    fileData << "\tsourceFileData.init();" << endl << endl;
+
+    for(Int i = 0; i < Obfuscater::files.size(); i++) {
+        fileData << "\tsourceFile = &vm.metaData.files.__new();" << endl;
+        fileData << "\tsourceFile.init();" << endl;
+        fileData << "\tsourceFile.name = \"" << Obfuscater::files.get(i)->name << "\";" << endl;
+
+        if(c_options.debug) {
+            fileData << "\tfileData = R\"\"\"_SharpStrV01(" << compiler->parsers.get(i)->getData() << ")\"\"_SharpStrV01\";" << endl;
+            fileData << "\tsourceFileData.set(fileData);" << endl;
+            fileData << "\tparseSourceFile(sourceFile, sourceFileData);" << endl;
+
+            dataSec << putInt32(compiler->parsers.get(i)->getData().size());
+            dataSec << compiler->parsers.get(i)->getData() << ((char)nil);
+        }
+
+        fileData << endl;
+    }
+
+    dataSec << '\n' << (char)eos;
+
+    fileData << endl << "}" << endl;
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
+    }
+}
+
+void ExeBuilder::addFunctionMetaData() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_$Tmp_Sharp_Method_Meta.cpp";
+
+    fileData << "#include <runtime/Thread.h>" << endl;
+    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+
+    fileData << "void __srt_setup_Method() {" << endl;
+    fileData << "\tMethod* method = nullptr;" << endl;
+    fileData << "\tInt methodsProcessed= 0;" << endl;
+    fileData << "\tTryCatchData *tryCatchData = nullptr;" << endl;
+    fileData << "\tCatchData *catchData = nullptr;" << endl << endl;
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        putMethodData(allMethods.get(i), fileData);
+        fileData << endl;
+    }
+
+    fileData << endl << "}" << endl;
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
+    }
+}
+
+void ExeBuilder::addClassMetaData() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_$Tmp_Sharp_Class_Meta.cpp";
+
+    fileData << "#include <runtime/Thread.h>" << endl;
+    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+
+    fileData << "void __srt_setup_Classes() {" << endl;
+    fileData << "\tvm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);" << endl;
+    fileData << "\tvm.staticHeap = (Object*)calloc(vm.manifest.classes, sizeof(Object));" << endl;
+    fileData << "\tvm.metaData.init();" << endl;
+    fileData << "\tClassObject* klass = nullptr;" << endl;
+    fileData << "\tField* field = nullptr;" << endl;
+    fileData << "\tInt fieldsProcessed= 0;" << endl << endl;
+
+    for(Int i = 0; i < allClasses.size(); i++) {
+        ClassObject *klass = allClasses.get(i);
+
+        fileData << "\tklass = &vm.classes[" << i << "];" << endl;
+        fileData << "\tklass->init();" << endl;
+        fileData << "\tklass->address = " << klass->address << ";" << endl;
+        fileData << "\tfieldsProcessed = 0;" << endl;
+
+        if(klass->owner != NULL) {
+            fileData << "\tklass->owner = &vm.classes[" << klass->owner->address << "];" << endl;
+        }
+
+        if(klass->getSuperClass() != NULL) {
+            fileData << "\tklass->owner = &vm.classes[" << klass->getSuperClass()->address << "];" << endl;
+        }
+
+        fileData << "\tklass->guid = " << klass->guid << ";" << endl;
+        fileData << "\tklass->name = \"" << klass->name << "\";" << endl;
+        fileData << "\tklass->fullName = \"" << klass->fullName << "\";" << endl;
+        fileData << "\tklass->staticFields = " << klass->getStaticFieldCount() << ";" << endl;
+        fileData << "\tklass->instanceFields = " << klass->totalInstanceFieldCount() << ";" << endl;
+        fileData << "\tklass->totalFieldCount = klass->staticFields + klass->instanceFields;" << endl;
+        fileData << "\tklass->methodCount = " << klass->totalFunctionCount() << ";" << endl;
+        fileData << "\tklass->methodCount = " << klass->totalFunctionCount() << ";" << endl;
+        fileData << "\tklass->interfaceCount = " << klass->totalInterfaceCount() << ";" << endl;
+
+        if((klass->getStaticFieldCount() + klass->totalFunctionCount()) > 0) {
+            fileData << "\tklass->fields = (Field *) malloc(sizeof(Field) * " << (klass->getStaticFieldCount() + klass->totalFunctionCount()) << ");" << endl;
+        }
+        if(klass->totalFunctionCount() > 0) {
+            fileData << "\tklass->methods = (Method **) malloc(sizeof(Method **) * " << klass->totalFunctionCount() << ");" << endl;
+        }
+        if(klass->totalInterfaceCount() > 0) {
+            fileData << "\tklass->interfaces = (ClassObject **) malloc(sizeof(ClassObject **) * " << klass->totalInterfaceCount() << ");" << endl;
+        }
+
+        if((klass->getStaticFieldCount() + klass->totalFunctionCount()) > 0) {
+            buildFieldData(klass, fileData);
+        }
+
+        if(klass->totalFunctionCount() > 0) {
+            fileData << "\tfieldsProcessed = 0;" << endl;
+            buildMethodData(klass, fileData);
+        }
+
+        if(klass->totalInterfaceCount() > 0) {
+            fileData << "\tfieldsProcessed = 0;" << endl;
+            buildInterfaceData(klass, fileData);
+        }
+
+        fileData << endl;
+    }
+
+    fileData << "}" << endl;
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
+    }
+}
+
+void ExeBuilder::addFunctionPointerMetaData() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_$Tmp_Sharp_FunctionPtr_Meta.cpp";
+
+    fileData << "#include <runtime/Thread.h>" << endl;
+    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+
+    fileData << "void __srt_setup_functionPointers() {" << endl;
+    fileData << "\tvm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*vm.manifest.functionPointers);" << endl;
+
+    fileData << "\tvm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*14);" << endl;
+    fileData << "\tMethod *method = nullptr;" << endl;
+
+    const char *addNativeSymbols = R""""(
+    for(Int i = 0; i < 14; i++) {
+        vm.nativeSymbols[i].init();
+        vm.nativeSymbols[i].type = (DataType)i;
+    }
+)"""";
+
+    fileData << addNativeSymbols << endl;
+
+    for(Int i = 0; i < functionPointers.size(); i++) {
+        Method *func = functionPointers.get(i);
+        fileData << "\tmethod = &vm.funcPtrSymbols[" << i << "];" << endl;
+        fileData << "\tmethod->init();" << endl;
+        fileData << "\tmethod->fnType = fn_ptr;" << endl;
+
+        if(func->params.size() > 0) {
+            fileData << "\tmethod->params = (Param *) malloc(sizeof(Param) * " << func->params.size() << ");" << endl;
+
+            for (Int j = 0; j < func->params.size(); j++) {
+                Field *field = func->params.get(j);
+                fileData << "\tmethod->params[" << j << "].utype = " << getSymbolType(field->utype) << endl;
+                fileData << "\tmethod->params[" << j << "].isArray = " << field->isArray << ";" << endl;
+            }
+        }
+
+        fileData << "\tmethod->utype = " << getSymbolType(func->utype) << endl;
+        fileData << "\tmethod->arrayUtype = " << func->utype->isArray() << ";" << endl << endl;
+    }
+
+    fileData << "}" << endl << endl;
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
+    }
+}
+
+void ExeBuilder::createConstants() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_$Tmp_Sharp_constants.cpp";
+
+    fileData << "#include <runtime/Thread.h>" << endl;
+    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+
+    for(Int i = 0; i < allClasses.size(); i++) {
+        ClassObject *klass = allClasses.get(i);
+
+        for(Int j = 0; j < klass->fieldCount(); j++) {
+            if(klass->getField(j)->type == FNPTR) {
+                if(functionPointers.indexof(locateMethod, klass->getField(j)->utype->getMethod()) == -1) {
+                    functionPointers.add(klass->getField(j)->utype->getMethod());
+                }
+            }
+        }
+
+        for(Int j = 0; j < klass->getFunctionCount(); j++) {
+            Method *fun = klass->getFunction(j);
+            if(fun->utype->getResolvedType()->type == FNPTR) {
+                if(functionPointers.indexof(locateMethod, fun->utype->getMethod()) == -1) {
+                    functionPointers.add(fun->utype->getMethod());
+                }
+            }
+
+            for(Int x = 0; x < fun->params.size(); x++) {
+                Field *param = fun->params.get(x);
+                if(param->type == FNPTR) {
+                    if(functionPointers.indexof(locateMethod, param->utype->getMethod()) == -1) {
+                        functionPointers.add(param->utype->getMethod());
+                    }
+                }
+            }
+        }
+    }
+
+    fileData << "void __srt_setup_manifest() {" << endl;
+    fileData << "\tvm.manifest.application = \"" << c_options.out << "\";" << endl;
+    fileData << "\tvm.manifest.version = \"" << c_options.vers << "\";" << endl;
+    fileData << "\tvm.manifest.debug = " << (c_options.debug ? 1 : 0) << ";" << endl;
+    fileData << "\tvm.manifest.entryMethod = " << compiler->mainMethod->address << ";" << endl;
+    fileData << "\tvm.manifest.methods = " << allMethods.size() << ";" << endl;
+    fileData << "\tvm.manifest.classes = " << compiler->classSize << ";" << endl;
+    fileData << "\tvm.manifest.strings = " << compiler->stringMap.size() << ";" << endl;
+    fileData << "\tvm.manifest.sourceFiles = " << compiler->parsers.size() << ";" << endl;
+    fileData << "\tvm.manifest.threadLocals = " << compiler->threadLocals << ";" << endl;
+    fileData << "\tvm.manifest.constants = " << compiler->constantMap.size() << ";" << endl;
+    fileData << "\tvm.manifest.functionPointers = " << functionPointers.size() << ";" << endl;
+    fileData << "}" << endl << endl;
+
+    fileData << "void __srt_setup_stringConstants() {" << endl;
+    fileData << "\tvm.strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm.manifest.strings));" << endl << endl;
+    fileData << "\tconst char *strConstant = nullptr;" << endl;
+
+    for(Int i = 0; i < compiler->stringMap.size(); i++) {
+        fileData << "\tstrConstant = R\"\"\"_SharpStrV01((" << compiler->stringMap.get(i) << ")\"\"_SharpStrV01\";" << endl;
+        fileData << "\tvm.strings[" << i << "].init();" << endl;
+        fileData << "\tvm.strings[" << i << "].set(strConstant);" << endl << endl;
+    }
+    fileData << "}" << endl << endl;
+
+    fileData << "void __srt_setup_numericConstants() {" << endl;
+    fileData << "\tvm.constants = (double*)malloc(sizeof(double)*(vm.manifest.constants));" << endl << endl;
+
+    for(Int i = 0; i < compiler->constantMap.size(); i++) {
+        fileData << "\tvm.constants[" << i << "] = " << std::scientific
+        << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+        if(isnan( compiler->constantMap.get(i))) {
+            fileData << "std::numeric_limits<double>::quiet_NaN()";
+        } else if(isinf(compiler->constantMap.get(i))) {
+            fileData << "std::numeric_limits<double>::infinity()";
+        } else
+            fileData << compiler->constantMap.get(i);
+        fileData << std::dec  << ";" << endl;
+    }
+    fileData << "}" << endl << endl;
+
+    fileData << "void __srt_setupConstants() {" << endl;
+    fileData << "\t__srt_setup_numericConstants();" << endl;
+    fileData << "\t__srt_setup_stringConstants();" << endl;
+    fileData << "}" << endl << endl;
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
+    }
+}
+
+void ExeBuilder::createClassFunctions() {
     for(Int i = 0; i < allClasses.size(); i++) {
         stringstream fileName, fileData;
         ClassObject *klass = allClasses.get(i);
@@ -851,7 +1338,7 @@ void ExeBuilder::createClassFunctions() {
                 }
             }
 
-            fileData << endl << "\t}";
+            fileData << endl << "\t\treturn;" << endl << "\t}";
 
     const char *exceptionCatchSection = R""""(
     catch (Exception &e) {
@@ -875,7 +1362,7 @@ void ExeBuilder::createClassFunctions() {
         }
 
         if(File::write(fileName.str().c_str(), fileData.str())) {
-            cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
+            cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
             exit(1);
         }
     }
@@ -891,6 +1378,11 @@ void ExeBuilder::buildExe() {
 
     // C:\Program Files\Sharp\include
     createClassFunctions();
+    createConstants();
+    addFunctionPointerMetaData();
+    addClassMetaData();
+    addFunctionMetaData();
+    addFileMetaData();
     deleteTempFiles();
 //    buildHeader();
 //    buildSymbolSection();
@@ -2855,84 +3347,9 @@ void ExeBuilder::buildSymbolSection() {
         buf << putInt32(klass->totalInstanceFieldCount());
         buf << putInt32(klass->totalFunctionCount());
         buf << putInt32(klass->totalInterfaceCount());
-
-        buildFieldData(klass);
-        buildMethodData(klass);
-        buildInterfaceData(klass);
     }
 
     buf << '\n' << (char)eos;
-}
-
-void ExeBuilder::buildInterfaceData(ClassObject *klass) {
-    if(klass->getSuperClass() != NULL)
-        buildInterfaceData(klass->getSuperClass());
-
-    List<ClassObject*> &interfaces = klass->getInterfaces();
-    for(Int i = 0; i < interfaces.size(); i++) {
-        ClassObject *_interface = interfaces.get(i);
-        buf << (char)data_interface;
-        buf << putInt32(_interface->address) << ((char)nil);
-    }
-}
-void ExeBuilder::buildMethodData(ClassObject *klass) {
-    if(klass->getSuperClass() != NULL)
-        buildMethodData(klass->getSuperClass());
-
-    for(Int i = 0; i < klass->getFunctionCount(); i++) {
-        Method *function = klass->getFunction(i);
-        buf << (char)data_method;
-        buf << putInt32(function->address) << ((char)nil);
-    }
-}
-
-void ExeBuilder::buildFieldData(Field *field) {
-    buf << (char)data_field;
-    buf << field->name << ((char)nil);
-    buf << field->fullName << ((char)nil);
-    buf << putInt32(field->address);
-    Int accessTypes = 0;
-    for(Int j = 0; j < field->flags.size(); j++) {
-        accessTypes |= field->flags.get(j);
-    }
-
-    buf << putInt32(field->type);
-    buf << putInt32(field->guid);
-    buf << putInt32(accessTypes);
-    buf << (field->isArray ? 1 : 0);
-    buf << (field->locality == stl_thread ? 1 : 0);
-    putSymbol(field->utype, buf);
-    buf << putInt32(field->owner->address);
-    buf << ((char)nil) << ((char)nil);
-}
-
-void ExeBuilder::buildFieldData(ClassObject *klass) {
-    List<Field*> instanceFields;
-
-    ClassObject *tmp = klass;
-    while(tmp != NULL) {
-        for(Int i = 0; i < tmp->fieldCount(); i++) {
-            if(!tmp->getField(i)->flags.find(STATIC)) {
-                instanceFields.add(tmp->getField(i));
-            }
-        }
-
-        tmp = tmp->getSuperClass();
-    }
-
-
-    instanceFields.linearSort(sortFields);
-    for (Int i = 0; i < instanceFields.size(); i++) {
-        Field *field = instanceFields.get(i);
-        buildFieldData(field);
-    }
-
-    for (Int i = 0; i < klass->fieldCount(); i++) {
-        Field *field = klass->getField(i);
-        if(field->flags.find(STATIC)) {
-            buildFieldData(field);
-        }
-    }
 }
 
 void ExeBuilder::buildStringSection() {
@@ -2963,35 +3380,6 @@ void ExeBuilder::buildConstantSection() {
 
 void ExeBuilder::addFunctionPointers() {
 
-    for(Int i = 0; i < allClasses.size(); i++) {
-        ClassObject *klass = allClasses.get(i);
-
-        for(Int j = 0; j < klass->fieldCount(); j++) {
-            if(klass->getField(j)->type == FNPTR) {
-                if(functionPointers.indexof(locateMethod, klass->getField(j)->utype->getMethod()) == -1) {
-                    functionPointers.add(klass->getField(j)->utype->getMethod());
-                }
-            }
-        }
-
-        for(Int j = 0; j < klass->getFunctionCount(); j++) {
-            Method *fun = klass->getFunction(j);
-            if(fun->utype->getResolvedType()->type == FNPTR) {
-                if(functionPointers.indexof(locateMethod, fun->utype->getMethod()) == -1) {
-                    functionPointers.add(fun->utype->getMethod());
-                }
-            }
-
-            for(Int x = 0; x < fun->params.size(); x++) {
-                Field *param = fun->params.get(x);
-                if(param->type == FNPTR) {
-                    if(functionPointers.indexof(locateMethod, param->utype->getMethod()) == -1) {
-                        functionPointers.add(param->utype->getMethod());
-                    }
-                }
-            }
-        }
-    }
 
     buf << putInt32(functionPointers.size());
     for(Int i = 0; i < functionPointers.size(); i++) {
@@ -3022,80 +3410,6 @@ void ExeBuilder::putSymbol(Utype *utype, stringstream &buf) {
 
 void ExeBuilder::buildDataSection() {
     dataSec << (char)sdata;
-
-    for(Int i = 0; i < allMethods.size(); i++) {
-        putMethodData(allMethods.get(i));
-    }
-
-    for(Int i = 0; i < allMethods.size(); i++) {
-        putMethodCode(allMethods.get(i));
-    }
-
-
-    dataSec << '\n' << (char)eos;
-}
-
-void ExeBuilder::putMethodData(Method *fun) {
-    dataSec << (char)data_method;
-    dataSec << putInt32(fun->address);
-    dataSec << putInt32(fun->guid);
-    dataSec << fun->name << ((char)nil);
-    dataSec << fun->fullName << ((char)nil);
-    dataSec << putInt32(Obfuscater::files.indexof(fun->meta.file));
-    dataSec << putInt32(fun->owner->address);
-    dataSec << putInt32(fun->fnType);
-    dataSec << putInt32(fun->data.localVariablesSize);
-    dataSec << putInt32(fun->data.code.size());
-
-    Int accessTypes = 0;
-    for(Int j = 0; j < fun->flags.size(); j++) {
-        accessTypes |= fun->flags.get(j);
-    }
-    dataSec << putInt32(accessTypes);
-    dataSec << putInt32(fun->delegateAddr);
-    dataSec << putInt32(getFpOffset(fun));
-    dataSec << putInt32(getSpOffset(fun));
-    dataSec << putInt32(getSecondarySpOffset(fun));
-    putSymbol(fun->utype, dataSec);
-    dataSec << (fun->utype->isArray() ? 1 : 0);
-    dataSec << putInt32(fun->params.size());
-    for(Int i = 0; i < fun->params.size(); i++) {
-        Field *param = fun->params.get(i);
-        putSymbol(fun->utype, dataSec);
-        dataSec << (param->isArray ? 1 : 0);
-    }
-
-
-    dataSec << putInt32(fun->data.lineTable.size());
-    for(Int i = 0; i < fun->data.lineTable.size(); i++) {
-        dataSec << putInt32(fun->data.lineTable.get(i).start_pc);
-        dataSec << putInt32(fun->data.lineTable.get(i).line);
-    }
-
-    dataSec << putInt32(fun->data.tryCatchTable.size());
-    for(Int i = 0; i < fun->data.tryCatchTable.size(); i++) {
-        TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
-        dataSec << putInt32(tryCatchData.try_start_pc);
-        dataSec << putInt32(tryCatchData.try_end_pc);
-        dataSec << putInt32(tryCatchData.block_start_pc);
-        dataSec << putInt32(tryCatchData.block_end_pc);
-
-        dataSec << putInt32(tryCatchData.catchTable.size());
-        for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
-            CatchData &catchData = tryCatchData.catchTable.get(j);
-            dataSec << putInt32(catchData.handler_pc);
-            dataSec << putInt32(catchData.localFieldAddress);
-            dataSec << putInt32(catchData.classAddress);
-        }
-
-        if(tryCatchData.finallyData != NULL) {
-            dataSec << ((char)1);
-            dataSec << putInt32(tryCatchData.finallyData->start_pc);
-            dataSec << putInt32(tryCatchData.finallyData->end_pc);
-            dataSec << putInt32(tryCatchData.finallyData->exception_object_field_address);
-        } else
-            dataSec << ((char)nil);
-    }
 }
 
 void ExeBuilder::putMethodCode(Method *fun) {

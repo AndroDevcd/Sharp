@@ -49,6 +49,12 @@ private:
     void createCallFunc(stringstream&);
     void appendCallFunctions(ClassObject*, stringstream&);
     void createClassFunctions();
+    void createConstants();
+    void addFunctionPointerMetaData();
+    void addClassMetaData();
+    void addFunctionMetaData();
+    void addFileMetaData();
+    void putMethodData(Method *fun, stringstream &fileData);
     void deleteTempFiles();
     void buildExe();
     void dumpClassInfo(ClassObject*);
@@ -63,19 +69,12 @@ private:
 
     void buildSymbolSection();
 
-    void buildFieldData(Field *field);
-    void buildFieldData(ClassObject *pObject);
-    void buildMethodData(ClassObject *pObject);
-    void buildInterfaceData(ClassObject *pObject);
-
     void buildStringSection();
     void buildConstantSection();
     void addFunctionPointers();
 
     void buildDataSection();
     void putSymbol(Utype *utype, stringstream &buf);
-
-    void putMethodData(Method *fun);
 
     void putMethodCode(Method *fun);
 

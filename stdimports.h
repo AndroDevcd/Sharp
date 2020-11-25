@@ -14,6 +14,8 @@
 #include <cstdio>
 #include <cstring>
 #include <thread>
+#include <limits>
+#include <cmath>
 #include "lib/runtime/architecture.h"
 
 using namespace std;

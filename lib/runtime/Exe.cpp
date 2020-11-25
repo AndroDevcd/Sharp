@@ -84,13 +84,13 @@ int Process_Exe(std::string &exe)
                 vm.manifest.classes = geti32(buffer);
                 break;
             case 0x9:
-                vm.manifest.fvers = parseInt(buffer);
+                vm.manifest.fvers = parseInt(buffer); // deprecated
                 break;
             case 0x0c:
                 vm.manifest.strings = geti32(buffer);
                 break;
             case 0x0e:
-                vm.manifest.target = parseInt(buffer);
+                vm.manifest.target = parseInt(buffer); // deprecated
                 break;
             case 0x0f:
                 vm.manifest.sourceFiles = geti32(buffer);
@@ -585,7 +585,7 @@ int Process_Exe(std::string &exe)
                 Method* method = &vm.methods[itemsProcessed++];
 
                 if(method->cacheSize > 0) {
-                    method->bytecode = (opcode_instr*)malloc(sizeof(opcode_instr)*method->cacheSize);
+                    method->bytecode = (opcode_instr*)malloc(sizeof(opcode_instr)*method->cacheSize); // deprecated
                     for(int64_t i = 0; i < method->cacheSize; i++) {
                         method->bytecode[i] = geti32(buffer);
                     }
