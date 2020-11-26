@@ -120,6 +120,7 @@ public:
 
     Object outOfMemoryExcept;
     Meta metaData;
+    SharpMethod *methodRefs;
     Manifest manifest;
     Object* staticHeap;
     ClassObject* classes;
@@ -148,6 +149,7 @@ bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic, bool inJit);
 CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit);
-fptr shiftToNextMethod(Thread*, bool);
+SharpMethod shiftToNextMethod(Thread*);
+extern void __srt_setup_env();
 
 #endif //SHARP_SHARP_H

@@ -18,6 +18,8 @@ extern bool _kbhit(void);
 void get_original_console_settings();
 
 void reset_original_console_settings();
+#else
+#include <conio.h>
 #endif
 
 #endif //SHARP_TERMIOS_H

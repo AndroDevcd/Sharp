@@ -68,7 +68,7 @@
         if(thread->contextSwitching) return; \
         if (hasSignal(thread->signal, tsig_suspend)) \
             thread->suspendSelf(); \
-        if (hasSignal(thread->signal, tsig_kill) || state == THREAD_KILLED) \
+        if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) \
             return; \
         if(hasSignal(thread->signal, tsig_except)) \
             goto exception_catch; \

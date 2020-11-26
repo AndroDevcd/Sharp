@@ -54,6 +54,7 @@ private:
     void addClassMetaData();
     void addFunctionMetaData();
     void addFileMetaData();
+    void addEnvSetupFunctions();
     void putMethodData(Method *fun, stringstream &fileData);
     void deleteTempFiles();
     void buildExe();

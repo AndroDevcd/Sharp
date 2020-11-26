@@ -242,7 +242,7 @@
     (++this_fiber->sp)->object = gc.newObjectArray(registers[sizeReg]);
 
 #define inj_op_not(resultReg, notReg) \
-    registers[resutReg]=!registers[notReg];
+    registers[resultReg]=!registers[notReg];
 
 #define inj_op_skip(skippedOpcodes) \
     this_fiber->pc = this_fiber->pc+skippedOpcodes; \
@@ -284,8 +284,8 @@
 #define inj_op_xor(left, right) \
     registers[CMT]=(Int)registers[left]^(Int)registers[right];
 
-#define inj_op_throw(pc) \
-    this_fiber->pc = pc; \
+#define inj_op_throw(pcIndex) \
+    this_fiber->pc = pcIndex; \
     this_fiber->exceptionObject = (this_fiber->sp--)->object; \
     sendSignal(thread->signal, tsig_except, 1); \
     goto exception_catch;
@@ -385,7 +385,7 @@
     (++this_fiber->sp)->var = (this_fiber->fp+frameAddr)->var;
 
 #define inj_op_pushl(frameAddr) \
-    (++this_fiber->sp)->object = (this_fiber->fp+frameAddress)->object;
+    (++this_fiber->sp)->object = (this_fiber->fp+frameAddr)->object;
 
 #define inj_op_itest(resultReg) \
     tmpPtr = &(this_fiber->sp--)->object; \
@@ -397,11 +397,11 @@
 #define inj_op_isadd(stackAddr, value) \
     (this_fiber->sp+stackAddr)->var+=value;
 
-#define inj_op_je(pc, ctx_check) \
+#define inj_op_je(pcIndex, ctx_check) \
     if(registers[CMT]) { \
-        this_fiber->pc=pc; \
+        this_fiber->pc=pcIndex; \
         ctx_check \
-        goto *label_table[pc]; \
+        goto *label_table[pcIndex]; \
     }
 
 #define inj_op_jne(pcVal, ctx_check) \

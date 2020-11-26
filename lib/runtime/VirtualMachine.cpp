@@ -36,12 +36,7 @@
 VirtualMachine vm;
 int CreateVirtualMachine(string &exe)
 {
-    int result;
-    if((result = Process_Exe(exe)) != 0) {
-        if(!exeErrorMessage.empty())
-            fprintf(stderr, "%s\n", exeErrorMessage.c_str());
-        return result;
-    }
+    __srt_setup_env();
 
     if((internalStackSize - vm.manifest.threadLocals) <= 1)
         return 2;
@@ -130,7 +125,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
             search:
             for (Int i = klass->methodCount - 1; i >= 0; i--) {
                 if (klass->methods[i]->delegateAddress == address) {
-                    executeMethod(klass->methods[i]->address, thread, inJit);
+                    executeMethod(klass->methods[i]->address, thread, inJit)(thread);
                     return;
                 }
             }
@@ -194,41 +189,19 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     thread->this_fiber->pc = 0;
 }
 
-fptr shiftToNextMethod(Thread *thread, bool nativeShift) {
-//    if(!thread->stackRebuild) return nullptr;
-//
-//    Int calls = thread->this_fiber->calls;
-//    Method *func = nullptr;
-//    fiber* fib = thread->this_fiber;
-//
-//    retry:
-//    if(thread->relativeFrame == calls) {
-//        thread->stackRebuild = false;
-//        func = fib->current;
-//
-//        if(func->isjit) {
-//            thread->jctx->caller = func;
-//            return func->jit_func;
-//        } else {
-//            if(nativeShift)
-//                thread->exec();
-//            return nullptr;
-//        }
-//    }
-//
-//    Frame &frame = thread->this_fiber->callStack[++thread->relativeFrame];
-//    func = vm.methods+frame.returnAddress;
-//
-//   if(frame.isNative) {
-//       thread->jctx->caller = func;
-//       return func->jit_func;
-//   } else {
-//       if(nativeShift)
-//          thread->exec();
-//       else goto retry;
-//       return nullptr;
-//   }
-return nullptr;
+SharpMethod shiftToNextMethod(Thread *thread) {
+    if(!thread->stackRebuild) return nullptr;
+
+    Int calls = thread->this_fiber->calls;
+    fiber* fib = thread->this_fiber;
+
+    if(thread->relativeFrame == calls) {
+        thread->stackRebuild = false;
+        return vm.methodRefs[fib->current->address];
+    }
+
+    Frame &frame = thread->this_fiber->callStack[++thread->relativeFrame];
+    return vm.methodRefs[frame.returnAddress];
 }
 
 SharpMethod executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
@@ -243,11 +216,7 @@ SharpMethod executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
 #ifdef SHARP_PROF_
     thread->tprof->hit(method);
 #endif
-    if(inNativeEnv || thread->this_fiber->calls==0) {
-        thread->exec();
-    }
-
-    return nullptr;
+    return vm.methodRefs[address];
 }
 
 void VirtualMachine::destroy() {
@@ -281,64 +250,6 @@ extern void printRegs();
 extern void printStack();
 
 
-#include "OpcodeInjection.h"
-
-void __srt_global_loop(Thread *thread) {
-    register fiber *this_fiber = thread->this_fiber;
-    register double *registers = this_fiber->registers;
-
-    static void* label_table[] = { &&INS_0, &&INS_1, &&INS_2, &&INS_3, &&INS_4,
-    &&INS_5, &&INS_6, &&INS_7, &&INS_8, &&INS_9,
-    &&INS_10, &&INS_11, &&INS_12 };
-
-    run:
-    try {
-        goto *label_table[this_fiber->pc];
-
-
-        INS_0:
-        INS_1:
-        inj_op_istorel(0, 0)
-        INS_2:
-        inj_op_loadl(4, 0)
-        INS_3:
-        INS_4:
-        inj_op_movi(3, 100000000)
-        INS_5:
-        inj_op_lt(4, 3)
-        INS_6:
-        inj_op_movr(3, 2)
-        INS_7:
-        inj_op_movr(2, 3)
-        INS_8:
-        inj_op_jne(12, context_switch_check(false))
-        INS_9:
-        INS_10:
-        inj_op_iaddl(0, 1)
-        INS_11:
-    inj_op_jmp(2, context_switch_check(false))
-        INS_12:
-    inj_op_ret(0)
-    }
-    catch (Exception &e) {
-        sendSignal(thread->signal, tsig_except, 1);
-    }
-
-    exception_catch:
-    if(thread->state == THREAD_KILLED) {
-        sendSignal(thread->signal, tsig_except, 1);
-        return;
-    }
-
-    if(!VirtualMachine::catchException()) {
-        returnMethod(thread);
-        return;
-    }
-
-    goto run;
-}
-
-
 #ifdef WIN32_
 DWORD WINAPI
 #endif
@@ -368,14 +279,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             /*
              * Call main method
              */
-            uint64_t past= Clock::realTimeInNSecs(),now;
-            __srt_global_loop(thread);
-
-            now= Clock::realTimeInNSecs();
-            cout << endl << "ran in " << NANO_TOMICRO(now-past) << "us & "
-                     << NANO_TOMILL(now-past) << "ms\n";
-            goto end;
-//            executeMethod(thread->this_fiber->main->address, thread);
+            executeMethod(thread->this_fiber->main->address, thread)(thread);
         } else {
             registers = thread->this_fiber->registers;
             if(thread->this_fiber->state == FIB_RUNNING && !thread->this_fiber->finished) {
@@ -384,9 +288,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                     /*
                      * Call main method
                      */
-                    executeMethod(thread->this_fiber->main->address, thread);
+                    executeMethod(thread->this_fiber->main->address, thread)(thread);
                 } else {
-                    thread->exec();
+                    shiftToNextMethod(thread)(thread);
                 }
             }
         }

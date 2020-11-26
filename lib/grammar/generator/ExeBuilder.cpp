@@ -52,6 +52,70 @@ string moduleToCPPName(string &name) {
     return ss.str();
 }
 
+string operatorToString(string op) {
+    if(op == "+=")
+        return "$plus_equal";
+    else if(op == "-=")
+        return "$minus_equal";
+    else if(op == "*=")
+        return "$mult_equal";
+    else if(op == "/=")
+        return "$div_equal";
+    else if(op == "&=")
+        return "$and_equal";
+    else if(op == "|=")
+        return "$or_equal";
+    else if(op == "^=")
+        return "$xor_equal";
+    else if(op == "%=")
+        return "$mod_equal";
+    else if(op == "=")
+        return "$equals";
+    else if(op == "++")
+        return "$plus_plus";
+    else if(op == "--")
+        return "$minus_minus";
+    else if(op == "*")
+        return "$mult";
+    else if(op == "/")
+        return "$div";
+    else if(op == "%")
+        return "$mod";
+    else if(op == "-")
+        return "$minus";
+    else if(op == "+")
+        return "$plus";
+    else if(op == "==")
+        return "$equals_equals";
+    else if(op == ">>")
+        return "$right_shift";
+    else if(op == "<<")
+        return "$left_shift";
+    else if(op == "<")
+        return "$less_than";
+    else if(op == ">")
+        return "$greater_than";
+    else if(op == "<=")
+        return "$less_or_equals";
+    else if(op == ">=")
+        return "$great_or_equals";
+    else if(op == "!=")
+        return "$not_equals";
+    else if(op == "!")
+        return "$not";
+    else if(op == "[")
+        return "$array_at";
+    else if(op == "**")
+        return "$pow";
+    else if(op == "&" )
+        return "$and";
+    else if(op == "|")
+        return "$or";
+    else if(op == "^")
+        return "$xor";
+    else return op; // error should not happen
+}
+
 bool sortMethods(Method *m1, Method *m2) {
     return m1->address > m2->address;
 }
@@ -90,7 +154,7 @@ void ExeBuilder::deleteTempFiles() {
                  #ifdef POSIX_
                  << "/"
                  #endif
-                 << "_$Tmp_Sharp_class_" << i << ".cpp";
+                 << "_Tmp_Sharp_class_" << i << ".cpp";
 
         remove(fileName.str().c_str());
     }
@@ -137,8 +201,8 @@ void buildFieldData(Field* field, stringstream &fileData) {
 
     fileData << updateFieldPtr << endl;
 
-    fileData << "\tfield->name = \"" << field->name << "\";" << endl;
-    fileData << "\tfield->fullName = \"" << field->fullName << "\";" << endl;
+    fileData << "\tfield->name.set(\"" << field->name << "\");" << endl;
+    fileData << "\tfield->fullName.set(\"" << field->fullName << "\");" << endl;
     fileData << "\tfield->address = " << field->address << ";" << endl;
     fileData << "\tfield->type = (DataType)" << (int)field->type << ";" << endl;
     fileData << "\tfield->guid = " << field->guid << ";" << endl;
@@ -204,7 +268,7 @@ void buildInterfaceData(ClassObject *klass, stringstream &fileData) {
     List<ClassObject*> &interfaces = klass->getInterfaces();
     for(Int i = 0; i < interfaces.size(); i++) {
         ClassObject *_interface = interfaces.get(i);
-        fileData << "\tklass->interfaces[fieldsProcessed++] = &vm.methods[" << _interface->address << "];" << endl;
+        fileData << "\tklass->interfaces[fieldsProcessed++] = &vm.classes[" << _interface->address << "];" << endl;
     }
 }
 
@@ -214,11 +278,11 @@ void ExeBuilder::putMethodData(Method *fun, stringstream &fileData) {
     fileData << "\tmethod->init();" << endl;
     fileData << "\tmethod->address = " << fun->address << ";" << endl;
     fileData << "\tmethod->guid = " << fun->guid << ";" << endl;
-    fileData << "\tmethod->name = \"" << fun->name << "\";" << endl;
-    fileData << "\tmethod->fullName = \"" << fun->fullName << "\";" << endl;
+    fileData << "\tmethod->name.set(\"" << fun->name << "\");" << endl;
+    fileData << "\tmethod->fullName.set(\"" << fun->fullName << "\");" << endl;
     fileData << "\tmethod->sourceFile = " << Obfuscater::files.indexof(fun->meta.file) << ";" << endl;
     fileData << "\tmethod->owner = &vm.classes[" << fun->owner->address << "];" << endl;
-    fileData << "\tmethod->fnType = " << fun->fnType << ";" << endl;
+    fileData << "\tmethod->fnType = (function_type)" << fun->fnType << ";" << endl;
     fileData << "\tmethod->stackSize = " << fun->data.localVariablesSize << ";" << endl;
     fileData << "\tmethod->cacheSize = " << fun->data.code.size() << ";" << endl;
 
@@ -233,8 +297,8 @@ void ExeBuilder::putMethodData(Method *fun, stringstream &fileData) {
     fileData << "\tmethod->spOffset = " << getSpOffset(fun) << ";" << endl;
     fileData << "\tmethod->frameStackOffset = " << getSecondarySpOffset(fun) << ";" << endl;
     fileData << "\tmethod->utype = " << getSymbolType(fun->utype) << endl;
-    fileData << "\tmethod->arrayUtype = " << fun->utype->isArray() << endl;
-    fileData << "\tmethod->paramSize = " << fun->params.size() << endl;
+    fileData << "\tmethod->arrayUtype = " << fun->utype->isArray() << ";" << endl;
+    fileData << "\tmethod->paramSize = " << fun->params.size() << ";" << endl;
 
     if(fun->params.size() > 0) {
         fileData << "\tmethod->params = (Param *) malloc(sizeof(Param) * "
@@ -268,19 +332,90 @@ void ExeBuilder::putMethodData(Method *fun, stringstream &fileData) {
             for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
                 CatchData &catchData = tryCatchData.catchTable.get(j);
 
-                fileData << "\tcatchData = &tryCatchData.catchTable.__new();" << endl;
-                fileData << "\tcatchData.handler_pc = " << catchData.handler_pc << ";" << endl;
-                fileData << "\tcatchData.localFieldAddress = " << catchData.localFieldAddress << ";" << endl;
-                fileData << "\tcatchData.caughtException = &vm.classes[" << catchData.classAddress << "];" << endl;
+                fileData << "\tcatchData = &tryCatchData->catchTable.__new();" << endl;
+                fileData << "\tcatchData->handler_pc = " << catchData.handler_pc << ";" << endl;
+                fileData << "\tcatchData->localFieldAddress = " << catchData.localFieldAddress << ";" << endl;
+                fileData << "\tcatchData->caughtException = &vm.classes[" << catchData.classAddress << "];" << endl;
             }
 
             if(tryCatchData.finallyData != NULL) {
-                fileData << "\ttryCatchData.finallyData = (FinallyData*)malloc(sizeof(FinallyData));" << endl;
-                fileData << "\ttryCatchData.finallyData->start_pc = " << tryCatchData.finallyData->start_pc << ";" << endl;
-                fileData << "\ttryCatchData.finallyData->end_pc = " << tryCatchData.finallyData->end_pc << ";" << endl;
-                fileData << "\ttryCatchData.finallyData->exception_object_field_address = " << tryCatchData.finallyData->exception_object_field_address << ";" << endl;
+                fileData << "\ttryCatchData->finallyData = (FinallyData*)malloc(sizeof(FinallyData));" << endl;
+                fileData << "\ttryCatchData->finallyData->start_pc = " << tryCatchData.finallyData->start_pc << ";" << endl;
+                fileData << "\ttryCatchData->finallyData->end_pc = " << tryCatchData.finallyData->end_pc << ";" << endl;
+                fileData << "\ttryCatchData->finallyData->exception_object_field_address = " << tryCatchData.finallyData->exception_object_field_address << ";" << endl;
             }
         }
+    }
+}
+
+void ExeBuilder::addEnvSetupFunctions() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_Tmp_Sharp_Env_Setup.cpp";
+
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
+
+    fileData << "extern void __srt_setup_FileData();" << endl;
+    fileData << "extern void __srt_setup_Method();" << endl;
+    fileData << "extern void __srt_setup_Classes();" << endl;
+    fileData << "extern void __srt_setup_functionPointers();" << endl;
+    fileData << "extern void __srt_setup_manifest();" << endl;
+    fileData << "extern void __srt_setupConstants();" << endl;
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        Method *function= allMethods.get(i);
+        if(i > 0 && ((i % 2) == 0))
+            fileData << endl;
+
+        fileData << "extern void ";
+
+        if(startsWith(function->name, "operator")) {
+            fileData << classToCPPName(function->owner->fullName) << "_"
+                     << operatorToString(function->name.substr(8, function->name.size())) << function->address;
+        } else {
+            fileData << classToCPPName(function->fullName) << function->address;
+        }
+
+        fileData << "(Thread*); ";
+    }
+
+    fileData << endl << endl;
+    fileData << "void __srt_setup_env() {" << endl;
+    fileData << "\t__srt_setup_manifest();" << endl;
+    fileData << "\t__srt_setup_functionPointers();" << endl;
+    fileData << "\t__srt_setup_Classes();" << endl;
+    fileData << "\t__srt_setup_Method();" << endl;
+    fileData << "\t__srt_setupConstants();" << endl;
+    fileData << "\t__srt_setup_FileData();" << endl << endl;
+    fileData << "\tvm.methodRefs = (SharpMethod*)malloc(sizeof(SharpMethod) *" << allMethods.size() << ");" << endl;
+
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        Method *function= allMethods.get(i);
+        fileData << "\tvm.methodRefs[" << i << "] = ";
+
+        if(startsWith(function->name, "operator")) {
+            fileData << classToCPPName(function->owner->fullName) << "_"
+                     << operatorToString(function->name.substr(8, function->name.size())) << function->address;
+        } else {
+            fileData << classToCPPName(function->fullName) << function->address;
+        }
+
+        fileData << ";" << endl;
+    }
+
+    fileData << "}" << endl;
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
     }
 }
 
@@ -293,11 +428,15 @@ void ExeBuilder::addFileMetaData() {
              #ifdef POSIX_
              << "/"
              #endif
-             << "_$Tmp_Sharp_File_Meta.cpp";
+             << "_Tmp_Sharp_File_Meta.cpp";
 
-    fileData << "#include <runtime/Thread.h>" << endl;
-    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
+    fileData << "extern void parseSourceFile(SourceFile &sourceFile, native_string &data);" << endl << endl;
     fileData << "void __srt_setup_FileData() {" << endl;
     fileData << "\tSourceFile *sourceFile = nullptr;" << endl;
     fileData << "\tString sourceFileData;" << endl;
@@ -306,13 +445,13 @@ void ExeBuilder::addFileMetaData() {
 
     for(Int i = 0; i < Obfuscater::files.size(); i++) {
         fileData << "\tsourceFile = &vm.metaData.files.__new();" << endl;
-        fileData << "\tsourceFile.init();" << endl;
-        fileData << "\tsourceFile.name = \"" << Obfuscater::files.get(i)->name << "\";" << endl;
+        fileData << "\tsourceFile->init();" << endl;
+        fileData << "\tsourceFile->name.set(\"" << Obfuscater::files.get(i)->name << "\");" << endl;
 
         if(c_options.debug) {
             fileData << "\tfileData = R\"\"\"_SharpStrV01(" << compiler->parsers.get(i)->getData() << ")\"\"_SharpStrV01\";" << endl;
             fileData << "\tsourceFileData.set(fileData);" << endl;
-            fileData << "\tparseSourceFile(sourceFile, sourceFileData);" << endl;
+            fileData << "\tparseSourceFile(*sourceFile, sourceFileData);" << endl;
 
             dataSec << putInt32(compiler->parsers.get(i)->getData().size());
             dataSec << compiler->parsers.get(i)->getData() << ((char)nil);
@@ -340,10 +479,13 @@ void ExeBuilder::addFunctionMetaData() {
              #ifdef POSIX_
              << "/"
              #endif
-             << "_$Tmp_Sharp_Method_Meta.cpp";
+             << "_Tmp_Sharp_Method_Meta.cpp";
 
-    fileData << "#include <runtime/Thread.h>" << endl;
-    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
     fileData << "void __srt_setup_Method() {" << endl;
     fileData << "\tMethod* method = nullptr;" << endl;
@@ -373,12 +515,16 @@ void ExeBuilder::addClassMetaData() {
              #ifdef POSIX_
              << "/"
              #endif
-             << "_$Tmp_Sharp_Class_Meta.cpp";
+             << "_Tmp_Sharp_Class_Meta.cpp";
 
-    fileData << "#include <runtime/Thread.h>" << endl;
-    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
     fileData << "void __srt_setup_Classes() {" << endl;
+    fileData << "\tvm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods);" << endl;
     fileData << "\tvm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);" << endl;
     fileData << "\tvm.staticHeap = (Object*)calloc(vm.manifest.classes, sizeof(Object));" << endl;
     fileData << "\tvm.metaData.init();" << endl;
@@ -403,8 +549,8 @@ void ExeBuilder::addClassMetaData() {
         }
 
         fileData << "\tklass->guid = " << klass->guid << ";" << endl;
-        fileData << "\tklass->name = \"" << klass->name << "\";" << endl;
-        fileData << "\tklass->fullName = \"" << klass->fullName << "\";" << endl;
+        fileData << "\tklass->name.set(\"" << klass->name << "\");" << endl;
+        fileData << "\tklass->fullName.set(\"" << klass->fullName << "\");" << endl;
         fileData << "\tklass->staticFields = " << klass->getStaticFieldCount() << ";" << endl;
         fileData << "\tklass->instanceFields = " << klass->totalInstanceFieldCount() << ";" << endl;
         fileData << "\tklass->totalFieldCount = klass->staticFields + klass->instanceFields;" << endl;
@@ -456,10 +602,13 @@ void ExeBuilder::addFunctionPointerMetaData() {
              #ifdef POSIX_
              << "/"
              #endif
-             << "_$Tmp_Sharp_FunctionPtr_Meta.cpp";
+             << "_Tmp_Sharp_FunctionPtr_Meta.cpp";
 
-    fileData << "#include <runtime/Thread.h>" << endl;
-    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
     fileData << "void __srt_setup_functionPointers() {" << endl;
     fileData << "\tvm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*vm.manifest.functionPointers);" << endl;
@@ -513,10 +662,13 @@ void ExeBuilder::createConstants() {
              #ifdef POSIX_
              << "/"
              #endif
-             << "_$Tmp_Sharp_constants.cpp";
+             << "_Tmp_Sharp_constants.cpp";
 
-    fileData << "#include <runtime/Thread.h>" << endl;
-    fileData << "#include <runtime/VirtualMachine.h>" << endl << endl;
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
     for(Int i = 0; i < allClasses.size(); i++) {
         ClassObject *klass = allClasses.get(i);
@@ -549,8 +701,8 @@ void ExeBuilder::createConstants() {
     }
 
     fileData << "void __srt_setup_manifest() {" << endl;
-    fileData << "\tvm.manifest.application = \"" << c_options.out << "\";" << endl;
-    fileData << "\tvm.manifest.version = \"" << c_options.vers << "\";" << endl;
+    fileData << "\tvm.manifest.application.set(\"" << c_options.out << "\");" << endl;
+    fileData << "\tvm.manifest.version.set(\"" << c_options.vers << "\");" << endl;
     fileData << "\tvm.manifest.debug = " << (c_options.debug ? 1 : 0) << ";" << endl;
     fileData << "\tvm.manifest.entryMethod = " << compiler->mainMethod->address << ";" << endl;
     fileData << "\tvm.manifest.methods = " << allMethods.size() << ";" << endl;
@@ -601,33 +753,47 @@ void ExeBuilder::createConstants() {
 }
 
 void ExeBuilder::createClassFunctions() {
+    stringstream fileName, fileData;
+    fileName << c_options.nativeCodeDir
+             #ifdef WIN32_
+             << "\\"
+             #endif
+             #ifdef POSIX_
+             << "/"
+             #endif
+             << "_Tmp_Sharp_class_0.cpp";
+
+    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
+    fileData << "#include \"../lib/runtime/termios.h\"" << endl << endl;
+
     for(Int i = 0; i < allClasses.size(); i++) {
-        stringstream fileName, fileData;
         ClassObject *klass = allClasses.get(i);
-
-        fileName << c_options.nativeCodeDir
-#ifdef WIN32_
-        << "\\"
-#endif
-#ifdef POSIX_
-        << "/"
-#endif
-        << "_$Tmp_Sharp_class_" << i << ".cpp";
-
-        fileData << "#include <runtime/Thread.h>" << endl;
-        fileData << "#include <runtime/fiber.h>" << endl;
-        fileData << "#include <runtime/Opcode.h>" << endl << endl;
 
         for(Int j = 0; j < klass->getFunctionCount(); j++) {
             Method *function = klass->getFunction(j);
 
-            fileData << endl << "void " << classToCPPName(function->fullName)
-                << "(Thread *thread) {" << endl;
+
+
+            fileData << endl << "void ";
+
+            if(startsWith(function->name, "operator")) {
+                fileData << classToCPPName(function->owner->fullName) << "_"
+                         << operatorToString(function->name.substr(8, function->name.size())) << function->address;
+            } else {
+                fileData << classToCPPName(function->fullName) << function->address;
+            }
+
+            fileData << "(Thread *thread) {" << endl;
 
             fileData << "\tregister fiber *this_fiber = thread->this_fiber;" << endl;
             fileData << "\tregister double *registers = this_fiber->registers;" << endl;
+            fileData << "\tregister Object *tmpPtr = nullptr;" << endl;
 
-            fileData << endl << "\tstatic void* label_table[] = {";
+            fileData << endl << "\tstatic const void* label_table[] = {";
             for(Int k = 0; k < function->data.code.size(); k++) {
                 if(k > 0 && (k % 5 == 0)) fileData << endl << "\t\t\t";
                 fileData << " &&INS_" << k;
@@ -636,6 +802,19 @@ void ExeBuilder::createClassFunctions() {
                     fileData << ",";
             }
             fileData << " };" << endl;
+
+            const char *addNativeSymbols = R""""(
+    if(thread->stackRebuild) {
+        SharpMethod fun = shiftToNextMethod(thread);
+        if(fun) {
+            fun(thread);
+        }
+    }
+
+    HAS_SIGNAL
+)"""";
+
+            fileData << addNativeSymbols;
 
             fileData << endl <<  "\trun:" << endl << "\ttry {"
             << endl << "\t\tgoto *label_table[this_fiber->pc];"
@@ -653,12 +832,16 @@ void ExeBuilder::createClassFunctions() {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
                         fileData << "inj_op_int(" << GET_Da(code.ir32.at(k)) << ")";
+                        fileData << endl << "\t\t ";
+                        fileData << "HAS_SIGNAL";
+                        fileData << endl << "\t\t ";
+                        fileData << "context_switch_check(true)";
                         break;
                     }
                     case Opcode::MOVI: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_movi(" << GET_Da(code.ir32.at(k)) << ", "
-                            << code.ir32.at(k + 1) << ")";
+                            << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -677,7 +860,8 @@ void ExeBuilder::createClassFunctions() {
                         fileData << endl << "\t\t ";
                         fileData << "STACK_CHECK";
                         fileData << endl << "\t\t ";
-                        fileData << "inj_op_newrray(" << GET_Ca(code.ir32.at(k)) << ", " << GET_Cb(code.ir32.at(k)) << ")";
+                        fileData << "inj_op_newarray(" << GET_Ca(code.ir32.at(k))
+                        << ", " << GET_Cb(code.ir32.at(k)) << ")";
                         break;
                     }
                     case Opcode::CAST: {
@@ -689,7 +873,8 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::VARCAST: {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL2(inj_op_varcast(" << GET_Ca(code.ir32.at(k)) << ", " << GET_Cb(code.ir32.at(k)) << "))";
+                        fileData << "CHECK_NULL2(inj_op_varcast(" << GET_Ca(code.ir32.at(k))
+                        << ", " << GET_Cb(code.ir32.at(k)) << "))";
                         break;
                     }
                     case Opcode::MOV8: {
@@ -752,6 +937,11 @@ void ExeBuilder::createClassFunctions() {
                                  << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
                         break;
                     }
+                    case Opcode::MUL: {
+                        fileData << "inj_op_mul(" << GET_Bc(code.ir32.at(k))
+                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
+                        break;
+                    }
                     case Opcode::DIV: {
                         fileData << "inj_op_div(" << GET_Bc(code.ir32.at(k))
                                  << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
@@ -765,35 +955,35 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::IADD: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_iadd(" << GET_Da(code.ir32.at(k))
-                                 << ", " << code.ir32.at(k + 1) << ")";
+                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::ISUB: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_isub(" << GET_Da(code.ir32.at(k))
-                                 << ", " << code.ir32.at(k + 1) << ")";
+                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IMUL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_imul(" << GET_Da(code.ir32.at(k))
-                                 << ", " << code.ir32.at(k + 1) << ")";
+                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IDIV: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_idiv(" << GET_Da(code.ir32.at(k))
-                                 << ", " << code.ir32.at(k + 1) << ")";
+                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IMOD: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_imod(" << GET_Da(code.ir32.at(k))
-                                 << ", " << code.ir32.at(k + 1) << ")";
+                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -893,7 +1083,7 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::CHECKLEN: {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
-                        fileData << "inj_op_checklen(" << GET_Da(code.ir32.at(k)) << ")";
+                        fileData << "CHECK_NULL2(inj_op_checklen(" << GET_Da(code.ir32.at(k)) << "))";
                         break;
                     }
                     case Opcode::JMP: {
@@ -942,7 +1132,7 @@ void ExeBuilder::createClassFunctions() {
                         fileData << endl << "\t\t ";
                         fileData << "STACK_CHECK";
                         fileData << endl << "\t\t ";
-                        fileData << "inj_op_newclass(" << code.ir32.at(k + 1) << ")";
+                        fileData << "inj_op_newclass(" << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -950,7 +1140,7 @@ void ExeBuilder::createClassFunctions() {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLOBJ(inj_op_movn(" << code.ir32.at(k + 1) << "))";
+                        fileData << "CHECK_NULLOBJ(inj_op_movn(" << (int32_t)code.ir32.at(k + 1) << "))";
                         k++;
                         break;
                     }
@@ -1036,7 +1226,7 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::CMP: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_cmp(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -1079,7 +1269,7 @@ void ExeBuilder::createClassFunctions() {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
                         fileData << "inj_op_newClassArray(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -1121,35 +1311,35 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::IADDL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_iaddl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::ISUBL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_isubl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IMULL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_imull(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IDIVL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_idivl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::IMODL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_imodl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -1161,14 +1351,14 @@ void ExeBuilder::createClassFunctions() {
                     case Opcode::IALOAD: {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLVAR(inj_op_loadl(" << GET_Ca(code.ir32.at(k)) << ", "
+                        fileData << "CHECK_NULLVAR(inj_op_iaload(" << GET_Ca(code.ir32.at(k)) << ", "
                                  << GET_Cb(code.ir32.at(k)) << "))";
                         break;
                     }
                     case Opcode::POPOBJ: {
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLVAR(inj_op_popObj)";
+                        fileData << "CHECK_NULL(inj_op_popObj)";
                         break;
                     }
                     case Opcode::SMOVR: {
@@ -1215,8 +1405,8 @@ void ExeBuilder::createClassFunctions() {
                         break;
                     }
                     case Opcode::SMOV: {
-                        fileData << "inj_op_smov(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        fileData << "inj_op_smov(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
                         break;
                     }
                     case Opcode::RETURNVAL: {
@@ -1225,14 +1415,14 @@ void ExeBuilder::createClassFunctions() {
                     }
                     case Opcode::ISTORE: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_istore(" << code.ir32.at(k + 1) << ")";
+                        fileData << "inj_op_istore(" << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
                     case Opcode::ISTOREL: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_istorel(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -1271,20 +1461,22 @@ void ExeBuilder::createClassFunctions() {
                         break;
                     }
                     case Opcode::INVOKE_DELEGATE: {
+                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "update_pc(" << k << ")";
                         fileData << endl << "\t\t ";
                         fileData << "inj_op_invokeDelegate(" <<  GET_Da(code.ir32.at(k))
-                            << ", " << GET_Cb(code.ir32.at(k + 1)) << ", thread"
-                            << ", " << (GET_Ca(code.ir32.at(k + 1)) == 1)
+                            << ", " << GET_Cb((int32_t)code.ir32.at(k + 1)) << ", thread"
+                            << ", " << (GET_Ca((int32_t)code.ir32.at(k + 1)) == 1)
                             << ", false)";
                         fileData << endl << "\t\t ";
                         fileData << "HAS_SIGNAL";
+                        k++;
                         break;
                     }
                     case Opcode::ISADD: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_isadd(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
                         break;
                     }
@@ -1324,15 +1516,20 @@ void ExeBuilder::createClassFunctions() {
                         break;
                     }
                     case Opcode::LDC: {
-                        fileData << "inj_op_ldc(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
+                        fileData << "inj_op_ldc(" << GET_Ca(code.ir32.at(k)) << ", "
+                                 << GET_Cb(code.ir32.at(k)) << ")";
                         break;
                     }
                     case Opcode::IS: {
                         fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
                         fileData << "inj_op_is(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << code.ir32.at(k + 1) << ")";
+                                 << (int32_t)code.ir32.at(k + 1) << ")";
                         k++;
+                        break;
+                    }
+                    default: {
+                        cout << "error" << GET_OP(code.ir32.at(k)) << endl;
+                        exit(1);
                         break;
                     }
                 }
@@ -1361,10 +1558,11 @@ void ExeBuilder::createClassFunctions() {
             fileData << exceptionCatchSection << endl << "}" << endl;
         }
 
-        if(File::write(fileName.str().c_str(), fileData.str())) {
-            cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-            exit(1);
-        }
+    }
+
+    if(File::write(fileName.str().c_str(), fileData.str())) {
+        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+        exit(1);
     }
 }
 
@@ -1383,36 +1581,8 @@ void ExeBuilder::buildExe() {
     addClassMetaData();
     addFunctionMetaData();
     addFileMetaData();
-    deleteTempFiles();
-//    buildHeader();
-//    buildSymbolSection();
-//    buildStringSection();
-//    buildConstantSection();
-//
-//    buildDataSection();
-//    buildMetaDataSection();
-//
-//    string data = dataSec.str();
-//    if(data.size() >= data_compress_threshold) {
-//        dataSec.str("");
-//
-//        buf << (char)data_compress;
-//        stringstream __outbuf__;
-//        Zlib zlib;
-//
-//        Zlib::AUTO_CLEAN=(true);
-//        zlib.Compress_Buffer2Buffer(data, __outbuf__, ZLIB_LAST_SEGMENT);
-//        data.clear();
-//
-//        buf << __outbuf__.str(); __outbuf__.str("");
-//    } else {
-//        buf << dataSec.str();
-//        dataSec.str("");
-//    }
-//
-//    if(File::write(c_options.out.c_str(), buf.str())) {
-//        cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
-//    }
+    addEnvSetupFunctions();
+//    deleteTempFiles();
 }
 
 void parseGenericName(Int &i, string &name, stringstream &ss) {
@@ -1579,70 +1749,6 @@ bool isCppKeyword(string &word) {
     word == "while" ||
     word == "xor" ||
     word == "xor_eq";
-}
-
-string operatorToString(string op) {
-    if(op == "+=")
-        return "$plus_equal";
-    else if(op == "-=")
-        return "$minus_equal";
-    else if(op == "*=")
-        return "$mult_equal";
-    else if(op == "/=")
-        return "$div_equal";
-    else if(op == "&=")
-        return "$and_equal";
-    else if(op == "|=")
-        return "$or_equal";
-    else if(op == "^=")
-        return "$xor_equal";
-    else if(op == "%=")
-        return "$mod_equal";
-    else if(op == "=")
-        return "$equals";
-    else if(op == "++")
-        return "$plus_plus";
-    else if(op == "--")
-        return "$minus_minus";
-    else if(op == "*")
-        return "$mult";
-    else if(op == "/")
-        return "$div";
-    else if(op == "%")
-        return "$mod";
-    else if(op == "-")
-        return "$minus";
-    else if(op == "+")
-        return "$plus";
-    else if(op == "==")
-        return "$equals_equals";
-    else if(op == ">>")
-        return "$right_shift";
-    else if(op == "<<")
-        return "$left_shift";
-    else if(op == "<")
-        return "$less_than";
-    else if(op == ">")
-        return "$greater_than";
-    else if(op == "<=")
-        return "$less_or_equals";
-    else if(op == ">=")
-        return "$great_or_equals";
-    else if(op == "!=")
-        return "$not_equals";
-    else if(op == "!")
-        return "$not";
-    else if(op == "[")
-        return "$array_at";
-    else if(op == "**")
-        return "$pow";
-    else if(op == "&" )
-        return "$and";
-    else if(op == "|")
-        return "$or";
-    else if(op == "^")
-        return "$xor";
-    else return op; // error should not happen
 }
 
 void ExeBuilder::appendClassHeaderFunctions(ClassObject* klass, stringstream &ss) {
@@ -2194,7 +2300,7 @@ void ExeBuilder::dumpClassInfo(ClassObject *klass) {
 void ExeBuilder::addClass(ClassObject *klass) {
     if(IS_CLASS_GENERIC(klass->getClassType()) && klass->getGenericOwner() == NULL)
         return;
-    allClasses.add(klass);
+    allClasses.addif(klass);
 
     allMethods.appendAll(klass->getFunctions());
     if(klass->isGlobalClass())
