@@ -247,7 +247,9 @@ public:
         params.init();
     }
 
-    Method(string name, ModuleData* module, ClassObject* owner, Int guid, List<Field*> &params, List<AccessFlag> &flags, Meta &meta)
+    Method(string name, ModuleData* module, ClassObject* owner,
+            Int guid, List<Field*> &params, List<AccessFlag> &flags,
+            Meta &meta)
             :
             DataEntity(),
             fnType(fn_undefined),
@@ -255,7 +257,8 @@ public:
             overload(' '),
             extensionFun(false),
             data(),
-            compiled(false)
+            compiled(false),
+            delegateAddr(invalidAddr)
     {
         this->type = METHOD;
         this->params.init();

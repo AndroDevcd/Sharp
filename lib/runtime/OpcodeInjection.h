@@ -28,6 +28,7 @@
         GUARD(thread->mutex); \
         sendSignal(thread->signal, tsig_except, 1); \
     } \
+    this_fiber->pc++; \
     return;
 
 #define inj_op_hlt \
@@ -244,8 +245,8 @@
 #define inj_op_not(resultReg, notReg) \
     registers[resultReg]=!registers[notReg];
 
-#define inj_op_skip(skippedOpcodes) \
-    this_fiber->pc = this_fiber->pc+skippedOpcodes; \
+#define inj_op_skip(pcAddr) \
+    this_fiber->pc = pcAddr; \
     goto *label_table[this_fiber->pc]; \
 
 #define inj_op_loadval(resultReg) \
@@ -257,15 +258,15 @@
 #define inj_op_shr(resultReg, left, right) \
     registers[resultReg]=(int64_t)registers[left]>>(int64_t)registers[right];
 
-#define inj_op_skpe(condReg, skippedOpcodes) \
-    if(registers[condReg] != 0) { \
-        this_fiber->pc = this_fiber->pc+skippedOpcodes; \
+#define inj_op_skpe(condReg, pcAddr) \
+    if(((Int)registers[condReg]) != 0) { \
+        this_fiber->pc = pcAddr; \
         goto *label_table[this_fiber->pc]; \
     }
 
-#define inj_op_skpne(condReg, skippedOpcodes) \
-    if(registers[condReg] == 0) { \
-        this_fiber->pc = this_fiber->pc+skippedOpcodes; \
+#define inj_op_skpne(condReg, pcAddr) \
+    if(((Int)registers[condReg]) == 0) { \
+        this_fiber->pc = pcAddr; \
         goto *label_table[this_fiber->pc]; \
     }
 

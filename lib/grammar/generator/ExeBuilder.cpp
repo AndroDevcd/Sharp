@@ -363,7 +363,7 @@ void ExeBuilder::addEnvSetupFunctions() {
     fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
     fileData << "extern void __srt_setup_FileData();" << endl;
-    fileData << "extern void __srt_setup_Method();" << endl;
+    fileData << "extern void __srt_setup_Methods();" << endl;
     fileData << "extern void __srt_setup_Classes();" << endl;
     fileData << "extern void __srt_setup_functionPointers();" << endl;
     fileData << "extern void __srt_setup_manifest();" << endl;
@@ -391,7 +391,7 @@ void ExeBuilder::addEnvSetupFunctions() {
     fileData << "\t__srt_setup_manifest();" << endl;
     fileData << "\t__srt_setup_functionPointers();" << endl;
     fileData << "\t__srt_setup_Classes();" << endl;
-    fileData << "\t__srt_setup_Method();" << endl;
+    fileData << "\t__srt_setup_Methods();" << endl;
     fileData << "\t__srt_setupConstants();" << endl;
     fileData << "\t__srt_setup_FileData();" << endl << endl;
     fileData << "\tvm.methodRefs = (SharpMethod*)malloc(sizeof(SharpMethod) *" << allMethods.size() << ");" << endl;
@@ -487,15 +487,29 @@ void ExeBuilder::addFunctionMetaData() {
     fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
     fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
 
-    fileData << "void __srt_setup_Method() {" << endl;
-    fileData << "\tMethod* method = nullptr;" << endl;
-    fileData << "\tInt methodsProcessed= 0;" << endl;
-    fileData << "\tTryCatchData *tryCatchData = nullptr;" << endl;
-    fileData << "\tCatchData *catchData = nullptr;" << endl << endl;
-
+    fileData << "Int methodsProcessed= 0;" << endl << endl;
+    Int setupMethodCount = 0;
     for(Int i = 0; i < allMethods.size(); i++) {
+        if((i % 500) == 0) {
+            if(setupMethodCount > 0) {
+                fileData << endl << "}" << endl << endl;
+            }
+
+            fileData << "void __srt_setup_Methods" << setupMethodCount++ << "() {" << endl;
+            fileData << "\tMethod* method = nullptr;" << endl;
+            fileData << "\tTryCatchData *tryCatchData = nullptr;" << endl;
+            fileData << "\tCatchData *catchData = nullptr;" << endl << endl;
+        }
         putMethodData(allMethods.get(i), fileData);
         fileData << endl;
+    }
+
+    fileData << endl << "}" << endl << endl;
+
+    fileData << "void __srt_setup_Methods() {" << endl;
+
+    for(Int i = 0; i < setupMethodCount; i++) {
+        fileData << "\t__srt_setup_Methods" << i << "();" << endl;
     }
 
     fileData << endl << "}" << endl;
@@ -753,24 +767,25 @@ void ExeBuilder::createConstants() {
 }
 
 void ExeBuilder::createClassFunctions() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_class_0.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-    fileData << "#include \"../lib/runtime/termios.h\"" << endl << endl;
 
     for(Int i = 0; i < allClasses.size(); i++) {
+        stringstream fileName, fileData;
+        fileName << c_options.nativeCodeDir
+                 #ifdef WIN32_
+                 << "\\"
+                 #endif
+                 #ifdef POSIX_
+                 << "/"
+                 #endif
+                 << "_Tmp_Sharp_class_" << i << ".cpp";
+
+        fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
+        fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
+        fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
+        fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
+        fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
+        fileData << "#include \"../lib/runtime/termios.h\"" << endl << endl;
+
         ClassObject *klass = allClasses.get(i);
 
         for(Int j = 0; j < klass->getFunctionCount(); j++) {
@@ -1196,7 +1211,7 @@ void ExeBuilder::createClassFunctions() {
                         break;
                     }
                     case Opcode::SKIP: {
-                        fileData << "inj_op_skip(" << GET_Da(code.ir32.at(k)) << ")";
+                        fileData << "inj_op_skip(" << (k + GET_Da(code.ir32.at(k)) + 1) << ")";
                         break;
                     }
                     case Opcode::LOADVAL: {
@@ -1215,12 +1230,12 @@ void ExeBuilder::createClassFunctions() {
                     }
                     case Opcode::SKPE: {
                         fileData << "inj_op_skpe(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
+                                 << (k + GET_Cb(code.ir32.at(k))) << ")";
                         break;
                     }
                     case Opcode::SKNE: {
                         fileData << "inj_op_skpne(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
+                                 << (k + GET_Cb(code.ir32.at(k))) << ")";
                         break;
                     }
                     case Opcode::CMP: {
@@ -1558,11 +1573,19 @@ void ExeBuilder::createClassFunctions() {
             fileData << exceptionCatchSection << endl << "}" << endl;
         }
 
-    }
+        if(File::exists(fileName.str().c_str())) {
+            File::buffer buf;
+            File::read_alltext(fileName.str().c_str(), buf);
 
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
+            if(buf.to_str() == fileData.str()) {
+                continue;
+            }
+        }
+
+        if(File::write(fileName.str().c_str(), fileData.str())) {
+            cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
+            exit(1);
+        }
     }
 }
 
@@ -1583,6 +1606,11 @@ void ExeBuilder::buildExe() {
     addFileMetaData();
     addEnvSetupFunctions();
 //    deleteTempFiles();
+
+//    for(Int i = 0; i < 120; i++) {
+//        cout << "generated/_Tmp_Sharp_class_" << i << ".cpp" << endl;
+//    }
+//    cout << endl;
 }
 
 void parseGenericName(Int &i, string &name, stringstream &ss) {

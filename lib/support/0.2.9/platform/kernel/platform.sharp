@@ -73,7 +73,7 @@ class platform
 
         static_init();
         tls_init();
-//        start_scheduler();
+        start_scheduler();
 
         main_thread := args[4] as thread;
         vm.set_thread(main_thread);
