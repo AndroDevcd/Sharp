@@ -44,6 +44,21 @@ public:
         return NULL;
     }
 
+    node<T>* node_at(void *data, bool (*isNode)(void *, node<T> *)) {
+        if(head != NULL) {
+            auto *cur = head;
+            for (;;) {
+                cur = cur->next;
+                if (cur == NULL)
+                    return NULL;
+                else if(isNode(data, cur))
+                    return cur;
+            }
+        }
+
+        return NULL;
+    }
+
     void createnode(T value)
     {
         size++;

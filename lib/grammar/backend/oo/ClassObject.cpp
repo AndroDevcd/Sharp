@@ -59,6 +59,8 @@ long ClassObject::getFieldIndex(string &name) {
     return iter;
 }
 
+
+//
 long ClassObject::getFieldAddress(Field* field) {
     bool isStatic = field->flags.find(STATIC);
     if(super == NULL || isStatic) {

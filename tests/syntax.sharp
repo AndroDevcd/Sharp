@@ -60,3 +60,8 @@ def main(args: string[]) {
    println(time.mills_time()-past);
    println(counter++);
 }
+
+class foo {
+    name : string;
+    sirname := "james";
+}

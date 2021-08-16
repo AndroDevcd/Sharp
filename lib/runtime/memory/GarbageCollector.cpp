@@ -132,7 +132,6 @@ void GarbageCollector::shutdown() {
         cout << "heap size: " << gc.heapSize << endl;
         cout << std::flush << endl;
 #endif
-        gc.locks.free();
     }
 }
 
@@ -695,8 +694,8 @@ void GarbageCollector::sedateSelf() {
     gc.state = RUNNING;
 }
 
-bool isLocker(void *o, mutex_t* mut) {
-    return (SharpObject*)o == mut->object;
+bool isLocker(void *o, node<mutex_t*> *node) {
+    return (SharpObject*)o == node->data->object;
 }
 
 SharpObject *GarbageCollector::getObjectAt(uInt index) {
@@ -751,22 +750,19 @@ recursive_mutex lockCheckMutex;
 bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
     if(o) {
         mutex_t *mut;
-        mutex.lock();
-        long long idx = locks.indexof(isLocker, o);
-        if(idx != -1)
-            mut = locks.get(idx);
-        else {
+        node<mutex_t*> *node = locks.node_at(o, isLocker);
+        if(node == NULL) {
+            mutex.lock();
             managedBytes += sizeof(mutex_t)+sizeof(recursive_mutex);
             mut = new mutex_t(o, new recursive_mutex());
-            locks.add(mut);
+            locks.createnode(mut);
             SET_LOCK(o->info, 1);
-        }
-        mutex.unlock();
+            mutex.unlock();
+        } else mut = node->data;
 
         Int past = NANO_TOMILL(Clock::realTimeInNSecs());
         thread->this_fiber->locking =true;
 
-        lockCheckMutex.lock();
         if(mut->fiberid == thread->this_fiber->id) {
             thread->this_fiber->locking =false;
             mut->threadid=thread->id;
@@ -785,7 +781,6 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
                 return false;
             }
         }
-        lockCheckMutex.unlock();
 
         lockObject:
         int count = 0, limit = 100000;
@@ -830,14 +825,12 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 void GarbageCollector::unlock(SharpObject *o) {
     if(o) {
         mutex_t *mut=0;
-        mutex.lock();
-        long long idx = locks.indexof(isLocker, o);
-        if(idx != -1)
-            mut = locks.get(idx);
-        mutex.unlock();
+        node<mutex_t*> *node = locks.node_at(o, isLocker);
+        if(node != NULL)
+            mut = node->data;
+
         if(mut) {
 
-            lockCheckMutex.lock();
             if (mut->fiberid == thread_self->this_fiber->id) {
                 mut->lockedCount--;
 
@@ -847,8 +840,6 @@ void GarbageCollector::unlock(SharpObject *o) {
                     mut->lockedCount=0;
                 }
             }
-            lockCheckMutex.unlock();
-
         }
     }
 }
@@ -857,56 +848,56 @@ void GarbageCollector::reconcileLocks(Thread* thread) {
     if(thread== NULL)
         return;
 
-    mutex.lock();
-    lockCheckMutex.lock();
-    for(long long i = 0; i < locks.size(); i++) {
-        mutex_t *mut = locks.get(i);
-        if(mut->threadid==thread->id) {
-            mut->threadid = -1;
-            mut->fiberid = -1;
-            mut->lockedCount = 0;
-        }
-
-    }
-    lockCheckMutex.unlock();
-    mutex.unlock();
+//    mutex.lock();
+//    lockCheckMutex.lock();
+//    for(long long i = 0; i < locks.size(); i++) {
+//        mutex_t *mut = locks.get(i);
+//        if(mut->threadid==thread->id) {
+//            mut->threadid = -1;
+//            mut->fiberid = -1;
+//            mut->lockedCount = 0;
+//        }
+//
+//    }
+//    lockCheckMutex.unlock();
+//    mutex.unlock();
 }
 
 void GarbageCollector::reconcileLocks(fiber* fib) {
-    if(fib== NULL)
-        return;
-
-    mutex.lock();
-    for(long long i = 0; i < locks.size(); i++) {
-        mutex_t *mut = locks.get(i);
-        if(mut->fiberid==fib->id) {
-            lockCheckMutex.lock();
-            mut->threadid = -1;
-            mut->lockedCount = 0;
-            mut->fiberid = -1;
-            lockCheckMutex.unlock();
-        }
-
-    }
-    mutex.unlock();
+//    if(fib== NULL)
+//        return;
+//
+//    mutex.lock();
+//    for(long long i = 0; i < locks.size(); i++) {
+//        mutex_t *mut = locks.get(i);
+//        if(mut->fiberid==fib->id) {
+//            lockCheckMutex.lock();
+//            mut->threadid = -1;
+//            mut->lockedCount = 0;
+//            mut->fiberid = -1;
+//            lockCheckMutex.unlock();
+//        }
+//
+//    }
+//    mutex.unlock();
 }
 
 void GarbageCollector::dropLock(SharpObject *o) {
-    if(o) {
-        mutex.lock();
-        long long idx = locks.indexof(isLocker, o);
-        if(idx >= 0) {
-            mutex_t *mut = locks.get(idx);
-            if(mut->threadid!= -1) {
-                mut->threadid = -1;
-                mut->lockedCount = 0;
-            }
-            managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
-            delete mut;
-            locks.remove(idx);
-        }
-        mutex.unlock();
-    }
+//    if(o) {
+//        mutex.lock();
+//        long long idx = locks.indexof(isLocker, o);
+//        if(idx >= 0) {
+//            mutex_t *mut = locks.get(idx);
+//            if(mut->threadid!= -1) {
+//                mut->threadid = -1;
+//                mut->lockedCount = 0;
+//            }
+//            managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
+//            delete mut;
+//            locks.remove(idx);
+//        }
+//        mutex.unlock();
+//    }
 }
 
 void GarbageCollector::sedate() {

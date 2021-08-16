@@ -13,6 +13,7 @@
 #include "../List.h"
 #include "../../util/KeyPair.h"
 #include "../symbols/string.h"
+#include "../linked_list.h"
 
 enum CollectionPolicy
 {
@@ -259,7 +260,7 @@ private:
     unsigned long timeSpentCollecting;
     unsigned long timeSlept;
 #endif
-    _List<mutex_t*> locks;
+    linkedlist<mutex_t*> locks;
     SharpObject* _Mheap, *tail;
     std::atomic<uInt> heapSize;
 
