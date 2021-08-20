@@ -9,6 +9,7 @@
 #include "../../util/zip/zlib.h"
 #include "../main.h"
 #include "../optimizer/Optimizer.h"
+#include "../../util/File.h"
 
 #ifdef WIN32_
 #include  <io.h>
@@ -19,6 +20,85 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif
+
+bool sortMethods(Method *m1, Method *m2) {
+    return m1->address > m2->address;
+}
+
+bool sortClasses(ClassObject *c1, ClassObject *c2) {
+    return c1->address > c2->address;
+}
+
+bool sortFields(Field *f1, Field *f2) {
+    return f1->address > f2->address;
+}
+
+bool locateMethod(Method **m1, void *m2) {
+    return Compiler::simpleParameterMatch((*m1)->params, ((Method*)m2)->params) && (*m1)->utype->equals(((Method*)m2)->utype);
+}
+
+string putInt32(int32_t i32)
+{
+    string str;
+
+    str+=(uint8_t)GET_i32w(i32);
+    str+=(uint8_t)GET_i32x(i32);
+    str+=(uint8_t)GET_i32y(i32);
+    str+=(uint8_t)GET_i32z(i32);
+    return str;
+}
+
+void ExeBuilder::buildExe() {
+    buf.str("");
+    buildHeader();
+    buildSymbolSection();
+    buildStringSection();
+    buildConstantSection();
+
+    buildDataSection();
+    buildMetaDataSection();
+
+    string data = dataSec.str();
+    if(data.size() >= data_compress_threshold) {
+        dataSec.str("");
+
+        buf << (char)data_compress;
+        stringstream __outbuf__;
+        Zlib zlib;
+
+        Zlib::AUTO_CLEAN=(true);
+        zlib.Compress_Buffer2Buffer(data, __outbuf__, ZLIB_LAST_SEGMENT);
+        data.clear();
+
+        buf << __outbuf__.str(); __outbuf__.str("");
+    } else {
+        buf << dataSec.str();
+        dataSec.str("");
+    }
+
+    if(File::write(c_options.out.c_str(), buf.str())) {
+        cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
+    }
+}
+
+void parseGenericName(Int &i, string &name, stringstream &ss) {
+    ss << '$';
+    i++;
+    for(; i < name.size(); i++) {
+        if(name[i] == '>')
+        {
+            ss << '$';
+            return;
+        }
+
+        if(name[i] == ',')
+            ss << "_0_";
+        else if(name[i] == '<') {
+            parseGenericName(i, name, ss);
+        }
+        else ss << name[i];
+    }
+}
 
 string classToCPPName(string &name) {
     bool hashFound = false;
@@ -50,6 +130,153 @@ string moduleToCPPName(string &name) {
         else ss << name[i];
     }
     return ss.str();
+}
+
+Int getDuplicateCount(Method *func, List<Method*> methods, Int index) {
+    Int duplicates = 0;
+    for(Int i = 0; i < index; i++) {
+        if(func->name == methods.get(i)->name) {
+            duplicates++;
+        }
+    }
+
+    return duplicates;
+}
+
+string typeToCPPType(DataType type, bool isArray) {
+    switch(type) {
+        case _INT8:
+            if(isArray) return "_int8_array";
+            return "_int8";
+        case _INT16:
+            if(isArray) return "_int16_array";
+            return "_int16";
+        case _INT32:
+            if(isArray) return "_int32_array";
+            return "_int32";
+        case _INT64:
+            if(isArray) return "_int64_array";
+            return "_int64";
+        case _UINT8:
+            if(isArray) return "_uint8_array";
+            return "_uint8";
+        case _UINT16:
+            if(isArray) return "_uint16_array";
+            return "_uint16";
+        case _UINT32:
+            if(isArray) return "_uint32_array";
+            return "_uint32";
+        case _UINT64:
+            if(isArray) return "_uint64_array";
+            return "_uint64";
+        case FNPTR:
+        case VAR:
+            if(isArray) return "var_array";
+            return "var";
+        case NIL:
+            return "void";
+        default:
+            return "object";
+    }
+}
+
+bool isCppKeyword(string &word) {
+    return word == "alignas" ||
+           word == "alignof" ||
+           word == "and" ||
+           word == "and" ||
+           word == "and_eq" ||
+           word == "asm" ||
+           word == "atomic_cancel" ||
+           word == "atomic_commit" ||
+           word == "atomic_noexcept" ||
+           word == "auto" ||
+           word == "bitand" ||
+           word == "bitor" ||
+           word == "bool" ||
+           word == "break" ||
+           word == "case" ||
+           word == "catch" ||
+           word == "char" ||
+           word == "char16_t" ||
+           word == "char32_t" ||
+           word == "class" ||
+           word == "compl" ||
+           word == "concept" ||
+           word == "const" ||
+           word == "constexpr" ||
+           word == "const_cast" ||
+           word == "continue" ||
+           word == "co_await " ||
+           word == "co_return" ||
+           word == "co_yield " ||
+           word == "decltype" ||
+           word == "default" ||
+           word == "delete" ||
+           word == "do" ||
+           word == "double" ||
+           word == "dynamic_cast" ||
+           word == "else" ||
+           word == "enum" ||
+           word == "explicit" ||
+           word == "export" ||
+           word == "extern" ||
+           word == "false" ||
+           word == "float" ||
+           word == "for" ||
+           word == "friend" ||
+           word == "goto" ||
+           word == "if" ||
+           word == "import" ||
+           word == "inline" ||
+           word == "int" ||
+           word == "long" ||
+           word == "module" ||
+           word == "mutable" ||
+           word == "namespace" ||
+           word == "new" ||
+           word == "noexcept" ||
+           word == "not" ||
+           word == "not_eq" ||
+           word == "nullptr" ||
+           word == "operator" ||
+           word == "or" ||
+           word == "or_eq" ||
+           word == "private" ||
+           word == "protected" ||
+           word == "public" ||
+           word == "register" ||
+           word == "reinterpret_cast" ||
+           word == "requires" ||
+           word == "return" ||
+           word == "short" ||
+           word == "signed" ||
+           word == "sizeof" ||
+           word == "static" ||
+           word == "static_assert" ||
+           word == "static_cast" ||
+           word == "struct" ||
+           word == "switch" ||
+           word == "synchronized" ||
+           word == "template" ||
+           word == "this" ||
+           word == "thread_local" ||
+           word == "throw" ||
+           word == "true" ||
+           word == "try" ||
+           word == "typedef" ||
+           word == "typeid" ||
+           word == "typename" ||
+           word == "union" ||
+           word == "unsigned" ||
+           word == "using" ||
+           word == "virtual" ||
+           word == "void" ||
+           word == "volatile" ||
+           word == "wchar_t" ||
+           word == "while" ||
+           word == "xor" ||
+           word == "xor_eq";
 }
 
 string operatorToString(string op) {
@@ -114,1669 +341,6 @@ string operatorToString(string op) {
     else if(op == "^")
         return "$xor";
     else return op; // error should not happen
-}
-
-bool sortMethods(Method *m1, Method *m2) {
-    return m1->address > m2->address;
-}
-
-bool sortClasses(ClassObject *c1, ClassObject *c2) {
-    return c1->address > c2->address;
-}
-
-bool sortFields(Field *f1, Field *f2) {
-    return f1->address > f2->address;
-}
-
-bool locateMethod(Method **m1, void *m2) {
-    return Compiler::simpleParameterMatch((*m1)->params, ((Method*)m2)->params) && (*m1)->utype->equals(((Method*)m2)->utype);
-}
-
-string putInt32(int32_t i32)
-{
-    string str;
-
-    str+=(uint8_t)GET_i32w(i32);
-    str+=(uint8_t)GET_i32x(i32);
-    str+=(uint8_t)GET_i32y(i32);
-    str+=(uint8_t)GET_i32z(i32);
-    return str;
-}
-
-void ExeBuilder::deleteTempFiles() {
-    for(Int i = 1; i < allClasses.size(); i++) {
-        stringstream fileName;
-
-        fileName << c_options.nativeCodeDir
-                 #ifdef WIN32_
-                 << "\\"
-                 #endif
-                 #ifdef POSIX_
-                 << "/"
-                 #endif
-                 << "_Tmp_Sharp_class_" << i << ".cpp";
-
-        remove(fileName.str().c_str());
-    }
-
-    if(!compiler->nativeCodeFound) {
-#ifdef WIN32_
-        _rmdir(c_options.nativeCodeDir.c_str());
-#endif
-
-#ifdef POSIX_
-        rmdir(c_options.nativeCodeDir.c_str());
-#endif
-    }
-}
-
-string getSymbolType(Utype *utype) {
-    stringstream symbolStr;
-    DataType type = utype->getResolvedType()->type;
-
-    if((type >= _INT8 && type <= _UINT64)
-       || type == VAR || type == OBJECT
-       || type == NIL) {
-        symbolStr << "&vm.nativeSymbols[" << (int)type << "];";
-        return symbolStr.str();
-    } else if(type == CLASS) {
-        symbolStr << "&vm.classes[" << utype->getClass()->address
-            << "];";
-        return symbolStr.str();
-    } else if(type == FNPTR) {
-        symbolStr << "&vm.funcPtrSymbols[" << utype->getMethod()->address
-                  << "];";
-        return symbolStr.str();
-    } else {
-        cout << "unknown field type: " << type;
-        exit(1);
-    }
-}
-
-void buildFieldData(Field* field, stringstream &fileData) {
-    const char *updateFieldPtr = R""""(
-    field = &klass->fields[fieldsProcessed++];
-    field->init();
-)"""";
-
-    fileData << updateFieldPtr << endl;
-
-    fileData << "\tfield->name.set(\"" << field->name << "\");" << endl;
-    fileData << "\tfield->fullName.set(\"" << field->fullName << "\");" << endl;
-    fileData << "\tfield->address = " << field->address << ";" << endl;
-    fileData << "\tfield->type = (DataType)" << (int)field->type << ";" << endl;
-    fileData << "\tfield->guid = " << field->guid << ";" << endl;
-
-    Int accessTypes = 0;
-    for(Int j = 0; j < field->flags.size(); j++) {
-        accessTypes |= field->flags.get(j);
-    }
-
-    fileData << "\tfield->flags = " << accessTypes << ";" << endl;
-    fileData << "\tfield->isArray = " << field->isArray << ";" << endl;
-    fileData << "\tfield->threadLocal = " << (field->locality == stl_thread) << ";" << endl;
-    fileData << "\tfield->utype = " << getSymbolType(field->utype) << endl;
-    fileData << "\tfield->owner = &vm.classes[" << field->owner->address << "];" << endl;
-
-    if(field->locality == stl_thread && field->type <= VAR && !field->isArray)
-        fileData << "\tvm.tlsInts.add(KeyPair<Int, int>(field->address, field->type < FNPTR ? field->type : NTYPE_VAR));" << endl;
-}
-
-void buildFieldData(ClassObject *klass, stringstream &fileData) {
-    List<Field*> instanceFields;
-
-    ClassObject *tmp = klass;
-    while(tmp != NULL) {
-        for(Int i = 0; i < tmp->fieldCount(); i++) {
-            if(!tmp->getField(i)->flags.find(STATIC)) {
-                instanceFields.add(tmp->getField(i));
-            }
-        }
-
-        tmp = tmp->getSuperClass();
-    }
-
-
-    instanceFields.linearSort(sortFields);
-    for (Int i = 0; i < instanceFields.size(); i++) {
-        Field *field = instanceFields.get(i);
-        buildFieldData(field, fileData);
-    }
-
-    for (Int i = 0; i < klass->fieldCount(); i++) {
-        Field *field = klass->getField(i);
-        if(field->flags.find(STATIC)) {
-            buildFieldData(field, fileData);
-        }
-    }
-}
-
-void buildMethodData(ClassObject *klass, stringstream &fileData) {
-    if(klass->getSuperClass() != NULL)
-        buildMethodData(klass->getSuperClass(), fileData);
-
-    for(Int i = 0; i < klass->getFunctionCount(); i++) {
-        Method *function = klass->getFunction(i);
-        fileData << "\tklass->methods[fieldsProcessed++] = &vm.methods[" << function->address << "];" << endl;
-    }
-}
-
-void buildInterfaceData(ClassObject *klass, stringstream &fileData) {
-    if(klass->getSuperClass() != NULL)
-        buildInterfaceData(klass->getSuperClass(), fileData);
-
-    List<ClassObject*> &interfaces = klass->getInterfaces();
-    for(Int i = 0; i < interfaces.size(); i++) {
-        ClassObject *_interface = interfaces.get(i);
-        fileData << "\tklass->interfaces[fieldsProcessed++] = &vm.classes[" << _interface->address << "];" << endl;
-    }
-}
-
-
-void ExeBuilder::putMethodData(Method *fun, stringstream &fileData) {
-    fileData << "\tmethod = &vm.methods[methodsProcessed++];" << endl;
-    fileData << "\tmethod->init();" << endl;
-    fileData << "\tmethod->address = " << fun->address << ";" << endl;
-    fileData << "\tmethod->guid = " << fun->guid << ";" << endl;
-    fileData << "\tmethod->name.set(\"" << fun->name << "\");" << endl;
-    fileData << "\tmethod->fullName.set(\"" << fun->fullName << "\");" << endl;
-    fileData << "\tmethod->sourceFile = " << Obfuscater::files.indexof(fun->meta.file) << ";" << endl;
-    fileData << "\tmethod->owner = &vm.classes[" << fun->owner->address << "];" << endl;
-    fileData << "\tmethod->fnType = (function_type)" << fun->fnType << ";" << endl;
-    fileData << "\tmethod->stackSize = " << fun->data.localVariablesSize << ";" << endl;
-    fileData << "\tmethod->cacheSize = " << fun->data.code.size() << ";" << endl;
-
-    Int accessTypes = 0;
-    for(Int j = 0; j < fun->flags.size(); j++) {
-        accessTypes |= fun->flags.get(j);
-    }
-    fileData << "\tmethod->flags = " << accessTypes << ";" << endl;
-    fileData << "\tmethod->nativeFunc = " << fun->isNative() << ";" << endl;
-    fileData << "\tmethod->delegateAddress = " << fun->delegateAddr << ";" << endl;
-    fileData << "\tmethod->fpOffset = " << getFpOffset(fun) << ";" << endl;
-    fileData << "\tmethod->spOffset = " << getSpOffset(fun) << ";" << endl;
-    fileData << "\tmethod->frameStackOffset = " << getSecondarySpOffset(fun) << ";" << endl;
-    fileData << "\tmethod->utype = " << getSymbolType(fun->utype) << endl;
-    fileData << "\tmethod->arrayUtype = " << fun->utype->isArray() << ";" << endl;
-    fileData << "\tmethod->paramSize = " << fun->params.size() << ";" << endl;
-
-    if(fun->params.size() > 0) {
-        fileData << "\tmethod->params = (Param *) malloc(sizeof(Param) * "
-        << fun->params.size() << ");\n" << endl;
-
-        for(Int j = 0; j < fun->params.size(); j++) {
-            Field *field = fun->params.get(j);
-            fileData << "\tmethod->params[" << j << "].utype = " << getSymbolType(field->utype) << ";" << endl;
-            fileData << "\tmethod->params[" << j << "].isArray == " << field->isArray << ";" << endl;
-        }
-
-        fileData << endl;
-    }
-
-    for(Int i = 0; i < fun->data.lineTable.size(); i++) {
-        LineData &ld = fun->data.lineTable.get(i);
-        fileData << "\tmethod->lineTable.add(LineData(" << ld.start_pc << ", " << ld.line << "));" << endl;
-    }
-
-    if(fun->data.tryCatchTable.size() > 0) {
-        for (Int i = 0; i < fun->data.tryCatchTable.size(); i++) {
-            TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
-
-            fileData << "\ttryCatchData = &method->tryCatchTable.__new();" << endl;
-            fileData << "\ttryCatchData->init();" << endl;
-            fileData << "\ttryCatchData->try_start_pc= " << tryCatchData.try_start_pc << ";" << endl;
-            fileData << "\ttryCatchData->try_end_pc= " << tryCatchData.try_end_pc << ";" << endl;
-            fileData << "\ttryCatchData->block_start_pc= " << tryCatchData.block_start_pc << ";" << endl;
-            fileData << "\ttryCatchData->block_end_pc= " << tryCatchData.block_end_pc << ";" << endl;
-
-            for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
-                CatchData &catchData = tryCatchData.catchTable.get(j);
-
-                fileData << "\tcatchData = &tryCatchData->catchTable.__new();" << endl;
-                fileData << "\tcatchData->handler_pc = " << catchData.handler_pc << ";" << endl;
-                fileData << "\tcatchData->localFieldAddress = " << catchData.localFieldAddress << ";" << endl;
-                fileData << "\tcatchData->caughtException = &vm.classes[" << catchData.classAddress << "];" << endl;
-            }
-
-            if(tryCatchData.finallyData != NULL) {
-                fileData << "\ttryCatchData->finallyData = (FinallyData*)malloc(sizeof(FinallyData));" << endl;
-                fileData << "\ttryCatchData->finallyData->start_pc = " << tryCatchData.finallyData->start_pc << ";" << endl;
-                fileData << "\ttryCatchData->finallyData->end_pc = " << tryCatchData.finallyData->end_pc << ";" << endl;
-                fileData << "\ttryCatchData->finallyData->exception_object_field_address = " << tryCatchData.finallyData->exception_object_field_address << ";" << endl;
-            }
-        }
-    }
-}
-
-void ExeBuilder::addEnvSetupFunctions() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_Env_Setup.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-
-    fileData << "extern void __srt_setup_FileData();" << endl;
-    fileData << "extern void __srt_setup_Methods();" << endl;
-    fileData << "extern void __srt_setup_Classes();" << endl;
-    fileData << "extern void __srt_setup_functionPointers();" << endl;
-    fileData << "extern void __srt_setup_manifest();" << endl;
-    fileData << "extern void __srt_setupConstants();" << endl;
-
-    for(Int i = 0; i < allMethods.size(); i++) {
-        Method *function= allMethods.get(i);
-        if(i > 0 && ((i % 2) == 0))
-            fileData << endl;
-
-        fileData << "extern void ";
-
-        if(startsWith(function->name, "operator")) {
-            fileData << classToCPPName(function->owner->fullName) << "_"
-                     << operatorToString(function->name.substr(8, function->name.size())) << function->address;
-        } else {
-            fileData << classToCPPName(function->fullName) << function->address;
-        }
-
-        fileData << "(Thread*); ";
-    }
-
-    fileData << endl << endl;
-    fileData << "void __srt_setup_env() {" << endl;
-    fileData << "\t__srt_setup_manifest();" << endl;
-    fileData << "\t__srt_setup_functionPointers();" << endl;
-    fileData << "\t__srt_setup_Classes();" << endl;
-    fileData << "\t__srt_setup_Methods();" << endl;
-    fileData << "\t__srt_setupConstants();" << endl;
-    fileData << "\t__srt_setup_FileData();" << endl << endl;
-    fileData << "\tvm.methodRefs = (SharpMethod*)malloc(sizeof(SharpMethod) *" << allMethods.size() << ");" << endl;
-
-
-    for(Int i = 0; i < allMethods.size(); i++) {
-        Method *function= allMethods.get(i);
-        fileData << "\tvm.methodRefs[" << i << "] = ";
-
-        if(startsWith(function->name, "operator")) {
-            fileData << classToCPPName(function->owner->fullName) << "_"
-                     << operatorToString(function->name.substr(8, function->name.size())) << function->address;
-        } else {
-            fileData << classToCPPName(function->fullName) << function->address;
-        }
-
-        fileData << ";" << endl;
-    }
-
-    fileData << "}" << endl;
-
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
-    }
-}
-
-void ExeBuilder::addFileMetaData() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_File_Meta.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-
-    fileData << "extern void parseSourceFile(SourceFile &sourceFile, native_string &data);" << endl << endl;
-    fileData << "void __srt_setup_FileData() {" << endl;
-    fileData << "\tSourceFile *sourceFile = nullptr;" << endl;
-    fileData << "\tString sourceFileData;" << endl;
-    fileData << "\tconst char* fileData = nullptr;" << endl;
-    fileData << "\tsourceFileData.init();" << endl << endl;
-
-    for(Int i = 0; i < Obfuscater::files.size(); i++) {
-        fileData << "\tsourceFile = &vm.metaData.files.__new();" << endl;
-        fileData << "\tsourceFile->init();" << endl;
-        fileData << "\tsourceFile->name.set(\"" << Obfuscater::files.get(i)->name << "\");" << endl;
-
-        if(c_options.debug) {
-            fileData << "\tfileData = R\"\"\"_SharpStrV01(" << compiler->parsers.get(i)->getData() << ")\"\"_SharpStrV01\";" << endl;
-            fileData << "\tsourceFileData.set(fileData);" << endl;
-            fileData << "\tparseSourceFile(*sourceFile, sourceFileData);" << endl;
-
-            dataSec << putInt32(compiler->parsers.get(i)->getData().size());
-            dataSec << compiler->parsers.get(i)->getData() << ((char)nil);
-        }
-
-        fileData << endl;
-    }
-
-    dataSec << '\n' << (char)eos;
-
-    fileData << endl << "}" << endl;
-
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
-    }
-}
-
-void ExeBuilder::addFunctionMetaData() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_Method_Meta.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-
-    fileData << "Int methodsProcessed= 0;" << endl << endl;
-    Int setupMethodCount = 0;
-    for(Int i = 0; i < allMethods.size(); i++) {
-        if((i % 500) == 0) {
-            if(setupMethodCount > 0) {
-                fileData << endl << "}" << endl << endl;
-            }
-
-            fileData << "void __srt_setup_Methods" << setupMethodCount++ << "() {" << endl;
-            fileData << "\tMethod* method = nullptr;" << endl;
-            fileData << "\tTryCatchData *tryCatchData = nullptr;" << endl;
-            fileData << "\tCatchData *catchData = nullptr;" << endl << endl;
-        }
-        putMethodData(allMethods.get(i), fileData);
-        fileData << endl;
-    }
-
-    fileData << endl << "}" << endl << endl;
-
-    fileData << "void __srt_setup_Methods() {" << endl;
-
-    for(Int i = 0; i < setupMethodCount; i++) {
-        fileData << "\t__srt_setup_Methods" << i << "();" << endl;
-    }
-
-    fileData << endl << "}" << endl;
-
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
-    }
-}
-
-void ExeBuilder::addClassMetaData() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_Class_Meta.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-
-    fileData << "void __srt_setup_Classes() {" << endl;
-    fileData << "\tvm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods);" << endl;
-    fileData << "\tvm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);" << endl;
-    fileData << "\tvm.staticHeap = (Object*)calloc(vm.manifest.classes, sizeof(Object));" << endl;
-    fileData << "\tvm.metaData.init();" << endl;
-    fileData << "\tClassObject* klass = nullptr;" << endl;
-    fileData << "\tField* field = nullptr;" << endl;
-    fileData << "\tInt fieldsProcessed= 0;" << endl << endl;
-
-    for(Int i = 0; i < allClasses.size(); i++) {
-        ClassObject *klass = allClasses.get(i);
-
-        fileData << "\tklass = &vm.classes[" << i << "];" << endl;
-        fileData << "\tklass->init();" << endl;
-        fileData << "\tklass->address = " << klass->address << ";" << endl;
-        fileData << "\tfieldsProcessed = 0;" << endl;
-
-        if(klass->owner != NULL) {
-            fileData << "\tklass->owner = &vm.classes[" << klass->owner->address << "];" << endl;
-        }
-
-        if(klass->getSuperClass() != NULL) {
-            fileData << "\tklass->owner = &vm.classes[" << klass->getSuperClass()->address << "];" << endl;
-        }
-
-        fileData << "\tklass->guid = " << klass->guid << ";" << endl;
-        fileData << "\tklass->name.set(\"" << klass->name << "\");" << endl;
-        fileData << "\tklass->fullName.set(\"" << klass->fullName << "\");" << endl;
-        fileData << "\tklass->staticFields = " << klass->getStaticFieldCount() << ";" << endl;
-        fileData << "\tklass->instanceFields = " << klass->totalInstanceFieldCount() << ";" << endl;
-        fileData << "\tklass->totalFieldCount = klass->staticFields + klass->instanceFields;" << endl;
-        fileData << "\tklass->methodCount = " << klass->totalFunctionCount() << ";" << endl;
-        fileData << "\tklass->methodCount = " << klass->totalFunctionCount() << ";" << endl;
-        fileData << "\tklass->interfaceCount = " << klass->totalInterfaceCount() << ";" << endl;
-
-        if((klass->getStaticFieldCount() + klass->totalFunctionCount()) > 0) {
-            fileData << "\tklass->fields = (Field *) malloc(sizeof(Field) * " << (klass->getStaticFieldCount() + klass->totalFunctionCount()) << ");" << endl;
-        }
-        if(klass->totalFunctionCount() > 0) {
-            fileData << "\tklass->methods = (Method **) malloc(sizeof(Method **) * " << klass->totalFunctionCount() << ");" << endl;
-        }
-        if(klass->totalInterfaceCount() > 0) {
-            fileData << "\tklass->interfaces = (ClassObject **) malloc(sizeof(ClassObject **) * " << klass->totalInterfaceCount() << ");" << endl;
-        }
-
-        if((klass->getStaticFieldCount() + klass->totalFunctionCount()) > 0) {
-            buildFieldData(klass, fileData);
-        }
-
-        if(klass->totalFunctionCount() > 0) {
-            fileData << "\tfieldsProcessed = 0;" << endl;
-            buildMethodData(klass, fileData);
-        }
-
-        if(klass->totalInterfaceCount() > 0) {
-            fileData << "\tfieldsProcessed = 0;" << endl;
-            buildInterfaceData(klass, fileData);
-        }
-
-        fileData << endl;
-    }
-
-    fileData << "}" << endl;
-
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
-    }
-}
-
-void ExeBuilder::addFunctionPointerMetaData() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_FunctionPtr_Meta.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-
-    fileData << "void __srt_setup_functionPointers() {" << endl;
-    fileData << "\tvm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*vm.manifest.functionPointers);" << endl;
-
-    fileData << "\tvm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*14);" << endl;
-    fileData << "\tMethod *method = nullptr;" << endl;
-
-    const char *addNativeSymbols = R""""(
-    for(Int i = 0; i < 14; i++) {
-        vm.nativeSymbols[i].init();
-        vm.nativeSymbols[i].type = (DataType)i;
-    }
-)"""";
-
-    fileData << addNativeSymbols << endl;
-
-    for(Int i = 0; i < functionPointers.size(); i++) {
-        Method *func = functionPointers.get(i);
-        fileData << "\tmethod = &vm.funcPtrSymbols[" << i << "];" << endl;
-        fileData << "\tmethod->init();" << endl;
-        fileData << "\tmethod->fnType = fn_ptr;" << endl;
-
-        if(func->params.size() > 0) {
-            fileData << "\tmethod->params = (Param *) malloc(sizeof(Param) * " << func->params.size() << ");" << endl;
-
-            for (Int j = 0; j < func->params.size(); j++) {
-                Field *field = func->params.get(j);
-                fileData << "\tmethod->params[" << j << "].utype = " << getSymbolType(field->utype) << endl;
-                fileData << "\tmethod->params[" << j << "].isArray = " << field->isArray << ";" << endl;
-            }
-        }
-
-        fileData << "\tmethod->utype = " << getSymbolType(func->utype) << endl;
-        fileData << "\tmethod->arrayUtype = " << func->utype->isArray() << ";" << endl << endl;
-    }
-
-    fileData << "}" << endl << endl;
-
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
-    }
-}
-
-void ExeBuilder::createConstants() {
-    stringstream fileName, fileData;
-    fileName << c_options.nativeCodeDir
-             #ifdef WIN32_
-             << "\\"
-             #endif
-             #ifdef POSIX_
-             << "/"
-             #endif
-             << "_Tmp_Sharp_constants.cpp";
-
-    fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-    fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-    fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-    fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-    fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-
-    for(Int i = 0; i < allClasses.size(); i++) {
-        ClassObject *klass = allClasses.get(i);
-
-        for(Int j = 0; j < klass->fieldCount(); j++) {
-            if(klass->getField(j)->type == FNPTR) {
-                if(functionPointers.indexof(locateMethod, klass->getField(j)->utype->getMethod()) == -1) {
-                    functionPointers.add(klass->getField(j)->utype->getMethod());
-                }
-            }
-        }
-
-        for(Int j = 0; j < klass->getFunctionCount(); j++) {
-            Method *fun = klass->getFunction(j);
-            if(fun->utype->getResolvedType()->type == FNPTR) {
-                if(functionPointers.indexof(locateMethod, fun->utype->getMethod()) == -1) {
-                    functionPointers.add(fun->utype->getMethod());
-                }
-            }
-
-            for(Int x = 0; x < fun->params.size(); x++) {
-                Field *param = fun->params.get(x);
-                if(param->type == FNPTR) {
-                    if(functionPointers.indexof(locateMethod, param->utype->getMethod()) == -1) {
-                        functionPointers.add(param->utype->getMethod());
-                    }
-                }
-            }
-        }
-    }
-
-    fileData << "void __srt_setup_manifest() {" << endl;
-    fileData << "\tvm.manifest.application.set(\"" << c_options.out << "\");" << endl;
-    fileData << "\tvm.manifest.version.set(\"" << c_options.vers << "\");" << endl;
-    fileData << "\tvm.manifest.debug = " << (c_options.debug ? 1 : 0) << ";" << endl;
-    fileData << "\tvm.manifest.entryMethod = " << compiler->mainMethod->address << ";" << endl;
-    fileData << "\tvm.manifest.methods = " << allMethods.size() << ";" << endl;
-    fileData << "\tvm.manifest.classes = " << compiler->classSize << ";" << endl;
-    fileData << "\tvm.manifest.strings = " << compiler->stringMap.size() << ";" << endl;
-    fileData << "\tvm.manifest.sourceFiles = " << compiler->parsers.size() << ";" << endl;
-    fileData << "\tvm.manifest.threadLocals = " << compiler->threadLocals << ";" << endl;
-    fileData << "\tvm.manifest.constants = " << compiler->constantMap.size() << ";" << endl;
-    fileData << "\tvm.manifest.functionPointers = " << functionPointers.size() << ";" << endl;
-    fileData << "}" << endl << endl;
-
-    fileData << "void __srt_setup_stringConstants() {" << endl;
-    fileData << "\tvm.strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm.manifest.strings));" << endl << endl;
-    fileData << "\tconst char *strConstant = nullptr;" << endl;
-
-    for(Int i = 0; i < compiler->stringMap.size(); i++) {
-        fileData << "\tstrConstant = R\"\"\"_SharpStrV01((" << compiler->stringMap.get(i) << ")\"\"_SharpStrV01\";" << endl;
-        fileData << "\tvm.strings[" << i << "].init();" << endl;
-        fileData << "\tvm.strings[" << i << "].set(strConstant);" << endl << endl;
-    }
-    fileData << "}" << endl << endl;
-
-    fileData << "void __srt_setup_numericConstants() {" << endl;
-    fileData << "\tvm.constants = (double*)malloc(sizeof(double)*(vm.manifest.constants));" << endl << endl;
-
-    for(Int i = 0; i < compiler->constantMap.size(); i++) {
-        fileData << "\tvm.constants[" << i << "] = " << std::scientific
-        << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-        if(isnan( compiler->constantMap.get(i))) {
-            fileData << "std::numeric_limits<double>::quiet_NaN()";
-        } else if(isinf(compiler->constantMap.get(i))) {
-            fileData << "std::numeric_limits<double>::infinity()";
-        } else
-            fileData << compiler->constantMap.get(i);
-        fileData << std::dec  << ";" << endl;
-    }
-    fileData << "}" << endl << endl;
-
-    fileData << "void __srt_setupConstants() {" << endl;
-    fileData << "\t__srt_setup_numericConstants();" << endl;
-    fileData << "\t__srt_setup_stringConstants();" << endl;
-    fileData << "}" << endl << endl;
-
-    if(File::write(fileName.str().c_str(), fileData.str())) {
-        cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-        exit(1);
-    }
-}
-
-void ExeBuilder::createClassFunctions() {
-
-    for(Int i = 0; i < allClasses.size(); i++) {
-        stringstream fileName, fileData;
-        fileName << c_options.nativeCodeDir
-                 #ifdef WIN32_
-                 << "\\"
-                 #endif
-                 #ifdef POSIX_
-                 << "/"
-                 #endif
-                 << "_Tmp_Sharp_class_" << i << ".cpp";
-
-        fileData << "#include \"../lib/runtime/Thread.h\"" << endl;
-        fileData << "#include \"../lib/runtime/fiber.h\"" << endl;
-        fileData << "#include \"../lib/runtime/Opcode.h\"" << endl;
-        fileData << "#include \"../lib/runtime/OpcodeInjection.h\"" << endl;
-        fileData << "#include \"../lib/runtime/VirtualMachine.h\"" << endl << endl;
-        fileData << "#include \"../lib/runtime/termios.h\"" << endl << endl;
-
-        ClassObject *klass = allClasses.get(i);
-
-        for(Int j = 0; j < klass->getFunctionCount(); j++) {
-            Method *function = klass->getFunction(j);
-
-
-
-            fileData << endl << "void ";
-
-            if(startsWith(function->name, "operator")) {
-                fileData << classToCPPName(function->owner->fullName) << "_"
-                         << operatorToString(function->name.substr(8, function->name.size())) << function->address;
-            } else {
-                fileData << classToCPPName(function->fullName) << function->address;
-            }
-
-            fileData << "(Thread *thread) {" << endl;
-
-            fileData << "\tregister fiber *this_fiber = thread->this_fiber;" << endl;
-            fileData << "\tregister double *registers = this_fiber->registers;" << endl;
-            fileData << "\tregister Object *tmpPtr = nullptr;" << endl;
-
-            fileData << endl << "\tstatic const void* label_table[] = {";
-            for(Int k = 0; k < function->data.code.size(); k++) {
-                if(k > 0 && (k % 5 == 0)) fileData << endl << "\t\t\t";
-                fileData << " &&INS_" << k;
-
-                if((k + 1) < function->data.code.size())
-                    fileData << ",";
-            }
-            fileData << " };" << endl;
-
-            const char *addNativeSymbols = R""""(
-    if(thread->stackRebuild) {
-        SharpMethod fun = shiftToNextMethod(thread);
-        if(fun) {
-            fun(thread);
-        }
-    }
-
-    HAS_SIGNAL
-)"""";
-
-            fileData << addNativeSymbols;
-
-            fileData << endl <<  "\trun:" << endl << "\ttry {"
-            << endl << "\t\tgoto *label_table[this_fiber->pc];"
-            << endl << endl;
-            CodeHolder &code = function->data.code;
-            for(Int k = 0; k < function->data.code.size(); k++) {
-                fileData << endl << "\t\t";
-                fileData << "INS_" << k << ':' << endl << "\t\t ";
-                switch(GET_OP(code.ir32.at(k))) {
-                    case Opcode::NOP: {
-                        fileData << "inj_op_nop";
-                        break;
-                    }
-                    case Opcode::INT: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_int(" << GET_Da(code.ir32.at(k)) << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        fileData << endl << "\t\t ";
-                        fileData << "context_switch_check(true)";
-                        break;
-                    }
-                    case Opcode::MOVI: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_movi(" << GET_Da(code.ir32.at(k)) << ", "
-                            << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::RET: {
-                        fileData << "inj_op_ret(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::HLT: {
-                        fileData << "inj_op_hlt";
-                        break;
-                    }
-                    case Opcode::NEWARRAY: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_newarray(" << GET_Ca(code.ir32.at(k))
-                        << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::CAST: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL(inj_op_cast(" << GET_Da(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::VARCAST: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL2(inj_op_varcast(" << GET_Ca(code.ir32.at(k))
-                        << ", " << GET_Cb(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::MOV8: {
-                        fileData << "inj_op_mov8(" << GET_Ca(code.ir32.at(k))
-                            << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOV16: {
-                        fileData << "inj_op_mov16(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOV32: {
-                        fileData << "inj_op_mov32(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOV64: {
-                        fileData << "inj_op_mov64(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVU8: {
-                        fileData << "inj_op_movu8(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVU16: {
-                        fileData << "inj_op_movu16(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVU32: {
-                        fileData << "inj_op_movu32(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVU64: {
-                        fileData << "inj_op_movu64(" << GET_Ca(code.ir32.at(k))
-                                 << ", " << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::RSTORE: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_rstore(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::ADD: {
-                        fileData << "inj_op_add(" << GET_Bc(code.ir32.at(k))
-                            << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SUB: {
-                        fileData << "inj_op_sub(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MUL: {
-                        fileData << "inj_op_mul(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::DIV: {
-                        fileData << "inj_op_div(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOD: {
-                        fileData << "inj_op_mod(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::IADD: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_iadd(" << GET_Da(code.ir32.at(k))
-                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::ISUB: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_isub(" << GET_Da(code.ir32.at(k))
-                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::IMUL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_imul(" << GET_Da(code.ir32.at(k))
-                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::IDIV: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_idiv(" << GET_Da(code.ir32.at(k))
-                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::IMOD: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_imod(" << GET_Da(code.ir32.at(k))
-                                 << ", " << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::POP: {
-                        fileData << "inj_op_pop";
-                        break;
-                    }
-                    case Opcode::INC: {
-                        fileData << "inj_op_inc(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::DEC: {
-                        fileData << "inj_op_dec(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVR: {
-                        fileData << "inj_op_movr(" << GET_Ca(code.ir32.at(k)) << ", "
-                            << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::BRH: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_brh(context_switch_check(false))";
-                        break;
-                    }
-                    case Opcode::IFE: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_ife(context_switch_check(false))";
-                        break;
-                    }
-                    case Opcode::IFNE: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_ifne(context_switch_check(false))";
-                        break;
-                    }
-                    case Opcode::LT: {
-                        fileData << "inj_op_lt(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::GT: {
-                        fileData << "inj_op_gt(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::LTE: {
-                        fileData << "inj_op_lte(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::GTE: {
-                        fileData << "inj_op_gte(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVL: {
-                        fileData << "inj_op_movl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::POPL: {
-                        fileData << "inj_op_popl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::IPOPL: {
-                        fileData << "inj_op_ipopl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVSL: {
-                        fileData << "inj_op_movsl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SIZEOF: {
-                        fileData << "inj_op_sizeof(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::PUT: {
-                        fileData << "inj_op_put(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::PUTC: {
-                        fileData << "inj_op_putc(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::GET: {
-                        fileData << "inj_op_get(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::CHECKLEN: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL2(inj_op_checklen(" << GET_Da(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::JMP: {
-                        fileData << "inj_op_jmp(" << GET_Da(code.ir32.at(k)) << ", context_switch_check(false))";
-                        break;
-                    }
-                    case Opcode::LOADPC: {
-                        fileData << "inj_op_loadpc(" << GET_Da(code.ir32.at(k)) << ", " << k << ")";
-                        break;
-                    }
-                    case Opcode::PUSHOBJ: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_pushobj";
-                        break;
-                    }
-                    case Opcode::DEL: {
-                        fileData << "inj_op_del";
-                        break;
-                    }
-                    case Opcode::CALL: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_call(" <<  GET_Da(code.ir32.at(k)) << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        break;
-                    }
-                    case Opcode::CALLD: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_calld(" <<  GET_Da(code.ir32.at(k)) << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        break;
-                    }
-                    case Opcode::NEWCLASS: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_newclass(" << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::MOVN: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLOBJ(inj_op_movn(" << (int32_t)code.ir32.at(k + 1) << "))";
-                        k++;
-                        break;
-                    }
-                    case Opcode::SLEEP: {
-                        fileData << "inj_op_sleep(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::TEST: {
-                        fileData << "inj_op_test(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::TNE: {
-                        fileData << "inj_op_testne(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::LOCK: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL2(inj_op_lock)";
-                        break;
-                    }
-                    case Opcode::ULOCK: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL2(inj_op_ulock)";
-                        break;
-                    }
-                    case Opcode::MOVG: {
-                        fileData << "inj_op_movg(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MOVND: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLOBJ(inj_op_movnd(" << GET_Da(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::NEWOBJARRAY: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_newobjarray(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::NOT: {
-                        fileData << "inj_op_not(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SKIP: {
-                        fileData << "inj_op_skip(" << (k + GET_Da(code.ir32.at(k)) + 1) << ")";
-                        break;
-                    }
-                    case Opcode::LOADVAL: {
-                        fileData << "inj_op_loadval(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SHL: {
-                        fileData << "inj_op_shl(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SHR: {
-                        fileData << "inj_op_shr(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SKPE: {
-                        fileData << "inj_op_skpe(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << (k + GET_Cb(code.ir32.at(k))) << ")";
-                        break;
-                    }
-                    case Opcode::SKNE: {
-                        fileData << "inj_op_skpne(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << (k + GET_Cb(code.ir32.at(k))) << ")";
-                        break;
-                    }
-                    case Opcode::CMP: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_cmp(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::AND: {
-                        fileData << "inj_op_and(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::UAND: {
-                        fileData << "inj_op_uand(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::OR: {
-                        fileData << "inj_op_or(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::XOR: {
-                        fileData << "inj_op_xor(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::THROW: {
-                        fileData << "inj_op_throw(" << k << ")";
-                        break;
-                    }
-                    case Opcode::CHECKNULL: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_checknull(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::RETURNOBJ: {
-                        fileData << "inj_op_return_obj";
-                        break;
-                    }
-                    case Opcode::NEWCLASSARRAY: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_newClassArray(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::NEWSTRING: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_newString(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::ADDL: {
-                        fileData << "inj_op_addl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SUBL: {
-                        fileData << "inj_op_subl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MULL: {
-                        fileData << "inj_op_mull(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::DIVL: {
-                        fileData << "inj_op_divl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::MODL: {
-                        fileData << "inj_op_modl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::IADDL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_iaddl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::ISUBL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_isubl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::IMULL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_imull(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::IDIVL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_idivl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::IMODL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_imodl(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::LOADL: {
-                        fileData << "inj_op_loadl(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::IALOAD: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLVAR(inj_op_iaload(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::POPOBJ: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULL(inj_op_popObj)";
-                        break;
-                    }
-                    case Opcode::SMOVR: {
-                        fileData << "inj_op_smovr(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SMOVR_2: {
-                        fileData << "inj_op_smovr2(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::SMOVR_3: {
-                        fileData << "inj_op_smovr3(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::ANDL: {
-                        fileData << "inj_op_andl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::ORL: {
-                        fileData << "inj_op_orl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::XORL: {
-                        fileData << "inj_op_xorl(" << GET_Cb(code.ir32.at(k)) << ", "
-                                 << GET_Ca(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::RMOV: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLVAR(inj_op_rmov(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::NEG: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "CHECK_NULLVAR(inj_op_neg(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << "))";
-                        break;
-                    }
-                    case Opcode::SMOV: {
-                        fileData << "inj_op_smov(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::RETURNVAL: {
-                        fileData << "inj_op_returnVal(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::ISTORE: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_istore(" << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::ISTOREL: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_istorel(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::PUSHNULL: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_pushnull";
-                        break;
-                    }
-                    case Opcode::IPUSHL: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_ipushl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::PUSHL: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_pushl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::ITEST: {
-                        fileData << "inj_op_itest(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::INVOKE_DELEGATE: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_invokeDelegate(" <<  GET_Da(code.ir32.at(k))
-                            << ", " << GET_Cb((int32_t)code.ir32.at(k + 1)) << ", thread"
-                            << ", " << (GET_Ca((int32_t)code.ir32.at(k + 1)) == 1)
-                            << ", false)";
-                        fileData << endl << "\t\t ";
-                        fileData << "HAS_SIGNAL";
-                        k++;
-                        break;
-                    }
-                    case Opcode::ISADD: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_isadd(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    case Opcode::JE: {
-                        fileData << "inj_op_je(" << GET_Da(code.ir32.at(k)) << ", context_switch_check(false))";
-                        break;
-                    }
-                    case Opcode::JNE: {
-                        fileData << "inj_op_jne(" << GET_Da(code.ir32.at(k)) << ", context_switch_check(false))";
-                        break;
-                    }
-                    case Opcode::TLS_MOVL: {
-                        fileData << "inj_op_tls_movl(" << GET_Da(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::DUP: {
-                        fileData << "update_pc(" << k << ")";
-                        fileData << endl << "\t\t ";
-                        fileData << "grow_stack";
-                        fileData << endl << "\t\t ";
-                        fileData << "STACK_CHECK";
-                        fileData << endl << "\t\t ";
-                        fileData << "inj_op_dup";
-                        break;
-                    }
-                    case Opcode::POPOBJ_2: {
-                        fileData << "inj_op_popObj2";
-                        break;
-                    }
-                    case Opcode::SWAP: {
-                        fileData << "inj_op_swap";
-                        break;
-                    }
-                    case Opcode::EXP: {
-                        fileData << "inj_op_exp(" << GET_Bc(code.ir32.at(k))
-                                 << ", " << GET_Ba(code.ir32.at(k)) << ", " << GET_Bb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::LDC: {
-                        fileData << "inj_op_ldc(" << GET_Ca(code.ir32.at(k)) << ", "
-                                 << GET_Cb(code.ir32.at(k)) << ")";
-                        break;
-                    }
-                    case Opcode::IS: {
-                        fileData << "INS_" << k+1 << ':' << endl << "\t\t ";
-                        fileData << "inj_op_is(" << GET_Da(code.ir32.at(k)) << ", "
-                                 << (int32_t)code.ir32.at(k + 1) << ")";
-                        k++;
-                        break;
-                    }
-                    default: {
-                        cout << "error" << GET_OP(code.ir32.at(k)) << endl;
-                        exit(1);
-                        break;
-                    }
-                }
-            }
-
-            fileData << endl << "\t\treturn;" << endl << "\t}";
-
-    const char *exceptionCatchSection = R""""(
-    catch (Exception &e) {
-        sendSignal(thread->signal, tsig_except, 1);
-    }
-
-    exception_catch:
-    if(thread->state == THREAD_KILLED) {
-        sendSignal(thread->signal, tsig_except, 1);
-        return;
-    }
-
-    if(!VirtualMachine::catchException()) {
-        returnMethod(thread);
-        return;
-    }
-
-    goto run;)"""";
-
-            fileData << exceptionCatchSection << endl << "}" << endl;
-        }
-
-        if(File::exists(fileName.str().c_str())) {
-            File::buffer buf;
-            File::read_alltext(fileName.str().c_str(), buf);
-
-            if(buf.to_str() == fileData.str()) {
-                continue;
-            }
-        }
-
-        if(File::write(fileName.str().c_str(), fileData.str())) {
-            cout << progname << ": error: failed to write out to cpp file " << c_options.out << endl;
-            exit(1);
-        }
-    }
-}
-
-void ExeBuilder::buildExe() {
-#ifdef WIN32_
-    _mkdir(c_options.nativeCodeDir.c_str());
-#endif
-#ifdef POSIX_
-    mkdir(c_options.nativeCodeDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-#endif
-
-    // C:\Program Files\Sharp\include
-    createClassFunctions();
-    createConstants();
-    addFunctionPointerMetaData();
-    addClassMetaData();
-    addFunctionMetaData();
-    addFileMetaData();
-    addEnvSetupFunctions();
-//    deleteTempFiles();
-
-//    for(Int i = 0; i < 120; i++) {
-//        cout << "generated/_Tmp_Sharp_class_" << i << ".cpp" << endl;
-//    }
-//    cout << endl;
-}
-
-void parseGenericName(Int &i, string &name, stringstream &ss) {
-    ss << '$';
-    i++;
-    for(; i < name.size(); i++) {
-        if(name[i] == '>')
-        {
-            ss << '$';
-            return;
-        }
-
-        if(name[i] == ',')
-            ss << "_0_";
-        else if(name[i] == '<') {
-            parseGenericName(i, name, ss);
-        }
-        else ss << name[i];
-    }
-}
-
-Int getDuplicateCount(Method *func, List<Method*> methods, Int index) {
-    Int duplicates = 0;
-    for(Int i = 0; i < index; i++) {
-        if(func->name == methods.get(i)->name) {
-            duplicates++;
-        }
-    }
-
-    return duplicates;
-}
-
-string typeToCPPType(DataType type, bool isArray) {
-    switch(type) {
-        case _INT8:
-            if(isArray) return "_int8_array";
-            return "_int8";
-        case _INT16:
-            if(isArray) return "_int16_array";
-            return "_int16";
-        case _INT32:
-            if(isArray) return "_int32_array";
-            return "_int32";
-        case _INT64:
-            if(isArray) return "_int64_array";
-            return "_int64";
-        case _UINT8:
-            if(isArray) return "_uint8_array";
-            return "_uint8";
-        case _UINT16:
-            if(isArray) return "_uint16_array";
-            return "_uint16";
-        case _UINT32:
-            if(isArray) return "_uint32_array";
-            return "_uint32";
-        case _UINT64:
-            if(isArray) return "_uint64_array";
-            return "_uint64";
-        case FNPTR:
-        case VAR:
-            if(isArray) return "var_array";
-            return "var";
-        case NIL:
-            return "void";
-        default:
-            return "object";
-    }
-}
-
-bool isCppKeyword(string &word) {
-    return word == "alignas" ||
-    word == "alignof" ||
-    word == "and" ||
-    word == "and" ||
-    word == "and_eq" ||
-    word == "asm" ||
-    word == "atomic_cancel" ||
-    word == "atomic_commit" ||
-    word == "atomic_noexcept" ||
-    word == "auto" ||
-    word == "bitand" ||
-    word == "bitor" ||
-    word == "bool" ||
-    word == "break" ||
-    word == "case" ||
-    word == "catch" ||
-    word == "char" ||
-    word == "char16_t" ||
-    word == "char32_t" ||
-    word == "class" ||
-    word == "compl" ||
-    word == "concept" ||
-    word == "const" ||
-    word == "constexpr" ||
-    word == "const_cast" ||
-    word == "continue" ||
-    word == "co_await " ||
-    word == "co_return" ||
-    word == "co_yield " ||
-    word == "decltype" ||
-    word == "default" ||
-    word == "delete" ||
-    word == "do" ||
-    word == "double" ||
-    word == "dynamic_cast" ||
-    word == "else" ||
-    word == "enum" ||
-    word == "explicit" ||
-    word == "export" ||
-    word == "extern" ||
-    word == "false" ||
-    word == "float" ||
-    word == "for" ||
-    word == "friend" ||
-    word == "goto" ||
-    word == "if" ||
-    word == "import" ||
-    word == "inline" ||
-    word == "int" ||
-    word == "long" ||
-    word == "module" ||
-    word == "mutable" ||
-    word == "namespace" ||
-    word == "new" ||
-    word == "noexcept" ||
-    word == "not" ||
-    word == "not_eq" ||
-    word == "nullptr" ||
-    word == "operator" ||
-    word == "or" ||
-    word == "or_eq" ||
-    word == "private" ||
-    word == "protected" ||
-    word == "public" ||
-    word == "register" ||
-    word == "reinterpret_cast" ||
-    word == "requires" ||
-    word == "return" ||
-    word == "short" ||
-    word == "signed" ||
-    word == "sizeof" ||
-    word == "static" ||
-    word == "static_assert" ||
-    word == "static_cast" ||
-    word == "struct" ||
-    word == "switch" ||
-    word == "synchronized" ||
-    word == "template" ||
-    word == "this" ||
-    word == "thread_local" ||
-    word == "throw" ||
-    word == "true" ||
-    word == "try" ||
-    word == "typedef" ||
-    word == "typeid" ||
-    word == "typename" ||
-    word == "union" ||
-    word == "unsigned" ||
-    word == "using" ||
-    word == "virtual" ||
-    word == "void" ||
-    word == "volatile" ||
-    word == "wchar_t" ||
-    word == "while" ||
-    word == "xor" ||
-    word == "xor_eq";
 }
 
 void ExeBuilder::appendClassHeaderFunctions(ClassObject* klass, stringstream &ss) {
@@ -1937,7 +501,7 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
                     stringstream fieldName;
                     fieldName << "$tmpField" << localAddr;
                     ss << "(internal::getVarPtr(" << fieldName.str() << "), internal::getSize(" << fieldName.str() << "), "
-                        << fieldName.str() << ");";
+                       << fieldName.str() << ");";
                 } else {
                     ss << "(internal::getfpNumAt(" << localAddr << "));";
                 }
@@ -2040,22 +604,22 @@ void ExeBuilder::createMainFunc(stringstream &ss) {
 void ExeBuilder::createNativeSourceFile() {
     stringstream ss;
     ss << "#include \"native_mapping.h\"" << endl
-          << endl
-          << "using namespace std;" << endl
-          << "using namespace snb_api;" << endl << endl;
+       << endl
+       << "using namespace std;" << endl
+       << "using namespace snb_api;" << endl << endl;
 
     ss << "#ifdef __cplusplus" << endl
-          << "extern \"C\" {" << endl
-          << "#endif" << endl << endl;
+       << "extern \"C\" {" << endl
+       << "#endif" << endl << endl;
 
     createProcAddrFunc(ss);
     createCallFunc(ss);
     createMainFunc(ss);
 
     ss << endl
-          << "#ifdef __cplusplus" << endl
-          << "}" << endl
-          << "#endif" << endl;
+       << "#ifdef __cplusplus" << endl
+       << "}" << endl
+       << "#endif" << endl;
 
 #ifdef _WIN32
     string mappingFile = c_options.nativeCodeDir + "\\native_mapping.cpp";
@@ -2328,7 +892,7 @@ void ExeBuilder::dumpClassInfo(ClassObject *klass) {
 void ExeBuilder::addClass(ClassObject *klass) {
     if(IS_CLASS_GENERIC(klass->getClassType()) && klass->getGenericOwner() == NULL)
         return;
-    allClasses.addif(klass);
+    allClasses.add(klass);
 
     allMethods.appendAll(klass->getFunctions());
     if(klass->isGlobalClass())
@@ -3404,7 +1968,7 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<< " -> ";
                 x++;
                 if((int32_t)code.ir32.get(x) >= 0)
-                  ss<< allClasses.get(code.ir32.get(x))->fullName;
+                    ss<< allClasses.get(code.ir32.get(x))->fullName;
                 else ss << (int32_t)code.ir32.get(x);
                 break;
             }
@@ -3430,11 +1994,11 @@ void ExeBuilder::build() {
 }
 
 string copychars(char c, int t) {
-    native_string s;
+    stringstream s;
     int it = 0;
 
     while (it++ < t)
-        s += c;
+        s << c;
 
     return s.str();
 }
@@ -3481,9 +2045,84 @@ void ExeBuilder::buildSymbolSection() {
         buf << putInt32(klass->totalInstanceFieldCount());
         buf << putInt32(klass->totalFunctionCount());
         buf << putInt32(klass->totalInterfaceCount());
+
+        buildFieldData(klass);
+        buildMethodData(klass);
+        buildInterfaceData(klass);
     }
 
     buf << '\n' << (char)eos;
+}
+
+void ExeBuilder::buildInterfaceData(ClassObject *klass) {
+    if(klass->getSuperClass() != NULL)
+        buildInterfaceData(klass->getSuperClass());
+
+    List<ClassObject*> &interfaces = klass->getInterfaces();
+    for(Int i = 0; i < interfaces.size(); i++) {
+        ClassObject *_interface = interfaces.get(i);
+        buf << (char)data_interface;
+        buf << putInt32(_interface->address) << ((char)nil);
+    }
+}
+void ExeBuilder::buildMethodData(ClassObject *klass) {
+    if(klass->getSuperClass() != NULL)
+        buildMethodData(klass->getSuperClass());
+
+    for(Int i = 0; i < klass->getFunctionCount(); i++) {
+        Method *function = klass->getFunction(i);
+        buf << (char)data_method;
+        buf << putInt32(function->address) << ((char)nil);
+    }
+}
+
+void ExeBuilder::buildFieldData(Field *field) {
+    buf << (char)data_field;
+    buf << field->name << ((char)nil);
+    buf << field->fullName << ((char)nil);
+    buf << putInt32(field->address);
+    Int accessTypes = 0;
+    for(Int j = 0; j < field->flags.size(); j++) {
+        accessTypes |= field->flags.get(j);
+    }
+
+    buf << putInt32(field->type);
+    buf << putInt32(field->guid);
+    buf << putInt32(accessTypes);
+    buf << (field->isArray ? 1 : 0);
+    buf << (field->locality == stl_thread ? 1 : 0);
+    putSymbol(field->utype, buf);
+    buf << putInt32(field->owner->address);
+    buf << ((char)nil) << ((char)nil);
+}
+
+void ExeBuilder::buildFieldData(ClassObject *klass) {
+    List<Field*> instanceFields;
+
+    ClassObject *tmp = klass;
+    while(tmp != NULL) {
+        for(Int i = 0; i < tmp->fieldCount(); i++) {
+            if(!tmp->getField(i)->flags.find(STATIC)) {
+                instanceFields.add(tmp->getField(i));
+            }
+        }
+
+        tmp = tmp->getSuperClass();
+    }
+
+
+    instanceFields.linearSort(sortFields);
+    for (Int i = 0; i < instanceFields.size(); i++) {
+        Field *field = instanceFields.get(i);
+        buildFieldData(field);
+    }
+
+    for (Int i = 0; i < klass->fieldCount(); i++) {
+        Field *field = klass->getField(i);
+        if(field->flags.find(STATIC)) {
+            buildFieldData(field);
+        }
+    }
 }
 
 void ExeBuilder::buildStringSection() {
@@ -3514,6 +2153,35 @@ void ExeBuilder::buildConstantSection() {
 
 void ExeBuilder::addFunctionPointers() {
 
+    for(Int i = 0; i < allClasses.size(); i++) {
+        ClassObject *klass = allClasses.get(i);
+
+        for(Int j = 0; j < klass->fieldCount(); j++) {
+            if(klass->getField(j)->type == FNPTR) {
+                if(functionPointers.indexof(locateMethod, klass->getField(j)->utype->getMethod()) == -1) {
+                    functionPointers.add(klass->getField(j)->utype->getMethod());
+                }
+            }
+        }
+
+        for(Int j = 0; j < klass->getFunctionCount(); j++) {
+            Method *fun = klass->getFunction(j);
+            if(fun->utype->getResolvedType()->type == FNPTR) {
+                if(functionPointers.indexof(locateMethod, fun->utype->getMethod()) == -1) {
+                    functionPointers.add(fun->utype->getMethod());
+                }
+            }
+
+            for(Int x = 0; x < fun->params.size(); x++) {
+                Field *param = fun->params.get(x);
+                if(param->type == FNPTR) {
+                    if(functionPointers.indexof(locateMethod, param->utype->getMethod()) == -1) {
+                        functionPointers.add(param->utype->getMethod());
+                    }
+                }
+            }
+        }
+    }
 
     buf << putInt32(functionPointers.size());
     for(Int i = 0; i < functionPointers.size(); i++) {
@@ -3544,6 +2212,80 @@ void ExeBuilder::putSymbol(Utype *utype, stringstream &buf) {
 
 void ExeBuilder::buildDataSection() {
     dataSec << (char)sdata;
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        putMethodData(allMethods.get(i));
+    }
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        putMethodCode(allMethods.get(i));
+    }
+
+
+    dataSec << '\n' << (char)eos;
+}
+
+void ExeBuilder::putMethodData(Method *fun) {
+    dataSec << (char)data_method;
+    dataSec << putInt32(fun->address);
+    dataSec << putInt32(fun->guid);
+    dataSec << fun->name << ((char)nil);
+    dataSec << fun->fullName << ((char)nil);
+    dataSec << putInt32(Obfuscater::files.indexof(fun->meta.file));
+    dataSec << putInt32(fun->owner->address);
+    dataSec << putInt32(fun->fnType);
+    dataSec << putInt32(fun->data.localVariablesSize);
+    dataSec << putInt32(fun->data.code.size());
+
+    Int accessTypes = 0;
+    for(Int j = 0; j < fun->flags.size(); j++) {
+        accessTypes |= fun->flags.get(j);
+    }
+    dataSec << putInt32(accessTypes);
+    dataSec << putInt32(fun->delegateAddr);
+    dataSec << putInt32(getFpOffset(fun));
+    dataSec << putInt32(getSpOffset(fun));
+    dataSec << putInt32(getSecondarySpOffset(fun));
+    putSymbol(fun->utype, dataSec);
+    dataSec << (fun->utype->isArray() ? 1 : 0);
+    dataSec << putInt32(fun->params.size());
+    for(Int i = 0; i < fun->params.size(); i++) {
+        Field *param = fun->params.get(i);
+        putSymbol(fun->utype, dataSec);
+        dataSec << (param->isArray ? 1 : 0);
+    }
+
+
+    dataSec << putInt32(fun->data.lineTable.size());
+    for(Int i = 0; i < fun->data.lineTable.size(); i++) {
+        dataSec << putInt32(fun->data.lineTable.get(i).start_pc);
+        dataSec << putInt32(fun->data.lineTable.get(i).line);
+    }
+
+    dataSec << putInt32(fun->data.tryCatchTable.size());
+    for(Int i = 0; i < fun->data.tryCatchTable.size(); i++) {
+        TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
+        dataSec << putInt32(tryCatchData.try_start_pc);
+        dataSec << putInt32(tryCatchData.try_end_pc);
+        dataSec << putInt32(tryCatchData.block_start_pc);
+        dataSec << putInt32(tryCatchData.block_end_pc);
+
+        dataSec << putInt32(tryCatchData.catchTable.size());
+        for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
+            CatchData &catchData = tryCatchData.catchTable.get(j);
+            dataSec << putInt32(catchData.handler_pc);
+            dataSec << putInt32(catchData.localFieldAddress);
+            dataSec << putInt32(catchData.classAddress);
+        }
+
+        if(tryCatchData.finallyData != NULL) {
+            dataSec << ((char)1);
+            dataSec << putInt32(tryCatchData.finallyData->start_pc);
+            dataSec << putInt32(tryCatchData.finallyData->end_pc);
+            dataSec << putInt32(tryCatchData.finallyData->exception_object_field_address);
+        } else
+            dataSec << ((char)nil);
+    }
 }
 
 void ExeBuilder::putMethodCode(Method *fun) {

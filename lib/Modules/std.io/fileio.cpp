@@ -2,11 +2,11 @@
 // Created by BraxtonN on 5/25/2018.
 //
 
-#include "../../runtime/symbols/string.h"
 #include "../../../stdimports.h"
 #include "../../runtime/List.h"
 #include "../../runtime/memory/GarbageCollector.h"
 #include "../../runtime/VirtualMachine.h"
+#include "../../util/File.h"
 
 #ifdef WIN32_
 #include  <io.h>
@@ -42,13 +42,12 @@ int FILE_FIFO_PIPE    = 0x20;
 int _FILE_UNKNOWN     = 0x40;
 int FILE_HIDDEN       = 0x80;
 thread_local struct stat result;
-native_string resolve_path(native_string& path) {
-    native_string fullPath;
+void resolve_path(string& path, string &fullPath) {
     GUARD(fileMutex);
 
 #ifdef WIN32_
     char full_path[MAX_PATH];
-    GetFullPathName(path.str().c_str(), MAX_PATH, full_path, NULL);
+    GetFullPathName(path.c_str(), MAX_PATH, full_path, NULL);
 
     for(int i = 0; i < MAX_PATH; i++) {
         if(full_path[i] != '\000')
@@ -61,7 +60,7 @@ native_string resolve_path(native_string& path) {
     
 #ifdef POSIX_
     char full_path[PATH_MAX];
-        if(realpath(path.str().c_str(), full_path) != 0) {
+        if(realpath(path.c_str(), full_path) != 0) {
             for(int i = 0; i < PATH_MAX; i++) {
             if(full_path[i] != '\000')
                 fullPath += full_path[i];
@@ -71,13 +70,12 @@ native_string resolve_path(native_string& path) {
     }
     
 #endif
-    return fullPath;
 }
 
-uInt get_file_attrs(native_string& path) {
+uInt get_file_attrs(string& path) {
     GUARD(fileMutex);
 
-    if(stat(path.str().c_str(), &result)==0)
+    if(stat(path.c_str(), &result)==0)
     {
         uInt mode = result.st_mode, attrs=0;
 
@@ -94,7 +92,7 @@ uInt get_file_attrs(native_string& path) {
         attrs |= FILE_EXISTS;
 
 #ifdef WIN32_
-        long attributes = GetFileAttributes(path.str().c_str());
+        long attributes = GetFileAttributes(path.c_str());
         if (attributes & FILE_ATTRIBUTE_HIDDEN)
             attrs |= FILE_HIDDEN;
 #endif
@@ -114,9 +112,9 @@ const int ACCESS_OK      = 0x00;
  * @param access_flg
  * @return
  */
-int check_access(native_string& path, int access_flg) {
+int check_access(string& path, int access_flg) {
 #ifdef WIN32_
-    return _access( path.str().c_str(), access_flg );
+    return _access( path.c_str(), access_flg );
 #endif
 
 #ifdef POSIX_
@@ -137,14 +135,14 @@ int check_access(native_string& path, int access_flg) {
             return -1;
     }
     
-    return access( path.str().c_str(), access_flg );
+    return access( path.c_str(), access_flg );
 #endif
 }
 
-Int last_update(native_string& path, int tm_request) {
+Int last_update(string& path, int tm_request) {
     GUARD(fileMutex);
 
-    if(stat(path.str().c_str(), &result)==0)
+    if(stat(path.c_str(), &result)==0)
     {
         switch(tm_request) {
             case 0:
@@ -159,32 +157,32 @@ Int last_update(native_string& path, int tm_request) {
     return 0;
 }
 
-Int file_size(native_string &path)
+Int file_size(string &path)
 {
     GUARD(fileMutex);
 
-    int rc = stat(path.str().c_str(), &result);
+    int rc = stat(path.c_str(), &result);
     return rc == 0 ? result.st_size : -1;
 }
 
-void current_directory(native_string &path) {
+void current_directory(string &path) {
     char buff[FILENAME_MAX]; //create string buffer to hold path
     char *res = GetCurrentDir( buff, FILENAME_MAX );
-    path.set(buff);
+    path = (buff);
 }
 
-void create_file(native_string &path)
+void create_file(string &path)
 {
-    std::ofstream o(path.str().c_str());
+    std::ofstream o(path.c_str());
     o.close();
 }
 
-long delete_file(native_string &path)
+long delete_file(string &path)
 {
-    return remove(path.str().c_str());
+    return remove(path.c_str());
 }
 
-void get_file_list(native_string &path, _List<native_string> &files) {
+void get_file_list(string &path, _List<string> &files) {
     GUARD(fileMutex);
 
     DIR *dir;
@@ -195,27 +193,26 @@ void get_file_list(native_string &path, _List<native_string> &files) {
 #ifdef POSIX_
     string div = "/";
 #endif
-    if ((dir = opendir (path.str().c_str())) != NULL) {
+    if ((dir = opendir (path.c_str())) != NULL) {
         /* print all the files and directories within directory */
         while ((ent = readdir (dir)) != NULL) {
             if (!ent->d_name || ent->d_name[0] == '.') continue;
-            native_string file;
-            if(path.len > 0 && !(path.chars[path.len-1] == '\\' || path.chars[path.len-1] == '/'))
-                file = path.str() + div + string(ent->d_name);
+            string file;
+            if(path.size() > 0 && !(path[path.size()-1] == '\\' || path[path.size()-1] == '/'))
+                file = path + div + string(ent->d_name);
             else
-                file = path.str() + string(ent->d_name);
+                file = path + string(ent->d_name);
 
 
-            if(stat(file.str().c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
-                native_string folder(file.str() + div);
+            if(stat(file.c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
+                string folder(file + div);
                 get_file_list(folder, files);
                 continue;
             }
 
             files.__new();
-            files.last().init();
+            files.last();
             files.last() = file;
-            file.free();
         }
         closedir (dir);
     } else {
@@ -223,43 +220,43 @@ void get_file_list(native_string &path, _List<native_string> &files) {
     }
 }
 
-long make_dir(native_string &path)
+long make_dir(string &path)
 {
 #ifdef WIN32_
-    return _mkdir(path.str().c_str());
+    return _mkdir(path.c_str());
 #endif
 
 #ifdef POSIX_
-    return mkdir(path.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    return mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
 }
 
-long delete_dir(native_string &path)
+long delete_dir(string &path)
 {
 #ifdef WIN32_
-    return _rmdir(path.str().c_str());
+    return _rmdir(path.c_str());
 #endif
 
 #ifdef POSIX_
-    return rmdir(path.str().c_str());
+    return rmdir(path.c_str());
 #endif
 }
 
-long rename_file(native_string &path, native_string &newName)
+long rename_file(string &path, string &newName)
 {
-    return rename(path.str().c_str(), newName.str().c_str());
+    return rename(path.c_str(), newName.c_str());
 }
 
-time_t update_time(native_string &path, time_t time)
+time_t update_time(string &path, time_t time)
 {
     GUARD(fileMutex);
 
     struct utimbuf new_times;
 
-    if(stat(path.str().c_str(), &result)==0) {
+    if(stat(path.c_str(), &result)==0) {
         new_times.actime = result.st_atime; /* keep atime unchanged */
         new_times.modtime = time;    /* set mtime to current time */
-        utime(path.str().c_str(), &new_times);
+        utime(path.c_str(), &new_times);
         return time;
     }
     return -1;
@@ -269,11 +266,11 @@ time_t update_time(native_string &path, time_t time)
 
 static const mode_t MS_MODE_MASK = 0x0000ffff;           ///< low word
 
-int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
+int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly)
 {
     GUARD(fileMutex);
 
-    if(stat(path.str().c_str(), &result)==0) {
+    if(stat(path.c_str(), &result)==0) {
         Int mode = result.st_mode;
 
         if (set_mode & ACCESS_READ) {
@@ -292,7 +289,7 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
                 mode ^= _S_IWRITE;
         }
 
-        int res = _chmod(path.str().c_str(), mode);
+        int res = _chmod(path.c_str(), mode);
 
         if (res != 0) {
             res = errno;
@@ -304,9 +301,9 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
     return -1;
 }
 #else
-int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
+int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly)
 {
-    if(stat(path.str().c_str(), &result)==0) {
+    if(stat(path.c_str(), &result)==0) {
         Int mode = result.st_mode;
 
         if (set_mode & ACCESS_READ) {
@@ -336,7 +333,7 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
                 mode &= ~S_IXUSR;
         }
 
-        int result = chmod(path.str().c_str(), mode);
+        int result = chmod(path.c_str(), mode);
 
         if (result != 0) {
             result = errno;
@@ -407,14 +404,12 @@ Int disk_space(long request) {
 #endif
 }
 
-void read_file(native_string &path, native_string &outStr) {
+void read_file(string &path, string &outStr) {
     GUARD(fileMutex);
     File::buffer buf;
-    File::read_alltext(path.str().c_str(), buf);
+    File::read_alltext(path.c_str(), buf);
 
-    if(outStr.injectBuff(buf)) {
-        throw Exception(vm.OutOfMemoryExcept, "out of memory");
-    }
+    outStr = buf.to_str();
     buf.end();
 }
 

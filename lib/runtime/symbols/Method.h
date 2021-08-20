@@ -116,31 +116,28 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* returnAddress, int32_t pc, int32_t sp,
+    Frame(Method* returnAddress, Cache pc, int32_t sp,
           int32_t fp, bool nativeCall)
     {
         this->returnAddress=returnAddress ? returnAddress->address : 0;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->isNative= nativeCall ? 1 : 0;
     }
 
-    void init(Method* returnAddress, int32_t pc, int32_t sp,
-              int32_t fp, bool nativeCall)
+    void init(Method* returnAddress, Cache pc, int32_t sp,
+              int32_t fp)
     {
         this->returnAddress=returnAddress ? returnAddress->address : 0;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->isNative= nativeCall ? 1 : 0;
     }
 
     int32_t returnAddress;
-    int32_t pc;
+    Cache pc;
     int32_t sp;
     int32_t fp;
-    unsigned short isNative: 1;
 };
 
 #pragma optimize( "", off )

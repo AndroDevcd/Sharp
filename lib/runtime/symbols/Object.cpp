@@ -9,6 +9,7 @@
 #include "../Exe.h"
 #include "../Manifest.h"
 #include "../VirtualMachine.h"
+#include "../scheduler/thread_controller.h"
 recursive_mutex refLock;
 
 void Object::castObject(int64_t classPtr) {
@@ -30,7 +31,7 @@ void Object::castObject(int64_t classPtr) {
     if(!IS_CLASS(this->object->info)) {
 
         stringstream nonclass;
-        nonclass << "attempt to perform invalid cast to [" << type->name.str() << "] on non-class object ";
+        nonclass << "attempt to perform invalid cast to [" << type->name << "] on non-class object ";
 
         throw Exception(vm.ClassCastExcept, nonclass.str());
     }
@@ -52,8 +53,8 @@ void Object::castObject(int64_t classPtr) {
         }
 
         stringstream ss;
-        ss << "illegal cast of class '" << originalClass->name.str() << "' to '";
-        ss << type->name.str() << "'";
+        ss << "illegal cast of class '" << originalClass->name << "' to '";
+        ss << type->name << "'";
         throw Exception(vm.ClassCastExcept, ss.str());
     }
 }
@@ -66,7 +67,6 @@ void Object::wait() {
     long retryCount = 0;
     Thread *current = thread_self;
 
-    stayAsleep:
     while (object->monitor == 0)
     {
         if (retryCount++ == sMaxRetries)
@@ -83,7 +83,7 @@ void Object::wait() {
           || hasSignal(current->signal, tsig_kill)) {
             return;
         } else if(hasSignal(current->signal, tsig_suspend)) {
-            Thread::suspendSelf();
+            suspend_self();
         } else if(vm.state == VM_SHUTTING_DOWN) {
             current->state = THREAD_KILLED;
             sendSignal(current->signal, tsig_kill, 1);
@@ -121,7 +121,7 @@ void Object::notify() {
                   || hasSignal(current->signal, tsig_kill)) {
             return;
         } else if(hasSignal(current->signal, tsig_suspend)) {
-            Thread::suspendSelf();
+            suspend_self();
         } else if(vm.state == VM_SHUTTING_DOWN) {
             current->state = THREAD_KILLED;
             sendSignal(current->signal, tsig_kill, 1);
@@ -153,7 +153,7 @@ void Object::notify(uInt mills) {
                   || hasSignal(current->signal, tsig_kill)) {
             return;
         } else if(hasSignal(current->signal, tsig_suspend)) {
-            Thread::suspendSelf();
+            suspend_self();
         }
         else if(vm.state == VM_SHUTTING_DOWN) {
             current->state = THREAD_KILLED;
@@ -175,7 +175,7 @@ void SharpObject::print() {
     cout << "monitor " << monitor << endl;
     cout << "generation " << GENERATION(info) << endl;
     ClassObject *k = &vm.classes[CLASS(info)];
-    if(IS_CLASS(info)) cout << "class: " << k->name.str() << endl;
+    if(IS_CLASS(info)) cout << "class: " << k->name << endl;
 
     if(TYPE(info)==_stype_var) {
         if(ntype == _INT8) {

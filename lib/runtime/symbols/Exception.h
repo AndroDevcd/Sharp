@@ -17,16 +17,14 @@ public:
     Throwable()
             :
             handlingClass(NULL),
-            native(false)
+            native(false),
+            message(""),
+            stackTrace("")
     {
-        message.init();
-        this->stackTrace.init();
     }
 
     void init() {
         handlingClass =NULL;
-        message.init();
-        this->stackTrace.init();
         native = false;
     }
 
@@ -37,20 +35,18 @@ public:
     Throwable(ClassObject* throwable, const std::string &message, bool native)
             :
             handlingClass(throwable),
-            native(native)
+            native(native),
+            message(""),
+            stackTrace("")
     {
-        this->message.init();
-        this->stackTrace.init();
         this->message=message;
     }
 
     void init(ClassObject* throwable, const char* message, bool native) {
         this->handlingClass = throwable;
         this->native = native;
-        this->message.init();
-        this->stackTrace.init();
 
-        this->message.set(message);
+        this->message = (message);
     }
 
     void operator=(Throwable& t) {
@@ -64,7 +60,7 @@ public:
 
     bool native;
     ClassObject* handlingClass;
-    native_string message, stackTrace;
+    string message, stackTrace;
 };
 
 class Exception : public std::runtime_error {

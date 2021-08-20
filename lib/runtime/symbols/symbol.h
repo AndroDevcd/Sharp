@@ -21,22 +21,22 @@ public:
     void init() {
         address = invalidAddr;
         guid = invalidAddr;
-        name.init();
-        fullName.init();
         owner = NULL;
         flags = 0;
         type = UNDEFINED;
+        new (&name)string();
+        new (&fullName)string();
     }
 
     void free() {
-        name.free();
-        fullName.free();
+        name.clear();
+        fullName.clear();
     }
 
     int32_t address;
     int32_t guid;
-    String name;
-    String fullName;
+    string name;
+    string fullName;
     ClassObject *owner;
     uint32_t flags;
     DataType type;

@@ -31,8 +31,8 @@ public:
             init();
     }
 
-    void setMax(unsigned long max) {
-        this->max = max;
+    void setMax(unsigned long limit) {
+        this->max = limit;
     }
 
     void push_back(T& data) {
@@ -103,6 +103,40 @@ public:
                 result[i] = _Data[i];
             for(Int i = _X; i < newLen; i++)
                 result[i] = _Data[i + 1];
+
+            free();
+            len=newLen;
+            _Data=result;
+        }
+
+
+    }
+
+    /*
+     * Programmer must be responsible
+     * for freeing that data himself
+     */
+    void removeUntil(uInt _X) {
+        if(_X>=len || len<=0){
+            stringstream ss;
+            ss << "index out of bounds list::remove() _X: " << _X
+               << " length: " << len << endl;
+            throw Exception(ss.str());
+        }
+
+        if(len==1){
+            free();
+        }
+        else if(len==2) {
+            if(_X==0) {
+                _Data[0]=_Data[1];
+            }
+            __shrink();
+        } else {
+            T* result = (T*)__malloc(sizeof(T)*(len-(_X + 1)));
+            Int newLen=len-(_X + 1);
+            for(Int i = 0; i < newLen; i++)
+                result[i] = _Data[_X++];
 
             free();
             len=newLen;

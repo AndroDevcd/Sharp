@@ -207,7 +207,7 @@ void pushObj(object value) {
 
 void call(int32_t address) {
     try {
-        executeMethod(address, thread_self, true)(thread_self);
+        executeMethod(address, thread_self, true);
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
     }

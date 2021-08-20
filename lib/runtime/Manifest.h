@@ -6,10 +6,8 @@
 #define SHARP_MANIFEST_H
 
 #include "../../stdimports.h"
-#include "symbols/string.h"
 #include "List.h"
 
-using namespace runtime;
 
 /**
  * Application info
@@ -17,13 +15,14 @@ using namespace runtime;
 struct Manifest {
 public:
     Manifest()
+    :
+        application(),
+        version()
     {
         init();
     }
 
     void init() {
-        application.init();
-        version.init();
         debug = false;
         entryMethod = 0;
         methods = 0;
@@ -38,8 +37,8 @@ public:
     }
 
     Int functionPointers;
-    runtime::String application;
-    runtime::String version;
+    string application;
+    string version;
     bool debug;
     Int entryMethod;
     Int methods, classes;
@@ -52,17 +51,16 @@ public:
 };
 
 struct SourceFile {
-    runtime::String name;
-    _List<runtime::String> lines;
+    string name;
+    _List<string> lines;
 
     void init() {
-        name.init();
         lines.init();
     }
 
     void free() {
         for(uInt i = 0; i < lines.size(); i++)
-            lines.get(i).free();
+            lines.get(i).clear();
         lines.free();
     }
 };
@@ -84,7 +82,7 @@ public:
 
     _List<SourceFile> files;
 
-    runtime::String getLine(Int line, Int sourceFile);
+    string& getLine(Int line, Int sourceFile);
     bool hasLine(Int line, Int sourceFile);
     void free();
 };

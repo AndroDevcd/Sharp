@@ -12,9 +12,10 @@
 #include "../Exe.h"
 #include "../Manifest.h"
 #include "../VirtualMachine.h"
-#include "../scheduler.h"
+#include "../scheduler/scheduler.h"
 #include <thread>
 #include <algorithm>
+#include "../scheduler/thread_controller.h"
 
 uInt hbytes = 0;
 GarbageCollector gc;
@@ -136,11 +137,10 @@ void GarbageCollector::shutdown() {
 }
 
 void GarbageCollector::startup() {
-    auto* gcThread=(Thread*)malloc(
-            sizeof(Thread)*1);
-    gcThread->CreateDaemon("gc");
-    Thread::startDaemon(
-            GarbageCollector::threadStart, gcThread);
+    start_daemon_thread(
+            GarbageCollector::threadStart,
+            create_gc_thread()
+    );
 }
 
 
@@ -151,7 +151,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     if( policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT ) {
         collectGarbage(true);
 
-        Thread::suspendAllThreads(true);
+        suspend_all_threads(true);
         /**
          * In order to keep memory utilization low we must shutdown
          * the entire system to perform a colection, this will take
@@ -159,7 +159,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
          */
         collectGarbage();
         if(tself->state != THREAD_KILLED)
-           Thread::resumeAllThreads(true);
+            resume_all_threads(true);
     }
 
     updateMemoryThreshold();
@@ -254,7 +254,7 @@ void GarbageCollector::run() {
     for(;;) {
         sig:
         if(hasSignal(tself->signal, tsig_suspend))
-            Thread::suspendSelf();
+            suspend_self();
         if(tself->state == THREAD_KILLED || hasSignal(tself->signal, tsig_kill)) {
             return;
         }
@@ -323,7 +323,7 @@ GarbageCollector::threadStart(void *pVoid) {
     thread_self->state = THREAD_RUNNING;
     gc.tself = thread_self;
     gc.state = RUNNING;
-    Thread::setPriority(thread_self, THREAD_PRIORITY_LOW);
+    set_thread_priority(thread_self, THREAD_PRIORITY_LOW);
 
     try {
         gc.run();
@@ -335,7 +335,7 @@ GarbageCollector::threadStart(void *pVoid) {
     /*
      * Check for uncaught exception in thread before exit
      */
-    thread_self->exit();
+    shutdown_thread(thread_self);
 #ifdef WIN32_
     return 0;
 #endif
@@ -588,14 +588,14 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
     return nullptr;
 }
 
-void GarbageCollector::createStringArray(Object *object, runtime::String& str) {
+void GarbageCollector::createStringArray(Object *object, string& str) {
     if(object != nullptr) {
-        *object = newObject(str.len, _INT8);
+        *object = newObject(str.length(), _INT8);
 
         if(object->object != NULL) {
             double *array = object->object->HEAD;
-            for (unsigned long i = 0; i < str.len; i++) {
-                *array = str.chars[i];
+            for (unsigned long i = 0; i < str.length(); i++) {
+                *array = str[i];
                 array++;
             }
         }
@@ -661,7 +661,7 @@ void GarbageCollector::kill() {
     mutex.lock();
     if(tself->state == THREAD_RUNNING) {
         sendSignal(tself->signal, tsig_kill, 1);
-        Thread::waitForThreadExit(tself);
+        wait_for_thread_exit(tself);
     }
 
     mutex.unlock();
@@ -739,7 +739,7 @@ void GarbageCollector::printClassRefStatus() {
 
     cout << "\n\n Class gc ref count:\n";
     for(Int i = 0; i < vm.manifest.classes; i++) {
-        cout << vm.classes[i].fullName.str() << " : " << vm.classes[i].gcRefs << endl;
+        cout << vm.classes[i].fullName << " : " << vm.classes[i].gcRefs << endl;
     }
     cout << "\n\n";
     gc.mutex.unlock();
@@ -761,42 +761,29 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         } else mut = node->data;
 
         Int past = NANO_TOMILL(Clock::realTimeInNSecs());
-        thread->this_fiber->locking =true;
-
         if(mut->fiberid == thread->this_fiber->id) {
-            thread->this_fiber->locking =false;
             mut->threadid=thread->id;
             mut->lockedCount++;
             lockCheckMutex.unlock();
             return true;
         }
-        else if(mut->fiberid != -1 && mut->threadid == thread->id) {
-            fiber *fib = fiber::getFiber(mut->fiberid);
 
-            if(fib && !fib->finished && fiber::isFiberRunnble(fib, thread)
-                && thread->try_context_switch(false)) {
-                thread->enableContextSwitch(true);
-                thread->next_fiber = fib;
-                lockCheckMutex.unlock();
-                return false;
-            }
-        }
-
+        thread->this_fiber->acquiringMut = mut;
         lockObject:
         int count = 0, limit = 100000;
         while(mut->fiberid != -1) {
             if(hasSignal(thread->signal, tsig_suspend))
-                Thread::suspendSelf();
+                suspend_self();
             else if(thread->contextSwitching || (hasSignal(thread->signal, tsig_context_switch)
                 && !(hasSignal(thread->signal, tsig_except))
-                && thread->try_context_switch(false))) {
+                && try_context_switch(thread, false))) {
                 return false;
             }
             else if(count++ >= limit) {
                 __usleep(1);
                 count = 0;
             } else if(hasSignal(thread->signal, tsig_kill)) {
-                thread->enableContextSwitch(true);
+                enable_context_switch(thread, true);
                 return false;
             }
         }
@@ -804,7 +791,7 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
 
         lockCheckMutex.lock();
         if(mut->fiberid == -1) {
-            thread->this_fiber->locking =false;
+            thread->this_fiber->acquiringMut = NULL;
             mut->fiberid = thread->this_fiber->id;
             mut->threadid = thread->id;
             mut->lockedCount++;
@@ -904,7 +891,7 @@ void GarbageCollector::sedate() {
     mutex.lock();
     if(gc.state != SLEEPING && tself->state == THREAD_RUNNING) {
         gc.state = SLEEPING;
-        Thread::suspendAndWait(Thread::getThread(gc_threadid));
+        suspend_and_wait(get_thread(gc_threadid), true);
     }
     mutex.unlock();
 }
@@ -913,7 +900,7 @@ void GarbageCollector::wake() {
     mutex.lock();
     if(gc.state == SLEEPING) {
         gc.state = RUNNING;
-        Thread::waitForThread(Thread::getThread(gc_threadid));
+        unsuspend_and_wait(get_thread(gc_threadid), true);
     }
     mutex.unlock();
 }

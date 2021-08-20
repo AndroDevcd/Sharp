@@ -11,8 +11,6 @@
 
 void Throwable::drop() {
     this->handlingClass = NULL;
-    this->message.free();
-    stackTrace.free();
 }
 
 Exception::Exception(const char *msg, bool native)
@@ -58,7 +56,7 @@ void Exception::pushException() {
                 GUARD(thread->mutex);
                 thread->this_fiber->exceptionObject = vm.outOfMemoryExcept;
 
-                native_string str;
+                string str;
                 vm.fillStackTrace(str);
                 Object *stackTrace = vm.resolveField("stack_trace",
                                                      vm.outOfMemoryExcept.object); // seg faile error please fig stack_trace is now a string not a int8[]
@@ -66,11 +64,11 @@ void Exception::pushException() {
                     *stackTrace = gc.newObjectUnsafe(vm.StringClass);
                     Object *data = vm.resolveField("data", stackTrace->object);
                     if (data != NULL) {
-                        *data = gc.newObjectUnsafe(str.len, _INT8);
+                        *data = gc.newObjectUnsafe(str.size(), _INT8);
 
                         if (data->object != NULL) {
-                            for (Int i = 0; i < str.len; i++) {
-                                data->object->HEAD[i] = str.chars[i];
+                            for (Int i = 0; i < str.size(); i++) {
+                                data->object->HEAD[i] = str[i];
                             }
                         }
                     }

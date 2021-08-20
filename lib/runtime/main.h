@@ -28,21 +28,6 @@ struct options {
 
     bool debugMode = false;
 
-    /**
-     * JIT Compiler enabled by default to boost Sharp
-     * speeds of 25-50%+ faster than the original 
-     * program speed
-     */
-    bool jit = true;
-
-    /**
-     * Slow boot allows you to not care about the initial startup time
-     * gained by not compiling all the user code. This option will force
-     * the JIT to imediatley compile all functions at startup-time to allow
-     * for faster processing at runtime once completed.
-     */
-    bool slowBoot = false;
-
 #ifdef SHARP_PROF_
     int sortBy = profilerSort::tm;
 #endif

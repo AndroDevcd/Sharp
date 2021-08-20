@@ -9,7 +9,7 @@ void Meta::free() {
     files.free();
 }
 
-String Meta::getLine(Int line, Int sourceFile) {
+string& Meta::getLine(Int line, Int sourceFile) {
     return files.get(sourceFile).lines.get(line);
 }
 

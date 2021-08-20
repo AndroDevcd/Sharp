@@ -5,7 +5,6 @@
 #include <cstdio>
 #include "../../stdimports.h"
 #include "../util/File.h"
-#include "symbols/string.h"
 #include "List.h"
 #include "main.h"
 #include "symbols/Object.h"
@@ -15,7 +14,9 @@
 #include "register.h"
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
-#include "scheduler.h"
+#include "scheduler/scheduler.h"
+#include "scheduler/thread_controller.h"
+#include "scheduler/idle_scheduler.h"
 
 options c_options;
 int startApplication(string &e, std::list<string> &appArgs);
@@ -48,8 +49,6 @@ void help() {
     cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
-    cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
-    cout <<               "    -slowboot              compile entire codebase at startup." << endl;
     cout <<               "    -h -?                 display this help message." << endl;
 }
 
@@ -85,12 +84,6 @@ int runtimeStart(int argc, const char* argv[])
         }
         else if(opt("-showversion")){
             version();
-        }
-        else if(opt("-nojit")){
-            c_options.jit = false;
-        }
-        else if(opt("-slowboot")){
-            c_options.slowBoot = true;
         }
         else if(opt("-debug")) {
             c_options.debugMode = true;
@@ -130,7 +123,7 @@ int runtimeStart(int argc, const char* argv[])
                 size_t sz = getMemBytes(argv[i+1], argv[i]);
                 i++;
 
-                if(Thread::validStackSize(sz)) {
+                if(valid_stack_size(sz)) {
                     threadStackSize = sz;
                 } else {
                     stringstream ss;
@@ -148,7 +141,7 @@ int runtimeStart(int argc, const char* argv[])
                 size_t stackSize = memoryLimit / sizeof(StackElement);
                 i++;
 
-                if(Thread::validInternalStackSize(memoryLimit)) {
+                if(valid_internal_stack_size(memoryLimit)) {
                     internalStackSize = stackSize;
                 } else {
                     stringstream ss;
@@ -219,7 +212,6 @@ uInt getMemBytes(const char *str, string option) {
 
 int startApplication(string &exe, std::list<string>& appArgs) {
     int result;
-    Thread *main = NULL;
     try {
         if ((result = CreateVirtualMachine(exe)) != 0) {
             fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
@@ -237,12 +229,13 @@ int startApplication(string &exe, std::list<string>& appArgs) {
         unsigned int updatedBytes = (internalStackSize * sizeof(StackElement)) / KB_TO_BYTES(1);
         if(internalStackUpdated) {
             fprintf(stdout, "Internal stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
-                    oldSize, vm.manifest.application.str().c_str(), updatedBytes);
+                    oldSize, vm.manifest.application.c_str(), updatedBytes);
         }
     }
 
     pushArgumentsToStack(appArgs);
-    Thread::start(main_threadid, 0);
+    start_thread(main_threadid, 0);
+    start_idle_scheduler();
     run_scheduler();
 
     result=vm.exitVal;
@@ -254,8 +247,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 }
 
 void pushArgumentsToStack(std::list<string>& appArgs) {
-    GUARD(Thread::threadsListMutex)
-    Thread *main = Thread::threads.at(main_threadid);
+    Thread *main = get_thread(main_threadid);
     pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs, main);
 }
 
@@ -266,7 +258,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *ma
 
     stringstream ss;
     ss << vm.manifest.target;
-    native_string str(ss.str());
+    string str = ss.str();
 
     *object = gc.newObjectArray(size);
 
@@ -278,7 +270,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *ma
     str.set("win");
 #endif
 #ifdef POSIX_
-    str.set("posix");
+    str = ("posix");
 #endif
     gc.createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
     SharpObject *mainThread = gc.newObject(vm.ThreadClass);
@@ -286,11 +278,11 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *ma
     main->currentThread = mainThread;
 
     vm.setFieldVar("native_handle", mainThread, 0, 0);
-    vm.setFieldClass("name", mainThread, vm.StringClass);
+    vm.initializeField("name", mainThread, vm.StringClass);
 
     Object* field;
     if((field = vm.resolveField("name", mainThread)) != NULL && field->object) {
-        str.set("main");
+        str = ("main");
         gc.createStringArray(vm.resolveField("data", field->object), str);
     }
 
@@ -301,8 +293,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *ma
      * Assign program args to be passed to main
      */
     for(unsigned int i = 0; i < appArgs.size(); i++) {
-        runtime::String argStr(*std::next(appArgs.begin(), i));
-        gc.createStringArray(&object->object->node[iter++],  argStr);
+        gc.createStringArray(&object->object->node[iter++],  *std::next(appArgs.begin(), i));
     }
 
     appArgs.clear();

@@ -11,8 +11,8 @@ class Method;
 class ExeBuilder {
 public:
     ExeBuilder(Compiler *compiler)
-    :
-        compiler(compiler)
+            :
+            compiler(compiler)
     {
         allMethods.init();
         allClasses.init();
@@ -36,27 +36,6 @@ private:
     stringstream dataSec;
 
     void createDumpFile();
-    void createNativeSourceCode();
-    void createNativeHeaderFile();
-    void createNativeSourceFile();
-    void createSharpMappingSourceFile();
-    void appendSharpMappingSourceFile(ClassObject*, stringstream&);
-    void appendClassHeaderFunctions(ClassObject*, stringstream&);
-    void createProcAddrFunc(stringstream&);
-    void appendProcAddrFunctions(ClassObject*, stringstream&, bool&);
-    void createMainFunc(stringstream&);
-    void appendMainFunctions(ClassObject*, stringstream&);
-    void createCallFunc(stringstream&);
-    void appendCallFunctions(ClassObject*, stringstream&);
-    void createClassFunctions();
-    void createConstants();
-    void addFunctionPointerMetaData();
-    void addClassMetaData();
-    void addFunctionMetaData();
-    void addFileMetaData();
-    void addEnvSetupFunctions();
-    void putMethodData(Method *fun, stringstream &fileData);
-    void deleteTempFiles();
     void buildExe();
     void dumpClassInfo(ClassObject*);
     void addClass(ClassObject*);
@@ -70,21 +49,45 @@ private:
 
     void buildSymbolSection();
 
+    void buildFieldData(ClassObject *pObject);
+    void buildMethodData(ClassObject *pObject);
+    void buildInterfaceData(ClassObject *pObject);
+
     void buildStringSection();
     void buildConstantSection();
     void addFunctionPointers();
+    void buildMetaDataSection();
+    void createNativeHeaderFile();
+    int32_t getSecondarySpOffset(Method *fun);
+    void appendClassHeaderFunctions(ClassObject* klass, stringstream &ss);
+    void appendProcAddrFunctions(ClassObject* klass, stringstream &ss, bool &firstFunc);
+    void createProcAddrFunc(stringstream &ss);
+    void appendCallFunctions(ClassObject* klass, stringstream& ss);
+    void createCallFunc(stringstream &ss);
+    void appendMainFunctions(ClassObject* klass, stringstream& ss);
+    void createMainFunc(stringstream &ss);
+    void createNativeSourceFile();
+    void appendSharpMappingSourceFile(ClassObject* klass, stringstream& ss);
+    void createSharpMappingSourceFile();
+    void createNativeSourceCode();
+    void buildFieldData(Field *field);
+    void putSymbol(Utype *utype, stringstream &buf);
 
     void buildDataSection();
-    void putSymbol(Utype *utype, stringstream &buf);
+    void addSymbol(Utype *utype);
+    void getSymbol(Utype *utype);
+
+    void putMethodData(Method *fun);
 
     void putMethodCode(Method *fun);
 
-    void buildMetaDataSection();
+    void buildMetaSection();
 
     int32_t getFpOffset(Method *fun);
 
     int32_t getSpOffset(Method *fun);
-    int32_t getSecondarySpOffset(Method *fun);
+
+    void putMethodParams(Method *fun);
 };
 
 

@@ -15,18 +15,18 @@
 #include "main.h"
 #include "VirtualMachine.h"
 
-runtime::String tmpStr;
+string tmpStr;
 string exeErrorMessage;
 uInt currentPos = 0;
 
 bool validateAuthenticity(File::buffer& exe);
 
-native_string& getString(File::buffer& exe, Int length = -1);
+string& getString(File::buffer& exe, Int length = -1);
 Int parseInt(File::buffer& exe);
 int32_t geti32(File::buffer& exe);
 Symbol* getSymbol(File::buffer& buffer);
 
-void parseSourceFile(SourceFile &sourceFile, native_string &data);
+void parseSourceFile(SourceFile &sourceFile, string &data);
 
 int Process_Exe(std::string &exe)
 {
@@ -135,17 +135,17 @@ int Process_Exe(std::string &exe)
     uInt sourceFilesCreated=0;
     uInt itemsProcessed=0;
     uInt functionPointersProcessed=0;
+    uInt functionPtrIndex=0;
 
+    vm.manifest.functionPointers = geti32(buffer);
     vm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);
-    vm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods);
-    vm.strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm.manifest.strings)); // TODO: create "" string from compiler as the 0'th element
+    vm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods + vm.manifest.functionPointers);
+    vm.strings = new string[vm.manifest.strings]; // TODO: create "" string from compiler as the 0'th element
     vm.constants = (double*)malloc(sizeof(double)*(vm.manifest.constants));
     vm.staticHeap = (Object*)calloc(vm.manifest.classes, sizeof(Object));
     vm.metaData.init();
     vm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*nativeSymbolCount);
-
-    vm.manifest.functionPointers = geti32(buffer);
-    vm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*vm.manifest.functionPointers);
+    functionPtrIndex = vm.manifest.methods;
 
     for(Int i = 0; i < nativeSymbolCount; i++) {
         vm.nativeSymbols[i].init();
@@ -173,7 +173,8 @@ int Process_Exe(std::string &exe)
                     return CORRUPT_FILE;
                 }
 
-                Method &method = vm.funcPtrSymbols[functionPointersProcessed++];
+                functionPointersProcessed++;
+                Method &method = vm.methods[functionPtrIndex++];
                 method.init();
                 method.fnType = fn_ptr;
 
@@ -259,9 +260,6 @@ int Process_Exe(std::string &exe)
 
                             if(field->utype == NULL)
                                 return CORRUPT_FILE;
-
-                            if(field->threadLocal && field->type <= VAR && !field->isArray)
-                                vm.tlsInts.add(KeyPair<Int, int>(field->address, field->type < FNPTR ? field->type : NTYPE_VAR));
                         } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
                         else
                             break;
@@ -358,7 +356,6 @@ int Process_Exe(std::string &exe)
                     return CORRUPT_FILE;
                 }
 
-                vm.strings[itemsProcessed].init();
                 vm.strings[itemsProcessed++] = getString(buffer, geti32(buffer));
                 break;
             }
@@ -404,7 +401,7 @@ int Process_Exe(std::string &exe)
                     return CORRUPT_FILE;
                 }
 
-                vm.constants[itemsProcessed++] = std::strtod(getString(buffer).str().c_str(), NULL);
+                vm.constants[itemsProcessed++] = std::strtod(getString(buffer).c_str(), NULL);
                 break;
             }
 
@@ -590,7 +587,7 @@ int Process_Exe(std::string &exe)
                         method->bytecode[i] = geti32(buffer);
                     }
                 } else if(method->fnType != fn_delegate) {
-                    exeErrorMessage = "method `" + method->fullName.str() + "` is missing bytecode";
+                    exeErrorMessage = "method `" + method->fullName + "` is missing bytecode";
                     return CORRUPT_FILE;
                 }
                 break;
@@ -630,7 +627,7 @@ int Process_Exe(std::string &exe)
                 sourceFile.name = getString(buffer);
 
                 if(vm.manifest.debug) {
-                    String sourceFileData(getString(buffer, geti32(buffer)));
+                    string sourceFileData(getString(buffer, geti32(buffer)));
                     parseSourceFile(sourceFile, sourceFileData);
                 }
                 break;
@@ -652,23 +649,20 @@ int Process_Exe(std::string &exe)
     return 0;
 }
 
-void parseSourceFile(SourceFile &sourceFile, native_string &data) {
-    native_string line;
-    for(unsigned int i = 0; i < data.len; i++) {
-        if(data.chars[i] == '\n')
+void parseSourceFile(SourceFile &sourceFile, string &data) {
+    string line;
+    for(unsigned int i = 0; i < data.size(); i++) {
+        if(data[i] == '\n')
         {
-            sourceFile.lines.__new().init();
+            new (&sourceFile.lines.__new()) string();
             sourceFile.lines.last() = line;
-
-            line.free();
         } else {
-            line += data.chars[i];
+            line += data[i];
         }
     }
 
-    sourceFile.lines.__new().init();
+    new (&sourceFile.lines.__new()) string();
     sourceFile.lines.last() = line;
-    line.free();
 }
 
 Symbol* getSymbol(File::buffer& buffer) {
@@ -680,7 +674,7 @@ Symbol* getSymbol(File::buffer& buffer) {
     } else if(type == CLASS) {
         return &vm.classes[geti32(buffer)];
     } else if(type == FNPTR) {
-        return &vm.funcPtrSymbols[geti32(buffer)];
+        return &vm.methods[vm.manifest.methods + geti32(buffer)];
     } else {
         exeErrorMessage = "invalid type found in symbol table";
         return NULL;
@@ -696,8 +690,9 @@ int32_t geti32(File::buffer& exe) {
     return i32;
 }
 
-native_string& getString(File::buffer& exe, Int length) {
-    tmpStr.free();
+string& getString(File::buffer& exe, Int length) {
+    tmpStr.clear();
+
     if(length != -1) {
         for (; length > 0; length--) {
             tmpStr += exe.at(currentPos);
@@ -716,12 +711,12 @@ Int parseInt(File::buffer& exe) {
 #if _ARCH_BITS == 32
     return strtol(getString(exe).c_str(), NULL, 0);
 #else
-    return strtoll(getString(exe).str().c_str(), NULL, 0);
+    return strtoll(getString(exe).c_str(), NULL, 0);
 #endif
 }
 
-native_string& string_forward(File::buffer& str, size_t begin, size_t end) {
-    tmpStr.free();
+string& string_forward(File::buffer& str, size_t begin, size_t end) {
+    tmpStr.clear();
     if(begin >= str.size() || end >= str.size())
         throw std::invalid_argument("unexpected end of stream");
 

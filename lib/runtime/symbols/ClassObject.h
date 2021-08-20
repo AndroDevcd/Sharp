@@ -31,11 +31,10 @@ public:
     }
 
     void init() {
+        Symbol::init();
         Symbol::flags = 0;
         Symbol::guid = 0;
         Symbol::address = 0;
-        Symbol::name.init();
-        Symbol::fullName.init();
         Symbol::type = UNDEFINED;
         Symbol::owner = NULL;
         fields = NULL;

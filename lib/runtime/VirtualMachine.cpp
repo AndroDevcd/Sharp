@@ -23,8 +23,12 @@
 #include "main.h"
 #include "../Modules/std.io/memory.h"
 #include "snb/snb.h"
-#include "scheduler.h"
+#include "scheduler/scheduler.h"
 #include "../Modules/std.io/serialization.h"
+#include "scheduler/thread_controller.h"
+#include "scheduler/thread_exception_controller.h"
+#include "scheduler/task_controller.h"
+#include "scheduler/idle_scheduler.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -41,8 +45,9 @@ int CreateVirtualMachine(string &exe)
     if((internalStackSize - vm.manifest.threadLocals) <= 1)
         return 2;
 
-    Thread::Startup();
+    create_main_thread();
     GarbageCollector::startup();
+    create_idle_scheduler();
 
 #ifdef BUILD_JIT
     Jit::startup();
@@ -78,7 +83,7 @@ int CreateVirtualMachine(string &exe)
 
     vm.outOfMemoryExcept.object = NULL;
     vm.outOfMemoryExcept = gc.newObject(vm.OutOfMemoryExcept);
-    native_string message("out of memory");
+    std::string message = ("out of memory");
     gc.createStringArray(
             vm.resolveField("message", vm.outOfMemoryExcept.object),
             message);
@@ -125,7 +130,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
             search:
             for (Int i = klass->methodCount - 1; i >= 0; i--) {
                 if (klass->methods[i]->delegateAddress == address) {
-                    executeMethod(klass->methods[i]->address, thread, inJit)(thread);
+                    executeMethod(klass->methods[i]->address, thread, inJit);
                     return;
                 }
             }
@@ -165,10 +170,7 @@ bool returnMethod(Thread* thread) {
     thread->tprof->profile();
 #endif
 
-    /**
-     * We need to return back to the JIT context
-     */
-    return frameInfo->isNative;
+    return false;
 }
 
 CXX11_INLINE
@@ -180,8 +182,8 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
         thread->this_fiber->growFrame();
 
     thread->this_fiber->callStack[++thread->this_fiber->calls]
-            .init(thread->this_fiber->current, PC(thread), (thread->this_fiber->sp-method->spOffset)-thread->this_fiber->dataStack,
-                    thread->this_fiber->fp-thread->this_fiber->dataStack, inJit);
+            .init(thread->this_fiber->current, thread->this_fiber->pc, (thread->this_fiber->sp-method->spOffset)-thread->this_fiber->dataStack,
+                    thread->this_fiber->fp-thread->this_fiber->dataStack);
 
     thread->this_fiber->current = method;
     thread->this_fiber->fp = thread->this_fiber->sp - method->fpOffset;
@@ -189,34 +191,20 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     thread->this_fiber->pc = 0;
 }
 
-SharpMethod shiftToNextMethod(Thread *thread) {
-    if(!thread->stackRebuild) return nullptr;
-
-    Int calls = thread->this_fiber->calls;
-    fiber* fib = thread->this_fiber;
-
-    if(thread->relativeFrame == calls) {
-        thread->stackRebuild = false;
-        return vm.methodRefs[fib->current->address];
-    }
-
-    Frame &frame = thread->this_fiber->callStack[++thread->relativeFrame];
-    return vm.methodRefs[frame.returnAddress];
-}
-
-SharpMethod executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
+void executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {
     if(address >= vm.manifest.methods || address < 0){
         stringstream ss;
         ss << "invalid call to method with address of " << address;
         throw Exception(ss.str());
     }
 
-    Method *method = vm.methods+address;
     setupMethodStack(address, thread, inNativeEnv);
 #ifdef SHARP_PROF_
     thread->tprof->hit(method);
 #endif
-    return vm.methodRefs[address];
+    if(inNativeEnv || thread->this_fiber->calls==0) {
+        thread->exec();
+    }
 }
 
 void VirtualMachine::destroy() {
@@ -228,12 +216,12 @@ void VirtualMachine::destroy() {
     } else
         exitVal = 1;
 
-    Thread::shutdown();
+    kill_all_threads();
     GarbageCollector::shutdown();
 
     for(Int i = 0; i < vm.libs.size(); i++) {
         free_lib(vm.libs.get(i).handle);
-        vm.libs.get(i).name.free();
+        vm.libs.get(i).name.clear();
     }
 
 #ifdef WIN32_
@@ -264,22 +252,22 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     bool initialSetup = true;
 
     fptr jitFn;
-    Thread::setPriority(thread, thread->priority);
+    set_thread_priority(thread, thread->priority);
 
     retry:
     try {
         if(initialSetup) {
             initialSetup = false;
-            thread->setup();
+            setup_thread(thread);
             thread->state = THREAD_RUNNING;
-            thread->this_fiber->setAttachedThread(thread);
-            thread->this_fiber->setState(thread, FIB_RUNNING);
+            set_attached_thread(thread->this_fiber, thread);
+            set_task_state(thread, thread->this_fiber, FIB_RUNNING, NO_DELAY);
             registers = thread->this_fiber->registers;
 
             /*
              * Call main method
              */
-            executeMethod(thread->this_fiber->main->address, thread)(thread);
+            executeMethod(thread->this_fiber->main->address, thread);
         } else {
             registers = thread->this_fiber->registers;
             if(thread->this_fiber->state == FIB_RUNNING && !thread->this_fiber->finished) {
@@ -288,24 +276,25 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                     /*
                      * Call main method
                      */
-                    executeMethod(thread->this_fiber->main->address, thread)(thread);
+                    executeMethod(thread->this_fiber->main->address, thread);
                 } else {
-                    shiftToNextMethod(thread)(thread);
+                    thread->exec();
                 }
             }
         }
 
         if(thread->this_fiber && thread->this_fiber->boundThread != thread
            && hasSignal(thread->signal, tsig_except)) {
-            thread->printException();
+            print_exception(thread);
         }
 
         if(thread->state != THREAD_KILLED && !hasSignal(thread->signal, tsig_except)) {
-            thread->waitForContextSwitch();
+            wait_for_posted_task(thread);
+
             if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
                 goto end;
 
-            Int fibersLeft = fiber::boundFiberCount(thread);
+            Int fibersLeft = bound_task_count(thread);
             if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->boundThread == thread))
                 goto end;
             else
@@ -325,14 +314,14 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
         sendSignal(thread->signal, tsig_except, 1);
         if(thread->this_fiber && thread->this_fiber->boundThread != thread) {
-            thread->printException();
+            print_exception(thread);
+            wait_for_posted_task(thread);
 
-            thread->waitForContextSwitch();
             if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
                 goto end;
 
-            Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->getBoundThread() == thread))
+            Int fibersLeft = bound_task_count(thread);
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && get_bound_thread(thread->this_fiber) == thread))
                 goto end;
             else
                 goto retry;
@@ -345,7 +334,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         thread_self->tprof->dump();
 #endif
 
-    fiber::killBoundFibers(thread);
+    kill_bound_fibers(thread);
     if(irCount != 0)
         cout << "instructions executed " << irCount << " overflowed " << overflow << endl;
 
@@ -353,7 +342,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
      * Check for uncaught exception in thread before exit
      */
     if(vm.state != VM_TERMINATED) {
-        thread->exit();
+        shutdown_thread(thread);
 
         if (thread->id == main_threadid) {
             /*
@@ -440,7 +429,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                         if (i >= EXCEPTION_PRINT_MAX)
                             break;
                         methods->object->HEAD[iter] =  vm.methods[thread->this_fiber->callStack[i].returnAddress].address;
-                        pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc;
+                        pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc-thread->this_fiber->cache;
                         iter++;
                     }
                 } else {
@@ -449,16 +438,21 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                             break;
                         else if(i==0) continue;
                         methods->object->HEAD[iter] =  vm.methods[thread->this_fiber->callStack[i].returnAddress].address;
-                        pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc;
+                        pcList->object->HEAD[iter] = thread->this_fiber->callStack[i].pc-thread->this_fiber->cache;
                         iter++;
                     }
                 }
 
                 methods->object->HEAD[iter] = thread->this_fiber->current->address;
-                pcList->object->HEAD[iter] = thread->this_fiber->pc;
+                pcList->object->HEAD[iter] = thread->this_fiber->pc-thread->this_fiber->cache;
             }
         }
     }
+}
+
+extern void populateString(string& s, double* arry, uInt len) {
+    for(Int i = 0; i < len; i++)
+        s += (unsigned char)arry[i];
 }
 
 void VirtualMachine::sysInterrupt(int64_t signal) {
@@ -471,9 +465,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_STRTOD: {
             SharpObject *str = (thread_self->this_fiber->sp--)->object.object;
             if (str != NULL && TYPE(str->info) == _stype_var && str->HEAD != NULL) {
-                native_string num_str(str->HEAD, str->size);
+                string num_str;
+                populateString(num_str, str->HEAD, str->size);
                 _64EBX = strtod(num_str.c_str(), NULL);
-                num_str.free();
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
@@ -529,7 +523,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             _64BMR= Clock::realTimeInNSecs();
             return;
         case OP_DELAY:
-            thread_self->this_fiber->delay(_64EBX);
+            delay_task(_64EBX, true);
             return;
         case OP_FIBER_START: {
             SharpObject *name = (thread_self->this_fiber->sp--)->object.object;
@@ -538,25 +532,23 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             _64EBX = -1; // default Id
 
             if(name != NULL && TYPE(name->info) == _stype_var && name->HEAD != NULL) {
-                native_string fiberName(name->HEAD, name->size);
+                string fiberName;
+                populateString(fiberName, name->HEAD, name->size);
                 fiber *fib;
 
                 try {
-                    fib = fiber::makeFiber(fiberName, &vm.methods[mainFunc % vm.manifest.methods]);
+                    fib = create_task(fiberName, &vm.methods[mainFunc % vm.manifest.methods]);
                 } catch(Exception &e) {
-                    fiberName.free();
+                    fiberName.clear();
                     throw;
                 }
 
-                Thread *t = Thread::getThread(threadid);
+                Thread *t = get_thread(threadid);
                 fib->fiberObject = (thread_self->this_fiber->sp--)->object;
                 (++fib->sp)->object = (thread_self->this_fiber->sp--)->object; // apply args to fiber's stack
-                fib->bind(t);
-                fib->setState(NULL, FIB_SUSPENDED);
+                bind_task(fib, t);
+                set_task_state(NULL, fib, FIB_SUSPENDED, NO_DELAY);
 
-//                if(t && t->next_fiber == NULL) {
-//                    t->enableContextSwitch(true);
-//                }
                 _64EBX = fib->id;
             } else {
                 throw Exception(vm.NullptrExcept, "");
@@ -565,43 +557,43 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         }
         case OP_FIBER_SUSPEND: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
-            _64EBX = fiber::suspend(fiberId);
+            _64EBX = suspend_task(fiberId);
             return;
         }
         case OP_FIBER_UNSUSPEND: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
-            _64EBX = fiber::unsuspend(fiberId);
+            _64EBX = unsuspend_task(fiberId);
             return;
         }
         case OP_FIBER_KILL: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
-            _64EBX = fiber::kill(fiberId);
+            _64EBX = kill_task(fiberId);
             return;
         }
         case OP_FIBER_BIND: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
             Int threadId = (thread_self->this_fiber->sp--)->var;
-            fiber *fib = fiber::getFiber(fiberId);
+            fiber *fib = locate_task(fiberId);
             _64EBX = 2;
 
             if(fib) {
-                _64EBX = fib->bind(Thread::getThread(threadId));
+                _64EBX = bind_task(fib, get_thread(threadId));
             }
             return;
         }
         case OP_FIBER_BOUND_COUNT: {
             Int threadId = (thread_self->this_fiber->sp--)->var;
-            Thread *thread = Thread::getThread(threadId);
+            Thread *thread = get_thread(threadId);
             _64EBX = thread ? thread->boundFibers : 0;
             return;
         }
         case OP_FIBER_STATE: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
-            fiber *fib = fiber::getFiber(fiberId);
+            fiber *fib = locate_task(fiberId);
             _64EBX = -1;
 
             if(fib) {
-                _64EBX = fib->getState();
+                _64EBX = get_state(fib);
             }
             return;
         }
@@ -613,7 +605,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         }
         case OP_THREAD_START: {
-            Thread *thread = Thread::getThread((int32_t )_64ADX);
+            Thread *thread = get_thread((int32_t )_64ADX);
 
             if(thread != NULL) {
                 thread->currentThread = (thread_self->this_fiber->sp--)->object;
@@ -641,41 +633,38 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     }
                 }
             }
-            registers[CMT]=Thread::start((int32_t )_64ADX, (size_t )_64EBX);
+            registers[CMT]=start_thread((int32_t )_64ADX, (size_t )_64EBX);
             return;
         }
         case OP_STRTOL: {
             Int baseNum = (thread_self->this_fiber->sp--)->var;
             SharpObject *str = (thread_self->this_fiber->sp--)->object.object;
             if(str != NULL && TYPE(str->info) == _stype_var && str->HEAD != NULL) {
-                native_string numStr(str->HEAD, str->size);
+                string numStr;
+                populateString(numStr, str->HEAD, str->size);
                 _64EBX = strtoll(numStr.c_str(), NULL, baseNum);
-                numStr.free();
             } else {
                 throw Exception(vm.NullptrExcept, "");
             }
             return;
         }
         case OP_THREAD_JOIN:
-            registers[CMT]=Thread::join((int32_t )_64ADX);
+            registers[CMT]=join_thread((int32_t )_64ADX);
             return;
         case OP_THREAD_INTERRUPT:
-            registers[CMT]=Thread::interrupt((int32_t )_64ADX);
+            registers[CMT]=interrupt_thread((int32_t )_64ADX);
             return;
         case OP_THREAD_CREATE:
-            registers[EBX]=Thread::Create((int32_t )_64ADX, (bool)_64EBX);
+            registers[EBX]=create_thread((int32_t )_64ADX, (bool)_64EBX);
             return;
         case OP_THREAD_PRIORITY:
-            registers[CMT]=Thread::setPriority((int32_t )_64ADX, (int)_64EGX);
+            registers[CMT]=set_thread_priority((int32_t )_64ADX, (int)_64EGX);
             return;
         case OP_THREAD_SUSPEND:
-            registers[CMT]=Thread::suspendThread((int32_t )_64ADX);
+            registers[CMT]=suspend_thread((int32_t )_64ADX);
             return;
         case OP_THREAD_UNSUSPEND:
-            registers[CMT]=Thread::unSuspendThread((int32_t )_64ADX, (int32_t )_64EBX);
-            return;
-        case OP_THREAD_SUSPEND_FOR:
-            Thread::suspendFor((Int )_64ADX);
+            registers[CMT]=unsuspend_thread((int32_t )_64ADX, (int32_t )_64EBX);
             return;
         case OP_THREAD_CURRENT: // native getCurrentThread()
             grow_stack2(thread_self)
@@ -711,9 +700,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_SYSTEM_EXE: {
             SharpObject* str = (thread_self->this_fiber->sp--)->object.object;
             if(str != NULL && TYPE(str->info) == _stype_var && str->HEAD != NULL) {
-                native_string cmd(str->HEAD, str->size);
-                _64CMT= system(cmd.str().c_str());
-                cmd.free();
+                string cmd;
+                populateString(cmd, str->HEAD, str->size);
+                _64CMT= system(cmd.c_str());
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
@@ -744,11 +733,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Object *relPath = &thread_self->this_fiber->sp->object;
 
             if(relPath->object != NULL && TYPE(relPath->object->info) == _stype_var && relPath->object->HEAD != NULL) {
-                native_string path(relPath->object->HEAD, relPath->object->size), absolute;
+                string path, absolute;
+                populateString(path, relPath->object->HEAD, relPath->object->size);
 
-                absolute = resolve_path(path);
+                resolve_path(path, absolute);
                 gc.createStringArray(relPath, absolute);
-                path.free(); absolute.free();
             } else {
                 throw Exception(vm.NullptrExcept, "");
             }
@@ -784,7 +773,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         }
         case OP_CURRENT_DIRECTORY: {
-            native_string path;
+            string path;
             current_directory(path);
             gc.createStringArray(&(++thread_self->this_fiber->sp)->object, path);
             return;
@@ -803,7 +792,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_READ_FILE: {
             Object *arry = &(thread_self->this_fiber->sp--)->object;
             if(arry->object != NULL && arry->object->size > 0 && TYPE(arry->object->info)==_stype_var) {
-                native_string path(arry->object->HEAD, arry->object->size);
+                string path;
+                populateString(path, arry->object->HEAD, arry->object->size);
 
                 if(signal==OP_FILE_ACCESS)
                     registers[EBX] = check_access(path, (int)_64EBX);
@@ -818,7 +808,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 else if(signal==OP_FILE_DELETE)
                     registers[EBX] = delete_file(path);
                 else if(signal==OP_GET_FILES) {
-                    _List<native_string> files;
+                    _List<string> files;
                     get_file_list(path, files);
                     arry = &(++thread_self->this_fiber->sp)->object;
 
@@ -828,7 +818,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         for(long i = 0; i < files.size(); i++) {
                             arry->object->node[i] = gc.newObject(vm.StringClass);
                             gc.createStringArray(vm.resolveField("data", arry->object->node[i].object), files.get(i));
-                            files.get(i).free();
+                            files.get(i).clear();
                         }
                     } else {
                         *arry = (SharpObject*)NULL;
@@ -846,20 +836,17 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     registers[EBX] = __chmod(path, (mode_t)registers[EBX], (bool)registers[EGX], (bool)registers[ECX]);
                 else if(signal==OP_READ_FILE) {
                     arry = &(++thread_self->this_fiber->sp)->object;
-                    native_string str;
+                    string str;
                     read_file(path, str);
 
-                    if(str.len > 0) {
+                    if(str.size() > 0) {
                         *arry = gc.newObject(vm.StringClass);
                         gc.createStringArray(vm.resolveField("data", arry->object), str);
-                        str.free();
                     } else {
                         cout << "{{{{{{{ RELEASE!!" << endl;
                         gc.releaseObject(arry);
                     }
                 }
-
-                path.free();
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
@@ -871,18 +858,19 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
             if (pathObj != NULL && TYPE(pathObj->info) == _stype_var && newNameObj != NULL && TYPE(newNameObj->info) == _stype_var
                 && pathObj->HEAD != NULL && newNameObj->HEAD != NULL) {
-                native_string path(pathObj->HEAD, pathObj->size), rename(newNameObj->HEAD, newNameObj->size);
+                string path, rename;
+
+                populateString(path, pathObj->HEAD, pathObj->size);
+                populateString(rename, newNameObj->HEAD, newNameObj->size);
 
                 if(signal==OP_RENAME_FILE)
                     registers[EBX] = rename_file(path, rename);
                 else if(signal==OP_WRITE_FILE) {
                     File::buffer buf;
-                    buf.operator<<(&rename); // rename will contain our actual unicode data
-                    registers[EBX] = File::write(path.str().c_str(), buf);
+                    buf.operator<<(rename); // rename will contain our actual unicode data
+                    registers[EBX] = File::write(path.c_str(), buf);
                     buf.end();
                 }
-                path.free();
-                rename.free();
             } else {
                 throw Exception(vm.NullptrExcept, "");
             }
@@ -918,16 +906,18 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             SharpObject *libNameObj = (thread_self->this_fiber->sp--)->object.object;
 
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
-                native_string name(libNameObj->HEAD, libNameObj->size);
-                GUARD(thread_self->threadsMonitor)
+                string name;
 
-                if(vm.getLib(name.str()) == NULL) {
+                populateString(name, libNameObj->HEAD, libNameObj->size);
+                GUARD(library_mutex)
+
+                if(vm.getLib(name) == NULL) {
                     Library lib;
 
                     #ifndef _WIN32
                     char *libError = dlerror(); // we need this variable to ensure everything is okay
                     #endif
-                    lib.handle = load_lib(name.str());
+                    lib.handle = load_lib(name);
 
 #ifndef _WIN32
                     libError = dlerror();
@@ -939,8 +929,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         || libError != NULL
                     #endif
                     ) {
-                        string libName = name.str();
-                        name.free();
+                        string libName = name;
                         #ifdef _WIN32
                         throw Exception(vm.IllStateExcept, string("could not load library") + libName);
                         #else
@@ -957,11 +946,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         vm.libs.last().name = name;
                         vm.libs.last().handle = lib.handle;
                     } else {
-                        name.free();
                         throw Exception(vm.IllStateExcept, "handshake failed, could not load library");
                     }
                 }
-                name.free();
             } else {
                 throw Exception(vm.NullptrExcept, "");
             }
@@ -971,10 +958,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             SharpObject *libNameObj = (thread_self->this_fiber->sp--)->object.object;
 
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
-                native_string name(libNameObj->HEAD, libNameObj->size);
-                GUARD(thread_self->threadsMonitor)
-                registers[EBX] = vm.freeLib(name.str());
-                name.free();
+                string name;
+                populateString(name, libNameObj->HEAD, libNameObj->size);
+                GUARD(library_mutex)
+                registers[EBX] = vm.freeLib(name);
             }
             return;
         }
@@ -984,9 +971,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL
               && funcNameObj != NULL && TYPE(funcNameObj->info) == _stype_var && funcNameObj->HEAD != NULL) {
-                native_string libname(libNameObj->HEAD, libNameObj->size);
-                native_string funcname(funcNameObj->HEAD, funcNameObj->size);
-                GUARD(thread_self->threadsMonitor)
+                string libname, funcname;
+
+                populateString(libname, libNameObj->HEAD, libNameObj->size);
+                populateString(funcname, funcNameObj->HEAD, funcNameObj->size);
+                GUARD(library_mutex)
                 registers[EBX] = vm.link(funcname, libname);
             }
             return;
@@ -1008,9 +997,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         }
         case OP_EXPORT: {
             GUARD(exportMutex);
-            native_string str(export_obj((thread_self->this_fiber->sp--)->object.object));
+            string str(export_obj((thread_self->this_fiber->sp--)->object.object));
             gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
-            str.free();
             cleanup();
             return;
         }
@@ -1045,7 +1033,7 @@ bool VirtualMachine::catchException() {
                     || tbl->catchTable._Data[j].caughtException == vm.Throwable) {
                     if(tbl->catchTable._Data[j].localFieldAddress >= 0)
                         (thread->this_fiber->fp+tbl->catchTable._Data[j].localFieldAddress)->object = thread->this_fiber->exceptionObject;
-                    thread->this_fiber->pc = tbl->catchTable._Data[j].handler_pc;
+                    thread->this_fiber->pc = thread->this_fiber->cache+tbl->catchTable._Data[j].handler_pc;
 
                     thread->this_fiber->exceptionObject = (SharpObject*)NULL;
                     sendSignal(thread->signal, tsig_except, 0);
@@ -1062,7 +1050,7 @@ bool VirtualMachine::catchException() {
         if (tbl->try_start_pc <= pc && tbl->try_end_pc >= pc)
         {
             if(tbl->finallyData != NULL) {
-                thread->this_fiber->pc = tbl->finallyData->start_pc;
+                thread->this_fiber->pc = thread->this_fiber->cache+tbl->finallyData->start_pc;
                 (thread->this_fiber->fp+tbl->finallyData->exception_object_field_address)->object = thread->this_fiber->exceptionObject;
                 thread->this_fiber->exceptionObject = (SharpObject*)NULL;
                 sendSignal(thread->signal, tsig_except, 0); // TODO: this may be causing an out of memory error (look to see if the ref is 1 after exception has been handled)
@@ -1081,7 +1069,6 @@ void VirtualMachine::fillStackTrace(SharpObject *frameInfo, SharpObject *stackTr
         Object *data = vm.resolveField("data", stackTrace);
 
         if(data && methods && pcList) {
-            native_string str;
             fillStackTrace(methods, pcList, data);
         }
     }
@@ -1092,7 +1079,7 @@ void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
 
     ss << "\tSource ";
     if(func->sourceFile != -1 && func->sourceFile < vm.manifest.sourceFiles) {
-        ss << "\""; ss << vm.metaData.files.get(func->sourceFile).name.str() << "\"";
+        ss << "\""; ss << vm.metaData.files.get(func->sourceFile).name << "\"";
     }
     else
         ss << "\"Unknown File\"";
@@ -1119,7 +1106,7 @@ void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << func->fullName.str() << "(" << (func->nativeFunc ? "native" : "") << ")";
+    ss << ", in "; ss << func->fullName << "(" << (func->nativeFunc ? "native" : "") << ")";
 
     if(c_options.debugMode) {
         ss << " ["
@@ -1138,19 +1125,18 @@ void VirtualMachine::fillStackTrace(Object *methods, Object *pcList, Object *dat
     if(methods && pcList && methods->object && pcList->object && TYPE(methods->object->info) == _stype_var
         && TYPE(pcList->object->info) == _stype_var && data) {
 
-        native_string str;
         stringstream ss;
         for(Int i = 0; i < methods->object->size; i++) {
             fillMethodCall(&vm.methods[(Int)methods->object->HEAD[i] % vm.manifest.methods], (Int)pcList->object->HEAD[i], ss);
         }
 
-        str = ss.str(); ss.str("");
+        std::string str = ss.str(); ss.str("");
         gc.createStringArray(data, str);
-        str.free();
+        str.clear();
     }
 }
 
-void VirtualMachine::fillStackTrace(native_string &str) {
+void VirtualMachine::fillStackTrace(string &str) {
 // fill message
     if(thread_self->this_fiber->callStack == NULL) return;
 
@@ -1161,13 +1147,13 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         for(Int i = 1; i <= thread_self->this_fiber->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(&vm.methods[thread_self->this_fiber->callStack[i].returnAddress], thread_self->this_fiber->callStack[i].pc, ss);
+            fillMethodCall(&vm.methods[thread_self->this_fiber->callStack[i].returnAddress], thread_self->this_fiber->callStack[i].pc-thread_self->this_fiber->cache, ss);
         }
     } else {
         for(Int i = (thread_self->this_fiber->calls+1) - EXCEPTION_PRINT_MAX; i < thread_self->this_fiber->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(& vm.methods[thread_self->this_fiber->callStack[i].returnAddress], thread_self->this_fiber->callStack[i].pc, ss);
+            fillMethodCall(& vm.methods[thread_self->this_fiber->callStack[i].returnAddress], thread_self->this_fiber->callStack[i].pc-thread_self->this_fiber->cache, ss);
         }
     }
 
@@ -1181,31 +1167,31 @@ string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
 
     if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
-        ss << vm.metaData.getLine(line, sourceFile).str();
+        ss << vm.metaData.getLine(line, sourceFile);
     }
     line++;
 
     if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
-        ss << vm.metaData.getLine(line, sourceFile).str();
+        ss << vm.metaData.getLine(line, sourceFile);
     }
     line++;
 
     if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t>  " << line << ":    ";
-        ss << vm.metaData.getLine(line, sourceFile).str();
+        ss << vm.metaData.getLine(line, sourceFile);
     }
     line++;
 
     if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
-        ss << vm.metaData.getLine(line, sourceFile).str();
+        ss << vm.metaData.getLine(line, sourceFile);
     }
     line++;
 
     if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
-        ss << vm.metaData.getLine(line, sourceFile).str();
+        ss << vm.metaData.getLine(line, sourceFile);
     }
     return ss.str();
 }
@@ -1271,24 +1257,24 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
             snprintf(buf, 256, "%%");
             break;
         case 'l': {
-            native_string str(to_string((Int)val));
-            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str); str.free();
+            string str(to_string((Int)val));
+            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
             return;
         }
         case 'L': {
-            native_string str(to_string((uInt)val));
-            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);  str.free();
+            string str(to_string((uInt)val));
+            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
             return;
         }
         default: {
-            native_string str(to_string(val));
-            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str); str.free();
+            string str(to_string(val));
+            gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
             return;
         }
     }
 
-    native_string str(buf);
-    gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str); str.free();
+    string str(buf);
+    gc.createStringArray(&(++thread_self->this_fiber->sp)->object, str);
 }
 
 Method *VirtualMachine::getMainMethod() {
@@ -1370,7 +1356,7 @@ void VirtualMachine::setFieldVar(std::string name, SharpObject *classObject, Int
     }
 }
 
-void VirtualMachine::setFieldClass(std::string name, SharpObject *classObject, ClassObject *klass) {
+void VirtualMachine::initializeField(std::string name, SharpObject *classObject, ClassObject *klass) {
     Object *field = vm.resolveField(std::move(name), classObject);
     if(field != NULL) {
         *field = gc.newObject(klass);
@@ -1412,7 +1398,6 @@ int VirtualMachine::freeLib(std::string name) {
 
         free_lib(lib->handle);
 
-        lib->name.free();
         libs.remove(index);
         return 0;
     }
@@ -1431,7 +1416,7 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
                                    "snb_link_proc");
 
         if(_linkProc) {
-            if((linkAddr = _linkProc(nativeFun->fullName.str().c_str())) >= 0) {
+            if((linkAddr = _linkProc(nativeFun->fullName.c_str())) >= 0) {
                 nativeFun->bridge =
                         (bridgeFun)load_func(libs.get(i).handle,
                                            "snb_main");
@@ -1451,8 +1436,8 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
         throw Exception(vm.UnsatisfiedLinkExcept, "");
 }
 
-bool VirtualMachine::link(native_string &func, native_string &libame) {
-    Library *lib = getLib(libame.str());
+bool VirtualMachine::link(string &func, string &libame) {
+    Library *lib = getLib(libame);
     linkProc _linkProc;
     uint32_t linkAddr;
 
@@ -1465,7 +1450,7 @@ bool VirtualMachine::link(native_string &func, native_string &libame) {
                         (linkProc) load_func(lib->handle,
                                              "snb_link_proc");
 
-                if (_linkProc && (linkAddr = _linkProc(vm.methods[i].fullName.str().c_str())) >= 0) {
+                if (_linkProc && (linkAddr = _linkProc(vm.methods[i].fullName.c_str())) >= 0) {
                     vm.methods[i].linkAddr = linkAddr;
                     vm.methods[i].bridge =
                             (bridgeFun) load_func(lib->handle,
@@ -1510,14 +1495,4 @@ bool VirtualMachine::isType(Object *obj, int32_t type) {
         }
     } else throw Exception(vm.NullptrExcept, "");
     return 0;
-}
-
-/**
- * This is used for inter-state transfer between high level and low level
- * @param thread
- * @return
- */
-bool VirtualMachine::shouldReturn(Thread *thread) {
-    return thread->this_fiber->calls == 0
-           || thread->this_fiber->callStack[thread->this_fiber->calls].isNative;
 }

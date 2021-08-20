@@ -28,7 +28,7 @@
 
 #define main_threadid 0x0
 #define gc_threadid 0x1
-#define jit_threadid 0x2
+#define idle_sched_threadid 0x2
 
 #ifdef BUILD_JIT
 struct jit_context;
@@ -37,6 +37,7 @@ struct jit_context;
 class Thread {
 public:
     Thread()
+        : name("")
     {
         init();
     }
@@ -49,20 +50,16 @@ public:
         exited = false;
         terminated = false;
         priority = THREAD_PRIORITY_NORM;
-        name.init();
         this_fiber = NULL;
-        last_fiber = NULL;
         signal = tsig_empty;
         contextSwitching=false;
         marked=false;
         waiting=false;
-        stackRebuild=false;
         lastRanMicros=0;
-        relativeFrame=0;
         args.object = NULL;
         currentThread.object=NULL;
+        newTask = NULL;
         new (&mutex) recursive_mutex();
-        next_fiber = NULL;
         boundFibers=0;
 #ifdef COROUTINE_DEBUGGING
         timeSleeping=0;
@@ -77,66 +74,16 @@ public:
 #endif
     }
 
-    void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);
-    static int32_t generateId();
-    static void Startup();
-    static void suspendSelf();
-    static int start(int32_t, size_t);
-    static int destroy(int32_t);
-    static int interrupt(int32_t);
-    static int suspendThread(int32_t);
-    static int unSuspendThread(int32_t, bool wait);
-    static void suspendFor(Int);
-    static int join(int32_t);
-    static Thread* getThread(int32_t);
-    static void suspendAndWait(Thread* thread);
-    static void unsuspendAndWait(Thread* thread);
-    static void waitForThreadExit(Thread* thread);
-    static void terminateAndWaitForThreadExit(Thread* thread);
-    static int waitForThread(Thread *thread);
-    static int setPriority(int32_t, int);
-    static int setPriority(Thread*, int);
-    static void killAll();
-    static void shutdown();
-    static bool validStackSize(size_t);
-    static bool validInternalStackSize(size_t);
-    static void suspendAllThreads(bool withMarking = false);
-    static void resumeAllThreads(bool withMarking = false);
-    static int threadjoin(Thread*);
-    static int destroy(Thread*);
-    bool try_context_switch(bool incPc);
-    void enableContextSwitch(bool enable);
-
-    static int startDaemon(
-#ifdef WIN32_
-            DWORD WINAPI
-#endif
-#ifdef POSIX_
-    void*
-#endif
-    (*threadFunc)(void*), Thread* thread);
-
-
-    static int32_t Create(int32_t, bool daemon);
-    void Create(string, Method*);
-    void CreateDaemon(string);
-    void exit();
-    void term();
+    void free();
     void exec();
-    void setup();
-    void waitForContextSwitch();
-    void printException();
 
     /* tsig_t */ int signal;
 
     static uInt maxThreadId;
-    static int32_t tid;
-    static _List<Thread*> threads;
-    static recursive_mutex threadsMonitor;
-    static recursive_mutex threadsListMutex;
+    static uInt tid;
 
     uInt boundFibers;
-    recursive_mutex mutex;
+    recursive_mutex mutex; // tODO: add boundOnly : bool to only run bound tasks only
     int32_t id;
     Int stackSize;
     Int stbase;
@@ -148,16 +95,14 @@ public:
     bool suspended;
     bool exited;
     bool marked;
-    native_string name;
+    std::string name;
     Object currentThread, args;
-    fiber *this_fiber, *last_fiber;
-    fiber* next_fiber;
+    fiber *this_fiber;
     Method* mainMethod;
     uInt lastRanMicros;
     bool contextSwitching;
     bool waiting;
-    uInt relativeFrame;
-    bool stackRebuild;
+    fiber *newTask;
 
 #ifdef SHARP_PROF_
     Profiler *tprof;
@@ -172,21 +117,6 @@ public:
 #ifdef POSIX_
     pthread_t thread;
 #endif
-
-private:
-
-    void waitForUnsuspend();
-
-    static int unsuspendThread(Thread*);
-    static void suspendThread(Thread*);
-    static int interrupt(Thread*);
-
-    static void pushThread(Thread *thread);
-    static void popThread(Thread *thread);
-    void releaseResources();
-
-    static void waitForThreadSuspend(Thread *thread);
-    static void waitForThreadUnSuspend(Thread *thread);
 };
 
 /**
@@ -207,7 +137,7 @@ extern thread_local double *registers;
 #define _64BMR registers[BMR]
 
 #define PC(thread_self) \
-    (thread_self->this_fiber->pc)
+    (thread_self->this_fiber->pc-thread_self->this_fiber->cache)
 
 extern unsigned long irCount, overflow;
 extern size_t threadStackSize;

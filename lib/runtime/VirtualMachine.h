@@ -7,7 +7,6 @@
 
 #include "../../stdimports.h"
 #include "symbols/ClassObject.h"
-#include "symbols/string.h"
 #include "Thread.h"
 #include "symbols/Method.h"
 #ifdef WIN32_
@@ -68,7 +67,7 @@ public:
     ClassObject* resolveClass(std::string fullName);
     Object* resolveField(std::string name, SharpObject *classObject);
     void setFieldVar(std::string name, SharpObject *classObject, Int index, double value);
-    void setFieldClass(std::string name, SharpObject *classObject, ClassObject* klass);
+    void initializeField(std::string name, SharpObject *classObject, ClassObject* klass);
     string stringValue(SharpObject *);
     double numberValue(Int, SharpObject *);
     bool isStaticObject(SharpObject *object);
@@ -77,20 +76,19 @@ public:
     static void sysInterrupt(int64_t i);
     static bool catchException();
     static void fillStackTrace(SharpObject *frameInfo, SharpObject *stackTrace);
-    static void fillStackTrace(native_string &str);
+    static void fillStackTrace(string &str);
     static void fillStackTrace(Object *methods, Object *pcList, Object *data);
     static string getPrettyErrorLine(long line, long sourceFile);
     static void getFrameInfo(Object *frameInfo);
     static void getStackTrace();
     void locateBridgeAndCross(Method*);
-    bool link(native_string&, native_string&);
+    bool link(string&, string&);
 
 
 
     static void fillMethodCall(Method* func, Int pc, stringstream &ss);
     static void __snprintf(int cfmt, double val, int precision);
     static bool isType(Object *obj, int32_t type);
-    static bool shouldReturn(Thread*);
 
     Library* getLib(std::string name);
     int freeLib(std::string name);
@@ -120,22 +118,18 @@ public:
 
     Object outOfMemoryExcept;
     Meta metaData;
-    SharpMethod *methodRefs;
     Manifest manifest;
     Object* staticHeap;
     ClassObject* classes;
-    runtime::String* strings;
+    string* strings;
     double *constants;
     Method* methods;
     Symbol* nativeSymbols;
-    Method* funcPtrSymbols;
 #ifdef WIN32_
     Gui* gui;
 #endif
     _List<Library> libs;
-    _List<KeyPair<Int, int>> tlsInts;
     int exitVal;
-    int64_t sectionIdentifier;
     short state;
 };
 
@@ -144,12 +138,12 @@ public:
 extern VirtualMachine vm;
 
 int CreateVirtualMachine(string&);
-SharpMethod executeMethod(int64_t address, Thread* thread, bool inNativeEnv = false);
+void executeMethod(int64_t address, Thread* thread, bool inNativeEnv = false);
 bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic, bool inJit);
 CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit);
-SharpMethod shiftToNextMethod(Thread*);
 extern void __srt_setup_env();
+extern void populateString(string&, double*, uInt);
 
 #endif //SHARP_SHARP_H

@@ -17,7 +17,6 @@ void ClassObject::free() {
     if(methods != NULL)
         std::free(this->methods);
     methods = NULL;
-    name.free();
 }
 
 Field *ClassObject::getfield(string name) {

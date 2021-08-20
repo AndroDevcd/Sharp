@@ -6,7 +6,6 @@
 #define SHARP_FIBER_H
 
 #include "../../stdimports.h"
-#include "symbols/string.h"
 #include "profiler.h"
 
 class Thread;
@@ -25,38 +24,21 @@ enum fiber_state {
 
 class fiber {
 public:
-
-    static fiber* makeFiber(native_string &name, Method* main);
-    static fiber* getFiber(uInt id);
-    static fiber* nextFiber(Int startingIndex, Thread* thread);
-    static bool isFiberRunnble(fiber *fib, Thread *thread);
-    static int suspend(uInt id);
-    static int unsuspend(uInt id);
-    static int kill(uInt id);
-    static Int boundFiberCount(Thread *thread);
-    static void killBoundFibers(Thread *thread);
+    fiber()
+    :
+        name("")
+    {}
 
     void growFrame();
     void growStack(Int requiredSize = 0);
-    int getState();
-    void setState(Thread* thread, fiber_state, Int delay = -1);
-    void setWakeable(bool enable);
     void free();
-    Thread *getAttachedThread();
-    Thread *getBoundThread();
-    void setAttachedThread(Thread *thread);
-    void delay(Int time, bool incPc = true);
-    int bind(Thread *thread);
-    bool safeStart(Thread *thread);
-    static void disposeFibers();
 
 public:
 
     uInt id;
-    uInt itemIndex;
-    native_string name;
+    std::string name;
     Int stackLimit;
-    Int pc;
+    Cache cache, pc;
     fiber_state state;
     int exitVal;
     Object exceptionObject;
@@ -77,11 +59,7 @@ public:
     Int delayTime;
     bool wakeable;
     bool finished;
-    bool locking;
-    bool marked;
-    Int passed;
+    mutex_t *acquiringMut;
 };
-
-extern atomic<Int> unBoundFibers;
 
 #endif //SHARP_FIBER_H

@@ -12,7 +12,6 @@
 #include "../../../stdimports.h"
 #include "../List.h"
 #include "../../util/KeyPair.h"
-#include "../symbols/string.h"
 #include "../linked_list.h"
 
 enum CollectionPolicy
@@ -160,7 +159,7 @@ public:
     SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
     SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */
 
-    void createStringArray(Object* object, runtime::String& str); /* Native string allocation */
+    void createStringArray(Object* object, string& str); /* Native string allocation */
 
     /**
      * Utility system level functions to garbage collect at a high level

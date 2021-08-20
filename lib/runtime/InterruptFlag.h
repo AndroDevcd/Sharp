@@ -26,7 +26,6 @@ enum interruptFlag
    OP_THREAD_PRIORITY     = 0x11,
     OP_THREAD_SUSPEND     = 0x12,
   OP_THREAD_UNSUSPEND     = 0x13,
-  OP_THREAD_SUSPEND_FOR   = 0x14,
     OP_THREAD_CURRENT     = 0x15,
        OP_THREAD_ARGS     = 0x16,
   OP_THREAD_SET_CURRENT   = 0x17,

@@ -103,8 +103,27 @@ extern Sharp versions;
 void* __malloc(uInt bytes);
 void* __calloc(uInt n, uInt bytes);
 void* __realloc(void *ptr, uInt bytes, uInt);
-void __os_sleep(Int);
 void setupSigHandler();
+
+template <class T>
+T* mallocAndNew() {
+    void * data = __malloc(sizeof(T));
+    return new (data) T();
+}
+
+template <class T>
+T* mallocAndNew(uInt quantity) {
+    void * data = __malloc(sizeof(T) * quantity);
+    T * p = data;
+
+    p = data;
+    for(uInt i = 0; i < quantity; i++) {
+        new (p) T();
+        p++;
+    }
+
+    return data;
+}
 
 #define CXX11_INLINE inline
 
