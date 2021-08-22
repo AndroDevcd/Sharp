@@ -5,11 +5,12 @@
 #include "Thread.h"
 #include "VirtualMachine.h"
 #include "scheduler/scheduler.h"
+#include "scheduler/task_controller.h"
 
 void fiber::free() {
     gc.reconcileLocks(this);
 
-    bind(NULL);
+    bind_task(this, NULL);
     if(dataStack != NULL) {
         gc.freeMemory(sizeof(StackElement) * stackSize);
         StackElement *p = dataStack;

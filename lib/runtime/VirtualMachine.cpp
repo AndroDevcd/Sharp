@@ -40,7 +40,12 @@
 VirtualMachine vm;
 int CreateVirtualMachine(string &exe)
 {
-    __srt_setup_env();
+    int result;
+    if((result = Process_Exe(exe)) != 0) {
+        if(!exeErrorMessage.empty())
+            fprintf(stderr, "%s\n", exeErrorMessage.c_str());
+        return result;
+    }
 
     if((internalStackSize - vm.manifest.threadLocals) <= 1)
         return 2;
@@ -162,6 +167,7 @@ bool returnMethod(Thread* thread) {
 
     thread->this_fiber->current =  &vm.methods[frameInfo->returnAddress];
 
+   thread->this_fiber->cache = thread->this_fiber->current->bytecode;
    thread->this_fiber->pc = frameInfo->pc;
    thread->this_fiber->sp = thread->this_fiber->dataStack+frameInfo->sp;
    thread->this_fiber->fp = thread->this_fiber->dataStack+frameInfo->fp;
@@ -188,7 +194,8 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     thread->this_fiber->current = method;
     thread->this_fiber->fp = thread->this_fiber->sp - method->fpOffset;
     thread->this_fiber->sp += method->frameStackOffset;
-    thread->this_fiber->pc = 0;
+    thread->this_fiber->cache = method->bytecode;
+    thread->this_fiber->pc = method->bytecode;
 }
 
 void executeMethod(int64_t address, Thread* thread, bool inNativeEnv) {

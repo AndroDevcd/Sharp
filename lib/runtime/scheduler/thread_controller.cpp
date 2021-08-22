@@ -195,7 +195,7 @@ void cancel_context_switch(Thread *thread) {
     thread->contextSwitching = false;
     sendSignal(thread->signal, tsig_context_switch, 0);
 #ifdef COROUTINE_DEBUGGING
-    skipped++;
+    thread->skipped++;
 #endif
 }
 
@@ -320,18 +320,14 @@ bool accept_task(Thread* thread) {
     GUARD(thread->mutex)
     if(thread->newTask != NULL) {
         thread->this_fiber = thread->newTask;
-
-#ifdef COROUTINE_DEBUGGING
-        switched++;
-        contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
-#endif
+        set_task_state(thread, thread->this_fiber, FIB_RUNNING, NO_DELAY);
         thread->waiting = false;
         thread->newTask = NULL;
         return true;
     }
 
 #ifdef COROUTINE_DEBUGGING
-    skipped++;
+    thread->skipped++;
 #endif
     return false;
 }
@@ -340,7 +336,7 @@ void wait_for_posted_task(Thread* thread) {
 
     fiber *this_fiber = thread->this_fiber;
 #ifdef COROUTINE_DEBUGGING
-    switched++;
+    thread->switched++;
     Int start = NANO_TOMILL(Clock::realTimeInNSecs());
 #endif
     set_attached_thread(this_fiber, NULL);
@@ -353,8 +349,8 @@ void wait_for_posted_task(Thread* thread) {
             thread->waiting = false;
 
 #ifdef COROUTINE_DEBUGGING
-            switched++;
-            contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
+            thread->switched++;
+            thread->contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
 #endif
             return;
         }
@@ -371,12 +367,15 @@ void wait_for_posted_task(Thread* thread) {
     {
         if(thread->newTask != NULL
             && accept_task(thread)) {
+#ifdef COROUTINE_DEBUGGING
+            thread->switched++;
+            thread->contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
+#endif
             break;
         }
 
-
 #ifdef COROUTINE_DEBUGGING
-            actualSleepTime+=50;
+        thread->actualSleepTime+=50;
 #endif
         __os_yield();
         __usleep(50);
@@ -413,9 +412,7 @@ bool try_context_switch(Thread *thread, bool incPc) {
     return true;
 }
 
-uInt start_thread(uInt threadId, size_t stackSize) {
-    Thread *thread = get_thread(threadId);
-
+uInt start_thread(Thread* thread, size_t stackSize) {
     if (thread_self != NULL && (thread == NULL || thread->state == THREAD_STARTED))
         return RESULT_ILL_THREAD_START;
 
@@ -430,6 +427,7 @@ uInt start_thread(uInt threadId, size_t stackSize) {
 
     thread->stackSize = (stackSize != 0 ? stackSize : threadStackSize);
     thread->exited = false;
+
     thread->state = THREAD_STARTED;
 #ifdef WIN32_
     thread->thread = CreateThread(
@@ -440,7 +438,7 @@ uInt start_thread(uInt threadId, size_t stackSize) {
             0,                         // use default creation flags
             NULL);
     if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
-    else return waitForThread(thread);
+    else return wait_for_thread_start(thread);
 #endif
 #ifdef POSIX_
     pthread_attr_t attr;
@@ -452,6 +450,11 @@ uInt start_thread(uInt threadId, size_t stackSize) {
         return wait_for_thread_start(thread);
     }
 #endif
+}
+
+uInt start_thread(uInt threadId, size_t stackSize) {
+    Thread *thread = get_thread(threadId);
+    return start_thread(thread, stackSize);
 }
 
 
@@ -480,7 +483,7 @@ int start_daemon_thread(
             NULL);
     if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
     else
-        return waitForThread(thread);
+        return wait_for_thread_start(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)
@@ -553,7 +556,7 @@ void __os_sleep(uInt time) {
 
 #ifdef COROUTINE_DEBUGGING
     if(thread_self)
-       thread_self->actualSleepTime+=INTERVAL;
+       thread_self->actualSleepTime+=time;
 #endif
 }
 
@@ -590,8 +593,8 @@ void kill_all_threads() {
         thread = scht->thread;
 
 #ifdef COROUTINE_DEBUGGING
-        cout << "Thread " << thread->name.str() << " slept: " << thread->timeSleeping << " switched: " << thread->switched
-             << " bound: " << fiber::boundFiberCount(thread) << " skipped " << thread->skipped << " actual sleep time: " << thread->actualSleepTime
+        cout << "Thread " << thread->name << " slept: " << thread->timeSleeping << " switched: " << thread->switched
+             << " bound: " << bound_task_count(thread) << " skipped " << thread->skipped << " actual sleep time: " << thread->actualSleepTime
              << " context switch time (ms) " << thread->contextSwitchTime << endl << " time spent locking: " << thread->timeLocking << endl;
 #endif
         if(thread->id != thread_self->id
@@ -745,7 +748,7 @@ void wait_for_unsuspend_release(Thread* thread) {
             retryCount = 0;
 
 #ifdef COROUTINE_DEBUGGING
-            timeSleeping += 1000;
+            thread->timeSleeping += 1000;
 #endif
             __usleep(1000);
         } else if(thread->state == THREAD_KILLED) {
@@ -796,6 +799,7 @@ void suspend_all_threads(bool withMarking) {
     {
         thread = scht->thread;
         if(thread_self && thread->id != thread_self->id){
+            scht = scht->next;
             continue;
         }
 

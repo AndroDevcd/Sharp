@@ -234,7 +234,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
     }
 
     pushArgumentsToStack(appArgs);
-    start_thread(main_threadid, 0);
+    start_thread(get_main_thread(), 0);
     start_idle_scheduler();
     run_scheduler();
 
@@ -247,7 +247,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 }
 
 void pushArgumentsToStack(std::list<string>& appArgs) {
-    Thread *main = get_thread(main_threadid);
+    Thread *main = get_main_thread();
     pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs, main);
 }
 
@@ -267,7 +267,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *ma
     gc.createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
 
 #ifdef WIN32_
-    str.set("win");
+    str = ("win");
 #endif
 #ifdef POSIX_
     str = ("posix");

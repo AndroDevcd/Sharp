@@ -1972,6 +1972,16 @@ string ExeBuilder::codeToString(Method* fun) {
                 else ss << (int32_t)code.ir32.get(x);
                 break;
             }
+            case Opcode::LOAD_ABS:
+            {
+                ss<<"load_abs stack+" << (GET_Da(opcodeData)) << " -> ebx";
+                break;
+            }
+            case Opcode::MOV_ABS:
+            {
+                ss<<"mov_abs ebx -> stack+" << (GET_Da(opcodeData));
+                break;
+            }
             default:
                 ss << "? (" << GET_OP(opcodeData) << ")";
 

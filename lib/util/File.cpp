@@ -5,7 +5,6 @@
 #include "File.h"
 #include<stdio.h>
 #include <fstream>
-#include "../runtime/symbols/string.h"
 
 bool File::exists(const char *file)
 {
@@ -149,14 +148,6 @@ string File::buffer::to_str() {
         ss<<_Data[i];
     }
     return ss.str();
-}
-
-File::buffer &File::buffer::operator<<(native_string *buf)
-{
-    for(stream_t i=0; i < buf->len; i++) {
-        _push_back(buf->chars[i]);
-    }
-    return *this;
 }
 
 int File::write(const char *f, string data)

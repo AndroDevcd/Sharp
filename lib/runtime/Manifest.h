@@ -16,8 +16,8 @@ struct Manifest {
 public:
     Manifest()
     :
-        application(),
-        version()
+        application(""),
+        version("")
     {
         init();
     }
@@ -55,6 +55,7 @@ struct SourceFile {
     _List<string> lines;
 
     void init() {
+        new (&name) string();
         lines.init();
     }
 

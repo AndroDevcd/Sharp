@@ -8,7 +8,6 @@
 
 #include "../../stdimports.h"
 #include <stdexcept>
-#include "../runtime/symbols/string.h"
 
 
 struct CatchData {

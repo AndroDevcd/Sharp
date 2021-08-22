@@ -251,7 +251,9 @@
             &&SMOVR_3,                        \
             &&NEG,                             \
             &&EXP,                               \
-            &&IS                                   \
+            &&IS,                                   \
+            &&MOV_ABS,                                   \
+            &&LOAD_ABS                                   \
         };
 
 typedef unsigned int opcode_instr;
@@ -382,6 +384,8 @@ public:
         static const uint8_t NEG          = 0x75;
         static const uint8_t EXP          = 0x76;
         static const uint8_t IS           = 0x77;
+        static const uint8_t MOV_ABS      = 0x78;
+        static const uint8_t LOAD_ABS     = 0x79;
 
         enum instr_class {
             E_CLASS,
@@ -439,6 +443,8 @@ public:
         static opcode_instr putc(_register inRegister);
         static opcode_instr checklen(_register inRegister);
         static opcode_instr jmp(opcode_arg address);
+        static opcode_instr movabs(opcode_arg address);
+        static opcode_instr loadabs(opcode_arg address);
         static opcode_instr loadpc(_register outRegister);
         static opcode_instr pushObject();
         static opcode_instr del();

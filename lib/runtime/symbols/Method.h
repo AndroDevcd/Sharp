@@ -77,8 +77,6 @@ public:
 
     void init() {
         Symbol::init();
-        name.init();
-        fullName.init();
         sourceFile=0;
         linkAddr=0;
         tryCatchTable.init();

@@ -7,14 +7,14 @@
 #include "../oo/ClassObject.h"
 #include "Literal.h"
 
-native_string stackInjector("stack-injector");
-native_string ebxInjector("ebx-injector");
-native_string ptrInjector("ptr-injector");
-native_string getterInjector("getterCodeSize-injector");
-native_string removeFromStackInjector("removeFromStack-injector");
-native_string incInjector("inc-injector");
-native_string decInjector("dec-injector");
-native_string indexAssignInjector("indexAssign-injector");
+std::string stackInjector("stack-injector");
+std::string ebxInjector("ebx-injector");
+std::string ptrInjector("ptr-injector");
+std::string getterInjector("getterCodeSize-injector");
+std::string removeFromStackInjector("removeFromStack-injector");
+std::string incInjector("inc-injector");
+std::string decInjector("dec-injector");
+std::string indexAssignInjector("indexAssign-injector");
 
 void Utype::free() {
     code.free();
@@ -198,6 +198,12 @@ Method *Utype::getMethod() {
     if(type == utype_method || type == utype_function_ptr)
         return (Method*)resolvedType;
     else if(type == utype_field) return ((Field*)resolvedType)->utype->getMethod();
+    else return NULL;
+}
+
+Field *Utype::getField() {
+    if(type == utype_field)
+        return (Field*)resolvedType;
     else return NULL;
 }
 

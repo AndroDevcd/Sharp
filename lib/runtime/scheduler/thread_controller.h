@@ -41,6 +41,7 @@ void resume_all_threads(bool);
 
 // thread starting & stopping
 uInt start_thread(uInt threadId, size_t stackSize);
+uInt start_thread(Thread*, size_t stackSize);
 
 int start_daemon_thread(
 #ifdef WIN32_

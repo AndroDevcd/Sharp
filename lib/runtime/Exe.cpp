@@ -138,13 +138,13 @@ int Process_Exe(std::string &exe)
     uInt functionPtrIndex=0;
 
     vm.manifest.functionPointers = geti32(buffer);
-    vm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);
-    vm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods + vm.manifest.functionPointers);
+    vm.classes = new ClassObject[sizeof(ClassObject)*vm.manifest.classes];
+    vm.methods = new Method[sizeof(Method)*vm.manifest.methods + vm.manifest.functionPointers];
     vm.strings = new string[vm.manifest.strings]; // TODO: create "" string from compiler as the 0'th element
     vm.constants = (double*)malloc(sizeof(double)*(vm.manifest.constants));
     vm.staticHeap = (Object*)calloc(vm.manifest.classes, sizeof(Object));
     vm.metaData.init();
-    vm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*nativeSymbolCount);
+    vm.nativeSymbols = new Symbol[sizeof(Symbol)*nativeSymbolCount];
     functionPtrIndex = vm.manifest.methods;
 
     for(Int i = 0; i < nativeSymbolCount; i++) {
@@ -175,7 +175,7 @@ int Process_Exe(std::string &exe)
 
                 functionPointersProcessed++;
                 Method &method = vm.methods[functionPtrIndex++];
-                method.init();
+                new (&method) Method();
                 method.fnType = fn_ptr;
 
                 Int paramSize = geti32(buffer);

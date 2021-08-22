@@ -411,7 +411,7 @@ void Thread::exec() {
                 context_switch_check(false)
                 _brh_NOINCREMENT
             CALLD:
-            HAS_SIGNAL
+                HAS_SIGNAL
                 if((result = (int64_t )registers[GET_Da(*this_fiber->pc)]) <= 0 || result >= vm.manifest.methods) {
                     stringstream ss;
                     ss << "invalid call to method with address of " << result;
@@ -670,6 +670,12 @@ void Thread::exec() {
                 } else  _brh
             TLS_MOVL:
                 this_fiber->ptr = &(this_fiber->dataStack+GET_Da(*this_fiber->pc))->object;
+                _brh
+            MOV_ABS:
+                (this_fiber->dataStack+GET_Da(*this_fiber->pc))->var = registers[EBX];
+                _brh
+            LOAD_ABS:
+                registers[EBX] = (this_fiber->dataStack+GET_Da(*this_fiber->pc))->var;
                 _brh
             DUP:
                 tmpPtr = &this_fiber->sp->object;

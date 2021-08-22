@@ -59,6 +59,7 @@ public:
         args.object = NULL;
         currentThread.object=NULL;
         newTask = NULL;
+        new (&name) string();
         new (&mutex) recursive_mutex();
         boundFibers=0;
 #ifdef COROUTINE_DEBUGGING

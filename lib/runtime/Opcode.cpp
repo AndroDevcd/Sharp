@@ -246,6 +246,14 @@ opcode_instr OpBuilder::checklen(_register inRegister) {
     return SET_Di(tmpInstr, CHECKLEN, inRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::movabs(opcode_arg address) {
+    return SET_Di(tmpInstr, MOV_ABS, address, POSITIVE);
+}
+
+opcode_instr OpBuilder::loadabs(opcode_arg address) {
+    return SET_Di(tmpInstr, LOAD_ABS, address, POSITIVE);
+}
+
 opcode_instr OpBuilder::jmp(opcode_arg address) {
     if(illegalParam(address, D_CLASS))
         return ill();

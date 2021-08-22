@@ -1763,9 +1763,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
                 } else {
                     if (field->locality == stl_thread) {
                         expr->utype->getCode()
-                                .addIr(OpBuilder::tlsMovl(field->address))
-                                .addIr(OpBuilder::movi(0, ADX))
-                                .addIr(OpBuilder::iaload(EBX, ADX))
+                                .addIr(OpBuilder::loadabs(field->address))
                                 .addIr(OpBuilder::rstore(EBX));
                     } else {
                         expr->utype->getCode()
@@ -1810,7 +1808,9 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
                         // we dont need the getter code size stuff because we immediatley use the dynaic function address
                     } else {
                         if (field->locality == stl_thread) {
-                            expr->utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
+                            expr->utype->getCode().addIr(OpBuilder::loadabs(field->address))
+                                    .addIr(OpBuilder::rstore(EBX));
+                            return resolvedMethod;
                         } else {
                             if (field->flags.find(STATIC) || field->owner->isGlobalClass())
                                 expr->utype->getCode().addIr(OpBuilder::movg(field->owner->address));
@@ -2949,7 +2949,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                    || (leftExpr.utype->getClass() && params.get(0)->utype->isNullType())) {
 
                 if(field->locality != stl_thread && !field->flags.find(STATIC)) {
-                    resultCode->inject(leftExpr.utype->getCode());
+                    resultCode->inject(leftExpr.utype->getCode()); // is this wrog, should w euse injectors here instead?
                     resultCode->addIr(OpBuilder::pushObject());
                 }
 
@@ -3028,39 +3028,45 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                             dataTypeToOpcode(field->type, EBX, EBX, *resultCode);
 
                         if(field->locality == stl_thread) {
-                            resultCode->addIr(OpBuilder::tlsMovl(field->address))
-                                    .addIr(OpBuilder::movi(0, ADX))
-                                    .addIr(OpBuilder::rmov(ADX, EBX));
+                            resultCode->addIr(OpBuilder::movabs(field->address));
 
                             resultCode->getInjector(stackInjector).free();
                             resultCode->getInjector(ebxInjector)
-                                    .addIr(OpBuilder::tlsMovl(field->address))
-                                    .addIr(OpBuilder::movi(0, ADX))
-                                    .addIr(OpBuilder::checklen(ADX))
-                                    .addIr(OpBuilder::iaload(EBX, ADX));
+                                    .addIr(OpBuilder::loadabs(field->address));
 
                             resultCode->getInjector(stackInjector)
-                                    .addIr(OpBuilder::tlsMovl(field->address))
-                                    .addIr(OpBuilder::movi(0, ADX))
-                                    .addIr(OpBuilder::checklen(ADX))
-                                    .addIr(OpBuilder::iaload(EBX, ADX))
+                                    .addIr(OpBuilder::loadabs(field->address))
                                     .addIr(OpBuilder::rstore(EBX));
 
                         } else
                             resultCode->addIr(OpBuilder::smovr2(EBX, field->address));
                         return;
                     } else {
-                        resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
-                        resultCode->inject(leftExpr.utype->getCode());
-                        resultCode->inject(leftExpr.utype->getCode().getInjector(ptrInjector));
+                        if(leftExpr.type == exp_var
+                            && leftExpr.utype->getType() == utype_field
+                            && leftExpr.utype->getField()->isVar()
+                            && leftExpr.utype->getField()->locality == stl_thread) {
+                            resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
 
-                        resultCode->addIr(OpBuilder::loadValue(EBX));
+                            resultCode->addIr(OpBuilder::loadValue(EBX));
 
-                        if (integerField)
-                            dataTypeToOpcode(field->type, EBX, EBX, *resultCode);
+                            if (integerField)
+                                dataTypeToOpcode(field->type, EBX, EBX, *resultCode);
 
-                        resultCode->addIr(OpBuilder::movi(0, ADX))
-                                .addIr(OpBuilder::rmov(ADX, EBX));
+                            resultCode->addIr(OpBuilder::movabs(leftExpr.utype->getField()->address));
+                        } else {
+                            resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
+                            resultCode->inject(leftExpr.utype->getCode());
+                            resultCode->inject(leftExpr.utype->getCode().getInjector(ptrInjector));
+
+                            resultCode->addIr(OpBuilder::loadValue(EBX));
+
+                            if (integerField)
+                                dataTypeToOpcode(field->type, EBX, EBX, *resultCode);
+
+                            resultCode->addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::rmov(ADX, EBX));
+                        }
                     }
                 } else if (field->type == CLASS || field->type == OBJECT) {
                     object_assignment:
@@ -5415,6 +5421,9 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
             resolveUtype(fieldReference, leftExpr.utype, ast);
             leftExpr.type = utypeToExpressionType(leftExpr.utype);
 
+            if(field->name == "fiber_count") {
+                int i = 0;
+            }
             if(field->type == FNPTR) {
                 RETAIN_REQUIRED_SIGNATURE((Method*)field->utype->getResolvedType())
                 compileExpression(&rightExpr, ast->getSubAst(ast_expression));

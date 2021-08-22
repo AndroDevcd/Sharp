@@ -5,7 +5,6 @@
 #ifndef SHARP_FILEIO_H
 #define SHARP_FILEIO_H
 
-#include "../../runtime/symbols/string.h"
 #include "../../runtime/List.h"
 
 void resolve_path(string& path, string&);

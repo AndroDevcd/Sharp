@@ -143,7 +143,6 @@ bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic, bool inJit);
 CXX11_INLINE
 void setupMethodStack(int64_t address, Thread* thread, bool inJit);
-extern void __srt_setup_env();
 extern void populateString(string&, double*, uInt);
 
 #endif //SHARP_SHARP_H

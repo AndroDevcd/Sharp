@@ -81,8 +81,6 @@ public:
             return *this;
         }
 
-        buffer& operator<<(native_string* buf);
-
         buffer& operator<<(const long long& _X)
         {
             operator<<((char)_X);

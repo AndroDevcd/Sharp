@@ -17,6 +17,7 @@ fiber* create_task(string &name, Method *main) {
         fib->name = name;
         fib->main = main;
         fib->pc = 0;
+        fib->cache = 0;
         fib->state = FIB_CREATED;
         fib->exitVal = 0;
         fib->delayTime = -1;
@@ -29,6 +30,7 @@ fiber* create_task(string &name, Method *main) {
         fib->dataStack = NULL;
         fib->registers = NULL;
         fib->callStack = NULL;
+        fib->acquiringMut = NULL;
         fib->calls = -1;
         fib->current = NULL;
         fib->ptr = NULL;

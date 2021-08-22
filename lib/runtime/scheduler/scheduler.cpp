@@ -36,6 +36,7 @@ void __usleep(unsigned int usec)
 uInt schedTime = 0, clocks = 0, schedTasks = 0;
 sched_task *sched_tasks = NULL, *next_task = NULL, *last_task = NULL;
 _sched_thread *sched_threads = NULL, *last_thread = NULL;
+bool postIdleTasks = false;
 
 recursive_mutex task_mutex;
 recursive_mutex thread_mutex;
@@ -74,23 +75,24 @@ void run_scheduler() {
        schedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
        thread = sched_threads;
 
-       if(next_task->next == NULL) next_task = sched_tasks;
-       else next_task = next_task->next;
+       if(next_task != NULL) {
+           while (thread != NULL) {
+               if (thread->thread->id == gc_threadid || thread->thread->id == idle_sched_threadid) {
+                   thread = thread->next;
+                   continue;
+               }
 
-       while(thread != NULL)
-       {
-           if(thread->thread->id == gc_threadid) continue;
+               if (vm.state >= VM_SHUTTING_DOWN) {
+                   break;
+               }
 
-           if (vm.state >= VM_SHUTTING_DOWN) {
-               break;
+               thread = sched_thread(thread);
            }
-
-           thread = sched_thread(thread);
        }
 
-       // test normal scheduling first
-       // send off idle tasks ~ every millisecond
-//       if(clocks % 4 == 0) {
+       shift_to_next_task();
+       // send off idle tasks ~ every 2 milliseconds
+//       if(postIdleTasks && clocks % 8 == 0) {
 //           post_idle_tasks();
 //       }
 
@@ -109,6 +111,14 @@ void run_scheduler() {
     } while(true);
 }
 
+void shift_to_next_task() {
+    if(next_task != NULL)
+    {
+        if (next_task->next == NULL) next_task = sched_tasks;
+        else next_task = next_task->next;
+    } else next_task = sched_tasks;
+}
+
 void post_idle_tasks() {
     Int postedTasks = 0;
     sched_task *task = sched_tasks, *next;
@@ -125,10 +135,14 @@ void post_idle_tasks() {
 
             if(task == last_task)
                 last_task = task->prev;
+            if(task == sched_tasks)
+                sched_tasks = task->next;
             if(task->prev != NULL)
                 task->prev->next = task->next;
             if(task->next != NULL)
                 task->next->prev = task->prev;
+            if(task == next_task)
+                next_task = next_task->next;
 
             postedTasks++;
             post_idle_task(task);
@@ -167,8 +181,9 @@ bool is_runnable(fiber *task, Thread *thread) {
 }
 
 bool can_sched(fiber *task, Thread *thread) {
-    return is_runnable(task, thread) &&
-           (task->delayTime == 0 || schedTime > task->delayTime);
+    return is_runnable(task, thread)
+        && (task->acquiringMut == NULL || task->acquiringMut->fiberid == -1)
+        &&   (task->delayTime <= 0 || schedTime > task->delayTime);
 }
 
 bool can_dispose(sched_task *task) {
@@ -191,6 +206,10 @@ bool queue_task(fiber *fib) {
 
     if(task)
     {
+        schedTasks++;
+        if(schedTasks > MIN_SCHED_TASKS)
+            postIdleTasks = true;
+
         if(sched_tasks == NULL) {
             sched_tasks = task;
         } else {
@@ -212,7 +231,7 @@ bool queue_thread(Thread* thread) {
 
     if(t)
     {
-        if(sched_tasks == NULL) {
+        if(sched_threads == NULL) {
             sched_threads = t;
         } else {
             last_thread->next = t;
@@ -271,6 +290,10 @@ void dispose(sched_task *task) {
     GUARD(task_mutex)
     task->task->free();
 
+    schedTasks--;
+    if(schedTasks < MIN_SCHED_TASKS)
+        postIdleTasks = false;
+
     if(task == last_task)
         last_task = task->prev;
     if(task == sched_tasks)
@@ -298,6 +321,9 @@ void clear_tasks() {
 
         task = task->next;
         if(disposable != NULL) {
+            if(disposable == next_task)
+                shift_to_next_task();
+
             dispose(disposable);
             disposable = NULL;
         }

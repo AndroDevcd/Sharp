@@ -2,9 +2,9 @@
 // Created by BNunnally on 5/14/2020.
 //
 
-#include "../../../runtime/symbols/string.h"
 #include "../Compiler.h"
 #include "Obfuscater.h"
+#include "../../../util/File.h"
 
 #define ALPHABET_COUNT 26
 #define MAX_BUFFER_SIZE 32
@@ -76,15 +76,14 @@ void Obfuscater::clearBuf() {
 bool Obfuscater::checkReliability(Int startId, Int sampleSize) {
 
     if(sampleSize <= MAX_SAMPLE_SIZE) {
-        native_string names[sampleSize];
+        std::string names[sampleSize];
         Int stringSize = 0;
         for(Int i = 0; i < sampleSize; i++) {
-            names[stringSize].init();
             names[stringSize++] = Obfuscater::generateName(startId++);
         }
 
         for(Int i = 0; i < sampleSize; i++) {
-            native_string &name = names[i];
+            std::string &name = names[i];
             Int count = 0;
 
             for(Int j = 0; j < sampleSize; j++) {

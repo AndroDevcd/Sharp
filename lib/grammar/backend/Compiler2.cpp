@@ -420,8 +420,6 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             if (field->isVar()) {
                 if (field->isArray || field->locality == stl_thread) {
                     if (field->locality == stl_thread) {
-                        utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
-
                         // we only do it for stl_thread var if it is not an array field
                         if (!field->isArray) {
                             utype->getCode().getInjector(incInjector).addIr(OpBuilder::inc(EBX));
@@ -433,21 +431,19 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                             }
 
                             utype->getCode().getInjector(incInjector)
-                              .addIr(OpBuilder::movi(0, ADX))
-                              .addIr(OpBuilder::rmov(ADX, EBX));
+                              .addIr(OpBuilder::movabs(field->address));
                             utype->getCode().getInjector(decInjector)
-                                    .addIr(OpBuilder::movi(0, ADX))
-                                    .addIr(OpBuilder::rmov(ADX, EBX));
+                                    .addIr(OpBuilder::movabs(field->address));
 
                             utype->getCode().getInjector(ebxInjector)
-                                    .addIr(OpBuilder::movi(0, ADX))
-                                    .addIr(OpBuilder::iaload(EBX, ADX));
+                                    .addIr(OpBuilder::loadabs(EBX));
 
                             utype->getCode().getInjector(stackInjector)
-                                    .addIr(OpBuilder::movi(0, ADX))
-                                    .addIr(OpBuilder::iaload(EBX, ADX))
+                                    .addIr(OpBuilder::loadabs(EBX))
                                     .addIr(OpBuilder::rstore(EBX));
                             return;
+                        } else {
+                            utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
                         }
                     } else {
                         utype->getCode().addIr(OpBuilder::movl(field->address));
@@ -726,7 +722,32 @@ void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedFie
             utype->getCode().getInjector(getterInjector).addIr(codeSize);
         } else {
             if(field->locality == stl_thread) {
-                utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
+
+                if (field->isVar() && !field->isArray) {
+//                    utype->getCode().addIr(OpBuilder::loadabs(field->address));
+
+                    utype->getCode().getInjector(incInjector).addIr(OpBuilder::inc(EBX));
+                    utype->getCode().getInjector(decInjector).addIr(OpBuilder::dec(EBX));
+
+                    if (field->type <= _UINT64) {
+                        dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(incInjector));
+                        dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(decInjector));
+                    }
+
+                    utype->getCode().getInjector(incInjector)
+                            .addIr(OpBuilder::movabs(EBX));
+                    utype->getCode().getInjector(decInjector)
+                            .addIr(OpBuilder::movabs(EBX));
+
+                    utype->getCode().getInjector(ebxInjector)
+                            .addIr(OpBuilder::loadabs(EBX));
+
+                    utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::loadabs(EBX))
+                            .addIr(OpBuilder::rstore(EBX));
+                    return;
+                } else
+                    utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
             } else {
                 if(field->flags.find(STATIC) || field->owner->isGlobalClass())
                     utype->getCode().addIr(OpBuilder::movg( field->owner->address));

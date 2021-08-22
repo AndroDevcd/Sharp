@@ -11,7 +11,7 @@
 #include "../linked_list.h"
 #include "../VirtualMachine.h"
 
-sched_task *idle_tasks;
+sched_task *idle_tasks, *last_idle_task;
 Thread *idleSched = NULL;
 recursive_mutex idle_mutex;
 _List<sched_task*> unAddedIdleTasks;
@@ -86,6 +86,12 @@ void run_idle_scheduler() {
 #endif
 
     do {
+        if(hasSignal(idleSched->signal, tsig_suspend))
+            suspend_self();
+        if(idleSched->state == THREAD_KILLED || hasSignal(idleSched->signal, tsig_kill)) {
+            return;
+        }
+
         release_tasks();
         add_idle_tasks();
 

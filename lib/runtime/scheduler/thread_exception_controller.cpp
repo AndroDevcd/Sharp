@@ -18,7 +18,7 @@ void print_exception(Thread *thread) {
             exceptionClass = &vm.classes[CLASS(this_fiber->exceptionObject.object->info)];
 
 
-        cout << "Unhandled exception on thread " << thread->name.str() << " (most recent call last):\n";
+        cout << "Unhandled exception on thread " << thread->name << " (most recent call last):\n";
         if(stackTrace != NULL && stackTrace->object != NULL){
             Object* data = vm.resolveField("data", stackTrace->object);
 

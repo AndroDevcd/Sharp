@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "DataEntity.h"
 #include "../code/CodeHolder.h"
+#include "../oo/Field.h"
 
 enum utype_struct
 {
@@ -25,14 +26,14 @@ class Method;
 /**
  * Injector for building code
  */
-extern native_string stackInjector;
-extern native_string ebxInjector;
-extern native_string ptrInjector;
-extern native_string getterInjector;
-extern native_string setterInjector;
-extern native_string removeFromStackInjector;
-extern native_string incInjector;
-extern native_string decInjector;
+extern std::string stackInjector;
+extern std::string ebxInjector;
+extern std::string ptrInjector;
+extern std::string getterInjector;
+extern std::string setterInjector;
+extern std::string removeFromStackInjector;
+extern std::string incInjector;
+extern std::string decInjector;
 
 class Utype {
 public:
@@ -59,6 +60,7 @@ public:
     bool isClass();
     ClassObject* getClass();
     Method *getMethod();
+    Field *getField();
     DataEntity* getResolvedType() { return resolvedType; }
     CodeHolder& getCode() { return code; }
     void free();

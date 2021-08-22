@@ -50,7 +50,7 @@ string export_obj(SharpObject* obj) {
             uInt fieldAddress =  GENERATION(obj->info) == gc_perm ? klass.instanceFields : 0;
             uInt fieldSize = GENERATION(obj->info) == gc_perm ? klass.staticFields : klass.instanceFields;
 
-            dataStream << klass.fullName.str() << (char)DATA_END;
+            dataStream << klass.fullName << (char)DATA_END;
             dataStream << (char)EXPORT_DATA;
             dataStream << (GENERATION(obj->info) == gc_perm ? 1 : 0);
             dataStream << (obj->array ? 1 : 0);
@@ -74,7 +74,7 @@ string export_obj(SharpObject* obj) {
                 if(fieldSize != obj->size) {
                     recursion=0;
                     exportStreamInfo.free();
-                    throw Exception(vm.IncompatibleClassExcept, "class: " + klass.name.str() + " size does not match field count");
+                    throw Exception(vm.IncompatibleClassExcept, "class: " + klass.name + " size does not match field count");
                 }
 
                 for(Int i = 0; i < fieldSize; i++) {
@@ -82,7 +82,7 @@ string export_obj(SharpObject* obj) {
 
                     dataStream << (char)EXPORT_FIELD;
                     dataStream << field.type << (char)DATA_END;
-                    dataStream << field.name.str() << (char)DATA_END;
+                    dataStream << field.name << (char)DATA_END;
                     if (obj->node[i].object == NULL) {
                         dataStream << (char)EXPORT_EMPTY;
                     } else {

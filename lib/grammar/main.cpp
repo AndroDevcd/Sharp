@@ -9,8 +9,8 @@
 #include "frontend/tokenizer/tokenizer.h"
 #include "frontend/parser/Parser.h"
 #include "backend/Compiler.h"
-#include "../runtime/symbols/string.h"
 #include "../util/zip/zlib.h"
+#include "../util/File.h"
 
 
 /**
@@ -30,7 +30,7 @@ bool warning_map[] = {
 };
 
 options c_options;
-int compile(List<native_string>&);
+int compile(List<std::string>&);
 
 bool ends_with(std::string value, std::string ending)
 {
@@ -39,31 +39,31 @@ bool ends_with(std::string value, std::string ending)
 }
 
 struct stat result;
-void get_full_file_list(native_string &path, List<native_string> &files) {
+void get_full_file_list(std::string &path, List<std::string> &files) {
     DIR *dir;
     struct dirent *ent;
-    if ((dir = opendir (path.str().c_str())) != NULL) {
+    if ((dir = opendir (path.c_str())) != NULL) {
         /* print all the files and directories within directory */
         while ((ent = readdir (dir)) != NULL) {
             if (!ent->d_name || ent->d_name[0] == '.') continue;
-            native_string file;
-            file = path.str() + "/" + string(ent->d_name);
+            std::string file;
+            file = path + "/" + string(ent->d_name);
 
-            if(stat(file.str().c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
-                native_string folder(file.str() + "/");
+            if(stat(file.c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
+                std::string folder(file + "/");
                 get_full_file_list(folder, files);
                 continue;
             }
 
-            if(ends_with(file.str(), ".sharp")) {
-                files.__new().init();
+            if(ends_with(file, ".sharp")) {
+                files.__new();
                 files.last() = file;
             }
         }
         closedir (dir);
     } else {
         /* could not open directory */
-        cout << "warning: could not find library files in path `" << path.str() << "`" << endl;
+        cout << "warning: could not find library files in path `" << path << "`" << endl;
     }
 }
 
@@ -152,7 +152,7 @@ int _bootstrap(int argc, const char* argv[])
 
 
     initalizeErrors();
-    List<native_string> files;
+    List<std::string> files;
     for (int i = 1; i < argc; ++i) {
         args_:
         string arg(argv[i]);
@@ -302,13 +302,13 @@ int _bootstrap(int argc, const char* argv[])
     }
 
 #ifdef WIN32_
-    native_string path("C:/Program Files/Sharp/include");
+    std::string path("C:/Program Files/Sharp/include");
 #endif
 #ifdef POSIX_
-    native_string path("/usr/include/sharp/");
+    std::string path("/usr/include/sharp/");
 #endif
 
-    List<native_string> includes;
+    List<std::string> includes;
     get_full_file_list(path, includes);
 
     for(long i = 0; i < c_options.libraries.size(); i++) {
@@ -317,7 +317,7 @@ int _bootstrap(int argc, const char* argv[])
     }
 
     for(long i = 0; i < includes.size(); i++)
-        files.add(includes.get(i).str());
+        files.add(includes.get(i));
 
     if(files.size() == 0){
         help();
@@ -325,7 +325,7 @@ int _bootstrap(int argc, const char* argv[])
     }
 
     for(unsigned int i = 0; i < files.size(); i++) {
-        string file = files.get(i).str();
+        string file = files.get(i);
 
         if(!File::exists(file.c_str())){
             error("file `" + file + "` doesnt exist!");
@@ -338,7 +338,7 @@ int _bootstrap(int argc, const char* argv[])
     return compile(files);
 }
 
-int compile(List<native_string> &files)
+int compile(List<std::string> &files)
 {
     List<parser*> parsers;
     parser* currParser = NULL;
@@ -349,7 +349,7 @@ int compile(List<native_string> &files)
 
     for(unsigned int i = 0; i < files.size(); i++)
     {
-        string file = files.get(i).str();
+        string file = files.get(i);
         buf.begin();
 
         File::read_alltext(file.c_str(), buf);

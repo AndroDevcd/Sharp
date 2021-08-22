@@ -7,6 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "../List.h"
+#include <mutex>
 
 #define TIME_UNIT_MULT 1000           /* Represents how many microseconds/millisecond */
 #define SCHEDULER_PERIOD (3 * TIME_UNIT_MULT) /* Max time given to the scheduler per task in microseconds */
@@ -55,6 +56,7 @@ void sched_unsched_items();
 bool queue_task(fiber*);
 bool queue_thread(Thread*);
 void post_idle_tasks();
+void shift_to_next_task();
 
 
 #endif //SHARP_SCHEDULER_H
