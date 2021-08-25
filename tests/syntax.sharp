@@ -5,7 +5,7 @@ import platform;
 import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
-const loop_count := 1000000;
+const loop_count := 1000;
 const slices := 10;
 const n := 0;
 counter := new atomic<var>{ 0 };
@@ -13,22 +13,22 @@ counter := new atomic<var>{ 0 };
 def main(args: string[]) {
 
     for(i := 0; i < slices; i++) {
-        slice({ args ->
-            for(i := 0; i < loop_count; i++) {
-                counter++;
+        launcher = { ->
+            for(i := 0; i < 10000000; i++) {
             }
 
-            println("done");
-            return 0;
-        }, thread.current());
+            counter++;
+        };
     }
 
-    for(i := 0; i < loop_count; i++) {
-       counter++;
+    for(i := 0; i < 10000000; i++) {
     }
+
+    while(counter < slices) {
+        delay(100);
+    }
+
+    println("done");
 
     // took 8.288s
-    while(counter != (loop_count * (slices + 1))) {
-        delay(10);
-    }
 }

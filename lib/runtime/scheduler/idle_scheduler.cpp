@@ -118,7 +118,7 @@ void post_idle_task(sched_task *task) {
 bool is_idle_task(sched_task *task) {
     return task->task->state == FIB_SUSPENDED &&
         (
-            (task->task->delayTime > 0 && ((schedTime - task->task->delayTime) > MIN_DELAY_TIME + 1))
+            (task->task->delayTime > 0 && ((schedTime - task->task->delayTime) >= MIN_DELAY_TIME + 1))
             || !task->task->wakeable
             || task->task->acquiringMut != NULL
         );
@@ -169,6 +169,11 @@ fiber* locate_idle_task(uInt taskId) {
             return task->task;
 
         task = task->next;
+    }
+
+    for(uInt i = 0; i < unSchedTasks.size(); i++) {
+        if(unSchedTasks.get(i)->id == taskId)
+            return unSchedTasks.get(i);
     }
 
     return NULL;

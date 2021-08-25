@@ -50,7 +50,7 @@ void run_scheduler() {
     Int size;
 
 #ifdef WIN32_
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #endif
 #ifdef POSIX_
     pthread_attr_t thAttr;
@@ -59,7 +59,7 @@ void run_scheduler() {
 
     pthread_attr_init(&thAttr);
     pthread_attr_getschedpolicy(&thAttr, &policy);
-    pthread_prio = sched_get_priority_min(policy);
+    pthread_prio = sched_get_priority_max(policy);
     pthread_setschedprio(pthread_self(), pthread_prio);
     pthread_attr_destroy(&thAttr);
 #endif
@@ -91,10 +91,10 @@ void run_scheduler() {
        }
 
        shift_to_next_task();
-       // send off idle tasks ~ every 2 milliseconds
-//       if(postIdleTasks && clocks % 8 == 0) {
-//           post_idle_tasks();
-//       }
+       // send off idle tasks ~ every 10 milliseconds
+       if(postIdleTasks && (clocks % POST_IDLE_FREQUENCY == 0)) {
+           post_idle_tasks();
+       }
 
        if(vm.state >= VM_SHUTTING_DOWN) {
            while(vm.state != VM_TERMINATED) {
@@ -144,12 +144,13 @@ void post_idle_tasks() {
             if(task == next_task)
                 next_task = next_task->next;
 
+            schedTasks--;
             postedTasks++;
             post_idle_task(task);
         }
 
         task = next;
-        if(postedTasks >= MAX_TASK_RELEASE)
+        if(postedTasks >= 10000)
             break;
     }
 }

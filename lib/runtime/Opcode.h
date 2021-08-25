@@ -89,7 +89,7 @@
  || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF) || (self->this_fiber->calls + 1) >= self->this_fiber->frameLimit) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();
+#define _brh_NOINCREMENT DISPATCH();
 #else
 #define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; DISPATCH();
 #endif
@@ -97,7 +97,7 @@
 #define _brh_inc(x)  this_fiber->pc+=x; _brh_NOINCREMENT
 
 #define context_switch_check(incPc) \
-    if((contextSwitching || (hasSignal(signal, tsig_context_switch) && try_context_switch(this, incPc)))) { \
+    HAS_SIGNAL if((contextSwitching || (hasSignal(signal, tsig_context_switch) && try_context_switch(this, incPc)))) { \
         return; \
     } \
 

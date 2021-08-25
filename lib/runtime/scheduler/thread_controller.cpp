@@ -264,7 +264,7 @@ void cancel_task(Thread *thread) {
 void wait_for_context_switch(Thread* thread) {
     const int sMaxRetries = 1000000;
     int retryCount = 0;
-    int retryLimit = 10;
+    int retryLimit = 25;
 
     while (!thread->waiting)
     {
@@ -337,7 +337,7 @@ void wait_for_posted_task(Thread* thread) {
     fiber *this_fiber = thread->this_fiber;
 #ifdef COROUTINE_DEBUGGING
     thread->switched++;
-    Int start = NANO_TOMILL(Clock::realTimeInNSecs());
+    Int start = NANO_TOMICRO(Clock::realTimeInNSecs());
 #endif
     set_attached_thread(this_fiber, NULL);
 
@@ -350,7 +350,7 @@ void wait_for_posted_task(Thread* thread) {
 
 #ifdef COROUTINE_DEBUGGING
             thread->switched++;
-            thread->contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
+            thread->contextSwitchTime += NANO_TOMICRO(Clock::realTimeInNSecs()) - start;
 #endif
             return;
         }
@@ -369,16 +369,15 @@ void wait_for_posted_task(Thread* thread) {
             && accept_task(thread)) {
 #ifdef COROUTINE_DEBUGGING
             thread->switched++;
-            thread->contextSwitchTime += NANO_TOMILL(Clock::realTimeInNSecs()) - start;
+            thread->contextSwitchTime += NANO_TOMICRO(Clock::realTimeInNSecs()) - start;
 #endif
             break;
         }
 
 #ifdef COROUTINE_DEBUGGING
-        thread->actualSleepTime+=50;
+        thread->actualSleepTime+=1;
 #endif
-        __os_yield();
-        __usleep(50);
+        __usleep(1);
         if (hasSignal(thread->signal, tsig_suspend))
             suspend_self();
         if (thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
@@ -594,8 +593,8 @@ void kill_all_threads() {
 
 #ifdef COROUTINE_DEBUGGING
         cout << "Thread " << thread->name << " slept: " << thread->timeSleeping << " switched: " << thread->switched
-             << " bound: " << bound_task_count(thread) << " skipped " << thread->skipped << " actual sleep time: " << thread->actualSleepTime
-             << " context switch time (ms) " << thread->contextSwitchTime << endl << " time spent locking: " << thread->timeLocking << endl;
+             << " bound: " << bound_task_count(thread) << " skipped " << thread->skipped << " actual sleep time: " << (thread->actualSleepTime / 1000)
+             << " context switch time (ms) " << (thread->contextSwitchTime / 1000) << endl << " time spent locking: " << thread->timeLocking << endl;
 #endif
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
@@ -841,6 +840,11 @@ Thread* get_thread(uInt id) {
     {
         if(thread->thread->id == id) return thread->thread;
         thread = thread->next;
+    }
+
+    for(uInt i = 0; i < unSchedThreads.size(); i++) {
+        if(unSchedThreads.get(i)->id == id)
+            return unSchedThreads.get(i);
     }
 
     return NULL;

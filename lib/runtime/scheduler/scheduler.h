@@ -10,12 +10,11 @@
 #include <mutex>
 
 #define TIME_UNIT_MULT 1000           /* Represents how many microseconds/millisecond */
-#define SCHEDULER_PERIOD (3 * TIME_UNIT_MULT) /* Max time given to the scheduler per task in microseconds */
-#define LPTSI (SCHEDULER_PERIOD / 6)  /* low priority time slice interval 500us */  // ~2k fibers/second
-#define NPTSI (SCHEDULER_PERIOD / 3)  /* norm priority time slice interval 1ms */ // ~1k fibers/second
-#define HPTSI (SCHEDULER_PERIOD    )  /* high priority time slice interval 3ms */ // ~300 fibers/second
+#define LPTSI (10 * TIME_UNIT_MULT)  /* low priority time slice interval 500us */  // ~2k fibers/second
+#define NPTSI (60 * TIME_UNIT_MULT)  /* norm priority time slice interval 1ms */ // ~1k fibers/second
+#define HPTSI (100 * TIME_UNIT_MULT)  /* high priority time slice interval 3ms */ // ~300 fibers/second
 #define CLOCK_CYCLE 250    /* Time between clock cycle switches 250us */
-#define CLOCKS_PER_MS 4
+#define POST_IDLE_FREQUENCY ((TIME_UNIT_MULT / CLOCK_CYCLE) * 10)
 
 // A task will be skipped 3 times while its in "locking" state to prevent deadlocks
 #define LOCK_LIMIT 3

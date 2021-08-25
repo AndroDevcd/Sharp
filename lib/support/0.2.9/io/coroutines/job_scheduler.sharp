@@ -10,14 +10,14 @@ private long_term_threads := new atomic<var>(0);
 private max_threads : var;
 private scheduler : thread;
 
-private const FIBER_THRESHOLD_TRIGGER  := 15; // create a new thread after 15 fibers
+private const FIBER_THRESHOLD_TRIGGER  := 2; // create a new thread after 15 fibers
 
 public def start_scheduler() {
     lock(launcher) {
          if(scheduler == null) {
             if(max_threads == 0)
                 calculate_max_threads();
-            scheduler = new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
+            scheduler = new thread("job_scheduler", scheduler_main, launcher.long_term_pool);
             scheduler.start(null);
         }
 	}
