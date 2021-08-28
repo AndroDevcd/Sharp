@@ -33,45 +33,7 @@
 #endif
 
 recursive_mutex fileMutex;
-int FILE_EXISTS       = 0x01;
-int FILE_REGULAR      = 0x02;
-int FILE_DIRECTORY    = 0x04;
-int FILE_BLOCK_DEVICE = 0x08;
-int FILE_CHARACTER    = 0x10;
-int FILE_FIFO_PIPE    = 0x20;
-int _FILE_UNKNOWN     = 0x40;
-int FILE_HIDDEN       = 0x80;
 thread_local struct stat result;
-void resolve_path(string& path, string &fullPath) {
-    GUARD(fileMutex);
-
-#ifdef WIN32_
-    char full_path[MAX_PATH];
-    GetFullPathName(path.c_str(), MAX_PATH, full_path, NULL);
-
-    for(int i = 0; i < MAX_PATH; i++) {
-        if(full_path[i] != '\000')
-            fullPath += full_path[i];
-        else
-            break;
-    }
-
-#endif
-    
-#ifdef POSIX_
-    char full_path[PATH_MAX];
-        if(realpath(path.c_str(), full_path) != 0) {
-            for(int i = 0; i < PATH_MAX; i++) {
-            if(full_path[i] != '\000')
-                fullPath += full_path[i];
-            else
-                break;
-        }
-    }
-    
-#endif
-}
-
 uInt get_file_attrs(string& path) {
     GUARD(fileMutex);
 
@@ -218,17 +180,6 @@ void get_file_list(string &path, _List<string> &files) {
     } else {
         /* could not open directory */
     }
-}
-
-long make_dir(string &path)
-{
-#ifdef WIN32_
-    return _mkdir(path.c_str());
-#endif
-
-#ifdef POSIX_
-    return mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-#endif
 }
 
 long delete_dir(string &path)

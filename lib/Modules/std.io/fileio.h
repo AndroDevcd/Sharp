@@ -7,9 +7,6 @@
 
 #include "../../runtime/List.h"
 
-void resolve_path(string& path, string&);
-
-
 int check_access(string& path, int access_flag);
 
 uInt get_file_attrs(string& path);
@@ -23,8 +20,6 @@ void create_file(string &path);
 long delete_file(string &path);
 
 void get_file_list(string &path, _List<string> &list);
-
-long make_dir(string &path);
 
 long delete_dir(string &path);
 

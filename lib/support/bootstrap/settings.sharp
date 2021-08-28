@@ -101,7 +101,7 @@ def add_library_path(libpath: string) {
    library_dir := new file(libpath);
 
    if(!library_dir.exists()) {
-      warning("library path: library_dir dosen't exist!");
+      warning("library path: $library_dir dosen't exist!");
       return;
    }
 

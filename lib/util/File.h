@@ -136,7 +136,27 @@ public:
     static bool endswith(string ext, string f);
 
     static int write(const char *f, string data);
+
+    static uInt getFileAttrs(string& path);
+
+    void resolvePath(string& path, string &fullPath);
+
+    long makeDir(string &path);
+
+    string name(string);
+
+    void list(string &path, std::list<string> &files);
+
+    void currentDirectory(string&);
 };
 
+extern int FILE_EXISTS      ;
+extern int FILE_REGULAR     ;
+extern int FILE_DIRECTORY   ;
+extern int FILE_BLOCK_DEVICE;
+extern int FILE_CHARACTER   ;
+extern int FILE_FIFO_PIPE   ;
+extern int _FILE_UNKNOWN    ;
+extern int FILE_HIDDEN      ;
 
 #endif //SHARP_FILE_H
