@@ -35,6 +35,10 @@ public:
         return _Data[len-1];
     }
 
+    T& operator[](uInt pos) {
+        return get(pos);
+    }
+
     void insert(uint32_t pos, T& data) {
         if(pos>len || pos < 0) {
             stringstream ss;
@@ -120,7 +124,7 @@ public:
         return _Data[_X];
     }
 
-    T& get(uint32_t _X) {
+    T & get(uint32_t _X) const {
         if(_X>=len || _X < 0){
             stringstream ss;
             ss << "index out of bounds list::get() _X: " << _X
@@ -146,7 +150,7 @@ public:
         len=0;
     }
 
-    uint32_t size() { return len; }
+    uint32_t size() const { return len; }
 
     bool singular() { return len == 1; }
 

@@ -52,10 +52,10 @@ bool isNumber(string int_string) {
 
 void check_target() {
     switch(options.target) {
-        case alpha -> {
+        case alpha_cr2: {
             return;
         }
-        else -> {
+        default: {
             stringstream err;
             err << "invalid platform target `" << options.target << "`";
             error(err.str());
@@ -121,8 +121,8 @@ void set_target_platform(string target) {
         options.target = stoi(target, nullptr, 0);
         check_target();
     } else {
-        if(toLower(target) == "alpha") {
-            options.target = main#platform.alpha;
+        if(toLower(target) == "alpha-cr2") {
+            options.target = alpha_cr2;
         }
         else {
             error("unknown platform target $target");

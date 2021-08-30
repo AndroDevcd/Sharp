@@ -139,15 +139,15 @@ public:
 
     static uInt getFileAttrs(string& path);
 
-    void resolvePath(string& path, string &fullPath);
+    static void resolvePath(string& path, string &fullPath);
 
-    long makeDir(string &path);
+    static long makeDir(string &path);
 
-    string name(string);
+    static string name(string);
 
-    void list(string &path, std::list<string> &files);
+    static void list(string &path, std::list<string> &files);
 
-    void currentDirectory(string&);
+    static void currentDirectory(string&);
 };
 
 extern int FILE_EXISTS      ;

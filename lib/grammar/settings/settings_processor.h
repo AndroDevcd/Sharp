@@ -7,6 +7,7 @@
 
 #include "settings.h"
 
+void process_settings();
 void remove_ignored_files();
 void validate_and_add_source_files(string &libPath);
 void process_library_files(string versionNumber);

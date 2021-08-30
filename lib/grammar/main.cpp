@@ -6,54 +6,13 @@
 #include <cmath>
 #include <sys/stat.h>
 #include <dirent.h>
-#include "main.h"
 #include "frontend/tokenizer/tokenizer.h"
-#include "frontend/parser/Parser.h"
-#include "backend/Compiler.h"
 #include "../util/zip/zlib.h"
 #include "../util/File.h"
 #include "settings/settings.h"
 #include "settings/settings_processor.h"
 
-
-
-options c_options;
 int compile();
-
-bool ends_with(std::string value, std::string ending)
-{
-    if (ending.size() > value.size()) return false;
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
-struct stat result;
-void get_full_file_list(std::string &path, List<std::string> &files) {
-    DIR *dir;
-    struct dirent *ent;
-    if ((dir = opendir (path.c_str())) != NULL) {
-        /* print all the files and directories within directory */
-        while ((ent = readdir (dir)) != NULL) {
-            if (!ent->d_name || ent->d_name[0] == '.') continue;
-            std::string file;
-            file = path + "/" + string(ent->d_name);
-
-            if(stat(file.c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
-                std::string folder(file + "/");
-                get_full_file_list(folder, files);
-                continue;
-            }
-
-            if(ends_with(file, ".sharp")) {
-                files.__new();
-                files.last() = file;
-            }
-        }
-        closedir (dir);
-    } else {
-        /* could not open directory */
-        cout << "warning: could not find library files in path `" << path << "`" << endl;
-    }
-}
 
 void help() {
     cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)"                                                     << endl;
@@ -102,22 +61,9 @@ void help_warn() {
     cout <<               "    --hw              display this help message"                               << endl;
 }
 
-bool startsWith(string &str, string prefix)
-{
-    if(prefix.size() > str.size())
-        return false;
-
-    long index = 0;
-    for(char ch : prefix) {
-        if(ch != str.at(index++))
-            return false;
-    }
-    return true;
-}
-
 void create_project() {
     string dir = options.new_project_dir;
-    string projName = File::name(dir);
+    options.project_name = File::name(dir);
     string div;
 
 #ifdef __WIN32
@@ -152,7 +98,7 @@ void create_project() {
     if(File::makeDir(srcDir) || File::makeDir(buildDir)
         || File::makeDir(cacheDir) || File::makeDir(outputsDir)
         || File::makeDir(filesDir)) {
-        cout << "failed to create all necessary directories for project: " << projName << endl;
+        cout << "failed to create all necessary directories for project: " << options.project_name << endl;
         exit(1);
     }
 
@@ -184,19 +130,19 @@ void create_project() {
         data = out.to_str();
         out.end();
     } else {
-        data = "{\n  name: \"" + projName + "\",\n  version: \"1.0\",\n  output: \"" + projName + "\",\n"
+        data = "{\n  name: \"" + options.project_name + "\",\n  version: \"1.0\",\n  output: \"" + options.project_name + "\",\n"
                + "  ignore_folders: [\n     \"build\"\n  ]\n}\n";
     }
 
     if(File::write(settings_file.c_str(), data) != 0) {
-        cout << "failed to create the main file for project: " + projName << endl;
+        cout << "failed to create the main file for project: " + options.project_name << endl;
         exit(1);
     }
 
-    cout << ("Project: \"" << projName << "\" successfully created!" << endl;
+    cout << "Project: \"" << options.project_name << "\" successfully created!" << endl;
 }
 
-int _bootstrap(int argc, const char* argv[])
+int _bootstrap(int argc, const char* args[])
 {
     if(argc < 2) {
         help();
@@ -205,7 +151,7 @@ int _bootstrap(int argc, const char* argv[])
 
     for (int i = 1; i < argc; ++i) {
         args_:
-        string arg(argv[i]);
+        string arg(args[i]);
         if(opt("-a")){
             enable_show_all_errors(true);
         }
@@ -260,7 +206,7 @@ int _bootstrap(int argc, const char* argv[])
             if(i+1 >= argc)
                 error("file version required after option `-target`");
             else {
-                set_target_platform(string(argv[++i]));
+                set_target_platform(string(args[++i]));
             }
         }
         else if(opt("-w")){
@@ -287,31 +233,31 @@ int _bootstrap(int argc, const char* argv[])
             if(i+1 >= argc)
                 error("project directory required after option `" + arg + "`");
             else
-                set_new_project_path(string(argv[++i]));
+                set_new_project_path(string(args[++i]));
         }
         else if(opt("-v")){
             if(i+1 >= argc)
                 error("file version required after option `-v`");
             else
-                set_source_version(string(argv[++i]));
+                set_source_version(string(args[++i]));
         }
         else if(opt("-ignore")){
             if(i+1 >= argc)
                 error("file path required after option `-ignore`");
             else
-                add_ignored_file(string(argv[++i]));
+                add_ignored_file(string(args[++i]));
         }
         else if(opt("-ignoredir")){
             if(i+1 >= argc)
                 error("directory path required after option `-ignoredir`");
             else
-                add_ignored_directory(string(argv[++i]));
+                add_ignored_directory(string(args[++i]));
         }
         else if(opt("-P")){
             if(i+1 >= argc)
                 error("project path required after option `-P`");
             else
-                set_project_directory(string(argv[++i]));
+                set_project_directory(string(args[++i]));
         }
         else if(opt("-werror")){
             enable_warnings_as_errors();
@@ -320,29 +266,29 @@ int _bootstrap(int argc, const char* argv[])
             if(i+1 >= argc)
                 error("error limit required after option `-errlmt`");
             else {
-                set_error_limit(string(argv[++i]));
+                set_error_limit(string(args[++i]));
             }
         }
         else if(opt("-nativedir") || opt("-nd")){
             if(i+1 >= argc)
                 error("output directory required after option `" + arg + "`");
             else
-                set_native_code_directory(string(argv[++i]));
+                set_native_code_directory(string(args[++i]));
         }
         else if(opt("-obf")){
             enable_source_obfuscation(true);
         }
-        else if(string(argv[i]).at(0) == '-'){
-            error("invalid option `" + string(argv[i]) + "`, try bootstrap --h");
+        else if(string(args[i]).at(0) == '-'){
+            error("invalid option `" + string(args[i]) + "`, try bootstrap --h");
         }
         else {
             // add the source files
             do {
-                if(string(argv[i]).at(0) == '-')
+                if(string(args[i]).at(0) == '-')
                     goto args_;
 
 
-                options.source_files.addif(string(argv[i++]));
+                options.source_files.addif(string(args[i++]));
             }while(i<argc);
             break;
         }
@@ -352,19 +298,21 @@ int _bootstrap(int argc, const char* argv[])
         create_project();
     }
 
-    if(options.source_files.size() == 0 && options.compile_mode == compilation_mode.file_mode){
+    if(options.source_files.size() == 0 && options.compile_mode == file_mode){
         help();
         return 1;
     }
 
-    if(options.compile_mode == compilation_mode.project_mode) {
+    if(options.compile_mode == project_mode) {
         if(options.project_dir == "") {
             string currDir;
             File::currentDirectory(currDir);
             options.project_dir = currDir;
         }
 
+        options.project_name = File::name(options.project_dir);
         validate_and_add_source_files(options.project_dir);
+        process_settings();
     } else {
         process_library_files(PROG_VERS);
     }
@@ -376,7 +324,7 @@ int _bootstrap(int argc, const char* argv[])
         if(!File::exists(sourceFile))
             error("file `" + sourceFile + "` doesnt exist!");\
 
-        if(!File::endswith(".sharp"))
+        if(!File::endswith(".sharp", sourceFile))
             error("file `" +sourceFile + "` is not a sharp file!");
         File::resolvePath(sourceFile, sourceFile);
     }

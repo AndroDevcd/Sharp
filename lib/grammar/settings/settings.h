@@ -80,6 +80,12 @@ struct settings {
     string project_dir = "";
 
     /*
+     * Name of the project being compiled
+     */
+    string project_name = "";
+
+
+    /*
      * Mapping file to write to
      */
     string map_file = "mapping.txt";
