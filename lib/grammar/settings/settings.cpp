@@ -238,8 +238,8 @@ void enable_source_obfuscation(bool enable) {
 }
 
 void set_error_limit(string limit) {
-    if(isNumber(lmt)) {
-        options.max_errors = strtol(lmt, nullptr, 0);
+    if(isNumber(limit)) {
+        options.max_errors = strtoll(limit.c_str(), nullptr, 0);
 
         if(options.max_errors > 100000) {
             error("cannot set the max errors allowed higher than (100,000) - " + limit);

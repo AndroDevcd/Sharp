@@ -143,7 +143,7 @@ public:
 
     static long makeDir(string &path);
 
-    static string name(string);
+    static string name(string&);
 
     static void list(string &path, std::list<string> &files);
 

@@ -112,6 +112,8 @@ json_value* parse_value() {
     } else if(tok.getType() == LEFTCURLY) {
         jv->setObjectValue(parse_object());
     }
+
+    return jv;
 }
 
 json_array* parse__array() {
@@ -136,7 +138,7 @@ json_object* parse_object() {
         jo->addMember(parse_member());
     }
 
-    expect_token(RIGHTBRACE, "]");
+    expect_token(RIGHTCURLY, "}");
     return jo;
 }
 

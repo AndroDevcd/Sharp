@@ -243,8 +243,6 @@ void process_settings() {
         } else {
             error("format is incorrect, initial type must be of type object");
         }
-
-        jv->free();
     }
 
     delete jv;

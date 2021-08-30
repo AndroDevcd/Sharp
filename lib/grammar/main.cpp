@@ -104,7 +104,7 @@ void create_project() {
 
 #ifdef __WIN32
     main_template_file = "C:\\Program Files\\Sharp\\proj-template\\main.sharp";
-    settings_template_file = "C:\\Program Files\\Sharp\\proj-template\\" + SETTINGS_FILE;
+    settings_template_file = "C:\\Program Files\\Sharp\\proj-template\\"; settings_template_file += SETTINGS_FILE;
 #else
     main_template_file = "/usr/include/sharp/proj-template/main.sharp";
     settings_template_file = "/usr/include/sharp/$settings_file_name";
@@ -130,8 +130,8 @@ void create_project() {
         data = out.to_str();
         out.end();
     } else {
-        data = "{\n  name: \"" + options.project_name + "\",\n  version: \"1.0\",\n  output: \"" + options.project_name + "\",\n"
-               + "  ignore_folders: [\n     \"build\"\n  ]\n}\n";
+        data = "{\n  \"name\": \"" + options.project_name + "\",\n  \"version\": \"1.0\",\n  \"output\": \"" + options.project_name + "\",\n"
+               + "  \"ignore_folders\": [\n     \"build\"\n  ]\n}\n";
     }
 
     if(File::write(settings_file.c_str(), data) != 0) {
@@ -299,6 +299,8 @@ int _bootstrap(int argc, const char* args[])
     }
 
     if(options.source_files.size() == 0 && options.compile_mode == file_mode){
+        if(options.new_project_dir != "") return 0;
+
         help();
         return 1;
     }
@@ -317,11 +319,10 @@ int _bootstrap(int argc, const char* args[])
         process_library_files(PROG_VERS);
     }
 
-    string &sourceFile;
     for(uInt i = 0; i < options.source_files.size(); i++) {
-        sourceFile = options.source_files.get(i);
+        string &sourceFile = options.source_files.get(i);
 
-        if(!File::exists(sourceFile))
+        if(!File::exists(sourceFile.c_str()))
             error("file `" + sourceFile + "` doesnt exist!");\
 
         if(!File::endswith(".sharp", sourceFile))
@@ -342,6 +343,8 @@ int compile()
     size_t errors=0, unfilteredErrors=0;
     long succeeded=0, failed=0, panic=0;
 
+    return 0;
+    /*
     for(unsigned int i = 0; i < files.size(); i++)
     {
         string file = files.get(i);
@@ -438,4 +441,5 @@ int compile()
          << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
     cout << std::flush << std::flush;
     return (failed == 0 && (c_options.aggressive_errors ? unfilteredErrors : errors) == 0) ? 0 : 1;
+     */
 }

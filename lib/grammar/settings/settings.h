@@ -162,7 +162,7 @@ struct settings {
     /*
      * Maximum errors the compiler will allow
      */
-    bool max_errors = 1000;
+    Int max_errors = 1000;
 
     /*
      * Machine platform target to run on

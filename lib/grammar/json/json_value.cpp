@@ -40,14 +40,19 @@ void json_value::copy(const json_value &jv) {
 }
 
 void json_value::free() {
-    if(arrayValue) delete arrayValue;
-    if(objectValue) delete objectValue;
+    if(arrayValue) { arrayValue->free(); delete arrayValue; arrayValue = NULL; }
+    if(objectValue) { objectValue->free(); delete objectValue; arrayValue = NULL; }
     type = jtype_invalid;
     intValue = 0;
     boolValue = false;
     stringValue.clear();
 }
 
+void addTabs(stringstream &ss, uInt tabCount) {
+    for(Int i = 0; i < tabCount; i++) {
+        ss << '\t';
+    }
+}
 
 void json_value::toString(stringstream &str, uInt &tabCount) {
     tabCount++;

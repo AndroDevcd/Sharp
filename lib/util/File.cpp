@@ -41,8 +41,8 @@ int FILE_HIDDEN       = 0x80;
 struct stat result;
 bool File::exists(const char *file)
 {
-    std::ifstream infile(file);
-    return infile.good();
+    string f = file;
+    return (File::getFileAttrs(f) & FILE_EXISTS);
 }
 
 bool is_whitespace(char c)
@@ -181,7 +181,7 @@ void File::list(string &path, std::list<string> &files) {
     }
 }
 
-string name(const string& path) {
+string File::name(string& path) {
     char div;
 #ifdef WIN32_
     div = '\\';

@@ -37,7 +37,7 @@ public:
 
     void free() {
         for(Int i = 0; i < values.size(); i++) {
-            values.get(i).free();
+            delete values.get(i);
         }
 
         values.free();

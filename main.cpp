@@ -23,11 +23,11 @@ int main(int argc, const char* argv[]) {
 #endif
 
     now= Clock::realTimeInNSecs();
-    if(c_options.debugMode)
+    if(options.debug_mode)
         cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
              << NANO_TOMILL(now-past) << "ms\n";
 
-    if(c_options.debugMode)
+    if(options.debug_mode)
         cout << endl << "program exiting..." << endl;
     return result;
 }

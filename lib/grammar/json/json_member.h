@@ -12,13 +12,20 @@ public:
     json_member()
     :
         name(""),
-        value()
+        value(NULL)
     {}
 
     ~json_member() {
+        free();
+    }
+
+    void free() {
         name.clear();
-        value->free();
-        delete value; value = NULL;
+        if(value) {
+            value->free();
+            delete value;
+            value = NULL;
+        }
     }
 
     json_type getType() {

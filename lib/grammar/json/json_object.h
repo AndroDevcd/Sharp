@@ -31,8 +31,10 @@ public:
 
     void free() {
         for(Int i = 0; i < members.size(); i++) {
-            members.free();
+            delete members.get(i);
         }
+
+        members.free();
     }
 
     uInt size() {
