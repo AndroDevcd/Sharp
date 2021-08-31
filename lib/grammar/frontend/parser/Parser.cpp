@@ -1620,6 +1620,8 @@ void parser::parseInitDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
+    if(peek(1)->getType() == LEFTPAREN)
+        parseUtypeArgList(branch); // must only be 1 param size
     parseBlock(branch);
 }
 

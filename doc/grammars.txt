@@ -241,7 +241,7 @@ Method Declaration:
 `[<accesstype>] def <identifier = name> <uTypeArg-list> [: <uType>] [ <block> | <infer-expr> ]
 
 Init Declaration:
-init <block>
+init [<uTypeArg-list>] <block>
 
 Delegate Method Declaration:
 `[<accesstype>] def delegate::<identifier = name> <uTypeArg-list> [: <uType>]
