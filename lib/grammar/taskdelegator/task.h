@@ -6,9 +6,22 @@
 #define SHARP_TASK_H
 
 #include "task_type.h"
+#include "../sharp_file.h"
 
 struct task {
-    string fileName;
+    task()
+    :
+        file(NULL),
+        type(task_none_)
+    {}
+
+    task(const task &t)
+            :
+            file(t.file),
+            type(t.type)
+    {}
+
+    sharp_file *file;
     task_type type;
 };
 

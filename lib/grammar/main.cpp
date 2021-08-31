@@ -11,6 +11,8 @@
 #include "../util/File.h"
 #include "settings/settings.h"
 #include "settings/settings_processor.h"
+#include "sharp_file.h"
+#include "taskdelegator/task_delegator.h"
 
 int compile();
 
@@ -334,14 +336,29 @@ int _bootstrap(int argc, const char* args[])
     return compile();
 }
 
+List<sharp_file*> sharpFiles;
+
 int compile()
 {
-    List<parser*> parsers;
-    parser* currParser = NULL;
-    tokenizer* currTokenizer = NULL;
-    File::buffer buf;
-    size_t errors=0, unfilteredErrors=0;
-    long succeeded=0, failed=0, panic=0;
+    for(Int i = 0; i < options.source_files.size(); i++) {
+        sharpFiles.add(
+                new sharp_file(options.source_files.get(i)));
+    }
+
+    start_task_delegator();
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_tokenize_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+
+//        t.type = task_parse_;
+//        t.file = sharpFiles.get(i);
+//        submit_task(t);
+    }
+
+    wait_for_tasks();
+    cout << "done" << endl;
 
     return 0;
     /*
