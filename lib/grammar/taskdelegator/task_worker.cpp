@@ -45,5 +45,6 @@ workerStart(void *arg) {
 }
 
 void execute_task() {
+    GUARD(errorMutex);
     cout << "executing task(" << currThread->currTask->type << ") on: " << currThread->currTask->file->name << endl;
 }

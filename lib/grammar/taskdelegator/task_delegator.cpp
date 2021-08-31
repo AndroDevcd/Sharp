@@ -22,7 +22,7 @@ int start_task_delegator() {
             &delegator,                 // thread self when thread is created
             0,                      // use default creation flags
             NULL);
-    if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
+    if(delegator.thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
 #endif
 #ifdef POSIX_
     if(pthread_create( &delegator.thread, NULL, delegatorStart, (void*) thread)!=0)
@@ -49,7 +49,7 @@ DWORD WINAPI
 void*
 #endif
 delegatorStart(void *) {
-    calulateMaxWorkers();
+    calculateMaxWorkers();
 
     if(options.green_mode) {
         throttle_max_threads();
@@ -68,11 +68,9 @@ delegatorStart(void *) {
 
             for(Int i = 0; i < task_queue.size(); i++) {
                 if(post_task(task_queue.get(i))) {
-                    task_queue.remove(i); i--;
+                    task_queue.removeAt(i); i--;
                 }
             }
-
-            task_queue.free();
         }
 
         bool allTasksFinished = task_queue.empty();
@@ -195,7 +193,9 @@ bool post_task(task t) {
         }
     }
 
-    return false;
+    // we can keep going after the parsed stage even if the file has failed to compile
+    return t.file->compilationFailed && t.file->stage <= parsed;
+
 }
 
 void submit_task(task t) {

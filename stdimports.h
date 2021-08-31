@@ -16,6 +16,7 @@
 #include <thread>
 #include <limits>
 #include <cmath>
+#include <mutex>
 #include "lib/runtime/architecture.h"
 #include "lib/grammar/platform.h"
 

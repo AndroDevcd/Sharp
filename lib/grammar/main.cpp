@@ -197,6 +197,9 @@ int _bootstrap(int argc, const char* args[])
         else if(opt("-magic")){
             enable_magic_mode(true);
         }
+        else if(opt("-d")){
+            enable_debug_mode(true);
+        }
         else if(opt("-dbg") | opt("-debug")) {
             enable_app_debugging(true);
         }
@@ -352,9 +355,9 @@ int compile()
         t.file = sharpFiles.get(i);
         submit_task(t);
 
-//        t.type = task_parse_;
-//        t.file = sharpFiles.get(i);
-//        submit_task(t);
+        t.type = task_parse_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
     }
 
     wait_for_tasks();
