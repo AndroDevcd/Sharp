@@ -1,0 +1,35 @@
+//
+// Created by BNunnally on 8/31/2021.
+//
+
+#ifndef SHARP_ACCESS_FLAG_H
+#define SHARP_ACCESS_FLAG_H
+
+#include "../../../stdimports.h"
+
+enum access_flag {
+    flag_none = 0x000,
+
+    flag_public = 0x001,
+    flag_private = 0x002,
+    flag_protected = 0x004,
+
+    flag_local = 0x008,
+
+    flag_const = 0x010,
+    flag_static = 0x020,
+
+    flag_stable = 0x040,
+    flag_unstable = 0x080,
+
+    flag_extension = 0x100,
+
+    flag_native = 0x200,
+
+    flag_global = 0x400
+};
+
+void set_flag(uInt &flags, access_flag flag, bool enable);
+bool check_flag(uInt flags, access_flag flag);
+
+#endif //SHARP_ACCESS_FLAG_H

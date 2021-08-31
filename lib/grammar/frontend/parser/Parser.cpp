@@ -16,7 +16,6 @@
 #define isEnd() \
     (_current->getType() == _EOF)
 
-long recursion = 0;
 void parser::parse() {
     if(toks->size() == 0)
         return;

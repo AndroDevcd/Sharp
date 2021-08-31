@@ -18,6 +18,8 @@ public:
             :
             toks(""),
             empty(""),
+            errors(NULL),
+            EOF_token(NULL),
             len(tokens.size()),
             cursor(0),
             col(0),
@@ -39,6 +41,10 @@ public:
         }
 
         parse();
+    }
+
+    ~tokenizer() {
+        free();
     }
 
     unsigned long getEntityCount();

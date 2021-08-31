@@ -8,7 +8,8 @@
 enum task_type {
     task_none_ = 0,
     task_tokenize_ = 1,
-    task_parse_ = 2
+    task_parse_ = 2,
+    task_preprocess_class_= 3,
 };
 
 #endif //SHARP_TASK_TYPE_H

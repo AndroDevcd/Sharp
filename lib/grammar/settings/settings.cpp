@@ -243,8 +243,8 @@ void set_error_limit(string limit) {
 
         if(options.max_errors > 100000) {
             error("cannot set the max errors allowed higher than (100,000) - " + limit);
-        } else if(options.max_errors <= 0) {
-            error("cannot have an error limit of 0 ");
+        } else if(options.max_errors < 10) {
+            error("cannot have an error limit less than 10");
         }
     }
     else {

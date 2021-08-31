@@ -47,6 +47,7 @@ struct task_delegator {
 
 extern recursive_mutex errorMutex;
 extern task_delegator delegator;
+extern thread_local worker_thread *currThread;
 
 int start_task_delegator();
 uInt start_worker(worker_thread*);
@@ -94,8 +95,5 @@ enum ThreadProcessingResult {
     RESULT_ILL_THREAD_SUSPEND      = 0x00f,
     RESULT_MAX_SPIN_GIVEUP         = 0x0ff
 };
-
-#define GUARD(mut) \
-    std::lock_guard<recursive_mutex> guard(mut);
 
 #endif //SHARP_TASK_DELEGATOR_H

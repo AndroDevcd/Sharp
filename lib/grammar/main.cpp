@@ -325,21 +325,21 @@ int _bootstrap(int argc, const char* args[])
     }
 
     for(uInt i = 0; i < options.source_files.size(); i++) {
-        string &sourceFile = options.source_files.get(i);
+        string sourceFile = options.source_files.get(i);
 
         if(!File::exists(sourceFile.c_str()))
             error("file `" + sourceFile + "` doesnt exist!");\
 
         if(!File::endswith(".sharp", sourceFile))
             error("file `" +sourceFile + "` is not a sharp file!");
-        File::resolvePath(sourceFile, sourceFile);
+
+        options.source_files.get(i).clear();
+        File::resolvePath(sourceFile, options.source_files.get(i));
     }
 
     remove_ignored_files();
     return compile();
 }
-
-List<sharp_file*> sharpFiles;
 
 int compile()
 {
@@ -348,7 +348,6 @@ int compile()
                 new sharp_file(options.source_files.get(i)));
     }
 
-    start_task_delegator();
     task t;
     for(Int i = 0; i < sharpFiles.size(); i++) {
         t.type = task_tokenize_;
@@ -358,108 +357,15 @@ int compile()
         t.type = task_parse_;
         t.file = sharpFiles.get(i);
         submit_task(t);
+
+        t.type = task_preprocess_class_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
     }
 
+    start_task_delegator();
     wait_for_tasks();
     cout << "done" << endl;
 
     return 0;
-    /*
-    for(unsigned int i = 0; i < files.size(); i++)
-    {
-        string file = files.get(i);
-        buf.begin();
-
-        File::read_alltext(file.c_str(), buf);
-        if(buf.empty()) {
-            error("file `" + file + "` is empty.");
-        } else
-        {
-            if(c_options.debugMode)
-                cout << "tokenizing " << file << endl;
-
-            currTokenizer = new tokenizer(buf.to_str(), file);
-            if(currTokenizer->getErrors()->hasErrors())
-            {
-                currTokenizer->getErrors()->printErrors();
-
-                errors+= currTokenizer->getErrors()->getErrorCount();
-                unfilteredErrors+= currTokenizer->getErrors()->getUnfilteredErrorCount();
-
-                currTokenizer->free();
-                delete currTokenizer;
-                failed++;
-            } else {
-                if(c_options.debugMode)
-                    cout << "parsing " << file << endl;
-
-                currParser = new parser(currTokenizer);
-                if(currParser->getErrors()->hasErrors())
-                {
-                    currParser->getErrors()->printErrors();
-
-                    errors+= currParser->getErrors()->getErrorCount() == 0 ? currParser->getErrors()->getUnfilteredErrorCount() : currParser->getErrors()->getErrorCount();
-                    unfilteredErrors+= currParser->getErrors()->getUnfilteredErrorCount();
-                    failed++;
-
-                    if(currParser->panic) {
-                        currParser->free();
-                        delete currParser;
-                        panic = 1;
-                        goto end;
-                    }
-
-                    currParser->free();
-                    delete currParser;
-                } else {
-                    parsers.push_back(currParser);
-                    succeeded++;
-                }
-            }
-
-            end:
-            buf.end();
-
-            if(panic==1) {
-                cout << "Detected more than " << c_options.error_limit << "+ errors, quitting.";
-                break;
-            }
-        }
-    }
-
-    if(!panic && errors == 0 && unfilteredErrors == 0) {
-        if(c_options.debugMode)
-            cout << "performing syntax analysis on project files"<< endl;
-
-        Compiler engine(c_options.out, parsers);
-
-        failed += engine.failedParsers.size();
-        succeeded = files.size() - failed;
-
-        errors+=engine.errors->getErrorCount();
-        unfilteredErrors+=engine.errors->getUnfilteredErrorCount();
-        if(errors == 0 && unfilteredErrors == 0) {
-            if(!c_options.compile)
-                engine.generate();
-        }
-
-        engine.cleanup();
-    }
-    else {
-        for(unsigned long i = 0; i < parsers.size(); i++) {
-            parser* parser = parsers.get(i);
-            parser->getTokenizer()->free();
-            delete parser->getTokenizer();
-            parser->free();
-            delete(parser);
-        }
-        parsers.free();
-    }
-
-    cout << endl << "==========================================================\n" ;
-    cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
-         << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
-    cout << std::flush << std::flush;
-    return (failed == 0 && (c_options.aggressive_errors ? unfilteredErrors : errors) == 0) ? 0 : 1;
-     */
 }

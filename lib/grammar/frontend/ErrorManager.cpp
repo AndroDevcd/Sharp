@@ -7,6 +7,7 @@
 #include "../../util/KeyPair.h"
 #include "parser/Ast.h"
 #include "parser/Parser.h"
+#include "../settings/settings.h"
 
 void initalizeErrors()
 {
@@ -97,7 +98,18 @@ void initalizeErrors()
     predefinedErrors.push_back(err);
 }
 
+bool panicCheck() {
+    if(panic) return true;
+
+    options.max_errors--;
+    if(options.max_errors <= 0) { panic = true; }
+    return panic;
+}
+
 void ErrorManager::printError(ParseError &err) {
+    if(panicCheck()) return;
+    GUARD(globalLock)
+
     if(err.warning)
         cout << filename << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
              << endl;
@@ -117,6 +129,8 @@ string ErrorManager::getErrors(list<ParseError>* errors)
     stringstream errorlist;
     for(const ParseError &err : *errors)
     {
+        if(panicCheck()) return errorlist.str();
+
         if(err.warning)
             errorlist << filename << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
                       << endl;
@@ -136,6 +150,8 @@ string ErrorManager::getErrors(list<ParseError>* errors)
 }
 
 void ErrorManager::printErrors() {
+    GUARD(globalLock)
+
     if(!asis) {
         if(_err) {
             if(aggressive || (errors->size() == 0 && unfilteredErrors->size() > 0)) // print aggressive errors

@@ -15,6 +15,11 @@ public:
         init();
     }
 
+    List(const List<T> &lst){
+        init();
+        addAll(lst);
+    }
+
     void init(){
         _Data=NULL;
         len=0;
@@ -216,7 +221,7 @@ public:
         _Data[_X] = repl;
     }
 
-    void addAll(List<T>& list) {
+    void addAll(const List<T>& list) {
         free();
         for(uint32_t i = 0; i < list.size(); i++) {
             push_back(list.get(i));

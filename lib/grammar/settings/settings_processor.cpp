@@ -183,7 +183,12 @@ void process_settings() {
                     if(v->getType() != jtype_string) {
                         error("array values in file ignore setting must be of type string");
                     }
-                    add_ignored_file(options.project_dir + div + v->getStringValue());
+
+                    // try relative path first then assume its absolute
+                    string actualPath = options.project_dir + div + v->getStringValue();
+                    if(File::exists(actualPath.c_str()))
+                        add_ignored_file(actualPath);
+                    else add_ignored_file(v->getStringValue());
                 }
             }
 
@@ -198,11 +203,15 @@ void process_settings() {
                         error("array values in folder ignore setting must be of type string");
                     }
 
-                    add_ignored_directory(options.project_dir + div + v->getStringValue());
+                    // try relative path first then assume its absolute
+                    string actualPath = options.project_dir + div + v->getStringValue();
+                    if(File::exists(actualPath.c_str()))
+                        add_ignored_directory(actualPath);
+                    else add_ignored_directory(v->getStringValue());
                 }
             }
 
-            if((member = jo["extern_libs"]) != NULL) {
+            if((member = jo["extern_lib"]) != NULL) {
                 require_type(member, jtype_array);
                 json_array *ja = member->getValue()->getArrayValue();
 
@@ -213,7 +222,11 @@ void process_settings() {
                         error("array values in external libraries setting must be of type string");
                     }
 
-                    add_library_path(v->getStringValue());
+                    // try relative path first then assume its absolute
+                    string actualPath = options.project_dir + div + v->getStringValue();
+                    if(File::exists(actualPath.c_str()))
+                        add_library_path(actualPath);
+                    else add_library_path(v->getStringValue());
                 }
             }
 

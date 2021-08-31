@@ -61,8 +61,14 @@ public:
         col = -1;
     }
     ParseError(const ParseError &pe)
+    :
+        error()
     {
         operator=(pe);
+    }
+
+    ~ParseError() {
+        free();
     }
 
     ParseError(KeyPair<error_type, string> err, int l, int c, string addon = "")
@@ -133,6 +139,10 @@ public:
         possibleErrors = new list<std::list<ParseError>*>();
         lastError = ParseError();
         lastCheckedError = ParseError();
+    }
+
+    ~ErrorManager() {
+        free();
     }
 
     void update(parser *p, bool asis, bool aggressiveRoporting);

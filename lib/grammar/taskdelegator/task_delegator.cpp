@@ -39,7 +39,7 @@ void calculateMaxWorkers() {
 
 void throttle_max_threads() {
     if(maxWorkers >= 3)
-        maxWorkers /= 2;
+        maxWorkers /= 3;
 }
 
 #ifdef WIN32_
@@ -63,7 +63,7 @@ delegatorStart(void *) {
     }
 
     do {
-        if(!task_queue.empty()) {
+        if(!panic && !task_queue.empty()) {
             GUARD(taskMutex)
 
             for(Int i = 0; i < task_queue.size(); i++) {
@@ -76,13 +76,15 @@ delegatorStart(void *) {
         bool allTasksFinished = task_queue.empty();
         bool allWorkersIdle = true;
         for(Int i = 0; i < workers.size(); i++) {
-            if(workers.get(i)->state != worker_idle) {
+            if(!(workers.get(i)->state == worker_idle
+                && workers.get(i)->nextTask == NULL
+                && workers.get(i)->currTask == NULL)) {
                 allWorkersIdle = false;
                 break;
             }
         }
 
-        delegator.allWorkersFree = allTasksFinished && allWorkersIdle;
+        delegator.allWorkersFree = panic || (allTasksFinished && allWorkersIdle);
 
         __os_yield();
 #ifdef WIN32_

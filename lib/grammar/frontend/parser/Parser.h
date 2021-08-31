@@ -13,9 +13,11 @@ class parser {
 public:
     parser(tokenizer *tokenizer)
             :
+            errors(NULL),
             toks(tokenizer),
             parsed(false),
-            panic(false)
+            panic(false),
+            recursion(0)
     {
         if(tokenizer != NULL && tokenizer->getErrors() != NULL &&
            !tokenizer->getErrors()->hasErrors())
@@ -24,6 +26,10 @@ public:
             tree.init();
             parse();
         }
+    }
+
+    ~parser() {
+        free();
     }
 
     ErrorManager* getErrors();
@@ -38,7 +44,7 @@ public:
     static bool isAssignExprSymbol(string t);
 
     bool parsed, panic;
-
+    long recursion;
 
 private:
     void parse();
