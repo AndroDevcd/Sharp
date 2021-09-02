@@ -7,16 +7,23 @@
 #include "../../compiler_info.h"
 #include "sharp_module.h"
 #include "../../taskdelegator/task_delegator.h"
+#include "sharp_function.h"
 
 
 void create_global_class() {
+    GUARD(globalLock)
+
     uInt flags;
     string name = global_class_name;
     set_flag(flags, flag_public, true);
     set_flag(flags, flag_global, true);
     sharp_class *gc;
     if((gc = resolve_class(currModule, name, false, false)) == NULL) {
-        gc = create_class(currThread->currTask->file, currModule, name, flags, NULL);
+        gc = create_class(
+                currThread->currTask->file,
+                currModule, name, flags,
+                currThread->currTask->file->p->astAt(0)
+        );
         // TODO: add default construxtor
     }
 }
@@ -55,4 +62,56 @@ sharp_class* create_class(
         return sc;
     }
 
+}
+
+void sharp_class::free() {
+    dependencies.free();
+    for(Int i = 0; i < children.size(); i++) {
+        delete children.at(i);
+    }
+
+    for(Int i = 0; i < functions.size(); i++) {
+        delete functions.at(i);
+    }
+
+    children.free();
+    functions.free();
+}
+
+bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {
+    return comparer == comparee;
+}
+
+bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee) {
+    return is_class_related_to(comparer, comparee);
+}
+
+bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
+    if(comparer->baseClass != NULL) {
+        if(comparer->baseClass == baseClass) return true;
+        else return is_class_related_to(comparer->baseClass, baseClass);
+    }
+
+    return false;
+}
+
+bool locate_functions_with_name(
+        string name,
+        sharp_class *owner,
+        Int functionType,
+        bool checkBaseClass,
+        List<sharp_function*> &results) {
+    for(Int i = 0; i < owner->functions.size(); i++) {
+        sharp_function *fun = owner->functions.get(i);
+        if(name == fun->name &&
+            (functionType == undefined_function || functionType == fun->type))
+            results.add(fun);
+    }
+
+    if(checkBaseClass && owner->baseClass)
+        return locate_functions_with_name(
+                name, owner->baseClass, functionType,
+                true, results);
+
+    return !results.empty();
 }

@@ -32,7 +32,9 @@ struct sharp_class {
         dependencies(),
         ast(NULL),
         module(NULL),
-        baseClass(NULL)
+        baseClass(NULL),
+        mut(),
+        functions()
     {
     }
 
@@ -53,7 +55,9 @@ struct sharp_class {
         dependencies(),
         owner(owner),
         children(),
-        fullName("")
+        fullName(""),
+        mut(),
+        functions()
     {
         fullName = module->name + "#"
                 + name;
@@ -67,7 +71,7 @@ struct sharp_class {
             impl_location location,
             uInt flags,
             Ast *ast)
-            :
+    :
             name(name),
             flags(flags),
             implLocation(location),
@@ -77,7 +81,9 @@ struct sharp_class {
             dependencies(),
             owner(owner),
             children(),
-            fullName("")
+            fullName(""),
+            mut(),
+            functions()
     {
         fullName = module->name + "#"
                    + name;
@@ -94,7 +100,9 @@ struct sharp_class {
          ast(sc.ast),
          owner(sc.owner),
          children(sc.children),
-         fullName(sc.fullName)
+         fullName(sc.fullName),
+         mut(),
+         functions(sc.functions)
     {
     }
 
@@ -102,9 +110,7 @@ struct sharp_class {
         free();
     }
 
-    void free() {
-        dependencies.free();
-    }
+    void free();
 
     string name;
     string fullName;
@@ -116,9 +122,30 @@ struct sharp_class {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_class*> children;
+    List<sharp_function*> functions;
+    recursive_mutex mut;
 };
 
 void create_global_class();
 sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, Ast*);
+
+bool locate_functions_with_name(
+        string name,
+        sharp_class *owner,
+        Int functionType,
+        bool checkBaseClass,
+        List<sharp_function*> &results);
+
+/**
+ * For an explanation on explicit vs implicit matching please refer to
+ * @file sharp_type.h
+ *
+ * @return Returns whether or not a class has an implicit or explicit match
+ */
+bool is_explicit_type_match(sharp_class*, sharp_class*);
+bool is_implicit_type_match(sharp_class*, sharp_class*);
+
+// check whether or not a class holds the base class of the class provided
+bool is_class_related_to(sharp_class*, sharp_class*);
 
 #endif //SHARP_SHARP_CLASS_H

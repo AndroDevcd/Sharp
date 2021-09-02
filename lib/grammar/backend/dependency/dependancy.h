@@ -6,15 +6,20 @@
 #define SHARP_DEPENDANCY_H
 
 #include "../../../../stdimports.h"
+#include "../types/sharp_type.h"
 
 struct sharp_file;
 struct sharp_class;
 struct sharp_module;
+struct sharp_function;
+struct sharp_field;
 
 enum dependency_type {
     no_dependency,
     dependency_file,
-    dependency_class
+    dependency_class,
+    dependency_function,
+    dependency_field
 };
 
 /**
@@ -41,6 +46,8 @@ struct dependency {
     :
         fileDependency(NULL),
         classDependency(NULL),
+        functionDependency(NULL),
+        fieldDependency(NULL),
         type(no_dependency)
     {}
 
@@ -48,18 +55,74 @@ struct dependency {
             :
             fileDependency(d.fileDependency),
             classDependency(d.classDependency),
+            functionDependency(d.functionDependency),
+            fieldDependency(d.fieldDependency),
             type(d.type)
+    {}
+
+    dependency(sharp_file *file)
+            :
+            fileDependency(file),
+            classDependency(NULL),
+            functionDependency(NULL),
+            fieldDependency(NULL),
+            type(dependency_file)
+    {}
+
+    dependency(sharp_class *sc)
+            :
+            fileDependency(NULL),
+            classDependency(sc),
+            functionDependency(NULL),
+            fieldDependency(NULL),
+            type(dependency_class)
+    {}
+
+    dependency(sharp_function *sf)
+            :
+            fileDependency(NULL),
+            classDependency(NULL),
+            functionDependency(sf),
+            fieldDependency(NULL),
+            type(dependency_function)
+    {}
+
+    dependency(sharp_field *sf)
+            :
+            fileDependency(NULL),
+            classDependency(NULL),
+            functionDependency(NULL),
+            fieldDependency(sf),
+            type(dependency_field)
     {}
 
     sharp_file *fileDependency;
     sharp_class *classDependency;
+    sharp_function *functionDependency;
+    sharp_field *fieldDependency;
     dependency_type type;
 };
 
-void create_dependency(sharp_class* depender, sharp_file* dependee);
+void create_dependency(sharp_class* depender, sharp_class* dependee);
+void create_dependency(sharp_file* depender, sharp_file* dependee);
+void create_dependency(sharp_function* depender, sharp_function* dependee);
+void create_dependency(sharp_function* depender, sharp_class* dependee);
+void create_dependency(sharp_function* depender, sharp_field* dependee);
+void create_dependency(sharp_field* depender, sharp_function* dependee);
+void create_dependency(sharp_field* depender, sharp_class* dependee);
+void create_dependency(sharp_field* depender, sharp_field* dependee);
 
 sharp_class* resolve_class(sharp_module*, string, bool, bool);
 sharp_class* resolve_class(sharp_file*, string, bool, bool);
 sharp_class* resolve_class(string, bool, bool);
+
+sharp_function* resolve_function(
+        string name,
+        sharp_class *searchClass,
+        List<sharp_type> parameters,
+        Int functionType,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool initializerCheck);
 
 #endif //SHARP_DEPENDANCY_H

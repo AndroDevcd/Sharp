@@ -57,7 +57,7 @@ if (SHARPC)
     )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/backend/types/sharp_module.cpp lib/grammar/backend/types/sharp_module.h lib/grammar/compiler_info.cpp lib/grammar/backend/meta_data.h lib/grammar/backend/meta_data.cpp)
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/compiler_info.cpp lib/grammar/backend/meta_data.h lib/grammar/backend/meta_data.cpp lib/grammar/backend/types/sharp_type.h)
 
     add_executable(Sharpc ${SOURCE_FILES})
 else()
