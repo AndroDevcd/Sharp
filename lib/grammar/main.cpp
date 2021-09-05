@@ -355,11 +355,9 @@ int compile()
         submit_task(t);
 
         t.type = task_parse_;
-        t.file = sharpFiles.get(i);
         submit_task(t);
 
         t.type = task_preprocess_class_;
-        t.file = sharpFiles.get(i);
         submit_task(t);
     }
 

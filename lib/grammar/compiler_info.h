@@ -30,4 +30,16 @@ extern thread_local sharp_module* currModule;
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);
 
+
+template<class T>
+static void deleteList(List<T> &lst)
+{
+    for(unsigned int i = 0; i < lst.size(); i++)
+    {
+        delete lst.get(i);
+    }
+
+    lst.free();
+}
+
 #endif //SHARP_COMPILER_INFO_H

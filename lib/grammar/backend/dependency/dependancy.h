@@ -119,10 +119,11 @@ sharp_class* resolve_class(string, bool, bool);
 sharp_function* resolve_function(
         string name,
         sharp_class *searchClass,
-        List<sharp_type> parameters,
+        List<sharp_field*> &parameters,
         Int functionType,
+        uInt excludeMatches,
         Ast *resolveLocation,
         bool checkBaseClass,
-        bool initializerCheck);
+        bool implicitCheck);
 
 #endif //SHARP_DEPENDANCY_H

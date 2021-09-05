@@ -4,6 +4,10 @@
 
 #include "sharp_function.h"
 #include "sharp_field.h"
+#include "sharp_class.h"
+#include "../dependency/dependancy.h"
+#include "../../taskdelegator/task_delegator.h"
+#include "../../compiler_info.h"
 
 bool is_fully_qualified_function(sharp_function* function) {
     if(!function->parameters.empty()) {
@@ -17,10 +21,34 @@ bool is_fully_qualified_function(sharp_function* function) {
     return true;
 }
 
+void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation) {
+
+    List<sharp_field*> params;
+    if(resolve_function(sc->name, sc, params, constructor_function,
+            0, createLocation, false, false) == NULL) {
+        auto *sf = new sharp_function(sc->name, sc,
+                impl_location(currThread->currTask->file, createLocation),
+                flags, createLocation, params,
+                sharp_type(type_nil), constructor_function);
+
+        GUARD(sc->mut)
+        sc->functions.add(sf);
+    }
+}
+
+void set_full_name(sharp_function *sf) {
+    sf->fullName = sf->owner->fullName + "." + sf->name;
+}
+
 bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> &comparee, bool explicitMatch) {
     if(comparer.size() != comparee.size()) return false;
 
     for(Int i = 0; i < comparer.size(); i++) {
-        if(directMatch && )
+        if(!(explicitMatch && is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type))
+            && !(!explicitMatch && is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, 0))) {
+            return false;
+        }
     }
+
+    return false;
 }

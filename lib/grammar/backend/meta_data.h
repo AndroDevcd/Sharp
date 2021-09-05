@@ -27,6 +27,13 @@ struct impl_location {
             col(col)
     {}
 
+    impl_location(sharp_file *file, Ast *ast)
+            :
+            file(file),
+            line(ast->line),
+            col(ast->col)
+    {}
+
     impl_location(const impl_location &loc)
             :
             file(loc.file),

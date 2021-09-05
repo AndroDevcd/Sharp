@@ -36,6 +36,25 @@ struct sharp_field {
         ast(sf.ast)
     {}
 
+    sharp_field(
+            string name,
+            string fullName,
+            sharp_class *owner,
+            impl_location location,
+            sharp_type type,
+            uInt flags,
+            Ast *ast)
+    :
+            name(name),
+            fullName(fullName),
+            owner(owner),
+            implLocation(location),
+            dependencies(),
+            type(type),
+            flags(flags),
+            ast(ast)
+    {}
+
     ~sharp_field() {
         free();
     }

@@ -23,10 +23,19 @@ enum native_type {
     type_field,
     type_function,
     type_lambda_function,
+    type_null,
     type_nil,
     type_any,
     type_untyped,
     type_undefined
+};
+
+enum type_match_result {
+    no_match_found = 0x0,
+    match_normal = 0x1,
+    match_constructor =0x2,
+    match_operator_overload = 0x4,
+    match_initializer = 0x8
 };
 
 struct sharp_class;
@@ -39,7 +48,7 @@ struct sharp_type {
         _class(NULL),
         field(NULL),
         fun(NULL),
-        type(type_untyped),
+        type(type_undefined),
         isArray(false)
     {}
 
@@ -115,10 +124,10 @@ struct sharp_type {
  *       - The type being assigned holds a shared base class of the other
  *       - The type being assigned holds a 'operator=' function that
  *         holds that exact type or a shared base class
- *       - The type being initialized holds a 'init(..){}' function that
- *         holds that exact type or a shared base class
  *       - The type being initialized holds a constructor that holds
  *         that exact type or a shared base class
+ *       - The type being initialized holds a 'init(..){}' function that
+ *         holds that exact type or a shared base class
  *
  *  class a base c {}
  *  class b base c {}
@@ -155,9 +164,15 @@ struct sharp_type {
  *  }
  *
  *
+ * @field excludeMatches
+ * exclude the type of matches performed on an implicit type match, this can be used to prevent
+ * stack-overflow exceptions in the compiler from over-analyzing classes
+ *
  * @return Returns wether or not the types matched explicitly or implicitly
  */
-bool is_explicit_type_match(sharp_type, sharp_type);
-bool is_implicit_type_match(sharp_type, sharp_type);
+type_match_result is_explicit_type_match(sharp_type, sharp_type);
+type_match_result is_implicit_type_match(sharp_type, sharp_type, uInt excludeMatches);
+
+sharp_type get_type(sharp_type&);
 
 #endif //SHARP_SHARP_TYPE_H

@@ -35,3 +35,23 @@ def main(args: string[]) {
 
     // took 8.288s
 }
+
+
+class a : base c {}
+class b : base c {}
+class f {
+    f(c) {
+
+    }
+}
+class e {
+    e(f) {
+
+    }
+}
+
+foo(e) {
+
+}
+
+foo(a)

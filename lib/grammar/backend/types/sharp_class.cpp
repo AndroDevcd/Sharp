@@ -17,14 +17,14 @@ void create_global_class() {
     string name = global_class_name;
     set_flag(flags, flag_public, true);
     set_flag(flags, flag_global, true);
-    sharp_class *gc;
-    if((gc = resolve_class(currModule, name, false, false)) == NULL) {
-        gc = create_class(
+    if(resolve_class(currModule, name, false, false) == NULL) {
+        auto gc = create_class(
                 currThread->currTask->file,
                 currModule, name, flags,
                 currThread->currTask->file->p->astAt(0)
         );
-        // TODO: add default construxtor
+
+        create_default_constructor(gc, flag_public, gc->ast);
     }
 }
 

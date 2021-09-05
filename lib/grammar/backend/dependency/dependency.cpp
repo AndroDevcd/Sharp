@@ -9,6 +9,7 @@
 #include "../../sharp_file.h"
 #include "../types/sharp_function.h"
 #include "../types/sharp_field.h"
+#include "../../taskdelegator/task_delegator.h"
 
 
 sharp_class* resolve_class(
@@ -59,22 +60,51 @@ sharp_class* resolve_class(
 sharp_function* resolve_function(
         string name,
         sharp_class *searchClass,
-        List<sharp_type> parameters,
+        List<sharp_field*> &parameters,
         Int functionType,
+        uInt excludedMatches,
         Ast *resolveLocation,
         bool checkBaseClass,
-        bool initializerCheck) {
+        bool implicitCheck) {
     List<sharp_function*> locatedFunctions;
-    List<sharp_function*> matchedFunctions;
     sharp_function *resolvedFunction = NULL;
+    bool ambiguous = false;
+    sharp_function mock_function("mock", "mock", NULL, impl_location(),
+            flag_none, NULL, parameters, sharp_type(), undefined_function);
 
     locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
             locatedFunctions);
 
     if(!locatedFunctions.empty()) {
         for(Int i = 0; i < locatedFunctions.size(); i++) {
-            if(is_fully_qualified_function(locatedFunctions.get(i)))
+            sharp_function *func = locatedFunctions.get(i);
+            mock_function.returnType = func->returnType;
+
+            if(is_explicit_type_match(sharp_type(func), sharp_type(&mock_function))) {
+                if(resolvedFunction == NULL) resolvedFunction = func;
+                else ambiguous = true;
+            }
         }
+
+        if(implicitCheck) {
+
+            for(Int i = 0; i < locatedFunctions.size(); i++) {
+                sharp_function *func = locatedFunctions.get(i);
+                mock_function.returnType = func->returnType;
+
+                if(is_implicit_type_match(
+                        sharp_type(func),
+                        sharp_type(&mock_function),
+                        excludedMatches)) {
+                    if(resolvedFunction == NULL) resolvedFunction = func;
+                    else ambiguous = true;
+                }
+            }
+        }
+    }
+
+    if(ambiguous && resolveLocation != NULL) {
+        currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to method `" + name + "` is ambiguous");
     }
 
     return resolvedFunction;
