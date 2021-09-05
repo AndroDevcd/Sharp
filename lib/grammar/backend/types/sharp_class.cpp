@@ -13,7 +13,7 @@
 void create_global_class() {
     GUARD(globalLock)
 
-    uInt flags;
+    uInt flags = 0;
     string name = global_class_name;
     set_flag(flags, flag_public, true);
     set_flag(flags, flag_global, true);

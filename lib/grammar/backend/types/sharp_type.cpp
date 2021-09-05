@@ -44,7 +44,7 @@ type_match_result is_explicit_type_match(sharp_type comparer, sharp_type compare
                         comparer._class, comparee._class
                     ), match_normal);
             } else return match_normal;
-        } else with_result(function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true)
+        } else return with_result(function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true)
                 && is_explicit_type_match(comparer.fun->returnType, comparee.fun->returnType), match_normal);
     } else return no_match_found;
 }
@@ -132,5 +132,6 @@ type_match_result is_implicit_type_match(
         case type_var: {
             return with_result(comparer.isArray == comparee.isArray && comparee.type <= type_var, match_normal);
         }
+        default: return no_match_found;
     }
 }

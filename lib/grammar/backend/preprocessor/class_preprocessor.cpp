@@ -29,7 +29,16 @@ void pre_process_class() {
                 string package = concat_tokens(trunk);
                 currModule = create_module(package);
                 create_global_class();
+            } else {
+                string package = "__$srt_undefined";
+                currModule = create_module(package);
+                create_global_class();
+
+                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col, "module declaration must be "
+                                                                           "first in every file");
             }
+
+            continue;
         }
     }
 }

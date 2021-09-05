@@ -52,7 +52,7 @@ struct sharp_function {
             function_type type)
     :
             name(name),
-            fullName(fullName),
+            fullName(""),
             owner(owner),
             implLocation(location),
             dependencies(),

@@ -106,6 +106,7 @@ void execute_task() {
             break;
         }
         case task_preprocess_class_: {
+            pre_process_class_();
             break;
         }
     }

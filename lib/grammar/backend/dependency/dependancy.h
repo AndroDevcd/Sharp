@@ -7,6 +7,8 @@
 
 #include "../../../../stdimports.h"
 #include "../types/sharp_type.h"
+#include "../../List.h"
+#include "../../frontend/parser/Ast.h"
 
 struct sharp_file;
 struct sharp_class;
@@ -95,6 +97,24 @@ struct dependency {
             fieldDependency(sf),
             type(dependency_field)
     {}
+
+    bool operator==(const dependency &d) {
+        if(type == d.type) {
+            switch(type) {
+                case no_dependency:
+                    return true;
+                case dependency_file:
+                    return d.fileDependency == fileDependency;
+                case dependency_class:
+                    return d.classDependency == classDependency;
+                case dependency_function:
+                    return d.functionDependency == functionDependency;
+                case dependency_field:
+                    return d.fieldDependency == fieldDependency;
+                default: return false;
+            }
+        } else return false;
+    }
 
     sharp_file *fileDependency;
     sharp_class *classDependency;

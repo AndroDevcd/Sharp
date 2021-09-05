@@ -12,6 +12,8 @@ sharp_module* get_module(string &packageName) {
         if(modules.get(i)->name == packageName)
             return modules.get(i);
     }
+
+    return NULL;
 }
 
 sharp_module* create_module(string &packageName) {

@@ -69,7 +69,7 @@ sharp_function* resolve_function(
     List<sharp_function*> locatedFunctions;
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
-    sharp_function mock_function("mock", "mock", NULL, impl_location(),
+    sharp_function mock_function("mock", searchClass, impl_location(),
             flag_none, NULL, parameters, sharp_type(), undefined_function);
 
     locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
@@ -113,9 +113,14 @@ sharp_function* resolve_function(
 sharp_class* resolve_class(string name, bool isGeneric, bool matchName) {
     GUARD(globalLock)
 
+    sharp_class *sc = NULL;
     for(Int i = 0; i < modules.size(); i++) {
-        resolve_class(modules.get(i), name, isGeneric, matchName);
+        if((sc = resolve_class(modules.get(i), name, isGeneric, matchName)) != NULL) {
+            return sc;
+        }
     }
+
+    return NULL;
 }
 
 void create_dependency(sharp_class* depender, sharp_class* dependee) {
