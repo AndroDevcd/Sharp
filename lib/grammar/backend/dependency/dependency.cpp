@@ -10,6 +10,7 @@
 #include "../types/sharp_function.h"
 #include "../types/sharp_field.h"
 #include "../../taskdelegator/task_delegator.h"
+#include "../types/sharp_alias.h"
 
 
 sharp_class* resolve_class(
@@ -71,6 +72,46 @@ sharp_class* resolve_class(
                 isGeneric,
                 matchName)) != NULL) {
             return sc;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_alias* resolve_alias(string name, sharp_module *module) {
+    sharp_class *sc = NULL;
+    sharp_alias *sa = NULL;
+    GUARD(module->moduleLock)
+    List<sharp_class*> *searchList = &module->classes;
+
+    for(Int i = 0; i < searchList->size(); i++) {
+        sc = searchList->get(i);
+
+        if((sa = resolve_alias(name, sc)) != NULL) {
+            return sa;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_alias* resolve_alias(string name, sharp_file *file) {
+    List<sharp_module*> &imports = file->imports;
+    sharp_alias *sa;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sa = resolve_alias(name, imports.get(i))) != NULL) {
+            return sa;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_alias* resolve_alias(string name, sharp_class *sc) {
+    for(Int i = 0; i < sc->aliases.size(); i++) {
+        if(sc->aliases.get(i)->name == name) {
+            return sc->aliases.get(i);
         }
     }
 

@@ -15,6 +15,7 @@ struct sharp_class;
 struct sharp_module;
 struct sharp_function;
 struct sharp_field;
+struct sharp_alias;
 
 enum dependency_type {
     no_dependency,
@@ -146,5 +147,9 @@ sharp_function* resolve_function(
         Ast *resolveLocation,
         bool checkBaseClass,
         bool implicitCheck);
+
+sharp_alias* resolve_alias(string, sharp_module*);
+sharp_alias* resolve_alias(string, sharp_file*);
+sharp_alias* resolve_alias(string, sharp_class*);
 
 #endif //SHARP_DEPENDANCY_H

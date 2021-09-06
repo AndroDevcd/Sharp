@@ -103,6 +103,7 @@ void sharp_class::free() {
     deleteList(children);
     deleteList(functions);
     deleteList(generics);
+    deleteList(aliases);
 }
 
 bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {

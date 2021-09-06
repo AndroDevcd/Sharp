@@ -42,6 +42,7 @@ struct sharp_class {
         mut(),
         functions(),
         generics(),
+        aliases(),
         type(class_normal)
     {
     }
@@ -68,6 +69,7 @@ struct sharp_class {
         mut(),
         functions(),
         generics(),
+        aliases(),
         type(type)
     {
         if(owner == NULL) {
@@ -102,6 +104,7 @@ struct sharp_class {
             mut(),
             functions(),
             generics(),
+            aliases(),
             type(type)
     {
         fullName = module->name + "#"
@@ -123,6 +126,7 @@ struct sharp_class {
          mut(),
          functions(sc.functions),
          generics(sc.generics),
+         aliases(sc.aliases),
          type(sc.type)
     {
     }
@@ -144,6 +148,7 @@ struct sharp_class {
     List<dependency> dependencies;
     List<sharp_class*> children;
     List<sharp_class*> generics;
+    List<sharp_alias*> aliases;
     List<sharp_function*> functions;
     class_type type;
     recursive_mutex mut;
