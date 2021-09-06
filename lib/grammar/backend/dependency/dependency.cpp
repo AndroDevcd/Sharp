@@ -36,6 +36,27 @@ sharp_class* resolve_class(
 
 
 sharp_class* resolve_class(
+        sharp_class* sc,
+        string name,
+        bool isGeneric,
+        bool matchName) {
+    sharp_class *child = NULL;
+    GUARD(sc->mut)
+    List<sharp_class*> *searchList = &sc->children;
+
+    if(isGeneric) searchList = &sc->generics;
+    for(Int i = 0; i < searchList->size(); i++) {
+        sc = searchList->get(i);
+
+        if((matchName && sc->name.find(name) != string::npos)
+           || sc->name == name) {
+            return sc;
+        }
+    }
+
+    return NULL;
+}
+sharp_class* resolve_class(
         sharp_file* file,
         string name,
         bool isGeneric,

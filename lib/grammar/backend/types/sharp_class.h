@@ -13,6 +13,12 @@
 #include "../meta_data.h"
 #include "sharp_module.h"
 
+enum class_type {
+    class_normal,
+    class_enum,
+    class_interface
+};
+
 /**
  * Sharp classes
  *
@@ -34,7 +40,9 @@ struct sharp_class {
         module(NULL),
         baseClass(NULL),
         mut(),
-        functions()
+        functions(),
+        generics(),
+        type(class_normal)
     {
     }
 
@@ -44,7 +52,8 @@ struct sharp_class {
             sharp_module* module,
             impl_location location,
             uInt flags,
-            Ast *ast)
+            Ast *ast,
+            class_type type)
     :
         name(name),
         flags(flags),
@@ -57,10 +66,17 @@ struct sharp_class {
         children(),
         fullName(""),
         mut(),
-        functions()
+        functions(),
+        generics(),
+        type(type)
     {
-        fullName = module->name + "#"
-                + name;
+        if(owner == NULL) {
+            fullName = module->name + "#"
+                       + name;
+        } else {
+            fullName = owner->fullName + "."
+                        + name;
+        }
     }
 
     sharp_class(
@@ -70,7 +86,8 @@ struct sharp_class {
             sharp_module *module,
             impl_location location,
             uInt flags,
-            Ast *ast)
+            Ast *ast,
+            class_type type)
     :
             name(name),
             flags(flags),
@@ -83,7 +100,9 @@ struct sharp_class {
             children(),
             fullName(""),
             mut(),
-            functions()
+            functions(),
+            generics(),
+            type(type)
     {
         fullName = module->name + "#"
                    + name;
@@ -102,7 +121,9 @@ struct sharp_class {
          children(sc.children),
          fullName(sc.fullName),
          mut(),
-         functions(sc.functions)
+         functions(sc.functions),
+         generics(sc.generics),
+         type(sc.type)
     {
     }
 
@@ -122,12 +143,15 @@ struct sharp_class {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_class*> children;
+    List<sharp_class*> generics;
     List<sharp_function*> functions;
+    class_type type;
     recursive_mutex mut;
 };
 
 void create_global_class();
-sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, Ast*);
+sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, Ast*);
+sharp_class* create_class(sharp_file*, sharp_class*, string, uInt, class_type, Ast*);
 
 bool locate_functions_with_name(
         string name,

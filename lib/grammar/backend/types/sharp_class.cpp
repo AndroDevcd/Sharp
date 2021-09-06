@@ -20,7 +20,7 @@ void create_global_class() {
     if(resolve_class(currModule, name, false, false) == NULL) {
         auto gc = create_class(
                 currThread->currTask->file,
-                currModule, name, flags,
+                currModule, name, flags, class_normal,
                 currThread->currTask->file->p->astAt(0)
         );
 
@@ -31,9 +31,43 @@ void create_global_class() {
 
 sharp_class* create_class(
         sharp_file *file,
+        sharp_class* owner,
+        string name,
+        uInt flags,
+        class_type type,
+        Ast *ast) {
+    impl_location location(file, 0, 0);
+    sharp_class *sc = NULL;
+
+    if(ast != NULL) {
+        location.line = ast->line;
+        location.col = ast->col;
+    }
+
+    if((sc = resolve_class(owner, name, false, false)) != NULL
+       || (sc = resolve_class(owner, name, true, false)) != NULL) {
+        file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "child class `" + name +
+                                    "` is already defined in class {" + sc->fullName + "}");
+        print_impl_location(sc, sc->implLocation);
+        return sc;
+    } else {
+        sc = new sharp_class(
+                name, owner, owner->module,
+                location, flags, ast, type
+        );
+
+        GUARD(owner->mut)
+        owner->children.add(sc);
+        return sc;
+    }
+}
+
+sharp_class* create_class(
+        sharp_file *file,
         sharp_module* module,
         string name,
         uInt flags,
+        class_type type,
         Ast *ast) {
     impl_location location(file, 0, 0);
     sharp_class *sc = NULL, *owner = NULL;
@@ -53,7 +87,7 @@ sharp_class* create_class(
         owner = resolve_class(global_class_name, false, false);
         sc = new sharp_class(
                 name, owner, module,
-                location, flags, ast
+                location, flags, ast, type
         );
 
         GUARD(globalLock)
@@ -66,16 +100,9 @@ sharp_class* create_class(
 
 void sharp_class::free() {
     dependencies.free();
-    for(Int i = 0; i < children.size(); i++) {
-        delete children.at(i);
-    }
-
-    for(Int i = 0; i < functions.size(); i++) {
-        delete functions.at(i);
-    }
-
-    children.free();
-    functions.free();
+    deleteList(children);
+    deleteList(functions);
+    deleteList(generics);
 }
 
 bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {

@@ -134,6 +134,7 @@ void create_dependency(sharp_field* depender, sharp_field* dependee);
 
 sharp_class* resolve_class(sharp_module*, string, bool, bool);
 sharp_class* resolve_class(sharp_file*, string, bool, bool);
+sharp_class* resolve_class(sharp_class*, string, bool, bool);
 sharp_class* resolve_class(string, bool, bool);
 
 sharp_function* resolve_function(

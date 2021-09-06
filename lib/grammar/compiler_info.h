@@ -6,6 +6,7 @@
 #define SHARP_COMPILER_INFO_H
 
 #include "List.h"
+#include "frontend/ErrorManager.h"
 
 #define PROG_NAME "sharp"
 #define PROG_VERS "0.3.0"
@@ -30,6 +31,7 @@ extern thread_local sharp_module* currModule;
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);
 
+void create_new_warning(error_type error, int type, int line, int col, string xcmnts);
 
 template<class T>
 static void deleteList(List<T> &lst)
