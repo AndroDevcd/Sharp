@@ -310,6 +310,7 @@ int _bootstrap(int argc, const char* args[])
         return 1;
     }
 
+    initalizeErrors();
     if(options.compile_mode == project_mode) {
         if(options.project_dir == "") {
             string currDir;
@@ -357,7 +358,7 @@ int compile()
         t.type = task_parse_;
         submit_task(t);
 
-        t.type = task_preprocess_class_;
+        t.type = task_preprocess_;
         submit_task(t);
     }
 

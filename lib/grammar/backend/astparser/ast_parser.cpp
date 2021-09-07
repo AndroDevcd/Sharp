@@ -163,7 +163,6 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
         flag = str_to_access_flag(ast->getToken(i).getValue());
         flagOrder.add(flag);
         flags |= flag;
-        last_flag = flag;
 
         if(!check_flag(allowedFlags, flag)) {
             currThread->currTask->file->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
@@ -177,9 +176,11 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
             currThread->currTask->file->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
                        " `" + ast->getToken(i).getValue() + "` can only be used at global scope");
         }
+
+        last_flag = flag;
     }
 
-    if(!flagOrder.empty()) {
+    if(flagOrder.size() > 1) {
         const uInt flagCount = 10;
         access_flag order[flagCount] = {
                     flag_public, flag_private, flag_protected,
@@ -209,52 +210,52 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
         }
 
         if (flagOrder.size() == 2) {
-            if(!matches_flag(order, 6, start, flagOrder.get(1))) {
+            if(!matches_flag(order, flagCount, start, flagOrder.get(1))) {
                 errPos = 1;
                 goto error;
             }
         } else if (flagOrder.size() == 3) {
             errPos = 1;
-            if(matches_flag(order, 6, start, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+1, flagOrder.get(errPos++))) {
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))) {
             } else {
                 goto error;
             }
         } else if (flagOrder.size() == 4) {
             errPos = 1;
-            if(matches_flag(order, 6, start, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+1, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+2, flagOrder.get(errPos++))) {
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))) {
             } else {
                 goto error;
             }
         } else if (flagOrder.size() == 5) {
             errPos = 1;
-            if(matches_flag(order, 6, start, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+1, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+2, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+3, flagOrder.get(errPos++))) {
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))) {
             } else {
                 goto error;
             }
         } else if (flagOrder.size() == 6) {
             errPos = 1;
-            if(matches_flag(order, 6, start, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+1, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+2, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+3, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+5, flagOrder.get(errPos++))) {
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+5, flagOrder.get(errPos++))) {
             } else {
                 goto error;
             }
         } else if (flagOrder.size() == 7) {
             errPos = 1;
-            if(matches_flag(order, 6, start, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+1, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+2, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+3, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+5, flagOrder.get(errPos++))
-               && matches_flag(order, 6, start+6, flagOrder.get(errPos++))) {
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+5, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+6, flagOrder.get(errPos++))) {
             } else {
                 goto error;
             }

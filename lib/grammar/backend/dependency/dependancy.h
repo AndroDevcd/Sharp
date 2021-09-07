@@ -140,6 +140,26 @@ sharp_class* resolve_class(string, bool, bool);
 
 sharp_function* resolve_function(
         string name,
+        sharp_file *file,
+        List<sharp_field*> &parameters,
+        Int functionType,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
+sharp_function* resolve_function(
+        string name,
+        sharp_module *module,
+        List<sharp_field*> &parameters,
+        Int functionType,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
+sharp_function* resolve_function(
+        string name,
         sharp_class *searchClass,
         List<sharp_field*> &parameters,
         Int functionType,
@@ -151,5 +171,9 @@ sharp_function* resolve_function(
 sharp_alias* resolve_alias(string, sharp_module*);
 sharp_alias* resolve_alias(string, sharp_file*);
 sharp_alias* resolve_alias(string, sharp_class*);
+
+sharp_field* resolve_field(string, sharp_module*);
+sharp_field* resolve_field(string, sharp_file*);
+sharp_field* resolve_field(string, sharp_class*);
 
 #endif //SHARP_DEPENDANCY_H

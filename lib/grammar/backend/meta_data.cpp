@@ -5,11 +5,11 @@
 #include "types/sharp_class.h"
 #include "../compiler_info.h"
 
-void print_impl_location(sharp_class* sc, impl_location& location) {
+void print_impl_location(string name, string memberType, impl_location& location) {
     stringstream note;
     note << "in file: " << location.file->name
         << ":" << location.line << ":" << location.col
-        << ": note: class `" << sc->name << "` previously defined here" << endl;
+        << ": note: " << memberType << " `" << name << "` previously defined here" << endl;
 
     note << "\t\t" << location.file->tok->getLines().at(location.line)
         << endl << "\t\t";

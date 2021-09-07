@@ -3,34 +3,34 @@ mod std.math;
 /**
  * E for processing natural logarithms.
  */
-public static const E := 2.7182818284590452;
+public const E := 2.7182818284590452;
 
 /**
  * PI holds the ratio of the circumference of a circle to its
  * diameter.
  */
-public static const PI := 3.1415926535897932;
+public const PI := 3.1415926535897932;
 
 /**
  * A constant holding the positive infinity of type
  * {@code float}. It is equal to the value returned by
  * {@code Float.intBitsToFloat(0x7f800000)}.
  */
-public static const POSITIVE_INFINITY := 1.0 / 0.0;
+public const POSITIVE_INFINITY := 1.0 / 0.0;
 
 /**
  * A constant holding the negative infinity of type
  * {@code float}. It is equal to the value returned by
  * {@code Float.intBitsToFloat(0xff800000)}.
  */
-public static const NEGATIVE_INFINITY := -1.0 / 0.0;
+public const NEGATIVE_INFINITY := -1.0 / 0.0;
 
 /**
  * A constant holding a Not-a-Number (NaN) value of type
  * {@code float}.  It is equivalent to the value returned by
  * {@code Float.intBitsToFloat(0x7fc00000)}.
  */
-public static const NaN := 0.0 / 0.0;
+public const NaN := 0.0 / 0.0;
 
 
 /**

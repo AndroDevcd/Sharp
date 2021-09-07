@@ -8,6 +8,8 @@
 #include "../../../../stdimports.h"
 #include "sharp_type.h"
 #include "../dependency/dependancy.h"
+#include "../access_flag.h"
+#include "../meta_data.h"
 
 void set_full_name(sharp_alias*);
 
@@ -18,14 +20,18 @@ struct sharp_alias {
         fullName(""),
         owner(NULL),
         type(),
-        dependencies()
+        flags(flag_none),
+        dependencies(),
+        location()
     {}
 
-    sharp_alias(string name, sharp_class *owner)
+    sharp_alias(string name, sharp_class *owner, uInt flags, impl_location location)
     :
         name(name),
         owner(owner),
-        type()
+        type(),
+        flags(flags),
+        location(location)
     {
         set_full_name(this);
     }
@@ -36,26 +42,41 @@ struct sharp_alias {
             type(alias.type),
             owner(alias.owner),
             fullName(alias.fullName),
-            dependencies(alias.dependencies)
+            dependencies(alias.dependencies),
+            flags(alias.flags),
+            location(alias.location)
     {}
 
-    sharp_alias(string name, sharp_class *owner, sharp_type type)
+    sharp_alias(string name, sharp_class *owner, uInt flags, sharp_type type, impl_location location)
     :
             name(name),
             owner(owner),
             dependencies(),
-            type(type)
+            type(type),
+            flags(flags),
+            location(location)
     {
         set_full_name(this);
     }
+
+    ~sharp_alias()
+    {
+        free();
+    }
+
+    void free();
 
     string name;
     string fullName;
     sharp_class *owner;
     sharp_type type;
+    uInt flags;
+    impl_location location;
     List<dependency> dependencies;
 };
-// todo: create alias
+
+sharp_alias* create_alias(sharp_file*, sharp_class*, string, uInt, Ast*);
+sharp_alias* create_alias(sharp_file*, sharp_module*, string, uInt, Ast*);
 
 
 #endif //SHARP_SHARP_ALIAS_H

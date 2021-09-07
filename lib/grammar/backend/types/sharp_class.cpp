@@ -8,6 +8,8 @@
 #include "sharp_module.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "sharp_function.h"
+#include "sharp_alias.h"
+#include "sharp_field.h"
 
 
 void create_global_class() {
@@ -48,7 +50,7 @@ sharp_class* create_class(
        || (sc = resolve_class(owner, name, true, false)) != NULL) {
         file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "child class `" + name +
                                     "` is already defined in class {" + sc->fullName + "}");
-        print_impl_location(sc, sc->implLocation);
+        print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
     } else {
         sc = new sharp_class(
@@ -81,7 +83,7 @@ sharp_class* create_class(
         || (sc = resolve_class(module, name, true, false)) != NULL) {
         file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "class `" + name +
                                   "` is already defined in module {" + module->name + "}");
-        print_impl_location(sc, sc->implLocation);
+        print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
     } else {
         owner = resolve_class(global_class_name, false, false);
@@ -93,6 +95,7 @@ sharp_class* create_class(
         GUARD(globalLock)
         if(owner != NULL) owner->children.add(sc);
         classes.add(sc);
+        module->classes.add(sc);
         return sc;
     }
 
@@ -104,6 +107,7 @@ void sharp_class::free() {
     deleteList(functions);
     deleteList(generics);
     deleteList(aliases);
+    deleteList(fields);
 }
 
 bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {

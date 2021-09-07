@@ -12,6 +12,11 @@
 
 struct sharp_class;
 
+enum field_type {
+    normal_field,
+    tls_field
+};
+
 struct sharp_field {
     sharp_field()
     :
@@ -21,6 +26,7 @@ struct sharp_field {
         implLocation(),
         dependencies(),
         flags(flag_none),
+        fieldType(normal_field),
         ast(NULL)
     {}
 
@@ -33,27 +39,31 @@ struct sharp_field {
         dependencies(sf.dependencies),
         type(sf.type),
         flags(sf.flags),
+        fieldType(sf.fieldType),
         ast(sf.ast)
     {}
 
     sharp_field(
             string name,
-            string fullName,
             sharp_class *owner,
             impl_location location,
             sharp_type type,
             uInt flags,
+            field_type ft,
             Ast *ast)
     :
             name(name),
-            fullName(fullName),
+            fullName(""),
             owner(owner),
             implLocation(location),
             dependencies(),
             type(type),
             flags(flags),
+            fieldType(ft),
             ast(ast)
-    {}
+    {
+        set_full_name();
+    }
 
     ~sharp_field() {
         free();
@@ -63,15 +73,36 @@ struct sharp_field {
         dependencies.free();
     }
 
+    void set_full_name();
+
     string name;
     string fullName;
     sharp_class *owner;
     impl_location implLocation;
     List<dependency> dependencies;
     sharp_type type;
+    field_type fieldType;
     uInt flags;
     Ast* ast;
 };
+
+sharp_field* create_field(
+        sharp_file*,
+        sharp_module*,
+        string,
+        uInt,
+        sharp_type,
+        field_type,
+        Ast*);
+
+sharp_field* create_field(
+        sharp_file*,
+        sharp_class*,
+        string,
+        uInt,
+        sharp_type,
+        field_type,
+        Ast*);
 
 
 #endif //SHARP_SHARP_FIELD_H

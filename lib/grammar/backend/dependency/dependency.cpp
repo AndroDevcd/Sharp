@@ -78,6 +78,49 @@ sharp_class* resolve_class(
     return NULL;
 }
 
+
+sharp_field* resolve_field(string name, sharp_module *module) {
+    sharp_class *sc = NULL;
+    sharp_field *sf = NULL;
+    GUARD(module->moduleLock)
+    List<sharp_class*> *searchList = &module->classes;
+
+    for(Int i = 0; i < searchList->size(); i++) {
+        sc = searchList->get(i);
+
+        if(check_flag(sc->flags, flag_global)
+            && (sf = resolve_field(name, sc)) != NULL) {
+            return sf;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_field* resolve_field(string name, sharp_file *file) {
+    List<sharp_module*> &imports = file->imports;
+    sharp_field *sf;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sf = resolve_field(name, imports.get(i))) != NULL) {
+            return sf;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_field* resolve_field(string name, sharp_class *searchClass) {
+    for(Int i = 0; i < searchClass->fields.size(); i++) {
+        if(searchClass->fields.get(i)->name == name) {
+            return searchClass->fields.get(i);
+        }
+    }
+
+    return NULL;
+}
+
+
 sharp_alias* resolve_alias(string name, sharp_module *module) {
     sharp_class *sc = NULL;
     sharp_alias *sa = NULL;
@@ -87,7 +130,8 @@ sharp_alias* resolve_alias(string name, sharp_module *module) {
     for(Int i = 0; i < searchList->size(); i++) {
         sc = searchList->get(i);
 
-        if((sa = resolve_alias(name, sc)) != NULL) {
+        if(check_flag(sc->flags, flag_global)
+            && (sa = resolve_alias(name, sc)) != NULL) {
             return sa;
         }
     }
@@ -108,10 +152,65 @@ sharp_alias* resolve_alias(string name, sharp_file *file) {
     return NULL;
 }
 
-sharp_alias* resolve_alias(string name, sharp_class *sc) {
-    for(Int i = 0; i < sc->aliases.size(); i++) {
-        if(sc->aliases.get(i)->name == name) {
-            return sc->aliases.get(i);
+sharp_alias* resolve_alias(string name, sharp_class *searchClass) {
+    for(Int i = 0; i < searchClass->aliases.size(); i++) {
+        if(searchClass->aliases.get(i)->name == name) {
+            return searchClass->aliases.get(i);
+        }
+    }
+
+    return NULL;
+}
+
+sharp_function* resolve_function(
+        string name,
+        sharp_file *file,
+        List<sharp_field*> &parameters,
+        Int functionType,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck) {
+    List<sharp_module*> &imports = file->imports;
+    sharp_function *sf;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sf = resolve_function(
+                name, imports.get(i), parameters,
+                functionType, excludeMatches,
+                resolveLocation, checkBaseClass,
+                implicitCheck)) != NULL) {
+            return sf;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_function* resolve_function(
+        string name,
+        sharp_module *module,
+        List<sharp_field*> &parameters,
+        Int functionType,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck) {
+    sharp_class *sc = NULL;
+    sharp_function *sf = NULL;
+    GUARD(module->moduleLock)
+    List<sharp_class*> *searchList = &module->classes;
+
+    for(Int i = 0; i < searchList->size(); i++) {
+        sc = searchList->get(i);
+
+        if(check_flag(sc->flags, flag_global)
+        && (sf = resolve_function(
+                name, sc, parameters,
+                functionType, excludeMatches,
+                resolveLocation, checkBaseClass,
+                implicitCheck)) != NULL) {
+            return sf;
         }
     }
 

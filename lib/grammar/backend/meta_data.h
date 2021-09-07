@@ -46,6 +46,6 @@ struct impl_location {
     Int col;
 };
 
-void print_impl_location(sharp_class*, impl_location&);
+void print_impl_location(string name, string memberType, impl_location&);
 
 #endif //SHARP_META_DATA_H

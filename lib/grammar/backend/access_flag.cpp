@@ -4,9 +4,10 @@
 #include "access_flag.h"
 
 void set_flag(uInt &flags, access_flag flag, bool enable) {
-    flags ^= (-(unsigned long)enable ^ flags) & (1UL << flag);
+    if(enable) flags ^= (uInt)flag;
+    else flags |= (uInt)flag;
 }
 
 bool check_flag(uInt flags, access_flag flag) {
-    return ((flags >> flag) & 1U);
+    return ((flags & flag) == flag);
 }

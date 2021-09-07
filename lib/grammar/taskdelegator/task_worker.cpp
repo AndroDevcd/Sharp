@@ -83,10 +83,10 @@ void parse_file() {
     file->stage = parsed;
 }
 
-void pre_process_class_() {
+void pre_process_() {
     sharp_file *file = currThread->currTask->file;
 
-    pre_process_class();
+    pre_process();
     file->stage = classes_preprocessed;
 }
 
@@ -105,8 +105,8 @@ void execute_task() {
             parse_file();
             break;
         }
-        case task_preprocess_class_: {
-            pre_process_class_();
+        case task_preprocess_: {
+            pre_process_();
             break;
         }
     }

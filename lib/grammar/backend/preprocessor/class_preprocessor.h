@@ -10,7 +10,7 @@
 struct sharp_class;
 class Ast;
 
-void pre_process_class();
+void pre_process();
 void pre_process_class(sharp_class *parentClass, sharp_class *withClass, Ast *ast);
 
 #endif //SHARP_CLASS_PREPROCESSOR_H

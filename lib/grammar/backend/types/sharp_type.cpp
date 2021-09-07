@@ -84,7 +84,8 @@ type_match_result is_implicit_type_match(
 
             uInt result = no_match_found;
             List<sharp_field*> params;
-            params.add(new sharp_field("mock", "mock", NULL, impl_location(), comparee, flag_none, NULL));
+            params.add(new sharp_field("mock", NULL, impl_location(),
+                    comparee, flag_none, normal_field, NULL));
 
             if(has_match_result_flag(excludedMatches, match_constructor)
                && (resolve_function(comparer._class->name, comparer._class,
