@@ -96,13 +96,15 @@ struct options {
     /*
      * Machine platform target to run on
      */
-    int target = versions.ALPHA;
+    int target = alpha_cr2;
 
     /*
      * List of user defined library paths
      */
     List<string> libraries;
 };
+
+extern struct options c_options;
 
 // ASM DUMP SWITCHES
 #define ASM_DEMANGLE   0
@@ -119,6 +121,5 @@ struct options {
 #define __WINIT 6
 
 extern bool warning_map[];
-extern options c_options;
 
 #endif //SHARP_OPTIONS_H

@@ -1,7 +1,9 @@
 mod frontend.json;
 
-import frontend.tokenizer;
-import std.io;
+import (
+    frontend.tokenizer,
+    std.io
+)
 
 thread_local json_data : string;
 thread_local pos := -1;

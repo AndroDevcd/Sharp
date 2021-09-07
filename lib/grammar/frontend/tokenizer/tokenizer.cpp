@@ -160,6 +160,8 @@ void tokenizer::parse()
                 if ((chs[0] == '<') && (chs[1] == '=')) type = _LTE;
                 else if ((chs[0] == '>') && (chs[1] == '=')) type = _GTE;
                 else if ((chs[0] == '!') && (chs[1] == '=')) type = NOTEQ;
+                else if ((chs[0] == '!') && (chs[1] == '!')) type = NULLOVRD;
+                else if ((chs[0] == '?') && (chs[1] == ':')) type = ELVIS;
                 else if ((chs[0] == '=') && (chs[1] == '=')) type = EQEQ;
                 else if ((chs[0] == '<') && (chs[1] == '<')) type = SHL;
                 else if ((chs[0] == '>') && (chs[1] == '>')) type = SHR;

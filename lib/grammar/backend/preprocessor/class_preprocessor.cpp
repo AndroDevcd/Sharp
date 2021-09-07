@@ -140,8 +140,6 @@ void pre_process_class(
                 /* todo */
                 break;
             case ast_mutate_decl:
-                /* todo */
-                break;
             case ast_delegate_decl:
             case ast_method_decl:
             case ast_operator_decl:

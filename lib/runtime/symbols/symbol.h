@@ -7,7 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "string.h"
-#include "../../grammar/DataType.h"
+#include "../../old_grammar/DataType.h"
 
 extern int invalidAddr;
 class ClassObject;

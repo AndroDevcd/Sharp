@@ -1,8 +1,10 @@
 mod app;
 
-import std.io.*;
-import platform;
-import platform.kernel;
+import (
+    std.io.*,
+    platform,
+    platform.kernel
+)
 
 chan := new channel<var>(UNLIMITED);
 const loop_count := 10000;

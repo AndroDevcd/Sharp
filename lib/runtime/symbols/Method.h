@@ -8,11 +8,11 @@
 #include "../../../stdimports.h"
 #include "Object.h"
 #include "string.h"
-#include "../../grammar/Exception.h"
+#include "../../old_grammar/Exception.h"
 #include "../List.h"
 #include "../Opcode.h"
 #include "param.h"
-#include "../../grammar/backend/oo/FunctionType.h"
+#include "../../old_grammar/backend/oo/FunctionType.h"
 
 struct LineData;
 

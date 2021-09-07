@@ -40,6 +40,8 @@ enum token_type
     XOREQ,
     MODEQ,
     NOTEQ,              // !=
+    NULLOVRD,           // !!
+    ELVIS,              // ?:
     SHL,                // <<
     SHR,                // >>
     LESSTHAN,

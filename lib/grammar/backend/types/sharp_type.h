@@ -49,25 +49,28 @@ struct sharp_type {
         field(NULL),
         fun(NULL),
         type(type_undefined),
-        isArray(false)
+        isArray(false),
+        nullable(false)
     {}
 
-    sharp_type(const sharp_type &st, bool isArray = false)
+    sharp_type(const sharp_type &st)
     :
         _class(st._class),
         field(st.field),
         fun(st.fun),
         type(st.type),
-        isArray(isArray)
+        isArray(st.isArray),
+        nullable(st.nullable)
     {}
 
-    sharp_type(sharp_class *sc, bool isArray = false)
+    sharp_type(sharp_class *sc, bool nullable = false, bool isArray = false)
             :
             _class(sc),
             field(NULL),
             fun(NULL),
             type(type_class),
-            isArray(isArray)
+            isArray(isArray),
+            nullable(nullable)
     {}
 
     sharp_type(sharp_field *sf, bool isArray = false)
@@ -76,25 +79,28 @@ struct sharp_type {
             field(sf),
             fun(NULL),
             type(type_field),
-            isArray(isArray)
+            isArray(isArray),
+            nullable(false)
     {}
 
-    sharp_type(sharp_function *fun, bool isLambda = false, bool isArray = false)
+    sharp_type(sharp_function *fun, bool nullable = false, bool isLambda = false, bool isArray = false)
             :
             _class(NULL),
             field(NULL),
             fun(fun),
             type(isLambda ? type_class : type_function),
-            isArray(isArray)
+            isArray(isArray),
+            nullable(nullable)
     {}
 
-    sharp_type(native_type type, bool isArray = false)
+    sharp_type(native_type type, bool nullable = false, bool isArray = false)
             :
             _class(NULL),
             field(NULL),
             fun(NULL),
             type(type),
-            isArray(isArray)
+            isArray(isArray),
+            nullable(nullable)
     {}
 
     sharp_class *_class;
@@ -102,6 +108,7 @@ struct sharp_type {
     sharp_function *fun;
     native_type type;
     bool isArray;
+    bool nullable;
 };
 
 /**

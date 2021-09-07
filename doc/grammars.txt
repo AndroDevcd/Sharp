@@ -62,8 +62,8 @@ A reference identifier is an identifier that may be a <refrence-pointer>
 <Utype-list>:
 <uType> [,<uType>...]
 
-<identifier-list>:
-<identifier> [,<identifier>...]
+<generic-identifier-list>:
+<identifier> [base <uType>] [,<identifier> [base <utype>]...]
 
 <typeidentifier>:
 An <nativetype> or <refrence-identifier> or <function-pointer>
@@ -75,7 +75,7 @@ An <nativetype> or <refrence-identifier> or <function-pointer>
 A value consists of an <expression>
 
 <uType>:
-<typeidentifier> [([])]                 i.e. object[] Main.foo[]
+<typeidentifier> [([]) (?)]                 i.e. object[] Main.foo[]
 
 <utype-naked>:
 <typeidentifier>
@@ -132,8 +132,11 @@ A value consists of an <expression>
     | '='
     | '=='
 
+<array-items>:
+<expression> [, <expression>...]
+
 <array-expression>:
-expression '[' expression ']' [<dot-notation-call-expr>] expression
+expression '[' <array-items> ']' [<dot-notation-call-expr>] expression
 
 <lambda-return-type>:
 `(` <utype> `)`
@@ -205,10 +208,10 @@ Mutate Declaration:
 mutate <refrence-identifier> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 Generic Class Declaration:
-`[<accesstype>] class <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+`[<accesstype>] class <identifier = name> `<` <generic-identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 Generic Interface Declaration:
-`[<accesstype>] interface <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+`[<accesstype>] interface <identifier = name> `<` <generic-identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 interface Declaration:
 `[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`

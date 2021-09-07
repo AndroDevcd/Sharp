@@ -1,10 +1,12 @@
 mod frontend.parser;
 
-import main;
-import std.io;
-import frontend.tokenizer;
-import cache;
-import frontend;
+import (
+    main,
+    std.io,
+    frontend.tokenizer,
+    cache,
+    frontend
+)
 
 /**
  * Created by BraxtonN on 10/5/2019.

@@ -1,6 +1,8 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
 def enable_compile_only(enable: var) {
    options.compile = enable;

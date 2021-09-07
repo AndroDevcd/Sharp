@@ -25,6 +25,10 @@ Int get_access_flag_count(uInt allowedFlags) {
         flagCount++;
     }
 
+    if(check_flag(allowedFlags, flag_excuse)) {
+        flagCount++;
+    }
+
     if(check_flag(allowedFlags, flag_local)) {
         flagCount++;
     }
@@ -78,6 +82,13 @@ string access_flags_to_str(uInt accessFlags) {
         else firstFlag = false;
 
         ss << "protected";
+    }
+
+    if(check_flag(accessFlags, flag_excuse)) {
+        if(!firstFlag) ss << ", ";
+        else firstFlag = false;
+
+        ss << "excuse";
     }
 
     if(check_flag(accessFlags, flag_local)) {
@@ -181,10 +192,10 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
     }
 
     if(flagOrder.size() > 1) {
-        const uInt flagCount = 10;
+        const uInt flagCount = 11;
         access_flag order[flagCount] = {
                     flag_public, flag_private, flag_protected,
-                    flag_local,
+                    flag_excuse, flag_local,
                     flag_static, flag_const,
                     flag_stable, flag_unstable,
                     flag_extension,
@@ -193,20 +204,22 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
 
         if (flagOrder.get(0) <= flag_protected) {
             start = 3;
-        } else if (flagOrder.get(0) == flag_local) {
+        } else if (flagOrder.get(0) == flag_excuse) {
             start = 4;
-        } else if (flagOrder.get(0) == flag_static) {
+        } else if (flagOrder.get(0) == flag_local) {
             start = 5;
-        } else if (flagOrder.get(0) == flag_const) {
+        } else if (flagOrder.get(0) == flag_static) {
             start = 6;
+        } else if (flagOrder.get(0) == flag_const) {
+            start = 7;
         } else if (flagOrder.get(0) == flag_stable) {
-            start = 8;
+            start = 9;
         } else if (flagOrder.get(0) == flag_unstable) {
-            start = 8;
+            start = 9;
         } else if (flagOrder.get(0) == flag_extension) {
-            start = 9;
+            start = 10;
         } else if (flagOrder.get(0) == flag_native) {
-            start = 9;
+            start = 10;
         }
 
         if (flagOrder.size() == 2) {
@@ -256,6 +269,18 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
                && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))
                && matches_flag(order, flagCount, start+5, flagOrder.get(errPos++))
                && matches_flag(order, flagCount, start+6, flagOrder.get(errPos++))) {
+            } else {
+                goto error;
+            }
+        } else if (flagOrder.size() == 8) {
+            errPos = 1;
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+5, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+6, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+7, flagOrder.get(errPos++))) {
             } else {
                 goto error;
             }

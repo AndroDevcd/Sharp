@@ -370,14 +370,17 @@ void ErrorManager::free() {
     this->_err = false;
     this->lastCheckedError.free();
     this->lastError.free();
-    freeList(*errors);
-    freeList(*warnings);
-    freeList(*unfilteredErrors);
-    for(std::list<ParseError>* lst : *possibleErrors) {
-        freeList(*lst);
-        delete (lst);
+    if(errors) freeList(*errors);
+    if(warnings) freeList(*warnings);
+    if(unfilteredErrors) freeList(*unfilteredErrors);
+
+    if(possibleErrors) {
+        for (std::list<ParseError> *lst : *possibleErrors) {
+            freeList(*lst);
+            delete (lst);
+        }
+        possibleErrors->clear();
     }
-    possibleErrors->clear();
     delete (errors); this->errors = NULL;
     delete (warnings); this->warnings = NULL;
     delete (possibleErrors); this->possibleErrors = NULL;

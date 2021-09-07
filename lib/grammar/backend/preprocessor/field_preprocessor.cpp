@@ -16,7 +16,7 @@ void pre_process_field(sharp_class *parentClass, Ast *ast) {
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected | flag_static
-                | flag_local | flag_const,
+                | flag_excuse | flag_local | flag_const,
                 "field", parentClass,
                 ast->getSubAst(ast_access_type)
         );

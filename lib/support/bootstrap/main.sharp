@@ -1,11 +1,13 @@
 mod main;
 
-import std.io;
-import std.io.*;
-import platform;
-import frontend.*;
-import cache;
-import platform.kernel;
+import (
+    std.io,
+    std.io.*,
+    platform,
+    frontend.*,
+    cache,
+    platform.kernel
+)
 
 private program_name : string = "sharpc";
 private program_vers : string = "0.3.0";

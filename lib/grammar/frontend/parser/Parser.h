@@ -42,6 +42,7 @@ public:
     static bool isNativeType(string t);
     static bool isOverrideOperator(string t);
     static bool isAssignExprSymbol(string t);
+    static bool isElvisOperator(string t);
 
     bool parsed, panic;
     long recursion;
@@ -87,17 +88,20 @@ private:
     bool isObfuscationOption(Token &token);
     void parseAccessTypes();
 
+    bool isNullOperator(Token &t);
     bool expectIdentifier(Ast*);
     bool expectOverrideOperator(Ast* ast);
     void parseModuleDecl(Ast*);
     void parseImportDecl(Ast*);
+    void parseImportItem(Ast*);
+    void parseArrayItems(Ast*);
     void parseClassDecl(Ast*);
     void parseMutateDecl(Ast*);
     void parseInterfaceDecl(Ast*);
     void parseObfuscateBlock(Ast*);
     void parseObfuscateElement(Ast *ast);
     void parseObfuscateDecl(Ast*);
-    void parseIdentifierList(Ast*);
+    void parseGenericIdentifierList(Ast*);
     void addAccessTypes(Ast*);
     bool parseReferencePointer(Ast*);
     void parseUtypeList(Ast*);

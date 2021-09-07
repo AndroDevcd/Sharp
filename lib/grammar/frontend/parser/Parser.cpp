@@ -16,6 +16,12 @@
 #define isEnd() \
     (_current->getType() == _EOF)
 
+
+bool parser::isNullOperator(Token &t) {
+    return t.getType() == QUESMK ||
+        t.getType() == NULLOVRD;
+}
+
 void parser::parse() {
     if(toks->size() == 0)
         return;
@@ -170,7 +176,7 @@ void parser::parseInterfaceDecl(Ast *ast) {
         branch->setAstType(ast_generic_interface_decl);
 
         expect(branch, "<", false);
-        parseIdentifierList(branch);
+        parseGenericIdentifierList(branch);
         expect(branch, ">", false);
     }
 
@@ -1738,6 +1744,9 @@ bool parser::parseUtype(Ast* ast) {
             expect(branch, "]");
         }
 
+        if(peek(1)->getType() == QUESMK)
+            expect(branch, "?");
+
         return true;
     }
     else
@@ -1846,6 +1855,10 @@ void parser::parseVariableDecl(Ast* ast) {
     recursion--;
 }
 
+
+bool parser::isElvisOperator(string token) {
+    return token == "?:";
+}
 
 bool parser::isAssignExprSymbol(string token) {
     return token == "+=" || token == "-="||
@@ -2073,6 +2086,15 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
             }
 
         }
+        return true;
+    }
+
+    /* expression ?: expression */
+    if(isElvisOperator(peek(1)->getValue()))
+    {
+        advance();
+        parseExpression(branch);
+        branch->encapsulate(ast_elvis_e);
         return true;
     }
 
@@ -3140,9 +3162,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     if(peek(1)->getType() == LEFTBRACE)
     {
         Ast* arrayBranch = getBranch(branch, ast_arry_e);
-        expect(arrayBranch, "[");
-        parseExpression(arrayBranch);
-        expect(arrayBranch, "]");
+        parseArrayItems(arrayBranch);
 
 
         if(*peek(1) == "."){
@@ -3289,7 +3309,7 @@ void parser::parseClassDecl(Ast* ast) {
         branch->setAstType(ast_generic_class_decl);
 
         expect(branch, "<", false);
-        parseIdentifierList(branch);
+        parseGenericIdentifierList(branch);
         expect(branch, ">", false);
     }
 
@@ -3452,6 +3472,7 @@ void parser::addAccessTypes(Ast *ast) {
 
 bool parser::parseReferencePointer(Ast *ast) {
     Ast *branch = getBranch(ast, ast_refrence_pointer);
+    bool nullSafeAccess = false;
 
     if(*peek(1) == "operator") {
         expect(branch, "operator", false);
@@ -3462,6 +3483,11 @@ bool parser::parseReferencePointer(Ast *ast) {
     if(!expectIdentifier(branch))
         return false;
 
+    if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
+        expect(branch, peek(1)->getValue());
+        nullSafeAccess = true;
+    }
+
     while(peek(1)->getType() == DOT && *peek(2) != "class") {
         expect(branch, ".");
 
@@ -3470,10 +3496,19 @@ bool parser::parseReferencePointer(Ast *ast) {
             expectOverrideOperator(branch);
             return true;
         }
+
         expectIdentifier(branch);
+        if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
+            expect(branch, peek(1)->getValue());
+            nullSafeAccess = true;
+        }
     }
 
     if(peek(1)->getValue() == "#") {
+        if(nullSafeAccess) {
+            errors->createNewError(GENERIC, current(), "null safe operator `?` is not allowed on module names");
+        }
+
         expect(branch, "#");
         expectIdentifier(branch);
     }
@@ -3496,6 +3531,9 @@ bool parser::parseReferencePointer(Ast *ast) {
         }
     }
 
+    if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
+        expect(branch, peek(1)->getValue());
+    }
     while(peek(1)->getType() == DOT && *peek(2) != "class") {
         expect(branch, ".");
 
@@ -3523,6 +3561,10 @@ bool parser::parseReferencePointer(Ast *ast) {
                 branch->freeLastToken();
             }
         }
+
+        if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
+            expect(branch, peek(1)->getValue());
+        }
     }
 
     return true;
@@ -3545,6 +3587,7 @@ bool parser::isAccessDecl(Token &token) {
             (token.getValue() == "ext") ||
             (token.getValue() == "stable") ||
             (token.getValue() == "native") ||
+            (token.getValue() == "excuse") ||
             (token.getValue() == "public"));
 }
 
@@ -3801,7 +3844,7 @@ bool parser::isKeyword(string key) {
            || key == "private" || key == "def"
            || key == "import" || key == "return"
            || key == "self" || key == "const"
-           || key == "public" || key == "new"
+           || key == "public" || key == "new" || key == "excuse"
            || key == "null" || key == "operator"
            || key == "base" || key == "if" || key == "while" || key == "do"
            || key == "try" || key == "catch"
@@ -3875,14 +3918,27 @@ void parser::parseModuleDecl(Ast *ast) {
     expect(branch, ";", false);
 }
 
-void parser::parseIdentifierList(Ast *ast) {
-    Ast *branch = getBranch(ast, ast_identifier_list);
+void parser::parseGenericIdentifierList(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_generic_identifier_list), *identifier;
 
-    expectIdentifier(branch);
+    identifier = getBranch(branch, ast_generic_identifier);
+    expectIdentifier(identifier);
+
+    if(peek(1)->getValue() == "base") {
+        expect(identifier, "base", false);
+        parseUtype(identifier);
+    }
+
     while(peek(1)->getType() == COMMA) {
-        expect(branch, ",");
+        expect(branch, ",", false);
 
-        expectIdentifier(branch);
+        identifier = getBranch(branch, ast_generic_identifier);
+        expectIdentifier(identifier);
+
+        if(peek(1)->getValue() == "base") {
+            expect(identifier, "base", false);
+            parseUtype(identifier);
+        }
     }
 }
 
@@ -3908,8 +3964,8 @@ void parser::parseUtypeList(Ast *ast) {
     }
 }
 
-void parser::parseImportDecl(Ast *ast) {
-    Ast *branch = getBranch(ast, ast_import_decl);
+void parser::parseImportItem(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_import_item);
 
     expectIdentifier(branch);
 
@@ -3922,8 +3978,39 @@ void parser::parseImportDecl(Ast *ast) {
         } else
             expectIdentifier(branch);
     }
+}
 
-    expect(branch, ";", false);
+void parser::parseArrayItems(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_array_index_items);
+
+    expect(branch, "[", false);
+    parseExpression(branch);
+
+    while(peek(1)->getType() == COMMA) {
+        expect(branch, ",", false);
+        parseExpression(branch);
+    }
+
+    expect(branch, "]", false);
+}
+
+void parser::parseImportDecl(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_import_decl);
+
+    expect(branch, "(", false);
+    parseImportItem(branch);
+
+    while(peek(1)->getType() == COMMA) {
+        expect(branch, ",", false);
+
+        parseImportItem(branch);
+    }
+
+    expect(branch, ")", false);
+    if(peek(1)->getValue() == "as") {
+        expect(branch, "as");
+        expectIdentifier(branch);
+    }
 }
 
 void parser::expect(Ast* ast, string token, bool addToken, const char *expectedstr) {

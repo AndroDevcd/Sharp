@@ -482,24 +482,7 @@ int start_daemon_thread(
             NULL);
     if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
     else
-        return #ifdef WIN32_
-    thread->thread = CreateThread(
-            NULL,                   // default security attributes
-            0,                      // use default stack size
-            (LPTHREAD_START_ROUTINE)threadFunc,       // thread function caller
-            thread,                 // thread self when thread is created
-            0,                      // use default creation flags
-            NULL);
-    if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
-    else
         return wait_for_thread_start(thread);
-#endif
-#ifdef POSIX_
-    if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)
-        return RESULT_THREAD_NOT_STARTED; // thread was not started
-    else
-        return wait_for_thread_start(thread);
-#endif(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)

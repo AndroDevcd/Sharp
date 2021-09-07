@@ -1,6 +1,8 @@
 mod main;
 
-import std.math;
+import (
+    std.math
+)
 
 alias list<neuron> as layer;
 

@@ -18,6 +18,7 @@ enum ast_type
     ast_interface_decl,
     ast_obfuscate_decl,
     ast_import_decl,
+    ast_import_item,
     ast_module_decl,
     ast_method_decl,
     ast_enum_decl,
@@ -43,6 +44,8 @@ enum ast_type
     ast_reference_pointer_list,
     ast_utype_list,
     ast_identifier_list,
+    ast_generic_identifier_list,
+    ast_generic_identifier,
     ast_enum_identifier_list,
     ast_vector_array,
     ast_dictionary_array,
@@ -99,6 +102,7 @@ enum ast_type
     ast_modulename,
     ast_literal,
     ast_access_type,
+    ast_array_index_items,
 
     /**
      * Encapsulated ast's to make processing expressions easier
@@ -128,6 +132,7 @@ enum ast_type
     ast_equal_e,
     ast_and_e,
     ast_ques_e,
+    ast_elvis_e,
     ast_assign_e,
     ast_sizeof_e,
 

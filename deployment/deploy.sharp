@@ -1,6 +1,8 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
 release_version := "v0.2.9";
 def simple_test(test_file: string) : var {

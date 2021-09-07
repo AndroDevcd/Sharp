@@ -23,6 +23,7 @@ else()
 endif ()
 
 set(SHARPC "build")
+#set(LEGACY "build")
 
 # compiler
 if (SHARPC)
@@ -60,6 +61,43 @@ if (SHARPC)
     set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/compiler_info.cpp lib/grammar/backend/meta_data.h lib/grammar/backend/meta_data.cpp lib/grammar/backend/types/sharp_type.h)
 
     add_executable(Sharpc ${SOURCE_FILES})
+elseif(LEGACY)
+    add_definitions(-DMAKE_COMPILER)
+
+    file(GLOB compiler_SRC
+            "lib/old_grammar/*.h"
+            "lib/old_grammar/*.cpp"
+            "lib/old_grammar/optimizer/*.h"
+            "lib/old_grammar/optimizer/*.cpp"
+            "lib/old_grammar/generator/*.h"
+            "lib/old_grammar/generator/*.cpp"
+            "lib/old_grammar/frontend/tokenizer/*.h"
+            "lib/old_grammar/frontend/tokenizer/*.cpp"
+            "lib/old_grammar/frontend/parser/*.h"
+            "lib/old_grammar/frontend/parser/*.cpp"
+            "lib/old_grammar/frontend/*.h"
+            "lib/old_grammar/frontend/*.cpp"
+            "lib/old_grammar/backend/*.h"
+            "lib/old_grammar/backend/*.cpp"
+            "lib/old_grammar/backend/oo/*.h"
+            "lib/old_grammar/backend/oo/*.cpp"
+            "lib/old_grammar/backend/ofuscation/*.h"
+            "lib/old_grammar/backend/ofuscation/*.cpp"
+            "lib/old_grammar/backend/data/*.h"
+            "lib/old_grammar/backend/data/*.cpp"
+            "lib/old_grammar/backend/code/*.h"
+            "lib/util/*.cpp"
+            "lib/util/*.h"
+            "lib/util/zip/*.cpp"
+            "lib/util/zip/*.h"
+            "lib/runtime/Opcode.h"
+            "lib/runtime/Opcode.cpp"
+            )
+
+
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
+
+    add_executable(LegacySharpc ${SOURCE_FILES})
 else()
     #virtual machine
     add_definitions(-DDEBUGGING)

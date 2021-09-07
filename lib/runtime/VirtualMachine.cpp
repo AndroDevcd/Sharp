@@ -14,7 +14,7 @@
 #include "symbols/Exception.h"
 #include "../util/time.h"
 #include "Opcode.h"
-#include "../grammar/DataType.h"
+#include "../old_grammar/DataType.h"
 #include "symbols/Field.h"
 #include "Manifest.h"
 #include "../Modules/std.io/fileio.h"
@@ -743,7 +743,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 string path, absolute;
                 populateString(path, relPath->object->HEAD, relPath->object->size);
 
-                resolve_path(path, absolute);
+                File::resolvePath(path, absolute);
                 gc.createStringArray(relPath, absolute);
             } else {
                 throw Exception(vm.NullptrExcept, "");
@@ -834,7 +834,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     files.free();
                 }
                 else if(signal==OP_CREATE_DIR)
-                    registers[EBX] = make_dir(path);
+                    registers[EBX] = File::makeDir(path);
                 else if(signal==OP_DELETE_DIR)
                     registers[EBX] = delete_dir(path);
                 else if(signal==OP_UPDATE_FILE_TM)

@@ -78,9 +78,8 @@ void parse_file() {
         if(file->p->panic)
             panic = true;
         delete file->p; file->p = NULL;
-    }
-
-    file->stage = parsed;
+    } else
+        file->stage = parsed;
 }
 
 void pre_process_() {

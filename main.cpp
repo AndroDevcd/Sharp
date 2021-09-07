@@ -4,6 +4,8 @@
 
 #ifdef MAKE_COMPILER
     #include "lib/grammar/main.h"
+#include "lib/old_grammar/options.h"
+
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/main.h"
@@ -23,11 +25,9 @@ int main(int argc, const char* argv[]) {
 #endif
 
     now= Clock::realTimeInNSecs();
-    if(options.debug_mode)
-        cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
-             << NANO_TOMILL(now-past) << "ms\n";
 
-    if(options.debug_mode)
-        cout << endl << "program exiting..." << endl;
+    cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
+             << NANO_TOMILL(now-past) << "ms\n";
+    cout << endl << "program exiting..." << endl;
     return result;
 }

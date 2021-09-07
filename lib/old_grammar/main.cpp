@@ -32,13 +32,22 @@ bool warning_map[] = {
 options c_options;
 int compile(List<std::string>&);
 
+extern struct stat result;
+
+string to_lower(string s) {
+    string newstr = "";
+    for(char c : s) {
+        newstr += tolower(c);
+    }
+    return newstr;
+}
+
 bool ends_with(std::string value, std::string ending)
 {
     if (ending.size() > value.size()) return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-struct stat result;
 void get_full_file_list(std::string &path, List<std::string> &files) {
     DIR *dir;
     struct dirent *ent;
@@ -218,9 +227,9 @@ int _bootstrap(int argc, const char* argv[])
                     c_options.target = strtol(x.c_str(), NULL, 0);
                 else {
                     if(to_lower(x) == "base") {
-                        c_options.target = versions.BASE;
+                        c_options.target = alpha;
                     } else if(to_lower(x) == "alpha") {
-                        c_options.target = versions.ALPHA;
+                        c_options.target = alpha_cr2;
                     }
                     else {
                         error("unknown target " + x);

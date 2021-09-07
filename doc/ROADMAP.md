@@ -495,6 +495,7 @@ class mario base player {
 // in main.sharp
 mod main;
 
+
 native def add(var x, var y) : var;
 
 def main() {
@@ -541,26 +542,58 @@ def main() {
 }
 ```
 
+Add ai module to support ai in the language
+- DataNeuralNet: takes in string data outputs string data
+- MathNeuralNet: takes in math problems outputs an answer, allow user to add custom math operations
+- ObjectNeuralNet: Takes an object that must inherit ai_object class and set_value(string name, object data)
+   - and outputs data into another object with expected values on function call and get_value(string name)
+
+# Revised import syntax
+internally these will be treated as an import_group which will have a list of modules
+when processing via files import groups get priority over non import groups for resolving
+members 
+
+```javascript
+mod main;
+
+import (
+    std,
+    std.io.*
+) as test;
+
+import ( 
+    std
+);
+
+
+def main() {
+    f := new test#file("test.txt");
+}
+
+```
+s - scratch
+ip - in progress
+
 #### Offical 0.3.0 features
-* Nullable types (true null type safety)
+* [X] Nullable types (true null type safety)
 * [X] Revised import syntax
-* elvis operator & then operator
-* Support for new class inlining 
-* Several high perf optimizations
+* [X] elvis operator
+* Support for new class inlining - s
+* Several high perf optimizations - ip
 * [X] File caching
-* Faster compile times
+* Faster compile times - ip
 * [X] More compiler settings
-* Offical support for closures
-* Template functions
-* Generic base classes generic< t base some_class >
-* Revised for loop syntax
+* Offical support for closures - ip
+* Template functions - s
+* [X] Generic base classes generic< t base some_class >
+* Revised for loop syntax - s
 * [X] Semicolons are no longer required
-* Parenthesis are no longer required
-* Trailing function pointers lst.sort { -> ... } -> def sort(sort_fun: ()()) { ... } after dot not & after ref ptr in dot not check for trailing lambda
-* dynamic args via '...' referenced as object[]
+* Parenthesis are no longer required - s
+* Trailing function pointers lst.sort { -> ... } -> def sort(sort_fun: ()()) { ... } after dot not & after ref ptr in dot not check for trailing lambda - s
+* dynamic args via '...' referenced as object[] - s
 * [X] Nesting block comments
-* Live code compiling using the `--watch` compiler option to update changed project files in real time
-* New async functionality
-* deferr keyword added
-* \u0000 unicode strings
-* paramaterized array access i.e 'str[0, 5]' returns a substring from pos 0 to 5
+* Live code compiling using the `--watch` compiler option to update changed project files in real time - ip
+* New async functionality - s
+* deferr keyword added - s
+* [X] \u0000 unicode strings
+* [X] paramaterized array access i.e 'str[0, 5]' returns a substring from pos 0 to 5
