@@ -559,11 +559,11 @@ mod main;
 import (
     std,
     std.io.*
-) as test;
+) as test
 
 import ( 
     std
-);
+)
 
 
 def main() {

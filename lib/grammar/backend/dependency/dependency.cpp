@@ -11,6 +11,7 @@
 #include "../types/sharp_field.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_alias.h"
+#include "../types/import_group.h"
 
 
 sharp_class* resolve_class(
@@ -57,6 +58,39 @@ sharp_class* resolve_class(
 
     return NULL;
 }
+
+sharp_class* resolve_class(
+                import_group* group,
+                string name,
+                bool isGeneric,
+                bool matchName) {
+    List<sharp_module*> &imports = group->modules;
+    sharp_class *sc;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sc = resolve_class(
+                imports.get(i),
+                name,
+                isGeneric,
+                matchName)) != NULL) {
+            return sc;
+        }
+    }
+
+    return NULL;
+}
+
+import_group* resolve_import_group(sharp_file *file, string name) {
+    List<import_group*> &groups = file->importGroups;
+
+    for(Int i = 0; i < groups.size(); i++) {
+        if(groups.get(i)->name == name) {
+            return groups.get(i);
+        }
+    }
+
+    return NULL;
+}
 sharp_class* resolve_class(
         sharp_file* file,
         string name,
@@ -90,6 +124,19 @@ sharp_field* resolve_field(string name, sharp_module *module) {
 
         if(check_flag(sc->flags, flag_global)
             && (sf = resolve_field(name, sc)) != NULL) {
+            return sf;
+        }
+    }
+
+    return NULL;
+}
+
+sharp_field* resolve_field(string name, import_group *group) {
+    List<sharp_module*> &imports = group->modules;
+    sharp_field *sf;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sf = resolve_field(name, imports.get(i))) != NULL) {
             return sf;
         }
     }
@@ -139,6 +186,19 @@ sharp_alias* resolve_alias(string name, sharp_module *module) {
     return NULL;
 }
 
+sharp_alias* resolve_alias(string name, import_group *group) {
+    List<sharp_module*> &imports = group->modules;
+    sharp_alias *sa;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sa = resolve_alias(name, imports.get(i))) != NULL) {
+            return sa;
+        }
+    }
+
+    return NULL;
+}
+
 sharp_alias* resolve_alias(string name, sharp_file *file) {
     List<sharp_module*> &imports = file->imports;
     sharp_alias *sa;
@@ -156,6 +216,31 @@ sharp_alias* resolve_alias(string name, sharp_class *searchClass) {
     for(Int i = 0; i < searchClass->aliases.size(); i++) {
         if(searchClass->aliases.get(i)->name == name) {
             return searchClass->aliases.get(i);
+        }
+    }
+
+    return NULL;
+}
+
+sharp_function* resolve_function(
+        string name,
+        import_group *group,
+        List<sharp_field*> &parameters,
+        Int functionType,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck) {
+    List<sharp_module*> &imports = group->modules;
+    sharp_function *sf;
+
+    for(Int i = 0; i < imports.size(); i++) {
+        if((sf = resolve_function(
+                name, imports.get(i), parameters,
+                functionType, excludeMatches,
+                resolveLocation, checkBaseClass,
+                implicitCheck)) != NULL) {
+            return sf;
         }
     }
 

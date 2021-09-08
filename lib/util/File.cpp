@@ -286,7 +286,8 @@ string File::buffer::to_str() {
 }
 
 uInt File::getFileAttrs(string& path) {
-    if(stat(path.c_str(), &result)==0)
+    uInt res = stat(path.c_str(), &result);
+    if(res==0)
     {
         uInt mode = result.st_mode, attrs=0;
 

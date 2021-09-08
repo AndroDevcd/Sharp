@@ -11,6 +11,7 @@
 #include "../types/sharp_class.h"
 #include "alias_preprocessor.h"
 #include "field_preprocessor.h"
+#include "enum_preprocessor.h"
 
 void pre_process() {
     sharp_file *file = currThread->currTask->file;
@@ -56,6 +57,9 @@ void pre_process() {
             case ast_variable_decl:
                 pre_process_field(globalClass, trunk);
                 break;
+            case ast_enum_decl:
+                pre_process_enum(globalClass, NULL, trunk);
+                break;
             case ast_module_decl: /* fail-safe */
                 currThread->currTask->file->errors->createNewError(
                         GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
@@ -63,7 +67,6 @@ void pre_process() {
             case ast_import_decl:
             case ast_generic_class_decl:
             case ast_generic_interface_decl:
-            case ast_enum_decl:
             case ast_delegate_decl:
             case ast_method_decl:
             case ast_mutate_decl:
@@ -137,7 +140,7 @@ void pre_process_class(
                 /* todo */
                 break;
             case ast_enum_decl:
-                /* todo */
+                pre_process_enum(with_class, NULL, trunk);
                 break;
             case ast_mutate_decl:
             case ast_delegate_decl:

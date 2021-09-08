@@ -5,6 +5,7 @@
 #include "Parser.h"
 #include "../../main.h"
 #include "Ast.h"
+#include "../../json/json.h"
 
 #define current() \
     (*_current)
@@ -1855,6 +1856,32 @@ void parser::parseVariableDecl(Ast* ast) {
     recursion--;
 }
 
+void parser::exportLines(json_object* jo) {
+    json_value *jv = new json_value();
+    json_array* lineItems = new json_array();
+
+    jo->addMember("lines");
+    json_member *m_lines = (*jo)["lines"];
+
+    jv->setArrayValue(lineItems);
+    m_lines->setValue(jv);
+    for(Int i = 0; i < lines.size(); i++) {
+        json_value *line = new json_value();
+
+        line->setStringValue(lines.get(i));
+        lineItems->addValue(line);
+    }
+}
+
+json_value* parser::exportData() {
+    json_value *jv = new json_value();
+    json_object *jo = new json_object();
+
+    exportLines(jo);
+    jv->setObjectValue(jo);
+
+    return jv;
+}
 
 bool parser::isElvisOperator(string token) {
     return token == "?:";

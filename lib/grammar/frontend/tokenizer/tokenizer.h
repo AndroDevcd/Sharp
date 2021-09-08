@@ -59,12 +59,13 @@ public:
     void free();
 
     static string tokenTypeToString(token_type);
+    static string from_escaped_string(string msg);
+    static string to_escaped_string(string msg);
 
 private:
     void parse();
     void parse_lines();
     bool ismatch(char i, char current);
-    string get_escaped_string(string msg) const;
 
     List<Token> tokens;
     ErrorManager* errors;

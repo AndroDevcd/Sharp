@@ -6,6 +6,7 @@
 #include "../types/sharp_module.h"
 #include "../../compiler_info.h"
 #include "../types/sharp_class.h"
+#include "../../sharp_file.h"
 
 sharp_field* create_field(
         sharp_file *file,

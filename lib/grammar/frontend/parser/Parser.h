@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../tokenizer/tokenizer.h"
 #include "Ast.h"
+#include "../../json/json_value.h"
 
 class parser {
 public:
@@ -17,11 +18,13 @@ public:
             toks(tokenizer),
             parsed(false),
             panic(false),
-            recursion(0)
+            recursion(0),
+            lines()
     {
         if(tokenizer != NULL && tokenizer->getErrors() != NULL &&
            !tokenizer->getErrors()->hasErrors())
         {
+            lines.addAll(tokenizer->getLines());
             access_types.init();
             tree.init();
             parse();
@@ -36,13 +39,16 @@ public:
     Ast* astAt(long p);
     size_t size() { return tree.size(); }
     void free();
-    string &getData() { return toks->getData(); }
+    string getData() { return toks ? toks->getData() : ""; }
+    List<string> &getLines() { return lines; }
     tokenizer *getTokenizer() { return toks; }
     static bool isStorageType(Token &t);
     static bool isNativeType(string t);
     static bool isOverrideOperator(string t);
     static bool isAssignExprSymbol(string t);
     static bool isElvisOperator(string t);
+    json_value* exportData();
+    void exportLines(json_object*);
 
     bool parsed, panic;
     long recursion;
@@ -188,6 +194,7 @@ private:
     List<Ast*> tree;
     Token* _current;
     tokenizer *toks;
+    List<string> lines;
     List<Token> access_types;
     ErrorManager *errors;
 };

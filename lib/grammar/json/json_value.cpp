@@ -5,6 +5,7 @@
 #include "json_value.h"
 #include "json_array.h"
 #include "json_object.h"
+#include "../frontend/tokenizer/tokenizer.h"
 
 void json_value::setArrayValue(json_array *value) {
     type = jtype_array;
@@ -62,7 +63,7 @@ void json_value::toString(stringstream &str, uInt &tabCount) {
             break;
         }
         case jtype_string: {
-            str << "\"" << stringValue << "\"";
+            str << "\"" << tokenizer::to_escaped_string(stringValue) << "\"";
             break;
         }
         case jtype_array: {

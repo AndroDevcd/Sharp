@@ -9,6 +9,7 @@
 #include "../meta_data.h"
 #include "../access_flag.h"
 #include "sharp_type.h"
+#include "../dependency/dependancy.h"
 
 struct sharp_class;
 

@@ -5,8 +5,10 @@
 #ifndef SHARP_META_DATA_H
 #define SHARP_META_DATA_H
 
-#include "../sharp_file.h"
 #include "../../../stdimports.h"
+#include "../frontend/parser/Ast.h"
+
+struct sharp_file;
 
 /**
  * This structure represents where a member i.e (class, field, etc.)

@@ -4,6 +4,7 @@
 #include "meta_data.h"
 #include "types/sharp_class.h"
 #include "../compiler_info.h"
+#include "../sharp_file.h"
 
 void print_impl_location(string name, string memberType, impl_location& location) {
     stringstream note;
@@ -11,7 +12,7 @@ void print_impl_location(string name, string memberType, impl_location& location
         << ":" << location.line << ":" << location.col
         << ": note: " << memberType << " `" << name << "` previously defined here" << endl;
 
-    note << "\t\t" << location.file->tok->getLines().at(location.line)
+    note << "\t\t" << location.file->p->getLines().at(location.line)
         << endl << "\t\t";
 
     for(int i = 0; i < location.col-1; i++)

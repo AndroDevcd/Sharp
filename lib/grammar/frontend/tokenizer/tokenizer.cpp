@@ -588,7 +588,7 @@ void tokenizer::parse()
             else
             {
                 string msg = character.str();
-                tokens.add(Token(get_escaped_string(msg), CHAR_LITERAL, col, line));
+                tokens.add(Token(from_escaped_string(msg), CHAR_LITERAL, col, line));
             }
 
             advance();
@@ -753,10 +753,10 @@ void tokenizer::saveString(const stringstream &message, bool escaped_found) {
     if (!escaped_found)
         tokens.add(Token(message.str(), STRING_LITERAL, col, line));
     else
-        tokens.add(Token(get_escaped_string(message.str()), STRING_LITERAL, col, line));
+        tokens.add(Token(from_escaped_string(message.str()), STRING_LITERAL, col, line));
 }
 
-string tokenizer::get_escaped_string(string msg) const {
+string tokenizer::from_escaped_string(string msg) {
     stringstream escapedmessage;
     for(unsigned long i = 0; i < msg.length(); i++)
     {
@@ -796,6 +796,46 @@ string tokenizer::get_escaped_string(string msg) const {
         }
         else
             escapedmessage << msg.at(i);
+    }
+    return escapedmessage.str();
+}
+
+string tokenizer::to_escaped_string(string msg) {
+    stringstream escapedmessage;
+    for(unsigned long i = 0; i < msg.length(); i++)
+    {
+        switch(msg.at(i)) {
+            case '\n':
+                escapedmessage << "\\n";
+                break;
+            case '\t':
+                escapedmessage << "\\t";
+                break;
+            case '\b':
+                escapedmessage << "\\b";
+                break;
+            case '\v':
+                escapedmessage << "\\v";
+                break;
+            case '\r':
+                escapedmessage << "\\r";
+                break;
+            case '\f':
+                escapedmessage << "\\f";
+                break;
+            case '\0':
+                escapedmessage << "\\0";
+                break;
+            case '\a':
+                escapedmessage << "\\a";
+                break;
+            case '"':
+                escapedmessage << "\\\"";
+                break;
+            default:
+                escapedmessage << msg.at(i);
+                break;
+        }
     }
     return escapedmessage.str();
 }

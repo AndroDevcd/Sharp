@@ -9,6 +9,8 @@
 #include "frontend/tokenizer/tokenizer.h"
 #include "frontend/parser/Parser.h"
 #include "backend/dependency/dependancy.h"
+#include "backend/types/import_group.h"
+#include "compiler_info.h"
 
 enum compilation_stage {
     not_compiled,
@@ -48,7 +50,8 @@ struct sharp_file {
         stage(not_compiled),
         compilationFailed(false),
         dependencies(),
-        imports()
+        imports(),
+        importGroups()
     {}
 
     sharp_file(string filePath)
@@ -60,7 +63,8 @@ struct sharp_file {
             stage(not_compiled),
             compilationFailed(false),
             dependencies(),
-            imports()
+            imports(),
+            importGroups()
     {}
 
     ~sharp_file() {
@@ -70,11 +74,13 @@ struct sharp_file {
     void free() {
         dependencies.free();
         imports.free();
+        deleteList(importGroups);
     }
 
     string name;
     tokenizer *tok;
     parser *p;
+    List<import_group*> importGroups;
     compilation_stage stage;
     bool compilationFailed;
     List<dependency> dependencies;

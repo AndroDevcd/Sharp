@@ -16,6 +16,7 @@ struct sharp_module;
 struct sharp_function;
 struct sharp_field;
 struct sharp_alias;
+struct import_group;
 
 enum dependency_type {
     no_dependency,
@@ -133,10 +134,23 @@ void create_dependency(sharp_field* depender, sharp_function* dependee);
 void create_dependency(sharp_field* depender, sharp_class* dependee);
 void create_dependency(sharp_field* depender, sharp_field* dependee);
 
+sharp_class* resolve_class(import_group*, string, bool, bool);
 sharp_class* resolve_class(sharp_module*, string, bool, bool);
 sharp_class* resolve_class(sharp_file*, string, bool, bool);
 sharp_class* resolve_class(sharp_class*, string, bool, bool);
 sharp_class* resolve_class(string, bool, bool);
+
+import_group* resolve_import_group(sharp_file*, string);
+
+sharp_function* resolve_function(
+        string name,
+        import_group *group,
+        List<sharp_field*> &parameters,
+        Int functionType,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
 
 sharp_function* resolve_function(
         string name,
@@ -170,10 +184,12 @@ sharp_function* resolve_function(
 
 sharp_alias* resolve_alias(string, sharp_module*);
 sharp_alias* resolve_alias(string, sharp_file*);
+sharp_alias* resolve_alias(string, import_group*);
 sharp_alias* resolve_alias(string, sharp_class*);
 
 sharp_field* resolve_field(string, sharp_module*);
 sharp_field* resolve_field(string, sharp_file*);
+sharp_field* resolve_field(string, import_group*);
 sharp_field* resolve_field(string, sharp_class*);
 
 #endif //SHARP_DEPENDANCY_H

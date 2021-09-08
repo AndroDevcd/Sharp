@@ -366,5 +366,9 @@ int compile()
     wait_for_tasks();
     cout << "done" << endl;
 
+    uInt tabCount = 0;
+    stringstream ss;
+    sharpFiles.get(0)->p->exportData()->toString(ss, tabCount);
+    File::write("test_cache.json", ss.str());
     return 0;
 }
