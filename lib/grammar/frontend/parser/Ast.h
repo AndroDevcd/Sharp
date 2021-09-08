@@ -8,6 +8,7 @@
 #include <list>
 #include "../tokenizer/token.h"
 #include "../../List.h"
+#include "../../json/json.h"
 
 enum ast_type
 {
@@ -145,30 +146,41 @@ public:
     :
         type(type),
         line(line),
-        col(col)
+        col(col),
+        sub_asts(),
+        tokens()
     {
-        sub_asts.init();
-        tokens.init();
     }
 
     Ast()
             :
             type(ast_none),
             line(0),
-            col(0)
+            col(0),
+            sub_asts(),
+            tokens()
     {
-        sub_asts.init();
-        tokens.init();
+    }
+
+    Ast(json_value *jv)
+            :
+            type(ast_none),
+            line(0),
+            col(0),
+            sub_asts(),
+            tokens()
+    {
+        importData(jv);
     }
 
     Ast(Ast *cpy)
             :
             type(ast_none),
             line(0),
-            col(0)
+            col(0),
+            sub_asts(),
+            tokens()
     {
-        sub_asts.init();
-        tokens.init();
         copy(cpy);
     }
 
@@ -192,13 +204,15 @@ public:
     void addAst(Ast* _ast);
     void copy(Ast *ast);
     void free();
+    json_value* exportData();
+    void importData(json_value*);
 
     void freeTokens();
     void freeLastToken();
     void freeLastSub();
     string toString();
 
-    int line, col;
+    Int line, col;
 
     void setAstType(ast_type types);
 

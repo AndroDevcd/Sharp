@@ -54,7 +54,6 @@ public:
         tabOffset++;
 
         for(uInt i = 0; i < size(); i++) {
-            addTabs(str, tabOffset);
             members.get(i)->toString(str, tabOffset);
 
             if((i + 1) < size()) {
@@ -64,8 +63,9 @@ public:
             str << endl;
         }
 
-        str << "}";
         tabOffset--;
+        addTabs(str, tabOffset);
+        str << "}";
     }
 
     bool addMember(string name) {

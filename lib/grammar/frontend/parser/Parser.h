@@ -48,6 +48,7 @@ public:
     static bool isAssignExprSymbol(string t);
     static bool isElvisOperator(string t);
     json_value* exportData();
+    void importData(json_value*);
     void exportLines(json_object*);
 
     bool parsed, panic;
@@ -93,8 +94,6 @@ private:
     bool isForLoopCompareSymbol(string t);
     bool isObfuscationOption(Token &token);
     void parseAccessTypes();
-
-    bool isNullOperator(Token &t);
     bool expectIdentifier(Ast*);
     bool expectOverrideOperator(Ast* ast);
     void parseModuleDecl(Ast*);

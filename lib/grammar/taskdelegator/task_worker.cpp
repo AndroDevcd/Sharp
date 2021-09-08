@@ -70,7 +70,7 @@ void parse_file() {
     sharp_file *file = currThread->currTask->file;
 
     file->p = new parser(file->tok);
-    if(file->p->getErrors()->hasErrors()) {
+    if(file->p->getErrors() && file->p->getErrors()->hasErrors()) {
         GUARD(errorMutex)
 
         file->compilationFailed = true;
@@ -78,7 +78,7 @@ void parse_file() {
         if(file->p->panic)
             panic = true;
         delete file->p; file->p = NULL;
-    } else
+    } else if(file->p->parsed)
         file->stage = parsed;
 }
 

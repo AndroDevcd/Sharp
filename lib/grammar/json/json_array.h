@@ -70,8 +70,9 @@ public:
             str << endl;
         }
 
-        str << "]";
         tabOffset--;
+        addTabs(str, tabOffset);
+        str << "]";
     }
 
     void addValue(json_value *value) {

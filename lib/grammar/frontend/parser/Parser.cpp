@@ -18,11 +18,6 @@
     (_current->getType() == _EOF)
 
 
-bool parser::isNullOperator(Token &t) {
-    return t.getType() == QUESMK ||
-        t.getType() == NULLOVRD;
-}
-
 void parser::parse() {
     if(toks->size() == 0)
         return;
@@ -1873,12 +1868,41 @@ void parser::exportLines(json_object* jo) {
     }
 }
 
+void parser::importData(json_value *jv) {
+    if(jv) {
+        auto jo = jv->getJsonObject();
+
+        auto _lines = (*jo)["lines"]->getValue()
+                ->getArrayValue()->get_values();
+
+        for (Int i = 0; i < _lines.size(); i++) {
+            lines.add(_lines.get(i)->getStringValue());
+        }
+
+        auto _tree = (*jo)["tree"]->getValue()
+                ->getArrayValue()->get_values();
+
+        for (Int i = 0; i < _tree.size(); i++) {
+            tree.add(new Ast(_tree.get(i)));
+        }
+    }
+}
+
 json_value* parser::exportData() {
     json_value *jv = new json_value();
     json_object *jo = new json_object();
 
     exportLines(jo);
     jv->setObjectValue(jo);
+
+    jo->addMember("tree");
+    json_value *treeValue = new json_value();
+    json_array *treeItems = new json_array();
+    treeValue->setArrayValue(treeItems);
+    (*jo)["tree"]->setValue(treeValue);
+    for(Int i = 0; i < tree.size(); i++) {
+        treeItems->addValue(tree.get(i)->exportData());
+    }
 
     return jv;
 }
@@ -3510,13 +3534,14 @@ bool parser::parseReferencePointer(Ast *ast) {
     if(!expectIdentifier(branch))
         return false;
 
-    if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
-        expect(branch, peek(1)->getValue());
-        nullSafeAccess = true;
-    }
+    while((peek(1)->getType() == DOT
+           || peek(1)->getType() == SAFEDOT
+           || peek(1)->getType() == FORCEDOT)
+           && *peek(2) != "class") {
+        if(peek(1)->getType() == SAFEDOT || peek(1)->getType() == FORCEDOT)
+            nullSafeAccess = true;
 
-    while(peek(1)->getType() == DOT && *peek(2) != "class") {
-        expect(branch, ".");
+        expect(branch, peek(1)->getValue());
 
         if(*peek(1) == "operator") {
             expect(branch, "operator", false);
@@ -3525,15 +3550,11 @@ bool parser::parseReferencePointer(Ast *ast) {
         }
 
         expectIdentifier(branch);
-        if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
-            expect(branch, peek(1)->getValue());
-            nullSafeAccess = true;
-        }
     }
 
     if(peek(1)->getValue() == "#") {
         if(nullSafeAccess) {
-            errors->createNewError(GENERIC, current(), "null safe operator `?` is not allowed on module names");
+            errors->createNewError(GENERIC, current(), "null safe operator `?` or `!!` is not allowed on module names");
         }
 
         expect(branch, "#");
@@ -3558,11 +3579,10 @@ bool parser::parseReferencePointer(Ast *ast) {
         }
     }
 
-    if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
+    while((peek(1)->getType() == DOT
+           || peek(1)->getType() == SAFEDOT
+           || peek(1)->getType() == FORCEDOT)  && *peek(2) != "class") {
         expect(branch, peek(1)->getValue());
-    }
-    while(peek(1)->getType() == DOT && *peek(2) != "class") {
-        expect(branch, ".");
 
         if(*peek(1) == "operator") {
             expect(branch, "operator", false);
@@ -3587,10 +3607,6 @@ bool parser::parseReferencePointer(Ast *ast) {
                 branch->freeLastSub();
                 branch->freeLastToken();
             }
-        }
-
-        if(isNullOperator(*peek(1)) && peek(2)->getType() == DOT) {
-            expect(branch, peek(1)->getValue());
         }
     }
 
@@ -4102,7 +4118,7 @@ void parser::free() {
         access_types.free();
         this->tree.free();
         access_types.free();
-        errors->free();
+        if(errors) errors->free();
         delete (errors); this->errors = NULL;
     }
 }

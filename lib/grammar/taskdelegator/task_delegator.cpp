@@ -56,7 +56,7 @@ delegatorStart(void *) {
     }
 
     if(maxWorkers <= 0)
-        maxWorkers++;
+        maxWorkers = 1;
 
     for(Int i = 0; i < maxWorkers; i++) {
         start_worker(create_worker());

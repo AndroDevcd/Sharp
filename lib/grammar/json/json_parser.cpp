@@ -40,7 +40,7 @@ json_value* parse_json(string filename) {
         return NULL;
     }
 
-    t = new tokenizer(jsonData, filename);
+    t = new tokenizer(jsonData, filename, false);
     if(!_tokenizer.getErrors()->hasErrors()) {
         _tokens = &_tokenizer.getTokens();
 
@@ -106,7 +106,8 @@ json_value* parse_value() {
                    )
         );
     } else if(tok.getId() == STRING_LITERAL) {
-        jv->setStringValue(tok.getValue());
+        string es = tokenizer::from_escaped_string(tok.getValue());
+        jv->setStringValue(es);
     } else if(tok.getType() == LEFTBRACE) {
         jv->setArrayValue(parse__array());
     } else if(tok.getType() == LEFTCURLY) {

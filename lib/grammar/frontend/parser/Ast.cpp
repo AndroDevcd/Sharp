@@ -40,6 +40,76 @@ void Ast::addAst(Ast* _ast)
     sub_asts.add(_ast);
 }
 
+void Ast::importData(json_value *jv) {
+    if(jv) {
+        auto jo = jv->getJsonObject();
+
+        if (jo) {
+            line = (*jo)["line"]->getValue()->getIntValue();
+            col = (*jo)["col"]->getValue()->getIntValue();
+            type = (ast_type) (*jo)["type"]->getValue()->getIntValue();
+
+            if ((*jo)["tokens"]) {
+                auto _tokens = (*jo)["tokens"]->getValue()
+                        ->getArrayValue()->get_values();
+
+                for (Int i = 0; i < _tokens.size(); i++) {
+                    tokens.add(Token(_tokens.get(i)));
+                }
+            }
+
+            if ((*jo)["children"]) {
+                auto _children = (*jo)["children"]->getValue()
+                        ->getArrayValue()->get_values();
+
+                for (Int i = 0; i < _children.size(); i++) {
+                    sub_asts.add(new Ast(_children.get(i)));
+                }
+            }
+        }
+    }
+}
+
+json_value* Ast::exportData() {
+    json_value *jv = new json_value();
+    json_object *jo = new json_object();
+
+    jo->addMember("type");
+    jo->addMember("line");
+    jo->addMember("col");
+
+    (*jo)["line"]->setValue(new json_value(line));
+    (*jo)["col"]->setValue(new json_value(col));
+    (*jo)["type"]->setValue(new json_value((Int)type));
+
+    if(!tokens.empty()) {
+        jo->addMember("tokens");
+        json_value *tokenList = new json_value();
+        json_array *tokenItems = new json_array();
+        tokenList->setArrayValue(tokenItems);
+        (*jo)["tokens"]->setValue(tokenList);
+
+        for(Int i = 0; i < tokens.size(); i++) {
+            tokenItems->addValue(tokens.get(i).exportData());
+        }
+    }
+
+    if(!sub_asts.empty()) {
+        jo->addMember("children");
+
+        json_value *children = new json_value();
+        json_array *childItems = new json_array();
+        children->setArrayValue(childItems);
+        (*jo)["children"]->setValue(children);
+        for (Int i = 0; i < sub_asts.size(); i++) {
+            childItems->addValue(sub_asts.get(i)->exportData());
+        }
+    }
+
+    jv->setObjectValue(jo);
+    return jv;
+}
+
 void Ast::free() {
 
     Ast* pAst;

@@ -23,6 +23,56 @@ public:
         boolValue(false)
     {}
 
+    json_value(Int intVal)
+            :
+            type(jtype_int),
+            intValue(intVal),
+            stringValue(),
+            arrayValue(NULL),
+            objectValue(NULL),
+            boolValue(false)
+    {}
+
+    json_value(string strVal)
+            :
+            type(jtype_string),
+            intValue(0),
+            stringValue(strVal),
+            arrayValue(NULL),
+            objectValue(NULL),
+            boolValue(false)
+    {}
+
+    json_value(json_array* ja)
+            :
+            type(jtype_array),
+            intValue(0),
+            stringValue(NULL),
+            arrayValue(ja),
+            objectValue(NULL),
+            boolValue(false)
+    {}
+
+    json_value(json_object* jo)
+            :
+            type(jtype_object),
+            intValue(0),
+            stringValue(NULL),
+            arrayValue(NULL),
+            objectValue(jo),
+            boolValue(false)
+    {}
+
+    json_value(bool boolVal)
+            :
+            type(jtype_bool),
+            intValue(0),
+            stringValue(NULL),
+            arrayValue(NULL),
+            objectValue(NULL),
+            boolValue(boolVal)
+    {}
+
     json_value(const json_value &jv);
 
     json_type getType() {

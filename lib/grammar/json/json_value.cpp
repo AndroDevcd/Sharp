@@ -56,7 +56,6 @@ void addTabs(stringstream &ss, uInt tabCount) {
 }
 
 void json_value::toString(stringstream &str, uInt &tabCount) {
-    tabCount++;
     switch(type) {
         case jtype_int: {
             str << intValue;
@@ -90,5 +89,4 @@ void json_value::toString(stringstream &str, uInt &tabCount) {
             str << "undefined";
         }
     }
-    tabCount--;
 }

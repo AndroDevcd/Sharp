@@ -13,6 +13,7 @@
 #include "settings/settings_processor.h"
 #include "sharp_file.h"
 #include "taskdelegator/task_delegator.h"
+#include "../util/time.h"
 
 int compile();
 
@@ -365,10 +366,5 @@ int compile()
     start_task_delegator();
     wait_for_tasks();
     cout << "done" << endl;
-
-    uInt tabCount = 0;
-    stringstream ss;
-    sharpFiles.get(0)->p->exportData()->toString(ss, tabCount);
-    File::write("test_cache.json", ss.str());
     return 0;
 }
