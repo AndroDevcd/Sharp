@@ -48,6 +48,8 @@ if (SHARPC)
             "lib/grammar/backend/dependency/*.cpp"
             "lib/grammar/backend/preprocessor/*.h"
             "lib/grammar/backend/preprocessor/*.cpp"
+            "lib/grammar/backend/postprocessor/*.h"
+            "lib/grammar/backend/postprocessor/*.cpp"
             "lib/grammar/backend/astparser/*.h"
             "lib/grammar/backend/astparser/*.cpp"
             "lib/grammar/backend/*.h"

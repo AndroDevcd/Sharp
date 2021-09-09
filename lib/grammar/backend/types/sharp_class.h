@@ -12,6 +12,7 @@
 #include "../../frontend/parser/Ast.h"
 #include "../meta_data.h"
 #include "sharp_module.h"
+#include "generic_type_identifier.h"
 
 enum class_type {
     class_normal,
@@ -44,7 +45,8 @@ struct sharp_class {
         generics(),
         aliases(),
         fields(),
-        type(class_normal)
+        type(class_normal),
+        genericTypes()
     {
     }
 
@@ -72,7 +74,8 @@ struct sharp_class {
         generics(),
         aliases(),
         fields(),
-        type(type)
+        type(type),
+        genericTypes()
     {
         if(owner == NULL) {
             fullName = module->name + "#"
@@ -108,7 +111,8 @@ struct sharp_class {
             generics(),
             aliases(),
             fields(),
-            type(type)
+            type(type),
+            genericTypes()
     {
         fullName = module->name + "#"
                    + name;
@@ -131,7 +135,8 @@ struct sharp_class {
          generics(sc.generics),
          aliases(sc.aliases),
          fields(sc.fields),
-         type(sc.type)
+         type(sc.type),
+         genericTypes(sc.genericTypes)
     {
     }
 
@@ -155,13 +160,14 @@ struct sharp_class {
     List<sharp_alias*> aliases;
     List<sharp_field*> fields;
     List<sharp_function*> functions;
+    List<generic_type_identifier> genericTypes;
     class_type type;
     recursive_mutex mut;
 };
 
 void create_global_class();
-sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, Ast*);
-sharp_class* create_class(sharp_file*, sharp_class*, string, uInt, class_type, Ast*);
+sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, bool, Ast*);
+sharp_class* create_class(sharp_file*, sharp_class*, string, uInt, class_type, bool, Ast*);
 
 bool locate_functions_with_name(
         string name,
@@ -169,6 +175,10 @@ bool locate_functions_with_name(
         Int functionType,
         bool checkBaseClass,
         List<sharp_function*> &results);
+
+generic_type_identifier* locate_generic_type(
+        string name,
+        sharp_class *owner);
 
 /**
  * For an explanation on explicit vs implicit matching please refer to

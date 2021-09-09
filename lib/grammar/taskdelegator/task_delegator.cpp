@@ -203,4 +203,5 @@ bool post_task(task t) {
 void submit_task(task t) {
     GUARD(taskMutex)
     task_queue.add(t);
+    delegator.allWorkersFree = false;
 }

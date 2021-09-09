@@ -5,6 +5,7 @@
 #include "../../util/File.h"
 #include "../compiler_info.h"
 #include "../backend/preprocessor/class_preprocessor.h"
+#include "../backend/postprocessor/import_processor.h"
 
 thread_local worker_thread *currThread;
 
@@ -89,6 +90,13 @@ void pre_process_() {
     file->stage = classes_preprocessed;
 }
 
+void process_imports_() {
+    sharp_file *file = currThread->currTask->file;
+
+    process_imports();
+    file->stage = imports_processed;
+}
+
 void execute_task() {
     {
         GUARD(errorMutex);
@@ -106,6 +114,10 @@ void execute_task() {
         }
         case task_preprocess_: {
             pre_process_();
+            break;
+        }
+        case task_process_imports_: {
+            process_imports_();
             break;
         }
     }

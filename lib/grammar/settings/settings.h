@@ -224,13 +224,14 @@ void printVersion();
 
 
 // WARNING SWITCHES
-#define __w_access 0
-#define __w_ambig 1
-#define __w_decl 2
-#define __w_main 3
-#define __w_cast 4
-#define __w_init 5
-#define __w_null 6
+#define __w_general 0
+#define __w_access 1
+#define __w_ambig 2
+#define __w_decl 3
+#define __w_main 4
+#define __w_cast 5
+#define __w_init 6
+#define __w_null 7
 
 #define SETTINGS_FILE "settings.json"
 

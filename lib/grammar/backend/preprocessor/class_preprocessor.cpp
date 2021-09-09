@@ -12,6 +12,7 @@
 #include "alias_preprocessor.h"
 #include "field_preprocessor.h"
 #include "enum_preprocessor.h"
+#include "generic_class_preprocessor.h"
 
 void pre_process() {
     sharp_file *file = currThread->currTask->file;
@@ -57,6 +58,10 @@ void pre_process() {
             case ast_variable_decl:
                 pre_process_field(globalClass, trunk);
                 break;
+            case ast_generic_class_decl:
+            case ast_generic_interface_decl:
+                pre_process_generic_class(globalClass, trunk);
+                break;
             case ast_enum_decl:
                 pre_process_enum(globalClass, NULL, trunk);
                 break;
@@ -65,8 +70,6 @@ void pre_process() {
                         GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
                 break;
             case ast_import_decl:
-            case ast_generic_class_decl:
-            case ast_generic_interface_decl:
             case ast_delegate_decl:
             case ast_method_decl:
             case ast_mutate_decl:
@@ -112,10 +115,10 @@ void pre_process_class(
         class_type ct = ast->getType() == ast_interface_decl ? class_interface : class_normal;
         if(check_flag(parentClass->flags, flag_global)) {
             with_class = create_class(currThread->currTask->file,
-                    currModule, className, flags, ct, ast);
+                    currModule, className, flags, ct, false, ast);
         } else {
             with_class = create_class(currThread->currTask->file,
-                    parentClass, className, flags, ct, ast);
+                    parentClass, className, flags, ct, false, ast);
         }
     }
 
@@ -134,10 +137,8 @@ void pre_process_class(
                 pre_process_alias(with_class, trunk);
                 break;
             case ast_generic_class_decl:
-                /* todo */
-                break;
             case ast_generic_interface_decl:
-                /* todo */
+                pre_process_generic_class(with_class, trunk);
                 break;
             case ast_enum_decl:
                 pre_process_enum(with_class, NULL, trunk);

@@ -6,6 +6,7 @@
 #define SHARP_SHARP_TYPE_H
 
 #include "../../../../stdimports.h"
+#include "unresolved_type.h"
 
 enum native_type {
     type_int8,
@@ -27,6 +28,7 @@ enum native_type {
     type_nil,
     type_any,
     type_untyped,
+    type_unresolved,
     type_undefined
 };
 
@@ -48,6 +50,7 @@ struct sharp_type {
         _class(NULL),
         field(NULL),
         fun(NULL),
+        unresolvedType(NULL),
         type(type_undefined),
         isArray(false),
         nullable(false)
@@ -59,45 +62,74 @@ struct sharp_type {
         field(st.field),
         fun(st.fun),
         type(st.type),
+        unresolvedType(st.unresolvedType),
         isArray(st.isArray),
         nullable(st.nullable)
     {}
 
-    sharp_type(sharp_class *sc, bool nullable = false, bool isArray = false)
-            :
+    sharp_type(
+            sharp_class *sc,
+            bool nullable = false,
+            bool isArray = false)
+    :
             _class(sc),
             field(NULL),
             fun(NULL),
+            unresolvedType(NULL),
+            type(type_class),
+            isArray(isArray),
+            nullable(nullable)
+    {}
+
+    sharp_type(
+            unresolved_type *unresolvedType,
+            bool nullable = false,
+            bool isArray = false)
+    :
+            _class(NULL),
+            field(NULL),
+            fun(NULL),
+            unresolvedType(unresolvedType),
             type(type_class),
             isArray(isArray),
             nullable(nullable)
     {}
 
     sharp_type(sharp_field *sf, bool isArray = false)
-            :
+    :
             _class(NULL),
             field(sf),
             fun(NULL),
+            unresolvedType(NULL),
             type(type_field),
             isArray(isArray),
             nullable(false)
     {}
 
-    sharp_type(sharp_function *fun, bool nullable = false, bool isLambda = false, bool isArray = false)
-            :
+    sharp_type(
+            sharp_function *fun,
+            bool nullable = false,
+            bool isLambda = false,
+            bool isArray = false)
+    :
             _class(NULL),
             field(NULL),
+            unresolvedType(NULL),
             fun(fun),
-            type(isLambda ? type_class : type_function),
+            type(isLambda ? type_lambda_function : type_function),
             isArray(isArray),
             nullable(nullable)
     {}
 
-    sharp_type(native_type type, bool nullable = false, bool isArray = false)
-            :
+    sharp_type(
+            native_type type,
+            bool nullable = false,
+            bool isArray = false)
+    :
             _class(NULL),
             field(NULL),
             fun(NULL),
+            unresolvedType(NULL),
             type(type),
             isArray(isArray),
             nullable(nullable)
@@ -106,6 +138,7 @@ struct sharp_type {
     sharp_class *_class;
     sharp_field *field;
     sharp_function *fun;
+    unresolved_type *unresolvedType;
     native_type type;
     bool isArray;
     bool nullable;

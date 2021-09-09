@@ -36,10 +36,10 @@ void pre_process_enum(
         className = ast->getToken(0).getValue();
         if(check_flag(parentClass->flags, flag_global)) {
             with_class = create_class(currThread->currTask->file,
-                                      currModule, className, flags, class_enum, ast);
+                                      currModule, className, flags, class_enum, false, ast);
         } else {
             with_class = create_class(currThread->currTask->file,
-                                      parentClass, className, flags, class_enum, ast);
+                                      parentClass, className, flags, class_enum, false, ast);
         }
 
         for(Int i = 0; i < block->getSubAstCount(); i++) {

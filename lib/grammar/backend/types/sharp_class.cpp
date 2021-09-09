@@ -22,7 +22,7 @@ void create_global_class() {
     if(resolve_class(currModule, name, false, false) == NULL) {
         auto gc = create_class(
                 currThread->currTask->file,
-                currModule, name, flags, class_normal,
+                currModule, name, flags, class_normal, false,
                 currThread->currTask->file->p->astAt(0)
         );
 
@@ -37,6 +37,7 @@ sharp_class* create_class(
         string name,
         uInt flags,
         class_type type,
+        bool isGeneric,
         Ast *ast) {
     impl_location location(file, 0, 0);
     sharp_class *sc = NULL;
@@ -59,7 +60,8 @@ sharp_class* create_class(
         );
 
         GUARD(owner->mut)
-        owner->children.add(sc);
+        if(isGeneric) owner->generics.add(sc);
+        else owner->children.add(sc);
         return sc;
     }
 }
@@ -70,6 +72,7 @@ sharp_class* create_class(
         string name,
         uInt flags,
         class_type type,
+        bool isGeneric,
         Ast *ast) {
     impl_location location(file, 0, 0);
     sharp_class *sc = NULL, *owner = NULL;
@@ -93,9 +96,16 @@ sharp_class* create_class(
         );
 
         GUARD(globalLock)
-        if(owner != NULL) owner->children.add(sc);
-        classes.add(sc);
-        module->classes.add(sc);
+        if(isGeneric) {
+            if(owner != NULL) owner->generics.add(sc);
+            genericClasses.add(sc);
+            module->genericClasses.add(sc);
+        } else {
+            if(owner != NULL) owner->children.add(sc);
+            classes.add(sc);
+            module->classes.add(sc);
+        }
+
         return sc;
     }
 
@@ -103,6 +113,7 @@ sharp_class* create_class(
 
 void sharp_class::free() {
     dependencies.free();
+    genericTypes.free();
     deleteList(children);
     deleteList(functions);
     deleteList(generics);
@@ -125,6 +136,17 @@ bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
     }
 
     return false;
+}
+
+generic_type_identifier* locate_generic_type(
+        string name,
+        sharp_class *owner) {
+    for(Int i = 0; i < owner->genericTypes.size(); i++) {
+        if(owner->genericTypes.get(i).name == name)
+            return &owner->genericTypes.get(i);
+    }
+
+    return NULL;
 }
 
 bool locate_functions_with_name(

@@ -1710,7 +1710,8 @@ bool parser::parseTypeIdentifier(Ast* ast) {
 
     advance();
     if(isNativeType(current().getValue())){
-        branch->addToken(current());
+        Ast *child = getBranch(branch, ast_native_type);
+        child->addToken(current());
         return true;
     } else
         _current--;
@@ -3385,7 +3386,7 @@ void parser::parseClassDecl(Ast* ast) {
 
 void parser::parseClassBlock(Ast *ast) {
     Ast *branch = getBranch(ast, ast_block);
-    expect(ast, "{");
+    expect(ast, "{", false);
 
     int brackets = 1;
     while(!isEnd() && brackets > 0)
@@ -3509,7 +3510,7 @@ void parser::parseClassBlock(Ast *ast) {
     if(brackets != 0)
         errors->createNewError(MISSING_BRACKET, current(), " expected `}` at end of class declaration");
     else
-        expect(branch, "}");
+        expect(branch, "}", false);
 }
 
 void parser::addAccessTypes(Ast *ast) {
@@ -3526,12 +3527,14 @@ bool parser::parseReferencePointer(Ast *ast) {
     bool nullSafeAccess = false;
 
     if(*peek(1) == "operator") {
-        expect(branch, "operator", false);
-        expectOverrideOperator(branch);
+        Ast *child = getBranch(branch, ast_operator_reference);
+        expect(child, "operator", false);
+        expectOverrideOperator(child);
         return true;
     }
 
-    if(!expectIdentifier(branch))
+    Ast *refItem = getBranch(branch, ast_reference_item);
+    if(!expectIdentifier(refItem))
         return false;
 
     while((peek(1)->getType() == DOT
@@ -3541,71 +3544,78 @@ bool parser::parseReferencePointer(Ast *ast) {
         if(peek(1)->getType() == SAFEDOT || peek(1)->getType() == FORCEDOT)
             nullSafeAccess = true;
 
-        expect(branch, peek(1)->getValue());
+        refItem = getBranch(branch, ast_reference_item);
+        expect(refItem, peek(1)->getValue());
 
         if(*peek(1) == "operator") {
-            expect(branch, "operator", false);
-            expectOverrideOperator(branch);
+            expect(refItem, "operator", false);
+            expectOverrideOperator(refItem);
             return true;
         }
 
-        expectIdentifier(branch);
+        expectIdentifier(refItem);
     }
 
     if(peek(1)->getValue() == "#") {
+        branch->encapsulate(ast_module_reference);
         if(nullSafeAccess) {
             errors->createNewError(GENERIC, current(), "null safe operator `?` or `!!` is not allowed on module names");
         }
 
-        expect(branch, "#");
-        expectIdentifier(branch);
+        refItem = getBranch(branch, ast_reference_item);
+        expect(refItem, "#", false);
+        expectIdentifier(refItem);
     }
 
     if(peek(1)->getValue() == "<") {
         Token *old = _current;
-        expect(branch, "<");
+        expect(refItem, "<", false);
         errors->enterProtectedMode();
-        parseUtypeList(branch);
+        parseUtypeList(refItem);
 
         if(*peek(1) == ">") {
             errors->fail();
-            expect(branch, ">");
+            expect(refItem, ">", false);
+            refItem->encapsulate(ast_generic_reference);
         }
         else {
             errors->pass();
             _current = old;
-            branch->freeLastSub();
-            branch->freeLastToken();
+            refItem->freeLastSub();
+            refItem->freeLastToken();
         }
     }
 
     while((peek(1)->getType() == DOT
            || peek(1)->getType() == SAFEDOT
            || peek(1)->getType() == FORCEDOT)  && *peek(2) != "class") {
-        expect(branch, peek(1)->getValue());
+
+        refItem = getBranch(branch, ast_reference_item);
+        expect(refItem, peek(1)->getValue());
 
         if(*peek(1) == "operator") {
-            expect(branch, "operator", false);
-            expectOverrideOperator(branch);
+            expect(refItem, "operator", false);
+            expectOverrideOperator(refItem);
             return true;
         }
 
-        expectIdentifier(branch);
+        expectIdentifier(refItem);
         if(peek(1)->getValue() == "<") {
             Token *old = _current;
-            expect(branch, "<");
+            expect(refItem, "<");
             errors->enterProtectedMode();
-            parseUtypeList(branch);
+            parseUtypeList(refItem);
 
             if(*peek(1) == ">") {
                 errors->fail();
-                expect(branch, ">");
+                expect(refItem, ">");
+                refItem->encapsulate(ast_generic_reference);
             }
             else {
                 errors->pass();
                 _current = old;
-                branch->freeLastSub();
-                branch->freeLastToken();
+                refItem->freeLastSub();
+                refItem->freeLastToken();
             }
         }
     }
@@ -4051,7 +4061,7 @@ void parser::parseImportDecl(Ast *ast) {
 
     expect(branch, ")", false);
     if(peek(1)->getValue() == "as") {
-        expect(branch, "as");
+        expect(branch, "as", false);
         expectIdentifier(branch);
     }
 }

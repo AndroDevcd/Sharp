@@ -14,6 +14,7 @@ settings options;
  * all warnings will always be enabled by default
  */
 bool warning_options[] = {
+        true,   // __w_general
         true,   // __w_access
         true,   // __w_ambig
         true,   // __w_decl

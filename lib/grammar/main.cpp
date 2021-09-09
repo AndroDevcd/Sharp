@@ -343,12 +343,7 @@ int _bootstrap(int argc, const char* args[])
     return compile();
 }
 
-int compile()
-{
-    for(Int i = 0; i < options.source_files.size(); i++) {
-        sharpFiles.add(
-                new sharp_file(options.source_files.get(i)));
-    }
+void run_pre_processing_tasks() {
 
     task t;
     for(Int i = 0; i < sharpFiles.size(); i++) {
@@ -361,10 +356,41 @@ int compile()
 
         t.type = task_preprocess_;
         submit_task(t);
+
+//        if(i == 0) break;
     }
 
-    start_task_delegator();
     wait_for_tasks();
+}
+
+void run_post_processing_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_imports_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+int compile()
+{
+    for(Int i = 0; i < options.source_files.size(); i++) {
+        sharpFiles.add(
+                new sharp_file(options.source_files.get(i)));
+    }
+
+
+    start_task_delegator();
+    run_pre_processing_tasks();
+    run_post_processing_tasks();
+
+//    stringstream ss;
+//    uInt tabCount = 0;
+//    sharpFiles.get(0)->p->exportData()->toString(ss, tabCount);
+//    File::write("test.json", ss.str());
     cout << "done" << endl;
     return 0;
 }

@@ -16,7 +16,8 @@ enum compilation_stage {
     not_compiled,
     tokenized,
     parsed,
-    classes_preprocessed
+    classes_preprocessed,
+    imports_processed
 };
 
 /**
