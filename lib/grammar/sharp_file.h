@@ -11,13 +11,15 @@
 #include "backend/dependency/dependancy.h"
 #include "backend/types/import_group.h"
 #include "compiler_info.h"
+#include "backend/context/context.h"
 
 enum compilation_stage {
     not_compiled,
     tokenized,
     parsed,
     classes_preprocessed,
-    imports_processed
+    imports_processed,
+    base_classes_processed
 };
 
 /**
@@ -52,6 +54,7 @@ struct sharp_file {
         compilationFailed(false),
         dependencies(),
         imports(),
+        context(),
         importGroups()
     {}
 
@@ -65,6 +68,7 @@ struct sharp_file {
             compilationFailed(false),
             dependencies(),
             imports(),
+            context(),
             importGroups()
     {}
 
@@ -75,12 +79,14 @@ struct sharp_file {
     void free() {
         dependencies.free();
         imports.free();
+        context.free();
         deleteList(importGroups);
     }
 
     string name;
     tokenizer *tok;
     parser *p;
+    context context;
     List<import_group*> importGroups;
     compilation_stage stage;
     bool compilationFailed;

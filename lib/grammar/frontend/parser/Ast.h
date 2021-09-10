@@ -102,7 +102,7 @@ enum ast_type
     ast_func_ptr,
     ast_refrence_pointer,
     ast_operator_reference,
-    ast_normal_reference,
+    ast_base_class,
     ast_module_reference,
     ast_generic_reference,
     ast_reference_item,
@@ -203,7 +203,7 @@ public:
     void freeSubAsts();
     long getTokenCount();
     Token &getToken(long at);
-    Token getToken(token_type t);
+    Token* getToken(token_type t);
     static string astTypeToString(ast_type type);
 
     void addToken(Token entity);

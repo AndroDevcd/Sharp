@@ -52,3 +52,13 @@ bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> 
 
     return false;
 }
+
+void sharp_function::free() {
+    dependencies.free();
+    deleteList(parameters);
+}
+
+void sharp_function::copy_parameters(List<sharp_field *> params) {
+    for(Int i = 0; i < params.size(); i++)
+        parameters.add(new sharp_field(*params.get(i)));
+}

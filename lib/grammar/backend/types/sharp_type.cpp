@@ -17,6 +17,20 @@ sharp_type get_type(sharp_type &st) {
     return sharp_type();
 }
 
+native_type str_to_native_type(string &str) {
+    if(str == "_int8") return type_int8;
+    if(str == "_int16") return type_int16;
+    if(str == "_int32") return type_int32;
+    if(str == "_int64") return type_int64;
+    if(str == "_uint8") return type_uint8;
+    if(str == "_uint16") return type_uint16;
+    if(str == "_uint32") return type_uint32;
+    if(str == "_uint64") return type_uint64;
+    if(str == "var") return type_var;
+    if(str == "object") return type_object;
+    return type_undefined;
+}
+
 type_match_result with_result(bool check, type_match_result result) {
     if(check) return result;
     else return no_match_found;
@@ -25,6 +39,10 @@ type_match_result with_result(bool check, type_match_result result) {
 CXX11_INLINE
 bool has_match_result_flag(uInt flags, type_match_result flag) {
     return ((flags >> flag) & 1U);
+}
+
+void dispose_function_ptr(sharp_type *st) {
+    st->fun->fr
 }
 
 // the comparer is the one to receive the value that the comparee holds

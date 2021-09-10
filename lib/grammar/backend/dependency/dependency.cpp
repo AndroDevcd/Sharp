@@ -369,6 +369,15 @@ sharp_class* resolve_class(string name, bool isGeneric, bool matchName) {
     return NULL;
 }
 
+sharp_type resolve(Ast *ast) {
+    sharp_type type;
+    if(ast->getType() == ast_refrence_pointer) {
+
+    }
+
+    return type;
+}
+
 void create_dependency(sharp_class* depender, sharp_class* dependee) {
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));

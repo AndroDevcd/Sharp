@@ -41,6 +41,22 @@ struct sharp_function {
         type(undefined_function)
     {}
 
+    sharp_function(const sharp_function &sf)
+            :
+            name(sf.name),
+            fullName(sf.fullName),
+            owner(sf.owner),
+            implLocation(sf.implLocation),
+            dependencies(sf.dependencies),
+            flags(sf.flags),
+            ast(sf.ast),
+            parameters(),
+            returnType(sf.returnType),
+            type(sf.type)
+    {
+        copy_parameters(sf.parameters);
+    }
+
     sharp_function(
             string name,
             sharp_class *owner,
@@ -64,6 +80,13 @@ struct sharp_function {
     {
         set_full_name(this);
     }
+
+    ~sharp_function() {
+        free();
+    }
+
+    void free();
+    void copy_parameters(List<sharp_field*> params);
 
     string name;
     string fullName;

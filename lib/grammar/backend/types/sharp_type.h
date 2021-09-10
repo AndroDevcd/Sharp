@@ -28,7 +28,6 @@ enum native_type {
     type_nil,
     type_any,
     type_untyped,
-    type_unresolved,
     type_undefined
 };
 
@@ -39,6 +38,8 @@ enum type_match_result {
     match_operator_overload = 0x4,
     match_initializer = 0x8
 };
+
+void dispose_function_ptr(sharp_type*);
 
 struct sharp_class;
 struct sharp_field;
@@ -135,6 +136,10 @@ struct sharp_type {
             nullable(nullable)
     {}
 
+    ~sharp_type() {
+        delete unresolvedType;
+    }
+
     sharp_class *_class;
     sharp_field *field;
     sharp_function *fun;
@@ -214,5 +219,6 @@ type_match_result is_explicit_type_match(sharp_type, sharp_type);
 type_match_result is_implicit_type_match(sharp_type, sharp_type, uInt excludeMatches);
 
 sharp_type get_type(sharp_type&);
+native_type str_to_native_type(string&);
 
 #endif //SHARP_SHARP_TYPE_H

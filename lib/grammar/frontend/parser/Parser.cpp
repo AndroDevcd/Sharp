@@ -3367,8 +3367,9 @@ void parser::parseClassDecl(Ast* ast) {
 
     if(peek(1)->getValue() == "base")
     {
-        expect(branch, "base");
-        parseReferencePointer(branch);
+        Ast *base = getBranch(branch, ast_base_class);
+        expect(base, "base", false);
+        parseReferencePointer(base);
     }
 
     if(peek(1)->getValue() == ":")

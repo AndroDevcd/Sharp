@@ -192,4 +192,6 @@ sharp_field* resolve_field(string, sharp_file*);
 sharp_field* resolve_field(string, import_group*);
 sharp_field* resolve_field(string, sharp_class*);
 
+sharp_type resolve(Ast*);
+
 #endif //SHARP_DEPENDANCY_H

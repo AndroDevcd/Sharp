@@ -9,6 +9,8 @@
 #include "../../List.h"
 
 struct unresolved_type;
+struct sharp_type;
+struct sharp_function;
 
 enum reference_access_type {
     access_normal = 0,
@@ -21,7 +23,7 @@ enum reference_type {
     module_reference = 1,
     operator_reference = 2,
     generic_reference = 3,
-    native_reference = 4
+    function_ptr_reference = 4
 };
 
 struct unresolved_item {
@@ -30,7 +32,8 @@ struct unresolved_item {
         name(""),
         accessType(access_normal),
         typeSpecifiers(),
-        type(normal_reference)
+        type(normal_reference),
+        returnType(NULL)
     {}
 
     unresolved_item(string name, reference_access_type accessType = access_normal)
@@ -38,7 +41,8 @@ struct unresolved_item {
             name(name),
             accessType(accessType),
             typeSpecifiers(),
-            type(normal_reference)
+            type(normal_reference),
+            returnType(NULL)
     {}
 
     unresolved_item(
@@ -49,40 +53,44 @@ struct unresolved_item {
             name(name),
             accessType(accessType),
             typeSpecifiers(),
-            type(type)
+            type(type),
+            returnType(NULL)
     {}
 
     unresolved_item(
             string name,
-            List<unresolved_type> &types,
+            List<sharp_type> &types,
             reference_access_type accessType = access_normal)
     :
             name(name),
             accessType(accessType),
             typeSpecifiers(types),
-            type(generic_reference)
+            type(generic_reference),
+            returnType(NULL)
     {}
 
     unresolved_item(const unresolved_item &item)
     :
-            name(item.name),
-            accessType(item.accessType),
-            typeSpecifiers(item.typeSpecifiers),
-            type(item.type)
+            name(""),
+            accessType(access_normal),
+            typeSpecifiers(),
+            type(normal_reference),
+            returnType(NULL)
     {}
 
     ~unresolved_item() {
         free();
     }
 
-    void free() {
-        typeSpecifiers.free();
-    }
+    void free();
+
+    void copy(const unresolved_item &item);
 
     string name;
     reference_access_type accessType;
     reference_type type;
-    List<unresolved_type> typeSpecifiers;
+    List<sharp_type> typeSpecifiers;
+    sharp_type *returnType;
 };
 
 struct unresolved_type {

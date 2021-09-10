@@ -32,10 +32,10 @@ workerStart(void *arg) {
         }
 
 #ifdef WIN32_
-        Sleep(50);
+        Sleep(5);
 #endif
 #ifdef POSIX_
-        usleep(50*POSIX_USEC_INTERVAL);
+        usleep(5*POSIX_USEC_INTERVAL);
 #endif
     } while(true);
 

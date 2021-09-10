@@ -11,6 +11,7 @@ enum task_type {
     task_parse_ = 2,
     task_preprocess_ = 3,
     task_process_imports_ = 4,
+    task_process_base_class_ = 5,
 };
 
 #endif //SHARP_TASK_TYPE_H

@@ -7,6 +7,7 @@
 
 #include "../../frontend/parser/Ast.h"
 #include "../access_flag.h"
+#include "../types/unresolved_type.h"
 
 struct sharp_class;
 
@@ -20,5 +21,15 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
 access_flag str_to_access_flag(string&);
 
 string access_flags_to_str(uInt);
+
+void parse_reference_pointer(sharp_type &sharpType, Ast *ast);
+unresolved_item parse_reference_item(Ast *ast);
+void parse_normal_reference_item(unresolved_item &item, Ast *ast);
+void parse_utype_list(List<sharp_type> &types, Ast *ast);
+void parse_utype_arg_list_opt(List<sharp_type> &types, Ast *ast);
+void parse_utype(sharp_type &type, Ast *ast);
+void parse_type_identifier(sharp_type &type, Ast *ast);
+void parse_function_pointer(sharp_type &type, Ast *ast);
+void parse_function_return_type(sharp_type &type, Ast *ast);
 
 #endif //SHARP_AST_PARSER_H

@@ -88,10 +88,10 @@ delegatorStart(void *) {
 
         __os_yield();
 #ifdef WIN32_
-        Sleep(25);
+        Sleep(10);
 #endif
 #ifdef POSIX_
-        usleep(25*POSIX_USEC_INTERVAL);
+        usleep(10*POSIX_USEC_INTERVAL);
 #endif
     } while(true);
 

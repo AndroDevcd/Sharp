@@ -6,7 +6,9 @@
 #include "../access_flag.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_class.h"
+#include "../types/sharp_function.h"
 #include "../../settings/settings.h"
+#include "../types/sharp_field.h"
 
 string concat_tokens(Ast *ast) {
     string data;
@@ -59,6 +61,141 @@ Int get_access_flag_count(uInt allowedFlags) {
     }
 
     return flagCount;
+}
+
+void parse_function_return_type(sharp_type &type, Ast *ast) {
+    if(ast->hasToken("nil")) {
+        type.type = type_nil;
+    } else {
+        parse_utype(type, ast->getSubAst(ast_utype));
+    }
+}
+
+void parse_function_pointer(sharp_type &type, Ast *ast) {
+    type.type = type_untyped;
+    type.unresolvedType = new unresolved_type();
+    unresolved_item &item = type.unresolvedType->items.__new();
+    item.type = function_ptr_reference;
+
+    parse_utype_arg_list_opt(item.typeSpecifiers, ast->getSubAst(ast_utype_arg_list_opt));
+
+    if(ast->hasSubAst(ast_method_return_type)) {
+        item.returnType = new sharp_type();
+
+        parse_function_return_type(*item.returnType,
+                ast->getSubAst(ast_method_return_type));
+    }
+}
+
+void parse_type_identifier(sharp_type &type, Ast *ast) {
+    if(ast->hasSubAst(ast_native_type)) {
+        type.type = str_to_native_type(ast->getSubAst(ast_native_type)->getToken(0).getValue());
+    } else if(ast->hasSubAst(ast_func_ptr)) {
+        parse_function_pointer(type, ast->getSubAst(ast_func_ptr));
+    } else {
+        parse_reference_pointer(type, ast->getSubAst(ast_refrence_pointer));
+    }
+}
+
+void parse_utype(sharp_type &type, Ast *ast) {
+    type.type = type_untyped;
+    if(ast->hasToken(QUESMK))
+        type.nullable = true;
+
+    if(ast->hasToken(LEFTBRACE) && ast->hasToken(RIGHTBRACE))
+        type.isArray = true;
+
+    parse_type_identifier(type, ast->getSubAst(ast_type_identifier));
+}
+
+void parse_utype_arg_list_opt(List<sharp_type> &types, Ast *ast) {
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+        parse_utype(types.__new(), ast->getSubAst(i)->getSubAst(ast_utype));
+    }
+}
+
+void parse_utype_list(List<sharp_type> &types, Ast *ast) {
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+        parse_utype(types.__new(), ast->getSubAst(i));
+    }
+}
+
+void parse_normal_reference_item(unresolved_item &item, Ast *ast) {
+    item.type = normal_reference;
+    for(Int i = 0; i < ast->getTokenCount(); i++) {
+        if(ast->getToken(i).getId() == IDENTIFIER) {
+            item.name = ast->getToken(i).getValue();
+        }
+
+        if(parser::isOverrideOperator(ast->getToken(i).getValue())) {
+            item.type = operator_reference;
+            break;
+        }
+    }
+
+    if(ast->getToken(0).getType() == SAFEDOT) {
+        item.accessType = access_safe;
+    } else if(ast->getToken(0).getType() == FORCEDOT) {
+        item.accessType = access_forced;
+    } else {
+        item.accessType = access_normal;
+    }
+}
+
+unresolved_item parse_reference_item(Ast *ast) {
+    unresolved_item item;
+
+    if(ast->getSubAst(ast_generic_reference)) {
+        ast = ast->getSubAst(ast_generic_reference);
+
+        parse_normal_reference_item(item, ast);
+        item.type = generic_reference;
+
+        parse_utype_list(item.typeSpecifiers, ast->getSubAst(ast_utype_list));
+    } else if(ast->getSubAst(ast_module_reference)) {
+        ast = ast->getSubAst(ast_module_reference);
+
+        stringstream module;
+        Ast *child;
+        Token *token;
+
+        for(Int i = 0; i < ast->getSubAstCount(); i++) {
+            child = ast->getSubAst(i);
+
+            if((token = child->getToken(SAFEDOT)) != NULL || (token = child->getToken(FORCEDOT)) != NULL) {
+                currThread->currTask->file->errors->createNewError(
+                        GENERIC, *token, "invalid module accessor `" + token->getValue() + "` did you mean to type `.`?");
+                token->getValue() = ".";
+            }
+
+            for(Int j = 0; j < child->getSubAstCount(); j++)
+                module << child->getToken(j).getValue();
+        }
+
+        item.type = module_reference;
+        item.name = module.str();
+    } else {
+        parse_normal_reference_item(item, ast);
+    }
+
+    return item;
+}
+
+void parse_reference_pointer(sharp_type &type, Ast *ast) {
+    Ast *child = NULL;
+
+    type.type = type_untyped;
+    type.unresolvedType = new unresolved_type();
+    if(ast->hasSubAst(ast_operator_reference)) {
+        child = ast->getSubAst(ast_operator_reference);
+
+        type.unresolvedType->items.add(unresolved_item(
+                child->getToken(0).getValue(), operator_reference, access_normal));
+    } else {
+        for(Int i = 0; i < ast->getSubAstCount(); i++) {
+            type.unresolvedType->items.add(parse_reference_item(ast->getSubAst(i)));
+        }
+    }
 }
 
 string access_flags_to_str(uInt accessFlags) {

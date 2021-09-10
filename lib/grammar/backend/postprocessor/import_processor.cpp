@@ -13,30 +13,34 @@
 
 void process_imports() {
     sharp_file *file = currThread->currTask->file;
-    for(Int i = 0; i < file->p->size(); i++)
-    {
-        if(panic) return;
 
-        Ast *trunk = file->p->astAt(i);
-        if(i == 0) {
-            if(trunk->getType() == ast_module_decl) {
-                string package = concat_tokens(trunk);
-                currModule = get_module(package);
-            } else {
-                string package = "__$srt_undefined";
-                currModule = get_module(package);
+    if(options.magic) {
+        file->imports.addAll(modules);
+    } else {
+        for (Int i = 0; i < file->p->size(); i++) {
+            if (panic) return;
+
+            Ast *trunk = file->p->astAt(i);
+            if (i == 0) {
+                if (trunk->getType() == ast_module_decl) {
+                    string package = concat_tokens(trunk);
+                    currModule = get_module(package);
+                } else {
+                    string package = "__$srt_undefined";
+                    currModule = get_module(package);
+                }
+
+                file->imports.add(currModule);
+                continue;
             }
 
-            file->imports.add(currModule);
-            continue;
-        }
-
-        switch(trunk->getType()) {
-            case ast_import_decl:
-                process_import(trunk);
-                break;
-            default:
-                break;
+            switch (trunk->getType()) {
+                case ast_import_decl:
+                    process_import(trunk);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }

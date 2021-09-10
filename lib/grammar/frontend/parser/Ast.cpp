@@ -179,12 +179,12 @@ Ast *Ast::getSubAst(ast_type at) {
     return NULL;
 }
 
-Token Ast::getToken(token_type t) {
+Token* Ast::getToken(token_type t) {
     for(unsigned int i = 0; i < tokens.size(); i++) {
         if(tokens.at(i).getType() == t)
-            return tokens.get(i);
+            return &tokens.get(i);
     }
-    return Token();
+    return NULL;
 }
 
 // tODO: add param bool override (default true) to override the encapsulation
