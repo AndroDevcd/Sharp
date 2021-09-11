@@ -10,6 +10,7 @@
 #include "../dependency/dependancy.h"
 #include "../access_flag.h"
 #include "../meta_data.h"
+#include "../operation/operation.h"
 
 void set_full_name(sharp_alias*);
 
@@ -22,7 +23,8 @@ struct sharp_alias {
         type(),
         flags(flag_none),
         dependencies(),
-        location()
+        location(),
+        operation(NULL)
     {}
 
     sharp_alias(string name, sharp_class *owner, uInt flags, impl_location location)
@@ -31,7 +33,8 @@ struct sharp_alias {
         owner(owner),
         type(),
         flags(flags),
-        location(location)
+        location(location),
+        operation(NULL)
     {
         set_full_name(this);
     }
@@ -44,7 +47,8 @@ struct sharp_alias {
             fullName(alias.fullName),
             dependencies(alias.dependencies),
             flags(alias.flags),
-            location(alias.location)
+            location(alias.location),
+            operation(new operation_scheme(*alias.operation))
     {}
 
     sharp_alias(string name, sharp_class *owner, uInt flags, sharp_type type, impl_location location)
@@ -54,7 +58,8 @@ struct sharp_alias {
             dependencies(),
             type(type),
             flags(flags),
-            location(location)
+            location(location),
+            operation(NULL)
     {
         set_full_name(this);
     }
@@ -71,6 +76,7 @@ struct sharp_alias {
     sharp_class *owner;
     sharp_type type;
     uInt flags;
+    operation_scheme *operation;
     impl_location location;
     List<dependency> dependencies;
 };

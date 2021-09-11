@@ -72,4 +72,5 @@ sharp_alias* create_alias(
 
 void sharp_alias::free() {
     dependencies.free();
+    delete operation;
 }

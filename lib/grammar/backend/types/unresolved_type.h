@@ -7,6 +7,7 @@
 
 #include "../../../../stdimports.h"
 #include "../../List.h"
+#include "../../frontend/parser/Ast.h"
 
 struct unresolved_type;
 struct sharp_type;
@@ -23,7 +24,8 @@ enum reference_type {
     module_reference = 1,
     operator_reference = 2,
     generic_reference = 3,
-    function_ptr_reference = 4
+    function_ptr_reference = 4,
+    function_reference = 5
 };
 
 struct unresolved_item {
@@ -33,7 +35,8 @@ struct unresolved_item {
         accessType(access_normal),
         typeSpecifiers(),
         type(normal_reference),
-        returnType(NULL)
+        returnType(NULL),
+        ast(NULL)
     {}
 
     unresolved_item(string name, reference_access_type accessType = access_normal)
@@ -42,7 +45,8 @@ struct unresolved_item {
             accessType(accessType),
             typeSpecifiers(),
             type(normal_reference),
-            returnType(NULL)
+            returnType(NULL),
+            ast(NULL)
     {}
 
     unresolved_item(
@@ -54,7 +58,8 @@ struct unresolved_item {
             accessType(accessType),
             typeSpecifiers(),
             type(type),
-            returnType(NULL)
+            returnType(NULL),
+            ast(NULL)
     {}
 
     unresolved_item(
@@ -66,7 +71,8 @@ struct unresolved_item {
             accessType(accessType),
             typeSpecifiers(types),
             type(generic_reference),
-            returnType(NULL)
+            returnType(NULL),
+            ast(NULL)
     {}
 
     unresolved_item(const unresolved_item &item)
@@ -75,7 +81,8 @@ struct unresolved_item {
             accessType(access_normal),
             typeSpecifiers(),
             type(normal_reference),
-            returnType(NULL)
+            returnType(NULL),
+            ast(NULL)
     {}
 
     ~unresolved_item() {
@@ -91,6 +98,7 @@ struct unresolved_item {
     reference_type type;
     List<sharp_type> typeSpecifiers;
     sharp_type *returnType;
+    Ast *ast;
 };
 
 struct unresolved_type {

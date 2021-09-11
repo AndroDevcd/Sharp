@@ -167,6 +167,7 @@ struct sharp_class {
 
 void create_global_class();
 sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, bool, Ast*);
+sharp_class* create_closure_class(sharp_file*, sharp_module*, sharp_function*, Ast*);
 sharp_class* create_class(sharp_file*, sharp_class*, string, uInt, class_type, bool, Ast*);
 
 bool locate_functions_with_name(
@@ -177,6 +178,10 @@ bool locate_functions_with_name(
         List<sharp_function*> &results);
 
 generic_type_identifier* locate_generic_type(
+        string name,
+        sharp_class *owner);
+
+sharp_field* locate_field(
         string name,
         sharp_class *owner);
 

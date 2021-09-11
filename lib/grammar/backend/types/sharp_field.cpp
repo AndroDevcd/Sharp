@@ -43,6 +43,23 @@ sharp_field* create_field(
     }
 }
 
+bool can_capture_closure(sharp_field *sf) {
+    return sf->type.isArray || sf->type.type == type_class
+        || sf->type.type == type_object;
+}
+
+sharp_field* create_closure_field(
+        sharp_class *sc,
+        string name,
+        sharp_type type,
+        Ast *ast) {
+    sharp_field *sf;
+
+    if((sf = locate_field(name, sc)) != NULL) {
+        return sf;
+    } else return create_field(sc->implLocation.file, sc, name, flag_public, type, normal_field, ast);
+}
+
 sharp_field* create_field(
         sharp_file *file,
         sharp_class *sc,

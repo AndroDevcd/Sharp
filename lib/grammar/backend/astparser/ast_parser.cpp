@@ -144,6 +144,7 @@ void parse_normal_reference_item(unresolved_item &item, Ast *ast) {
 
 unresolved_item parse_reference_item(Ast *ast) {
     unresolved_item item;
+    item.ast = ast;
 
     if(ast->getSubAst(ast_generic_reference)) {
         ast = ast->getSubAst(ast_generic_reference);

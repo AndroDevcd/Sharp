@@ -24,6 +24,7 @@ enum native_type {
     type_field,
     type_function,
     type_lambda_function,
+    type_module,
     type_null,
     type_nil,
     type_any,
@@ -43,6 +44,7 @@ void dispose_function_ptr(sharp_type*);
 
 struct sharp_class;
 struct sharp_field;
+struct sharp_module;
 struct sharp_function;
 
 struct sharp_type {
@@ -51,6 +53,7 @@ struct sharp_type {
         _class(NULL),
         field(NULL),
         fun(NULL),
+        module(NULL),
         unresolvedType(NULL),
         type(type_undefined),
         isArray(false),
@@ -59,14 +62,17 @@ struct sharp_type {
 
     sharp_type(const sharp_type &st)
     :
-        _class(st._class),
-        field(st.field),
-        fun(st.fun),
-        type(st.type),
-        unresolvedType(st.unresolvedType),
-        isArray(st.isArray),
-        nullable(st.nullable)
-    {}
+           _class(NULL),
+           field(NULL),
+           fun(NULL),
+           module(NULL),
+           unresolvedType(NULL),
+           type(type_undefined),
+           isArray(false),
+           nullable(false)
+    {
+        copy(st);
+    }
 
     sharp_type(
             sharp_class *sc,
@@ -76,6 +82,7 @@ struct sharp_type {
             _class(sc),
             field(NULL),
             fun(NULL),
+            module(NULL),
             unresolvedType(NULL),
             type(type_class),
             isArray(isArray),
@@ -83,27 +90,39 @@ struct sharp_type {
     {}
 
     sharp_type(
-            unresolved_type *unresolvedType,
-            bool nullable = false,
-            bool isArray = false)
+            unresolved_type *unresolvedType)
     :
             _class(NULL),
             field(NULL),
             fun(NULL),
+            module(NULL),
             unresolvedType(unresolvedType),
             type(type_class),
-            isArray(isArray),
-            nullable(nullable)
+            isArray(false),
+            nullable(false)
     {}
 
-    sharp_type(sharp_field *sf, bool isArray = false)
+    sharp_type(sharp_field *sf)
     :
             _class(NULL),
             field(sf),
             fun(NULL),
+            module(NULL),
             unresolvedType(NULL),
             type(type_field),
-            isArray(isArray),
+            isArray(false),
+            nullable(false)
+    {}
+
+    sharp_type(sharp_module *sm)
+    :
+            _class(NULL),
+            field(NULL),
+            module(sm),
+            fun(NULL),
+            unresolvedType(NULL),
+            type(type_field),
+            isArray(false),
             nullable(false)
     {}
 
@@ -115,6 +134,7 @@ struct sharp_type {
     :
             _class(NULL),
             field(NULL),
+            module(NULL),
             unresolvedType(NULL),
             fun(fun),
             type(isLambda ? type_lambda_function : type_function),
@@ -130,11 +150,23 @@ struct sharp_type {
             _class(NULL),
             field(NULL),
             fun(NULL),
+            module(NULL),
             unresolvedType(NULL),
             type(type),
             isArray(isArray),
             nullable(nullable)
     {}
+
+    void copy(const sharp_type &st) {
+        _class = st._class;
+        field = st.field;
+        fun = st.fun;
+        type = st.type;
+        unresolvedType = new unresolved_type(*st.unresolvedType);
+        isArray = st.isArray;
+        nullable = st.nullable;
+        module = st.module;
+    }
 
     ~sharp_type() {
         delete unresolvedType;
@@ -142,6 +174,7 @@ struct sharp_type {
 
     sharp_class *_class;
     sharp_field *field;
+    sharp_module *module;
     sharp_function *fun;
     unresolved_type *unresolvedType;
     native_type type;

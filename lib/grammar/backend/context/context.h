@@ -84,4 +84,6 @@ void delete_context(context *ctx);
 void store_context(context *ctx);
 void restore_context(context *ctx);
 
+sharp_class *get_primary_class(context*);
+
 #endif //SHARP_CONTEXT_H

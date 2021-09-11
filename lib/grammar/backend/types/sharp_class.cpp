@@ -30,6 +30,20 @@ void create_global_class() {
     }
 }
 
+sharp_class* create_closure_class(
+        sharp_file *file,
+        sharp_module *module,
+        sharp_function *function,
+        Ast *ast) {
+    string className = "closure_" + function->fullName;
+    sharp_class *sc;
+
+    if((sc = resolve_class(file, className, false, false)) != NULL) {
+        return sc;
+    } else return create_class(
+            file, module, className, flag_public | flag_local,
+            class_normal, false, ast);
+}
 
 sharp_class* create_class(
         sharp_file *file,
@@ -138,9 +152,22 @@ bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
     return false;
 }
 
+sharp_field* locate_field(
+        string name,
+        sharp_class *owner) {
+    GUARD(owner->mut)
+    for(Int i = 0; i < owner->fields.size(); i++) {
+        if(owner->fields.get(i)->name == name)
+            return owner->fields.get(i);
+    }
+
+    return NULL;
+}
+
 generic_type_identifier* locate_generic_type(
         string name,
         sharp_class *owner) {
+    GUARD(owner->mut)
     for(Int i = 0; i < owner->genericTypes.size(); i++) {
         if(owner->genericTypes.get(i).name == name)
             return &owner->genericTypes.get(i);
@@ -155,6 +182,7 @@ bool locate_functions_with_name(
         Int functionType,
         bool checkBaseClass,
         List<sharp_function*> &results) {
+    GUARD(owner->mut)
     for(Int i = 0; i < owner->functions.size(); i++) {
         sharp_function *fun = owner->functions.get(i);
         if(name == fun->name &&

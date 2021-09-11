@@ -28,7 +28,10 @@ struct sharp_field {
         dependencies(),
         flags(flag_none),
         fieldType(normal_field),
-        ast(NULL)
+        closures(),
+        ast(NULL),
+        getter(NULL),
+        setter(NULL)
     {}
 
     sharp_field(const sharp_field &sf)
@@ -41,7 +44,10 @@ struct sharp_field {
         type(sf.type),
         flags(sf.flags),
         fieldType(sf.fieldType),
-        ast(sf.ast)
+        closures(sf.closures),
+        ast(sf.ast),
+        getter(sf.getter),
+        setter(sf.setter)
     {}
 
     sharp_field(
@@ -61,7 +67,10 @@ struct sharp_field {
             type(type),
             flags(flags),
             fieldType(ft),
-            ast(ast)
+            closures(),
+            ast(ast),
+            getter(NULL),
+            setter(NULL)
     {
         set_full_name();
     }
@@ -72,6 +81,7 @@ struct sharp_field {
 
     void free() {
         dependencies.free();
+        closures.free();
     }
 
     void set_full_name();
@@ -79,8 +89,11 @@ struct sharp_field {
     string name;
     string fullName;
     sharp_class *owner;
+    sharp_function *getter;
+    sharp_function *setter;
     impl_location implLocation;
     List<dependency> dependencies;
+    List<sharp_field*> closures;
     sharp_type type;
     field_type fieldType;
     uInt flags;
@@ -104,6 +117,14 @@ sharp_field* create_field(
         sharp_type,
         field_type,
         Ast*);
+
+sharp_field* create_closure_field(
+        sharp_class*,
+        string,
+        sharp_type,
+        Ast*);
+
+bool can_capture_closure(sharp_field*);
 
 
 #endif //SHARP_SHARP_FIELD_H

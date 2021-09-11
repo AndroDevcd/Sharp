@@ -17,6 +17,9 @@ struct sharp_function;
 struct sharp_field;
 struct sharp_alias;
 struct import_group;
+struct operation_scheme;
+struct context;
+struct stored_context_item;
 
 enum dependency_type {
     no_dependency,
@@ -192,6 +195,58 @@ sharp_field* resolve_field(string, sharp_file*);
 sharp_field* resolve_field(string, import_group*);
 sharp_field* resolve_field(string, sharp_class*);
 
-sharp_type resolve(Ast*);
+sharp_field* resolve_enum(string, sharp_module*);
+sharp_field* resolve_enum(string, sharp_file*);
+sharp_field* resolve_enum(string, import_group*);
+sharp_field* resolve_enum(string, sharp_class*);
+
+bool resolve_function_for_address(
+        string,
+        sharp_module*,
+        Int functionType,
+        bool checkBase,
+        List<sharp_function*> &results);
+bool resolve_function_for_address(
+        string,
+        sharp_file*,
+        Int functionType,
+        bool checkBase,
+        List<sharp_function*> &results);
+bool resolve_function_for_address(
+        string,
+        import_group*,
+        Int functionType,
+        bool checkBase,
+        List<sharp_function*> &results);
+bool resolve_function_for_address(
+        string,
+        sharp_class*,
+        Int functionType,
+        bool checkBase,
+        List<sharp_function*> &results);
+
+sharp_field* resolve_local_field(string, stored_context_item*);
+
+enum resolve_filter {
+    resolve_filter_local_field,
+    resolve_filter_class_field,
+    resolve_filter_class_enum,
+    resolve_filter_class_alias,
+    resolve_filter_alias,
+    resolve_filter_class,
+    resolve_filter_enum,
+    resolve_filter_field,
+    resolve_filter_function_address,
+    resolve_filter_inner_class,
+    resolve_filter_function
+};
+
+void resolve(
+        sharp_type &unresolvedType,
+        sharp_type &resultType,
+        uInt filter,
+        Ast *resolveLocation,
+        operation_scheme *scheme = NULL,
+        List<sharp_type> *parameters = NULL);
 
 #endif //SHARP_DEPENDANCY_H
