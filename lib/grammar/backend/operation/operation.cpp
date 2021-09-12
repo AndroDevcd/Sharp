@@ -62,6 +62,32 @@ void create_primary_instance_field_getter_operation(
     }
 }
 
+void create_instance_field_access_operation(
+        operation_scheme *scheme,
+        sharp_field *instanceField) {
+    if(scheme) {
+        scheme->free();
+        scheme->schemeType = scheme_access_instance_field;
+        scheme->field = instanceField;
+
+        scheme->steps.add(operation_step(
+                operation_call_instance_function, instanceField->getter));
+    }
+}
+
+void create_instance_field_getter_operation(
+        operation_scheme *scheme,
+        sharp_field *instanceField) {
+    if(scheme) {
+        scheme->free();
+        scheme->schemeType = scheme_call_getter_function;
+        scheme->field = instanceField;
+
+        scheme->steps.add(operation_step(
+                operation_get_instance_field_value, instanceField));
+    }
+}
+
 void create_get_static_function_address_operation(
         operation_scheme *scheme,
         sharp_function *fun) {

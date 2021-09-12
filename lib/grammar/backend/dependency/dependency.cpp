@@ -607,6 +607,7 @@ bool resolve_local_field(
 bool resolve_primary_class_field(
         unresolved_item &item,
         sharp_class *primaryClass,
+        bool isSelfInstance,
         sharp_type &resultType,
         operation_scheme *scheme,
         context &ctx) {
@@ -618,10 +619,12 @@ bool resolve_primary_class_field(
         resolve_field(field);
 
         if(field->getter != NULL) {
-            create_primary_instance_field_getter_operation(scheme, field);
+            if(isSelfInstance) create_instance_field_getter_operation(scheme, field);
+            else create_primary_instance_field_getter_operation(scheme, field);
             create_dependency(ctx.functionCxt, field->getter);
         } else {
-            create_primary_instance_field_access_operation(scheme, field);
+            if(isSelfInstance) create_instance_field_access_operation(scheme, field);
+            else create_primary_instance_field_access_operation(scheme, field);
         }
 
         if(ctx.type == block_context)
@@ -755,7 +758,17 @@ bool resolve_global_class_field(
         context &ctx) {
 
     sharp_field *field;
-    if((field = resolve_field(item.name, currThread->currTask->file)) != NULL) {
+    if(resultType.type == type_untyped) {
+        field = resolve_field(item.name, currThread->currTask->file);
+    } else {
+        if(resultType.type == type_import_group) {
+            field = resolve_field(item.name, resultType.group);
+        } else {
+            field = resolve_field(item.name, resultType.module);
+        }
+    }
+
+    if(field != NULL) {
         resultType.type = type_field;
         resultType.field = field;
         resolve_field(field);
@@ -780,7 +793,17 @@ bool resolve_global_class_alias(
         context &ctx) {
 
     sharp_alias *alias;
-    if((alias = resolve_alias(item.name, currThread->currTask->file)) != NULL) {
+    if(resultType.type == type_untyped) {
+        alias = resolve_alias(item.name, currThread->currTask->file);
+    } else {
+        if(resultType.type == type_import_group) {
+            alias = resolve_alias(item.name, resultType.group);
+        } else {
+            alias = resolve_alias(item.name, resultType.module);
+        }
+    }
+
+    if(alias != NULL) {
         resolve_alias(alias);
         resultType.copy(alias->type);
 
@@ -803,7 +826,17 @@ bool resolve_global_class_enum(
         context &ctx) {
 
     sharp_field *field;
-    if((field = resolve_enum(item.name, currThread->currTask->file)) != NULL) {
+    if(resultType.type == type_untyped) {
+        field = resolve_enum(item.name, currThread->currTask->file);
+    } else {
+        if(resultType.type == type_import_group) {
+            field = resolve_enum(item.name, resultType.group);
+        } else {
+            field = resolve_enum(item.name, resultType.module);
+        }
+    }
+
+    if(field != NULL) {
         resultType.type = type_field;
         resultType.field = field;
         resolve_field(field);
@@ -824,12 +857,34 @@ bool resolve_global_class_function_address(
         context &ctx) {
 
     List<sharp_function*> functions;
-    if(resolve_function_for_address(
-            item.name,
-            currThread->currTask->file,
-            undefined_function,
-            true,
-            functions)) {
+    bool success = false;
+
+    if(resultType.type == type_untyped) {
+        success = resolve_function_for_address(
+                item.name,
+                currThread->currTask->file,
+                undefined_function,
+                true,
+                functions);
+    } else {
+        if(resultType.type == type_import_group) {
+            success = resolve_function_for_address(
+                    item.name,
+                    resultType.group,
+                    undefined_function,
+                    true,
+                    functions);
+        } else {
+            success = resolve_function_for_address(
+                    item.name,
+                    resultType.module,
+                    undefined_function,
+                    true,
+                    functions);
+        }
+    }
+
+    if(success) {
         if(functions.size() > 1) {
             create_new_warning(GENERIC, __w_ambig, item.ast->line,item.ast->col,
                                " getting address from ambiguous function reference `" + item.name + "` in class " + primaryClass->fullName + "`");
@@ -859,7 +914,17 @@ bool resolve_global_class(
         context &ctx) {
 
     sharp_class *sc;
-    if((sc = resolve_class(item.name, false, false)) != NULL) {
+    if(resultType.type == type_untyped) {
+        sc = resolve_class(currThread->currTask->file, item.name, false, false);
+    } else {
+        if(resultType.type == type_import_group) {
+            sc = resolve_class(resultType.group, item.name, false, false);
+        } else {
+            sc = resolve_class(resultType.module, item.name, false, false);
+        }
+    }
+
+    if(sc != NULL) {
         resultType.type = type_class;
         resultType._class = sc;
 
@@ -894,7 +959,7 @@ void resolve_normal_item(
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
             if(hasFilter(filter, resolve_filter_class_field)
-               && resolve_primary_class_field(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_field(item, primaryClass, true, resultType, scheme, context)) {
 
                 return;
             }
@@ -954,12 +1019,6 @@ void resolve_normal_item(
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_function_address)
-           && resolve_global_class_function_address(item, resultType, scheme, context)) {
-
-            return;
-        }
-
         if(hasFilter(filter, resolve_filter_class)
            && resolve_global_class(item, primaryClass, resultType, context)) {
 
@@ -977,8 +1036,82 @@ void resolve_normal_item(
             currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                        resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
         }
-    } else {
+    } else if(resultType.type == type_module || resultType.type == type_import_group) {
+        sharp_class *primaryClass = get_primary_class(&context);
 
+        if(hasFilter(filter, resolve_filter_field)
+           && resolve_global_class_field(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_alias)
+           && resolve_global_class_alias(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_enum)
+           && resolve_global_class_enum(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_function_address)
+           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        if(primaryClass) {
+            if (hasFilter(filter, resolve_filter_class)
+                && resolve_global_class(item, primaryClass, resultType, context)) {
+
+                return;
+            }
+        }
+    } else {
+        if(resultType.type == type_class) {
+            sharp_class *primaryClass = resultType._class;
+
+            if(hasFilter(filter, resolve_filter_class_field)
+               && resolve_primary_class_field(item, primaryClass, false, resultType, scheme, context)) {
+
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_class_alias)
+               && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
+
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
+               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_inner_class)
+               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, context)) {
+
+                return;
+            }
+
+            primaryClass = resolve_class(primaryClass, item.name, false, true);
+
+            resultType.type = type_undefined;
+            if(primaryClass == NULL) {
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                                   resolveLocation, " `" + item.name + "` ");
+            } else {
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                                   resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
+            }
+        } else {
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                               resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
+        }
     }
 }
 

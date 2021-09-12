@@ -25,6 +25,7 @@ enum native_type {
     type_function,
     type_lambda_function,
     type_module,
+    type_import_group,
     type_null,
     type_nil,
     type_any,
@@ -45,6 +46,7 @@ void dispose_function_ptr(sharp_type*);
 struct sharp_class;
 struct sharp_field;
 struct sharp_module;
+struct import_group;
 struct sharp_function;
 
 struct sharp_type {
@@ -54,6 +56,7 @@ struct sharp_type {
         field(NULL),
         fun(NULL),
         module(NULL),
+        group(NULL),
         unresolvedType(NULL),
         type(type_undefined),
         isArray(false),
@@ -66,6 +69,7 @@ struct sharp_type {
            field(NULL),
            fun(NULL),
            module(NULL),
+           group(NULL),
            unresolvedType(NULL),
            type(type_undefined),
            isArray(false),
@@ -83,6 +87,7 @@ struct sharp_type {
             field(NULL),
             fun(NULL),
             module(NULL),
+            group(NULL),
             unresolvedType(NULL),
             type(type_class),
             isArray(isArray),
@@ -96,6 +101,7 @@ struct sharp_type {
             field(NULL),
             fun(NULL),
             module(NULL),
+            group(NULL),
             unresolvedType(unresolvedType),
             type(type_class),
             isArray(false),
@@ -108,6 +114,7 @@ struct sharp_type {
             field(sf),
             fun(NULL),
             module(NULL),
+            group(NULL),
             unresolvedType(NULL),
             type(type_field),
             isArray(false),
@@ -120,8 +127,22 @@ struct sharp_type {
             field(NULL),
             module(sm),
             fun(NULL),
+            group(NULL),
             unresolvedType(NULL),
-            type(type_field),
+            type(type_module),
+            isArray(false),
+            nullable(false)
+    {}
+
+    sharp_type(import_group *group)
+    :
+            _class(NULL),
+            field(NULL),
+            module(NULL),
+            fun(NULL),
+            group(group),
+            unresolvedType(NULL),
+            type(type_import_group),
             isArray(false),
             nullable(false)
     {}
@@ -135,6 +156,7 @@ struct sharp_type {
             _class(NULL),
             field(NULL),
             module(NULL),
+            group(NULL),
             unresolvedType(NULL),
             fun(fun),
             type(isLambda ? type_lambda_function : type_function),
@@ -151,6 +173,7 @@ struct sharp_type {
             field(NULL),
             fun(NULL),
             module(NULL),
+            group(NULL),
             unresolvedType(NULL),
             type(type),
             isArray(isArray),
@@ -166,6 +189,7 @@ struct sharp_type {
         isArray = st.isArray;
         nullable = st.nullable;
         module = st.module;
+        group = st.group;
     }
 
     ~sharp_type() {
@@ -175,6 +199,7 @@ struct sharp_type {
     sharp_class *_class;
     sharp_field *field;
     sharp_module *module;
+    import_group *group;
     sharp_function *fun;
     unresolved_type *unresolvedType;
     native_type type;
@@ -253,5 +278,6 @@ type_match_result is_implicit_type_match(sharp_type, sharp_type, uInt excludeMat
 
 sharp_type get_type(sharp_type&);
 native_type str_to_native_type(string&);
+string type_to_str(sharp_type &t);
 
 #endif //SHARP_SHARP_TYPE_H

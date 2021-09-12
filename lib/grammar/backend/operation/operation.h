@@ -159,6 +159,14 @@ void create_primary_instance_field_getter_operation(
         operation_scheme *scheme,
         sharp_field *instanceField);
 
+void create_instance_field_access_operation(
+        operation_scheme *scheme,
+        sharp_field *instanceField);
+
+void create_instance_field_getter_operation(
+        operation_scheme *scheme,
+        sharp_field *instanceField);
+
 void create_get_static_function_address_operation(
         operation_scheme *scheme,
         sharp_function *fun);

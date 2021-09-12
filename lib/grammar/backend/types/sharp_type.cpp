@@ -7,6 +7,7 @@
 #include "sharp_field.h"
 #include "sharp_function.h"
 #include "../../compiler_info.h"
+#include "import_group.h"
 
 
 sharp_type get_type(sharp_type &st) {
@@ -31,6 +32,45 @@ native_type str_to_native_type(string &str) {
     return type_undefined;
 }
 
+string type_to_str(sharp_type &t) {
+    stringstream ss;
+    sharp_type type = get_type(t);
+    if(type.type == type_int8) ss << "_int8";
+    else if(type.type == type_int16) ss << "_int16";
+    else if(type.type == type_int32) ss << "_int32";
+    else if(type.type == type_int64) ss << "_int64";
+    else if(type.type == type_uint8) ss << "_uint8";
+    else if(type.type == type_uint16) ss << "_uint16";
+    else if(type.type == type_uint32) ss << "_uint32";
+    else if(type.type == type_uint64) ss << "_uint64";
+    else if(type.type == type_var) ss << "var";
+    else if(type.type == type_object) ss << "object";
+    else if(type.type == type_class) ss << type._class->fullName;
+    else if(type.type == type_function_ptr) {
+        ss << "*(";
+
+        for(Int i = 0; i < type.fun->parameters.size(); i++) {
+            ss << type_to_str(type.fun->parameters.get(i)->type);
+
+            if((i + 1) < type.fun->parameters.size()) {
+                ss << ", ";
+            }
+        }
+
+        ss << ")(";
+        ss << type_to_str(type.fun->returnType) << ")";
+    }
+    else if(type.type == type_module) ss << type.module->name;
+    else if(type.type == type_import_group) ss << type.group->name;
+    else if(type.type == type_null) ss << "null";
+    else if(type.type == type_nil) ss << "nil";
+    else ss << "undefined";
+
+    if(type.isArray) ss << "[]";
+    if(type.nullable) ss << "?";
+    return ss.str();
+}
+
 type_match_result with_result(bool check, type_match_result result) {
     if(check) return result;
     else return no_match_found;
@@ -39,10 +79,6 @@ type_match_result with_result(bool check, type_match_result result) {
 CXX11_INLINE
 bool has_match_result_flag(uInt flags, type_match_result flag) {
     return ((flags >> flag) & 1U);
-}
-
-void dispose_function_ptr(sharp_type *st) {
-    st->fun->fr
 }
 
 // the comparer is the one to receive the value that the comparee holds
