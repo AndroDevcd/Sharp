@@ -1062,14 +1062,6 @@ void resolve_normal_item(
 
             return;
         }
-
-        if(primaryClass) {
-            if (hasFilter(filter, resolve_filter_class)
-                && resolve_global_class(item, primaryClass, resultType, context)) {
-
-                return;
-            }
-        }
     } else {
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
@@ -1108,11 +1100,182 @@ void resolve_normal_item(
                 currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                                                                    resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
             }
-        } else {
+        } else if(resultType.type == type_field) {
+            sharp_field *field = resultType.field;
+            if(field->type.type == type_class) {
+                sharp_class *primaryClass = field->type._class;
+
+
+                if(hasFilter(filter, resolve_filter_class_field)
+                   && resolve_primary_class_field(item, primaryClass, false, resultType, scheme, context)) {
+
+                    return;
+                }
+
+                if(hasFilter(filter, resolve_filter_class_alias)
+                   && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
+                    create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
+                                       " unusual access of alias through field `" + field->name
+                                       + "`. Aliases have static accesc by default so you could also type `"
+                                       + field->owner->fullName + "." + item.name + "`");
+                    return;
+                }
+
+                if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
+                   && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+                    create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
+                                       " unusual access of static function through field `" + field->name
+                                       + "`. Getting addresses of static functions can also be accessed this way `"
+                                       + field->owner->fullName + "." + item.name + "`");
+                    return;
+                }
+
+                if(hasFilter(filter, resolve_filter_inner_class)
+                   && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, context)) {
+                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                       " cannot access inner class through field `" + field->name + "`.");
+                    return;
+                }
+
+                resultType.type = type_undefined;
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                resolveLocation, " `" + item.name + "` in field `" + field->fullName + "`");
+            } else {
+
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                       "field `" + field->name + "` of type `" + type_to_str(field->type) + "` must be of type class.");
+            }
+        }
+        else {
             currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                                resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
         }
     }
+}
+
+void resolve_module_item(
+        unresolved_item &item,
+        sharp_type &resultType,
+        Ast *resolveLocation) {
+
+    if(item.name.find('.') == string::npos) {
+        sharp_file *file = currThread->currTask->file;
+        import_group *group = resolve_import_group(file, item.name);
+        if(group != NULL) {
+            resultType.type = type_import_group;
+            resultType.group = group;
+            return;
+        }
+    }
+
+    sharp_module *module = get_module(item.name);
+    if(module) {
+        resultType.type = type_module;
+        resultType.module = module;
+    }
+}
+
+void resolve_operator_item(
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        uInt filter,
+        Ast *resolveLocation) {
+    context &context = currThread->currTask->file->context;
+
+    if(resultType.type == type_untyped) {
+        // first item
+        sharp_class *primaryClass = get_primary_class(&context);
+        if(primaryClass) {
+            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
+               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+
+                return;
+            }
+        }
+
+        if(hasFilter(filter, resolve_filter_function_address)
+           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        resultType.type = type_undefined;
+
+        currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` ");
+    } else if(resultType.type == type_module || resultType.type == type_import_group) {
+        sharp_class *primaryClass = get_primary_class(&context);
+
+        if(hasFilter(filter, resolve_filter_function_address)
+           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        if(primaryClass) {
+            if (hasFilter(filter, resolve_filter_class)
+                && resolve_global_class(item, primaryClass, resultType, context)) {
+
+                return;
+            }
+        }
+    } else {
+        if(resultType.type == type_class) {
+            sharp_class *primaryClass = resultType._class;
+
+            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
+               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+
+                return;
+            }
+
+            resultType.type = type_undefined;
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                    resolveLocation, " `" + item.name + "` ");
+        } else {
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
+        }
+    }
+}
+
+void resolve_function_ptr_item(
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        uInt filter,
+        Ast *resolveLocation) {
+    List<sharp_field*> params;
+    sharp_type returnType;
+    uInt flags = flag_public;
+    impl_location location(currThread->currTask->file, resolveLocation->line, resolveLocation->col);
+    context &context = currThread->currTask->file->context;
+    sharp_class *primaryClass = get_primary_class(&context);
+
+    for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+        sharp_type resolvedType;
+        resolve(item.typeSpecifiers.get(i), resolvedType,
+                resolve_filter_class, item.ast, NULL);
+        params.add(new sharp_field(
+                "", primaryClass, location,
+                resolvedType, flags, normal_field,
+                resolveLocation));
+    }
+
+    if(item.returnType) {
+        resolve(*item.returnType, returnType, resolve_filter_class, item.ast, NULL);
+    } else returnType.type = type_nil;
+
+
+
+    sharp_function *fptr = new sharp_function(
+            "fptr", primaryClass, location,
+            flags, resolveLocation, params,
+            returnType, normal_function);
+
+    resultType.type = type_function_ptr;
+    resultType.fun = fptr;
 }
 
 void resolve_item(
@@ -1126,12 +1289,15 @@ void resolve_item(
             resolve_normal_item(item, resultType, scheme, filter, resolveLocation);
             break;
         case module_reference:
+            resolve_module_item(item, resultType, resolveLocation);
             break;
         case operator_reference:
+            resolve_operator_item(item, resultType, scheme, filter, resolveLocation);
             break;
         case generic_reference:
             break;
         case function_ptr_reference:
+            resolve_function_ptr_item(item, resultType, scheme, filter, resolveLocation);
             break;
         case function_reference:
             break;
@@ -1143,10 +1309,9 @@ void resolve(
         sharp_type &resultType,
         uInt filter,
         Ast *resolveLocation,
-        operation_scheme *scheme,
-        List<sharp_type> *parameters) { // todo: process parameters
-    if(!(unresolvedType.type == type_untyped
-        && unresolvedType.unresolvedType != NULL)) {
+        operation_scheme *scheme) {
+    if(unresolvedType.type != type_untyped
+        && unresolvedType.unresolvedType == NULL) {
         resultType.copy(unresolvedType);
     } else {
         unresolved_type *type = unresolvedType.unresolvedType;
@@ -1155,7 +1320,6 @@ void resolve(
         for(Int i = 0; i < type->items.size(); i++) {
             resolve_item(type->items.get(i), resultType,
                     scheme, filter, resolveLocation);
-
 
             if(resultType.type == type_undefined)
                 break;

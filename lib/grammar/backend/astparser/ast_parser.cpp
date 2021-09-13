@@ -191,7 +191,7 @@ void parse_reference_pointer(sharp_type &type, Ast *ast) {
         child = ast->getSubAst(ast_operator_reference);
 
         type.unresolvedType->items.add(unresolved_item(
-                child->getToken(0).getValue(), operator_reference, access_normal));
+                "operator" + child->getToken(0).getValue(), operator_reference, access_normal));
     } else {
         for(Int i = 0; i < ast->getSubAstCount(); i++) {
             type.unresolvedType->items.add(parse_reference_item(ast->getSubAst(i)));

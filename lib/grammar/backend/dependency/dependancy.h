@@ -228,17 +228,17 @@ bool resolve_function_for_address(
 sharp_field* resolve_local_field(string, stored_context_item*);
 
 enum resolve_filter {
-    resolve_filter_local_field,
-    resolve_filter_class_field,
-    resolve_filter_class_enum,
-    resolve_filter_class_alias,
-    resolve_filter_alias,
-    resolve_filter_class,
-    resolve_filter_enum,
-    resolve_filter_field,
-    resolve_filter_function_address,
-    resolve_filter_inner_class,
-    resolve_filter_function
+    resolve_filter_local_field = 0x1,
+    resolve_filter_class_field = 0x2,
+    resolve_filter_class_enum = 0x4,
+    resolve_filter_class_alias = 0x8,
+    resolve_filter_alias = 0x10,
+    resolve_filter_class = 0x20,
+    resolve_filter_enum = 0x40,
+    resolve_filter_field = 0x80,
+    resolve_filter_function_address = 0x100,
+    resolve_filter_inner_class = 0x200,
+    resolve_filter_function = 0x400
 };
 
 void resolve(
@@ -246,7 +246,6 @@ void resolve(
         sharp_type &resultType,
         uInt filter,
         Ast *resolveLocation,
-        operation_scheme *scheme = NULL,
-        List<sharp_type> *parameters = NULL);
+        operation_scheme *scheme = NULL);
 
 #endif //SHARP_DEPENDANCY_H
