@@ -4,6 +4,7 @@
 
 #include "operation.h"
 #include "../types/sharp_field.h"
+#include "../types/sharp_function.h"
 
 void create_local_field_access_operation(
         operation_scheme *scheme,
@@ -66,7 +67,6 @@ void create_instance_field_access_operation(
         operation_scheme *scheme,
         sharp_field *instanceField) {
     if(scheme) {
-        scheme->free();
         scheme->schemeType = scheme_access_instance_field;
         scheme->field = instanceField;
 
@@ -97,6 +97,77 @@ void create_get_static_function_address_operation(
 
         scheme->steps.add(operation_step(
                 operation_get_static_function_address, fun));
+    }
+}
+
+void create_primary_class_function_call_operation(
+        operation_scheme *scheme,
+        List<operation_scheme> &paramScheme,
+        sharp_function *fun) {
+    if(scheme) {
+        scheme->schemeType = scheme_call_instance_function;
+        scheme->steps.add(operation_step(
+                operation_get_primary_class_instance, fun->owner
+        ));
+
+        scheme->steps.add(operation_step(
+                operation_push_value_to_stack
+        ));
+
+        for(Int i = 0; i < paramScheme.size(); i++) {
+            scheme->steps.addAll(paramScheme.get(1).steps);
+
+            scheme->steps.add(operation_step(
+                    operation_push_value_to_stack
+            ));
+        }
+
+        scheme->steps.add(operation_step(
+                operation_call_instance_function, fun));
+    }
+}
+
+void create_primary_class_function_call_operation(
+        operation_scheme *scheme,
+        List<operation_scheme> &paramScheme,
+        sharp_function *fun) {
+    if(scheme) {
+        scheme->schemeType = scheme_call_instance_function;
+        scheme->steps.add(operation_step(
+                operation_push_value_to_stack
+        ));
+
+        for(Int i = 0; i < paramScheme.size(); i++) {
+            scheme->steps.addAll(paramScheme.get(1).steps);
+
+            scheme->steps.add(operation_step(
+                    operation_push_value_to_stack
+            ));
+        }
+
+        scheme->steps.add(operation_step(
+                operation_call_instance_function, fun));
+    }
+}
+
+void create_static_function_call_operation(
+        operation_scheme *scheme,
+        List<operation_scheme> &paramScheme,
+        sharp_function *fun) {
+    if(scheme) {
+        scheme->schemeType = scheme_call_instance_function;
+        scheme->free();
+
+        for(Int i = 0; i < paramScheme.size(); i++) {
+            scheme->steps.addAll(paramScheme.get(1).steps);
+
+            scheme->steps.add(operation_step(
+                    operation_push_value_to_stack
+            ));
+        }
+
+        scheme->steps.add(operation_step(
+                operation_call_static_function, fun));
     }
 }
 

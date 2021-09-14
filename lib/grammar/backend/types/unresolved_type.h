@@ -12,6 +12,7 @@
 struct unresolved_type;
 struct sharp_type;
 struct sharp_function;
+struct operation_scheme;
 
 enum reference_access_type {
     access_normal = 0,
@@ -34,6 +35,7 @@ struct unresolved_item {
         name(""),
         accessType(access_normal),
         typeSpecifiers(),
+        operations(),
         type(normal_reference),
         returnType(NULL),
         ast(NULL)
@@ -44,6 +46,7 @@ struct unresolved_item {
             name(name),
             accessType(accessType),
             typeSpecifiers(),
+            operations(),
             type(normal_reference),
             returnType(NULL),
             ast(NULL)
@@ -57,6 +60,7 @@ struct unresolved_item {
             name(name),
             accessType(accessType),
             typeSpecifiers(),
+            operations(),
             type(type),
             returnType(NULL),
             ast(NULL)
@@ -70,6 +74,7 @@ struct unresolved_item {
             name(name),
             accessType(accessType),
             typeSpecifiers(types),
+            operations(),
             type(generic_reference),
             returnType(NULL),
             ast(NULL)
@@ -80,6 +85,7 @@ struct unresolved_item {
             name(""),
             accessType(access_normal),
             typeSpecifiers(),
+            operations(),
             type(normal_reference),
             returnType(NULL),
             ast(NULL)
@@ -97,6 +103,7 @@ struct unresolved_item {
     reference_access_type accessType;
     reference_type type;
     List<sharp_type> typeSpecifiers;
+    List<operation_scheme> operations;
     sharp_type *returnType;
     Ast *ast;
 };

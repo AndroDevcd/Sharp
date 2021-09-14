@@ -238,7 +238,9 @@ enum resolve_filter {
     resolve_filter_field = 0x80,
     resolve_filter_function_address = 0x100,
     resolve_filter_inner_class = 0x200,
-    resolve_filter_function = 0x400
+
+    // quick resolve flag vars
+    resolve_hard_type = 0x238 // searches for only class aliases, global aliases, classes, and inner classes
 };
 
 void resolve(

@@ -7,6 +7,7 @@
 
 void unresolved_item::free() {
     typeSpecifiers.free();
+    operations.free();
     delete returnType;
 }
 

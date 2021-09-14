@@ -619,11 +619,11 @@ bool resolve_primary_class_field(
         resolve_field(field);
 
         if(field->getter != NULL) {
-            if(isSelfInstance) create_instance_field_getter_operation(scheme, field);
+            if(!isSelfInstance) create_instance_field_getter_operation(scheme, field);
             else create_primary_instance_field_getter_operation(scheme, field);
             create_dependency(ctx.functionCxt, field->getter);
         } else {
-            if(isSelfInstance) create_instance_field_access_operation(scheme, field);
+            if(!isSelfInstance) create_instance_field_access_operation(scheme, field);
             else create_primary_instance_field_access_operation(scheme, field);
         }
 
@@ -1256,7 +1256,7 @@ void resolve_function_ptr_item(
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
         sharp_type resolvedType;
         resolve(item.typeSpecifiers.get(i), resolvedType,
-                resolve_filter_class, item.ast, NULL);
+                resolve_hard_type, item.ast, NULL);
         params.add(new sharp_field(
                 "", primaryClass, location,
                 resolvedType, flags, normal_field,
@@ -1264,7 +1264,7 @@ void resolve_function_ptr_item(
     }
 
     if(item.returnType) {
-        resolve(*item.returnType, returnType, resolve_filter_class, item.ast, NULL);
+        resolve(*item.returnType, returnType, resolve_hard_type, item.ast, NULL);
     } else returnType.type = type_nil;
 
 
@@ -1276,6 +1276,180 @@ void resolve_function_ptr_item(
 
     resultType.type = type_function_ptr;
     resultType.fun = fptr;
+}
+
+
+bool resolve_primary_class_function(
+        unresolved_item &item,
+        sharp_class *primaryClass,
+        bool isPrimaryClass,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        context &ctx) {
+    // we assume that the scheme is already setup before coming here with code for params
+
+    List<sharp_field*> params;
+    for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+        params.add(new sharp_field(
+                "param",
+                NULL,
+                impl_location(),
+                item.typeSpecifiers.get(i),
+                flag_none,
+                normal_field,
+                item.ast
+                ));
+    }
+
+    sharp_function* fun;
+    if((fun = resolve_function(
+            item.name,
+            primaryClass,
+            params,
+            undefined_function,
+            0,
+            item.ast,
+            true,
+            true)) != NULL) {
+        resultType.type = type_function;
+        resultType.fun = fun;
+
+        if(scheme) {
+            if(check_flag(fun->flags, flag_static)) {
+                if(!isPrimaryClass) {
+                    create_new_warning(GENERIC, __w_ambig, item.ast->line,item.ast->col,
+                                " call to static function `" + item.name + "` via reference");
+                }
+
+                create_static_function_call_operation(scheme, item.operations, fun);
+            } else {
+                if(isPrimaryClass)
+                    create_primary_class_function_call_operation(scheme, item.operations, fun);
+                else create_instance_function_call_operation(scheme, item.operations, fun);
+            }
+        }
+
+        if(ctx.type == block_context)
+            create_dependency(ctx.functionCxt, fun);
+        return true;
+    } else return false;
+}
+
+bool resolve_global_class_function(
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        context &ctx) {
+    // we assume that the scheme is already setup before coming here with code for params
+
+    List<sharp_field*> params;
+    for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+        params.add(new sharp_field(
+                "param",
+                NULL,
+                impl_location(),
+                item.typeSpecifiers.get(i),
+                flag_none,
+                normal_field,
+                item.ast
+                ));
+    }
+
+    sharp_function* fun;
+
+    if(resultType.type == type_untyped) {
+        fun = resolve_function(
+                item.name,
+                currThread->currTask->file,
+                params,
+                undefined_function,
+                0,
+                item.ast,
+                true,
+                true);
+    } else {
+        if(resultType.type == type_import_group) {
+            fun = resolve_function(
+                    item.name,
+                    resultType.group,
+                    params,
+                    undefined_function,
+                    0,
+                    item.ast,
+                    true,
+                    true);
+        } else {
+            fun = resolve_function(
+                    item.name,
+                    resultType.module,
+                    params,
+                    undefined_function,
+                    0,
+                    item.ast,
+                    true,
+                    true);
+        }
+    }
+
+    if(fun != NULL) {
+        resultType.type = type_function;
+        resultType.fun = fun;
+
+        if(scheme) {
+            create_static_function_call_operation(scheme, item.operations, fun);
+        }
+
+        if(ctx.type == block_context)
+            create_dependency(ctx.functionCxt, fun);
+        return true;
+    } else return false;
+}
+
+void resolve_function_reference_item(
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        uInt filter,
+        Ast *resolveLocation) {
+    context &context = currThread->currTask->file->context;
+
+    if(resultType.type == type_untyped) {
+        // first item
+        sharp_class *primaryClass = get_primary_class(&context);
+        if(primaryClass
+            && resolve_primary_class_function(item, primaryClass, true, resultType, scheme, context)) {
+            return;
+        }
+
+        if(resolve_global_class_function(item, resultType, scheme, context)) {
+            return;
+        }
+
+        resultType.type = type_undefined;
+        currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                               resolveLocation, " `" + item.name + "` ");
+    } else if(resultType.type == type_module || resultType.type == type_import_group) {
+        if(resolve_global_class_function(item, resultType, scheme, context)) {
+            return;
+        }
+    } else {
+        if(resultType.type == type_class) {
+            sharp_class *primaryClass = resultType._class;
+
+            if(resolve_primary_class_function(
+                    item, primaryClass, false,
+                    resultType, scheme, context)) {
+                return;
+            }
+
+            resultType.type = type_undefined;
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` ");
+        } else {
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
+        }
+    }
 }
 
 void resolve_item(
@@ -1300,6 +1474,7 @@ void resolve_item(
             resolve_function_ptr_item(item, resultType, scheme, filter, resolveLocation);
             break;
         case function_reference:
+            resolve_function_reference_item(item, resultType, scheme, filter, resolveLocation);
             break;
     }
 }

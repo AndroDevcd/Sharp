@@ -21,7 +21,9 @@ enum operation_type {
     operation_get_static_class_instance,
     operation_get_primary_class_instance,
     operation_call_instance_function,
-    operation_get_static_function_address
+    operation_call_static_function,
+    operation_get_static_function_address,
+    operation_push_value_to_stack
 };
 
 enum _operation_scheme {
@@ -31,7 +33,9 @@ enum _operation_scheme {
     scheme_access_tls_field,
     scheme_access_local_field,
     scheme_call_getter_function,
-    scheme_get_address
+    scheme_get_address,
+    scheme_call_instance_function,
+    scheme_call_static_function
 };
 
 struct operation_scheme {
@@ -63,6 +67,7 @@ struct operation_scheme {
 
     _operation_scheme schemeType;
     sharp_field *field;
+    sharp_function *fun;
     List<operation_step> steps;
 };
 
@@ -169,6 +174,21 @@ void create_instance_field_getter_operation(
 
 void create_get_static_function_address_operation(
         operation_scheme *scheme,
+        sharp_function *fun);
+
+void create_instance_function_call_operation(
+        operation_scheme *scheme,
+        List<operation_scheme> &paramScheme,
+        sharp_function *fun);
+
+void create_primary_class_function_call_operation(
+        operation_scheme *scheme,
+        List<operation_scheme> &paramScheme,
+        sharp_function *fun);
+
+void create_static_function_call_operation(
+        operation_scheme *scheme,
+        List<operation_scheme> &paramScheme,
         sharp_function *fun);
 
 
