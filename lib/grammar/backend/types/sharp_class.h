@@ -169,6 +169,7 @@ void create_global_class();
 sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, bool, Ast*);
 sharp_class* create_closure_class(sharp_file*, sharp_module*, sharp_function*, Ast*);
 sharp_class* create_class(sharp_file*, sharp_class*, string, uInt, class_type, bool, Ast*);
+sharp_class* create_generic_class(sharp_class*, List<sharp_type> &genericTypes, bool&);
 
 bool locate_functions_with_name(
         string name,

@@ -17,7 +17,7 @@
 #include "../postprocessor/alias_processor.h"
 #include "../postprocessor/function_processor.h"
 #include "../../settings/settings.h"
-
+#include "../preprocessor/class_preprocessor.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -554,11 +554,11 @@ bool resolve_local_field(
     }
 
     for(Int i = ctx.storedItems.size() - 1; i >= 0; i--) {
-        stored_context_item &contextItem = ctx.storedItems.get(i);
+        stored_context_item *contextItem = &ctx.storedItems.get(i);
 
-        if((field = resolve_local_field(item.name, &contextItem)) != NULL) {
+        if((field = resolve_local_field(item.name, contextItem)) != NULL) {
 
-            if(ctx.functionCxt == contextItem.functionCxt) { // same func no closure needed
+            if(ctx.functionCxt == contextItem->functionCxt) { // same func no closure needed
                 resultType.field = field;
 
                 create_local_field_access_operation(scheme, field);
@@ -568,7 +568,7 @@ bool resolve_local_field(
             } else {
                 if(can_capture_closure(field)) {
                     sharp_class *closure_class = create_closure_class(
-                            currThread->currTask->file, currModule, contextItem.functionCxt,
+                            currThread->currTask->file, currModule, contextItem->functionCxt,
                             item.ast);
                     create_closure_field(closure_class, item.name,
                             field->type, item.ast);
@@ -749,6 +749,28 @@ bool resolve_primary_class(
         create_dependency(primaryClass, primaryClass);
         return true;
     } else return false;
+}
+
+bool resolve_generic_type_param(
+        unresolved_item &item,
+        sharp_class *primaryClass,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        context &ctx) {
+
+    for(Int i = 0; i < primaryClass->genericTypes.size(); i++) {
+        if(primaryClass->genericTypes.get(i).name == item.name) {
+            resultType.copy(primaryClass->genericTypes.get(i).type);
+
+            if(resultType.type == type_class) {
+                if(ctx.type == block_context)
+                    create_dependency(ctx.functionCxt, resultType._class);
+            }
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool resolve_global_class_field(
@@ -937,7 +959,7 @@ bool resolve_global_class(
 
 // resolve logic flow
 // local fields -> class instance / static fields -> class aliases -> class enums -> function reference via name
-// local class (inner class inside primary class) -> Primary class ->  global field -> global alias -> global enums
+// local class (inner class inside primary class) -> Primary class -> genericType -> global field -> global alias -> global enums
 // -> global function reference -> global_class
 void resolve_normal_item(
         unresolved_item &item,
@@ -990,6 +1012,13 @@ void resolve_normal_item(
 
             if(hasFilter(filter, resolve_filter_class)
                && resolve_primary_class(item, primaryClass, resultType, scheme, context)) {
+
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_generic_type_param)
+               && !primaryClass->genericTypes.empty()
+               && resolve_generic_type_param(item, primaryClass, resultType, scheme, context)) {
 
                 return;
             }
@@ -1053,6 +1082,12 @@ void resolve_normal_item(
 
         if(hasFilter(filter, resolve_filter_enum)
            && resolve_global_class_enum(item, resultType, scheme, context)) {
+
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_class)
+           && resolve_global_class(item, primaryClass, resultType, context)) {
 
             return;
         }
@@ -1452,6 +1487,249 @@ void resolve_function_reference_item(
     }
 }
 
+string get_typed_generic_class_name(unresolved_item item, List<sharp_type> &resultTypes) {
+    string fullname = item.name + "<";
+
+    for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+        resolve(
+                item.typeSpecifiers.get(i),
+                resultTypes.__new(),
+                resolve_hard_type,
+                item.ast,
+                NULL);
+
+        fullname += type_to_str(resultTypes.last());
+
+        if((i + 1) < item.typeSpecifiers.size()) {
+            fullname += ", ";
+        }
+    }
+
+    fullname += ">";
+    return fullname;
+}
+
+bool resolve_primary_class_generic(
+        unresolved_item &item,
+        sharp_class *primaryClass,
+        string &typedClassName,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        context &ctx) {
+
+    if(primaryClass->name == typedClassName) {
+        resultType.type = type_class;
+        resultType._class = primaryClass;
+
+        if(ctx.type == block_context)
+            create_dependency(ctx.functionCxt, primaryClass);
+        create_dependency(primaryClass, primaryClass);
+        return true;
+    } else return false;
+}
+
+sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint) {
+    bool created = false;
+
+    genericBlueprint = create_generic_class(genericBlueprint, genericTypes, created);
+
+    if(created) {
+        pre_process_class(NULL, genericBlueprint, genericBlueprint->ast);
+        // todo: add post_process here as well
+    }
+
+    return genericBlueprint;
+}
+
+bool resolve_primary_class_inner_class_generic(
+        unresolved_item &item,
+        sharp_class *primaryClass,
+        string &typedClassName,
+        sharp_type &resultType,
+        List<sharp_type> &genericTypes,
+        context &ctx) {
+
+    sharp_class *sc;
+    if((sc = resolve_class(primaryClass, typedClassName, false, false)) == NULL) {
+        if((sc = resolve_class(primaryClass, item.name, true, false)) != NULL) {
+            sc = create_generic_class(genericTypes, sc);
+        }
+    }
+
+    if(sc) {
+        resultType.type = type_class;
+        resultType._class = sc;
+
+        if(ctx.type == block_context)
+            create_dependency(ctx.functionCxt, sc);
+        create_dependency(primaryClass, sc);
+        return true;
+    }
+
+    return false;
+}
+
+bool resolve_global_class_generic(
+        unresolved_item &item,
+        sharp_class *primaryClass,
+        string &typedClassName,
+        sharp_type &resultType,
+        List<sharp_type> &genericTypes,
+        context &ctx) {
+
+    sharp_class *sc;
+    if(resultType.type == type_untyped) {
+        if((sc = resolve_class(currThread->currTask->file, typedClassName, false, false)) == NULL) {
+            if((sc = resolve_class(currThread->currTask->file, item.name, true, false)) != NULL) {
+                sc = create_generic_class(genericTypes, sc);
+            }
+        }
+    } else {
+        if(resultType.type == type_import_group) {
+            if((sc = resolve_class(resultType.group, item.name, false, false)) == NULL) {
+                if((sc = resolve_class(resultType.group, item.name, true, false)) != NULL) {
+                    sc = create_generic_class(genericTypes, sc);
+                }
+            }
+        } else {
+            if((sc = resolve_class(resultType.module, item.name, false, false)) == NULL) {
+                if((sc = resolve_class(resultType.module, item.name, true, false)) != NULL) {
+                    sc = create_generic_class(genericTypes, sc);
+                }
+            }
+        }
+    }
+
+    if(sc != NULL) {
+        resultType.type = type_class;
+        resultType._class = sc;
+
+        if(ctx.type == block_context)
+            create_dependency(ctx.functionCxt, sc);
+        create_dependency(primaryClass, sc);
+        return true;
+    } else return false;
+}
+
+void resolve_generic_item(
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_scheme *scheme,
+        uInt filter,
+        Ast *resolveLocation) {
+    List<sharp_type> resolvedTypes;
+    context &context = currThread->currTask->file->context;
+    string typedClassName = get_typed_generic_class_name(item, resolvedTypes);
+
+    if(resultType.type == type_untyped) {
+        // first item
+        sharp_class *primaryClass = get_primary_class(&context);
+        if(primaryClass) {
+            if(hasFilter(filter, resolve_filter_class)
+               && resolve_primary_class_generic(
+                       item, primaryClass,
+                       typedClassName, resultType,
+                       scheme, context)) {
+
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_inner_class)
+               && resolve_primary_class_inner_class_generic(
+                       item, primaryClass, typedClassName,
+                       resultType, resolvedTypes,
+                       context)) {
+
+                return;
+            }
+
+        }
+
+        if(hasFilter(filter, resolve_filter_class)
+           && resolve_global_class_generic(
+                   item, primaryClass, typedClassName,
+                   resultType, resolvedTypes,
+                   context)) {
+
+            return;
+        }
+
+        primaryClass = resolve_class(currThread->currTask->file, item.name, true, true);
+
+        resultType.type = type_undefined;
+
+        if(primaryClass == NULL) {
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` ");
+        } else {
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
+        }
+    } else if(resultType.type == type_module || resultType.type == type_import_group) {
+        sharp_class *primaryClass = get_primary_class(&context);
+
+        if(hasFilter(filter, resolve_filter_class)
+           && resolve_global_class_generic(
+                item, primaryClass, typedClassName,
+                resultType, resolvedTypes,
+                context)) {
+
+            return;
+        }
+    } else {
+        if(resultType.type == type_class) {
+            sharp_class *primaryClass = resultType._class;
+
+            if(hasFilter(filter, resolve_filter_inner_class)
+               && resolve_primary_class_inner_class_generic(
+                    item, primaryClass, typedClassName,
+                    resultType, resolvedTypes,
+                    context)) {
+
+                return;
+            }
+
+            primaryClass = resolve_class(primaryClass, item.name, true, true);
+
+            resultType.type = type_undefined;
+            if(primaryClass == NULL) {
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                                   resolveLocation, " `" + item.name + "` ");
+            } else {
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                                   resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
+            }
+        } else if(resultType.type == type_field) {
+            sharp_field *field = resultType.field;
+            if(field->type.type == type_class) {
+                sharp_class *primaryClass = field->type._class;
+
+
+                if(hasFilter(filter, resolve_filter_inner_class)
+                   && resolve_primary_class_inner_class_generic(
+                        item, primaryClass, typedClassName,
+                        resultType, resolvedTypes,
+                        context)) {
+                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                                                       " cannot access inner class through field `" + field->name + "`.");
+                    return;
+                }
+
+                resultType.type = type_undefined;
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                                   resolveLocation, " `" + item.name + "` in field `" + field->fullName + "`");
+            } else {
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                                                   "field `" + field->name + "` of type `" + type_to_str(field->type) + "` must be of type class.");
+            }
+        }
+        else {
+            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                                                               resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
+        }
+    }
+}
+
 void resolve_item(
         unresolved_item &item,
         sharp_type &resultType,
@@ -1469,6 +1747,7 @@ void resolve_item(
             resolve_operator_item(item, resultType, scheme, filter, resolveLocation);
             break;
         case generic_reference:
+            resolve_generic_item(item, resultType, scheme, filter, resolveLocation);
             break;
         case function_ptr_reference:
             resolve_function_ptr_item(item, resultType, scheme, filter, resolveLocation);

@@ -45,6 +45,57 @@ sharp_class* create_closure_class(
             class_normal, false, ast);
 }
 
+
+sharp_class* create_generic_class(
+        sharp_class *genericBlueprint,
+        List<sharp_type> &genericTypes,
+        bool &classCreated) {
+    GUARD(globalLock)
+    if(genericTypes.size() == genericBlueprint->genericTypes.size()) {
+        sharp_class *sc;
+
+        string typedName = genericBlueprint->name + "<";
+
+        for(Int i = 0; i < genericTypes.size(); i++) {
+
+            typedName += type_to_str(genericTypes.get(i));
+
+            if((i + 1) < genericTypes.size()) {
+                typedName += ", ";
+            }
+        }
+
+        typedName += ">";
+
+        if((sc = resolve_class(genericBlueprint->owner, typedName, false, false)) != NULL) {
+            return sc;
+        } else {
+            for(Int i = 0; i < genericTypes.size(); i++) {
+                generic_type_identifier *typeIdentifier = &genericBlueprint->genericTypes.get(i);
+                sharp_type *type = &genericTypes.get(i);
+
+                if(typeIdentifier->baseClass) {
+                    if(!(type->type == type_class
+                        && is_implicit_type_match(typeIdentifier->baseClass, type->_class))) {
+                        stringstream ss;
+                        ss << "for generic class `" <<  genericBlueprint->fullName << "` type ("
+                           << typeIdentifier->name << ") must contain base class `" << typeIdentifier->baseClass->fullName << "`";
+                        currThread->currTask->file->errors->createNewError(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
+                    }
+                }
+            }
+
+            classCreated = true;
+            return create_class(currThread->currTask->file, genericBlueprint->owner, typedName, genericBlueprint->flags, genericBlueprint->type, false, genericBlueprint->ast);
+        }
+    } else {
+        stringstream ss;
+        ss << "generic class `" <<  genericBlueprint->fullName << "` expected ("
+            << genericBlueprint->genericTypes.size() << ") types but (" << genericTypes.size() << ") was provided";
+        currThread->currTask->file->errors->createNewError(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
+    }
+}
+
 sharp_class* create_class(
         sharp_file *file,
         sharp_class* owner,
