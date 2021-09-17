@@ -252,4 +252,9 @@ void resolve(
         Ast *resolveLocation,
         operation_scheme *scheme = NULL);
 
+sharp_type resolve(
+        Ast *resolveLocation,
+        uInt filter = resolve_hard_type,
+        operation_scheme *scheme = NULL);
+
 #endif //SHARP_DEPENDANCY_H

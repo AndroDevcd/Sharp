@@ -131,8 +131,8 @@ type_match_result is_implicit_type_match(
 
         case type_class: {
             if(comparee.type == type_class) {
-                if((comparer.isArray == comparee.isArray) && (is_explicit_type_match(comparer._class, comparee._class)
-                    || is_implicit_type_match(comparer._class, comparee._class)))
+                if((comparer.isArray == comparee.isArray)
+                    && (is_implicit_type_match(comparer._class, comparee._class)))
                     return match_normal;
             }
 

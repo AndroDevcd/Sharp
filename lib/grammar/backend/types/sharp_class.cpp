@@ -191,7 +191,7 @@ bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {
 }
 
 bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee) {
-    return is_class_related_to(comparer, comparee);
+    return is_explicit_type_match(comparer, comparee) || is_class_related_to(comparer, comparee);
 }
 
 bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {

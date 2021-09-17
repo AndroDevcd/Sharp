@@ -9,8 +9,9 @@
 
 struct sharp_class;
 
-void process_base_class();
-void process_base_class(sharp_class *, sharp_class *, Ast*);
+void process_base_class(sharp_class *, Ast*);
 sharp_class* resolve_base_class(sharp_class *, Ast*);
+void inherit_object_class(sharp_class *, Ast*);
+void inherit_enum_class(sharp_class *, Ast*);
 
 #endif //SHARP_BASE_CLASS_PROCESSOR_H

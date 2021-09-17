@@ -16,12 +16,15 @@ enum fiber_state {
     FIB_KILLED=3
 };
 
-#define INITIAL_FRAME_SIZE 100 // ~2kb
+#define INITIAL_FRAME_SIZE 60 // ~1.2kb
 #define FRAME_GROW_SIZE 150 // ~3kb
 
-#define INITIAL_STACK_SIZE 250 // ~4kb
+#define INITIAL_STACK_SIZE 200 // ~3.2kb
 #define STACK_GROW_SIZE 512 // ~8kb
 
+// cost per fiber: 4.4kb
+// cost per 100k fibers: 440Mb
+// cost per 1Mil fibers: 4.4Gb
 class fiber {
 public:
     fiber()

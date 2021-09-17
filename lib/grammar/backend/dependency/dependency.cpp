@@ -18,6 +18,8 @@
 #include "../postprocessor/function_processor.h"
 #include "../../settings/settings.h"
 #include "../preprocessor/class_preprocessor.h"
+#include "../postprocessor/class_processor.h"
+#include "../astparser/ast_parser.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -1535,7 +1537,7 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
 
     if(created) {
         pre_process_class(NULL, genericBlueprint, genericBlueprint->ast);
-        // todo: add post_process here as well
+        process_class(NULL, genericBlueprint, genericBlueprint->ast);
     }
 
     return genericBlueprint;
@@ -1779,6 +1781,33 @@ void resolve(
                 break;
         }
     }
+}
+
+
+sharp_type resolve(
+        Ast *resolveLocation,
+        uInt filter,
+        operation_scheme *scheme) {
+    sharp_type unresolvedType, resolvedType;
+
+    if(resolveLocation->getType() == ast_refrence_pointer) {
+        parse_reference_pointer(unresolvedType, resolveLocation);
+    } else if(resolveLocation->getType() == ast_utype) {
+        parse_utype(unresolvedType, resolveLocation);
+    } else {
+        currThread->currTask->file->errors->createNewError(
+                INTERNAL_ERROR, resolveLocation->line, resolveLocation->col, "expected ast of utype or type_identifier");
+        return sharp_type();
+    }
+
+    resolve(
+            unresolvedType,
+            resolvedType,
+            filter,
+            resolveLocation,
+            scheme);
+
+    return resolvedType;
 }
 
 void create_dependency(sharp_class* depender, sharp_class* dependee) {
