@@ -11,58 +11,25 @@
 #include "../types/sharp_class.h"
 #include "../../settings/settings_processor.h"
 
-void process_imports() {
-    sharp_file *file = currThread->currTask->file;
-
-    if(options.magic) {
-        file->imports.addAll(modules);
-    } else {
-        for (Int i = 0; i < file->p->size(); i++) {
-            if (panic) return;
-
-            Ast *trunk = file->p->astAt(i);
-            if (i == 0) {
-                if (trunk->getType() == ast_module_decl) {
-                    string package = concat_tokens(trunk);
-                    currModule = get_module(package);
-                } else {
-                    string package = "__$srt_undefined";
-                    currModule = get_module(package);
-                }
-
-                file->imports.add(currModule);
-                continue;
-            }
-
-            switch (trunk->getType()) {
-                case ast_import_decl:
-                    process_import(trunk);
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-}
-
-
 void process_import(Ast *ast) {
-    List<sharp_module*> imports;
+    if(!options.magic) {
+        List<sharp_module *> imports;
 
-    for(Int i = 0; i < ast->getSubAstCount(); i++) {
-        process_import_item(imports, ast->getSubAst(i));
-    }
+        for (Int i = 0; i < ast->getSubAstCount(); i++) {
+            process_import_item(imports, ast->getSubAst(i));
+        }
 
-    if(ast->getTokenCount() > 0) {
-        impl_location location(currThread->currTask->file,
-                ast->line, ast->col);
-        import_group *ig = new import_group(
-                ast->getToken(0).getValue(), location);
+        if (ast->getTokenCount() > 0) {
+            impl_location location(currThread->currTask->file,
+                                   ast->line, ast->col);
+            import_group *ig = new import_group(
+                    ast->getToken(0).getValue(), location);
 
-        ig->modules.addAll(imports);
-        currThread->currTask->file->importGroups.add(ig);
-    } else {
-        currThread->currTask->file->imports.appendAllUnique(imports);
+            ig->modules.addAll(imports);
+            currThread->currTask->file->importGroups.add(ig);
+        } else {
+            currThread->currTask->file->imports.appendAllUnique(imports);
+        }
     }
 }
 

@@ -13,9 +13,6 @@
 void process_base_class(
         sharp_class *with_class,
         Ast *ast) {
-    Ast* block = ast->getSubAst(ast_block), *trunk;
-
-    create_context(with_class->owner, true);
     sharp_class *base = resolve_base_class(with_class, ast->getSubAst(ast_base_class));
 
     if(base != NULL) {
@@ -25,7 +22,7 @@ void process_base_class(
             err << "class '" << with_class->fullName << "' can only be inherited by another interface";
             currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col, err.str());
             err.str("");
-            goto end;
+            return;
         } else if(base->type == class_enum
             && with_class->type != class_enum) {
             stringstream err;
@@ -33,7 +30,7 @@ void process_base_class(
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, err.str());
             err.str("");
-            goto end;
+            return;
         } else if(File::endswith(string("#") + global_class_name, base->fullName)) {
             stringstream err;
             err << "class '" << with_class->fullName << "' cannot inherit god level class `"
@@ -41,7 +38,7 @@ void process_base_class(
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, err.str());
             err.str("");
-            goto end;
+            return;
         }
 
         if(with_class->baseClass != NULL) {
@@ -58,9 +55,6 @@ void process_base_class(
             inherit_object_class(with_class, ast);
         }
     }
-
-    end:
-    delete_context();
 }
 
 void inherit_object_class(sharp_class *with_class, Ast *ast) {

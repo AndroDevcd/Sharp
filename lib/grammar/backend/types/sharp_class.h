@@ -45,6 +45,7 @@ struct sharp_class {
         generics(),
         aliases(),
         fields(),
+        interfaces(),
         type(class_normal),
         genericTypes()
     {
@@ -73,6 +74,7 @@ struct sharp_class {
         functions(),
         generics(),
         aliases(),
+        interfaces(),
         fields(),
         type(type),
         genericTypes()
@@ -111,6 +113,7 @@ struct sharp_class {
             generics(),
             aliases(),
             fields(),
+            interfaces(),
             type(type),
             genericTypes()
     {
@@ -136,6 +139,7 @@ struct sharp_class {
          aliases(sc.aliases),
          fields(sc.fields),
          type(sc.type),
+         interfaces(sc.interfaces),
          genericTypes(sc.genericTypes)
     {
     }
@@ -156,6 +160,7 @@ struct sharp_class {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_class*> children;
+    List<sharp_class*> interfaces;
     List<sharp_class*> generics;
     List<sharp_alias*> aliases;
     List<sharp_field*> fields;

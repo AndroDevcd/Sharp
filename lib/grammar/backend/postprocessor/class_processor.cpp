@@ -7,12 +7,22 @@
 #include "../../taskdelegator/task_delegator.h"
 #include "../astparser/ast_parser.h"
 #include "base_class_processor.h"
+#include "../preprocessor/field_preprocessor.h"
+#include "interface_processor.h"
+#include "../preprocessor/alias_preprocessor.h"
+#include "import_processor.h"
+#include "../../settings/settings.h"
 
 #
 
 void post_process() {
     sharp_file *file = currThread->currTask->file;
     sharp_class *globalClass = NULL;
+
+    if(options.magic) {
+        file->imports.addAll(modules);
+    }
+
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;
@@ -41,6 +51,9 @@ void post_process() {
             case ast_class_decl:
                 process_class(globalClass, NULL, trunk);
                 break;
+            case ast_import_decl:
+                process_import(trunk);
+                break;
             case ast_alias_decl:
 
                 break;
@@ -58,7 +71,6 @@ void post_process() {
                 currThread->currTask->file->errors->createNewError(
                         GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
                 break;
-            case ast_import_decl:
             case ast_delegate_decl:
             case ast_method_decl:
             case ast_mutate_decl:
@@ -83,7 +95,9 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
         with_class = resolve_class(parentClass, name, false, false);
     }
 
+    create_context(with_class, true);
     process_base_class(with_class, ast);
+    process_interfaces(with_class, ast);
 
     for(Int i = 0; i < block->getSubAstCount(); i++) {
         Ast *trunk = block->getSubAst(i);
@@ -99,12 +113,15 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
             case ast_alias_decl:
                 pre_process_alias(with_class, trunk);
                 break;
+            case ast_import_decl:
+                process_import(trunk);
+                break;
             case ast_generic_class_decl:
             case ast_generic_interface_decl:
                 /* ignore */
                 break;
             case ast_enum_decl:
-                pre_process_enum(with_class, NULL, trunk);
+                process_enum(with_class, trunk);
                 break;
             case ast_mutate_decl:
             case ast_delegate_decl:
@@ -122,4 +139,6 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                 break;
         }
     }
+
+    delete_context();
 }

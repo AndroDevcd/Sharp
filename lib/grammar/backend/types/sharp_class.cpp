@@ -179,6 +179,7 @@ sharp_class* create_class(
 void sharp_class::free() {
     dependencies.free();
     genericTypes.free();
+    interfaces.free();
     deleteList(children);
     deleteList(functions);
     deleteList(generics);
