@@ -8,6 +8,7 @@
 #include "../astparser/ast_parser.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_field.h"
+#include "class_preprocessor.h"
 
 void pre_process_enum(
         sharp_class *parentClass,
@@ -42,6 +43,7 @@ void pre_process_enum(
                                       parentClass, className, flags, class_enum, false, ast);
         }
 
+        check_decl_conflicts(ast, parentClass, "enum", className);
         for(Int i = 0; i < block->getSubAstCount(); i++) {
             Ast *trunk = block->getSubAst(i);
 

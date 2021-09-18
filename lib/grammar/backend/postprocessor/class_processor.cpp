@@ -7,11 +7,10 @@
 #include "../../taskdelegator/task_delegator.h"
 #include "../astparser/ast_parser.h"
 #include "base_class_processor.h"
-#include "../preprocessor/field_preprocessor.h"
 #include "interface_processor.h"
-#include "../preprocessor/alias_preprocessor.h"
 #include "import_processor.h"
 #include "../../settings/settings.h"
+#include "field_processor.h"
 
 #
 
@@ -19,10 +18,7 @@ void post_process() {
     sharp_file *file = currThread->currTask->file;
     sharp_class *globalClass = NULL;
 
-    if(options.magic) {
-        file->imports.addAll(modules);
-    }
-
+    process_imports();
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;
@@ -50,9 +46,6 @@ void post_process() {
             case ast_interface_decl:
             case ast_class_decl:
                 process_class(globalClass, NULL, trunk);
-                break;
-            case ast_import_decl:
-                process_import(trunk);
                 break;
             case ast_alias_decl:
 
@@ -108,13 +101,10 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                 process_class(with_class, NULL, trunk);
                 break;
             case ast_variable_decl:
-                pre_process_field(with_class, trunk);
+                process_field(with_class, trunk);
                 break;
             case ast_alias_decl:
-                pre_process_alias(with_class, trunk);
-                break;
-            case ast_import_decl:
-                process_import(trunk);
+                process_alias(with_class, trunk);
                 break;
             case ast_generic_class_decl:
             case ast_generic_interface_decl:

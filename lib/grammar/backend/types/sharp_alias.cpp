@@ -32,8 +32,7 @@ sharp_alias* create_alias(
         print_impl_location(sa->name, "alias", sa->location);
         return sa;
     } else {
-        // todo: check for fields with similar name as alias and block it
-        sa = new sharp_alias(name, owner, flags, location);
+        sa = new sharp_alias(name, owner, flags, location, ast);
 
         GUARD(owner->mut)
         owner->aliases.add(sa);
@@ -62,7 +61,7 @@ sharp_alias* create_alias(
         return sa;
     } else {
         owner = resolve_class(module, global_class_name, false, false);
-        sa = new sharp_alias(name, owner, flags, location);
+        sa = new sharp_alias(name, owner, flags, location, ast);
 
         GUARD(owner->mut)
         owner->aliases.add(sa);

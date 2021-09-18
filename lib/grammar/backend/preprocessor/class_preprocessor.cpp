@@ -9,10 +9,13 @@
 #include "../astparser/ast_parser.h"
 #include "../types/sharp_module.h"
 #include "../types/sharp_class.h"
+#include "../types/sharp_field.h"
+#include "../types/sharp_alias.h"
 #include "alias_preprocessor.h"
 #include "field_preprocessor.h"
 #include "enum_preprocessor.h"
 #include "generic_class_preprocessor.h"
+#include "../types/sharp_function.h"
 
 void pre_process() {
     sharp_file *file = currThread->currTask->file;
@@ -112,6 +115,7 @@ void pre_process_class(
         } else flags = flag_public;
 
         className = ast->getToken(0).getValue();
+        check_decl_conflicts(ast, parentClass, "class", className);
         class_type ct = ast->getType() == ast_interface_decl ? class_interface : class_normal;
         if(check_flag(parentClass->flags, flag_global)) {
             with_class = create_class(currThread->currTask->file,
@@ -158,5 +162,45 @@ void pre_process_class(
                 currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
                 break;
         }
+    }
+}
+
+void check_decl_conflicts(Ast *ast, sharp_class *with_class, string type, string name) {
+    void *data;
+    List<sharp_function*> functions;
+    if(type != "field" && (data = resolve_field(name, with_class)) != NULL) {
+        auto field = (sharp_field*)data;
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with field `" + name + "`");
+        print_impl_location(name, "field", field->implLocation);
+    } else if(type != "alias" && (data = resolve_alias(name, with_class)) != NULL) {
+        auto alias = (sharp_alias*)data;
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with alias `" + name + "`");
+        print_impl_location(name, "alias", alias->location);
+    } else if(type != "function" && locate_functions_with_name(name, with_class, undefined_function, false, functions)) {
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with function `" + name + "`");
+        print_impl_location(name, "function", functions.first()->implLocation);
+    } else if((data = resolve_class(with_class, name, false, false)) != NULL) {
+        auto sc = (sharp_class*)data;
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with child class `" + name + "`");
+        print_impl_location(name, "class", sc->implLocation);
+    } else if((data = resolve_class(with_class, name, true, false)) != NULL) {
+        auto sc = (sharp_class*)data;
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with child class `" + name + "`");
+        print_impl_location(name, "class", sc->implLocation);
+    } else if((data = resolve_class(currModule, name, false, false)) != NULL) {
+        auto sc = (sharp_class*)data;
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with class `" + name + "`");
+        print_impl_location(name, "class", sc->implLocation);
+    } else if((data = resolve_class(currModule, name, true, false)) != NULL) {
+        auto sc = (sharp_class*)data;
+        create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with class `" + name + "`");
+        print_impl_location(name, "class", sc->implLocation);
     }
 }

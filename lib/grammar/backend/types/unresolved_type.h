@@ -130,4 +130,6 @@ struct unresolved_type {
     List<unresolved_item> items;
 };
 
+string access_type_to_str(reference_access_type);
+
 #endif //SHARP_UNRESOLVED_TYPE_H

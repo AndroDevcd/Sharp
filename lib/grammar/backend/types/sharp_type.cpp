@@ -98,8 +98,8 @@ type_match_result is_explicit_type_match(sharp_type comparer, sharp_type compare
                         comparer._class, comparee._class
                     ), match_normal);
             } else return match_normal;
-        } else return with_result(function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true)
-                && is_explicit_type_match(comparer.fun->returnType, comparee.fun->returnType), match_normal);
+        } else return with_result(
+                function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true), match_normal);
     } else return no_match_found;
 }
 

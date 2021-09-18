@@ -5,8 +5,16 @@
 #ifndef SHARP_FIELD_PROCESSOR_H
 #define SHARP_FIELD_PROCESSOR_H
 
-struct sharp_field;
+#include "../../frontend/parser/Ast.h"
+#include "../compiler/expression.h"
 
-void resolve_field(sharp_field*);
+struct sharp_field;
+struct sharp_class;
+
+void process_field(sharp_class*, Ast*);
+void process_field(sharp_field*);
+void process_setter(sharp_field*, Ast*);
+void process_getter(sharp_field*, Ast*);
+void validate_field_type(bool, sharp_field*, expression&, Ast*);
 
 #endif //SHARP_FIELD_PROCESSOR_H

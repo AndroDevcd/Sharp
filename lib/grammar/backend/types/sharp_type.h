@@ -58,7 +58,7 @@ struct sharp_type {
         module(NULL),
         group(NULL),
         unresolvedType(NULL),
-        type(type_undefined),
+        type(type_untyped),
         isArray(false),
         nullable(false)
     {}
@@ -71,7 +71,7 @@ struct sharp_type {
            module(NULL),
            group(NULL),
            unresolvedType(NULL),
-           type(type_undefined),
+           type(type_untyped),
            isArray(false),
            nullable(false)
     {
@@ -103,7 +103,7 @@ struct sharp_type {
             module(NULL),
             group(NULL),
             unresolvedType(unresolvedType),
-            type(type_class),
+            type(type_untyped),
             isArray(false),
             nullable(false)
     {}

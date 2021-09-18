@@ -8,6 +8,7 @@
 #include "../../frontend/parser/Ast.h"
 #include "../astparser/ast_parser.h"
 #include "../../taskdelegator/task_delegator.h"
+#include "class_preprocessor.h"
 
 void pre_process_generic_class(sharp_class *parentClass, Ast *ast) {
     uInt flags = 0;
@@ -38,6 +39,7 @@ void pre_process_generic_class(sharp_class *parentClass, Ast *ast) {
                      parentClass, className, flags, ct, true, ast);
     }
 
+    check_decl_conflicts(ast, parentClass, "class", className);
     if(sc->genericTypes.empty()) {
         // generic class is new
         pre_process_generic_identifier_list(sc, ast->getSubAst(ast_generic_identifier_list));

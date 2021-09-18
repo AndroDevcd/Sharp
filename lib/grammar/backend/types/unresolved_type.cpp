@@ -19,3 +19,15 @@ void unresolved_item::copy(const unresolved_item &item) {
         returnType = new sharp_type(*item.returnType);
     }
 }
+
+string access_type_to_str(reference_access_type type) {
+    switch(type) {
+        case access_normal:
+            return ".";
+        case access_safe:
+            return "?.";
+        case access_forced:
+            return "!!.";
+    }
+}
+

@@ -18,7 +18,9 @@ enum compilation_stage {
     tokenized,
     parsed,
     classes_preprocessed,
-    classes_post_processed
+    classes_post_processed,
+    class_mutations_processed,
+    compiled
 };
 
 /**

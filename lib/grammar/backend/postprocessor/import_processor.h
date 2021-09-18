@@ -9,6 +9,7 @@
 
 struct sharp_module;
 
+void process_imports();
 void process_import(Ast*);
 void process_import_item(List<sharp_module*> &, Ast*);
 

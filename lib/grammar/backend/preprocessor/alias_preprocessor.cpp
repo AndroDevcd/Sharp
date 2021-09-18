@@ -10,6 +10,7 @@
 #include "../../taskdelegator/task_delegator.h"
 #include "../../compiler_info.h"
 #include "../../settings/settings.h"
+#include "class_preprocessor.h"
 
 void pre_process_alias(sharp_class *parentClass, Ast *ast) {
     uInt flags;
@@ -39,5 +40,6 @@ void pre_process_alias(sharp_class *parentClass, Ast *ast) {
     }
 
     name = ast->getToken(0).getValue();
+    check_decl_conflicts(ast, parentClass, "alias", name);
     create_alias(currThread->currTask->file, parentClass, name, flags, ast);
 }

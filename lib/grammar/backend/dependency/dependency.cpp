@@ -120,7 +120,7 @@ sharp_class* resolve_class(
 }
 
 
-sharp_field* resolve_field(string name, sharp_module *module) {
+sharp_field* resolve_field(string name, sharp_module *module, bool checkBase) {
     sharp_class *sc = NULL;
     sharp_field *sf = NULL;
     GUARD(module->moduleLock)
@@ -130,7 +130,7 @@ sharp_field* resolve_field(string name, sharp_module *module) {
         sc = searchList->get(i);
 
         if(check_flag(sc->flags, flag_global)
-            && (sf = resolve_field(name, sc)) != NULL) {
+            && (sf = resolve_field(name, sc, checkBase)) != NULL) {
             return sf;
         }
     }
@@ -138,12 +138,12 @@ sharp_field* resolve_field(string name, sharp_module *module) {
     return NULL;
 }
 
-sharp_field* resolve_field(string name, import_group *group) {
+sharp_field* resolve_field(string name, import_group *group, bool checkBase) {
     List<sharp_module*> &imports = group->modules;
     sharp_field *sf;
 
     for(Int i = 0; i < imports.size(); i++) {
-        if((sf = resolve_field(name, imports.get(i))) != NULL) {
+        if((sf = resolve_field(name, imports.get(i), checkBase)) != NULL) {
             return sf;
         }
     }
@@ -151,12 +151,12 @@ sharp_field* resolve_field(string name, import_group *group) {
     return NULL;
 }
 
-sharp_field* resolve_field(string name, sharp_file *file) {
+sharp_field* resolve_field(string name, sharp_file *file, bool checkBase) {
     List<sharp_module*> &imports = file->imports;
     sharp_field *sf;
 
     for(Int i = 0; i < imports.size(); i++) {
-        if((sf = resolve_field(name, imports.get(i))) != NULL) {
+        if((sf = resolve_field(name, imports.get(i), checkBase)) != NULL) {
             return sf;
         }
     }
@@ -173,7 +173,7 @@ sharp_field* resolve_local_field(string name, stored_context_item *context) {
     return NULL;
 }
 
-sharp_field* resolve_field(string name, sharp_class *searchClass) {
+sharp_field* resolve_field(string name, sharp_class *searchClass, bool checkBase) {
     GUARD(searchClass->mut)
     for(Int i = 0; i < searchClass->fields.size(); i++) {
         if(searchClass->fields.get(i)->name == name) {
@@ -181,6 +181,8 @@ sharp_field* resolve_field(string name, sharp_class *searchClass) {
         }
     }
 
+    if(checkBase && searchClass->baseClass)
+        return resolve_field(name, searchClass->baseClass, true);
     return NULL;
 }
 
@@ -615,10 +617,10 @@ bool resolve_primary_class_field(
         context &ctx) {
 
     sharp_field *field;
-    if((field = resolve_field(item.name, primaryClass)) != NULL) {
+    if((field = resolve_field(item.name, primaryClass, true)) != NULL) {
         resultType.type = type_field;
         resultType.field = field;
-        resolve_field(field);
+        process_field(field);
 
         if(field->getter != NULL) {
             if(!isSelfInstance) create_instance_field_getter_operation(scheme, field);
@@ -644,7 +646,7 @@ bool resolve_primary_class_alias(
 
     sharp_alias *alias;
     if((alias = resolve_alias(item.name, primaryClass)) != NULL) {
-        resolve_alias(alias);
+        process_alias(alias);
         resultType.copy(alias->type);
 
         if(alias->operation && scheme) {
@@ -670,7 +672,6 @@ bool resolve_primary_class_enum(
     if((field = resolve_enum(item.name, primaryClass)) != NULL) {
         resultType.type = type_field;
         resultType.field = field;
-        resolve_field(field);
 
         create_static_field_access_operation(scheme, field);
 
@@ -704,7 +705,7 @@ bool resolve_primary_class_function_address(
                          item.ast, " cannot get address of non-static function `" + functions.first()->fullName + "` ");
         }
 
-        resultType.type = type_function;
+        resultType.type = type_function_ptr;
         resultType.fun = functions.first();
         resolve_function(functions.first());
 
@@ -795,7 +796,13 @@ bool resolve_global_class_field(
     if(field != NULL) {
         resultType.type = type_field;
         resultType.field = field;
-        resolve_field(field);
+        if(check_flag(field->flags, flag_local)
+            && field->implLocation.file != currThread->currTask->file) {
+            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                   " cannot access local field `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
+        }
+
+        process_field(field);
 
         if(field->getter != NULL) {
             create_primary_instance_field_getter_operation(scheme, field);
@@ -828,7 +835,13 @@ bool resolve_global_class_alias(
     }
 
     if(alias != NULL) {
-        resolve_alias(alias);
+        if(check_flag(alias->flags, flag_local)
+           && alias->location.file != currThread->currTask->file) {
+            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                " cannot access local alias `" + alias->name + "` from outside file `" + alias->location.file->name + "`.");
+        }
+
+        process_alias(alias);
         resultType.copy(alias->type);
 
         if(alias->operation && scheme) {
@@ -863,7 +876,11 @@ bool resolve_global_class_enum(
     if(field != NULL) {
         resultType.type = type_field;
         resultType.field = field;
-        resolve_field(field);
+        if(check_flag(field->owner->flags, flag_local)
+           && field->implLocation.file != currThread->currTask->file) {
+            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                                               " cannot access local enum `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
+        }
 
         create_static_field_access_operation(scheme, field);
 
@@ -911,7 +928,13 @@ bool resolve_global_class_function_address(
     if(success) {
         if(functions.size() > 1) {
             create_new_warning(GENERIC, __w_ambig, item.ast->line,item.ast->col,
-                               " getting address from ambiguous function reference `" + item.name + "` in class " + primaryClass->fullName + "`");
+                               " getting address from ambiguous function reference `" + item.name + "` in class " + functions.first()->owner->fullName + "`");
+        }
+
+        if(check_flag(functions.first()->flags, flag_local)
+           && functions.first()->implLocation.file != currThread->currTask->file) {
+            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                  " cannot access local function `" + functions.first()->name + "` from outside file `" + functions.first()->implLocation.file->name + "`.");
         }
 
         if(!check_flag(functions.first()->flags, flag_static)) {
@@ -919,7 +942,7 @@ bool resolve_global_class_function_address(
                                                                item.ast, " cannot get address of non-static function `" + functions.first()->fullName + "` ");
         }
 
-        resultType.type = type_function;
+        resultType.type = type_function_ptr;
         resultType.fun = functions.first();
         resolve_function(functions.first());
 
@@ -952,6 +975,12 @@ bool resolve_global_class(
         resultType.type = type_class;
         resultType._class = sc;
 
+        if(check_flag(sc->flags, flag_local)
+           && sc->implLocation.file != currThread->currTask->file) {
+            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                   " cannot access local class `" + sc->fullName + "` from outside file `" + sc->implLocation.file->name + "`.");
+        }
+
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -970,6 +999,13 @@ void resolve_normal_item(
         uInt filter,
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
+    bool fromFunctionCall = false;
+
+    if(resultType.type == type_function
+        && resultType.fun->type != blueprint_function) {
+        fromFunctionCall = true;
+        resultType = resultType.fun->returnType;
+    }
 
     if(resultType.type == type_untyped) {
         // first item
@@ -977,6 +1013,7 @@ void resolve_normal_item(
             && hasFilter(filter, resolve_filter_local_field)
             && resolve_local_field(item, resultType, scheme, context)) {
 
+            resultType.nullable = resultType.field->type.nullable;
             return;
         }
 
@@ -985,6 +1022,7 @@ void resolve_normal_item(
             if(hasFilter(filter, resolve_filter_class_field)
                && resolve_primary_class_field(item, primaryClass, true, resultType, scheme, context)) {
 
+                resultType.nullable = resultType.field->type.nullable;
                 return;
             }
 
@@ -1029,6 +1067,7 @@ void resolve_normal_item(
         if(hasFilter(filter, resolve_filter_field)
            && resolve_global_class_field(item, resultType, scheme, context)) {
 
+            resultType.nullable = resultType.field->type.nullable;
             return;
         }
 
@@ -1073,12 +1112,12 @@ void resolve_normal_item(
         if(hasFilter(filter, resolve_filter_field)
            && resolve_global_class_field(item, resultType, scheme, context)) {
 
+            resultType.nullable = resultType.field->type.nullable;
             return;
         }
 
         if(hasFilter(filter, resolve_filter_alias)
            && resolve_global_class_alias(item, resultType, scheme, context)) {
-
             return;
         }
 
@@ -1106,24 +1145,53 @@ void resolve_normal_item(
             if(hasFilter(filter, resolve_filter_class_field)
                && resolve_primary_class_field(item, primaryClass, false, resultType, scheme, context)) {
 
+                if(fromFunctionCall) {
+                    if(resultType.nullable) {
+                        if(item.accessType == access_normal) {
+                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                      "accessing nullable field `" + resultType.field->name + "` without `?.` or `!!.`.");
+                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                    }
+                } else {
+                    if (item.accessType != access_normal) {
+                        create_new_warning(GENERIC, __w_access, item.ast->line, item.ast->col,
+                                           " unnessicary access type `" + access_type_to_str(item.accessType)
+                                           + "` on statically accessed field.");
+                    }
+                }
                 return;
             }
 
             if(hasFilter(filter, resolve_filter_class_alias)
                && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
 
+                if(item.accessType != access_normal) {
+                    create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
+                         " unnessicary access type `" + access_type_to_str(item.accessType)
+                         + "` on statically accessed alias.");
+                }
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
+            if(hasFilter(filter, resolve_filter_function_address)
                && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
 
+                if(item.accessType != access_normal) {
+                    create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
+                                       " unnessicary access type `" + access_type_to_str(item.accessType)
+                                       + "` on statically accessed function.");
+                }
                 return;
             }
 
             if(hasFilter(filter, resolve_filter_inner_class)
                && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, context)) {
 
+                if(item.accessType != access_normal) {
+                    create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
+                                       " unnessicary access type `" + access_type_to_str(item.accessType)
+                                       + "` on statically accessed inner class.");
+                }
                 return;
             }
 
@@ -1142,10 +1210,15 @@ void resolve_normal_item(
             if(field->type.type == type_class) {
                 sharp_class *primaryClass = field->type._class;
 
-
                 if(hasFilter(filter, resolve_filter_class_field)
                    && resolve_primary_class_field(item, primaryClass, false, resultType, scheme, context)) {
 
+                    if(resultType.nullable) {
+                        if(item.accessType == access_normal) {
+                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                   "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
+                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                    }
                     return;
                 }
 
@@ -1153,7 +1226,7 @@ void resolve_normal_item(
                    && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
                                        " unusual access of alias through field `" + field->name
-                                       + "`. Aliases have static accesc by default so you could also type `"
+                                       + "`. Aliases have static access by default so you could also type `"
                                        + field->owner->fullName + "." + item.name + "`");
                     return;
                 }
@@ -1224,7 +1297,7 @@ void resolve_operator_item(
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
-            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
+            if(hasFilter(filter, resolve_filter_function_address)
                && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
 
                 return;
@@ -1309,7 +1382,7 @@ void resolve_function_ptr_item(
     sharp_function *fptr = new sharp_function(
             "fptr", primaryClass, location,
             flags, resolveLocation, params,
-            returnType, normal_function);
+            returnType, blueprint_function);
 
     resultType.type = type_function_ptr;
     resultType.fun = fptr;
@@ -1350,6 +1423,8 @@ bool resolve_primary_class_function(
             true)) != NULL) {
         resultType.type = type_function;
         resultType.fun = fun;
+        resultType.nullable = fun->returnType.nullable;
+        resultType.isArray = fun->returnType.isArray;
 
         if(scheme) {
             if(check_flag(fun->flags, flag_static)) {
@@ -1431,6 +1506,8 @@ bool resolve_global_class_function(
     if(fun != NULL) {
         resultType.type = type_function;
         resultType.fun = fun;
+        resultType.nullable = fun->returnType.nullable;
+        resultType.isArray = fun->returnType.isArray;
 
         if(scheme) {
             create_static_function_call_operation(scheme, item.operations, fun);
@@ -1455,6 +1532,13 @@ void resolve_function_reference_item(
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass
             && resolve_primary_class_function(item, primaryClass, true, resultType, scheme, context)) {
+
+            if(resultType.fun->returnType.nullable) {
+                if(item.accessType == access_normal) {
+                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                          "calling nullable function `" + resultType.field->name + "` without `?.` or `!!.`.");
+                } else resultType.nullable = item.accessType == access_safe;
+            }
             return;
         }
 
@@ -1780,6 +1864,13 @@ void resolve(
             if(resultType.type == type_undefined)
                 break;
         }
+
+        if(resultType.type == type_function) {
+            resultType = resultType.fun->returnType;
+        }
+
+        resultType.isArray = unresolvedType.isArray;
+        resultType.nullable = unresolvedType.nullable;
     }
 }
 

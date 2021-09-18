@@ -23,6 +23,7 @@ enum function_type {
     initializer_function = 3,
     operator_function = 4,
     delegate_function = 5,
+    blueprint_function = 6,
     undefined_function = 0
 };
 
@@ -102,6 +103,17 @@ struct sharp_function {
 
 bool is_fully_qualified_function(sharp_function*);
 bool function_parameters_match(List<sharp_field*>&, List<sharp_field*>&, bool);
+
+
+bool create_function(
+        sharp_class *sc,
+        uInt flags,
+        function_type type,
+        string &name,
+        bool checkBaseClass,
+        List<sharp_field*> params,
+        sharp_type &returnType,
+        Ast *createLocation);
 
 void create_default_constructor(sharp_class*, uInt, Ast*);
 

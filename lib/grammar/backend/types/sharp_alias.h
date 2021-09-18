@@ -24,17 +24,24 @@ struct sharp_alias {
         flags(flag_none),
         dependencies(),
         location(),
-        operation(NULL)
+        operation(NULL),
+        ast(NULL)
     {}
 
-    sharp_alias(string name, sharp_class *owner, uInt flags, impl_location location)
+    sharp_alias(
+            string name,
+            sharp_class *owner,
+            uInt flags,
+            impl_location location,
+            Ast *ast)
     :
         name(name),
         owner(owner),
         type(),
         flags(flags),
         location(location),
-        operation(NULL)
+        operation(NULL),
+        ast(ast)
     {
         set_full_name(this);
     }
@@ -48,10 +55,17 @@ struct sharp_alias {
             dependencies(alias.dependencies),
             flags(alias.flags),
             location(alias.location),
-            operation(new operation_scheme(*alias.operation))
+            operation(new operation_scheme(*alias.operation)),
+            ast(alias.ast)
     {}
 
-    sharp_alias(string name, sharp_class *owner, uInt flags, sharp_type type, impl_location location)
+    sharp_alias(
+            string name,
+            sharp_class *owner,
+            uInt flags,
+            sharp_type type,
+            impl_location location,
+            Ast *ast)
     :
             name(name),
             owner(owner),
@@ -59,7 +73,8 @@ struct sharp_alias {
             type(type),
             flags(flags),
             location(location),
-            operation(NULL)
+            operation(NULL),
+            ast(ast)
     {
         set_full_name(this);
     }
@@ -79,6 +94,7 @@ struct sharp_alias {
     operation_scheme *operation;
     impl_location location;
     List<dependency> dependencies;
+    Ast *ast;
 };
 
 sharp_alias* create_alias(sharp_file*, sharp_class*, string, uInt, Ast*);

@@ -54,6 +54,8 @@ if (SHARPC)
             "lib/grammar/backend/astparser/*.cpp"
             "lib/grammar/backend/context/*.h"
             "lib/grammar/backend/context/*.cpp"
+            "lib/grammar/backend/compiler/*.h"
+            "lib/grammar/backend/compiler/*.cpp"
             "lib/grammar/backend/operation/*.h"
             "lib/grammar/backend/operation/*.cpp"
             "lib/grammar/backend/*.h"

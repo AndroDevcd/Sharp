@@ -8,6 +8,7 @@
 #include "../astparser/ast_parser.h"
 #include "../../settings/settings.h"
 #include "../../taskdelegator/task_delegator.h"
+#include "class_preprocessor.h"
 
 void pre_process_field(sharp_class *parentClass, Ast *ast) {
 
@@ -63,6 +64,7 @@ void pre_process_field(sharp_class *owner, uInt flags, Ast *ast) {
         flags |= flag_static;
     }
 
+    check_decl_conflicts(ast, owner, "field", name);
     create_field(
             currThread->currTask->file,
             owner, name, flags, sharp_type(),
