@@ -11,8 +11,10 @@
 #include "import_processor.h"
 #include "../../settings/settings.h"
 #include "field_processor.h"
-
-#
+#include "alias_processor.h"
+#include "../types/sharp_function.h"
+#include "function_processor.h"
+#include "delegate_processor.h"
 
 void post_process() {
     sharp_file *file = currThread->currTask->file;
@@ -47,28 +49,32 @@ void post_process() {
             case ast_class_decl:
                 process_class(globalClass, NULL, trunk);
                 break;
-            case ast_alias_decl:
-
-                break;
             case ast_variable_decl:
-
+                process_field(globalClass, trunk);
+                break;
+            case ast_alias_decl:
+                process_alias(globalClass, trunk);
                 break;
             case ast_generic_class_decl:
             case ast_generic_interface_decl:
-
+                /* ignore */
                 break;
             case ast_enum_decl:
-
+                /* ignore */
                 break;
             case ast_module_decl: /* fail-safe */
                 currThread->currTask->file->errors->createNewError(
                         GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
                 break;
-            case ast_delegate_decl:
             case ast_method_decl:
+                process_function(globalClass, normal_function, trunk);
+                break;
+            case ast_delegate_decl:
+                process_function(globalClass, delegate_function, trunk);
+                break;
             case ast_mutate_decl:
             case ast_obfuscate_decl:
-                /* ignpre */
+                /* ignore */
                 break;
             default:
                 stringstream err;
@@ -106,18 +112,16 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
             case ast_alias_decl:
                 process_alias(with_class, trunk);
                 break;
-            case ast_generic_class_decl:
-            case ast_generic_interface_decl:
-                /* ignore */
+            case ast_method_decl:
+                process_function(with_class, normal_function, trunk);
                 break;
-            case ast_enum_decl:
-                process_enum(with_class, trunk);
+            case ast_construct_decl:
+                process_function(with_class, constructor_function, trunk);
+                break;
+            case ast_init_func_decl:
+                process_function(with_class, initializer_function, trunk);
                 break;
             case ast_mutate_decl:
-            case ast_delegate_decl:
-            case ast_method_decl:
-            case ast_operator_decl:
-            case ast_construct_decl:
             case ast_init_decl:
             case ast_obfuscate_decl:
                 /* ignore */
@@ -130,5 +134,7 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
         }
     }
 
+    process_delegates(with_class); // todo: add provision to search for function and force return type compare as well
+    // todo: process mutations
     delete_context();
 }

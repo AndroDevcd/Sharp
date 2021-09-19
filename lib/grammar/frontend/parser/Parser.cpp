@@ -195,7 +195,12 @@ void parser::parseMethodDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
-    parseReferencePointer(branch);
+    if(peek(1)->getId() == IDENTIFIER && peek(2)->getType() != LEFTPAREN) {
+        parseReferencePointer(branch);
+    } else {
+        expectIdentifier(branch);
+    }
+
     if(isOverrideOperator(current().getValue()))
     {
         errors->createNewError(GENERIC, current(), "expected identifier");
@@ -1363,38 +1368,6 @@ bool parser::parseStatement(Ast* ast) {
     return false;
 }
 
-void parser::parseOperatorDecl(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_operator_decl);
-
-    addAccessTypes(branch);
-    access_types.free();
-    expect(branch, "operator");
-    expectOverrideOperator(branch);
-
-    parseUtypeArgList(branch);
-    if(peek(1)->getType() == COLON) {
-        parseMethodReturnType(branch);
-
-        if(peek(1)->getType() == EQUALS) {
-            expect(branch, "=", true);
-            parseExpression(branch);
-            expect(branch, ";", false);
-        } else {
-            if(peek(1)->getType() != LEFTCURLY)
-                errors->createNewError(GENERIC, current(), "expected `{`");
-            parseBlock(branch);
-        }
-    } else if(peek(1)->getType() == INFER) {
-        expect(branch, ":=", true);
-        parseExpression(branch);
-        expect(branch, ";", false);
-    } else {
-        if(peek(1)->getType() != LEFTCURLY)
-            errors->createNewError(GENERIC, current(), "expected `{`");
-        parseBlock(branch);
-    }
-}
-
 void parser::parseInterfaceBlock(Ast* ast) {
     Ast *branch = getBranch(ast, ast_block);
     expect(branch, "{");
@@ -1458,19 +1431,10 @@ void parser::parseInterfaceBlock(Ast* ast) {
         }
         else if(isMethodDecl(current()))
         {
-            if(peek(1)->getValue() == "operator") {
-                if(access_types.size() > 0)
-                {
-                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-                }
-                errors->createNewError(GENERIC, current(), "unexpected operator declaration");
-                parseOperatorDecl(branch);
-            } else {
-                parseMethodDecl(branch);
+            parseMethodDecl(branch);
 
-                if(branch->getLastSubAst()->getType() != ast_delegate_decl)
-                    errors->createNewError(GENERIC, current(), "unexpected method declaration");
-            }
+            if(branch->getLastSubAst()->getType() != ast_delegate_decl)
+                errors->createNewError(GENERIC, current(), "unexpected method declaration");
         }
         else if(isInitDecl(current()))
         {
@@ -1547,10 +1511,7 @@ void parser::parseAll(Ast *ast) {
     }
     else if(isMethodDecl(current()))
     {
-        if(peek(1)->getValue() == "operator")
-            parseOperatorDecl(ast);
-        else
-            parseMethodDecl(ast);
+        parseMethodDecl(ast);
     }
     else if(isModuleDecl(current()))
     {
@@ -1622,8 +1583,10 @@ void parser::parseInitDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
-    if(peek(1)->getType() == LEFTPAREN)
+    if(peek(1)->getType() == LEFTPAREN) {
         parseUtypeArgList(branch); // must only be 1 param size
+        branch->setAstType(ast_init_func_decl);
+    }
     parseBlock(branch);
 }
 
@@ -3466,10 +3429,7 @@ void parser::parseClassBlock(Ast *ast) {
         }
         else if(isMethodDecl(current()))
         {
-            if(peek(1)->getValue() == "operator")
-                parseOperatorDecl(branch);
-            else
-                parseMethodDecl(branch);
+            parseMethodDecl(branch);
         }
         else if(isConstructorDecl())
         {

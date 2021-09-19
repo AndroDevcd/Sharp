@@ -7,7 +7,7 @@
 #include "../types/sharp_class.h"
 #include "../types/sharp_field.h"
 #include "../../taskdelegator/task_delegator.h"
-#include "../compiler/expression.h"
+#include "../compiler/expression_compiler.h"
 #include "../operation/operation.h"
 #include "../types/sharp_function.h"
 
@@ -23,6 +23,7 @@ void process_field(sharp_class *with_class, Ast *ast) {
 }
 
 void process_field(sharp_field *field) {
+    GUARD(field->owner->mut)
 
     Ast *ast = field->ast;
     if(field->type.type == type_untyped) {
@@ -30,10 +31,10 @@ void process_field(sharp_field *field) {
 
         if(field->ast->hasToken(COLON)) {
             expression e(resolve(field->ast->getSubAst(ast_utype)));
-            validate_field_type(true, field, e, field->ast);
+            validate_field_type(true, field, e.type, NULL, field->ast);
         } else if(currThread->currTask->file->stage > class_mutations_processed){
             expression e = resolve_expression(field->ast->getSubAst(ast_expression));
-            validate_field_type(false, field, e, field->ast);
+            validate_field_type(false, field, e.type, &e.scheme, field->ast);
         } else {
             field->type.type = type_untyped;
             return;
@@ -157,55 +158,60 @@ void process_getter(sharp_field *field, Ast *ast) {
 }
 
 
-void  validate_field_type(bool hardType, sharp_field *field, expression &e, Ast *ast) {
-    if(e.type.type == type_class
-        || (e.type.type >= type_int8 && e.type.type <= type_object)) {
-        if(e.type.type == type_class)
-            create_dependency(field, e.type._class);
+void validate_field_type(
+        bool hardType,
+        sharp_field *field,
+        sharp_type &type,
+        operation_scheme *scheme,
+        Ast *ast) {
+    if(type.type == type_class
+        || (type.type >= type_int8 && type.type <= type_object)) {
+        if(type.type == type_class)
+            create_dependency(field, type._class);
 
-        if(!hardType && e.scheme.steps.empty()) {
+        if(!hardType && scheme->steps.empty()) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign hard type as value for field `" + field->fullName + "`");
             return;
         }
-    } else if(e.type.type == type_field) {
-        create_dependency(field, e.type.field);
+    } else if(type.type == type_field) {
+        create_dependency(field, type.field);
 
         if(hardType) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast, " illegal use of field `" + e.type.field->fullName + "` as a type");
+            currThread->currTask->file->errors->createNewError(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
             return;
         } else {
-            if(e.type.field == field) {
+            if(type.field == field) {
                 currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign field `" + field->fullName + "` to its-self");
                 return;
             }
         }
 
-        field->type = e.type.field->type;
+        field->type = type.field->type;
         return;
-    } else if(e.type.type == type_lambda_function) {
-        create_dependency(field, e.type.fun);
+    } else if(type.type == type_lambda_function) {
+        create_dependency(field, type.fun);
 
-        if(!is_fully_qualified_function(e.type.fun)) {
+        if(!is_fully_qualified_function(type.fun)) {
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, "expression being assigned to field `" + field->fullName + "` is not a fully qualified lambda expression. Try assigning types to all of the fields in your lambda.");
         } else {
-            e.type.type = type_function_ptr;
+            type.type = type_function_ptr;
         }
-    } else if(e.type.type == type_function_ptr) {
-        create_dependency(field, e.type.fun);
+    } else if(type.type == type_function_ptr) {
+        create_dependency(field, type.fun);
 
-        if(hardType && e.type.fun->type != blueprint_function) {
+        if(hardType && type.fun->type != blueprint_function) {
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, " field `" + field->fullName + "` cannot have a method representing the type.");
-        } else if(!hardType && e.type.fun->type == blueprint_function) {
+        } else if(!hardType && type.fun->type == blueprint_function) {
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, "expression being assigned to field `" + field->fullName + "` must resolve to a class, object, lambda, or number value.");
         }
-    } else if(e.type.type != type_undefined) {
+    } else if(type.type != type_undefined) {
         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
-                                     " field `" + field->fullName + "` cannot be assigned type `" + type_to_str(e.type) +
+                                     " field `" + field->fullName + "` cannot be assigned type `" + type_to_str(type) +
                                      "` due to invalid type assignment format");
     }
 
-    field->type = e.type;
+    field->type = type;
 }

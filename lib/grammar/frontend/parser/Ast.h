@@ -24,6 +24,7 @@ enum ast_type
     ast_method_decl,
     ast_enum_decl,
     ast_init_decl,
+    ast_init_func_decl,
     ast_delegate_decl,
     ast_construct_decl,
     ast_label_decl,

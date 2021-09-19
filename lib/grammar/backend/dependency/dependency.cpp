@@ -722,10 +722,11 @@ bool resolve_primary_class_inner_class(
         sharp_class *primaryClass,
         sharp_type &resultType,
         operation_scheme *scheme,
+        bool isGeneric,
         context &ctx) {
 
     sharp_class *sc;
-    if((sc = resolve_class(primaryClass, item.name, false, false)) != NULL) {
+    if((sc = resolve_class(primaryClass, item.name, isGeneric, false)) != NULL) {
         resultType.type = type_class;
         resultType._class = sc;
 
@@ -958,16 +959,17 @@ bool resolve_global_class(
         unresolved_item &item,
         sharp_class *primaryClass,
         sharp_type &resultType,
+        bool isGeneric,
         context &ctx) {
 
     sharp_class *sc;
     if(resultType.type == type_untyped) {
-        sc = resolve_class(currThread->currTask->file, item.name, false, false);
+        sc = resolve_class(currThread->currTask->file, item.name, isGeneric, false);
     } else {
         if(resultType.type == type_import_group) {
-            sc = resolve_class(resultType.group, item.name, false, false);
+            sc = resolve_class(resultType.group, item.name, isGeneric, false);
         } else {
-            sc = resolve_class(resultType.module, item.name, false, false);
+            sc = resolve_class(resultType.module, item.name, isGeneric, false);
         }
     }
 
@@ -1045,7 +1047,13 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, false, context)) {
+
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_generic_inner_class)
+               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, true, context)) {
 
                 return;
             }
@@ -1090,7 +1098,13 @@ void resolve_normal_item(
         }
 
         if(hasFilter(filter, resolve_filter_class)
-           && resolve_global_class(item, primaryClass, resultType, context)) {
+           && resolve_global_class(item, primaryClass, resultType, false, context)) {
+
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_generic_class)
+           && resolve_global_class(item, primaryClass, resultType, true, context)) {
 
             return;
         }
@@ -1128,7 +1142,13 @@ void resolve_normal_item(
         }
 
         if(hasFilter(filter, resolve_filter_class)
-           && resolve_global_class(item, primaryClass, resultType, context)) {
+           && resolve_global_class(item, primaryClass, resultType, false, context)) {
+
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_generic_class)
+           && resolve_global_class(item, primaryClass, resultType, true, context)) {
 
             return;
         }
@@ -1185,7 +1205,18 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, false, context)) {
+
+                if(item.accessType != access_normal) {
+                    create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
+                                       " unnessicary access type `" + access_type_to_str(item.accessType)
+                                       + "` on statically accessed inner class.");
+                }
+                return;
+            }
+
+            if(hasFilter(filter, resolve_filter_generic_inner_class)
+               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, true, context)) {
 
                 if(item.accessType != access_normal) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
@@ -1241,7 +1272,14 @@ void resolve_normal_item(
                 }
 
                 if(hasFilter(filter, resolve_filter_inner_class)
-                   && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, context)) {
+                   && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, false, context)) {
+                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                                       " cannot access inner class through field `" + field->name + "`.");
+                    return;
+                }
+
+                if(hasFilter(filter, resolve_filter_generic_inner_class)
+                   && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, true, context)) {
                     currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
                                        " cannot access inner class through field `" + field->name + "`.");
                     return;
@@ -1617,11 +1655,15 @@ bool resolve_primary_class_generic(
 sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint) {
     bool created = false;
 
-    genericBlueprint = create_generic_class(genericBlueprint, genericTypes, created);
+    GUARD(genericBlueprint->mut)
+    sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created);
 
     if(created) {
-        pre_process_class(NULL, genericBlueprint, genericBlueprint->ast);
-        process_class(NULL, genericBlueprint, genericBlueprint->ast);
+        GUARD2(generic->mut)
+        genericBlueprint->genericClones.add(generic);
+        pre_process_class(NULL, generic, generic->ast);
+        process_class(NULL, generic, generic->ast);
+        process_generic_extension_functions(generic, genericBlueprint);
     }
 
     return genericBlueprint;

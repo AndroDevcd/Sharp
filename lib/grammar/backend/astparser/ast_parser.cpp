@@ -114,6 +114,19 @@ void parse_utype_arg_list_opt(List<sharp_type> &types, Ast *ast) {
     }
 }
 
+void parse_utype_arg_list(List<sharp_field*> &types, Ast *ast) {
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+        sharp_type unresolvedType;
+        parse_utype(unresolvedType, ast->getSubAst(i)->getSubAst(ast_utype));
+
+        types.add(new sharp_field(
+                ast->getSubAst(i)->getToken(0).getValue(),
+                NULL, impl_location(currThread->currTask->file, ast->getSubAst(i)),
+                unresolvedType, flag_public,
+                normal_field, ast->getSubAst(i)));
+    }
+}
+
 void parse_utype_list(List<sharp_type> &types, Ast *ast) {
     for(Int i = 0; i < ast->getSubAstCount(); i++) {
         parse_utype(types.__new(), ast->getSubAst(i));

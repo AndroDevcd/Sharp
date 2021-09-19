@@ -19,7 +19,7 @@ enum compilation_stage {
     parsed,
     classes_preprocessed,
     classes_post_processed,
-    class_mutations_processed,
+    class_mutations_processed, // ready to compile after this stage
     compiled
 };
 

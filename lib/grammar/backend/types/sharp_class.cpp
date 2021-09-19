@@ -112,6 +112,7 @@ sharp_class* create_class(
         location.col = ast->col;
     }
 
+    GUARD(owner->mut)
     if((sc = resolve_class(owner, name, false, false)) != NULL
        || (sc = resolve_class(owner, name, true, false)) != NULL) {
         file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "child class `" + name +
@@ -124,7 +125,6 @@ sharp_class* create_class(
                 location, flags, ast, type
         );
 
-        GUARD(owner->mut)
         if(isGeneric) owner->generics.add(sc);
         else owner->children.add(sc);
         return sc;
@@ -147,6 +147,7 @@ sharp_class* create_class(
         location.col = ast->col;
     }
 
+    GUARD(globalLock)
     if((sc = resolve_class(module, name, false, false)) != NULL
         || (sc = resolve_class(module, name, true, false)) != NULL) {
         file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "class `" + name +
@@ -160,7 +161,6 @@ sharp_class* create_class(
                 location, flags, ast, type
         );
 
-        GUARD(globalLock)
         if(isGeneric) {
             if(owner != NULL) owner->generics.add(sc);
             genericClasses.add(sc);
@@ -180,6 +180,7 @@ void sharp_class::free() {
     dependencies.free();
     genericTypes.free();
     interfaces.free();
+    extensionFunctions.free();
     deleteList(children);
     deleteList(functions);
     deleteList(generics);

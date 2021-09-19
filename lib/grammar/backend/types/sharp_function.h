@@ -11,21 +11,12 @@
 #include "../meta_data.h"
 #include "../access_flag.h"
 #include "sharp_type.h"
+#include "function_type.h"
 
 struct sharp_class;
 struct sharp_field;
 
 void set_full_name(sharp_function*);
-
-enum function_type {
-    normal_function = 1,
-    constructor_function = 2,
-    initializer_function = 3,
-    operator_function = 4,
-    delegate_function = 5,
-    blueprint_function = 6,
-    undefined_function = 0
-};
 
 struct sharp_function {
     sharp_function()

@@ -6,7 +6,7 @@
 #define SHARP_FIELD_PROCESSOR_H
 
 #include "../../frontend/parser/Ast.h"
-#include "../compiler/expression.h"
+#include "../compiler/expression_compiler.h"
 
 struct sharp_field;
 struct sharp_class;
@@ -15,6 +15,6 @@ void process_field(sharp_class*, Ast*);
 void process_field(sharp_field*);
 void process_setter(sharp_field*, Ast*);
 void process_getter(sharp_field*, Ast*);
-void validate_field_type(bool, sharp_field*, expression&, Ast*);
+void validate_field_type(bool, sharp_field*, sharp_type&, operation_scheme*, Ast*);
 
 #endif //SHARP_FIELD_PROCESSOR_H

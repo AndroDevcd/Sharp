@@ -31,6 +31,9 @@ extern thread_local sharp_module* currModule;
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);
 
+#define GUARD2(mut) \
+    std::lock_guard<recursive_mutex> guard2(mut);
+
 void create_new_warning(error_type error, int type, int line, int col, string xcmnts);
 
 template<class T>

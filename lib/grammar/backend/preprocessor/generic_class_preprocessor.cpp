@@ -39,6 +39,7 @@ void pre_process_generic_class(sharp_class *parentClass, Ast *ast) {
                      parentClass, className, flags, ct, true, ast);
     }
 
+    sc->blueprintClass = true;
     check_decl_conflicts(ast, parentClass, "class", className);
     if(sc->genericTypes.empty()) {
         // generic class is new

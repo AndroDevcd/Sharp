@@ -153,7 +153,6 @@ private:
     void parseMethodReturnType(Ast*);
     void parseLambdaReturnType(Ast*);
     void parseMethodDecl(Ast*);
-    void parseOperatorDecl(Ast*);
     void parseConstructor(Ast*);
     void parseBaseClassConstructor(Ast*);
     void parseAll(Ast*);

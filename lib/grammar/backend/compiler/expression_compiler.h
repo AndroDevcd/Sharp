@@ -2,8 +2,8 @@
 // Created by BNunnally on 9/17/2021.
 //
 
-#ifndef SHARP_EXPRESSION_H
-#define SHARP_EXPRESSION_H
+#ifndef SHARP_EXPRESSION_COMPILER_H
+#define SHARP_EXPRESSION_COMPILER_H
 
 #include "../types/sharp_type.h"
 #include "../operation/operation.h"
@@ -36,8 +36,8 @@ struct expression {
     operation_scheme scheme;
 };
 
-expression resolve_expression(Ast*);
-sharp_type resolve_expression_for_type(Ast*);
+expression compile_expression(Ast*);
+sharp_type compile_expression_for_type(Ast*);
 
 
-#endif //SHARP_EXPRESSION_H
+#endif //SHARP_EXPRESSION_COMPILER_H

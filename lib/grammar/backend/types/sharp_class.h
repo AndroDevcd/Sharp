@@ -13,6 +13,7 @@
 #include "../meta_data.h"
 #include "sharp_module.h"
 #include "generic_type_identifier.h"
+#include "unresolved_extension_function.h"
 
 enum class_type {
     class_normal,
@@ -46,8 +47,11 @@ struct sharp_class {
         aliases(),
         fields(),
         interfaces(),
+        genericClones(),
         type(class_normal),
-        genericTypes()
+        genericTypes(),
+        extensionFunctions(),
+        blueprintClass(false)
     {
     }
 
@@ -75,9 +79,12 @@ struct sharp_class {
         generics(),
         aliases(),
         interfaces(),
+        genericClones(),
         fields(),
         type(type),
-        genericTypes()
+        genericTypes(),
+        extensionFunctions(),
+        blueprintClass(false)
     {
         if(owner == NULL) {
             fullName = module->name + "#"
@@ -114,8 +121,11 @@ struct sharp_class {
             aliases(),
             fields(),
             interfaces(),
+            genericClones(),
             type(type),
-            genericTypes()
+            genericTypes(),
+            extensionFunctions(),
+            blueprintClass(false)
     {
         fullName = module->name + "#"
                    + name;
@@ -140,7 +150,10 @@ struct sharp_class {
          fields(sc.fields),
          type(sc.type),
          interfaces(sc.interfaces),
-         genericTypes(sc.genericTypes)
+         genericClones(sc.genericClones),
+         genericTypes(sc.genericTypes),
+         extensionFunctions(sc.extensionFunctions),
+         blueprintClass(sc.blueprintClass)
     {
     }
 
@@ -164,9 +177,12 @@ struct sharp_class {
     List<sharp_class*> generics;
     List<sharp_alias*> aliases;
     List<sharp_field*> fields;
+    List<sharp_class*> genericClones;
     List<sharp_function*> functions;
+    List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
     class_type type;
+    bool blueprintClass;
     recursive_mutex mut;
 };
 

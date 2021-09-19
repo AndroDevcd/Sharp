@@ -10,6 +10,7 @@
 #include "../types/unresolved_type.h"
 
 struct sharp_class;
+struct sharp_field;
 
 // This file is responsible for containing globally
 // used functions for parsing data in an ast
@@ -29,6 +30,7 @@ unresolved_item parse_reference_item(Ast *ast);
 void parse_normal_reference_item(unresolved_item &item, Ast *ast);
 void parse_utype_list(List<sharp_type> &types, Ast *ast);
 void parse_utype_arg_list_opt(List<sharp_type> &types, Ast *ast);
+void parse_utype_arg_list(List<sharp_field*> &fields, Ast *ast);
 void parse_type_identifier(sharp_type &type, Ast *ast);
 void parse_function_pointer(sharp_type &type, Ast *ast);
 void parse_function_return_type(sharp_type &type, Ast *ast);

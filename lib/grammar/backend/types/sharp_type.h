@@ -193,6 +193,10 @@ struct sharp_type {
     }
 
     ~sharp_type() {
+        free();
+    }
+
+    void free() {
         delete unresolvedType;
     }
 
