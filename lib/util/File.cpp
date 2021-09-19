@@ -103,6 +103,20 @@ int64_t file_size(FILE *fp)
     return ( len );
 }
 
+uInt File::length(const char *f) {
+    FILE* fp=NULL;
+    int64_t len;
+
+    fp = fopen(f,"rb");
+    if(fp == nullptr)
+        return 0;  // could not open file
+
+
+    len = file_size(fp);
+    fclose(fp);
+    return len;
+}
+
 void File::read_alltext(const char *f, buffer& _out)
 {
     if(!exists(f))

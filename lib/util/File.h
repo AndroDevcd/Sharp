@@ -129,6 +129,8 @@ public:
 
     static int write(const char *file, buffer& data);
 
+    static uInt length(const char *file);
+
     static bool empty(const char *file);
 
     static bool exists(const char *file);

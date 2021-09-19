@@ -343,6 +343,10 @@ int _bootstrap(int argc, const char* args[])
     return compile();
 }
 
+bool isFileLarger(sharp_file *f1, sharp_file *f2) {
+    return File::length(f1->name.c_str()) < File::length(f2->name.c_str());
+}
+
 void run_pre_processing_tasks() {
 
     task t;
@@ -367,9 +371,9 @@ void run_post_processing_tasks() {
 
     task t;
     for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_process_imports_;
+        t.type = task_post_process_;
         t.file = sharpFiles.get(i);
-        submit_task(t);
+        submit_task(t); // todo: process mutations
     }
 
     wait_for_tasks();
@@ -383,6 +387,7 @@ int compile()
     }
 
 
+    sharpFiles.linearSort(isFileLarger);
     start_task_delegator();
     run_pre_processing_tasks();
     run_post_processing_tasks();

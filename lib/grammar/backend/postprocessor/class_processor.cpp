@@ -135,6 +135,5 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     }
 
     process_delegates(with_class); // todo: add provision to search for function and force return type compare as well
-    // todo: process mutations
     delete_context();
 }

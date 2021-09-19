@@ -6,6 +6,7 @@
 #include "../compiler_info.h"
 #include "../backend/preprocessor/class_preprocessor.h"
 #include "../backend/postprocessor/import_processor.h"
+#include "../backend/postprocessor/class_processor.h"
 
 thread_local worker_thread *currThread;
 
@@ -90,11 +91,11 @@ void pre_process_() {
     file->stage = classes_preprocessed;
 }
 
-void process_imports_() {
+void post_process_() {
     sharp_file *file = currThread->currTask->file;
 
-    process_imports();
-    file->stage = imports_processed;
+    post_process();
+    file->stage = classes_post_processed;
 }
 
 void execute_task() {
@@ -116,8 +117,8 @@ void execute_task() {
             pre_process_();
             break;
         }
-        case task_process_imports_: {
-            process_imports_();
+        case task_post_process_: {
+            post_process_();
             break;
         }
     }
