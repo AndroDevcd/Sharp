@@ -127,7 +127,7 @@ void create_primary_class_function_call_operation(
     }
 }
 
-void create_primary_class_function_call_operation(
+void create_instance_function_call_operation(
         operation_scheme *scheme,
         List<operation_scheme> &paramScheme,
         sharp_function *fun) {

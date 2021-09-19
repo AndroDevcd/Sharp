@@ -23,6 +23,8 @@ enum compilation_stage {
     compiled
 };
 
+#define pre_compilation class_mutations_processed
+
 /**
  * Sharp file
  *

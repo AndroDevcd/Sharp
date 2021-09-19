@@ -16,6 +16,7 @@ void process_function(sharp_class*, string &, function_type, Ast*);
 void process_generic_clone_functions(sharp_class*, string &, function_type, Ast*);
 void process_generic_extension_functions(sharp_class*, sharp_class*);
 void process_extension_class(sharp_class *&with_class, bool isDelegate, string &name, Ast*);
+void process_function_return_type(sharp_function *fun);
 
 void validate_function_type(
         bool hardType,

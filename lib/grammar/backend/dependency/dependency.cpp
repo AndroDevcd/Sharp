@@ -1431,6 +1431,7 @@ bool resolve_primary_class_function(
         unresolved_item &item,
         sharp_class *primaryClass,
         bool isPrimaryClass,
+        bool isStaticCall,
         sharp_type &resultType,
         operation_scheme *scheme,
         context &ctx) {
@@ -1461,12 +1462,18 @@ bool resolve_primary_class_function(
             true)) != NULL) {
         resultType.type = type_function;
         resultType.fun = fun;
+        process_function_return_type(fun);
+        if(fun->returnType.type == type_untyped || fun->returnType.type == type_undefined) {
+            resultType.type = type_undefined;
+            return false;
+        }
+
         resultType.nullable = fun->returnType.nullable;
         resultType.isArray = fun->returnType.isArray;
 
         if(scheme) {
-            if(check_flag(fun->flags, flag_static)) {
-                if(!isPrimaryClass) {
+            if(isStaticCall) {
+                if(!check_flag(fun->flags, flag_static)) {
                     create_new_warning(GENERIC, __w_ambig, item.ast->line,item.ast->col,
                                 " call to static function `" + item.name + "` via reference");
                 }
@@ -1475,7 +1482,9 @@ bool resolve_primary_class_function(
             } else {
                 if(isPrimaryClass)
                     create_primary_class_function_call_operation(scheme, item.operations, fun);
-                else create_instance_function_call_operation(scheme, item.operations, fun);
+                else {
+                    create_instance_function_call_operation(scheme, item.operations, fun);
+                }
             }
         }
 
@@ -1544,6 +1553,12 @@ bool resolve_global_class_function(
     if(fun != NULL) {
         resultType.type = type_function;
         resultType.fun = fun;
+        process_function_return_type(fun);
+        if(fun->returnType.type == type_untyped || fun->returnType.type == type_undefined) {
+            resultType.type = type_undefined;
+            return false;
+        }
+
         resultType.nullable = fun->returnType.nullable;
         resultType.isArray = fun->returnType.isArray;
 
@@ -1569,7 +1584,10 @@ void resolve_function_reference_item(
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass
-            && resolve_primary_class_function(item, primaryClass, true, resultType, scheme, context)) {
+            && resolve_primary_class_function(
+                    item, primaryClass, true,
+                    false, resultType, scheme,
+                    context)) {
 
             if(resultType.fun->returnType.nullable) {
                 if(item.accessType == access_normal) {
@@ -1596,7 +1614,7 @@ void resolve_function_reference_item(
             sharp_class *primaryClass = resultType._class;
 
             if(resolve_primary_class_function(
-                    item, primaryClass, false,
+                    item, primaryClass, false, true,
                     resultType, scheme, context)) {
                 return;
             }
@@ -1604,6 +1622,20 @@ void resolve_function_reference_item(
             resultType.type = type_undefined;
             currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` ");
+        } else if(resultType.type == type_field) {
+            if(resultType.field->type.type == type_class) {
+                sharp_class *primaryClass = resultType.field->type._class;
+
+                if (resolve_primary_class_function(
+                        item, primaryClass, false, false,
+                        resultType, scheme, context)) {
+                    return;
+                }
+            } else {
+                resultType.type = type_undefined;
+                currThread->currTask->file->errors->createNewError(GENERIC,
+                             resolveLocation, " illegal use of non-class field `" + resultType.field->name + "` as class type.");
+            }
         } else {
             currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");

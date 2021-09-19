@@ -32,8 +32,8 @@ void process_field(sharp_field *field) {
         if(field->ast->hasToken(COLON)) {
             expression e(resolve(field->ast->getSubAst(ast_utype)));
             validate_field_type(true, field, e.type, NULL, field->ast);
-        } else if(currThread->currTask->file->stage > class_mutations_processed){
-            expression e = resolve_expression(field->ast->getSubAst(ast_expression));
+        } else if(currThread->currTask->file->stage > pre_compilation){
+            expression e = compile_expression(field->ast->getSubAst(ast_expression));
             validate_field_type(false, field, e.type, &e.scheme, field->ast);
         } else {
             field->type.type = type_untyped;

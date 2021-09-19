@@ -170,13 +170,21 @@ void process_function(
             }
 
         } else if(ast->hasToken(":=")) {
-            if(currThread->currTask->file->stage > class_mutations_processed) {
-                expression e = resolve_expression(ast->getSubAst(ast_expression)); // todo: make sure return types get proccessed elsewhere later if skipped
-                validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
-            } // else type is untyped for now
+            process_function_return_type(fun);
         } else {
             returnType.type = type_nil;
         }
+    }
+}
+
+void process_function_return_type(sharp_function *fun) {
+    if(fun->returnType.type == type_untyped
+        && fun->ast->hasSubAst(ast_expression)
+        && currThread->currTask->file->stage > pre_compilation) {
+        fun->returnType.type = type_undefined;
+
+        expression e = compile_expression(fun->ast->getSubAst(ast_expression));
+        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
     }
 }
 
