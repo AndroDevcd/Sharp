@@ -33,25 +33,26 @@ enum class_type {
 struct sharp_class {
     sharp_class()
     :
-        name(""),
-        fullName(""),
-        flags(flag_none),
-        implLocation(),
-        dependencies(),
-        ast(NULL),
-        module(NULL),
-        baseClass(NULL),
-        mut(),
-        functions(),
-        generics(),
-        aliases(),
-        fields(),
-        interfaces(),
-        genericClones(),
-        type(class_normal),
-        genericTypes(),
-        extensionFunctions(),
-        blueprintClass(false)
+            name(""),
+            fullName(""),
+            flags(flag_none),
+            implLocation(),
+            dependencies(),
+            ast(NULL),
+            module(NULL),
+            baseClass(NULL),
+            mut(),
+            functions(),
+            generics(),
+            aliases(),
+            fields(),
+            interfaces(),
+            genericClones(),
+            type(class_normal),
+            genericTypes(),
+            extensionFunctions(),
+            mutations(),
+            blueprintClass(false)
     {
     }
 
@@ -64,29 +65,30 @@ struct sharp_class {
             Ast *ast,
             class_type type)
     :
-        name(name),
-        flags(flags),
-        implLocation(location),
-        module(module),
-        ast(ast),
-        baseClass(NULL),
-        dependencies(),
-        owner(owner),
-        children(),
-        fullName(""),
-        mut(),
-        functions(),
-        generics(),
-        aliases(),
-        interfaces(),
-        genericClones(),
-        fields(),
-        type(type),
-        genericTypes(),
-        extensionFunctions(),
-        blueprintClass(false)
+            name(name),
+            flags(flags),
+            implLocation(location),
+            module(module),
+            ast(ast),
+            baseClass(NULL),
+            dependencies(),
+            owner(owner),
+            children(),
+            fullName(""),
+            mut(),
+            functions(),
+            generics(),
+            aliases(),
+            interfaces(),
+            genericClones(),
+            fields(),
+            type(type),
+            genericTypes(),
+            extensionFunctions(),
+            mutations(),
+            blueprintClass(false)
     {
-        if(owner == NULL) {
+        if(owner == NULL || check_flag(owner->flags, flag_global)) {
             fullName = module->name + "#"
                        + name;
         } else {
@@ -125,6 +127,7 @@ struct sharp_class {
             type(type),
             genericTypes(),
             extensionFunctions(),
+            mutations(),
             blueprintClass(false)
     {
         fullName = module->name + "#"
@@ -133,27 +136,28 @@ struct sharp_class {
 
     sharp_class(const sharp_class &sc)
     :
-         name(sc.name),
-         flags(sc.flags),
-         module(sc.module),
-         baseClass(sc.baseClass),
-         implLocation(sc.implLocation),
-         dependencies(sc.dependencies),
-         ast(sc.ast),
-         owner(sc.owner),
-         children(sc.children),
-         fullName(sc.fullName),
-         mut(),
-         functions(sc.functions),
-         generics(sc.generics),
-         aliases(sc.aliases),
-         fields(sc.fields),
-         type(sc.type),
-         interfaces(sc.interfaces),
-         genericClones(sc.genericClones),
-         genericTypes(sc.genericTypes),
-         extensionFunctions(sc.extensionFunctions),
-         blueprintClass(sc.blueprintClass)
+            name(sc.name),
+            flags(sc.flags),
+            module(sc.module),
+            baseClass(sc.baseClass),
+            implLocation(sc.implLocation),
+            dependencies(sc.dependencies),
+            ast(sc.ast),
+            owner(sc.owner),
+            children(sc.children),
+            fullName(sc.fullName),
+            mut(),
+            functions(sc.functions),
+            generics(sc.generics),
+            aliases(sc.aliases),
+            fields(sc.fields),
+            type(sc.type),
+            interfaces(sc.interfaces),
+            genericClones(sc.genericClones),
+            genericTypes(sc.genericTypes),
+            extensionFunctions(sc.extensionFunctions),
+            blueprintClass(sc.blueprintClass),
+            mutations(sc.mutations)
     {
     }
 
@@ -179,6 +183,7 @@ struct sharp_class {
     List<sharp_field*> fields;
     List<sharp_class*> genericClones;
     List<sharp_function*> functions;
+    List<Ast*> mutations;
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
     class_type type;
@@ -194,6 +199,12 @@ sharp_class* create_generic_class(sharp_class*, List<sharp_type> &genericTypes, 
 
 bool locate_functions_with_name(
         string name,
+        sharp_class *owner,
+        Int functionType,
+        bool checkBaseClass,
+        List<sharp_function*> &results);
+
+bool locate_functions_with_type(
         sharp_class *owner,
         Int functionType,
         bool checkBaseClass,

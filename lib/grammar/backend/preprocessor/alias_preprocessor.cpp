@@ -19,7 +19,8 @@ void pre_process_alias(sharp_class *parentClass, Ast *ast) {
     if(ast->hasSubAst(ast_access_type)) {
         flags = parse_access_flags(
                 flag_public
-                | flag_private | flag_protected | flag_local,
+                | flag_private | flag_protected
+                | flag_local | flag_static,
                 "alias", parentClass,
                 ast->getSubAst(ast_access_type)
         );

@@ -18,12 +18,12 @@ enum compilation_stage {
     tokenized,
     parsed,
     classes_preprocessed,
-    classes_post_processed,
-    class_mutations_processed, // ready to compile after this stage
+    classes_post_processed, // ready to compile after this stage
+    class_delegates_processed,
     compiled
 };
 
-#define pre_compilation class_mutations_processed
+#define pre_compilation classes_post_processed
 
 /**
  * Sharp file

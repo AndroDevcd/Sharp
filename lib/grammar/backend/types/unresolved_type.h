@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../../List.h"
 #include "../../frontend/parser/Ast.h"
+#include "../../compiler_info.h"
 
 struct unresolved_type;
 struct sharp_type;
@@ -41,7 +42,7 @@ struct unresolved_item {
         ast(NULL)
     {}
 
-    unresolved_item(string name, reference_access_type accessType = access_normal)
+    unresolved_item(string &name, reference_access_type accessType = access_normal)
     :
             name(name),
             accessType(accessType),
@@ -53,7 +54,7 @@ struct unresolved_item {
     {}
 
     unresolved_item(
-            string name,
+            string &name,
             reference_type type = normal_reference,
             reference_access_type accessType = access_normal)
     :
@@ -67,18 +68,20 @@ struct unresolved_item {
     {}
 
     unresolved_item(
-            string name,
+            string &name,
             List<sharp_type> &types,
             reference_access_type accessType = access_normal)
     :
             name(name),
             accessType(accessType),
-            typeSpecifiers(types),
+            typeSpecifiers(),
             operations(),
             type(generic_reference),
             returnType(NULL),
             ast(NULL)
-    {}
+    {
+        copy(types);
+    }
 
     unresolved_item(const unresolved_item &item)
     :
@@ -89,20 +92,35 @@ struct unresolved_item {
             type(normal_reference),
             returnType(NULL),
             ast(NULL)
-    {}
+    {
+        copy(item);
+    }
 
     ~unresolved_item() {
         free();
     }
 
+    unresolved_item& init() {
+        new (&name) string();
+        accessType = access_normal;
+        type = normal_reference;
+        typeSpecifiers.init();
+        operations.init();
+        returnType = NULL;
+        ast = NULL;
+
+        return *this;
+    }
+
     void free();
 
     void copy(const unresolved_item &item);
+    void copy(List<sharp_type> &types);
 
     string name;
     reference_access_type accessType;
     reference_type type;
-    List<sharp_type> typeSpecifiers;
+    List<sharp_type*> typeSpecifiers;
     List<operation_scheme> operations;
     sharp_type *returnType;
     Ast *ast;
@@ -116,18 +134,22 @@ struct unresolved_type {
 
     unresolved_type(const unresolved_type &reference)
     :
-            items(reference.items)
-    {}
+            items()
+    {
+        for(Int i = 0; i < reference.items.size(); i++) {
+            items.add(new unresolved_item(*reference.items.get(i)));
+        }
+    }
 
     ~unresolved_type() {
         free();
     }
 
     void free() {
-        items.free();
+        deleteList(items);
     }
 
-    List<unresolved_item> items;
+    List<unresolved_item*> items;
 };
 
 string access_type_to_str(reference_access_type);

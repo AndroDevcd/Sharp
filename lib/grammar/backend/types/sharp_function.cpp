@@ -27,7 +27,7 @@ bool create_function(
         function_type type,
         string &name,
         bool checkBaseClass,
-        List<sharp_field*> params,
+        List<sharp_field*> &params,
         sharp_type &returnType,
         Ast *createLocation) {
 
@@ -52,17 +52,36 @@ bool create_function(
 
 void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation) {
 
+    sharp_type type(type_nil);
     List<sharp_field*> params;
     if(resolve_function(sc->name, sc, params, constructor_function,
                         0, createLocation, false, false) == NULL) {
         auto *sf = new sharp_function(sc->name, sc,
                                       impl_location(currThread->currTask->file, createLocation),
                                       flags, createLocation, params,
-                                      sharp_type(type_nil), constructor_function);
+                                      type, constructor_function);
 
         GUARD(sc->mut)
         sc->functions.add(sf);
     }
+}
+
+string function_to_str(sharp_function *fun) {
+    stringstream ss;
+    ss << fun->name << "(";
+
+    for(Int i = 0; i < fun->parameters.size(); i++) {
+        ss << type_to_str(fun->parameters.get(i)->type);
+
+        if((i + 1) < fun->parameters.size()) {
+            ss << ", ";
+        }
+    }
+
+    ss << "): ";
+    ss << type_to_str(fun->returnType) << "";
+
+    return ss.str();
 }
 
 void set_full_name(sharp_function *sf) {

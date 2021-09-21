@@ -20,19 +20,28 @@ void process_function(
     } else if(type == constructor_function) {
         name = ast->getToken(0).getValue();
 
-        if(name != with_class->name) {
+        long pos;
+        string class_name = with_class->name;
+        if((pos = with_class->name.find('<')) != string::npos) {
+            class_name = with_class->name.substr(0, pos);
+        }
+
+        if(name != class_name) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
                        "constructor `" + name + "` must match holding class name `" + with_class->name + "`");
         }
-    } else
+    } else if(ast->hasSubAst(ast_refrence_pointer))
         process_extension_class(with_class, type == delegate_function, name, ast->getSubAst(ast_refrence_pointer));
+    else
+        name = ast->getToken(0).getValue();
+
 
     if(name.find("operator") != string::npos)
         type = operator_function;
 
     if(with_class != NULL) {
         if(with_class->blueprintClass) {
-            with_class->extensionFunctions.addif(unresolved_extension_function(name, ast, type));
+            with_class->extensionFunctions.add(unresolved_extension_function(name, ast, type));
             process_generic_clone_functions(with_class, name, type, ast);
         } else {
             process_function(with_class, name, type, ast);
@@ -52,9 +61,9 @@ void process_extension_class(
         parse_reference_pointer(unresolvedType, ast);
 
         unresolved_item &firstItem =
-                unresolvedType.unresolvedType->items.first();
+                *unresolvedType.unresolvedType.items.first();
         unresolved_item *lastItem =
-                &unresolvedType.unresolvedType->items.last();
+                unresolvedType.unresolvedType.items.last();
         if(firstItem.type == operator_reference) {
             name = firstItem.name;
         } else {
@@ -64,7 +73,7 @@ void process_extension_class(
                       "extension function `" + name + "` cannot be a delegate.");
             }
 
-            unresolvedType.unresolvedType->items.pop_back();
+            unresolvedType.unresolvedType.items.pop_back();
 
             resolve(
                     unresolvedType,
@@ -124,10 +133,14 @@ void process_function(
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected | flag_local
-                | flag_stable | flag_unstable | flag_extension,
+                | flag_static | flag_native,
                 "function", with_class,
                 ast->getSubAst(ast_access_type)
         );
+
+        if(check_flag(flags, flag_native)) {
+            type = native_function;
+        }
 
         if(!check_flag(flags, flag_public) && !check_flag(flags, flag_private)
            && !check_flag(flags, flag_protected))

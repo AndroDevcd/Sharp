@@ -73,8 +73,9 @@ void parse_function_return_type(sharp_type &type, Ast *ast) {
 
 void parse_function_pointer(sharp_type &type, Ast *ast) {
     type.type = type_untyped;
-    type.unresolvedType = new unresolved_type();
-    unresolved_item &item = type.unresolvedType->items.__new();
+
+    type.unresolvedType.items.add(new unresolved_item());
+    unresolved_item &item = *type.unresolvedType.items.last();
     item.type = function_ptr_reference;
 
     parse_utype_arg_list_opt(item.typeSpecifiers, ast->getSubAst(ast_utype_arg_list_opt));
@@ -108,28 +109,32 @@ void parse_utype(sharp_type &type, Ast *ast) {
     parse_type_identifier(type, ast->getSubAst(ast_type_identifier));
 }
 
-void parse_utype_arg_list_opt(List<sharp_type> &types, Ast *ast) {
+void parse_utype_arg_list_opt(List<sharp_type*> &types, Ast *ast) {
     for(Int i = 0; i < ast->getSubAstCount(); i++) {
-        parse_utype(types.__new(), ast->getSubAst(i)->getSubAst(ast_utype));
+        types.add(new sharp_type());
+        parse_utype(*types.last(), ast->getSubAst(i)->getSubAst(ast_utype));
     }
 }
 
 void parse_utype_arg_list(List<sharp_field*> &types, Ast *ast) {
     for(Int i = 0; i < ast->getSubAstCount(); i++) {
-        sharp_type unresolvedType;
-        parse_utype(unresolvedType, ast->getSubAst(i)->getSubAst(ast_utype));
+        sharp_type emptyType;
 
+        impl_location location(currThread->currTask->file, ast->getSubAst(i));
         types.add(new sharp_field(
                 ast->getSubAst(i)->getToken(0).getValue(),
-                NULL, impl_location(currThread->currTask->file, ast->getSubAst(i)),
-                unresolvedType, flag_public,
+                NULL, location,
+                emptyType, flag_public,
                 normal_field, ast->getSubAst(i)));
+        parse_utype(types.last()->type, ast->getSubAst(i)->getSubAst(ast_utype));
+
     }
 }
 
-void parse_utype_list(List<sharp_type> &types, Ast *ast) {
+void parse_utype_list(List<sharp_type*> &types, Ast *ast) {
     for(Int i = 0; i < ast->getSubAstCount(); i++) {
-        parse_utype(types.__new(), ast->getSubAst(i));
+        types.add(new sharp_type());
+        parse_utype(*types.last(), ast->getSubAst(i));
     }
 }
 
@@ -155,8 +160,7 @@ void parse_normal_reference_item(unresolved_item &item, Ast *ast) {
     }
 }
 
-unresolved_item parse_reference_item(Ast *ast) {
-    unresolved_item item;
+void parse_reference_item(unresolved_item &item, Ast *ast) {
     item.ast = ast;
 
     if(ast->getSubAst(ast_generic_reference)) {
@@ -191,23 +195,25 @@ unresolved_item parse_reference_item(Ast *ast) {
     } else {
         parse_normal_reference_item(item, ast);
     }
-
-    return item;
 }
 
 void parse_reference_pointer(sharp_type &type, Ast *ast) {
     Ast *child = NULL;
 
     type.type = type_untyped;
-    type.unresolvedType = new unresolved_type();
     if(ast->hasSubAst(ast_operator_reference)) {
         child = ast->getSubAst(ast_operator_reference);
 
-        type.unresolvedType->items.add(unresolved_item(
-                "operator" + child->getToken(0).getValue(), operator_reference, access_normal));
+        string name = "operator" + child->getToken(0).getValue();
+        type.unresolvedType.items.add(new unresolved_item(
+                name, operator_reference, access_normal));
     } else {
         for(Int i = 0; i < ast->getSubAstCount(); i++) {
-            type.unresolvedType->items.add(parse_reference_item(ast->getSubAst(i)));
+            type.unresolvedType.items.add(new unresolved_item());
+
+            parse_reference_item(
+                    *type.unresolvedType.items.last(),
+                    ast->getSubAst(i));
         }
     }
 }

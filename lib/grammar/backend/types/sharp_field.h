@@ -29,6 +29,7 @@ struct sharp_field {
         flags(flag_none),
         fieldType(normal_field),
         closures(),
+        type(),
         ast(NULL),
         getter(NULL),
         setter(NULL)
@@ -51,10 +52,10 @@ struct sharp_field {
     {}
 
     sharp_field(
-            string name,
+            string &name,
             sharp_class *owner,
-            impl_location location,
-            sharp_type type,
+            impl_location &location,
+            sharp_type &type,
             uInt flags,
             field_type ft,
             Ast *ast)
@@ -64,7 +65,7 @@ struct sharp_field {
             owner(owner),
             implLocation(location),
             dependencies(),
-            type(type),
+            type(),
             flags(flags),
             fieldType(ft),
             closures(),
@@ -73,6 +74,7 @@ struct sharp_field {
             setter(NULL)
     {
         set_full_name();
+        this->type.copy(type);
     }
 
     ~sharp_field() {

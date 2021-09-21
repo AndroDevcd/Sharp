@@ -182,22 +182,22 @@ void check_decl_conflicts(Ast *ast, sharp_class *with_class, string type, string
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with function `" + name + "`");
         print_impl_location(name, "function", functions.first()->implLocation);
-    } else if((data = resolve_class(with_class, name, false, false)) != NULL) {
+    } else if((type != "class" && type != "enum") && (data = resolve_class(with_class, name, false, false)) != NULL) {
         auto sc = (sharp_class*)data;
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with child class `" + name + "`");
         print_impl_location(name, "class", sc->implLocation);
-    } else if((data = resolve_class(with_class, name, true, false)) != NULL) {
+    } else if((type != "class" && type != "enum") && (data = resolve_class(with_class, name, true, false)) != NULL) {
         auto sc = (sharp_class*)data;
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with child class `" + name + "`");
         print_impl_location(name, "class", sc->implLocation);
-    } else if((data = resolve_class(currModule, name, false, false)) != NULL) {
+    } else if((type != "class" && type != "enum") && (data = resolve_class(currModule, name, false, false)) != NULL) {
         auto sc = (sharp_class*)data;
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with class `" + name + "`");
         print_impl_location(name, "class", sc->implLocation);
-    } else if((data = resolve_class(currModule, name, true, false)) != NULL) {
+    } else if((type != "class" && type != "enum") && (data = resolve_class(currModule, name, true, false)) != NULL) {
         auto sc = (sharp_class*)data;
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with class `" + name + "`");

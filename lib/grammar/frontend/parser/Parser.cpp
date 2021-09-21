@@ -195,15 +195,11 @@ void parser::parseMethodDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
-    if(peek(1)->getId() == IDENTIFIER && peek(2)->getType() != LEFTPAREN) {
+    if((peek(1)->getId() == IDENTIFIER && peek(2)->getType() != LEFTPAREN)
+        || peek(1)->getValue() == "operator") {
         parseReferencePointer(branch);
     } else {
         expectIdentifier(branch);
-    }
-
-    if(isOverrideOperator(current().getValue()))
-    {
-        errors->createNewError(GENERIC, current(), "expected identifier");
     }
 
     parseUtypeArgList(branch);

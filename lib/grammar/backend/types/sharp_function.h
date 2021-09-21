@@ -56,7 +56,7 @@ struct sharp_function {
             uInt flags,
             Ast *ast,
             List<sharp_field*> &paramaters,
-            sharp_type returnType,
+            sharp_type &returnType,
             function_type type)
     :
             name(name),
@@ -64,12 +64,14 @@ struct sharp_function {
             owner(owner),
             implLocation(location),
             dependencies(),
+            parameters(),
             flags(flags),
             ast(ast),
-            parameters(paramaters),
-            returnType(returnType),
+            returnType(),
             type(type)
     {
+        this->returnType.copy(returnType);
+        copy_parameters(parameters);
         set_full_name(this);
     }
 
@@ -102,10 +104,12 @@ bool create_function(
         function_type type,
         string &name,
         bool checkBaseClass,
-        List<sharp_field*> params,
+        List<sharp_field*> &params,
         sharp_type &returnType,
         Ast *createLocation);
 
 void create_default_constructor(sharp_class*, uInt, Ast*);
+
+string function_to_str(sharp_function*);
 
 #endif //SHARP_SHARP_FUNCTION_H

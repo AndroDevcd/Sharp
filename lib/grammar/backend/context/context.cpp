@@ -69,7 +69,7 @@ sharp_class *get_primary_class(context *ctx) {
     if(ctx->type == class_context || ctx->type == global_context)
         return ctx->classCxt;
 
-    for(Int i = ctx->storedItems.size() - 1; i >= 0; i--) {
+    for(Int i = (Int)ctx->storedItems.size() - 1; i >= 0; i--) {
         stored_context_item &contextItem = ctx->storedItems.get(i);
         if(contextItem.type == class_context
             || contextItem.type == global_context)

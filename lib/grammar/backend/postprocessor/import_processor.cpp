@@ -13,6 +13,9 @@
 
 void process_imports() {
     sharp_file *file = currThread->currTask->file;
+
+    string modName = "std";
+    file->imports.add(get_module(modName));
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;

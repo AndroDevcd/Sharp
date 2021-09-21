@@ -10,7 +10,8 @@ enum task_type {
     task_tokenize_ = 1,
     task_parse_ = 2,
     task_preprocess_ = 3,
-    task_post_process_ = 4
+    task_post_process_ = 4,
+    task_process_delegates = 5
 };
 
 #endif //SHARP_TASK_TYPE_H

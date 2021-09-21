@@ -57,7 +57,7 @@ struct sharp_type {
         fun(NULL),
         module(NULL),
         group(NULL),
-        unresolvedType(NULL),
+        unresolvedType(),
         type(type_untyped),
         isArray(false),
         nullable(false)
@@ -70,7 +70,7 @@ struct sharp_type {
            fun(NULL),
            module(NULL),
            group(NULL),
-           unresolvedType(NULL),
+           unresolvedType(),
            type(type_untyped),
            isArray(false),
            nullable(false)
@@ -88,14 +88,14 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
-            unresolvedType(NULL),
+            unresolvedType(),
             type(type_class),
             isArray(isArray),
             nullable(nullable)
     {}
 
     sharp_type(
-            unresolved_type *unresolvedType)
+            unresolved_type &unresolvedType)
     :
             _class(NULL),
             field(NULL),
@@ -115,7 +115,7 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
-            unresolvedType(NULL),
+            unresolvedType(),
             type(type_field),
             isArray(false),
             nullable(false)
@@ -128,7 +128,7 @@ struct sharp_type {
             module(sm),
             fun(NULL),
             group(NULL),
-            unresolvedType(NULL),
+            unresolvedType(),
             type(type_module),
             isArray(false),
             nullable(false)
@@ -141,7 +141,7 @@ struct sharp_type {
             module(NULL),
             fun(NULL),
             group(group),
-            unresolvedType(NULL),
+            unresolvedType(),
             type(type_import_group),
             isArray(false),
             nullable(false)
@@ -157,7 +157,7 @@ struct sharp_type {
             field(NULL),
             module(NULL),
             group(NULL),
-            unresolvedType(NULL),
+            unresolvedType(),
             fun(fun),
             type(isLambda ? type_lambda_function : type_function),
             isArray(isArray),
@@ -174,7 +174,7 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
-            unresolvedType(NULL),
+            unresolvedType(),
             type(type),
             isArray(isArray),
             nullable(nullable)
@@ -185,7 +185,10 @@ struct sharp_type {
         field = st.field;
         fun = st.fun;
         type = st.type;
-        unresolvedType = new unresolved_type(*st.unresolvedType);
+        for(Int i = 0; i < st.unresolvedType.items.size(); i++) {
+            unresolvedType.items.add(new unresolved_item(*st.unresolvedType.items.get(i)));
+        }
+
         isArray = st.isArray;
         nullable = st.nullable;
         module = st.module;
@@ -197,7 +200,7 @@ struct sharp_type {
     }
 
     void free() {
-        delete unresolvedType;
+        unresolvedType.free();
     }
 
     sharp_class *_class;
@@ -205,7 +208,7 @@ struct sharp_type {
     sharp_module *module;
     import_group *group;
     sharp_function *fun;
-    unresolved_type *unresolvedType;
+    unresolved_type unresolvedType;
     native_type type;
     bool isArray;
     bool nullable;

@@ -70,9 +70,11 @@ sharp_class* create_generic_class(
         if((sc = resolve_class(genericBlueprint->owner, typedName, false, false)) != NULL) {
             return sc;
         } else {
+            List<generic_type_identifier> genericIdentifiers;
             for(Int i = 0; i < genericTypes.size(); i++) {
                 generic_type_identifier *typeIdentifier = &genericBlueprint->genericTypes.get(i);
                 sharp_type *type = &genericTypes.get(i);
+                genericIdentifiers.add(generic_type_identifier(typeIdentifier->name, *type, NULL));
 
                 if(typeIdentifier->baseClass) {
                     if(!(type->type == type_class
@@ -86,13 +88,25 @@ sharp_class* create_generic_class(
             }
 
             classCreated = true;
-            return create_class(currThread->currTask->file, genericBlueprint->owner, typedName, genericBlueprint->flags, genericBlueprint->type, false, genericBlueprint->ast);
+            sc = create_class(
+                    currThread->currTask->file,
+                    genericBlueprint->owner,
+                    typedName,
+                    genericBlueprint->flags,
+                    genericBlueprint->type,
+                    false,
+                    genericBlueprint->ast);
+
+            sc->genericTypes.addAll(genericIdentifiers);
+            genericIdentifiers.free();
+            return sc;
         }
     } else {
         stringstream ss;
         ss << "generic class `" <<  genericBlueprint->fullName << "` expected ("
             << genericBlueprint->genericTypes.size() << ") types but (" << genericTypes.size() << ") was provided";
         currThread->currTask->file->errors->createNewError(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
+        return NULL;
     }
 }
 
@@ -155,7 +169,11 @@ sharp_class* create_class(
         print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
     } else {
-        owner = resolve_class(global_class_name, false, false);
+        owner = resolve_class(module, global_class_name, false, false);
+
+        if(check_flag(flags, flag_global) && owner != NULL) {
+            int i = 0;
+        }
         sc = new sharp_class(
                 name, owner, module,
                 location, flags, ast, type
@@ -181,6 +199,7 @@ void sharp_class::free() {
     genericTypes.free();
     interfaces.free();
     extensionFunctions.free();
+    mutations.free();
     deleteList(children);
     deleteList(functions);
     deleteList(generics);
@@ -246,6 +265,26 @@ bool locate_functions_with_name(
     if(checkBaseClass && owner->baseClass)
         return locate_functions_with_name(
                 name, owner->baseClass, functionType,
+                true, results);
+
+    return !results.empty();
+}
+
+bool locate_functions_with_type(
+        sharp_class *owner,
+        Int functionType,
+        bool checkBaseClass,
+        List<sharp_function*> &results) {
+    GUARD(owner->mut)
+    for(Int i = 0; i < owner->functions.size(); i++) {
+        sharp_function *fun = owner->functions.get(i);
+        if(functionType == fun->type)
+            results.add(fun);
+    }
+
+    if(checkBaseClass && owner->baseClass)
+        return locate_functions_with_type(
+                owner->baseClass, functionType,
                 true, results);
 
     return !results.empty();

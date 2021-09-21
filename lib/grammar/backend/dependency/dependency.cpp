@@ -20,6 +20,7 @@
 #include "../preprocessor/class_preprocessor.h"
 #include "../postprocessor/class_processor.h"
 #include "../astparser/ast_parser.h"
+#include "../postprocessor/mutation_processor.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -34,8 +35,8 @@ sharp_class* resolve_class(
     for(Int i = 0; i < searchList->size(); i++) {
         sc = searchList->get(i);
 
-        if((matchName && sc->name.find(name) != string::npos)
-            || sc->name == name) {
+        if(((matchName && sc->name.find(name) != string::npos)
+            || sc->name == name) && sc->module == module) {
             return sc;
         }
     }
@@ -401,8 +402,9 @@ sharp_function* resolve_function(
     List<sharp_function*> locatedFunctions;
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
+    sharp_type type;
     sharp_function mock_function("mock", searchClass, impl_location(),
-            flag_none, NULL, parameters, sharp_type(), undefined_function);
+            flag_none, NULL, parameters, type, undefined_function);
 
     locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
             locatedFunctions);
@@ -707,7 +709,7 @@ bool resolve_primary_class_function_address(
 
         resultType.type = type_function_ptr;
         resultType.fun = functions.first();
-        resolve_function(functions.first());
+        process_function_return_type(functions.first());
 
         create_get_static_function_address_operation(scheme, functions.first());
 
@@ -945,7 +947,7 @@ bool resolve_global_class_function_address(
 
         resultType.type = type_function_ptr;
         resultType.fun = functions.first();
-        resolve_function(functions.first());
+        process_function_return_type(functions.first());
 
         create_get_static_function_address_operation(scheme, functions.first());
 
@@ -1019,6 +1021,9 @@ void resolve_normal_item(
             return;
         }
 
+        if(item.name == "thread") {
+            int i = 0;
+        }
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
             if(hasFilter(filter, resolve_filter_class_field)
@@ -1097,14 +1102,15 @@ void resolve_normal_item(
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_class)
-           && resolve_global_class(item, primaryClass, resultType, false, context)) {
+        if (hasFilter(filter, resolve_filter_class)
+            && resolve_global_class(item, primaryClass, resultType, false, context)) {
 
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_generic_class)
-           && resolve_global_class(item, primaryClass, resultType, true, context)) {
+
+        if (hasFilter(filter, resolve_filter_generic_class)
+            && resolve_global_class(item, primaryClass, resultType, true, context)) {
 
             return;
         }
@@ -1141,16 +1147,18 @@ void resolve_normal_item(
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_class)
-           && resolve_global_class(item, primaryClass, resultType, false, context)) {
+        if(primaryClass) {
+            if (hasFilter(filter, resolve_filter_class)
+                && resolve_global_class(item, primaryClass, resultType, false, context)) {
 
-            return;
-        }
+                return;
+            }
 
-        if(hasFilter(filter, resolve_filter_generic_class)
-           && resolve_global_class(item, primaryClass, resultType, true, context)) {
+            if (hasFilter(filter, resolve_filter_generic_class)
+                && resolve_global_class(item, primaryClass, resultType, true, context)) {
 
-            return;
+                return;
+            }
         }
 
         if(hasFilter(filter, resolve_filter_function_address)
@@ -1363,7 +1371,7 @@ void resolve_operator_item(
 
         if(primaryClass) {
             if (hasFilter(filter, resolve_filter_class)
-                && resolve_global_class(item, primaryClass, resultType, context)) {
+                && resolve_global_class(item, primaryClass, resultType, false, context)) {
 
                 return;
             }
@@ -1403,10 +1411,12 @@ void resolve_function_ptr_item(
 
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
         sharp_type resolvedType;
-        resolve(item.typeSpecifiers.get(i), resolvedType,
+        resolve(*item.typeSpecifiers.get(i), resolvedType,
                 resolve_hard_type, item.ast, NULL);
+
+        string name = "";
         params.add(new sharp_field(
-                "", primaryClass, location,
+                name, primaryClass, location,
                 resolvedType, flags, normal_field,
                 resolveLocation));
     }
@@ -1439,11 +1449,14 @@ bool resolve_primary_class_function(
 
     List<sharp_field*> params;
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+
+        string name = "param";
+        impl_location location;
         params.add(new sharp_field(
-                "param",
+                name,
                 NULL,
-                impl_location(),
-                item.typeSpecifiers.get(i),
+                location,
+                *item.typeSpecifiers.get(i),
                 flag_none,
                 normal_field,
                 item.ast
@@ -1503,11 +1516,13 @@ bool resolve_global_class_function(
 
     List<sharp_field*> params;
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+        string name = "param";
+        impl_location location;
         params.add(new sharp_field(
-                "param",
+                name,
                 NULL,
-                impl_location(),
-                item.typeSpecifiers.get(i),
+                location,
+                *item.typeSpecifiers.get(i),
                 flag_none,
                 normal_field,
                 item.ast
@@ -1643,12 +1658,12 @@ void resolve_function_reference_item(
     }
 }
 
-string get_typed_generic_class_name(unresolved_item item, List<sharp_type> &resultTypes) {
+string get_typed_generic_class_name(unresolved_item &item, List<sharp_type> &resultTypes) {
     string fullname = item.name + "<";
 
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
         resolve(
-                item.typeSpecifiers.get(i),
+                *item.typeSpecifiers.get(i),
                 resultTypes.__new(),
                 resolve_hard_type,
                 item.ast,
@@ -1690,12 +1705,13 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
     GUARD(genericBlueprint->mut)
     sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created);
 
-    if(created) {
+    if(created && generic) {
         GUARD2(generic->mut)
         genericBlueprint->genericClones.add(generic);
         pre_process_class(NULL, generic, generic->ast);
         process_class(NULL, generic, generic->ast);
         process_generic_extension_functions(generic, genericBlueprint);
+        process_generic_mutations(generic, genericBlueprint);
     }
 
     return genericBlueprint;
@@ -1924,15 +1940,14 @@ void resolve(
         uInt filter,
         Ast *resolveLocation,
         operation_scheme *scheme) {
-    if(unresolvedType.type != type_untyped
-        && unresolvedType.unresolvedType == NULL) {
+    if(unresolvedType.type != type_untyped) {
         resultType.copy(unresolvedType);
     } else {
-        unresolved_type *type = unresolvedType.unresolvedType;
+        unresolved_type &type = unresolvedType.unresolvedType;
         resultType.type = type_untyped;
 
-        for(Int i = 0; i < type->items.size(); i++) {
-            resolve_item(type->items.get(i), resultType,
+        for(Int i = 0; i < type.items.size(); i++) {
+            resolve_item(*type.items.get(i), resultType,
                     scheme, filter, resolveLocation);
 
             if(resultType.type == type_undefined)

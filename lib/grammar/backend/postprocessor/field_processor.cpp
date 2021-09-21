@@ -91,10 +91,11 @@ void process_setter(sharp_field *field, Ast *ast) {
     }
 
     List<sharp_field*> fields;
+    impl_location location(currThread->currTask->file, ast);
     fields.add(new sharp_field(
             ast->getToken(1).getValue(),
             field->owner,
-            impl_location(currThread->currTask->file, ast),
+            location,
             field->type,
             flags,
             normal_field,
@@ -131,19 +132,12 @@ void process_getter(sharp_field *field, Ast *ast) {
         flags |= flag_protected;
 
     List<sharp_field*> fields;
-    fields.add(new sharp_field(
-            ast->getToken(1).getValue(),
-            field->owner,
-            impl_location(currThread->currTask->file, ast),
-            field->type,
-            flags,
-            normal_field,
-            ast));
+    impl_location location(currThread->currTask->file, ast);
 
     sharp_type returnType(type_nil);
     string name = "get_" + field->name;
 
-    if(!create_function(
+    create_function(
             field->owner,
             flags,
             normal_function,
@@ -152,9 +146,7 @@ void process_getter(sharp_field *field, Ast *ast) {
             fields,
             returnType,
             ast
-    )) {
-        deleteList(fields);
-    }
+    );
 }
 
 

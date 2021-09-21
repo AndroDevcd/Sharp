@@ -15,6 +15,7 @@
 #include "../types/sharp_function.h"
 #include "function_processor.h"
 #include "delegate_processor.h"
+#include "mutation_processor.h"
 
 void post_process() {
     sharp_file *file = currThread->currTask->file;
@@ -30,17 +31,15 @@ void post_process() {
             if(trunk->getType() == ast_module_decl) {
                 string package = concat_tokens(trunk);
                 currModule = create_module(package);
-                create_global_class();
             } else {
                 string package = "__$srt_undefined";
                 currModule = create_module(package);
-                create_global_class();
 
-                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col, "module declaration must be "
-                                                                                                     "first in every file");
+                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col, "module declaration must be ""first in every file");
             }
 
             globalClass = resolve_class(currModule, global_class_name, false, false);
+            create_context(globalClass, true);
             continue;
         }
 
@@ -73,6 +72,7 @@ void post_process() {
                 process_function(globalClass, delegate_function, trunk);
                 break;
             case ast_mutate_decl:
+            case ast_import_decl:
             case ast_obfuscate_decl:
                 /* ignore */
                 break;
@@ -84,6 +84,8 @@ void post_process() {
                 break;
         }
     }
+
+    delete_context();
 }
 
 void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) {
@@ -115,6 +117,9 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
             case ast_method_decl:
                 process_function(with_class, normal_function, trunk);
                 break;
+            case ast_delegate_decl:
+                process_function(with_class, delegate_function, trunk);
+                break;
             case ast_construct_decl:
                 process_function(with_class, constructor_function, trunk);
                 break;
@@ -122,8 +127,14 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                 process_function(with_class, initializer_function, trunk);
                 break;
             case ast_mutate_decl:
+                process_mutation(trunk);
+                break;
+
             case ast_init_decl:
+            case ast_enum_decl:
             case ast_obfuscate_decl:
+            case ast_generic_interface_decl:
+            case ast_generic_class_decl:
                 /* ignore */
                 break;
             default:
@@ -134,6 +145,5 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
         }
     }
 
-    process_delegates(with_class); // todo: add provision to search for function and force return type compare as well
     delete_context();
 }

@@ -94,5 +94,7 @@ sharp_field* create_field(
 }
 
 void sharp_field::set_full_name() {
-    fullName = owner->fullName + "." + name;
+    if(owner != NULL)
+        fullName = owner->fullName + "." + name;
+    else fullName = name;
 }

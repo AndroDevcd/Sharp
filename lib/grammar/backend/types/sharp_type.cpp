@@ -15,7 +15,7 @@ sharp_type get_type(sharp_type &st) {
         return st.field->type;
     }
 
-    return sharp_type();
+    return st;
 }
 
 native_type str_to_native_type(string &str) {
@@ -138,7 +138,9 @@ type_match_result is_implicit_type_match(
 
             uInt result = no_match_found;
             List<sharp_field*> params;
-            params.add(new sharp_field("mock", NULL, impl_location(),
+            string name = "mock";
+            impl_location location;
+            params.add(new sharp_field(name, NULL, location,
                     comparee, flag_none, normal_field, NULL));
 
             if(has_match_result_flag(excludedMatches, match_constructor)

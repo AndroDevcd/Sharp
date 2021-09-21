@@ -12,6 +12,7 @@ enum function_type {
     operator_function = 4,
     delegate_function = 5,
     blueprint_function = 6,
+    native_function = 7,
     undefined_function = 0
 };
 
