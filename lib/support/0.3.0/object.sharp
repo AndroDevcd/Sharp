@@ -9,12 +9,12 @@ import (
  *
  * _object_ is the "god" class of all classes and enums in
  * Sharp. This class represents a common link shared between
- * each class allowing you to manipulate classes without not
+ * each class allowing you to manipulate classes without
  * needing to know its true makeup.
  */
 stable class _object_ : printable, unique {
 
-    public def to_string() := new string();
+    public def to_string() : string = new string();
 
     def wait() {
         asm {
@@ -56,8 +56,6 @@ stable class _object_ : printable, unique {
         /* must be implemented at a higher level */
         return 0;
     }
-
-    def foo();
 
     def guid() : _int64 {
         /* user must impl at higher level if constant guid is desired */
