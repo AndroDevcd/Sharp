@@ -13,7 +13,7 @@
 
 #ifdef WIN32_
 #define is_newline(c) \
-    (('\n' == c) || ('\r' == c))
+    (('\n' == c))
 #endif
 
 #ifdef POSIX_
@@ -131,9 +131,10 @@ void tokenizer::parse()
                 // ignore whitespace
                 break;
 
-            case '\n':
+            case '\n': {
                 newline()
                 break;
+            }
 
             case '_':
             case 'A': case 'B': case 'C': case 'D': case 'E':
@@ -182,7 +183,7 @@ void tokenizer::parse()
                     while(!is_end)
                     {
                         if(is_newline(current)){
-                            newline();
+                            newline()
                         } else if(current == '*' && peek(1) == '/') {
                             if(nests == 0) {
                                 found_end = true;

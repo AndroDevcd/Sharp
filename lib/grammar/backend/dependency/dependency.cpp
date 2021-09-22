@@ -21,6 +21,7 @@
 #include "../postprocessor/class_processor.h"
 #include "../astparser/ast_parser.h"
 #include "../postprocessor/mutation_processor.h"
+#include "../postprocessor/delegate_processor.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -1712,6 +1713,7 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
         process_class(NULL, generic, generic->ast);
         process_generic_extension_functions(generic, genericBlueprint);
         process_generic_mutations(generic, genericBlueprint);
+        process_delegates(generic);
     }
 
     return genericBlueprint;

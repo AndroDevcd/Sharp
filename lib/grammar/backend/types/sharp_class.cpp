@@ -50,7 +50,7 @@ sharp_class* create_generic_class(
         sharp_class *genericBlueprint,
         List<sharp_type> &genericTypes,
         bool &classCreated) {
-    GUARD(globalLock)
+
     if(genericTypes.size() == genericBlueprint->genericTypes.size()) {
         sharp_class *sc;
 
@@ -126,14 +126,15 @@ sharp_class* create_class(
         location.col = ast->col;
     }
 
-    GUARD(owner->mut)
     if((sc = resolve_class(owner, name, false, false)) != NULL
        || (sc = resolve_class(owner, name, true, false)) != NULL) {
-        file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "child class `" + name +
-                                    "` is already defined in class {" + sc->fullName + "}");
-        print_impl_location(sc->name, "class", sc->implLocation);
+        GUARD(globalLock)
+        if(file->errors->createNewError(PREVIOUSLY_DEFINED, ast, "child class `" + name +
+                                    "` is already defined in class {" + sc->fullName + "}"))
+            print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
     } else {
+        GUARD(owner->mut)
         sc = new sharp_class(
                 name, owner, owner->module,
                 location, flags, ast, type
@@ -161,16 +162,17 @@ sharp_class* create_class(
         location.col = ast->col;
     }
 
-    GUARD(globalLock)
     if((sc = resolve_class(module, name, false, false)) != NULL
         || (sc = resolve_class(module, name, true, false)) != NULL) {
-        file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "class `" + name +
-                                  "` is already defined in module {" + module->name + "}");
-        print_impl_location(sc->name, "class", sc->implLocation);
+        GUARD(globalLock)
+        if(file->errors->createNewError(PREVIOUSLY_DEFINED, ast, "class `" + name +
+                                  "` is already defined in module {" + module->name + "}"))
+            print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
     } else {
         owner = resolve_class(module, global_class_name, false, false);
 
+        GUARD(globalLock)
         if(check_flag(flags, flag_global) && owner != NULL) {
             int i = 0;
         }

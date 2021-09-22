@@ -373,7 +373,19 @@ void run_post_processing_tasks() {
     for(Int i = 0; i < sharpFiles.size(); i++) {
         t.type = task_post_process_;
         t.file = sharpFiles.get(i);
-        submit_task(t); // todo: process mutations
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_delegate_processing_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_delegates_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
     }
 
     wait_for_tasks();
@@ -391,6 +403,7 @@ int compile()
     start_task_delegator();
     run_pre_processing_tasks();
     run_post_processing_tasks();
+    run_delegate_processing_tasks();
 
 //    stringstream ss;
 //    uInt tabCount = 0;

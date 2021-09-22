@@ -99,7 +99,8 @@ type_match_result is_explicit_type_match(sharp_type comparer, sharp_type compare
                     ), match_normal);
             } else return match_normal;
         } else return with_result(
-                function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true), match_normal);
+                function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true),
+                match_normal);
     } else return no_match_found;
 }
 

@@ -75,6 +75,7 @@ void wait_for_tasks();
 void submit_task(task t);
 bool post_task(task);
 void execute_task();
+void remove_all_posted_tasks(sharp_file *file);
 
 
 enum ThreadProcessingResult {

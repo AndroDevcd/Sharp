@@ -7,6 +7,7 @@
 #include "../backend/preprocessor/class_preprocessor.h"
 #include "../backend/postprocessor/import_processor.h"
 #include "../backend/postprocessor/class_processor.h"
+#include "../backend/postprocessor/delegate_processor.h"
 
 thread_local worker_thread *currThread;
 
@@ -63,6 +64,7 @@ void tokenize_file() {
         file->compilationFailed = true;
         file->tok->getErrors()->printErrors();
         delete file->tok; file->tok = NULL;
+        remove_all_posted_tasks(file);
     }
 
     file->stage = tokenized;
@@ -80,6 +82,7 @@ void parse_file() {
         if(file->p->panic)
             panic = true;
         delete file->p; file->p = NULL;
+        remove_all_posted_tasks(file);
     } else if(file->p->parsed)
         file->stage = parsed;
 }
@@ -96,6 +99,13 @@ void post_process_() {
 
     post_process();
     file->stage = classes_post_processed;
+}
+
+void process_delegates_() {
+    sharp_file *file = currThread->currTask->file;
+
+    process_delegates();
+    file->stage = class_delegates_processed;
 }
 
 void execute_task() {
@@ -119,6 +129,10 @@ void execute_task() {
         }
         case task_post_process_: {
             post_process_();
+            break;
+        }
+        case task_process_delegates_: {
+            process_delegates_();
             break;
         }
     }

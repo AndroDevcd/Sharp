@@ -172,7 +172,13 @@ void process_function(
             returnType, ast)) {
         sharp_function *fun = with_class->functions.last();
 
-        if(ast->hasToken(":")) {
+        if(name == "path_separator" && fun->owner->name == "file_system") {
+            int i = 0;
+        }
+        if(name == "path_separator" && fun->owner->name == "unix_fs") {
+            int i = 0;
+        }
+        if(ast->hasSubAst(ast_method_return_type)) {
             Ast *returnTypeAst = ast->getSubAst(ast_method_return_type);
 
             if(returnTypeAst->hasToken("nil")) {
@@ -193,11 +199,11 @@ void process_function(
 void process_function_return_type(sharp_function *fun) {
     if(fun->returnType.type == type_untyped
         && fun->ast->hasSubAst(ast_expression)
-        && currThread->currTask->file->stage > pre_compilation) {
+        && currThread->currTask->file->stage >= pre_compilation_finished_state) {
         fun->returnType.type = type_undefined;
 
-        expression e = compile_expression(fun->ast->getSubAst(ast_expression));
-        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+//        expression e = compile_expression(fun->ast->getSubAst(ast_expression));
+//        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
     }
 }
 

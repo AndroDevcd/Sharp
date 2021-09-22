@@ -31,7 +31,7 @@ bool create_function(
         sharp_type &returnType,
         Ast *createLocation) {
 
-    GUARD(sc->mut)
+    GUARD(globalLock)
     sharp_function *sf;
     if((sf = resolve_function(name, sc, params, type,
             0, createLocation, checkBaseClass, false)) == NULL) {
@@ -42,10 +42,10 @@ bool create_function(
         sc->functions.add(sf);
         return true;
     } else {
-        currThread->currTask->file->errors->createNewError(
+        if(currThread->currTask->file->errors->createNewError(
                 PREVIOUSLY_DEFINED, createLocation, "function `" + name +
-                            "` is already defined");
-        print_impl_location(sf->name, "function", sf->implLocation);
+                            "` is already defined"))
+            print_impl_location(sf->name, "function", sf->implLocation);
         return false;
     }
 }
@@ -92,13 +92,17 @@ bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> 
     if(comparer.size() != comparee.size()) return false;
 
     for(Int i = 0; i < comparer.size(); i++) {
-        if(!(explicitMatch && is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type))
-            && !(!explicitMatch && is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, 0))) {
+        if(explicitMatch && !is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type)) {
             return false;
+        } else if(!explicitMatch){
+            if(!is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type)
+                 && !is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, 0)) {
+                return false;
+            }
         }
     }
 
-    return false;
+    return true;
 }
 
 void sharp_function::free() {
@@ -106,7 +110,7 @@ void sharp_function::free() {
     deleteList(parameters);
 }
 
-void sharp_function::copy_parameters(List<sharp_field *> params) {
+void sharp_function::copy_parameters(const List<sharp_field *> &params) {
     for(Int i = 0; i < params.size(); i++)
         parameters.add(new sharp_field(*params.get(i)));
 }

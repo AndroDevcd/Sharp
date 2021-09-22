@@ -202,6 +202,18 @@ bool post_task(task t) {
 
 void submit_task(task t) {
     GUARD(taskMutex)
-    task_queue.add(t);
-    delegator.allWorkersFree = false;
+    if(!t.file->compilationFailed) {
+        task_queue.add(t);
+        delegator.allWorkersFree = false;
+    }
+}
+
+void remove_all_posted_tasks(sharp_file *file) {
+    GUARD(taskMutex)
+
+    for(Int i = 0; i < task_queue.size(); i++) {
+        if(task_queue.get(i).file == file) {
+            task_queue.removeAt(i); i--;
+        }
+    }
 }

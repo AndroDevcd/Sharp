@@ -55,7 +55,7 @@ struct sharp_function {
             impl_location location,
             uInt flags,
             Ast *ast,
-            List<sharp_field*> &paramaters,
+            List<sharp_field*> &parameters,
             sharp_type &returnType,
             function_type type)
     :
@@ -80,7 +80,7 @@ struct sharp_function {
     }
 
     void free();
-    void copy_parameters(List<sharp_field*> params);
+    void copy_parameters(const List<sharp_field*> &params);
 
     string name;
     string fullName;
