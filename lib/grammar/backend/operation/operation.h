@@ -7,11 +7,13 @@
 
 #include "../../../../stdimports.h"
 #include "../../List.h"
+#include "../types/type_match_result.h"
 
 struct sharp_field;
 struct sharp_class;
 struct sharp_function;
 struct operation_step;
+struct sharp_type;
 
 enum operation_type {
     operation_none,
@@ -23,7 +25,9 @@ enum operation_type {
     operation_call_instance_function,
     operation_call_static_function,
     operation_get_static_function_address,
-    operation_push_value_to_stack
+    operation_push_value_to_stack,
+    operation_push_parameter_to_stack,
+    operation_create_class
 };
 
 enum _operation_scheme {
@@ -35,7 +39,8 @@ enum _operation_scheme {
     scheme_call_getter_function,
     scheme_get_address,
     scheme_call_instance_function,
-    scheme_call_static_function
+    scheme_call_static_function,
+    scheme_new_class
 };
 
 struct operation_scheme {
@@ -43,6 +48,8 @@ struct operation_scheme {
             :
             schemeType(scheme_none),
             field(NULL),
+            sc(NULL),
+            fun(NULL),
             steps()
     {}
 
@@ -50,6 +57,8 @@ struct operation_scheme {
             :
             schemeType(scheme_none),
             field(NULL),
+            sc(NULL),
+            fun(NULL),
             steps()
     {
         copy(scheme);
@@ -68,6 +77,7 @@ struct operation_scheme {
     _operation_scheme schemeType;
     sharp_field *field;
     sharp_function *fun;
+    sharp_class *sc;
     List<operation_step> steps;
 };
 
@@ -99,9 +109,9 @@ struct operation_step {
         function(NULL)
     {}
 
-    operation_step(operation_scheme *scheme)
+    operation_step(operation_scheme *scheme, operation_type type = operation_step_scheme)
     :
-        type(operation_step_scheme),
+        type(type),
         field(NULL),
         _class(NULL),
         scheme(scheme),
@@ -190,6 +200,13 @@ void create_static_function_call_operation(
         operation_scheme *scheme,
         List<operation_scheme> &paramScheme,
         sharp_function *fun);
+
+void create_function_parameter_push_operation(
+        sharp_type *paramType,
+        type_match_result matchResult,
+        sharp_function *constructor,
+        operation_scheme *paramScheme,
+        operation_scheme *resultScheme);
 
 
 #endif //SHARP_OPERATION_H

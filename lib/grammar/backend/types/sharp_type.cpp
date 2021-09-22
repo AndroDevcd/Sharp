@@ -108,6 +108,15 @@ type_match_result is_implicit_type_match(
         sharp_type comparer,
         sharp_type comparee,
         uInt excludedMatches) {
+    sharp_function *ignoredMatchFun = NULL;
+    return is_implicit_type_match(comparer, comparee, excludedMatches, ignoredMatchFun);
+}
+
+type_match_result is_implicit_type_match(
+        sharp_type comparer,
+        sharp_type comparee,
+        uInt excludedMatches,
+        sharp_function *&matchedFun) {
     comparer = get_type(comparer);
     comparee = get_type(comparee);
 
@@ -145,26 +154,26 @@ type_match_result is_implicit_type_match(
                     comparee, flag_none, normal_field, NULL));
 
             if(has_match_result_flag(excludedMatches, match_constructor)
-               && (resolve_function(comparer._class->name, comparer._class,
+               && ((matchedFun = resolve_function(comparer._class->name, comparer._class,
                                     params, constructor_function,
                                     match_constructor | match_initializer | match_operator_overload,
-                                    NULL, true, true) != NULL)) {
+                                    NULL, true, true)) != NULL)) {
                 result |= match_constructor;
             }
 
             if(has_match_result_flag(excludedMatches, match_initializer)
-               && (resolve_function("init<>"+ comparer._class->name, comparer._class,
+               && ((matchedFun = resolve_function("init<"+ comparer._class->name + ">", comparer._class,
                                     params, initializer_function,
                                     match_constructor | match_initializer | match_operator_overload,
-                                    NULL, true, true) != NULL)) {
+                                    NULL, true, true)) != NULL)) {
                 result |= match_initializer;
             }
 
             if(has_match_result_flag(excludedMatches, match_operator_overload)
-               && (resolve_function("operator=", comparer._class,
+               && (matchedFun = resolve_function("operator=", comparer._class,
                                     params, operator_function,
                                     match_constructor | match_initializer | match_operator_overload,
-                                    NULL, true, true) != NULL)) {
+                                    NULL, true, true)) != NULL)) {
                 result |= match_operator_overload;
             }
 

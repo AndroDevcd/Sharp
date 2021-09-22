@@ -7,6 +7,7 @@
 
 #include "../../../../stdimports.h"
 #include "unresolved_type.h"
+#include "type_match_result.h"
 
 enum native_type {
     type_int8,
@@ -31,14 +32,6 @@ enum native_type {
     type_any,
     type_untyped,
     type_undefined
-};
-
-enum type_match_result {
-    no_match_found = 0x0,
-    match_normal = 0x1,
-    match_constructor =0x2,
-    match_operator_overload = 0x4,
-    match_initializer = 0x8
 };
 
 void dispose_function_ptr(sharp_type*);
@@ -203,6 +196,10 @@ struct sharp_type {
         unresolvedType.free();
     }
 
+    bool operator==(native_type t) const {
+        return type == t;
+    }
+
     sharp_class *_class;
     sharp_field *field;
     sharp_module *module;
@@ -281,7 +278,15 @@ struct sharp_type {
  * @return Returns wether or not the types matched explicitly or implicitly
  */
 type_match_result is_explicit_type_match(sharp_type, sharp_type);
-type_match_result is_implicit_type_match(sharp_type, sharp_type, uInt excludeMatches);
+type_match_result is_implicit_type_match(
+        sharp_type,
+        sharp_type,
+        uInt excludeMatches);
+type_match_result is_implicit_type_match(
+        sharp_type,
+        sharp_type,
+        uInt excludeMatches,
+        sharp_function *&matchedFun);
 
 sharp_type get_type(sharp_type&);
 native_type str_to_native_type(string&);

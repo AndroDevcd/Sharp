@@ -44,7 +44,7 @@ void create_primary_instance_field_access_operation(
         scheme->steps.add(operation_step(
                 operation_get_primary_class_instance, instanceField->owner));
         scheme->steps.add(operation_step(
-                operation_call_instance_function, instanceField->getter));
+                operation_get_instance_field_value, instanceField));
     }
 }
 
@@ -59,7 +59,7 @@ void create_primary_instance_field_getter_operation(
         scheme->steps.add(operation_step(
                 operation_get_primary_class_instance, instanceField->owner));
         scheme->steps.add(operation_step(
-                operation_get_instance_field_value, instanceField));
+                operation_call_instance_function, instanceField->getter));
     }
 }
 
@@ -71,7 +71,7 @@ void create_instance_field_access_operation(
         scheme->field = instanceField;
 
         scheme->steps.add(operation_step(
-                operation_call_instance_function, instanceField->getter));
+                operation_get_instance_field_value, instanceField));
     }
 }
 
@@ -84,7 +84,7 @@ void create_instance_field_getter_operation(
         scheme->field = instanceField;
 
         scheme->steps.add(operation_step(
-                operation_get_instance_field_value, instanceField));
+                operation_call_instance_function, instanceField->getter));
     }
 }
 
@@ -115,11 +115,10 @@ void create_primary_class_function_call_operation(
         ));
 
         for(Int i = 0; i < paramScheme.size(); i++) {
-            scheme->steps.addAll(paramScheme.get(1).steps);
-
             scheme->steps.add(operation_step(
-                    operation_push_value_to_stack
-            ));
+                    new operation_scheme(paramScheme.get(i)),
+                    operation_push_parameter_to_stack
+                    ));
         }
 
         scheme->steps.add(operation_step(
@@ -138,10 +137,9 @@ void create_instance_function_call_operation(
         ));
 
         for(Int i = 0; i < paramScheme.size(); i++) {
-            scheme->steps.addAll(paramScheme.get(1).steps);
-
             scheme->steps.add(operation_step(
-                    operation_push_value_to_stack
+                    new operation_scheme(paramScheme.get(i)),
+                    operation_push_parameter_to_stack
             ));
         }
 
@@ -159,15 +157,48 @@ void create_static_function_call_operation(
         scheme->free();
 
         for(Int i = 0; i < paramScheme.size(); i++) {
-            scheme->steps.addAll(paramScheme.get(1).steps);
-
             scheme->steps.add(operation_step(
-                    operation_push_value_to_stack
+                    new operation_scheme(paramScheme.get(i)),
+                    operation_push_parameter_to_stack
             ));
         }
 
         scheme->steps.add(operation_step(
                 operation_call_static_function, fun));
+    }
+}
+
+
+void create_function_parameter_push_operation(
+        sharp_type *paramType,
+        type_match_result matchResult,
+        sharp_function *constructor,
+        operation_scheme *paramScheme,
+        operation_scheme *resultScheme) {
+    if(paramType && paramScheme && resultScheme) {
+        if(matchResult == match_normal) {
+            resultScheme->copy(*paramScheme);
+        } else { // assuming matchResult is match_constructor
+            sharp_class *with_class = paramType->_class;
+
+            if(with_class) {
+                resultScheme->schemeType = scheme_new_class;
+                resultScheme->sc = with_class;
+
+                resultScheme->steps.add(
+                        operation_step(
+                            operation_create_class,
+                            with_class
+                        )
+                );
+
+                List<operation_scheme> scheme;
+                scheme.add(*paramScheme);
+                create_instance_function_call_operation(
+                        resultScheme, scheme, constructor);
+                scheme.free();
+            }
+        }
     }
 }
 
@@ -178,5 +209,7 @@ void operation_step::freeStep()  {
 void operation_scheme::copy(const operation_scheme &scheme) {
     schemeType = scheme.schemeType;
     field = scheme.field;
+    fun = scheme.fun;
+    sc = scheme.sc;
     steps.addAll(scheme.steps);
 }

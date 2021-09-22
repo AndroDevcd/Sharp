@@ -6,7 +6,7 @@
 #define SHARP_FIELD_PROCESSOR_H
 
 #include "../../frontend/parser/Ast.h"
-#include "../compiler/expression_compiler.h"
+#include "../compiler/expressions/expression.h"
 
 struct sharp_field;
 struct sharp_class;

@@ -1473,7 +1473,7 @@ bool resolve_primary_class_function(
             0,
             item.ast,
             true,
-            true)) != NULL) {
+            true)) != NULL) { // todo: updae these to respect type match result use operator overload as a reference
         resultType.type = type_function;
         resultType.fun = fun;
         process_function_return_type(fun);

@@ -16,7 +16,7 @@ void process_function(
     string name;
 
     if(type == initializer_function) {
-        name = with_class->name;
+        name = "init<" + with_class->name + ">";
     } else if(type == constructor_function) {
         name = ast->getToken(0).getValue();
 

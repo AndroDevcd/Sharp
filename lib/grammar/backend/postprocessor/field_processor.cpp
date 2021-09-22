@@ -7,7 +7,7 @@
 #include "../types/sharp_class.h"
 #include "../types/sharp_field.h"
 #include "../../taskdelegator/task_delegator.h"
-#include "../compiler/expression_compiler.h"
+#include "../compiler/expressions/expression.h"
 #include "../operation/operation.h"
 #include "../types/sharp_function.h"
 
