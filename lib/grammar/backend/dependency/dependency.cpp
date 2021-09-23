@@ -1470,10 +1470,10 @@ bool resolve_primary_class_function(
             primaryClass,
             params,
             undefined_function,
-            0,
+            match_operator_overload | match_initializer,
             item.ast,
             true,
-            true)) != NULL) { // todo: updae these to respect type match result use operator overload as a reference
+            true)) != NULL) {
         resultType.type = type_function;
         resultType.fun = fun;
         process_function_return_type(fun);
@@ -1485,22 +1485,10 @@ bool resolve_primary_class_function(
         resultType.nullable = fun->returnType.nullable;
         resultType.isArray = fun->returnType.isArray;
 
-        if(scheme) {
-            if(isStaticCall) {
-                if(!check_flag(fun->flags, flag_static)) {
-                    create_new_warning(GENERIC, __w_ambig, item.ast->line,item.ast->col,
-                                " call to static function `" + item.name + "` via reference");
-                }
-
-                create_static_function_call_operation(scheme, item.operations, fun);
-            } else {
-                if(isPrimaryClass)
-                    create_primary_class_function_call_operation(scheme, item.operations, fun);
-                else {
-                    create_instance_function_call_operation(scheme, item.operations, fun);
-                }
-            }
-        }
+        compile_function_call(
+                scheme, params, item.operations,
+                fun, isStaticCall, isPrimaryClass
+        );
 
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, fun);
@@ -1538,7 +1526,7 @@ bool resolve_global_class_function(
                 currThread->currTask->file,
                 params,
                 undefined_function,
-                0,
+                match_operator_overload | match_initializer,
                 item.ast,
                 true,
                 true);
@@ -1549,7 +1537,7 @@ bool resolve_global_class_function(
                     resultType.group,
                     params,
                     undefined_function,
-                    0,
+                    match_operator_overload | match_initializer,
                     item.ast,
                     true,
                     true);
@@ -1559,7 +1547,7 @@ bool resolve_global_class_function(
                     resultType.module,
                     params,
                     undefined_function,
-                    0,
+                    match_operator_overload | match_initializer,
                     item.ast,
                     true,
                     true);
@@ -1579,13 +1567,21 @@ bool resolve_global_class_function(
         resultType.isArray = fun->returnType.isArray;
 
         if(scheme) {
-            create_static_function_call_operation(scheme, item.operations, fun);
+
+            compile_function_call(
+                    scheme, params, item.operations,
+                    fun, true, false
+            );
         }
 
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, fun);
+        params.free();
         return true;
-    } else return false;
+    } else {
+        params.free();
+        return false;
+    }
 }
 
 void resolve_function_reference_item(

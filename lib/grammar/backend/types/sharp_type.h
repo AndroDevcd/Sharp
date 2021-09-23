@@ -31,7 +31,9 @@ enum native_type {
     type_nil,
     type_any,
     type_untyped,
-    type_undefined
+    type_undefined,
+    type_integer,
+    type_decimal,
 };
 
 void dispose_function_ptr(sharp_type*);
@@ -53,7 +55,9 @@ struct sharp_type {
         unresolvedType(),
         type(type_untyped),
         isArray(false),
-        nullable(false)
+        nullable(false),
+        integer(0),
+        decimal(0)
     {}
 
     sharp_type(const sharp_type &st)
@@ -66,7 +70,9 @@ struct sharp_type {
            unresolvedType(),
            type(type_untyped),
            isArray(false),
-           nullable(false)
+           nullable(false),
+           integer(0),
+           decimal(0)
     {
         copy(st);
     }
@@ -84,7 +90,9 @@ struct sharp_type {
             unresolvedType(),
             type(type_class),
             isArray(isArray),
-            nullable(nullable)
+            nullable(nullable),
+            integer(0),
+            decimal(0)
     {}
 
     sharp_type(
@@ -98,7 +106,9 @@ struct sharp_type {
             unresolvedType(unresolvedType),
             type(type_untyped),
             isArray(false),
-            nullable(false)
+            nullable(false),
+            integer(0),
+            decimal(0)
     {}
 
     sharp_type(sharp_field *sf)
@@ -111,7 +121,9 @@ struct sharp_type {
             unresolvedType(),
             type(type_field),
             isArray(false),
-            nullable(false)
+            nullable(false),
+            integer(0),
+            decimal(0)
     {}
 
     sharp_type(sharp_module *sm)
@@ -124,7 +136,9 @@ struct sharp_type {
             unresolvedType(),
             type(type_module),
             isArray(false),
-            nullable(false)
+            nullable(false),
+            integer(0),
+            decimal(0)
     {}
 
     sharp_type(import_group *group)
@@ -137,7 +151,9 @@ struct sharp_type {
             unresolvedType(),
             type(type_import_group),
             isArray(false),
-            nullable(false)
+            nullable(false),
+            integer(0),
+            decimal(0)
     {}
 
     sharp_type(
@@ -154,7 +170,9 @@ struct sharp_type {
             fun(fun),
             type(isLambda ? type_lambda_function : type_function),
             isArray(isArray),
-            nullable(nullable)
+            nullable(nullable),
+            integer(0),
+            decimal(0)
     {}
 
     sharp_type(
@@ -170,7 +188,9 @@ struct sharp_type {
             unresolvedType(),
             type(type),
             isArray(isArray),
-            nullable(nullable)
+            nullable(nullable),
+            integer(0),
+            decimal(0)
     {}
 
     void copy(const sharp_type &st) {
@@ -186,6 +206,8 @@ struct sharp_type {
         nullable = st.nullable;
         module = st.module;
         group = st.group;
+        integer = st.integer;
+        decimal = st.decimal;
     }
 
     ~sharp_type() {
@@ -209,6 +231,8 @@ struct sharp_type {
     native_type type;
     bool isArray;
     bool nullable;
+    Int integer;
+    double decimal;
 };
 
 /**

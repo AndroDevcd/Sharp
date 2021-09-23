@@ -2038,7 +2038,7 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
         int i = 3000;
     }
 
-    if(peek(1)->getType() ==MINUS) {
+    if(peek(1)->getType() == MINUS) {
         advance();
         Ast *exprAst = getBranch(branch, ast_minus_e);
         branch->addToken(current());

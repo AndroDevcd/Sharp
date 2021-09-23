@@ -148,6 +148,82 @@ void create_instance_function_call_operation(
     }
 }
 
+void create_get_integer_constant_operation(
+        operation_scheme *scheme,
+        Int integer) {
+    scheme->schemeType = scheme_get_constant;
+    scheme->free();
+
+    scheme->steps.add(operation_step(
+            operation_get_integer_constant, integer));
+}
+
+void create_get_decimal_constant_operation(
+        operation_scheme *scheme,
+        double decimal) {
+    scheme->schemeType = scheme_get_constant;
+    scheme->free();
+
+    scheme->steps.add(operation_step(
+            operation_get_decimal_constant, decimal));
+}
+
+void create_negate_operation(operation_scheme *scheme) {
+    scheme->steps.add(operation_step(operation_negate_value));
+}
+
+void create_increment_operation(
+        operation_scheme *scheme,
+        native_type type) {
+    if(type == type_var) {
+        scheme->steps.add(operation_step(operation_var_increment));
+    } else if(type == type_int8) {
+        scheme->steps.add(operation_step(operation_int8_increment));
+    } else if(type == type_int16) {
+        scheme->steps.add(operation_step(operation_int16_increment));
+    } else if(type == type_int32) {
+        scheme->steps.add(operation_step(operation_int32_increment));
+    } else if(type == type_int64) {
+        scheme->steps.add(operation_step(operation_int64_increment));
+    } else if(type == type_uint8) {
+        scheme->steps.add(operation_step(operation_uint8_increment));
+    } else if(type == type_uint16) {
+        scheme->steps.add(operation_step(operation_uint16_increment));
+    } else if(type == type_uint32) {
+        scheme->steps.add(operation_step(operation_uint32_increment));
+    } else if(type == type_uint64) {
+        scheme->steps.add(operation_step(operation_uint64_increment));
+    } else {
+        scheme->steps.add(operation_step(operation_illegal));
+    }
+}
+
+void create_decrement_operation(
+        operation_scheme *scheme,
+        native_type type) {
+    if(type == type_var) {
+        scheme->steps.add(operation_step(operation_var_decrement));
+    } else if(type == type_int8) {
+        scheme->steps.add(operation_step(operation_int8_decrement));
+    } else if(type == type_int16) {
+        scheme->steps.add(operation_step(operation_int16_decrement));
+    } else if(type == type_int32) {
+        scheme->steps.add(operation_step(operation_int32_decrement));
+    } else if(type == type_int64) {
+        scheme->steps.add(operation_step(operation_int64_decrement));
+    } else if(type == type_uint8) {
+        scheme->steps.add(operation_step(operation_uint8_decrement));
+    } else if(type == type_uint16) {
+        scheme->steps.add(operation_step(operation_uint16_decrement));
+    } else if(type == type_uint32) {
+        scheme->steps.add(operation_step(operation_uint32_decrement));
+    } else if(type == type_uint64) {
+        scheme->steps.add(operation_step(operation_uint64_decrement));
+    } else {
+        scheme->steps.add(operation_step(operation_illegal));
+    }
+}
+
 void create_static_function_call_operation(
         operation_scheme *scheme,
         List<operation_scheme> &paramScheme,

@@ -22,7 +22,7 @@ void compile_expression_for_type(sharp_type &type, Ast *ast) {
 }
 
 
-void compile_class_for_overload(
+void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
@@ -41,15 +41,36 @@ void compile_class_for_overload(
             true,
             true)) != NULL) {
 
+        compile_function_call(&e.scheme, params, paramOperations, fun, false, false);
+
+    } else {
+        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                "use of operator `" + op + "` does not have any qualified overloads with class `" + with_class->fullName + "`");
+
+    }
+}
+
+void compile_function_call(
+        operation_scheme *scheme,
+        List<sharp_field*> & params,
+        List<operation_scheme> &paramOperations,
+        sharp_function *callee,
+        bool isStaticCall,
+        bool isPrimaryClass) {
+    if(scheme) {
         type_match_result matchResult;
         List<operation_scheme> compiledParamOperations;
-        for(Int i = 0; i < params.size(); i++) {
-            sharp_type *asignee = &fun->parameters.get(1)->type;
+        for (Int i = 0; i < params.size(); i++) {
+            sharp_type *asignee = &callee->parameters.get(1)->type;
             sharp_type *assigner = &params.get(i)->type;
             sharp_function *matchedConstructor = NULL;
 
             matchResult = is_explicit_type_match(*asignee, *assigner);
-            if(matchResult == no_match_found) matchResult = is_implicit_type_match(*asignee, *asignee, 0, matchedConstructor);
+            if (matchResult == no_match_found) {
+                matchResult = is_implicit_type_match(
+                        *asignee, *asignee, 0,
+                        matchedConstructor);
+            }
 
             create_function_parameter_push_operation(
                     asignee,
@@ -60,10 +81,14 @@ void compile_class_for_overload(
             );
         }
 
-        create_instance_function_call_operation(&e.scheme, compiledParamOperations, fun);
-    } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
-                "use of operator `" + op + "` does not have any qualified overloads with class `" + with_class->fullName + "`");
-
+        if (isStaticCall) {
+            create_static_function_call_operation(scheme, compiledParamOperations, callee);
+        } else {
+            if (isPrimaryClass)
+                create_primary_class_function_call_operation(scheme, compiledParamOperations, callee);
+            else {
+                create_instance_function_call_operation(scheme, compiledParamOperations, callee);
+            }
+        }
     }
 }

@@ -45,6 +45,9 @@ string type_to_str(sharp_type &t) {
     else if(type.type == type_uint64) ss << "_uint64";
     else if(type.type == type_var) ss << "var";
     else if(type.type == type_object) ss << "object";
+    else if(type.type == type_integer) ss << t.integer;
+    else if(type.type == type_decimal) ss << t.decimal;
+    else if(type.type == type_untyped) ss << "untyped";
     else if(type.type == type_class) ss << type._class->fullName;
     else if(type.type == type_function_ptr) {
         ss << "*(";
@@ -64,6 +67,8 @@ string type_to_str(sharp_type &t) {
     else if(type.type == type_import_group) ss << type.group->name;
     else if(type.type == type_null) ss << "null";
     else if(type.type == type_nil) ss << "nil";
+    else if(type.type == type_function) ss << function_to_str(t.fun);
+    else if(type.type == type_field) ss << t.field->fullName << ": " << type_to_str(t.field->type);
     else ss << "undefined";
 
     if(type.isArray) ss << "[]";

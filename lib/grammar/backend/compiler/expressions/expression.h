@@ -39,12 +39,20 @@ struct expression {
 void compile_expression(expression &, Ast*);
 void compile_expression_for_type(expression &, Ast*);
 
-void compile_class_for_overload(
+void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
         List<operation_scheme> &paramOperations,
         string &op,
         Ast *ast);
+
+void compile_function_call(
+        operation_scheme *scheme,
+        List<sharp_field*> & params,
+        List<operation_scheme> &paramOperations,
+        sharp_function *callee,
+        bool isStaticCall,
+        bool isPrimaryClass)
 
 #endif //SHARP_EXPRESSION_H

@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../../List.h"
 #include "../types/type_match_result.h"
+#include "../types/sharp_type.h"
 
 struct sharp_field;
 struct sharp_class;
@@ -27,7 +28,29 @@ enum operation_type {
     operation_get_static_function_address,
     operation_push_value_to_stack,
     operation_push_parameter_to_stack,
-    operation_create_class
+    operation_get_integer_constant,
+    operation_get_decimal_constant,
+    operation_negate_value,
+    operation_create_class,
+    operation_int8_increment,
+    operation_int16_increment,
+    operation_int32_increment,
+    operation_int64_increment,
+    operation_uint8_increment,
+    operation_uint16_increment,
+    operation_uint32_increment,
+    operation_uint64_increment,
+    operation_illegal,
+    operation_var_increment,
+    operation_int8_decrement,
+    operation_int16_decrement,
+    operation_int32_decrement,
+    operation_int64_decrement,
+    operation_uint8_decrement,
+    operation_uint16_decrement,
+    operation_uint32_decrement,
+    operation_uint64_decrement,
+    operation_var_decrement
 };
 
 enum _operation_scheme {
@@ -40,6 +63,7 @@ enum _operation_scheme {
     scheme_get_address,
     scheme_call_instance_function,
     scheme_call_static_function,
+    scheme_get_constant,
     scheme_new_class
 };
 
@@ -88,7 +112,9 @@ struct operation_step {
         field(NULL),
         _class(NULL),
         scheme(NULL),
-        function(NULL)
+        function(NULL),
+        decimal(0),
+        integer(0)
     {}
 
     operation_step(const operation_step &step)
@@ -97,7 +123,9 @@ struct operation_step {
         field(step.field),
         _class(step._class),
         scheme(new operation_scheme(*step.scheme)),
-        function(step.function)
+        function(step.function),
+        integer(step.integer),
+        decimal(step.decimal)
     {}
 
     operation_step(operation_type type)
@@ -106,7 +134,9 @@ struct operation_step {
         field(NULL),
         _class(NULL),
         scheme(NULL),
-        function(NULL)
+        function(NULL),
+        decimal(0),
+        integer(0)
     {}
 
     operation_step(operation_scheme *scheme, operation_type type = operation_step_scheme)
@@ -115,7 +145,9 @@ struct operation_step {
         field(NULL),
         _class(NULL),
         scheme(scheme),
-        function(NULL)
+        function(NULL),
+        decimal(0),
+        integer(0)
     {}
 
     operation_step(operation_type type, sharp_field *field)
@@ -124,7 +156,31 @@ struct operation_step {
         field(field),
         _class(NULL),
         scheme(NULL),
-        function(NULL)
+        function(NULL),
+        decimal(0),
+        integer(0)
+    {}
+
+    operation_step(operation_type type, Int constant)
+    :
+        type(type),
+        field(NULL),
+        _class(NULL),
+        scheme(NULL),
+        function(NULL),
+        integer(constant),
+        decimal(0)
+    {}
+
+    operation_step(operation_type type, double constant)
+    :
+        type(type),
+        field(NULL),
+        _class(NULL),
+        scheme(NULL),
+        function(NULL),
+        decimal(constant),
+        integer(0)
     {}
 
     operation_step(operation_type type, sharp_function *fun)
@@ -133,7 +189,9 @@ struct operation_step {
         field(NULL),
         _class(NULL),
         scheme(NULL),
-        function(fun)
+        function(fun),
+        decimal(0),
+        integer(0)
     {}
 
     operation_step(operation_type type, sharp_class *sc)
@@ -142,7 +200,9 @@ struct operation_step {
         field(NULL),
         _class(sc),
         scheme(NULL),
-        function(NULL)
+        function(NULL),
+        decimal(0),
+        integer(0)
     {}
 
     ~operation_step() {
@@ -155,6 +215,8 @@ struct operation_step {
     sharp_field *field;
     sharp_class *_class;
     sharp_function *function;
+    Int integer;
+    double decimal;
     operation_type type;
 };
 
@@ -208,5 +270,22 @@ void create_function_parameter_push_operation(
         operation_scheme *paramScheme,
         operation_scheme *resultScheme);
 
+void create_get_integer_constant_operation(
+        operation_scheme *scheme,
+        Int integer);
+
+void create_get_decimal_constant_operation(
+        operation_scheme *scheme,
+        double decimal);
+
+void create_negate_operation(operation_scheme *scheme);
+
+void create_increment_operation(
+        operation_scheme *scheme,
+        native_type type);
+
+void create_decrement_operation(
+        operation_scheme *scheme,
+        native_type type);
 
 #endif //SHARP_OPERATION_H
