@@ -79,7 +79,6 @@ void create_instance_field_getter_operation(
         operation_scheme *scheme,
         sharp_field *instanceField) {
     if(scheme) {
-        scheme->free();
         scheme->schemeType = scheme_call_getter_function;
         scheme->field = instanceField;
 
@@ -160,7 +159,7 @@ void create_get_integer_constant_operation(
 
 void create_get_decimal_constant_operation(
         operation_scheme *scheme,
-        double decimal) {
+        long double decimal) {
     scheme->schemeType = scheme_get_constant;
     scheme->free();
 
@@ -168,8 +167,38 @@ void create_get_decimal_constant_operation(
             operation_get_decimal_constant, decimal));
 }
 
+void create_get_char_constant_operation(
+        operation_scheme *scheme,
+        char _char) {
+    scheme->free();
+
+    scheme->steps.add(operation_step(
+            operation_get_char_constant, _char));
+}
+
+void create_get_bool_constant_operation(
+        operation_scheme *scheme,
+        bool _bool) {
+    scheme->free();
+
+    scheme->steps.add(operation_step(
+            operation_get_bool_constant, _bool));
+}
+
+void create_get_string_constant_operation(
+        operation_scheme *scheme,
+        string &_string) {
+    scheme->free();
+
+    scheme->steps.add(operation_step(
+            operation_get_string_constant, _string));
+}
+
 void create_negate_operation(operation_scheme *scheme) {
     scheme->steps.add(operation_step(operation_negate_value));
+}
+void create_not_operation(operation_scheme *scheme) {
+    scheme->steps.add(operation_step(operation_not_value));
 }
 
 void create_increment_operation(
@@ -195,6 +224,15 @@ void create_increment_operation(
         scheme->steps.add(operation_step(operation_uint64_increment));
     } else {
         scheme->steps.add(operation_step(operation_illegal));
+    }
+}
+
+void create_get_primary_instance_class(
+        operation_scheme *scheme,
+        sharp_class *primaryClass) {
+    if(scheme) {
+        scheme->steps.add(operation_step(
+                operation_get_primary_class_instance, primaryClass));
     }
 }
 
@@ -247,7 +285,7 @@ void create_static_function_call_operation(
 
 void create_function_parameter_push_operation(
         sharp_type *paramType,
-        type_match_result matchResult,
+        Int matchResult,
         sharp_function *constructor,
         operation_scheme *paramScheme,
         operation_scheme *resultScheme) {

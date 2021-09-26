@@ -32,7 +32,8 @@ struct sharp_field {
         type(),
         ast(NULL),
         getter(NULL),
-        setter(NULL)
+        setter(NULL),
+        scheme(NULL)
     {}
 
     sharp_field(const sharp_field &sf)
@@ -48,8 +49,11 @@ struct sharp_field {
         closures(sf.closures),
         ast(sf.ast),
         getter(sf.getter),
-        setter(sf.setter)
-    {}
+        setter(sf.setter),
+        scheme(NULL)
+    {
+        create_scheme(sf.scheme);
+    }
 
     sharp_field(
             string &name,
@@ -71,7 +75,8 @@ struct sharp_field {
             closures(),
             ast(ast),
             getter(NULL),
-            setter(NULL)
+            setter(NULL),
+            scheme(NULL)
     {
         set_full_name();
         this->type.copy(type);
@@ -81,12 +86,11 @@ struct sharp_field {
         free();
     }
 
-    void free() {
-        dependencies.free();
-        closures.free();
-    }
+    void free();
 
     void set_full_name();
+
+    void create_scheme(operation_scheme *);
 
     string name;
     string fullName;
@@ -96,6 +100,7 @@ struct sharp_field {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_field*> closures;
+    operation_scheme* scheme;
     sharp_type type;
     field_type fieldType;
     uInt flags;

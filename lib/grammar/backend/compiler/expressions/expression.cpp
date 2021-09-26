@@ -7,11 +7,18 @@
 #include "../../dependency/dependancy.h"
 #include "../../types/types.h"
 #include "../../../taskdelegator/task_delegator.h"
+#include "unary/pre_increment_expression.h"
+#include "primary/primary_expression.h"
 
 void compile_expression(expression &e, Ast *ast) {
 
     if(ast->hasSubAst(ast_minus_e))
         compile_minus_expression(&e, ast->getSubAst(ast_minus_e));
+    else if(ast->hasSubAst(ast_pre_inc_e))
+        compile_pre_increment_expression(&e, ast->getSubAst(ast_pre_inc_e));
+    else if(ast->hasSubAst(ast_primary_expr))
+        compile_primary_expression(&e, ast->getSubAst(ast_primary_expr));
+
 }
 
 void compile_expression_for_type(sharp_type &type, Ast *ast) {
@@ -42,7 +49,7 @@ void compile_class_function_overload(
             true)) != NULL) {
 
         compile_function_call(&e.scheme, params, paramOperations, fun, false, false);
-
+        e.type.copy(fun->returnType);
     } else {
         currThread->currTask->file->errors->createNewError(GENERIC, ast,
                 "use of operator `" + op + "` does not have any qualified overloads with class `" + with_class->fullName + "`");
@@ -58,10 +65,10 @@ void compile_function_call(
         bool isStaticCall,
         bool isPrimaryClass) {
     if(scheme) {
-        type_match_result matchResult;
+        Int matchResult;
         List<operation_scheme> compiledParamOperations;
         for (Int i = 0; i < params.size(); i++) {
-            sharp_type *asignee = &callee->parameters.get(1)->type;
+            sharp_type *asignee = &callee->parameters.get(i)->type;
             sharp_type *assigner = &params.get(i)->type;
             sharp_function *matchedConstructor = NULL;
 

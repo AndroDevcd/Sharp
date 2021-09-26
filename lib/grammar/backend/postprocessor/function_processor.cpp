@@ -2,6 +2,7 @@
 // Created by BNunnally on 9/11/2021.
 //
 
+#include <iomanip>
 #include "function_processor.h"
 #include "../astparser/ast_parser.h"
 #include "../../taskdelegator/task_delegator.h"
@@ -28,7 +29,7 @@ void process_function(
 
         if(name != class_name) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
-                       "constructor `" + name + "` must match holding class name `" + with_class->name + "`");
+                       "constructor `" + name + "` must match holding class name `" + class_name + "`");
         }
     } else if(ast->hasSubAst(ast_refrence_pointer))
         process_extension_class(with_class, type == delegate_function, name, ast->getSubAst(ast_refrence_pointer));
@@ -172,12 +173,17 @@ void process_function(
             returnType, ast)) {
         sharp_function *fun = with_class->functions.last();
 
-        if(name == "path_separator" && fun->owner->name == "file_system") {
-            int i = 0;
+        if(fun->name == "to_string" && fun->owner->name == "_object_") {
+
+            create_context(fun);
+            expression e;
+            compile_expression(e, fun->ast->getSubAst(ast_expression));
+            cout << setprecision(64) << fixed << e.type.decimal << endl;
+
+            validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+            delete_context();
         }
-        if(name == "path_separator" && fun->owner->name == "unix_fs") {
-            int i = 0;
-        }
+
         if(ast->hasSubAst(ast_method_return_type)) {
             Ast *returnTypeAst = ast->getSubAst(ast_method_return_type);
 
@@ -189,7 +195,7 @@ void process_function(
             }
 
         } else if(ast->hasToken(":=")) {
-            process_function_return_type(fun);
+            returnType.type = type_untyped;
         } else {
             returnType.type = type_nil;
         }
@@ -202,8 +208,11 @@ void process_function_return_type(sharp_function *fun) {
         && currThread->currTask->file->stage >= pre_compilation_finished_state) {
         fun->returnType.type = type_undefined;
 
-//        expression e = compile_expression(fun->ast->getSubAst(ast_expression));
-//        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+        create_context(fun);
+        expression e;
+        compile_expression(e, fun->ast->getSubAst(ast_expression));
+        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+        delete_context();
     }
 }
 
@@ -224,6 +233,21 @@ void validate_function_type(
             currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign hard type as value for function `" + fun->fullName + "`");
             return;
         }
+    } else if(type.type == type_integer
+              || type.type == type_bool
+              || type.type == type_decimal) {
+        fun->returnType.type = type_var;
+        return;
+    } else if(type.type == type_char) {
+        fun->returnType.type = type_int8;
+        return;
+    } else if(type.type == type_bool) {
+        fun->returnType.type = type_var;
+        return;
+    } else if(type.type == type_string) { // todo: default it to string type
+        fun->returnType.type = type_int8;
+        fun->returnType.isArray = true;
+        return;
     } else if(type.type == type_field) {
         create_dependency(fun, type.field);
 

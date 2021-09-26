@@ -28,6 +28,7 @@ struct sharp_function {
         dependencies(),
         flags(flag_none),
         ast(NULL),
+        instanceClosure(NULL),
         parameters(),
         returnType(),
         type(undefined_function)
@@ -44,7 +45,8 @@ struct sharp_function {
             ast(sf.ast),
             parameters(),
             returnType(sf.returnType),
-            type(sf.type)
+            type(sf.type),
+            instanceClosure(sf.instanceClosure)
     {
         copy_parameters(sf.parameters);
     }
@@ -68,7 +70,8 @@ struct sharp_function {
             flags(flags),
             ast(ast),
             returnType(),
-            type(type)
+            type(type),
+            instanceClosure(NULL)
     {
         this->returnType.copy(returnType);
         copy_parameters(parameters);
@@ -88,6 +91,7 @@ struct sharp_function {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_field*> parameters;
+    sharp_field* instanceClosure;
     sharp_type returnType;
     function_type type;
     uInt flags;

@@ -60,7 +60,7 @@ struct SharpObject
     void print();
 
     union {
-        double *HEAD;        /* data */
+        long double *HEAD;   /* data */
         Object *node;        /* structured data */
     };
 

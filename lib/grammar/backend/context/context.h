@@ -74,7 +74,7 @@ struct context : public stored_context_item {
 };
 
 void create_context(sharp_class*, bool isStatic = false);
-void create_context(sharp_function*, bool isStatic = false);
+void create_context(sharp_function*);
 
 void create_context(context *ctx, sharp_class*, bool isStatic);
 void create_context(context *ctx, sharp_function*, bool isStatic);
@@ -85,5 +85,6 @@ void store_context(context *ctx);
 void restore_context(context *ctx);
 
 sharp_class *get_primary_class(context*);
+sharp_function *get_primary_function(context*);
 
 #endif //SHARP_CONTEXT_H

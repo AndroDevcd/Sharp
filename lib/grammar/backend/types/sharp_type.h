@@ -33,6 +33,9 @@ enum native_type {
     type_untyped,
     type_undefined,
     type_integer,
+    type_char,
+    type_string,
+    type_bool,
     type_decimal,
 };
 
@@ -57,7 +60,10 @@ struct sharp_type {
         isArray(false),
         nullable(false),
         integer(0),
-        decimal(0)
+        decimal(0),
+        _string(""),
+        _char(0),
+        _bool(false)
     {}
 
     sharp_type(const sharp_type &st)
@@ -72,7 +78,10 @@ struct sharp_type {
            isArray(false),
            nullable(false),
            integer(0),
-           decimal(0)
+           decimal(0),
+           _string(""),
+           _char(0),
+           _bool(false)
     {
         copy(st);
     }
@@ -92,7 +101,10 @@ struct sharp_type {
             isArray(isArray),
             nullable(nullable),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     sharp_type(
@@ -108,7 +120,10 @@ struct sharp_type {
             isArray(false),
             nullable(false),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     sharp_type(sharp_field *sf)
@@ -123,7 +138,10 @@ struct sharp_type {
             isArray(false),
             nullable(false),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     sharp_type(sharp_module *sm)
@@ -138,7 +156,10 @@ struct sharp_type {
             isArray(false),
             nullable(false),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     sharp_type(import_group *group)
@@ -153,7 +174,10 @@ struct sharp_type {
             isArray(false),
             nullable(false),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     sharp_type(
@@ -172,7 +196,10 @@ struct sharp_type {
             isArray(isArray),
             nullable(nullable),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     sharp_type(
@@ -190,7 +217,10 @@ struct sharp_type {
             isArray(isArray),
             nullable(nullable),
             integer(0),
-            decimal(0)
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
     {}
 
     void copy(const sharp_type &st) {
@@ -208,6 +238,9 @@ struct sharp_type {
         group = st.group;
         integer = st.integer;
         decimal = st.decimal;
+        _string = st._string;
+        _char = st._char;
+        _bool = st._bool;
     }
 
     ~sharp_type() {
@@ -232,7 +265,10 @@ struct sharp_type {
     bool isArray;
     bool nullable;
     Int integer;
-    double decimal;
+    string _string;
+    char _char;
+    bool _bool;
+    long double decimal;
 };
 
 /**
@@ -301,12 +337,12 @@ struct sharp_type {
  *
  * @return Returns wether or not the types matched explicitly or implicitly
  */
-type_match_result is_explicit_type_match(sharp_type, sharp_type);
-type_match_result is_implicit_type_match(
+uInt is_explicit_type_match(sharp_type, sharp_type);
+uInt is_implicit_type_match(
         sharp_type,
         sharp_type,
         uInt excludeMatches);
-type_match_result is_implicit_type_match(
+uInt is_implicit_type_match(
         sharp_type,
         sharp_type,
         uInt excludeMatches,

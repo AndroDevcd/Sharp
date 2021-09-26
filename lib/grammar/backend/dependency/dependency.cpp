@@ -577,7 +577,7 @@ bool resolve_local_field(
                     sharp_class *closure_class = create_closure_class(
                             currThread->currTask->file, currModule, contextItem->functionCxt,
                             item.ast);
-                    create_closure_field(closure_class, item.name,
+                    sharp_field *closure = create_closure_field(closure_class, item.name,
                             field->type, item.ast);
                     sharp_field *staticClosureRef = create_closure_field(
                             resolve_class(currModule, global_class_name, false, false),
@@ -590,6 +590,7 @@ bool resolve_local_field(
                     resultType.field = staticClosureRef;
 
                     create_static_field_access_operation(scheme, staticClosureRef);
+                    create_instance_field_access_operation(scheme, closure);
 
                     if(field->type.type == type_class)
                         create_dependency(ctx.functionCxt, field->type._class);
@@ -610,6 +611,45 @@ bool resolve_local_field(
     return false;
 }
 
+void check_access(
+        string &type,
+        string &name,
+        uInt flags,
+        context &ctx,
+        bool inPrimaryClass,
+        sharp_class *owner,
+        Ast *ast) {
+
+    if(owner != NULL) {
+        sharp_class *primary = get_primary_class(&ctx);
+
+        if (check_flag(flags, flag_local)
+            && currThread->currTask->file != owner->implLocation.file) {
+            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                                               "cannot access local " + type + " `" + name +
+                                                               "`. outside of home file: `"
+                                                               + owner->implLocation.file->name + "`.");
+            return;
+        }
+
+        if (check_flag(flags, flag_private) && !inPrimaryClass) {
+            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                                               "cannot access private " + type + " `" + name +
+                                                               "`. outside of class: `"
+                                                               + owner->fullName + "`.");
+            return;
+        }
+
+        if (check_flag(flags, flag_protected) && !inPrimaryClass
+            && !((primary->module != owner->module) || (is_implicit_type_match(owner, primary)))) {
+            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                                               "cannot access protected " + type + " `" + name +
+                                                               "`. outside of class: `"
+                                                               + owner->fullName + "`.");
+            return;
+        }
+    }
+}
 
 bool resolve_primary_class_field(
         unresolved_item &item,
@@ -625,15 +665,55 @@ bool resolve_primary_class_field(
         resultType.field = field;
         process_field(field);
 
-        if(field->getter != NULL) {
-            if(!isSelfInstance) create_instance_field_getter_operation(scheme, field);
-            else create_primary_instance_field_getter_operation(scheme, field);
-            create_dependency(ctx.functionCxt, field->getter);
+        if(ctx.isStatic && !check_flag(field->flags, flag_static)
+            && isSelfInstance) {
+            sharp_function *fun = get_primary_function(&ctx);
+
+            if(fun != NULL && !check_flag(fun->flags, flag_static)) {
+                sharp_class *closure_class = create_closure_class(
+                        currThread->currTask->file, currModule, fun,
+                        item.ast);
+                sharp_field *closure = create_closure_field(closure_class, "__@self",
+                                     field->type, item.ast);
+                sharp_field *staticClosureRef = create_closure_field(
+                        resolve_class(currModule, global_class_name, false, false),
+                        "closure_ref_" + fun->fullName,
+                        sharp_type(closure_class),
+                        item.ast
+                );
+
+                fun->instanceClosure = staticClosureRef;
+                resultType.field = staticClosureRef;
+
+                create_static_field_access_operation(scheme, staticClosureRef);
+                create_instance_field_access_operation(scheme, closure);
+
+                if(field->getter != NULL) {
+                    create_instance_field_getter_operation(scheme, field);
+                    create_dependency(ctx.functionCxt, field->getter);
+                } else {
+                    create_instance_field_access_operation(scheme, field);
+                }
+            } else {
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                         "cannot access instance field `" + field->name + "` from static context.");
+            }
         } else {
-            if(!isSelfInstance) create_instance_field_access_operation(scheme, field);
-            else create_primary_instance_field_access_operation(scheme, field);
+
+            if (field->getter != NULL) {
+                if (!isSelfInstance) create_instance_field_getter_operation(scheme, field);
+                else create_primary_instance_field_getter_operation(scheme, field);
+                create_dependency(ctx.functionCxt, field->getter);
+            } else {
+                if (!isSelfInstance) create_instance_field_access_operation(scheme, field);
+                else create_primary_instance_field_access_operation(scheme, field);
+            }
         }
 
+        string fieldType = "field";
+        check_access(fieldType, field->fullName,
+                field->flags, ctx, isSelfInstance,
+                field->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -643,6 +723,7 @@ bool resolve_primary_class_field(
 bool resolve_primary_class_alias(
         unresolved_item &item,
         sharp_class *primaryClass,
+        bool isSelfInstance,
         sharp_type &resultType,
         operation_scheme *scheme,
         context &ctx) {
@@ -656,6 +737,11 @@ bool resolve_primary_class_alias(
             scheme->copy(*alias->operation);
         }
 
+        string fieldType = "alias";
+        check_access(fieldType, alias->fullName,
+                     alias->flags, ctx, isSelfInstance,
+                     alias->owner, item.ast);
+
         if(ctx.type == block_context && alias->type.type == type_field)
             create_dependency(ctx.functionCxt, alias->type.field);
         else if(ctx.type == block_context && alias->type.type == type_function)
@@ -667,6 +753,7 @@ bool resolve_primary_class_alias(
 bool resolve_primary_class_enum(
         unresolved_item &item,
         sharp_class *primaryClass,
+        bool isSelfInstance,
         sharp_type &resultType,
         operation_scheme *scheme,
         context &ctx) {
@@ -678,6 +765,12 @@ bool resolve_primary_class_enum(
 
         create_static_field_access_operation(scheme, field);
 
+
+        string fieldType = "enum";
+        check_access(fieldType, field->fullName,
+                     field->owner->flags, ctx, isSelfInstance,
+                     field->owner, item.ast);
+
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -687,6 +780,7 @@ bool resolve_primary_class_enum(
 bool resolve_primary_class_function_address(
         unresolved_item &item,
         sharp_class *primaryClass,
+        bool isSelfInstance,
         sharp_type &resultType,
         operation_scheme *scheme,
         context &ctx) {
@@ -714,6 +808,11 @@ bool resolve_primary_class_function_address(
 
         create_get_static_function_address_operation(scheme, functions.first());
 
+
+        string fieldType = "function";
+        check_access(fieldType, functions.first()->fullName,
+                     functions.first()->flags, ctx, isSelfInstance,
+                     functions.first()->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, functions.first());
         return true;
@@ -723,6 +822,7 @@ bool resolve_primary_class_function_address(
 bool resolve_primary_class_inner_class(
         unresolved_item &item,
         sharp_class *primaryClass,
+        bool isSelfInstance,
         sharp_type &resultType,
         operation_scheme *scheme,
         bool isGeneric,
@@ -733,6 +833,11 @@ bool resolve_primary_class_inner_class(
         resultType.type = type_class;
         resultType._class = sc;
 
+
+        string fieldType = "class";
+        check_access(fieldType, sc->fullName,
+                     sc->flags, ctx, isSelfInstance,
+                     sc->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -815,6 +920,11 @@ bool resolve_global_class_field(
             create_primary_instance_field_access_operation(scheme, field);
         }
 
+
+        string fieldType = "field";
+        check_access(fieldType, field->fullName,
+                     field->flags, ctx, false,
+                     field->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -852,6 +962,11 @@ bool resolve_global_class_alias(
             scheme->copy(*alias->operation);
         }
 
+
+        string fieldType = "alias";
+        check_access(fieldType, alias->fullName,
+                     alias->flags, ctx, false,
+                     alias->owner, item.ast);
         if(ctx.type == block_context && alias->type.type == type_field)
             create_dependency(ctx.functionCxt, alias->type.field);
         else if(ctx.type == block_context && alias->type.type == type_function)
@@ -888,6 +1003,11 @@ bool resolve_global_class_enum(
 
         create_static_field_access_operation(scheme, field);
 
+
+        string fieldType = "enum";
+        check_access(fieldType, field->fullName,
+                     field->flags, ctx, false,
+                     field->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -952,6 +1072,11 @@ bool resolve_global_class_function_address(
 
         create_get_static_function_address_operation(scheme, functions.first());
 
+
+        string fieldType = "function";
+        check_access(fieldType, functions.first()->fullName,
+                     functions.first()->flags, ctx, false,
+                     functions.first()->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, functions.first());
         return true;
@@ -980,12 +1105,10 @@ bool resolve_global_class(
         resultType.type = type_class;
         resultType._class = sc;
 
-        if(check_flag(sc->flags, flag_local)
-           && sc->implLocation.file != currThread->currTask->file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
-                   " cannot access local class `" + sc->fullName + "` from outside file `" + sc->implLocation.file->name + "`.");
-        }
-
+        string fieldType = "class";
+        check_access(fieldType, sc->fullName,
+                     sc->flags, ctx, false,
+                     sc->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -1022,9 +1145,6 @@ void resolve_normal_item(
             return;
         }
 
-        if(item.name == "thread") {
-            int i = 0;
-        }
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
             if(hasFilter(filter, resolve_filter_class_field)
@@ -1035,31 +1155,31 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_class_alias)
-               && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_alias(item, primaryClass, true, resultType, scheme, context)) {
 
                 return;
             }
 
             if(hasFilter(filter, resolve_filter_class_enum)
-               && resolve_primary_class_enum(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_enum(item, primaryClass, true, resultType, scheme, context)) {
 
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
-               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+            if(hasFilter(filter, resolve_filter_function_address)
+               && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
 
                 return;
             }
 
             if(hasFilter(filter, resolve_filter_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, false, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, true, resultType, scheme, false, context)) {
 
                 return;
             }
 
             if(hasFilter(filter, resolve_filter_generic_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, true, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, true, resultType, scheme, true, context)) {
 
                 return;
             }
@@ -1192,7 +1312,7 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_class_alias)
-               && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_alias(item, primaryClass, false, resultType, scheme, context)) {
 
                 if(item.accessType != access_normal) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
@@ -1203,7 +1323,7 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_function_address)
-               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
 
                 if(item.accessType != access_normal) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
@@ -1214,7 +1334,7 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, false, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, false, context)) {
 
                 if(item.accessType != access_normal) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
@@ -1225,7 +1345,7 @@ void resolve_normal_item(
             }
 
             if(hasFilter(filter, resolve_filter_generic_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, true, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, true, context)) {
 
                 if(item.accessType != access_normal) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
@@ -1263,7 +1383,7 @@ void resolve_normal_item(
                 }
 
                 if(hasFilter(filter, resolve_filter_class_alias)
-                   && resolve_primary_class_alias(item, primaryClass, resultType, scheme, context)) {
+                   && resolve_primary_class_alias(item, primaryClass, false, resultType, scheme, context)) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
                                        " unusual access of alias through field `" + field->name
                                        + "`. Aliases have static access by default so you could also type `"
@@ -1271,8 +1391,8 @@ void resolve_normal_item(
                     return;
                 }
 
-                if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
-                   && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+                if(hasFilter(filter, resolve_filter_function_address)
+                   && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
                                        " unusual access of static function through field `" + field->name
                                        + "`. Getting addresses of static functions can also be accessed this way `"
@@ -1281,14 +1401,14 @@ void resolve_normal_item(
                 }
 
                 if(hasFilter(filter, resolve_filter_inner_class)
-                   && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, false, context)) {
+                   && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, false, context)) {
                     currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
                                        " cannot access inner class through field `" + field->name + "`.");
                     return;
                 }
 
                 if(hasFilter(filter, resolve_filter_generic_inner_class)
-                   && resolve_primary_class_inner_class(item, primaryClass, resultType, scheme, true, context)) {
+                   && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, true, context)) {
                     currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
                                        " cannot access inner class through field `" + field->name + "`.");
                     return;
@@ -1345,7 +1465,7 @@ void resolve_operator_item(
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
             if(hasFilter(filter, resolve_filter_function_address)
-               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+               && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
 
                 return;
             }
@@ -1362,27 +1482,17 @@ void resolve_operator_item(
         currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
-        sharp_class *primaryClass = get_primary_class(&context);
-
         if(hasFilter(filter, resolve_filter_function_address)
            && resolve_global_class_function_address(item, resultType, scheme, context)) {
 
             return;
         }
-
-        if(primaryClass) {
-            if (hasFilter(filter, resolve_filter_class)
-                && resolve_global_class(item, primaryClass, resultType, false, context)) {
-
-                return;
-            }
-        }
     } else {
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
 
-            if(hasFilter(filter, resolve_filter_function_address) // todo: come back for function resolution
-               && resolve_primary_class_function_address(item, primaryClass, resultType, scheme, context)) {
+            if(hasFilter(filter, resolve_filter_function_address)
+               && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
 
                 return;
             }
@@ -1425,8 +1535,6 @@ void resolve_function_ptr_item(
     if(item.returnType) {
         resolve(*item.returnType, returnType, resolve_hard_type, item.ast, NULL);
     } else returnType.type = type_nil;
-
-
 
     sharp_function *fptr = new sharp_function(
             "fptr", primaryClass, location,
@@ -1480,6 +1588,11 @@ bool resolve_primary_class_function(
         if(fun->returnType.type == type_untyped || fun->returnType.type == type_undefined) {
             resultType.type = type_undefined;
             return false;
+        }
+
+        if(isStaticCall && !check_flag(fun->flags, flag_static)) {
+            currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                         "cannot access instance function `" + fun->fullName + "` from static context.");
         }
 
         resultType.nullable = fun->returnType.nullable;
@@ -1718,6 +1831,7 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
 bool resolve_primary_class_inner_class_generic(
         unresolved_item &item,
         sharp_class *primaryClass,
+        bool isSelfInstance,
         string &typedClassName,
         sharp_type &resultType,
         List<sharp_type> &genericTypes,
@@ -1734,6 +1848,10 @@ bool resolve_primary_class_inner_class_generic(
         resultType.type = type_class;
         resultType._class = sc;
 
+        string fieldType = "class";
+        check_access(fieldType, sc->fullName,
+                     sc->flags, ctx, isSelfInstance,
+                     sc->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -1778,6 +1896,11 @@ bool resolve_global_class_generic(
         resultType.type = type_class;
         resultType._class = sc;
 
+
+        string fieldType = "class";
+        check_access(fieldType, sc->fullName,
+                     sc->flags, ctx, false,
+                     sc->owner, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -1810,7 +1933,7 @@ void resolve_generic_item(
 
             if(hasFilter(filter, resolve_filter_inner_class)
                && resolve_primary_class_inner_class_generic(
-                       item, primaryClass, typedClassName,
+                       item, primaryClass, true, typedClassName,
                        resultType, resolvedTypes,
                        context)) {
 
@@ -1856,7 +1979,7 @@ void resolve_generic_item(
 
             if(hasFilter(filter, resolve_filter_inner_class)
                && resolve_primary_class_inner_class_generic(
-                    item, primaryClass, typedClassName,
+                    item, primaryClass, false, typedClassName,
                     resultType, resolvedTypes,
                     context)) {
 
@@ -1881,7 +2004,7 @@ void resolve_generic_item(
 
                 if(hasFilter(filter, resolve_filter_inner_class)
                    && resolve_primary_class_inner_class_generic(
-                        item, primaryClass, typedClassName,
+                        item, primaryClass, false, typedClassName,
                         resultType, resolvedTypes,
                         context)) {
                     currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
@@ -1958,6 +2081,13 @@ void resolve(
 
         resultType.isArray = unresolvedType.isArray;
         resultType.nullable = unresolvedType.nullable;
+
+        if(resultType.nullable && !resultType.isArray
+            && (resultType.type >= type_int8 && resultType.type <= type_var)) {
+            currThread->currTask->file->errors->createNewError(
+                    GENERIC, resolveLocation, "expression of type `"
+                                                 + type_to_str(resultType) + "` cannot be nullable.");
+        }
     }
 }
 
@@ -1972,6 +2102,40 @@ sharp_type resolve(
         parse_reference_pointer(unresolvedType, resolveLocation);
     } else if(resolveLocation->getType() == ast_utype) {
         parse_utype(unresolvedType, resolveLocation);
+    } else if(resolveLocation->getType() == ast_dotnotation_call_expr) {
+        parse_utype(unresolvedType, resolveLocation->getSubAst(ast_utype));
+
+        List<expression> expressions;
+        Ast *list = resolveLocation->getSubAst(ast_expression_list);
+        for(Int i = 0; i < list->getSubAstCount(); i++) {
+            compile_expression(expressions.__new(), list->getSubAst(i));
+
+            if(expressions.last().scheme.schemeType == scheme_none) {
+                currThread->currTask->file->errors->createNewError(
+                        GENERIC, list->getSubAst(i), "expression of type `"
+                                      + type_to_str(expressions.last().type) + "` must evaluate to a value");
+            }
+        }
+
+        unresolved_item *&item
+            = unresolvedType.unresolvedType.items.last();
+        if(item->type == normal_reference
+            || item->type == operator_reference) {
+
+            item->type = function_reference;
+            for(Int i = 0; i < expressions.size(); i++) {
+                item->typeSpecifiers.add(new sharp_type(expressions.get(i).type));
+                item->operations.push_back(expressions.get(i).scheme);
+            }
+        } else if(item->type == generic_reference) {
+            currThread->currTask->file->errors->createNewError(
+                    GENERIC, resolveLocation, "generic functions are not supported.");
+
+        } else {
+            currThread->currTask->file->errors->createNewError(
+                    GENERIC, resolveLocation, "expected function call.");
+        }
+        expressions.free();
     } else {
         currThread->currTask->file->errors->createNewError(
                 INTERNAL_ERROR, resolveLocation->line, resolveLocation->col, "expected ast of utype or type_identifier");

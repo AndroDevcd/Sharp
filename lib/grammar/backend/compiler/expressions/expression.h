@@ -23,9 +23,11 @@ struct expression {
 
     expression(sharp_type t)
             :
-            type(t),
+            type(),
             scheme()
-    {}
+    {
+        type.copy(t);
+    }
 
     ~expression() {
         scheme.free();
@@ -53,6 +55,6 @@ void compile_function_call(
         List<operation_scheme> &paramOperations,
         sharp_function *callee,
         bool isStaticCall,
-        bool isPrimaryClass)
+        bool isPrimaryClass);
 
 #endif //SHARP_EXPRESSION_H

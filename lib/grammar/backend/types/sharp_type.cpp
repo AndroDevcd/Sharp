@@ -47,7 +47,7 @@ string type_to_str(sharp_type &t) {
     else if(type.type == type_object) ss << "object";
     else if(type.type == type_integer) ss << t.integer;
     else if(type.type == type_decimal) ss << t.decimal;
-    else if(type.type == type_untyped) ss << "untyped";
+    else if(type.type == type_untyped) ss << "unknown";
     else if(type.type == type_class) ss << type._class->fullName;
     else if(type.type == type_function_ptr) {
         ss << "*(";
@@ -87,12 +87,12 @@ bool has_match_result_flag(uInt flags, type_match_result flag) {
 }
 
 // the comparer is the one to receive the value that the comparee holds
-type_match_result is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
+uInt is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
     comparer = get_type(comparer);
     comparee = get_type(comparee);
 
     if(
-         (comparer.type == comparee.type)
+         (comparer.type == comparee.type && comparer.nullable == comparee.nullable)
          || (comparer.fun != NULL && comparee.fun != NULL)
     ) {
         if(comparer.isArray != comparee.isArray) return no_match_found;
@@ -109,7 +109,7 @@ type_match_result is_explicit_type_match(sharp_type comparer, sharp_type compare
     } else return no_match_found;
 }
 
-type_match_result is_implicit_type_match(
+uInt is_implicit_type_match(
         sharp_type comparer,
         sharp_type comparee,
         uInt excludedMatches) {
@@ -117,7 +117,7 @@ type_match_result is_implicit_type_match(
     return is_implicit_type_match(comparer, comparee, excludedMatches, ignoredMatchFun);
 }
 
-type_match_result is_implicit_type_match(
+uInt is_implicit_type_match(
         sharp_type comparer,
         sharp_type comparee,
         uInt excludedMatches,
@@ -146,7 +146,7 @@ type_match_result is_implicit_type_match(
 
         case type_class: {
             if(comparee.type == type_class) {
-                if((comparer.isArray == comparee.isArray)
+                if((comparer.isArray == comparee.isArray && comparer.nullable == comparee.nullable)
                     && (is_implicit_type_match(comparer._class, comparee._class)))
                     return match_normal;
             }
@@ -175,7 +175,7 @@ type_match_result is_implicit_type_match(
             }
 
             if(has_match_result_flag(excludedMatches, match_operator_overload)
-               && (matchedFun = resolve_function("operator=", comparer._class,
+               && ((matchedFun = resolve_function("operator=", comparer._class,
                                     params, operator_function,
                                     match_constructor | match_initializer | match_operator_overload,
                                     NULL, true, true)) != NULL)) {
@@ -183,10 +183,12 @@ type_match_result is_implicit_type_match(
             }
 
             deleteList(params);
-            return (type_match_result)result;
+            return result;
         }
 
         case type_object: {
+            if(comparer.nullable != comparee.nullable) return no_match_found;
+
             return with_result(comparee.type == type_class
                    || comparee.type == type_object
                    || (comparee.type > type_var && comparee.isArray)
@@ -202,6 +204,7 @@ type_match_result is_implicit_type_match(
         case type_uint32:
         case type_uint64:
         case type_var: {
+            if(comparer.nullable != comparee.nullable) return no_match_found;
             return with_result(comparer.isArray == comparee.isArray && comparee.type <= type_var, match_normal);
         }
         default: return no_match_found;

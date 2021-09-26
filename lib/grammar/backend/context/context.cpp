@@ -7,13 +7,14 @@
 #include "../types/sharp_class.h"
 #include "../../sharp_file.h"
 #include "../../taskdelegator/task_delegator.h"
+#include "../types/sharp_function.h"
 
 void create_context(sharp_class *sc, bool isStatic) {
     create_context(&currThread->currTask->file->context, sc, isStatic);
 }
 
-void create_context(sharp_function *fun, bool isStatic) {
-    create_context(&currThread->currTask->file->context, fun, isStatic);
+void create_context(sharp_function *fun) {
+    create_context(&currThread->currTask->file->context, fun, check_flag(fun->flags, flag_static));
 }
 
 void create_context(context *ctx, sharp_class *sc, bool isStatic) {
@@ -77,4 +78,16 @@ sharp_class *get_primary_class(context *ctx) {
     }
 
     return NULL;
+}
+
+sharp_function *get_primary_function(context *ctx) {
+
+    sharp_function *fun = NULL;
+    for(Int i = (Int)ctx->storedItems.size() - 1; i >= 0; i--) {
+        stored_context_item &contextItem = ctx->storedItems.get(i);
+        if(contextItem.type == block_context)
+            fun = contextItem.functionCxt;
+    }
+
+    return fun;
 }

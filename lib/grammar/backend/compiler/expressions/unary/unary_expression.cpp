@@ -6,6 +6,7 @@
 #include "../expression.h"
 #include "../../../../taskdelegator/task_delegator.h"
 #include "../../../types/types.h"
+#include "../../../../settings/settings.h"
 
 void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
     compile_expression(*e, ast->getSubAst(ast_expression));
@@ -47,9 +48,72 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     value = ++e->type.integer;
                 } else if(op == "--") {
                     value = --e->type.integer;
+                } else if(op == "!") {
+                    value = !e->type.integer;
+
+                    stringstream ss;
+                    ss << "expression could be simplified to `" << (value ? "true" : "false")
+                        << "`.";
+                    create_new_warning(GENERIC, __w_general, ast->line, ast->col, ss.str());
                 }
 
+
                 create_get_integer_constant_operation(&e->scheme, value);
+                break;
+            }
+
+            case type_char: {
+                Int value = 0;
+
+                if(op == "-") {
+                    value = -e->type._char;
+                } else if(op == "++") {
+                    value = ++e->type._char;
+                } else if(op == "--") {
+                    value = --e->type._char;
+                } else if(op == "!") {
+                    value = !e->type._char;
+
+                    stringstream ss;
+                    ss << "expression could be simplified to `" << (value ? "true" : "false")
+                       << "`.";
+                    create_new_warning(GENERIC, __w_general, ast->line, ast->col, ss.str());
+                }
+
+
+                create_get_integer_constant_operation(&e->scheme, value);
+                break;
+            }
+
+            case type_bool: {
+                bool value = false;
+
+                if(op == "-") {
+                    value = -e->type._bool;
+                } else if(op == "++" || op == "--") {
+                    currThread->currTask->file->errors->createNewError(
+                            GENERIC, ast, "unqualified use  of operator `" + op + "` on bool expression");
+                    value = false;
+                } else if(op == "!") {
+                    value = !e->type._bool;
+
+                    stringstream ss;
+                    ss << "expression could be simplified to `" << (value ? "true" : "false")
+                       << "`.";
+                    create_new_warning(GENERIC, __w_general, ast->line, ast->col, ss.str());
+                }
+
+                create_get_bool_constant_operation(&e->scheme, value);
+                break;
+            }
+
+            case type_string: {
+                if(op == "-" || op == "++" || op == "--"
+                    || op == "!") {
+                    currThread->currTask->file->errors->createNewError(
+                            GENERIC, ast, "unqualified use  of operator `" + op + "` on string expression");
+                }
+                break;
             }
 
             case type_decimal: {
@@ -61,9 +125,17 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     value = ++e->type.decimal;
                 } else if(op == "--") {
                     value = --e->type.decimal;
+                } else if(op == "!") {
+                    value = !e->type.decimal;
+
+                    stringstream ss;
+                    ss << "expression could be simplified to `" << (value == 0 ? "true" : "false")
+                       << "`.";
+                    create_new_warning(GENERIC, __w_general, ast->line, ast->col, ss.str());
                 }
 
                 create_get_decimal_constant_operation(&e->scheme, value);
+                break;
             }
 
             case type_int8:
@@ -82,6 +154,8 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     create_increment_operation(&e->scheme, e->type.type);
                 else if(op == "--")
                     create_decrement_operation(&e->scheme, e->type.type);
+                else if(op == "!")
+                    create_not_operation(&e->scheme);
                 break;
             }
 
@@ -96,6 +170,10 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                         create_increment_operation(&e->scheme, e->type.type);
                     else if(op == "--")
                         create_decrement_operation(&e->scheme, e->type.type);
+                    else if(op == "!")
+                        create_not_operation(&e->scheme);
+
+                    e->type.type = field->type.type;
                 } else if(field->type.type == type_class) {
                     List<sharp_field*> emptyParams;
                     List<operation_scheme> noOperations;

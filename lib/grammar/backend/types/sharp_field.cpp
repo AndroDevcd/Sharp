@@ -7,6 +7,7 @@
 #include "../../compiler_info.h"
 #include "../types/sharp_class.h"
 #include "../../sharp_file.h"
+#include "../operation/operation.h"
 
 sharp_field* create_field(
         sharp_file *file,
@@ -93,8 +94,19 @@ sharp_field* create_field(
     }
 }
 
+void sharp_field::create_scheme(operation_scheme *operations) {
+    if(operations != NULL)
+        this->scheme = new operation_scheme(*operations);
+}
+
 void sharp_field::set_full_name() {
     if(owner != NULL)
         fullName = owner->fullName + "." + name;
     else fullName = name;
+}
+
+void sharp_field::free() {
+    dependencies.free();
+    closures.free();
+    delete scheme;
 }

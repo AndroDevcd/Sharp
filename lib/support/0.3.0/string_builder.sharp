@@ -312,7 +312,7 @@ class string_builder : loopable<_int8> {
 
     def operator+=( obj: object ) : string_builder
     {
-        if(obj is printable.class) {
+        if(obj is printable) {
            s := (obj as printable).to_string();
            if(s != null && s.get_data() != null)
                return append(s.get_data());

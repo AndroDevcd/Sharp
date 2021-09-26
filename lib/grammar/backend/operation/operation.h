@@ -50,7 +50,11 @@ enum operation_type {
     operation_uint16_decrement,
     operation_uint32_decrement,
     operation_uint64_decrement,
-    operation_var_decrement
+    operation_var_decrement,
+    operation_get_char_constant,
+    operation_get_bool_constant,
+    operation_get_string_constant,
+    operation_not_value,
 };
 
 enum _operation_scheme {
@@ -114,7 +118,10 @@ struct operation_step {
         scheme(NULL),
         function(NULL),
         decimal(0),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     operation_step(const operation_step &step)
@@ -125,7 +132,10 @@ struct operation_step {
         scheme(new operation_scheme(*step.scheme)),
         function(step.function),
         integer(step.integer),
-        decimal(step.decimal)
+        decimal(step.decimal),
+        _char(step._char),
+        _bool(step._bool),
+        _string(step._string)
     {}
 
     operation_step(operation_type type)
@@ -136,7 +146,10 @@ struct operation_step {
         scheme(NULL),
         function(NULL),
         decimal(0),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     operation_step(operation_scheme *scheme, operation_type type = operation_step_scheme)
@@ -147,7 +160,10 @@ struct operation_step {
         scheme(scheme),
         function(NULL),
         decimal(0),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     operation_step(operation_type type, sharp_field *field)
@@ -158,7 +174,10 @@ struct operation_step {
         scheme(NULL),
         function(NULL),
         decimal(0),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     operation_step(operation_type type, Int constant)
@@ -169,10 +188,55 @@ struct operation_step {
         scheme(NULL),
         function(NULL),
         integer(constant),
-        decimal(0)
+        decimal(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
-    operation_step(operation_type type, double constant)
+    operation_step(operation_type type, char constant)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(0),
+            decimal(0),
+            _char(constant),
+            _bool(false),
+            _string("")
+    {}
+
+    operation_step(operation_type type, bool constant)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(0),
+            decimal(0),
+            _char(0),
+            _bool(constant),
+            _string("")
+    {}
+
+    operation_step(operation_type type, string &constant)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(0),
+            decimal(0),
+            _char(0),
+            _bool(false),
+            _string(constant)
+    {}
+
+    operation_step(operation_type type, long double constant)
     :
         type(type),
         field(NULL),
@@ -180,7 +244,10 @@ struct operation_step {
         scheme(NULL),
         function(NULL),
         decimal(constant),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     operation_step(operation_type type, sharp_function *fun)
@@ -191,7 +258,10 @@ struct operation_step {
         scheme(NULL),
         function(fun),
         decimal(0),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     operation_step(operation_type type, sharp_class *sc)
@@ -202,7 +272,10 @@ struct operation_step {
         scheme(NULL),
         function(NULL),
         decimal(0),
-        integer(0)
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string("")
     {}
 
     ~operation_step() {
@@ -216,7 +289,10 @@ struct operation_step {
     sharp_class *_class;
     sharp_function *function;
     Int integer;
-    double decimal;
+    long double decimal;
+    char _char;
+    bool _bool;
+    string _string;
     operation_type type;
 };
 
@@ -265,7 +341,7 @@ void create_static_function_call_operation(
 
 void create_function_parameter_push_operation(
         sharp_type *paramType,
-        type_match_result matchResult,
+        Int matchResult,
         sharp_function *constructor,
         operation_scheme *paramScheme,
         operation_scheme *resultScheme);
@@ -276,9 +352,23 @@ void create_get_integer_constant_operation(
 
 void create_get_decimal_constant_operation(
         operation_scheme *scheme,
-        double decimal);
+        long double decimal);
+
+void create_get_char_constant_operation(
+        operation_scheme *scheme,
+        char _char);
+
+void create_get_bool_constant_operation(
+        operation_scheme *scheme,
+        bool _bool);
+
+void create_get_string_constant_operation(
+        operation_scheme *scheme,
+        string &_string);
 
 void create_negate_operation(operation_scheme *scheme);
+
+void create_not_operation(operation_scheme *scheme);
 
 void create_increment_operation(
         operation_scheme *scheme,
@@ -287,5 +377,9 @@ void create_increment_operation(
 void create_decrement_operation(
         operation_scheme *scheme,
         native_type type);
+
+void create_get_primary_instance_class(
+        operation_scheme *scheme,
+        sharp_class *primaryClass);
 
 #endif //SHARP_OPERATION_H

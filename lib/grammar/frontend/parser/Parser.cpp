@@ -2034,10 +2034,6 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
     CHECK_ERRLMT(return false;)
     Token* old = NULL;
 
-    if(branch->line >= 3000) {
-        int i = 3000;
-    }
-
     if(peek(1)->getType() == MINUS) {
         advance();
         Ast *exprAst = getBranch(branch, ast_minus_e);
@@ -2881,38 +2877,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     errors->pass();
     _current=old;
 
-    errors->enterProtectedMode();
-    old=_current;
-    if(parseUtype(branch))
-    {
-        if(peek(1)->getType() == DOT && *peek(2) == "class")
-        {
-            expect(branch, ".");
-            expect(branch, "class");
-
-            errors->fail();
-            branch->encapsulate(ast_utype_class_e);
-
-            if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC) {
-                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
-            }
-            else if(peek(1)->getType() == DOT)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
-            else if(peek(1)->getType() == LEFTBRACE)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-            else if(peek(1)->getValue() == "as")
-                goto asExpr;
-            else if(peek(1)->getValue() == "is")
-                goto isExpr;
-            return true;
-        }else {
-            branch->freeLastSub();
-        }
-    } else
-        branch->freeLastSub();
-    errors->pass();
-    _current=old;
-
     if(peek(1)->getValue() == "self")
     {
         expect(branch, "self");
@@ -3239,14 +3203,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch->encapsulate(ast_is_e);
         branch = branch->getSubAst(ast_is_e);
         expect(branch, "is");
-
-        if(isNativeType(peek(1)->getValue()) || peek(1)->getValue() == "(") {
-            parseUtype(branch);
-        } else {
-            parseUtype(branch);
-            expect(branch, ".");
-            expect(branch, "class");
-        }
+        parseUtype(branch);
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
@@ -3496,8 +3453,7 @@ bool parser::parseReferencePointer(Ast *ast) {
 
     while((peek(1)->getType() == DOT
            || peek(1)->getType() == SAFEDOT
-           || peek(1)->getType() == FORCEDOT)
-           && *peek(2) != "class") {
+           || peek(1)->getType() == FORCEDOT)) {
         if(peek(1)->getType() == SAFEDOT || peek(1)->getType() == FORCEDOT)
             nullSafeAccess = true;
 
@@ -3545,7 +3501,7 @@ bool parser::parseReferencePointer(Ast *ast) {
 
     while((peek(1)->getType() == DOT
            || peek(1)->getType() == SAFEDOT
-           || peek(1)->getType() == FORCEDOT)  && *peek(2) != "class") {
+           || peek(1)->getType() == FORCEDOT)) {
 
         refItem = getBranch(branch, ast_reference_item);
         expect(refItem, peek(1)->getValue());
