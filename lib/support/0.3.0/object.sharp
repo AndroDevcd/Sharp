@@ -14,8 +14,8 @@ import (
  */
 stable class _object_ : printable, unique {
 
-    private
-    public def to_string() : string = ;
+    def foo(n: var) {}
+    public def to_string() : string = self->foo(9);
 
     def wait() {
         asm {

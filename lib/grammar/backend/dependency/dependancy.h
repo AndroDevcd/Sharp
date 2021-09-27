@@ -251,6 +251,7 @@ enum resolve_filter {
 void resolve(
         sharp_type &unresolvedType,
         sharp_type &resultType,
+        bool ignoreInitialType,
         uInt filter,
         Ast *resolveLocation,
         operation_scheme *scheme = NULL);
@@ -258,6 +259,7 @@ void resolve(
 sharp_type resolve(
         Ast *resolveLocation,
         uInt filter = resolve_hard_type,
-        operation_scheme *scheme = NULL);
+        operation_scheme *scheme = NULL,
+        sharp_class *with_class = NULL);
 
 #endif //SHARP_DEPENDANCY_H

@@ -99,14 +99,14 @@ struct operation_scheme {
     void copy(const operation_scheme &scheme);
 
     void free() {
-        steps.free();
+        deleteList(steps);
     }
 
     _operation_scheme schemeType;
     sharp_field *field;
     sharp_function *fun;
     sharp_class *sc;
-    List<operation_step> steps;
+    List<operation_step*> steps;
 };
 
 struct operation_step {
@@ -126,17 +126,19 @@ struct operation_step {
 
     operation_step(const operation_step &step)
     :
-        type(step.type),
-        field(step.field),
-        _class(step._class),
-        scheme(new operation_scheme(*step.scheme)),
-        function(step.function),
-        integer(step.integer),
-        decimal(step.decimal),
-        _char(step._char),
-        _bool(step._bool),
-        _string(step._string)
-    {}
+            type(operation_none),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            decimal(0),
+            integer(0),
+            _char(0),
+            _bool(false),
+            _string("")
+    {
+        copy(step);
+    }
 
     operation_step(operation_type type)
     :
@@ -282,6 +284,21 @@ struct operation_step {
         freeStep();
     }
 
+    void copy(const operation_step &step) {
+        type = step.type;
+        _string = step._string;
+        _bool = step._bool;
+        _char = step._char;
+        decimal = step.decimal;
+        integer = step.integer;
+        function = step.function;
+        _class = step._class;
+        field = step.field;
+
+        if(scheme)
+            scheme = new operation_scheme(*step.scheme);
+    }
+
     void freeStep();
 
     operation_scheme *scheme;
@@ -381,5 +398,9 @@ void create_decrement_operation(
 void create_get_primary_instance_class(
         operation_scheme *scheme,
         sharp_class *primaryClass);
+
+void create_static_field_getter_operation(
+        operation_scheme *scheme,
+        sharp_field *instanceField);
 
 #endif //SHARP_OPERATION_H

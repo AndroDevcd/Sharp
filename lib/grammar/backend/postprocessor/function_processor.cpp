@@ -79,6 +79,7 @@ void process_extension_class(
             resolve(
                     unresolvedType,
                     resultType,
+                    false,
                     resolve_hard_type | resolve_generic_type,
                     ast);
 
@@ -157,7 +158,7 @@ void process_function(
         sharp_type resolvedType;
 
         param->owner = with_class;
-        resolve(param->type, resolvedType,
+        resolve(param->type, resolvedType, false,
                 resolve_hard_type, param->ast);
         param->type.free();
         param->type = sharp_type();
@@ -176,9 +177,12 @@ void process_function(
         if(fun->name == "to_string" && fun->owner->name == "_object_") {
 
             create_context(fun);
+            string fname = "%test";
+            create_function(with_class, flag_static, type, fname, false,
+                    params, returnType, ast);
+
             expression e;
             compile_expression(e, fun->ast->getSubAst(ast_expression));
-            cout << setprecision(64) << fixed << e.type.decimal << endl;
 
             validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
             delete_context();
@@ -199,6 +203,8 @@ void process_function(
         } else {
             returnType.type = type_nil;
         }
+
+        fun->returnType.copy(returnType);
     }
 }
 

@@ -7,11 +7,15 @@
 #include "../../../dependency/dependancy.h"
 #include "../../../../taskdelegator/task_delegator.h"
 
-void compile_dot_notation_call_expression(expression *e, Ast *ast) {
+void compile_dot_notation_call_expression(
+        expression *e,
+        sharp_class *with_class,
+        Ast *ast) {
     if(ast->hasSubAst(ast_dot_fn_e)) {
-        resolve(ast, resolve_all, &e->scheme);
+        e->type.copy(resolve(ast, resolve_all, &e->scheme, with_class));
     } else {
-        resolve(ast->getSubAst(ast_utype), resolve_all, &e->scheme);
+        e->type.copy(resolve(ast->getSubAst(ast_utype), resolve_all,
+                &e->scheme, with_class));
     }
 
     if(e->scheme.schemeType == scheme_none) {

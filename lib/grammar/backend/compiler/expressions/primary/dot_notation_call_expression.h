@@ -8,7 +8,9 @@
 #include "../../../../frontend/parser/Ast.h"
 
 struct expression;
+struct sharp_class;
 
-void compile_dot_notation_call_expression(expression *e, Ast *ast);
+void compile_dot_notation_call_expression(
+        expression *e, sharp_class *with_class, Ast *ast);
 
 #endif //SHARP_DOT_NOTATION_CALL_EXPRESSION_H

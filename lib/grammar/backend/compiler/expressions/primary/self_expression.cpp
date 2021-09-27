@@ -7,16 +7,46 @@
 #include "../../../context/context.h"
 #include "../../../../taskdelegator/task_delegator.h"
 #include "dot_notation_call_expression.h"
+#include "../../../types/sharp_function.h"
+#include "../../../types/types.h"
 
 void compile_self_expression(expression *e, Ast *ast) {
+    context &ctx = currThread->currTask->file->context;
+    sharp_function *fun = get_primary_function(&ctx);
+    sharp_class *primaryClass = get_primary_class(&ctx);
+
+    if(fun != NULL && !check_flag(fun->flags, flag_static)
+       && ctx.type == block_context && ctx.functionCxt != fun) {
+        sharp_class *closure_class = create_closure_class(
+                currThread->currTask->file, currModule, fun,
+                ast);
+        sharp_field *closure = create_closure_field(closure_class, "__@self",
+                                                    sharp_type(primaryClass), ast);
+        sharp_field *staticClosureRef = create_closure_field(
+                resolve_class(currModule, global_class_name, false, false),
+                "closure_ref_" + fun->fullName,
+                sharp_type(closure_class),
+                ast
+        );
+
+        fun->instanceClosure = staticClosureRef;
+
+        create_static_field_access_operation(&e->scheme, staticClosureRef);
+        create_instance_field_access_operation(&e->scheme, closure);
+    } else {
+        if(ctx.isStatic) {
+            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                                               "cannot access self from static context.");
+        } else {
+            create_get_primary_instance_class(&e->scheme, primaryClass);
+        }
+    }
+
+    e->type.type = type_class;
+    e->type._class = primaryClass;
+
     if(ast->hasToken(PTR)) {
         compile_dot_notation_call_expression(
-                e, ast->getSubAst(ast_dotnotation_call_expr));
-    } else {
-        sharp_class *primaryClass // check if instance is static
-            = get_primary_class(&currThread->currTask->file->context);
-        e->type.type = type_class;
-        e->type._class = primaryClass;
-        create_get_primary_instance_class(&e->scheme, primaryClass);
+                e, primaryClass, ast->getSubAst(ast_dotnotation_call_expr));
     }
 }

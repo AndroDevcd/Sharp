@@ -13,7 +13,7 @@ void create_local_field_access_operation(
         scheme->schemeType = scheme_access_local_field;
         scheme->field = localField;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_local_field_value, localField));
     }
 }
@@ -26,9 +26,9 @@ void create_static_field_access_operation(
         scheme->schemeType = scheme_access_static_field;
         scheme->field = staticField;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_static_class_instance, staticField->owner));
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_instance_field_value, staticField));
     }
 }
@@ -41,9 +41,9 @@ void create_primary_instance_field_access_operation(
         scheme->schemeType = scheme_access_instance_field;
         scheme->field = instanceField;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_primary_class_instance, instanceField->owner));
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_instance_field_value, instanceField));
     }
 }
@@ -54,11 +54,30 @@ void create_primary_instance_field_getter_operation(
     if(scheme) {
         scheme->free();
         scheme->schemeType = scheme_call_getter_function;
-        scheme->field = instanceField;
+        scheme->fun = instanceField->getter;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_primary_class_instance, instanceField->owner));
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
+                operation_push_value_to_stack));
+        scheme->steps.add(new operation_step(
+                operation_call_instance_function, instanceField->getter));
+    }
+}
+
+void create_static_field_getter_operation(
+        operation_scheme *scheme,
+        sharp_field *instanceField) {
+    if(scheme) {
+        scheme->free();
+        scheme->schemeType = scheme_call_getter_function;
+        scheme->fun = instanceField->getter;
+
+        scheme->steps.add(new operation_step(
+                operation_get_static_class_instance, instanceField->owner));
+        scheme->steps.add(new operation_step(
+                operation_push_value_to_stack));
+        scheme->steps.add(new operation_step(
                 operation_call_instance_function, instanceField->getter));
     }
 }
@@ -70,7 +89,7 @@ void create_instance_field_access_operation(
         scheme->schemeType = scheme_access_instance_field;
         scheme->field = instanceField;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_instance_field_value, instanceField));
     }
 }
@@ -80,9 +99,9 @@ void create_instance_field_getter_operation(
         sharp_field *instanceField) {
     if(scheme) {
         scheme->schemeType = scheme_call_getter_function;
-        scheme->field = instanceField;
+        scheme->fun = instanceField->getter;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_call_instance_function, instanceField->getter));
     }
 }
@@ -94,7 +113,7 @@ void create_get_static_function_address_operation(
         scheme->free();
         scheme->schemeType = scheme_get_address;
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_static_function_address, fun));
     }
 }
@@ -105,22 +124,23 @@ void create_primary_class_function_call_operation(
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
-        scheme->steps.add(operation_step(
+        scheme->fun = fun;
+        scheme->steps.add(new operation_step(
                 operation_get_primary_class_instance, fun->owner
         ));
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_push_value_to_stack
         ));
 
         for(Int i = 0; i < paramScheme.size(); i++) {
-            scheme->steps.add(operation_step(
+            scheme->steps.add(new operation_step(
                     new operation_scheme(paramScheme.get(i)),
                     operation_push_parameter_to_stack
                     ));
         }
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_call_instance_function, fun));
     }
 }
@@ -131,18 +151,19 @@ void create_instance_function_call_operation(
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
-        scheme->steps.add(operation_step(
+        scheme->fun = fun;
+        scheme->steps.add(new operation_step(
                 operation_push_value_to_stack
         ));
 
         for(Int i = 0; i < paramScheme.size(); i++) {
-            scheme->steps.add(operation_step(
+            scheme->steps.add(new operation_step(
                     new operation_scheme(paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
         }
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_call_instance_function, fun));
     }
 }
@@ -153,7 +174,7 @@ void create_get_integer_constant_operation(
     scheme->schemeType = scheme_get_constant;
     scheme->free();
 
-    scheme->steps.add(operation_step(
+    scheme->steps.add(new operation_step(
             operation_get_integer_constant, integer));
 }
 
@@ -163,7 +184,7 @@ void create_get_decimal_constant_operation(
     scheme->schemeType = scheme_get_constant;
     scheme->free();
 
-    scheme->steps.add(operation_step(
+    scheme->steps.add(new operation_step(
             operation_get_decimal_constant, decimal));
 }
 
@@ -172,7 +193,7 @@ void create_get_char_constant_operation(
         char _char) {
     scheme->free();
 
-    scheme->steps.add(operation_step(
+    scheme->steps.add(new operation_step(
             operation_get_char_constant, _char));
 }
 
@@ -181,7 +202,7 @@ void create_get_bool_constant_operation(
         bool _bool) {
     scheme->free();
 
-    scheme->steps.add(operation_step(
+    scheme->steps.add(new operation_step(
             operation_get_bool_constant, _bool));
 }
 
@@ -190,40 +211,40 @@ void create_get_string_constant_operation(
         string &_string) {
     scheme->free();
 
-    scheme->steps.add(operation_step(
+    scheme->steps.add(new operation_step(
             operation_get_string_constant, _string));
 }
 
 void create_negate_operation(operation_scheme *scheme) {
-    scheme->steps.add(operation_step(operation_negate_value));
+    scheme->steps.add(new operation_step(operation_negate_value));
 }
 void create_not_operation(operation_scheme *scheme) {
-    scheme->steps.add(operation_step(operation_not_value));
+    scheme->steps.add(new operation_step(operation_not_value));
 }
 
 void create_increment_operation(
         operation_scheme *scheme,
         native_type type) {
     if(type == type_var) {
-        scheme->steps.add(operation_step(operation_var_increment));
+        scheme->steps.add(new operation_step(operation_var_increment));
     } else if(type == type_int8) {
-        scheme->steps.add(operation_step(operation_int8_increment));
+        scheme->steps.add(new operation_step(operation_int8_increment));
     } else if(type == type_int16) {
-        scheme->steps.add(operation_step(operation_int16_increment));
+        scheme->steps.add(new operation_step(operation_int16_increment));
     } else if(type == type_int32) {
-        scheme->steps.add(operation_step(operation_int32_increment));
+        scheme->steps.add(new operation_step(operation_int32_increment));
     } else if(type == type_int64) {
-        scheme->steps.add(operation_step(operation_int64_increment));
+        scheme->steps.add(new operation_step(operation_int64_increment));
     } else if(type == type_uint8) {
-        scheme->steps.add(operation_step(operation_uint8_increment));
+        scheme->steps.add(new operation_step(operation_uint8_increment));
     } else if(type == type_uint16) {
-        scheme->steps.add(operation_step(operation_uint16_increment));
+        scheme->steps.add(new operation_step(operation_uint16_increment));
     } else if(type == type_uint32) {
-        scheme->steps.add(operation_step(operation_uint32_increment));
+        scheme->steps.add(new operation_step(operation_uint32_increment));
     } else if(type == type_uint64) {
-        scheme->steps.add(operation_step(operation_uint64_increment));
+        scheme->steps.add(new operation_step(operation_uint64_increment));
     } else {
-        scheme->steps.add(operation_step(operation_illegal));
+        scheme->steps.add(new operation_step(operation_illegal));
     }
 }
 
@@ -231,7 +252,7 @@ void create_get_primary_instance_class(
         operation_scheme *scheme,
         sharp_class *primaryClass) {
     if(scheme) {
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_get_primary_class_instance, primaryClass));
     }
 }
@@ -240,25 +261,25 @@ void create_decrement_operation(
         operation_scheme *scheme,
         native_type type) {
     if(type == type_var) {
-        scheme->steps.add(operation_step(operation_var_decrement));
+        scheme->steps.add(new operation_step(operation_var_decrement));
     } else if(type == type_int8) {
-        scheme->steps.add(operation_step(operation_int8_decrement));
+        scheme->steps.add(new operation_step(operation_int8_decrement));
     } else if(type == type_int16) {
-        scheme->steps.add(operation_step(operation_int16_decrement));
+        scheme->steps.add(new operation_step(operation_int16_decrement));
     } else if(type == type_int32) {
-        scheme->steps.add(operation_step(operation_int32_decrement));
+        scheme->steps.add(new operation_step(operation_int32_decrement));
     } else if(type == type_int64) {
-        scheme->steps.add(operation_step(operation_int64_decrement));
+        scheme->steps.add(new operation_step(operation_int64_decrement));
     } else if(type == type_uint8) {
-        scheme->steps.add(operation_step(operation_uint8_decrement));
+        scheme->steps.add(new operation_step(operation_uint8_decrement));
     } else if(type == type_uint16) {
-        scheme->steps.add(operation_step(operation_uint16_decrement));
+        scheme->steps.add(new operation_step(operation_uint16_decrement));
     } else if(type == type_uint32) {
-        scheme->steps.add(operation_step(operation_uint32_decrement));
+        scheme->steps.add(new operation_step(operation_uint32_decrement));
     } else if(type == type_uint64) {
-        scheme->steps.add(operation_step(operation_uint64_decrement));
+        scheme->steps.add(new operation_step(operation_uint64_decrement));
     } else {
-        scheme->steps.add(operation_step(operation_illegal));
+        scheme->steps.add(new operation_step(operation_illegal));
     }
 }
 
@@ -268,16 +289,17 @@ void create_static_function_call_operation(
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
+        scheme->fun = fun;
         scheme->free();
 
         for(Int i = 0; i < paramScheme.size(); i++) {
-            scheme->steps.add(operation_step(
+            scheme->steps.add(new operation_step(
                     new operation_scheme(paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
         }
 
-        scheme->steps.add(operation_step(
+        scheme->steps.add(new operation_step(
                 operation_call_static_function, fun));
     }
 }
@@ -300,7 +322,7 @@ void create_function_parameter_push_operation(
                 resultScheme->sc = with_class;
 
                 resultScheme->steps.add(
-                        operation_step(
+                        new operation_step(
                             operation_create_class,
                             with_class
                         )
@@ -325,5 +347,7 @@ void operation_scheme::copy(const operation_scheme &scheme) {
     field = scheme.field;
     fun = scheme.fun;
     sc = scheme.sc;
-    steps.addAll(scheme.steps);
+    for(Int i = 0; i < scheme.steps.size(); i++) {
+        steps.add(new operation_step(*scheme.steps.get(i)));
+    }
 }
