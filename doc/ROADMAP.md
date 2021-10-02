@@ -571,6 +571,60 @@ def main() {
 }
 
 ```
+
+Support dependency injection into the language
+```javascript
+// global Model
+x := 9;
+model {
+    single { MyClass(get(), get("named")) } // attach these single types to a variable thats static in the lang to be accessed later
+    single("named") { MyClass2(get(), get(modelName)) } // named item are only used when requested
+
+    factory { string("") } // miltiple definitions of a factory is not allowed
+    factory("string vers 2") { string("hi") } // named factory
+    
+    factory("string vers 3") { string("hi" + x) } // static vars are to be proicessed first and then the di stuff
+    // create context with struct that holds the *DependencyManager type & check if it is anywhere in the context whjen resolve is called!
+    // struct DependencyManager will contain a list of the global model & list of named models as well as the global factory
+    // struct Model will contain a list of named/non-named factories & singles
+    
+    factory {  } // factories and singles cannot be empty
+} // multiple definitions of global models are allowed
+
+// hosting the same type of a single and factory will not be allowed
+// Fir=rst try to go through and process the type of items but if the first time fails come back a second time for another pass and if it can be resolved print an error message
+get namedType: string
+get namedType: string, modelName, identifier
+get modelName: identifier
+multiple definitions of the same type will not be supported, user must make one of them named
+if there is multiple types with the same name that will not be allowed 
+
+you cannot have a named factory and a named single within the same model 
+
+// named model
+// htese models just like named fingles and factories will only be used when requested
+model modelName {
+
+}
+
+// multipler defenitions of the model with a specific name will not be allowed
+
+ // using the system
+// this ast will only go before fields and will be called injection Ast
+inject message : string // global model injection
+inject(modelName) message : string // named model injection
+
+class Apple {
+    
+    inject my_class: MyClass
+}
+
+fun main() {
+    
+    apple := new Apple(); // all the code for setting up apple will be injected into a private init function
+}
+```
+
 s - scratch
 ip - in progress
 
