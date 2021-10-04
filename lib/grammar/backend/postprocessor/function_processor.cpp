@@ -181,10 +181,12 @@ void process_function(
             create_function(with_class, flag_static, type, fname, false,
                     params, returnType, ast);
 
+            create_context(with_class->functions.last());
             expression e;
             compile_expression(e, fun->ast->getSubAst(ast_expression));
 
             validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+            delete_context();
             delete_context();
         }
 

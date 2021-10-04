@@ -3793,7 +3793,8 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
             errors->createNewError(GENERIC, ast->line, ast->col, "field `" + arrayType->toString() + "` cannot be used for instantiation.");
         else if(arrayType->getType() != utype_unresolved)
             errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + arrayType->toString() + "` must be of type `class` to be used for instantiation.");
-    } else if(ast->hasSubAst(ast_field_init_list) || ast->hasSubAst(ast_expression_list)) {
+    }
+    else if(ast->hasSubAst(ast_field_init_list) || ast->hasSubAst(ast_expression_list)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
             if(arrayType->getClass()->flags.find(EXTENSION)) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");

@@ -70,6 +70,8 @@ if (SHARPC)
             "lib/grammar/backend/*.cpp"
             "lib/grammar/backend/types/*.h"
             "lib/grammar/backend/types/*.cpp"
+            "lib/grammar/backend/compiler/di/*.h"
+            "lib/grammar/backend/compiler/di/*.cpp"
             "lib/util/*.cpp"
     )
 

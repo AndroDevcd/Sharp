@@ -542,7 +542,7 @@ bool hasFilter(uInt filters, resolve_filter filter) {
 }
 
 
-bool resolve_local_field(
+bool resolve_local_field( // todo: support tls access for all fields
         unresolved_item &item,
         sharp_type &resultType,
         operation_scheme *scheme,
@@ -577,17 +577,18 @@ bool resolve_local_field(
                     sharp_class *closure_class = create_closure_class(
                             currThread->currTask->file, currModule, contextItem->functionCxt,
                             item.ast);
-                    sharp_field *closure = create_closure_field(closure_class, item.name,
+                    sharp_field *closure = create_closure_field(closure_class, item.name, // todo: add scopeId to field struct and apply this to name for nested scoped locals w/ same name
                             field->type, item.ast);
                     sharp_field *staticClosureRef = create_closure_field(
                             resolve_class(currModule, global_class_name, false, false),
-                            "closure_ref_" + ctx.functionCxt->fullName,
+                            "closure_ref_" + contextItem->functionCxt->fullName,
                             sharp_type(closure_class),
                             item.ast
                     );
 
-                    field->closures.add(staticClosureRef);
-                    resultType.field = staticClosureRef;
+                    contextItem->functionCxt->closure = staticClosureRef;
+                    field->closure = closure;
+                    resultType.field = closure;
 
                     create_static_field_access_operation(scheme, staticClosureRef);
                     create_instance_field_access_operation(scheme, closure);
@@ -671,35 +672,19 @@ bool resolve_primary_class_field(
             sharp_function *fun = get_primary_function(&ctx);
 
             if(fun != NULL && !check_flag(fun->flags, flag_static)) {
-                sharp_class *closure_class = create_closure_class(
-                        currThread->currTask->file, currModule, fun,
-                        item.ast);
-                sharp_field *closure = create_closure_field(closure_class, "__@self",
-                                     field->type, item.ast);
-                sharp_field *staticClosureRef = create_closure_field(
-                        resolve_class(currModule, global_class_name, false, false),
-                        "closure_ref_" + fun->fullName,
-                        sharp_type(closure_class),
-                        item.ast
-                );
-
-                fun->instanceClosure = staticClosureRef;
-                resultType.field = staticClosureRef;
-
-                create_static_field_access_operation(scheme, staticClosureRef);
-                create_instance_field_access_operation(scheme, closure);
-
-                if(field->getter != NULL) {
-                    create_instance_field_getter_operation(scheme, field);
-                    create_dependency(ctx.functionCxt, field->getter);
-                } else {
-                    create_instance_field_access_operation(scheme, field);
-                }
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                     "cannot capture closure of instance field `" + field->name
+                     + "` from static context. Try accessing `self` to explicitly capture class closure.");
             } else {
                 currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
                          "cannot access instance field `" + field->name + "` from static context.");
             }
         } else {
+
+            if(isStatic && !check_flag(field->flags, flag_static)) {
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                         "cannot access instance field `" + field->name + "` from static context.");
+            }
 
             if (field->getter != NULL) {
                 if (!isSelfInstance){
@@ -927,7 +912,7 @@ bool resolve_global_class_field(
         process_field(field);
 
         if(field->getter != NULL) {
-            create_primary_instance_field_getter_operation(scheme, field);
+            create_static_field_getter_operation(scheme, field);
             create_dependency(ctx.functionCxt, field->getter);
         } else {
             create_static_field_access_operation(scheme, field);
@@ -1647,9 +1632,16 @@ bool resolve_primary_class_function(
             return false;
         }
 
-        if(isStaticCall && !check_flag(fun->flags, flag_static)) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
-                         "cannot access instance function `" + fun->fullName + "` from static context.");
+        if((isStaticCall || (isPrimaryClass && ctx.isStatic)) && !check_flag(fun->flags, flag_static)) {
+            if(isPrimaryClass && ctx.isStatic) {
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                          "cannot capture closure from instance function `" + fun->fullName +
+                          "` from static context, `self->` is required before function call.");
+            } else {
+                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                           "cannot access instance function `" + fun->fullName +
+                          "` from static context.");
+            }
         }
 
         resultType.copy(fun->returnType);

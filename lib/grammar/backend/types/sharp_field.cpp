@@ -107,6 +107,6 @@ void sharp_field::set_full_name() {
 
 void sharp_field::free() {
     dependencies.free();
-    closures.free();
     delete scheme;
+    delete request;
 }

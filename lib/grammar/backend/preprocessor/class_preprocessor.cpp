@@ -77,6 +77,7 @@ void pre_process() {
             case ast_method_decl:
             case ast_mutate_decl:
             case ast_obfuscate_decl:
+            case ast_component_decl:
                 /* ignpre */
                 break;
             default:

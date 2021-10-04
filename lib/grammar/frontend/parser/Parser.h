@@ -86,6 +86,7 @@ private:
     bool isLockStatement(Token &t);
     bool isTryCatchStatement(Token &t);
     bool isAliasDeclaration(Token &t);
+    bool isComponentDeclaration(Token &t);
     bool isSwitchDeclarator(Token &t);
     bool isConstructorDecl();
     bool isKeyword(string s);
@@ -114,6 +115,7 @@ private:
     void parseClassBlock(Ast*);
     void parseInterfaceBlock(Ast*);
     void parseVariableDecl(Ast*);
+    void parseInjectRequest(Ast*);
     void parseGetter(Ast *ast);
     void parseSetter(Ast *ast);
     bool parseTypeIdentifier(Ast*);
@@ -140,7 +142,6 @@ private:
     bool parseAsmLiteral(Ast *ast);
     bool parseDotNotCallExpr(Ast*);
     void parseExpressionList(Ast*,string,string);
-    void parseFieldInitList(Ast*);
     bool parseUtypeArg(Ast*);
     bool parseUtypeArgOpt(Ast*);
     bool parseLambdaArg(Ast*);
@@ -148,7 +149,6 @@ private:
     bool parseUtypeArgListOpt(Ast*);
     void parseLambdaArgList(Ast*);
     bool parseArrayExpression(Ast*);
-    bool parseFieldInitializatioin(Ast*);
     void parseBaseClassUtype(Ast *ast);
     void parseMethodReturnType(Ast*);
     void parseLambdaReturnType(Ast*);
@@ -166,6 +166,12 @@ private:
     void parseReturnStatement(Ast*);
     void parseIfStatement(Ast*);
     void parseAliasDeclaration(Ast *ast);
+    void parseComponentDeclaration(Ast *ast);
+    void parseComponentTypeList(Ast *ast);
+    void parseComponentType(Ast *ast);
+    void parseSingleComponentType(Ast *ast);
+    void parseFactoryComponentType(Ast *ast);
+    void parseComponentName(Ast *ast);
     void parseForStatement(Ast *ast);
     void parseForEachStatement(Ast *ast);
     void parseWhileStatement(Ast*);

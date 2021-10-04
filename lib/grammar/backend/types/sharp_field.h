@@ -10,6 +10,7 @@
 #include "../access_flag.h"
 #include "sharp_type.h"
 #include "../dependency/dependancy.h"
+#include "../dependency/injection_request.h"
 
 struct sharp_class;
 
@@ -28,12 +29,13 @@ struct sharp_field {
         dependencies(),
         flags(flag_none),
         fieldType(normal_field),
-        closures(),
+        closure(NULL),
         type(),
         ast(NULL),
         getter(NULL),
         setter(NULL),
-        scheme(NULL)
+        scheme(NULL),
+        request(NULL)
     {}
 
     sharp_field(const sharp_field &sf)
@@ -46,13 +48,17 @@ struct sharp_field {
         type(sf.type),
         flags(sf.flags),
         fieldType(sf.fieldType),
-        closures(sf.closures),
+        closure(sf.closure),
         ast(sf.ast),
         getter(sf.getter),
         setter(sf.setter),
-        scheme(NULL)
+        scheme(NULL),
+        request(NULL)
     {
         create_scheme(sf.scheme);
+
+        if(sf.request)
+            request = new injection_request(*sf.request);
     }
 
     sharp_field(
@@ -72,11 +78,12 @@ struct sharp_field {
             type(),
             flags(flags),
             fieldType(ft),
-            closures(),
+            closure(NULL),
             ast(ast),
             getter(NULL),
             setter(NULL),
-            scheme(NULL)
+            scheme(NULL),
+            request(NULL)
     {
         set_full_name();
         this->type.copy(type);
@@ -99,8 +106,9 @@ struct sharp_field {
     sharp_function *setter;
     impl_location implLocation;
     List<dependency> dependencies;
-    List<sharp_field*> closures;
+    sharp_field* closure;
     operation_scheme* scheme;
+    injection_request *request;
     sharp_type type;
     field_type fieldType;
     uInt flags;

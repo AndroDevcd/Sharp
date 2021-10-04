@@ -225,6 +225,21 @@ enum Declaration:
 <lambda-block>:
  <statements>*
 
+<single-type>:
+single ["(" <string> ")"] { <expression> }
+
+<factory-type>:
+factory ["(" <string> ")"] { <expression> }
+
+<component-type>:
+<single-type> | <factory-type>
+
+<component-type-list>:
+<component-type> [, <component-type>]*
+
+<inject_request>:
+inject ["(" <identifier> ")"]
+
 <switch-block>:
  { <switch-declarator>* }
 
@@ -263,6 +278,10 @@ Setter Declaration:
 
 Alias Declaration:
 alias <utype> as <identifier>
+
+
+Component Declaration:
+component [<identifier>] { <component-type-list> };
 
 Single Line comment Declaration:
 `//`

@@ -66,6 +66,10 @@ void parser::parse() {
         {
             parseAliasDeclaration(NULL);
         }
+        else if(isComponentDeclaration(current()))
+        {
+            parseComponentDeclaration(NULL);
+        }
         else if(isInterfaceDecl(current()))
         {
             parseInterfaceDecl(NULL);
@@ -345,6 +349,79 @@ void parser::parseAliasDeclaration(Ast *ast) {
     parseUtype(branch);
     expect(branch, "as", false);
     expectIdentifier(branch);
+    expect(branch, ";", false);
+}
+
+void parser::parseComponentTypeList(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_component_type_list);
+
+    _pcTypeArg:
+    if(peek(1)->getType() != RIGHTCURLY)
+    {
+        parseComponentType(branch);
+
+        goto _pcTypeArg;
+    }
+}
+
+void parser::parseComponentType(Ast *ast) {
+    if(peek(1)->getValue() == "single")
+        parseSingleComponentType(ast);
+    else
+        parseFactoryComponentType(ast);
+}
+
+void parser::parseSingleComponentType(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_single_component);
+
+    expect(branch, "single", false);
+
+    if(peek(1)->getType() == LEFTPAREN)
+        parseComponentName(branch);
+
+    expect(branch, "{", false);
+    parseExpression(branch);
+    expect(branch, "}", false);
+}
+
+void parser::parseFactoryComponentType(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_factory_component);
+
+    expect(branch, "factory", false);
+
+    if(peek(1)->getType() == LEFTPAREN)
+        parseComponentName(branch);
+
+    expect(branch, "{", false);
+    parseExpression(branch);
+    expect(branch, "}", false);
+}
+
+void parser::parseComponentName(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_component_name);
+    expect(branch, "(", false);
+
+    if(peek(1)->getId() == STRING_LITERAL) {
+        advance();
+        branch->addToken(current());
+    } else {
+        errors->createNewError(GENERIC, current(), "expected string literal");
+    }
+
+    expect(branch, ")", false);
+
+}
+
+void parser::parseComponentDeclaration(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_component_decl);
+
+    if(peek(1)->getId() == IDENTIFIER) {
+        expectIdentifier(branch); // component name
+    }
+
+    expect(branch, "{", false);
+    parseComponentTypeList(branch);
+    expect(branch, "}", false);
     expect(branch, ";", false);
 }
 
@@ -1432,6 +1509,11 @@ void parser::parseInterfaceBlock(Ast* ast) {
             if(branch->getLastSubAst()->getType() != ast_delegate_decl)
                 errors->createNewError(GENERIC, current(), "unexpected method declaration");
         }
+        else if(isComponentDeclaration(current()))
+        {
+            parseComponentDeclaration(branch);
+            errors->createNewError(GENERIC, current(), "unexpected component declaration");
+        }
         else if(isInitDecl(current()))
         {
             errors->createNewError(GENERIC, current(), "unexpected init declaration");
@@ -1540,6 +1622,10 @@ void parser::parseAll(Ast *ast) {
     else if(isAliasDeclaration(current()))
     {
         parseAliasDeclaration(ast);
+    }
+    else if(isComponentDeclaration(current()))
+    {
+        parseComponentDeclaration(ast);
     }
     else if(isObfuscateDecl(current()))
     {
@@ -1747,6 +1833,15 @@ void parser::parseSetter(Ast* ast) {
     }
 }
 
+void parser::parseInjectRequest(Ast* ast) {
+    Ast *branch = getBranch(ast, ast_inject_request);
+
+    expect(branch, "inject", false);
+    expect(branch, "(", false);
+    expectIdentifier(branch);
+    expect(branch, ")", false);
+}
+
 void parser::parseVariableDecl(Ast* ast) {
     Ast *branch = getBranch(ast, ast_variable_decl);
     recursion++;
@@ -1759,6 +1854,10 @@ void parser::parseVariableDecl(Ast* ast) {
             branch->addToken(current());
         } else
             _current--;
+    }
+
+    if(peek(1)->getValue() == "inject") {
+        parseInjectRequest(branch);
     }
 
     expectIdentifier(branch);
@@ -2058,7 +2157,7 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
 
     old = _current;
     if(parsePrimaryExpr(branch)) {
-        if(ignoreBinary) return true;
+        if(ignoreBinary || branch->hasSubAst(ast_get_component)) return true;
         else if(!isExprSymbol(peek(1)->getValue()))
             return true;
     }
@@ -2526,48 +2625,6 @@ void parser::parseBaseClassUtype(Ast *ast) {
     }
 }
 
-bool parser::parseFieldInitializatioin(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_field_init);
-
-    if(peek(1)->getValue() == "base") {
-        expect(branch, "base");
-        parseBaseClassUtype(branch);
-        expect(branch, "->");
-    }
-
-    if(parseUtypeNaked(branch) && peek(1)->getType() == EQUALS) {
-        expect(branch, "=");
-
-        parseExpression(branch);
-        return true;
-    }
-
-    return false;
-}
-
-void parser::parseFieldInitList(Ast *ast) {
-    Ast *branch = getBranch(ast, ast_field_init_list);
-
-    expect(branch, "{");
-
-    if(peek(1)->getType() != RIGHTCURLY)
-    {
-        parseFieldInitializatioin(branch);
-
-        _pField:
-        if(peek(1)->getType() == COMMA)
-        {
-            expect(branch, ",");
-            if(!parseFieldInitializatioin(branch)){
-                errors->createNewError(GENERIC, branch->getLastSubAst(), "expected field initializer");
-            }
-            goto _pField;
-        }
-    }
-
-    expect(branch, "}");
-}
-
 void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
     Ast* branch = getBranch(ast, ast_expression_list);
 
@@ -2934,6 +2991,35 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         return true;
     }
 
+
+    if(peek(1)->getValue() == "get")
+    {
+        expect(branch, "get", false);
+        expect(branch, "(", false);
+        if(peek(1)->getId() == STRING_LITERAL) {
+            advance();
+            branch->addToken(current());
+
+            if(peek(1)->getType() == COMMA) {
+                advance();
+
+                if(peek(1)->getId() == IDENTIFIER) {
+                    advance();
+                    branch->addToken(current());
+                } else {
+                    errors->createNewError(GENERIC, current(), "expected identifier");
+                }
+            }
+        } else if(peek(1)->getId() == IDENTIFIER) {
+            advance();
+            branch->addToken(current());
+        }
+        expect(branch, ")", false);
+
+        branch->encapsulate(ast_get_component);
+        return true;
+    }
+
     dotNot:
     errors->enterProtectedMode();
     old=_current;
@@ -2978,18 +3064,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         }
         else if(peek(1)->getType() == LEFTPAREN) {
             parseExpressionList(branch, "(", ")");
-        } else if(peek(1)->getType() == LEFTCURLY) {
-            if(peek(2)->getId() == IDENTIFIER) {
-                if(peek(2)->getValue() == "base") {
-                    parseFieldInitList(branch);
-                } else if(peek(3)->getType() == EQUALS){
-                    parseFieldInitList(branch);
-                } else {
-                    parseExpressionList(branch, "{", "}");
-                }
-            } else {
-                parseExpressionList(branch, "{", "}");
-            }
         } else {
             errors->createNewError(GENERIC, current(), "expected '[' or '(' or '{' after new expression");
             return true;
@@ -3641,6 +3715,10 @@ bool parser::isAliasDeclaration(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "alias");
 }
 
+bool parser::isComponentDeclaration(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "component");
+}
+
 bool parser::isThrowStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "throw");
 }
@@ -3824,7 +3902,8 @@ bool parser::isKeyword(string key) {
            || key == "when" || key == "local" || key == "native"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate" || key == "is";
+           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate" || key == "is"
+           || key == "inject" || key == "component" || key == "single" || key == "factory";
 }
 
 void parser::parseAccessTypes() {

@@ -15,6 +15,7 @@ List<sharp_class*> classes;
 List<sharp_class*> genericClasses;
 thread_local sharp_module* currModule = NULL;
 List<string> warnings;
+component_manager manager;
 
 void create_new_warning(error_type error, int type, int line, int col, string xcmnts) {
     GUARD(globalLock)

@@ -232,6 +232,7 @@ void printVersion();
 #define __w_cast 5
 #define __w_init 6
 #define __w_null 7
+#define __w_dep 8
 
 #define SETTINGS_FILE "settings.json"
 

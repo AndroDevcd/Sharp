@@ -11,16 +11,18 @@ void compile_dot_notation_call_expression(
         expression *e,
         sharp_class *with_class,
         Ast *ast) {
-    if(ast->hasSubAst(ast_dot_fn_e)) {
-        e->type.copy(resolve(ast, resolve_all, &e->scheme, with_class));
+
+    Ast *dotNotationAst = ast->getType() == ast_dotnotation_call_expr ? ast : ast->getSubAst(ast_dotnotation_call_expr);
+    if(dotNotationAst->hasSubAst(ast_dot_fn_e)) {
+        e->type.copy(resolve(dotNotationAst, resolve_all, &e->scheme, with_class));
     } else {
-        e->type.copy(resolve(ast->getSubAst(ast_utype), resolve_all,
+        e->type.copy(resolve(dotNotationAst->getSubAst(ast_utype), resolve_all,
                 &e->scheme, with_class));
     }
 
     if(e->scheme.schemeType == scheme_none) {
         currThread->currTask->file->errors->createNewError(
-                GENERIC, ast, "expression of type `"
+                GENERIC, dotNotationAst, "expression of type `"
                               + type_to_str(e->type) + "` must evaluate to a value");
     }
 

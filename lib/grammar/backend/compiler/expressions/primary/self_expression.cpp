@@ -12,8 +12,14 @@
 
 void compile_self_expression(expression *e, Ast *ast) {
     context &ctx = currThread->currTask->file->context;
-    sharp_function *fun = get_primary_function(&ctx);
     sharp_class *primaryClass = get_primary_class(&ctx);
+
+    compile_self_expression(primaryClass, primaryClass, e, ast);
+}
+
+void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceClass, expression *e, Ast *ast) {
+    context &ctx = currThread->currTask->file->context;
+    sharp_function *fun = get_primary_function(&ctx);
 
     if(fun != NULL && !check_flag(fun->flags, flag_static)
        && ctx.type == block_context && ctx.functionCxt != fun) {
@@ -29,7 +35,7 @@ void compile_self_expression(expression *e, Ast *ast) {
                 ast
         );
 
-        fun->instanceClosure = staticClosureRef;
+        fun->closure = staticClosureRef;
 
         create_static_field_access_operation(&e->scheme, staticClosureRef);
         create_instance_field_access_operation(&e->scheme, closure);
@@ -38,15 +44,18 @@ void compile_self_expression(expression *e, Ast *ast) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
                                                                "cannot access self from static context.");
         } else {
-            create_get_primary_instance_class(&e->scheme, primaryClass);
+            create_get_primary_instance_class(&e->scheme, instanceClass);
         }
     }
 
     e->type.type = type_class;
-    e->type._class = primaryClass;
+    e->type._class = instanceClass;
 
     if(ast->hasToken(PTR)) {
         compile_dot_notation_call_expression(
-                e, primaryClass, ast->getSubAst(ast_dotnotation_call_expr));
+                e, instanceClass, ast->getSubAst(ast_dotnotation_call_expr));
     }
+
+    // todo: process additional expressions after
 }
+

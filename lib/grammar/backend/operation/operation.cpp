@@ -82,6 +82,59 @@ void create_static_field_getter_operation(
     }
 }
 
+void create_new_class_array_operation(
+        operation_scheme *scheme,
+        operation_scheme *arraySizeOperations,
+        sharp_class *sc) {
+    if(scheme) {
+        scheme->schemeType = scheme_new_class_array;
+
+        scheme->steps.add(new operation_step(
+                arraySizeOperations, operation_get_size_value));
+
+        scheme->steps.add(new operation_step(
+                operation_create_class_array, sc));
+    }
+}
+
+void create_new_number_array_operation(
+        operation_scheme *scheme,
+        operation_scheme *arraySizeOperations,
+        native_type nativeType) {
+    if(scheme) {
+        scheme->schemeType = scheme_new_number_array;
+
+        scheme->steps.add(new operation_step(
+                arraySizeOperations, operation_get_size_value));
+
+        scheme->steps.add(new operation_step(
+                operation_create_number_array, nativeType));
+    }
+}
+
+void create_new_object_array_operation(
+        operation_scheme *scheme,
+        operation_scheme *arraySizeOperations) {
+    if(scheme) {
+        scheme->schemeType = scheme_new_object_array;
+
+        scheme->steps.add(new operation_step(
+                arraySizeOperations, operation_get_size_value));
+
+        scheme->steps.add(new operation_step(operation_create_object_array));
+    }
+}
+
+void create_null_value_operation(operation_scheme *scheme) {
+    if(scheme) {
+        if(scheme->schemeType == scheme_none)
+            scheme->schemeType = scheme_nullify_value;
+
+        scheme->steps.add(new operation_step(
+                operation_nullify_value));
+    }
+}
+
 void create_instance_field_access_operation(
         operation_scheme *scheme,
         sharp_field *instanceField) {

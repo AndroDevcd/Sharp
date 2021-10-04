@@ -20,6 +20,7 @@ enum compilation_stage {
     classes_preprocessed,
     classes_post_processed, // ready to compile after this stage
     class_delegates_processed,
+    components_processed,
     compiled
 };
 

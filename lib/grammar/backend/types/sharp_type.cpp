@@ -106,6 +106,14 @@ uInt is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
         } else return with_result(
                 function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true),
                 match_normal);
+    } else if (comparee.type == type_null) {
+        if(!comparer.nullable) return no_match_found;
+
+        return with_result(comparer.type == type_class
+                           || comparer.type == type_object
+                           || (comparer.type > type_var)
+                           || (comparer.type <= type_var && comparer.isArray), match_normal);
+
     } else return no_match_found;
 }
 

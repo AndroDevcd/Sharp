@@ -576,7 +576,7 @@ Support dependency injection into the language
 ```javascript
 // global Model
 x := 9;
-model {
+component {
     single { MyClass(get(), get("named")) } // attach these single types to a variable thats static in the lang to be accessed later
     single("named") { MyClass2(get(), get(modelName)) } // named item are only used when requested
 
@@ -603,7 +603,7 @@ you cannot have a named factory and a named single within the same model
 
 // named model
 // htese models just like named fingles and factories will only be used when requested
-model modelName {
+component modelName {
 
 }
 

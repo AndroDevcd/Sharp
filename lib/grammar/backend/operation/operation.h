@@ -27,6 +27,7 @@ enum operation_type {
     operation_call_static_function,
     operation_get_static_function_address,
     operation_push_value_to_stack,
+    operation_nullify_value,
     operation_push_parameter_to_stack,
     operation_get_integer_constant,
     operation_get_decimal_constant,
@@ -55,6 +56,10 @@ enum operation_type {
     operation_get_bool_constant,
     operation_get_string_constant,
     operation_not_value,
+    operation_create_class_array,
+    operation_create_number_array,
+    operation_create_object_array,
+    operation_get_size_value
 };
 
 enum _operation_scheme {
@@ -68,7 +73,11 @@ enum _operation_scheme {
     scheme_call_instance_function,
     scheme_call_static_function,
     scheme_get_constant,
-    scheme_new_class
+    scheme_new_class,
+    scheme_nullify_value,
+    scheme_new_class_array,
+    scheme_new_number_array,
+    scheme_new_object_array
 };
 
 struct operation_scheme {
@@ -121,7 +130,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     operation_step(const operation_step &step)
@@ -135,7 +145,8 @@ struct operation_step {
             integer(0),
             _char(0),
             _bool(false),
-            _string("")
+            _string(""),
+            nativeType(type_undefined)
     {
         copy(step);
     }
@@ -151,7 +162,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     operation_step(operation_scheme *scheme, operation_type type = operation_step_scheme)
@@ -165,7 +177,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, sharp_field *field)
@@ -179,7 +192,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, Int constant)
@@ -193,7 +207,23 @@ struct operation_step {
         decimal(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
+    {}
+
+    operation_step(operation_type type, native_type nt)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(0),
+            decimal(0),
+            _char(0),
+            _bool(false),
+            _string(""),
+            nativeType(nt)
     {}
 
     operation_step(operation_type type, char constant)
@@ -207,7 +237,8 @@ struct operation_step {
             decimal(0),
             _char(constant),
             _bool(false),
-            _string("")
+            _string(""),
+            nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, bool constant)
@@ -221,7 +252,8 @@ struct operation_step {
             decimal(0),
             _char(0),
             _bool(constant),
-            _string("")
+            _string(""),
+            nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, string &constant)
@@ -235,7 +267,8 @@ struct operation_step {
             decimal(0),
             _char(0),
             _bool(false),
-            _string(constant)
+            _string(constant),
+            nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, long double constant)
@@ -249,7 +282,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, sharp_function *fun)
@@ -263,7 +297,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     operation_step(operation_type type, sharp_class *sc)
@@ -277,7 +312,8 @@ struct operation_step {
         integer(0),
         _char(0),
         _bool(false),
-        _string("")
+        _string(""),
+        nativeType(type_undefined)
     {}
 
     ~operation_step() {
@@ -293,7 +329,8 @@ struct operation_step {
         integer = step.integer;
         function = step.function;
         _class = step._class;
-        field = step.field;
+        field = step.field;,
+        nativeType = step.nativeType;
 
         if(scheme)
             scheme = new operation_scheme(*step.scheme);
@@ -309,6 +346,7 @@ struct operation_step {
     long double decimal;
     char _char;
     bool _bool;
+    native_type nativeType;
     string _string;
     operation_type type;
 };
@@ -402,5 +440,21 @@ void create_get_primary_instance_class(
 void create_static_field_getter_operation(
         operation_scheme *scheme,
         sharp_field *instanceField);
+
+void create_null_value_operation(operation_scheme *scheme);
+
+void create_new_class_array_operation(
+        operation_scheme *scheme,
+        operation_scheme *arraySizeOperations,
+        sharp_class *sc);
+
+void create_new_number_array_operation(
+        operation_scheme *scheme,
+        operation_scheme *arraySizeOperations,
+        native_type nativeType);
+
+void create_new_object_array_operation(
+        operation_scheme *scheme,
+        operation_scheme *arraySizeOperations);
 
 #endif //SHARP_OPERATION_H

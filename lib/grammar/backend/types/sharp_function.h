@@ -21,17 +21,17 @@ void set_full_name(sharp_function*);
 struct sharp_function {
     sharp_function()
     :
-        name(""),
-        fullName(""),
-        owner(NULL),
-        implLocation(),
-        dependencies(),
-        flags(flag_none),
-        ast(NULL),
-        instanceClosure(NULL),
-        parameters(),
-        returnType(),
-        type(undefined_function)
+            name(""),
+            fullName(""),
+            owner(NULL),
+            implLocation(),
+            dependencies(),
+            flags(flag_none),
+            ast(NULL),
+            closure(NULL),
+            parameters(),
+            returnType(),
+            type(undefined_function)
     {}
 
     sharp_function(const sharp_function &sf)
@@ -46,7 +46,7 @@ struct sharp_function {
             parameters(),
             returnType(sf.returnType),
             type(sf.type),
-            instanceClosure(sf.instanceClosure)
+            closure(sf.closure)
     {
         copy_parameters(sf.parameters);
     }
@@ -71,7 +71,7 @@ struct sharp_function {
             ast(ast),
             returnType(),
             type(type),
-            instanceClosure(NULL)
+            closure(NULL)
     {
         this->returnType.copy(returnType);
         copy_parameters(parameters);
@@ -91,7 +91,7 @@ struct sharp_function {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_field*> parameters;
-    sharp_field* instanceClosure;
+    sharp_field* closure;
     sharp_type returnType;
     function_type type;
     uInt flags;

@@ -74,6 +74,7 @@ void post_process() {
             case ast_mutate_decl:
             case ast_import_decl:
             case ast_obfuscate_decl:
+            case ast_component_decl:
                 /* ignore */
                 break;
             default:

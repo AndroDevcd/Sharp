@@ -29,9 +29,25 @@ void process_field(sharp_field *field) {
     if(field->type.type == type_untyped) {
         field->type.type = type_undefined;
 
+        if(field->ast->hasSubAst(ast_inject_request)) {
+            if(field->ast->hasSubAst(ast_expression)) {
+                currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                            "injected field `" + field->name +
+                                  "` cannot be assigned a value");
+            }
+
+            Ast *irAst = field->ast->getSubAst(ast_inject_request);
+            if(irAst->getTokenCount() > 0) {
+                field->request = new injection_request(irAst->getToken(0).getValue());
+            } else {
+                string anyComponent = any_component_name; // we must find the component to inject the field value
+                field->request = new injection_request(anyComponent);
+            }
+        }
+
         if(field->ast->hasToken(COLON)) {
-            expression e(resolve(field->ast->getSubAst(ast_utype)));
-            validate_field_type(true, field, e.type, NULL, field->ast);
+            sharp_type type = resolve(field->ast->getSubAst(ast_utype));
+            validate_field_type(true, field, type, NULL, field->ast);
         } else {
             field->type.type = type_untyped;
             return;
@@ -62,8 +78,11 @@ void process_field(sharp_field *field) {
 
                 string name = trunk->getToken(0).getValue();
                 sharp_field *xtraField = resolve_field(name, field->owner);
-                xtraField->fieldType = field->fieldType;
-                xtraField->type = field->type;
+
+                if(xtraField) {
+                    xtraField->fieldType = field->fieldType;
+                    xtraField->type = field->type;
+                }
             }
         }
     }
@@ -176,6 +195,9 @@ void validate_field_type(
     } else if(type.type == type_string) { // todo: default it to string type
         field->type.type = type_int8;
         field->type.isArray = true;
+        return;
+    } else if(type.type == type_null) {
+        field->type.type = type_object;
         return;
     } else if(type.type == type_field) {
         create_dependency(field, type.field);

@@ -21,7 +21,8 @@ bool warning_options[] = {
         true,   // __w_main
         true,   // __w_cast
         true,   // __w_init
-        true    // __w_null
+        true,   // __w_null
+        true    // __w_dep
 };
 
 int supportedLibVersions = 2;
@@ -143,6 +144,7 @@ void enable_warning_type(string wtype, bool enable) {
     else if(wtype == "-wcast") warning_options[__w_cast] = enable;
     else if(wtype == "-winit") warning_options[__w_init] = enable;
     else if(wtype == "-wnull") warning_options[__w_null] = enable;
+    else if(wtype == "-wdep") warning_options[__w_dep] = enable;
     else error("invalid warning type: " + wtype);
 }
 

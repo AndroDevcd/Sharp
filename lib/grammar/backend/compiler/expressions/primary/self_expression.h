@@ -8,7 +8,13 @@
 #include "../../../../frontend/parser/Ast.h"
 
 struct expression;
+struct sharp_class;
 
 void compile_self_expression(expression *e, Ast *ast);
+void compile_self_expression(
+        sharp_class *primaryClass,
+        sharp_class *instanceClass,
+        expression *e,
+        Ast *ast);
 
 #endif //SHARP_SELF_EXPRESSION_H
