@@ -9,6 +9,7 @@
 #include "dot_notation_call_expression.h"
 #include "base_expression.h"
 #include "null_expression.h"
+#include "new_expression.h"
 
 void compile_primary_expression(expression *e, Ast *ast) {
     if(ast->hasSubAst(ast_not_e))

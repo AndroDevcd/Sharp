@@ -114,6 +114,15 @@ uInt is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
                            || (comparer.type > type_var)
                            || (comparer.type <= type_var && comparer.isArray), match_normal);
 
+    } else if(comparee.type == type_get_component_request) {
+        component_type *subComponent = get_sub_component(
+                componentManager, comparer, *comparee.componentRequest);
+
+        if(subComponent != NULL
+            && is_explicit_type_match(comparer, *subComponent->type) != no_match_found) {
+                comparee.componentRequest->resolvedTypeDefinition = subComponent;
+                return match_normal;
+        } else return no_match_found;
     } else return no_match_found;
 }
 
@@ -132,6 +141,17 @@ uInt is_implicit_type_match(
         sharp_function *&matchedFun) {
     comparer = get_type(comparer);
     comparee = get_type(comparee);
+
+    if(comparee.type == type_get_component_request) {
+        component_type *subComponent = get_sub_component(
+                componentManager, comparer, *comparee.componentRequest);
+
+        if(subComponent != NULL
+           && is_explicit_type_match(comparer, *subComponent->type) != no_match_found) {
+            comparee.componentRequest->resolvedTypeDefinition = subComponent;
+            return match_normal;
+        } else return no_match_found;
+    }
 
     switch(comparer.type) {
         case type_null: return with_result(comparee.type == type_null, match_normal);

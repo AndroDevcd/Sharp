@@ -30,6 +30,10 @@ void component_type::free() {
     delete type;
 }
 
+void component_type::copy_type(sharp_type *type) {
+    this->type = new sharp_type(*type);
+}
+
 void component::copy(const component &c) {
     name = c.name;
     location = c.location;

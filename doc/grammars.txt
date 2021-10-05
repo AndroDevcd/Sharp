@@ -235,7 +235,7 @@ factory ["(" <string> ")"] { <expression> }
 <single-type> | <factory-type>
 
 <component-type-list>:
-<component-type> [, <component-type>]*
+<component-type> [<component-type>]*
 
 <inject_request>:
 inject ["(" <identifier> ")"]
@@ -268,7 +268,7 @@ Operator Declaration:
 `[<accesstype>] def operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 
 Variable Declaration statement:
-`[<accesstype>] [<storagelocality>] <identifier = name> [: <uType>] [ <infer-expr> | <assign-expr> <value>] (; [<getter-setter>] | [, <variable-decl> ;])`
+`[<accesstype>] [<storagelocality>] [<inject_request>] <identifier = name> [: <uType>] [ <infer-expr> | <assign-expr> <value>] (; [<getter-setter>] | [, <variable-decl> ;])`
 
 Getter Declaration:
  `get` <block>

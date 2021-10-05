@@ -43,6 +43,15 @@ struct impl_location {
             col(loc.col)
     {}
 
+    bool operator==(const impl_location &location) const {
+        return location.col == col && location.line == line
+            && location.file == file;
+    }
+
+    bool operator!=(const impl_location &location) const {
+        return !operator==(location);
+    }
+
     sharp_file* file;
     Int line;
     Int col;

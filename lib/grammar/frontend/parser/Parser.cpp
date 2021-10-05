@@ -3903,7 +3903,8 @@ bool parser::isKeyword(string key) {
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as" || key == "in" || key == "volatile" || key == "obfuscate" || key == "is"
-           || key == "inject" || key == "component" || key == "single" || key == "factory";
+           || key == "inject" || key == "component" || key == "single" || key == "factory"
+           || key == "excuse";
 }
 
 void parser::parseAccessTypes() {

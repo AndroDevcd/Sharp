@@ -26,11 +26,12 @@ extern List<sharp_class*> classes;
 extern List<sharp_class*> genericClasses;
 extern recursive_mutex globalLock;
 extern thread_local sharp_module* currModule;
-extern component_manager manager;
+extern component_manager componentManager;
 
 #define global_class_name "__srt_global"
 #define main_component_name "__main__"
 #define any_component_name "?"
+#define single_component_field_name_prefix "@sub_component_"
 
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);

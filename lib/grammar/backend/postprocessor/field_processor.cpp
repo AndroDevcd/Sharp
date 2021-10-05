@@ -48,7 +48,7 @@ void process_field(sharp_field *field) {
         if(field->ast->hasToken(COLON)) {
             sharp_type type = resolve(field->ast->getSubAst(ast_utype));
             validate_field_type(true, field, type, NULL, field->ast);
-        } else {
+        } else { // todo: allow expression proccssing if compiler state permits
             field->type.type = type_untyped;
             return;
         }
@@ -182,15 +182,12 @@ void validate_field_type(
             return;
         }
     } else if(type.type == type_integer
-        || type.type == type_bool
         || type.type == type_decimal) {
         field->type.type = type_var;
         return;
-    } else if(type.type == type_char) {
+    } else if(type.type == type_char
+        || type.type == type_bool) {
         field->type.type = type_int8;
-        return;
-    } else if(type.type == type_bool) {
-        field->type.type = type_var;
         return;
     } else if(type.type == type_string) { // todo: default it to string type
         field->type.type = type_int8;
@@ -233,10 +230,14 @@ void validate_field_type(
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, "expression being assigned to field `" + field->fullName + "` must resolve to a class, object, lambda, or number value.");
         }
+    } else if(type.type == type_get_component_request) {
+        currThread->currTask->file->errors->createNewError(
+                GENERIC, ast->line, ast->col,
+                "cannot assign `get()` to field `" + field->fullName + "` outside a type definition block.");
     } else if(type.type != type_undefined) {
         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
-                                     " field `" + field->fullName + "` cannot be assigned type `" + type_to_str(type) +
-                                     "` due to invalid type assignment format");
+                 " field `" + field->fullName + "` cannot be assigned type `" + type_to_str(type) +
+                 "` due to invalid type assignment format");
     }
 
     field->type = type;

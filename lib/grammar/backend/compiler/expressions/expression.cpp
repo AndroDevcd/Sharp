@@ -72,12 +72,19 @@ void compile_function_call(
             sharp_type *assigner = &params.get(i)->type;
             sharp_function *matchedConstructor = NULL;
 
-            matchResult = is_explicit_type_match(*asignee, *assigner);
-            if (matchResult == no_match_found) {
-                matchResult = is_implicit_type_match(
-                        *asignee, *asignee, 0,
-                        matchedConstructor);
+            if(assigner->type == type_get_component_request) {
+                paramOperations.get(i).copy(
+                        *assigner->componentRequest->resolvedTypeDefinition->scheme);
+                matchResult = match_normal;
+            } else {
+                matchResult = is_explicit_type_match(*asignee, *assigner);
+                if (matchResult == no_match_found) {
+                    matchResult = is_implicit_type_match(
+                            *asignee, *asignee, 0,
+                            matchedConstructor);
+                }
             }
+
 
             create_function_parameter_push_operation(
                     asignee,

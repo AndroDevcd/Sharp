@@ -33,7 +33,7 @@ struct component_type {
     {}
 
     component_type(string &name, impl_location &location)
-            :
+    :
             id(uniqueComponentId++),
             name(""),
             accessor(NULL),
@@ -43,6 +43,24 @@ struct component_type {
             representation(single_component)
     {
         this->name = name;
+    }
+
+    component_type(
+            string &name,
+            sharp_type *type,
+            component_representation representation,
+            impl_location &location)
+    :
+            id(uniqueComponentId++),
+            name(""),
+            accessor(NULL),
+            scheme(NULL),
+            type(NULL),
+            location(location),
+            representation(representation)
+    {
+        this->name = name;
+        copy_type(type);
     }
 
     component_type(const component_type &c)
@@ -59,6 +77,7 @@ struct component_type {
     }
 
     void copy(const component_type &c);
+    void copy_type(sharp_type *);
 
     ~component_type() {
         free();

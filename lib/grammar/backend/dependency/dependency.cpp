@@ -416,8 +416,8 @@ sharp_function* resolve_function(
             mock_function.returnType = func->returnType;
 
             if(is_explicit_type_match(sharp_type(func), sharp_type(&mock_function))) {
-                if(resolvedFunction == NULL) resolvedFunction = func;
-                else ambiguous = true;
+                resolvedFunction = func;
+                break;
             }
         }
 
@@ -2149,10 +2149,10 @@ void resolve(
 
 sharp_type expression_type_to_normal_type(expression *e) {
     if(e->type.type == type_integer
-        || e->type.type == type_char
-        || e->type.type == type_bool
         || e->type.type == type_decimal) {
         return sharp_type(type_var);
+    } else if(e->type.type == type_bool || e->type.type == type_char) {
+        return sharp_type(type_int8);
     } else if(e->type.type == type_string) {
         return sharp_type(type_var, false, true);
     } else {
@@ -2184,7 +2184,8 @@ sharp_type resolve(
         for(Int i = 0; i < list->getSubAstCount(); i++) {
             compile_expression(expressions.__new(), list->getSubAst(i));
 
-            if(expressions.last().scheme.schemeType == scheme_none) {
+            if(expressions.last().scheme.schemeType == scheme_none
+                && expressions.last().type != type_get_component_request) {
                 currThread->currTask->file->errors->createNewError(
                         GENERIC, list->getSubAst(i), "expression of type `"
                                       + type_to_str(expressions.last().type) + "` must evaluate to a value");

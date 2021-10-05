@@ -91,6 +91,7 @@ void compile_hex_literal(expression *e, Token &literal) {
 void compile_string_literal(expression *e, Token &literal) {
     e->type.type = type_string;
     e->type._string = literal.getValue();
+    e->type.isArray = true;
     create_get_string_constant_operation(&e->scheme, e->type._string);
 }
 

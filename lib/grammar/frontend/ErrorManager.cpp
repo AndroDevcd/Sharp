@@ -170,12 +170,12 @@ int ErrorManager::createNewError(error_type err, Token token, string xcmts) {
 
     if(shouldReport(&token, lastError, e) || (aggressive && asis))
     {
-        if(asis) {
-            printError(e);
-        } else if(protectedMode) {
+        if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
             return 1;
+        } else if(asis) {
+            printError(e);
         }
 
         _err = true;
@@ -233,12 +233,12 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
 
     if(shouldReport(NULL, last_err, e) || (aggressive && asis))
     {
-        if(asis) {
-            printError(e);
-        } else if(protectedMode) {
+        if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
             return;
+        } else if(asis) {
+            printError(e);
         }
 
         _err = true;
@@ -314,6 +314,8 @@ void ErrorManager::fail() {
         for(ParseError &err : *getPossibleErrorList())
         {
             if(shouldReport(NULL, lastError, err)) {
+                if(asis) printError(err);
+
                 errors->push_back(err);
                 lastError = err;
                 unfilteredErrors->push_back(err);
@@ -402,12 +404,12 @@ int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
 
     if(shouldReport(NULL, last_err, e) || (aggressive && asis))
     {
-        if(asis) {
-            printError(e);
-        } else if(protectedMode) {
+        if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
             return 1;
+        } else if(asis) {
+            printError(e);
         }
 
         _err = true;

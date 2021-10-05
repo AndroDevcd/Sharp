@@ -396,6 +396,7 @@ void operation_step::freeStep()  {
 }
 
 void operation_scheme::copy(const operation_scheme &scheme) {
+    free();
     schemeType = scheme.schemeType;
     field = scheme.field;
     fun = scheme.fun;

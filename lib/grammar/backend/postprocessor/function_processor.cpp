@@ -242,15 +242,15 @@ void validate_function_type(
             return;
         }
     } else if(type.type == type_integer
-              || type.type == type_bool
               || type.type == type_decimal) {
         fun->returnType.type = type_var;
         return;
-    } else if(type.type == type_char) {
+    } else if(type.type == type_char
+              || type.type == type_bool) {
         fun->returnType.type = type_int8;
         return;
-    } else if(type.type == type_bool) {
-        fun->returnType.type = type_var;
+    } else if(type.type == type_null) {
+        fun->returnType.type = type_object;
         return;
     } else if(type.type == type_string) { // todo: default it to string type
         fun->returnType.type = type_int8;
@@ -285,10 +285,14 @@ void validate_function_type(
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast->line, ast->col, "expression being assigned to function `" + fun->fullName + "` must resolve to a class, object, lambda, or number value.");
         }
+    } else if(type.type == type_get_component_request) {
+        currThread->currTask->file->errors->createNewError(
+                GENERIC, ast->line, ast->col,
+                "cannot assign `get()` to function `" + fun->fullName + "` outside a type definition block.");
     } else if(type.type != type_undefined) {
         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
-                                                           " function `" + fun->fullName + "` cannot be assigned type `" + type_to_str(type) +
-                                                           "` due to invalid type assignment format");
+                 " function `" + fun->fullName + "` cannot be assigned type `" + type_to_str(type) +
+                 "` due to invalid type assignment format");
     }
 
     fun->returnType = type;

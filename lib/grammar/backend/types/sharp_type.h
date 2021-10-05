@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "unresolved_type.h"
 #include "type_match_result.h"
+#include "get_component_request.h"
 
 enum native_type {
     type_int8,
@@ -37,6 +38,7 @@ enum native_type {
     type_string,
     type_bool,
     type_decimal,
+    type_get_component_request,
 };
 
 void dispose_function_ptr(sharp_type*);
@@ -55,6 +57,7 @@ struct sharp_type {
         fun(NULL),
         module(NULL),
         group(NULL),
+        componentRequest(NULL),
         unresolvedType(),
         type(type_untyped),
         isArray(false),
@@ -73,6 +76,7 @@ struct sharp_type {
            fun(NULL),
            module(NULL),
            group(NULL),
+           componentRequest(NULL),
            unresolvedType(),
            type(type_untyped),
            isArray(false),
@@ -96,6 +100,7 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
+            componentRequest(NULL),
             unresolvedType(),
             type(type_class),
             isArray(isArray),
@@ -115,6 +120,7 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
+            componentRequest(NULL),
             unresolvedType(unresolvedType),
             type(type_untyped),
             isArray(false),
@@ -133,8 +139,28 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
+            componentRequest(NULL),
             unresolvedType(),
             type(type_field),
+            isArray(false),
+            nullable(false),
+            integer(0),
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
+    {}
+
+    sharp_type(get_component_request &componentRequest)
+            :
+            _class(NULL),
+            field(NULL),
+            fun(NULL),
+            module(NULL),
+            group(NULL),
+            componentRequest(new get_component_request(componentRequest)),
+            unresolvedType(),
+            type(type_get_component_request),
             isArray(false),
             nullable(false),
             integer(0),
@@ -151,6 +177,7 @@ struct sharp_type {
             module(sm),
             fun(NULL),
             group(NULL),
+            componentRequest(NULL),
             unresolvedType(),
             type(type_module),
             isArray(false),
@@ -169,6 +196,7 @@ struct sharp_type {
             module(NULL),
             fun(NULL),
             group(group),
+            componentRequest(NULL),
             unresolvedType(),
             type(type_import_group),
             isArray(false),
@@ -190,6 +218,7 @@ struct sharp_type {
             field(NULL),
             module(NULL),
             group(NULL),
+            componentRequest(NULL),
             unresolvedType(),
             fun(fun),
             type(isLambda ? type_lambda_function : type_function),
@@ -212,6 +241,7 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
+            componentRequest(NULL),
             unresolvedType(),
             type(type),
             isArray(isArray),
@@ -228,6 +258,10 @@ struct sharp_type {
         field = st.field;
         fun = st.fun;
         type = st.type;
+
+        if(st.componentRequest)
+            componentRequest = new get_component_request(*st.componentRequest);
+
         for(Int i = 0; i < st.unresolvedType.items.size(); i++) {
             unresolvedType.items.add(new unresolved_item(*st.unresolvedType.items.get(i)));
         }
@@ -249,10 +283,15 @@ struct sharp_type {
 
     void free() {
         unresolvedType.free();
+        delete componentRequest;
     }
 
     bool operator==(native_type t) const {
         return type == t;
+    }
+
+    bool operator!=(native_type t) const {
+        return type != t;
     }
 
     sharp_class *_class;
@@ -260,6 +299,7 @@ struct sharp_type {
     sharp_module *module;
     import_group *group;
     sharp_function *fun;
+    get_component_request *componentRequest;
     unresolved_type unresolvedType;
     native_type type;
     bool isArray;
