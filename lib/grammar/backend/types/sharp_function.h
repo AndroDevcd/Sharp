@@ -31,7 +31,8 @@ struct sharp_function {
             closure(NULL),
             parameters(),
             returnType(),
-            type(undefined_function)
+            type(undefined_function),
+            directlyCopyParams(false)
     {}
 
     sharp_function(const sharp_function &sf)
@@ -46,7 +47,8 @@ struct sharp_function {
             parameters(),
             returnType(sf.returnType),
             type(sf.type),
-            closure(sf.closure)
+            closure(sf.closure),
+            directlyCopyParams(sf.directlyCopyParams)
     {
         copy_parameters(sf.parameters);
     }
@@ -59,7 +61,8 @@ struct sharp_function {
             Ast *ast,
             List<sharp_field*> &parameters,
             sharp_type &returnType,
-            function_type type)
+            function_type type,
+            bool directlyCopyParams = false)
     :
             name(name),
             fullName(""),
@@ -71,10 +74,13 @@ struct sharp_function {
             ast(ast),
             returnType(),
             type(type),
+            directlyCopyParams(directlyCopyParams),
             closure(NULL)
     {
         this->returnType.copy(returnType);
-        copy_parameters(parameters);
+        if(!directlyCopyParams)
+            copy_parameters(parameters);
+        else this->parameters.addAll(parameters);
         set_full_name(this);
     }
 
@@ -96,6 +102,7 @@ struct sharp_function {
     function_type type;
     uInt flags;
     Ast* ast;
+    bool directlyCopyParams; // we need to do this for get() expressions to preserve the resolved type definition found
 };
 
 bool is_fully_qualified_function(sharp_function*);

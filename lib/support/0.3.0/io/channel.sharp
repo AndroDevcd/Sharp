@@ -314,7 +314,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
              when(chan.buff_type) {
                 EXCLUSIVE -> {
                    lock(self) {
-                       head = new channel_data<t> { data = data };
+                       head = new channel_data<t>(data);
                        tail = head;
                        buff_size = 1;
                    }
@@ -323,7 +323,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 }
                 SINGLE -> {
                    if(head == null) {
-                      head = new channel_data<t> { data = data };
+                      head = new channel_data<t>(data);
                       tail = head;
                    } else {
                       head.data = data;
@@ -334,10 +334,10 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 UNLIMITED -> {
                    lock(self) {
                        if(head == null) {
-                          head = new channel_data<t> { data = data };
+                          head = new channel_data<t>(data);
                           tail = head;
                        } else {
-                          tail.next = new channel_data<t> { data = data };
+                          tail.next = new channel_data<t>(data);
                           tail = tail.next;
                        }
 
@@ -349,11 +349,11 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
                     lock(self) {
                         if(head == null) {
-                           head = new channel_data<t> { data = data };
+                           head = new channel_data<t>(data);
                            tail = head;
                            buff_size++;
                         } else {
-                           tail.next = new channel_data<t> { data = data };
+                           tail.next = new channel_data<t>(data);
                            tail = tail.next;
                            buff_size++;
                         }
@@ -364,6 +364,10 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
     }
 
     class channel_data<t> {
+        channel_data(data: t) {
+            self->data = data;
+        }
+
         data : t;
         next : channel_data<t>;
     }

@@ -95,8 +95,8 @@ enum ast_type
     ast_alias_decl,
     ast_component_decl,
     ast_component_type_list,
-    ast_single_component,
-    ast_factory_component,
+    ast_single_definition,
+    ast_factory_definition,
     ast_get_component,
     ast_component_name,
     ast_inject_request,
@@ -212,6 +212,7 @@ public:
     long getTokenCount();
     Token &getToken(long at);
     Token* getToken(token_type t);
+    Token* getToken(token_id t);
     static string astTypeToString(ast_type type);
 
     void addToken(Token entity);

@@ -106,8 +106,7 @@ json_value* parse_value() {
                    )
         );
     } else if(tok.getId() == STRING_LITERAL) {
-        string es = tokenizer::from_escaped_string(tok.getValue());
-        jv->setStringValue(es);
+        jv->setStringValue(tok.getValue());
     } else if(tok.getType() == LEFTBRACE) {
         jv->setArrayValue(parse__array());
     } else if(tok.getType() == LEFTCURLY) {

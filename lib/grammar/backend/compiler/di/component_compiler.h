@@ -10,10 +10,10 @@
 
 void compile_components();
 void compile_component(Ast *ast);
-void compile_sub_component(
+void compile_type_definition(
         bool lastTry,
         component *comp,
-        component_representation representation,
+        type_definition_rule rule,
         Ast *ast);
 
 #endif //SHARP_COMPONENT_COMPILER_H

@@ -15,13 +15,13 @@ struct sharp_field;
 struct operation_scheme;
 struct sharp_type;
 
-enum component_representation {
-    single_component,
-    factory_component
+enum type_definition_rule {
+    single_type_definition,
+    factory_type_definition
 };
 
-struct component_type {
-    component_type()
+struct type_definition {
+    type_definition()
     :
         id(-1),
         name(""),
@@ -29,10 +29,10 @@ struct component_type {
         scheme(NULL),
         type(NULL),
         location(),
-        representation(single_component)
+        representation(single_type_definition)
     {}
 
-    component_type(string &name, impl_location &location)
+    type_definition(string &name, impl_location &location)
     :
             id(uniqueComponentId++),
             name(""),
@@ -40,15 +40,15 @@ struct component_type {
             scheme(NULL),
             type(NULL),
             location(location),
-            representation(single_component)
+            representation(single_type_definition)
     {
         this->name = name;
     }
 
-    component_type(
+    type_definition(
             string &name,
             sharp_type *type,
-            component_representation representation,
+            type_definition_rule representation,
             impl_location &location)
     :
             id(uniqueComponentId++),
@@ -63,7 +63,7 @@ struct component_type {
         copy_type(type);
     }
 
-    component_type(const component_type &c)
+    type_definition(const type_definition &c)
     :
       id(-1),
       name(""),
@@ -71,15 +71,15 @@ struct component_type {
       scheme(NULL),
       type(NULL),
       location(),
-      representation(single_component)
+      representation(single_type_definition)
     {
         copy(c);
     }
 
-    void copy(const component_type &c);
+    void copy(const type_definition &c);
     void copy_type(sharp_type *);
 
-    ~component_type() {
+    ~type_definition() {
         free();
     }
 
@@ -90,7 +90,7 @@ struct component_type {
     sharp_field *accessor;
     operation_scheme *scheme;
     sharp_type *type;
-    component_representation representation;
+    type_definition_rule representation;
     impl_location location;
 };
 
@@ -144,8 +144,8 @@ struct component {
     void free();
 
     string name;
-    List<component_type*> named;
-    List<component_type*> unnamed;
+    List<type_definition*> named;
+    List<type_definition*> unnamed;
     impl_location location;
 };
 

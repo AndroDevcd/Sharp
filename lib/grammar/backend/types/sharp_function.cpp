@@ -107,7 +107,7 @@ bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> 
 
 void sharp_function::free() {
     dependencies.free();
-    deleteList(parameters);
+    if(!directlyCopyParams) deleteList(parameters);
 }
 
 void sharp_function::copy_parameters(const List<sharp_field *> &params) {

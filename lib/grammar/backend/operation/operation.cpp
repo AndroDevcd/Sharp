@@ -392,11 +392,13 @@ void create_function_parameter_push_operation(
 }
 
 void operation_step::freeStep()  {
-    if(scheme) delete scheme;
+    if(scheme) {
+        delete scheme;
+        scheme = NULL;
+    }
 }
 
 void operation_scheme::copy(const operation_scheme &scheme) {
-    free();
     schemeType = scheme.schemeType;
     field = scheme.field;
     fun = scheme.fun;

@@ -32,20 +32,20 @@ struct component_manager {
     List<component*> components;
 };
 
-component_type* get_sub_component(component_manager &, sharp_type &, get_component_request&);
-component_type* get_sub_component(component_manager &, sharp_type &, Ast *resolveLocation = NULL);
-component_type* get_sub_component(component_manager &, string &, Ast *resolveLocation = NULL);
-component_type* get_sub_component(component_manager &, sharp_type &, string &);
-component_type* get_sub_component(component_manager &, string &, string &);
-component_type* get_sub_component(sharp_type &, component*);
-component_type* get_sub_component(string &, component*);
+type_definition* get_type_definition(component_manager &, sharp_type &, get_component_request&);
+type_definition* get_type_definition(component_manager &, sharp_type &, Ast *resolveLocation = NULL);
+type_definition* get_type_definition(component_manager &, string &, Ast *resolveLocation = NULL);
+type_definition* get_type_definition(component_manager &, sharp_type &, string &);
+type_definition* get_type_definition(component_manager &, string &, string &);
+type_definition* get_type_definition(sharp_type &, component*);
+type_definition* get_type_definition(string &, component*);
 
 component* get_component(component_manager &, string &);
 component *create_component(component_manager&, string&, Ast*);
-component_type *create_sub_component(
+type_definition *create_type_definition(
         component*,
         string&,
-        component_representation,
+        type_definition_rule,
         sharp_type&,
         Ast*);
 

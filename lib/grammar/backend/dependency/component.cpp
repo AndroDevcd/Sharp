@@ -8,7 +8,7 @@
 
 uInt uniqueComponentId = 0;
 
-void component_type::copy(const component_type &c) {
+void type_definition::copy(const type_definition &c) {
     id = c.id;
     name = c.name;
     representation = c.representation;
@@ -24,13 +24,13 @@ void component_type::copy(const component_type &c) {
         type = new sharp_type(*c.type);
 }
 
-void component_type::free() {
-    delete accessor;
-    delete scheme;
-    delete type;
+void type_definition::free() {
+    delete accessor; accessor = NULL;
+    delete scheme;scheme = NULL;
+    delete type; type = NULL;
 }
 
-void component_type::copy_type(sharp_type *type) {
+void type_definition::copy_type(sharp_type *type) {
     this->type = new sharp_type(*type);
 }
 
@@ -39,11 +39,11 @@ void component::copy(const component &c) {
     location = c.location;
 
     for(Int i = 0; i < c.named.size(); i++) {
-        named.add(new component_type(*c.named.get(i)));
+        named.add(new type_definition(*c.named.get(i)));
     }
 
     for(Int i = 0; i < c.unnamed.size(); i++) {
-        unnamed.add(new component_type(*c.unnamed.get(i)));
+        unnamed.add(new type_definition(*c.unnamed.get(i)));
     }
 }
 

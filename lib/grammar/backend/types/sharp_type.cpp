@@ -10,12 +10,10 @@
 #include "import_group.h"
 
 
-sharp_type get_type(sharp_type &st) {
+void get_real_type(sharp_type &st) {
     if(st.type == type_field) {
-        return st.field->type;
+        st.copy(st.field->type);
     }
-
-    return st;
 }
 
 native_type str_to_native_type(string &str) {
@@ -32,9 +30,9 @@ native_type str_to_native_type(string &str) {
     return type_undefined;
 }
 
-string type_to_str(sharp_type &t) {
+string type_to_str(sharp_type &type) {
     stringstream ss;
-    sharp_type type = get_type(t);
+
     if(type.type == type_int8) ss << "_int8";
     else if(type.type == type_int16) ss << "_int16";
     else if(type.type == type_int32) ss << "_int32";
@@ -45,8 +43,8 @@ string type_to_str(sharp_type &t) {
     else if(type.type == type_uint64) ss << "_uint64";
     else if(type.type == type_var) ss << "var";
     else if(type.type == type_object) ss << "object";
-    else if(type.type == type_integer) ss << t.integer;
-    else if(type.type == type_decimal) ss << t.decimal;
+    else if(type.type == type_integer) ss << type.integer;
+    else if(type.type == type_decimal) ss << type.decimal;
     else if(type.type == type_untyped) ss << "unknown";
     else if(type.type == type_class) ss << type._class->fullName;
     else if(type.type == type_function_ptr) {
@@ -67,8 +65,8 @@ string type_to_str(sharp_type &t) {
     else if(type.type == type_import_group) ss << type.group->name;
     else if(type.type == type_null) ss << "null";
     else if(type.type == type_nil) ss << "nil";
-    else if(type.type == type_function) ss << function_to_str(t.fun);
-    else if(type.type == type_field) ss << t.field->fullName << ": " << type_to_str(t.field->type);
+    else if(type.type == type_function) ss << function_to_str(type.fun);
+    else if(type.type == type_field) ss << type.field->fullName << ": " << type_to_str(type.field->type);
     else ss << "undefined";
 
     if(type.isArray) ss << "[]";
@@ -87,9 +85,9 @@ bool has_match_result_flag(uInt flags, type_match_result flag) {
 }
 
 // the comparer is the one to receive the value that the comparee holds
-uInt is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
-    comparer = get_type(comparer);
-    comparee = get_type(comparee);
+uInt is_explicit_type_match(sharp_type& comparer, sharp_type& comparee) {
+    get_real_type(comparer);
+    get_real_type(comparee);
 
     if(
          (comparer.type == comparee.type && comparer.nullable == comparee.nullable)
@@ -115,7 +113,7 @@ uInt is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
                            || (comparer.type <= type_var && comparer.isArray), match_normal);
 
     } else if(comparee.type == type_get_component_request) {
-        component_type *subComponent = get_sub_component(
+        type_definition *subComponent = get_type_definition(
                 componentManager, comparer, *comparee.componentRequest);
 
         if(subComponent != NULL
@@ -127,23 +125,23 @@ uInt is_explicit_type_match(sharp_type comparer, sharp_type comparee) {
 }
 
 uInt is_implicit_type_match(
-        sharp_type comparer,
-        sharp_type comparee,
+        sharp_type& comparer,
+        sharp_type& comparee,
         uInt excludedMatches) {
     sharp_function *ignoredMatchFun = NULL;
     return is_implicit_type_match(comparer, comparee, excludedMatches, ignoredMatchFun);
 }
 
 uInt is_implicit_type_match(
-        sharp_type comparer,
-        sharp_type comparee,
+        sharp_type& comparer,
+        sharp_type& comparee,
         uInt excludedMatches,
         sharp_function *&matchedFun) {
-    comparer = get_type(comparer);
-    comparee = get_type(comparee);
+    get_real_type(comparer);
+    get_real_type(comparee);
 
     if(comparee.type == type_get_component_request) {
-        component_type *subComponent = get_sub_component(
+        type_definition *subComponent = get_type_definition(
                 componentManager, comparer, *comparee.componentRequest);
 
         if(subComponent != NULL

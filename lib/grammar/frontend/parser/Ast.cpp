@@ -187,6 +187,14 @@ Token* Ast::getToken(token_type t) {
     return NULL;
 }
 
+Token* Ast::getToken(token_id t) {
+    for(unsigned int i = 0; i < tokens.size(); i++) {
+        if(tokens.at(i).getId() == t)
+            return &tokens.get(i);
+    }
+    return NULL;
+}
+
 // tODO: add param bool override (default true) to override the encapsulation
 Ast* Ast::encapsulate(ast_type at) {
     Ast *branch = new Ast(at, this->line, this->col);

@@ -8,6 +8,7 @@
 #include "../backend/postprocessor/import_processor.h"
 #include "../backend/postprocessor/class_processor.h"
 #include "../backend/postprocessor/delegate_processor.h"
+#include "../backend/compiler/di/component_compiler.h"
 
 thread_local worker_thread *currThread;
 
@@ -108,6 +109,13 @@ void process_delegates_() {
     file->stage = class_delegates_processed;
 }
 
+void compile_components_() {
+    sharp_file *file = currThread->currTask->file;
+
+    compile_components();
+    file->stage = components_processed;
+}
+
 void execute_task() {
     {
         GUARD(errorMutex);
@@ -133,6 +141,10 @@ void execute_task() {
         }
         case task_process_delegates_: {
             process_delegates_();
+            break;
+        }
+        case task_compile_components_: {
+            compile_components_();
             break;
         }
     }

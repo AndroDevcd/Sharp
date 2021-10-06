@@ -18,24 +18,29 @@ struct get_component_request {
 
     get_component_request(const get_component_request &componentRequest)
             :
-            subComponentName(componentRequest.subComponentName),
-            componentName(componentRequest.componentName),
-            resolvedTypeDefinition(componentRequest.resolvedTypeDefinition)
+            subComponentName(""),
+            componentName(""),
+            resolvedTypeDefinition(NULL)
     {
+        subComponentName = componentRequest.subComponentName;
+        componentName = componentRequest.componentName;
+        resolvedTypeDefinition = componentRequest.resolvedTypeDefinition;
     }
 
     get_component_request(string &subComponentName, string &componentName)
             :
-            subComponentName(subComponentName),
-            componentName(componentName),
+            subComponentName(""),
+            componentName(""),
             resolvedTypeDefinition(NULL)
     {
+        this->subComponentName = subComponentName;
+        this->componentName = componentName;
     }
 
 
     string subComponentName;
     string componentName;
-    component_type *resolvedTypeDefinition;
+    type_definition *resolvedTypeDefinition;
 };
 
 #endif //SHARP_GET_COMPONENT_REQUEST_H

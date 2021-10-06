@@ -121,7 +121,7 @@ struct unresolved_item {
     reference_access_type accessType;
     reference_type type;
     List<sharp_type*> typeSpecifiers;
-    List<operation_scheme> operations;
+    List<operation_scheme*> operations;
     sharp_type *returnType;
     Ast *ast;
 };

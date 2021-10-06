@@ -124,7 +124,9 @@ void process_delegates(sharp_class *with_class) {
             for(Int j = 0; j < functions.size(); j++) {
                 sharp_function *fun = functions.get(j);
 
-                if(is_explicit_type_match(sharp_type(delegate), sharp_type(fun))
+                sharp_type comparer(delegate);
+                sharp_type comparee(fun);
+                if(is_explicit_type_match(comparer, comparee)
                     && is_explicit_type_match(delegate->returnType, fun->returnType)) {
                     foundFunc = true;
                     break;

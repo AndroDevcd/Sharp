@@ -802,47 +802,50 @@ void tokenizer::parseIdentifier() {
 }
 
 string tokenizer::from_escaped_string(string msg) {
-    stringstream escapedmessage;
+    string escapedmessage;
     for(unsigned long i = 0; i < msg.length(); i++)
     {
         if(msg.at(i) == '\\')
         {
             switch(msg.at(i+1)) {
                 case 'n':
-                    escapedmessage << endl;
+                    escapedmessage += "\n";
                     break;
                 case 't':
-                    escapedmessage << '\t';
+                    escapedmessage += '\t';
                     break;
                 case 'b':
-                    escapedmessage << '\b';
+                    escapedmessage += '\b';
                     break;
                 case 'v':
-                    escapedmessage << '\v';
+                    escapedmessage += '\v';
                     break;
                 case 'r':
-                    escapedmessage << '\r';
+                    escapedmessage += '\r';
                     break;
                 case 'f':
-                    escapedmessage << '\f';
+                    escapedmessage += '\f';
                     break;
                 case '0':
-                    escapedmessage << '\0';
+                    escapedmessage += '\0';
                     break;
                 case 'a':
-                    escapedmessage << '\a';
+                    escapedmessage += '\a';
+                    break;
+                case '\\':
+                    escapedmessage += '\\';
                     break;
                 default:
-                    escapedmessage << msg.at(i+1);
+                    escapedmessage += msg.at(i+1);
                     break;
             }
 
             i++;
         }
         else
-            escapedmessage << msg.at(i);
+            escapedmessage += msg.at(i);
     }
-    return escapedmessage.str();
+    return escapedmessage;
 }
 
 string tokenizer::to_escaped_string(string msg) {

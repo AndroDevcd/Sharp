@@ -282,8 +282,8 @@ struct sharp_type {
     }
 
     void free() {
-        unresolvedType.free();
         delete componentRequest;
+        componentRequest = NULL;
     }
 
     bool operator==(native_type t) const {
@@ -377,18 +377,18 @@ struct sharp_type {
  *
  * @return Returns wether or not the types matched explicitly or implicitly
  */
-uInt is_explicit_type_match(sharp_type, sharp_type);
+uInt is_explicit_type_match(sharp_type&, sharp_type&);
 uInt is_implicit_type_match(
-        sharp_type,
-        sharp_type,
+        sharp_type&,
+        sharp_type&,
         uInt excludeMatches);
 uInt is_implicit_type_match(
-        sharp_type,
-        sharp_type,
+        sharp_type&,
+        sharp_type&,
         uInt excludeMatches,
         sharp_function *&matchedFun);
 
-sharp_type get_type(sharp_type&);
+void get_real_type(sharp_type&);
 native_type str_to_native_type(string&);
 string type_to_str(sharp_type &t);
 

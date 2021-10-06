@@ -8,18 +8,18 @@
 #include "../../settings/settings.h"
 
 
-component_type* get_sub_component(
+type_definition* get_type_definition(
         component_manager &manager,
         sharp_type &comparer,
         get_component_request &request) {
     if(request.componentName.empty() && request.subComponentName.empty()) {
-        return get_sub_component(manager, comparer, NULL);
+        return get_type_definition(manager, comparer, NULL);
     } else {
         if(!request.componentName.empty()) {
             if(!request.componentName.empty()) {
-                return get_sub_component(manager, request.subComponentName, request.componentName);
+                return get_type_definition(manager, request.subComponentName, request.componentName);
             } else {
-                return get_sub_component(manager, comparer, request.componentName);
+                return get_type_definition(manager, comparer, request.componentName);
             }
         }
     }
@@ -27,18 +27,18 @@ component_type* get_sub_component(
     return NULL;
 }
 
-component_type* get_sub_component(
+type_definition* get_type_definition(
         component_manager &manager,
         sharp_type &comparer,
         Ast *resolveLocation) {
     GUARD(globalLock)
 
     bool foundComponent = false;
-    component_type *ct = NULL;
+    type_definition *ct = NULL;
     for(Int i = 0; i < manager.components.size(); i++) {
         component *c = manager.components.get(i);
 
-        if((ct = get_sub_component(comparer, c)) != NULL) {
+        if((ct = get_type_definition(comparer, c)) != NULL) {
             if(foundComponent && resolveLocation != NULL) {
                 create_new_warning(GENERIC, __w_dep, resolveLocation->line, resolveLocation->col,
                         "multiple components found with type `" + type_to_str(comparer) + "`, please explicitly specify component to avoid incorrect type injection.");
@@ -50,41 +50,41 @@ component_type* get_sub_component(
 
     return ct;
 }
-component_type* get_sub_component(
+type_definition* get_type_definition(
         component_manager &manager,
-        string &subComponentName,
+        string &typeDefinitionName,
         Ast *resolveLocation) {
     GUARD(globalLock)
 
     bool foundComponent = false;
-    component_type *ct = NULL;
+    type_definition *td = NULL;
     for(Int i = 0; i < manager.components.size(); i++) {
         component *c = manager.components.get(i);
 
-        if((ct = get_sub_component(subComponentName, c)) != NULL) {
+        if((td = get_type_definition(typeDefinitionName, c)) != NULL) {
             if(foundComponent && resolveLocation != NULL) {
                 create_new_warning(GENERIC, __w_dep, resolveLocation->line, resolveLocation->col,
-                                   "multiple type definitions found with name `" + subComponentName + "`, please explicitly specify component to avoid incorrect type injection.");
+                                   "multiple type definitions found with name `" + typeDefinitionName + "`, please explicitly specify component to avoid incorrect type injection.");
             }
 
             foundComponent = true;
         }
     }
 
-    return ct;
+    return td;
 }
 
-component_type* get_sub_component(
+type_definition* get_type_definition(
         component_manager &manager,
         sharp_type &comparer,
         string &componentName) {
     GUARD(globalLock)
     for(Int i = 0; i < manager.components.size(); i++) {
         component *c = manager.components.get(i);
-        component_type *ct;
+        type_definition *ct;
 
         if(c->name == componentName) {
-            if ((ct = get_sub_component(comparer, c)) != NULL) {
+            if ((ct = get_type_definition(comparer, c)) != NULL) {
                 return ct;
             }
         }
@@ -93,7 +93,7 @@ component_type* get_sub_component(
     return NULL;
 }
 
-component_type* get_sub_component(
+type_definition* get_type_definition(
         component_manager &manager,
         string &subComponentName,
         string &componentName) {
@@ -102,7 +102,7 @@ component_type* get_sub_component(
         component *c = manager.components.get(i);
 
         if(c->name == componentName) {
-            return get_sub_component(subComponentName, c);
+            return get_type_definition(subComponentName, c);
         }
     }
 
@@ -124,12 +124,12 @@ component* get_component(
     return NULL;
 }
 
-component_type* get_sub_component(
+type_definition* get_type_definition(
         string &subComponentName,
         component *c) {
     GUARD(globalLock)
     for(Int i = 0; i < c->named.size(); i++) {
-        component_type *ct = c->named.get(i);
+        type_definition *ct = c->named.get(i);
 
         if(ct->name == subComponentName) {
             return ct;
@@ -139,12 +139,12 @@ component_type* get_sub_component(
     return NULL;
 }
 
-component_type* get_sub_component(
+type_definition* get_type_definition(
         sharp_type &comparer,
         component *c) {
     GUARD(globalLock)
     for(Int i = 0; i < c->unnamed.size(); i++) {
-        component_type *ct = c->unnamed.get(i);
+        type_definition *ct = c->unnamed.get(i);
 
         if(ct->type != NULL
             && is_explicit_type_match(comparer, *ct->type)) {
@@ -179,24 +179,24 @@ component *create_component(
 }
 
 
-component_type* create_sub_component(
+type_definition* create_type_definition(
         component *comp,
         string &subCompName,
-        component_representation representation,
+        type_definition_rule representation,
         sharp_type &type,
         Ast *ast) {
     GUARD(globalLock)
     impl_location location(currThread->currTask->file, ast->line, ast->col);
-    component_type *ct;
+    type_definition *ct;
 
     if(subCompName.empty()) {
-        if((ct = get_sub_component(type, comp)) != NULL) {
+        if((ct = get_type_definition(type, comp)) != NULL) {
             currThread->currTask->file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                                               "component with type `" + type_to_str(type) + "` has already been defined.");
-            print_impl_location(subCompName, "component", ct->location);
+                     "type definition of type `" + type_to_str(type) + "` has already been defined.");
+            print_impl_location(subCompName, "type definition", ct->location);
         } else {
             comp->unnamed.add(
-                    new component_type(
+                    new type_definition(
                             subCompName,
                             &type,
                             representation,
@@ -207,13 +207,13 @@ component_type* create_sub_component(
             return comp->unnamed.last();
         }
     } else {
-        if((ct = get_sub_component(subCompName, comp)) != NULL) {
+        if((ct = get_type_definition(subCompName, comp)) != NULL) {
             currThread->currTask->file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                "component with name `" + subCompName + "` has already been defined.");
-            print_impl_location(subCompName, "component", ct->location);
+                "type definition with name `" + subCompName + "` has already been defined.");
+            print_impl_location(subCompName, "type definition", ct->location);
         } else {
             comp->named.add(
-                    new component_type(
+                    new type_definition(
                         subCompName,
                         &type,
                         representation,

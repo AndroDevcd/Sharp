@@ -176,7 +176,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     e->type.type = field->type.type;
                 } else if(field->type.type == type_class) {
                     List<sharp_field*> emptyParams;
-                    List<operation_scheme> noOperations;
+                    List<operation_scheme*> noOperations;
 
                     compile_class_function_overload(
                             field->type._class, *e, emptyParams, noOperations, op, ast);

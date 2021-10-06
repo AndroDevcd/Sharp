@@ -168,9 +168,9 @@ private:
     void parseAliasDeclaration(Ast *ast);
     void parseComponentDeclaration(Ast *ast);
     void parseComponentTypeList(Ast *ast);
-    void parseComponentType(Ast *ast);
-    void parseSingleComponentType(Ast *ast);
-    void parseFactoryComponentType(Ast *ast);
+    void parseTypeDefinition(Ast *ast);
+    void parseSingleTypeDefinition(Ast *ast);
+    void parseFactoryTypeDefinition(Ast *ast);
     void parseComponentName(Ast *ast);
     void parseForStatement(Ast *ast);
     void parseForEachStatement(Ast *ast);

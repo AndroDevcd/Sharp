@@ -51,7 +51,7 @@ void help() {
 void help_warn() {
     cout << "Usage: sharpc {OPTIONS} SOURCE FILE(S)"                                                       << endl;
     cout << "Source file must have a .sharp extion to be compiled.\n"                                      << endl;
-    cout << "Please note that not all warnings will be able to be disabled individually.\n"                << endl;
+    cout << "Please note that general warnings can only be disabled via disabling all warnings.\n"                << endl;
     cout << "[-options]\n\n    -w                disable all warnings"                                     << endl;
     cout <<               "    -winit            disable class initialization warnings"                    << endl;
     cout <<               "    -waccess          disable access modifier warnings (public, static, etc.)"  << endl;
@@ -392,6 +392,18 @@ void run_delegate_processing_tasks() {
     wait_for_tasks();
 }
 
+void run_compilation_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_components_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
 int compile()
 {
     for(Int i = 0; i < options.source_files.size(); i++) {
@@ -405,6 +417,7 @@ int compile()
     run_pre_processing_tasks();
     run_post_processing_tasks();
     run_delegate_processing_tasks();
+    run_compilation_tasks();
 
 //    stringstream ss;
 //    uInt tabCount = 0;

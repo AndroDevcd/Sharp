@@ -9,7 +9,7 @@
 void unresolved_item::free() {
     typeSpecifiers.free();
     operations.free();
-    delete returnType;
+    delete returnType; returnType = NULL;
 }
 
 void unresolved_item::copy(List<sharp_type> &types) {

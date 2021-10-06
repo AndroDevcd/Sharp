@@ -329,10 +329,10 @@ struct operation_step {
         integer = step.integer;
         function = step.function;
         _class = step._class;
-        field = step.field;,
+        field = step.field;
         nativeType = step.nativeType;
 
-        if(scheme)
+        if(step.scheme)
             scheme = new operation_scheme(*step.scheme);
     }
 

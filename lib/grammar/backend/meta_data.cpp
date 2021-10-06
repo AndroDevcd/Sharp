@@ -10,7 +10,11 @@ void print_impl_location(string name, string memberType, impl_location& location
     stringstream note;
     note << "in file: " << location.file->name
         << ":" << location.line << ":" << location.col
-        << ": note: " << memberType << " `" << name << "` previously defined here" << endl;
+        << ": note: " << memberType;
+
+    if(!name.empty())
+        note << " `" << name << "`";
+    note << " previously defined here" << endl;
 
     note << "\t\t" << location.file->p->getLines().at(location.line)
         << endl << "\t\t";

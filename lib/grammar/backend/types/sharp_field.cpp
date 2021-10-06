@@ -32,7 +32,7 @@ sharp_field* create_field(
         print_impl_location(sf->name, "field", sf->implLocation);
         return sf;
     } else {
-        owner = resolve_class(global_class_name, false, false);
+        owner = resolve_class(module, global_class_name, false, false);
         sf = new sharp_field(
                 name, owner, location,
                 type, flags, ft, ast
@@ -107,6 +107,6 @@ void sharp_field::set_full_name() {
 
 void sharp_field::free() {
     dependencies.free();
-    delete scheme;
-    delete request;
+    delete scheme; scheme = NULL;
+    delete request; request = NULL;
 }

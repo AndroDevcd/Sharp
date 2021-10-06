@@ -10,7 +10,7 @@
 #include "../expressions/expression.h"
 #include "../../postprocessor/field_processor.h"
 
-List<Ast*> processedComponents;
+thread_local List<Ast*> processedComponents;
 
 void compile_components() {
     sharp_file *file = currThread->currTask->file;
@@ -70,11 +70,11 @@ void compile_component(Ast *ast) {
             Ast *trunk = componentTypeList->getSubAst(i);
 
             switch (trunk->getType()) {
-                case ast_single_component:
-                    compile_sub_component(lastTry, comp, single_component, trunk);
+                case ast_single_definition:
+                    compile_type_definition(lastTry, comp, single_type_definition, trunk);
                     break;
-                case ast_factory_component:
-                    compile_sub_component(lastTry, comp, factory_component, trunk);
+                case ast_factory_definition:
+                    compile_type_definition(lastTry, comp, factory_type_definition, trunk);
                     break;
                 default:
                     break;
@@ -84,10 +84,10 @@ void compile_component(Ast *ast) {
 }
 
 
-void compile_sub_component(
+void compile_type_definition(
         bool lastTry,
         component *comp,
-        component_representation representation,
+        type_definition_rule rule,
         Ast *ast) {
     sharp_file *file = currThread->currTask->file;
     string componentName;
@@ -111,7 +111,7 @@ void compile_sub_component(
             file->errors->fail();
         }
 
-        component_type *subComponent;
+        type_definition *subComponent;
         if(typeDefinition.type == type_get_component_request) {
             get_component_request *request = typeDefinition.type.componentRequest;
 
@@ -122,12 +122,12 @@ void compile_sub_component(
 
                 if(!request->subComponentName.empty()) {
                     if(!request->componentName.empty()) {
-                        subComponent = get_sub_component(
+                        subComponent = get_type_definition(
                                 componentManager,
                                 request->subComponentName,
                                 request->componentName
                         );
-                    } else subComponent = get_sub_component(componentManager, request->subComponentName);
+                    } else subComponent = get_type_definition(componentManager, request->subComponentName);
                 } else if(!request->componentName.empty()) {
                     file->errors->createNewError(GENERIC, ast,
                            "cannot get type definition from generic `get(" + request->componentName + ")` expression.");
@@ -159,18 +159,22 @@ void compile_sub_component(
             } else if(typeDefinition.type == type_field) {
                 process_field(typeDefinition.type.field);
                 typeDefinition.type.copy(typeDefinition.type.field->type);
+            } else if(typeDefinition.type == type_nil) {
+                file->errors->createNewError(GENERIC, ast,
+                         "type of `nil` cannot be defined in components.");
+
             }
 
-            subComponent = create_sub_component(
+            subComponent = create_type_definition(
                     comp,
                     componentName,
-                    representation,
+                    rule,
                     typeDefinition.type,
                     ast
             );
 
             if(subComponent != NULL) {
-                if(representation == factory_component)
+                if(rule == factory_type_definition)
                     subComponent->scheme = new operation_scheme(typeDefinition.scheme);
                 else {
                     stringstream ss;

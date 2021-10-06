@@ -358,21 +358,21 @@ void parser::parseComponentTypeList(Ast *ast) {
     _pcTypeArg:
     if(peek(1)->getType() != RIGHTCURLY)
     {
-        parseComponentType(branch);
+        parseTypeDefinition(branch);
 
         goto _pcTypeArg;
     }
 }
 
-void parser::parseComponentType(Ast *ast) {
+void parser::parseTypeDefinition(Ast *ast) {
     if(peek(1)->getValue() == "single")
-        parseSingleComponentType(ast);
+        parseSingleTypeDefinition(ast);
     else
-        parseFactoryComponentType(ast);
+        parseFactoryTypeDefinition(ast);
 }
 
-void parser::parseSingleComponentType(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_single_component);
+void parser::parseSingleTypeDefinition(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_single_definition);
 
     expect(branch, "single", false);
 
@@ -384,8 +384,8 @@ void parser::parseSingleComponentType(Ast *ast) {
     expect(branch, "}", false);
 }
 
-void parser::parseFactoryComponentType(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_factory_component);
+void parser::parseFactoryTypeDefinition(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_factory_definition);
 
     expect(branch, "factory", false);
 
@@ -422,7 +422,6 @@ void parser::parseComponentDeclaration(Ast *ast) {
     expect(branch, "{", false);
     parseComponentTypeList(branch);
     expect(branch, "}", false);
-    expect(branch, ";", false);
 }
 
 void parser::parseIfStatement(Ast *ast) {

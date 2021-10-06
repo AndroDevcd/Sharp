@@ -405,7 +405,7 @@ sharp_function* resolve_function(
     bool ambiguous = false;
     sharp_type type;
     sharp_function mock_function("mock", searchClass, impl_location(),
-            flag_none, NULL, parameters, type, undefined_function);
+            flag_none, NULL, parameters, type, undefined_function, true);
 
     locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
             locatedFunctions);
@@ -415,7 +415,9 @@ sharp_function* resolve_function(
             sharp_function *func = locatedFunctions.get(i);
             mock_function.returnType = func->returnType;
 
-            if(is_explicit_type_match(sharp_type(func), sharp_type(&mock_function))) {
+            sharp_type comparer(func);
+            sharp_type comparee(&mock_function);
+            if(is_explicit_type_match(comparer, comparee)) {
                 resolvedFunction = func;
                 break;
             }
@@ -427,9 +429,11 @@ sharp_function* resolve_function(
                 sharp_function *func = locatedFunctions.get(i);
                 mock_function.returnType = func->returnType;
 
+                sharp_type comparer(func);
+                sharp_type comparee(&mock_function);
                 if(is_implicit_type_match(
-                        sharp_type(func),
-                        sharp_type(&mock_function),
+                        comparer,
+                        comparee,
                         excludedMatches)) {
                     if(resolvedFunction == NULL) resolvedFunction = func;
                     else ambiguous = true;
@@ -1755,7 +1759,7 @@ void resolve_function_reference_item(
     if(resultType.type == type_untyped) {
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
-        if(primaryClass
+        if(primaryClass && !check_flag(primaryClass->flags, flag_global)
             && resolve_primary_class_function(
                     item, primaryClass, true,
                     false, resultType, scheme,
@@ -2179,16 +2183,17 @@ sharp_type resolve(
     } else if(resolveLocation->getType() == ast_dotnotation_call_expr) {
         parse_utype(unresolvedType, resolveLocation->getSubAst(ast_dot_fn_e)->getSubAst(ast_utype));
 
-        List<expression> expressions;
+        List<expression*> expressions;
         Ast *list = resolveLocation->getSubAst(ast_dot_fn_e)->getSubAst(ast_expression_list);
         for(Int i = 0; i < list->getSubAstCount(); i++) {
-            compile_expression(expressions.__new(), list->getSubAst(i));
+            expressions.add(new expression());
+            compile_expression(*expressions.last(), list->getSubAst(i));
 
-            if(expressions.last().scheme.schemeType == scheme_none
-                && expressions.last().type != type_get_component_request) {
+            if(expressions.last()->scheme.schemeType == scheme_none
+                && expressions.last()->type != type_get_component_request) {
                 currThread->currTask->file->errors->createNewError(
                         GENERIC, list->getSubAst(i), "expression of type `"
-                                      + type_to_str(expressions.last().type) + "` must evaluate to a value");
+                                      + type_to_str(expressions.last()->type) + "` must evaluate to a value");
             }
         }
 
@@ -2199,9 +2204,10 @@ sharp_type resolve(
 
             item->type = function_reference;
             for(Int i = 0; i < expressions.size(); i++) {
-                sharp_type et = expression_type_to_normal_type(&expressions.get(i));
+                sharp_type et = expression_type_to_normal_type(expressions.get(i));
                 item->typeSpecifiers.add(new sharp_type(et));
-                item->operations.__new().copy(expressions.get(i).scheme);
+                item->operations.add(new operation_scheme());
+                item->operations.last()->copy(expressions.get(i)->scheme);
             }
         } else if(item->type == generic_reference) {
             currThread->currTask->file->errors->createNewError(
@@ -2211,7 +2217,8 @@ sharp_type resolve(
             currThread->currTask->file->errors->createNewError(
                     GENERIC, resolveLocation, "expected function call.");
         }
-        expressions.free();
+
+        deleteList(expressions);
     } else {
         currThread->currTask->file->errors->createNewError(
                 INTERNAL_ERROR, resolveLocation->line, resolveLocation->col, "expected ast of utype or type_identifier");

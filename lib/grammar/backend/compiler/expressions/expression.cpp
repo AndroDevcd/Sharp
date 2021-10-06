@@ -33,7 +33,7 @@ void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
-        List<operation_scheme> &paramOperations,
+        List<operation_scheme*> &paramOperations,
         string &op,
         Ast *ast) {
     sharp_function *fun;
@@ -60,7 +60,7 @@ void compile_class_function_overload(
 void compile_function_call(
         operation_scheme *scheme,
         List<sharp_field*> & params,
-        List<operation_scheme> &paramOperations,
+        List<operation_scheme*> &paramOperations,
         sharp_function *callee,
         bool isStaticCall,
         bool isPrimaryClass) {
@@ -73,7 +73,7 @@ void compile_function_call(
             sharp_function *matchedConstructor = NULL;
 
             if(assigner->type == type_get_component_request) {
-                paramOperations.get(i).copy(
+                paramOperations.get(i)->copy(
                         *assigner->componentRequest->resolvedTypeDefinition->scheme);
                 matchResult = match_normal;
             } else {
@@ -90,7 +90,7 @@ void compile_function_call(
                     asignee,
                     matchResult,
                     matchedConstructor,
-                    &paramOperations.get(i),
+                    paramOperations.get(i),
                     &compiledParamOperations.__new()
             );
         }

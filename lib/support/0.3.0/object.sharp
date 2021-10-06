@@ -65,4 +65,4 @@ stable class _object_ : printable, unique {
 }
 
 // we dont want to bloat up our objects so we put this variable outside the object class
-local global_guid := new atomic<_int64> { 0 };
+local global_guid := new atomic<_int64>(0);
