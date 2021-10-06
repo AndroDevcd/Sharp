@@ -12,14 +12,25 @@ type_definition* get_type_definition(
         component_manager &manager,
         sharp_type &comparer,
         get_component_request &request) {
-    if(request.componentName.empty() && request.subComponentName.empty()) {
-        return get_type_definition(manager, comparer, NULL);
+    component *primary = get_primary_component(&currThread->currTask->file->context);
+    type_definition *td;
+
+    if(request.componentName.empty() && request.typeDefinitionName.empty()) {
+
+        if(primary != NULL
+            && (td = get_type_definition(comparer, primary)) != NULL) {
+            return td;
+        } else return get_type_definition(manager, comparer, NULL);
+
     } else {
-        if(!request.componentName.empty()) {
+        if(!request.typeDefinitionName.empty()) {
             if(!request.componentName.empty()) {
-                return get_type_definition(manager, request.subComponentName, request.componentName);
+                return get_type_definition(manager, request.typeDefinitionName, request.componentName);
             } else {
-                return get_type_definition(manager, comparer, request.componentName);
+                if(primary != NULL
+                   && (td = get_type_definition(request.typeDefinitionName, primary)) != NULL) {
+                    return td;
+                } else return  get_type_definition(manager, comparer, request.componentName);
             }
         }
     }

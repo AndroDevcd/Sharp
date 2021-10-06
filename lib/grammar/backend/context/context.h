@@ -6,6 +6,7 @@
 #define SHARP_CONTEXT_H
 
 #include "../../List.h"
+#include "../dependency/component.h"
 
 struct sharp_class;
 struct sharp_function;
@@ -16,7 +17,8 @@ enum context_type {
     no_context,
     global_context,
     class_context,
-    block_context
+    block_context,
+    component_context
 };
 
 struct stored_context_item {
@@ -25,6 +27,7 @@ struct stored_context_item {
         type(no_context),
         classCxt(NULL),
         functionCxt(NULL),
+        componentCtx(NULL),
         localFields(),
         isStatic(false)
     {}
@@ -34,6 +37,7 @@ struct stored_context_item {
             type(no_context),
             classCxt(NULL),
             functionCxt(NULL),
+            componentCtx(NULL),
             localFields(),
             isStatic(false)
     {
@@ -48,6 +52,7 @@ struct stored_context_item {
         type = item.type;
         classCxt = item.classCxt;
         functionCxt = item.functionCxt;
+        componentCtx = item.componentCtx;
         localFields.addAll(item.localFields);
         isStatic = item.isStatic;
     }
@@ -59,6 +64,7 @@ struct stored_context_item {
     context_type type;
     sharp_class *classCxt;
     sharp_function *functionCxt;
+    component *componentCtx;
     List<sharp_field*> localFields;
     bool isStatic;
 };
@@ -75,9 +81,11 @@ struct context : public stored_context_item {
 
 void create_context(sharp_class*, bool isStatic = false);
 void create_context(sharp_function*);
+void create_context(component*);
 
 void create_context(context *ctx, sharp_class*, bool isStatic);
 void create_context(context *ctx, sharp_function*, bool isStatic);
+void create_context(context *ctx, component*);
 
 void delete_context();
 void delete_context(context *ctx);
@@ -86,5 +94,6 @@ void restore_context(context *ctx);
 
 sharp_class *get_primary_class(context*);
 sharp_function *get_primary_function(context*);
+component *get_primary_component(context*);
 
 #endif //SHARP_CONTEXT_H

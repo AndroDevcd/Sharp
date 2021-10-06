@@ -10,35 +10,35 @@
 struct get_component_request {
     get_component_request()
     :
-        subComponentName(""),
-        componentName(""),
-        resolvedTypeDefinition(NULL)
+            typeDefinitionName(""),
+            componentName(""),
+            resolvedTypeDefinition(NULL)
     {
     }
 
     get_component_request(const get_component_request &componentRequest)
             :
-            subComponentName(""),
+            typeDefinitionName(""),
             componentName(""),
             resolvedTypeDefinition(NULL)
     {
-        subComponentName = componentRequest.subComponentName;
+        typeDefinitionName = componentRequest.typeDefinitionName;
         componentName = componentRequest.componentName;
         resolvedTypeDefinition = componentRequest.resolvedTypeDefinition;
     }
 
-    get_component_request(string &subComponentName, string &componentName)
+    get_component_request(string &typeDefinitionName, string &componentName)
             :
-            subComponentName(""),
+            typeDefinitionName(""),
             componentName(""),
             resolvedTypeDefinition(NULL)
     {
-        this->subComponentName = subComponentName;
+        this->typeDefinitionName = typeDefinitionName;
         this->componentName = componentName;
     }
 
 
-    string subComponentName;
+    string typeDefinitionName;
     string componentName;
     type_definition *resolvedTypeDefinition;
 };

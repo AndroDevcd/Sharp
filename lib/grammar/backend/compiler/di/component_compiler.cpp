@@ -60,9 +60,17 @@ void compile_component(Ast *ast) {
         componentName = ast->getToken(0).getValue();
     }
 
-    component *comp = create_component(componentManager, componentName, ast);
+    component *comp = NULL;
+
+    if(componentName == main_component_name) {
+        comp = get_component(componentManager, componentName);
+    }
+
+    if(comp == NULL)
+        comp = create_component(componentManager, componentName, ast);
     Int maxTries = componentTypeList->getSubAstCount() + 1;
 
+    create_context(comp);
     for(Int j = 0; j < maxTries; j++) {
         bool lastTry = j + 1 >= maxTries;
 
@@ -81,6 +89,7 @@ void compile_component(Ast *ast) {
             }
         }
     }
+    delete_context();
 }
 
 
@@ -115,19 +124,18 @@ void compile_type_definition(
         if(typeDefinition.type == type_get_component_request) {
             get_component_request *request = typeDefinition.type.componentRequest;
 
-            if(request->subComponentName.empty() && request->componentName.empty()) {
+            if(request->typeDefinitionName.empty() && request->componentName.empty()) {
                 file->errors->createNewError(GENERIC, ast,
                         "cannot get type definition from generic `get()` expression");
             } else {
-
-                if(!request->subComponentName.empty()) {
+                if(!request->typeDefinitionName.empty()) {
                     if(!request->componentName.empty()) {
                         subComponent = get_type_definition(
                                 componentManager,
-                                request->subComponentName,
+                                request->typeDefinitionName,
                                 request->componentName
                         );
-                    } else subComponent = get_type_definition(componentManager, request->subComponentName);
+                    } else subComponent = get_type_definition(componentManager, request->typeDefinitionName);
                 } else if(!request->componentName.empty()) {
                     file->errors->createNewError(GENERIC, ast,
                            "cannot get type definition from generic `get(" + request->componentName + ")` expression.");

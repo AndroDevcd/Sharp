@@ -17,6 +17,10 @@ void create_context(sharp_function *fun) {
     create_context(&currThread->currTask->file->context, fun, check_flag(fun->flags, flag_static));
 }
 
+void create_context(component *comp) {
+    create_context(&currThread->currTask->file->context, comp);
+}
+
 void create_context(context *ctx, sharp_class *sc, bool isStatic) {
     if(ctx->type != no_context) {
         store_context(ctx);
@@ -40,6 +44,15 @@ void create_context(context *ctx, sharp_function *fun, bool isStatic) {
     ctx->isStatic = isStatic;
 }
 
+void create_context(context *ctx, component *comp) {
+    if(ctx->type != no_context) {
+        store_context(ctx);
+    }
+
+    ctx->type = component_context;
+    ctx->componentCtx = comp;
+}
+
 void delete_context() {
     delete_context(&currThread->currTask->file->context);
 }
@@ -48,6 +61,7 @@ void delete_context(context *ctx) {
     if(ctx->storedItems.empty()) {
         ctx->type = no_context;
         ctx->functionCxt = NULL;
+        ctx->componentCtx = NULL;
         ctx->classCxt = NULL;
         ctx->isStatic = false;
         ctx->localFields.free();
@@ -75,6 +89,20 @@ sharp_class *get_primary_class(context *ctx) {
         if(contextItem.type == class_context
             || contextItem.type == global_context)
             return contextItem.classCxt;
+    }
+
+    return NULL;
+}
+
+component *get_primary_component(context *ctx) {
+    if(ctx->type == component_context)
+        return ctx->componentCtx;
+
+    for(Int i = (Int)ctx->storedItems.size() - 1; i >= 0; i--) {
+        stored_context_item &contextItem = ctx->storedItems.get(i);
+        if(contextItem.type == component_context
+            || contextItem.type == global_context)
+            return contextItem.componentCtx;
     }
 
     return NULL;
