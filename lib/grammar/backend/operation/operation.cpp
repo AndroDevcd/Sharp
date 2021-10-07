@@ -135,6 +135,31 @@ void create_null_value_operation(operation_scheme *scheme) {
     }
 }
 
+void create_push_to_stack_operation(
+        operation_scheme *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_push_value_to_stack));
+    }
+}
+
+void create_pop_value_from_stack_operation(
+        operation_scheme *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_pop_value_from_stack));
+    }
+}
+
+void create_assign_array_element_operation(
+        operation_scheme *scheme,
+        Int index) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_assign_array_element_from_stack, index));
+    }
+}
+
 void create_instance_field_access_operation(
         operation_scheme *scheme,
         sharp_field *instanceField) {

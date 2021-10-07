@@ -9,7 +9,6 @@
 #include "../../compiler_info.h"
 #include "import_group.h"
 
-
 void get_real_type(sharp_type &st) {
     if(st.type == type_field) {
         st.copy(st.field->type);
@@ -67,11 +66,51 @@ string type_to_str(sharp_type &type) {
     else if(type.type == type_nil) ss << "nil";
     else if(type.type == type_function) ss << function_to_str(type.fun);
     else if(type.type == type_field) ss << type.field->fullName << ": " << type_to_str(type.field->type);
+    else if(type.type == type_get_component_request) {
+        get_component_request *request = type.componentRequest;
+
+        if(request->resolvedTypeDefinition != NULL) {
+            ss << type_to_str(*request->resolvedTypeDefinition->type);
+        } else {
+            if (request->componentName.empty() && request->typeDefinitionName.empty()) {
+                ss << "unknown";
+            } else {
+                if (!request->typeDefinitionName.empty()) {
+                    if (!request->componentName.empty()) {
+                        ss << "unknown(typeName: " << request->typeDefinitionName
+                            << ", component: " << request->componentName << ")";
+                    } else {
+                        ss << "unknown(typeName: " << request->typeDefinitionName << ")";
+                    }
+                } else {
+                    ss << "unknown(component: " << request->componentName << ")";
+                }
+            }
+        }
+    }
     else ss << "undefined";
 
     if(type.isArray) ss << "[]";
     if(type.nullable) ss << "?";
     return ss.str();
+}
+
+uInt is_type_definition_match(sharp_type &comparer, sharp_type &comparee) {
+    if(comparee.componentRequest->resolvedTypeDefinition != NULL) {
+        if(is_explicit_type_match(comparer, *comparee.componentRequest->resolvedTypeDefinition->type)
+           != no_match_found) {
+            return match_normal;
+        }
+    }
+
+    type_definition *subComponent = get_type_definition(
+            componentManager, comparer, *comparee.componentRequest);
+
+    if(subComponent != NULL
+       && is_explicit_type_match(comparer, *subComponent->type) != no_match_found) {
+        comparee.componentRequest->resolvedTypeDefinition = subComponent;
+        return match_normal;
+    } else return no_match_found;
 }
 
 type_match_result with_result(bool check, type_match_result result) {
@@ -113,14 +152,7 @@ uInt is_explicit_type_match(sharp_type& comparer, sharp_type& comparee) {
                            || (comparer.type <= type_var && comparer.isArray), match_normal);
 
     } else if(comparee.type == type_get_component_request) {
-        type_definition *subComponent = get_type_definition(
-                componentManager, comparer, *comparee.componentRequest);
-
-        if(subComponent != NULL
-            && is_explicit_type_match(comparer, *subComponent->type) != no_match_found) {
-                comparee.componentRequest->resolvedTypeDefinition = subComponent;
-                return match_normal;
-        } else return no_match_found;
+        return is_type_definition_match(comparer, comparee);
     } else return no_match_found;
 }
 
@@ -141,14 +173,7 @@ uInt is_implicit_type_match(
     get_real_type(comparee);
 
     if(comparee.type == type_get_component_request) {
-        type_definition *subComponent = get_type_definition(
-                componentManager, comparer, *comparee.componentRequest);
-
-        if(subComponent != NULL
-           && is_explicit_type_match(comparer, *subComponent->type) != no_match_found) {
-            comparee.componentRequest->resolvedTypeDefinition = subComponent;
-            return match_normal;
-        } else return no_match_found;
+        return is_type_definition_match(comparer, comparee);
     }
 
     switch(comparer.type) {

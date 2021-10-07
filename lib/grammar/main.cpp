@@ -414,7 +414,7 @@ int compile()
 
     sharpFiles.linearSort(isFileLarger);
     start_task_delegator();
-    run_pre_processing_tasks();
+    run_pre_processing_tasks(); // todo: stop processing if any errors are generated
     run_post_processing_tasks();
     run_delegate_processing_tasks();
     run_compilation_tasks();

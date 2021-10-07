@@ -171,6 +171,13 @@ void compile_type_definition(
                 file->errors->createNewError(GENERIC, ast,
                          "type of `nil` cannot be defined in components.");
 
+            } else if(typeDefinition.type == type_lambda_function) {
+                if(!is_fully_qualified_function(typeDefinition.type.fun)) {
+                    file->errors->createNewError(GENERIC, ast,
+                             "lambda must be fully qualified to be injected.");
+                }
+
+                typeDefinition.type = type_function_ptr;
             }
 
             subComponent = create_type_definition(

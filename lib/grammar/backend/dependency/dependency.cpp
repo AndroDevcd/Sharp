@@ -1756,6 +1756,32 @@ void resolve_function_reference_item(
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
 
+    List<sharp_field*> params;
+    for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
+
+        string name = "param";
+        impl_location location;
+        params.add(new sharp_field(
+                name,
+                NULL,
+                location,
+                *item.typeSpecifiers.get(i),
+                flag_none,
+                normal_field,
+                item.ast
+        ));
+    }
+
+    sharp_type noType;
+    sharp_function mock_function(item.name, get_primary_class(&context), impl_location(),
+                                 flag_none, NULL, params, noType, undefined_function, true);
+
+    string unresolvedFunction;
+    noType.type = type_function;
+    noType.fun = &mock_function;
+    unresolvedFunction = type_to_str(noType);
+    params.free();
+
     if(resultType.type == type_untyped) {
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
@@ -1775,7 +1801,7 @@ void resolve_function_reference_item(
 
         resultType.type = type_undefined;
         currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
-                               resolveLocation, " `" + item.name + "` ");
+                               resolveLocation, " `" + unresolvedFunction + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
         if(resolve_global_class_function(item, resultType, scheme, context)) {
             return;
@@ -1794,7 +1820,7 @@ void resolve_function_reference_item(
 
             resultType.type = type_undefined;
             currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
-                                                               resolveLocation, " `" + item.name + "` ");
+                                                               resolveLocation, " `" + unresolvedFunction + "` ");
         } else if(resultType.type == type_field) {
             if(resultType.field->type.type == type_class) {
                 sharp_class *primaryClass = resultType.field->type._class;
@@ -1813,7 +1839,7 @@ void resolve_function_reference_item(
             }
         } else {
             currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
-                                                               resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
+                                                               resolveLocation, " `" + unresolvedFunction + "` after non class type `" + type_to_str(resultType) + "`.");
         }
     }
 }

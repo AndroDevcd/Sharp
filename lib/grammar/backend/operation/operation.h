@@ -27,6 +27,10 @@ enum operation_type {
     operation_call_static_function,
     operation_get_static_function_address,
     operation_push_value_to_stack,
+    operation_assign_array_value,
+    operation_get_value,
+    operation_pop_value_from_stack,
+    operation_assign_array_element_from_stack,
     operation_nullify_value,
     operation_push_parameter_to_stack,
     operation_get_integer_constant,
@@ -77,7 +81,8 @@ enum _operation_scheme {
     scheme_nullify_value,
     scheme_new_class_array,
     scheme_new_number_array,
-    scheme_new_object_array
+    scheme_new_object_array,
+    scheme_get_array_value
 };
 
 struct operation_scheme {
@@ -316,6 +321,23 @@ struct operation_step {
         nativeType(type_undefined)
     {}
 
+    operation_step(operation_type type, operation_scheme *scheme)
+    :
+        type(type),
+        field(NULL),
+        _class(NULL),
+        scheme(NULL),
+        function(NULL),
+        decimal(0),
+        integer(0),
+        _char(0),
+        _bool(false),
+        _string(""),
+        nativeType(type_undefined)
+    {
+        this->scheme = new operation_scheme(*scheme);
+    }
+
     ~operation_step() {
         freeStep();
     }
@@ -456,5 +478,15 @@ void create_new_number_array_operation(
 void create_new_object_array_operation(
         operation_scheme *scheme,
         operation_scheme *arraySizeOperations);
+
+void create_push_to_stack_operation(
+        operation_scheme *scheme);
+
+void create_pop_value_from_stack_operation(
+        operation_scheme *scheme);
+
+void create_assign_array_element_operation(
+        operation_scheme *scheme,
+        Int index);
 
 #endif //SHARP_OPERATION_H
