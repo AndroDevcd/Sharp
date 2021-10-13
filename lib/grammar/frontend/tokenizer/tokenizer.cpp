@@ -133,7 +133,8 @@ void tokenizer::parse()
 
             case '\n': {
                 newline()
-                break;
+                advance()
+                continue;
             }
 
             case '_':
@@ -174,6 +175,12 @@ void tokenizer::parse()
                     while (!is_newline(current) && !is_end) {
                         advance();
                     }
+
+                    if(is_newline(current)) {
+                        newline()
+                        advance()
+                        continue;
+                    }
                 } else if(match('*')) {
                     Int nests = 0;
                     entry++;
@@ -184,6 +191,8 @@ void tokenizer::parse()
                     {
                         if(is_newline(current)){
                             newline()
+                            advance()
+                            continue;
                         } else if(current == '*' && peek(1) == '/') {
                             if(nests == 0) {
                                 found_end = true;

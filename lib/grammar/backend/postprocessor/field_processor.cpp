@@ -10,6 +10,8 @@
 #include "../compiler/expressions/expression.h"
 #include "../operation/operation.h"
 #include "../types/sharp_function.h"
+#include "../compiler/field_compiler.h"
+#include "../../compiler_info.h"
 
 void process_field(sharp_class *with_class, Ast *ast) {
     string name;
@@ -48,8 +50,12 @@ void process_field(sharp_field *field) {
         if(field->ast->hasToken(COLON)) {
             sharp_type type = resolve(field->ast->getSubAst(ast_utype));
             validate_field_type(true, field, type, NULL, field->ast);
-        } else { // todo: allow expression proccssing if compiler state permits
+        } else {
             field->type.type = type_untyped;
+            if(current_file->stage > pre_compilation_finished_state) {
+                return compile_field(field, field->ast);
+            }
+
             return;
         }
 
@@ -120,6 +126,7 @@ void process_setter(sharp_field *field, Ast *ast) {
     sharp_type returnType(type_nil);
     string name = "set_" + field->name;
 
+    GUARD(field->owner->mut)
     if(!create_function(
             field->owner,
             flags,
@@ -132,6 +139,8 @@ void process_setter(sharp_field *field, Ast *ast) {
             )) {
         deleteList(fields);
     }
+
+    field->setter = field->owner->functions.last();
 }
 
 void process_getter(sharp_field *field, Ast *ast) {
@@ -148,11 +157,11 @@ void process_getter(sharp_field *field, Ast *ast) {
         flags |= flag_protected;
 
     List<sharp_field*> fields;
-    impl_location location(currThread->currTask->file, ast);
 
     sharp_type returnType(field->type);
     string name = "get_" + field->name;
 
+    GUARD(field->owner->mut)
     create_function(
             field->owner,
             flags,
@@ -163,6 +172,8 @@ void process_getter(sharp_field *field, Ast *ast) {
             returnType,
             ast
     );
+
+    field->getter = field->owner->functions.last();
 }
 
 
@@ -240,5 +251,5 @@ void validate_field_type(
                  "` due to invalid type assignment format");
     }
 
-    field->type = type;
+    field->type.copy(type);
 }

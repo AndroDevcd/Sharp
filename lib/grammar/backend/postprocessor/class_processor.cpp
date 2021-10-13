@@ -59,7 +59,7 @@ void post_process() {
                 /* ignore */
                 break;
             case ast_enum_decl:
-                /* ignore */
+                process_class(globalClass, NULL, trunk);
                 break;
             case ast_module_decl: /* fail-safe */
                 currThread->currTask->file->errors->createNewError(
@@ -101,50 +101,56 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     process_base_class(with_class, ast);
     process_interfaces(with_class, ast);
 
-    for(Int i = 0; i < block->getSubAstCount(); i++) {
-        Ast *trunk = block->getSubAst(i);
+    if(with_class->type != class_enum) {
+        for (Int i = 0; i < block->getSubAstCount(); i++) {
+            Ast *trunk = block->getSubAst(i);
 
-        switch(trunk->getType()) {
-            case ast_interface_decl:
-            case ast_class_decl:
-                process_class(with_class, NULL, trunk);
-                break;
-            case ast_variable_decl:
-                process_field(with_class, trunk);
-                break;
-            case ast_alias_decl:
-                process_alias(with_class, trunk);
-                break;
-            case ast_method_decl:
-                process_function(with_class, normal_function, trunk);
-                break;
-            case ast_delegate_decl:
-                process_function(with_class, delegate_function, trunk);
-                break;
-            case ast_construct_decl:
-                process_function(with_class, constructor_function, trunk);
-                break;
-            case ast_init_func_decl:
-                process_function(with_class, initializer_function, trunk);
-                break;
-            case ast_mutate_decl:
-                process_mutation(trunk);
-                break;
+            switch (trunk->getType()) {
+                case ast_interface_decl:
+                case ast_class_decl:
+                    process_class(with_class, NULL, trunk);
+                    break;
+                case ast_variable_decl:
+                    process_field(with_class, trunk);
+                    break;
+                case ast_alias_decl:
+                    process_alias(with_class, trunk);
+                    break;
+                case ast_method_decl:
+                    process_function(with_class, normal_function, trunk);
+                    break;
+                case ast_delegate_decl:
+                    process_function(with_class, delegate_function, trunk);
+                    break;
+                case ast_construct_decl:
+                    process_function(with_class, constructor_function, trunk);
+                    break;
+                case ast_init_func_decl:
+                    process_function(with_class, initializer_function, trunk);
+                    break;
+                case ast_mutate_decl:
+                    process_mutation(trunk);
+                    break;
 
-            case ast_init_decl:
-            case ast_enum_decl:
-            case ast_obfuscate_decl:
-            case ast_generic_interface_decl:
-            case ast_generic_class_decl:
-                /* ignore */
-                break;
-            default:
-                stringstream err;
-                err << ": unknown ast type: " << trunk->getType();
-                currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
-                break;
+                case ast_init_decl:
+                case ast_enum_decl:
+                case ast_obfuscate_decl:
+                case ast_generic_interface_decl:
+                case ast_generic_class_decl:
+                case ast_enum_identifier:
+                    /* ignore */
+                    break;
+                default:
+                    stringstream err;
+                    err << ": unknown ast type: " << trunk->getType();
+                    currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col,
+                                                                       err.str());
+                    break;
+            }
         }
     }
 
+
+    create_default_constructor(with_class, flag_public, with_class->ast);
     delete_context();
 }

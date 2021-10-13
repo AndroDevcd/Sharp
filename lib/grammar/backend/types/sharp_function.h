@@ -31,6 +31,7 @@ struct sharp_function {
             closure(NULL),
             parameters(),
             returnType(),
+            locals(),
             type(undefined_function),
             directlyCopyParams(false)
     {}
@@ -45,16 +46,18 @@ struct sharp_function {
             flags(sf.flags),
             ast(sf.ast),
             parameters(),
+            locals(),
             returnType(sf.returnType),
             type(sf.type),
             closure(sf.closure),
             directlyCopyParams(sf.directlyCopyParams)
     {
         copy_parameters(sf.parameters);
+        copy_locals(sf.locals);
     }
 
     sharp_function(
-            string name,
+            string &name,
             sharp_class *owner,
             impl_location location,
             uInt flags,
@@ -74,6 +77,7 @@ struct sharp_function {
             ast(ast),
             returnType(),
             type(type),
+            locals(),
             directlyCopyParams(directlyCopyParams),
             closure(NULL)
     {
@@ -90,6 +94,7 @@ struct sharp_function {
 
     void free();
     void copy_parameters(const List<sharp_field*> &params);
+    void copy_locals(const List<sharp_field*> &params);
 
     string name;
     string fullName;
@@ -97,6 +102,7 @@ struct sharp_function {
     impl_location implLocation;
     List<dependency> dependencies;
     List<sharp_field*> parameters;
+    List<sharp_field*> locals;
     sharp_field* closure;
     sharp_type returnType;
     function_type type;
@@ -106,7 +112,7 @@ struct sharp_function {
 };
 
 bool is_fully_qualified_function(sharp_function*);
-bool function_parameters_match(List<sharp_field*>&, List<sharp_field*>&, bool);
+bool function_parameters_match(List<sharp_field*>&, List<sharp_field*>&, bool, uInt excludedMateches = 0);
 
 
 bool create_function(

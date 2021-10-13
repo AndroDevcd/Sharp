@@ -5,6 +5,7 @@
 #include "component.h"
 #include "../types/types.h"
 #include "../operation/operation.h"
+#include "../../compiler_info.h"
 
 uInt uniqueComponentId = 0;
 

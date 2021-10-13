@@ -82,7 +82,8 @@ enum _operation_scheme {
     scheme_new_class_array,
     scheme_new_number_array,
     scheme_new_object_array,
-    scheme_get_array_value
+    scheme_get_array_value,
+    scheme_get_primary_class_instance
 };
 
 struct operation_scheme {
@@ -112,9 +113,7 @@ struct operation_scheme {
 
     void copy(const operation_scheme &scheme);
 
-    void free() {
-        deleteList(steps);
-    }
+    void free();
 
     _operation_scheme schemeType;
     sharp_field *field;
@@ -403,17 +402,17 @@ void create_get_static_function_address_operation(
 
 void create_instance_function_call_operation(
         operation_scheme *scheme,
-        List<operation_scheme> &paramScheme,
+        List<operation_scheme*> &paramScheme,
         sharp_function *fun);
 
 void create_primary_class_function_call_operation(
         operation_scheme *scheme,
-        List<operation_scheme> &paramScheme,
+        List<operation_scheme*> &paramScheme,
         sharp_function *fun);
 
 void create_static_function_call_operation(
         operation_scheme *scheme,
-        List<operation_scheme> &paramScheme,
+        List<operation_scheme*> &paramScheme,
         sharp_function *fun);
 
 void create_function_parameter_push_operation(
@@ -488,5 +487,9 @@ void create_pop_value_from_stack_operation(
 void create_assign_array_element_operation(
         operation_scheme *scheme,
         Int index);
+
+void create_new_class_operation(
+        operation_scheme *scheme,
+        sharp_class *sc);
 
 #endif //SHARP_OPERATION_H

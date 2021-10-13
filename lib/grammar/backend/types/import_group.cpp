@@ -3,6 +3,7 @@
 //
 #include "import_group.h"
 #include "../../sharp_file.h"
+#include "../../compiler_info.h"
 
 import_group* create_import_group(sharp_file *file, string name, Ast *ast) {
     impl_location location(file, 0, 0);

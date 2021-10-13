@@ -390,7 +390,9 @@ sharp_function* resolve_function(
     return NULL;
 }
 
-
+// this is used for recursion protection
+thread_local uInt recursionLevel = 0;
+thread_local List<sharp_function*> resolvedFunctions;
 sharp_function* resolve_function(
         string name,
         sharp_class *searchClass,
@@ -403,21 +405,15 @@ sharp_function* resolve_function(
     List<sharp_function*> locatedFunctions;
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
-    sharp_type type;
-    sharp_function mock_function("mock", searchClass, impl_location(),
-            flag_none, NULL, parameters, type, undefined_function, true);
-
+    recursionLevel++;
     locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
             locatedFunctions);
 
     if(!locatedFunctions.empty()) {
         for(Int i = 0; i < locatedFunctions.size(); i++) {
             sharp_function *func = locatedFunctions.get(i);
-            mock_function.returnType = func->returnType;
 
-            sharp_type comparer(func);
-            sharp_type comparee(&mock_function);
-            if(is_explicit_type_match(comparer, comparee)) {
+            if(function_parameters_match(func->parameters, parameters, true)) {
                 resolvedFunction = func;
                 break;
             }
@@ -427,16 +423,18 @@ sharp_function* resolve_function(
 
             for(Int i = 0; i < locatedFunctions.size(); i++) {
                 sharp_function *func = locatedFunctions.get(i);
-                mock_function.returnType = func->returnType;
 
-                sharp_type comparer(func);
-                sharp_type comparee(&mock_function);
-                if(is_implicit_type_match(
-                        comparer,
-                        comparee,
-                        excludedMatches)) {
-                    if(resolvedFunction == NULL) resolvedFunction = func;
-                    else ambiguous = true;
+                if(!resolvedFunctions.find(func)) {
+                    resolvedFunctions.add(func);
+
+                    if (function_parameters_match(
+                            func->parameters,
+                            parameters,
+                            false,
+                            excludedMatches)) {
+                        if (resolvedFunction == NULL) resolvedFunction = func;
+                        else ambiguous = true;
+                    }
                 }
             }
         }
@@ -446,6 +444,9 @@ sharp_function* resolve_function(
         currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to method `" + name + "` is ambiguous");
     }
 
+    recursionLevel--;
+    if(recursionLevel == 0)
+        resolvedFunctions.free();
     return resolvedFunction;
 }
 
@@ -565,7 +566,7 @@ bool resolve_local_field( // todo: support tls access for all fields
     }
 
     for(Int i = ctx.storedItems.size() - 1; i >= 0; i--) {
-        stored_context_item *contextItem = &ctx.storedItems.get(i);
+        stored_context_item *contextItem = ctx.storedItems.get(i);
 
         if((field = resolve_local_field(item.name, contextItem)) != NULL) {
 
@@ -1131,6 +1132,7 @@ void resolve_normal_item(
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
 
+
     if(resultType.type == type_untyped) {
         // first item
         if(context.type == block_context
@@ -1225,12 +1227,6 @@ void resolve_normal_item(
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_function_address)
-           && resolve_global_class_function_address(item, resultType, scheme, context)) {
-
-            hardType = false;
-            return;
-        }
 
         if (hasFilter(filter, resolve_filter_class)
             && resolve_global_class(item, primaryClass, resultType, false, context)) {
@@ -1244,6 +1240,13 @@ void resolve_normal_item(
             && resolve_global_class(item, primaryClass, resultType, true, context)) {
 
             hardType = true;
+            return;
+        }
+
+        if(hasFilter(filter, resolve_filter_function_address)
+           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+
+            hardType = false;
             return;
         }
 
@@ -1584,8 +1587,9 @@ void resolve_function_ptr_item(
     } else returnType.type = type_nil;
 
     hardType = true;
+    string ptr = "fptr";
     sharp_function *fptr = new sharp_function(
-            "fptr", primaryClass, location,
+            ptr, primaryClass, location,
             flags, resolveLocation, params,
             returnType, blueprint_function);
 
@@ -1832,6 +1836,9 @@ void resolve_function_reference_item(
                     hardType = false;
                     return;
                 }
+
+                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                               resolveLocation, " `" + unresolvedFunction + "` ");
             } else {
                 resultType.type = type_undefined;
                 currThread->currTask->file->errors->createNewError(GENERIC,
@@ -1900,7 +1907,9 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
         process_generic_extension_functions(generic, genericBlueprint);
         process_generic_mutations(generic, genericBlueprint);
         process_delegates(generic);
-    }
+        return generic;
+    } else if(generic)
+        return generic;
 
     return genericBlueprint;
 }
@@ -1925,6 +1934,9 @@ bool resolve_primary_class_inner_class_generic(
         resultType.type = type_class;
         resultType._class = sc;
 
+        if(sc->blueprintClass) {
+            int i = 0;
+        }
         string fieldType = "class";
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, isSelfInstance,

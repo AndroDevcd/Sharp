@@ -5,6 +5,7 @@
 #include "sharp_type.h"
 #include "sharp_function.h"
 #include "../operation/operation.h"
+#include "../../compiler_info.h"
 
 void unresolved_item::free() {
     typeSpecifiers.free();
@@ -47,3 +48,6 @@ string access_type_to_str(reference_access_type type) {
     }
 }
 
+void unresolved_type::free() {
+    deleteList(items);
+}

@@ -9,6 +9,7 @@
 #include "../types/sharp_class.h"
 #include "../preprocessor/class_preprocessor.h"
 #include "class_processor.h"
+#include "../../compiler_info.h"
 
 void process_mutation(Ast *ast) {
     sharp_type resolvedType =

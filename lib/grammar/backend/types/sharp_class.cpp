@@ -30,6 +30,22 @@ void create_global_class() {
     }
 }
 
+string get_simple_name(sharp_class *sc) {
+    string basicName = sc->name;
+    if(basicName.find("<") != string::npos) {
+        stringstream ss;
+        for(int i = 0; i < basicName.size(); i++) {
+            if(basicName[i] == '<')
+                break;
+            ss << basicName[i];
+        }
+
+        basicName = ss.str();
+    }
+
+    return basicName;
+}
+
 sharp_class* create_closure_class(
         sharp_file *file,
         sharp_module *module,

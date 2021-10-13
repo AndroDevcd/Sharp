@@ -7,6 +7,8 @@
 
 #include "../../../../stdimports.h"
 
+struct type_definition;
+
 struct get_component_request {
     get_component_request()
     :

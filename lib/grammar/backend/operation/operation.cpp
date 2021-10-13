@@ -5,6 +5,7 @@
 #include "operation.h"
 #include "../types/sharp_field.h"
 #include "../types/sharp_function.h"
+#include "../../compiler_info.h"
 
 void create_local_field_access_operation(
         operation_scheme *scheme,
@@ -94,6 +95,16 @@ void create_new_class_array_operation(
 
         scheme->steps.add(new operation_step(
                 operation_create_class_array, sc));
+    }
+}
+
+void create_new_class_operation(
+        operation_scheme *scheme,
+        sharp_class *sc) {
+    if(scheme) {
+        scheme->schemeType = scheme_new_class;
+        scheme->steps.add(new operation_step(
+                operation_create_class, sc));
     }
 }
 
@@ -198,7 +209,7 @@ void create_get_static_function_address_operation(
 
 void create_primary_class_function_call_operation(
         operation_scheme *scheme,
-        List<operation_scheme> &paramScheme,
+        List<operation_scheme*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
@@ -213,7 +224,7 @@ void create_primary_class_function_call_operation(
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
-                    new operation_scheme(paramScheme.get(i)),
+                    new operation_scheme(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
                     ));
         }
@@ -225,7 +236,7 @@ void create_primary_class_function_call_operation(
 
 void create_instance_function_call_operation(
         operation_scheme *scheme,
-        List<operation_scheme> &paramScheme,
+        List<operation_scheme*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
@@ -236,7 +247,7 @@ void create_instance_function_call_operation(
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
-                    new operation_scheme(paramScheme.get(i)),
+                    new operation_scheme(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
         }
@@ -363,7 +374,7 @@ void create_decrement_operation(
 
 void create_static_function_call_operation(
         operation_scheme *scheme,
-        List<operation_scheme> &paramScheme,
+        List<operation_scheme*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
@@ -372,7 +383,7 @@ void create_static_function_call_operation(
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
-                    new operation_scheme(paramScheme.get(i)),
+                    new operation_scheme(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
         }
@@ -406,8 +417,8 @@ void create_function_parameter_push_operation(
                         )
                 );
 
-                List<operation_scheme> scheme;
-                scheme.add(*paramScheme);
+                List<operation_scheme*> scheme;
+                scheme.add(paramScheme);
                 create_instance_function_call_operation(
                         resultScheme, scheme, constructor);
                 scheme.free();
@@ -431,4 +442,8 @@ void operation_scheme::copy(const operation_scheme &scheme) {
     for(Int i = 0; i < scheme.steps.size(); i++) {
         steps.add(new operation_step(*scheme.steps.get(i)));
     }
+}
+
+void operation_scheme::free() {
+    deleteList(steps);
 }

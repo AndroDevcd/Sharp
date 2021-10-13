@@ -9,6 +9,7 @@
 #include "../types/sharp_module.h"
 #include "../types/sharp_class.h"
 #include "../../../util/File.h"
+#include "../../compiler_info.h"
 
 void process_base_class(
         sharp_class *with_class,
@@ -83,7 +84,7 @@ void inherit_object_class(sharp_class *with_class, Ast *ast) {
 void inherit_enum_class(sharp_class *with_class, Ast *ast) {
     if(with_class->fullName != "std#_enum_" && with_class->baseClass == NULL) {
         string stdModule = "std";
-        sharp_class *sc = resolve_class(get_module(stdModule), "_object_", false, false);
+        sharp_class *sc = resolve_class(get_module(stdModule), "_enum_", false, false);
 
         if(sc != NULL && (sc->type == class_enum)) {
             stringstream err;

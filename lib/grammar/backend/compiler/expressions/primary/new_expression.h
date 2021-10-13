@@ -14,5 +14,6 @@ struct sharp_type;
 void compile_new_expression(expression *e, Ast *ast);
 void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast);
 void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast);
+void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast);
 
 #endif //SHARP_NEW_EXPRESSION_H

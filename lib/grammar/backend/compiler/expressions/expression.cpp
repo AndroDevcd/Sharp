@@ -9,9 +9,9 @@
 #include "../../../taskdelegator/task_delegator.h"
 #include "unary/pre_increment_expression.h"
 #include "primary/primary_expression.h"
+#include "../../postprocessor/field_processor.h"
 
 void compile_expression(expression &e, Ast *ast) {
-
     if(ast->hasSubAst(ast_minus_e))
         compile_minus_expression(&e, ast->getSubAst(ast_minus_e));
     else if(ast->hasSubAst(ast_pre_inc_e))
@@ -28,6 +28,25 @@ void compile_expression_for_type(sharp_type &type, Ast *ast) {
     type.copy(e.type);
 }
 
+void convert_expression_type_to_real_type(
+        Ast *ast,
+        sharp_file *file,
+        expression &typeDefinition) {
+    if(typeDefinition.type == type_integer
+       || typeDefinition.type == type_decimal) {
+        typeDefinition.type = type_var;
+    } else if(typeDefinition.type == type_char
+              || typeDefinition.type == type_bool) {
+        typeDefinition.type = type_int8;
+    } else if(typeDefinition.type == type_string) {
+        typeDefinition.type = type_int8;
+    } else if(typeDefinition.type == type_null) {
+        typeDefinition.type = type_object;
+    } else if(typeDefinition.type == type_field) {
+        process_field(typeDefinition.type.field);
+        typeDefinition.type.copy(typeDefinition.type.field->type);
+    }
+}
 
 void compile_class_function_overload(
         sharp_class *with_class,
@@ -66,7 +85,7 @@ void compile_function_call(
         bool isPrimaryClass) {
     if(scheme) {
         Int matchResult;
-        List<operation_scheme> compiledParamOperations;
+        List<operation_scheme*> compiledParamOperations;
         for (Int i = 0; i < params.size(); i++) {
             sharp_type *asignee = &callee->parameters.get(i)->type;
             sharp_type *assigner = &params.get(i)->type;
@@ -86,12 +105,13 @@ void compile_function_call(
             }
 
 
+            compiledParamOperations.add(new operation_scheme());
             create_function_parameter_push_operation(
                     asignee,
                     matchResult,
                     matchedConstructor,
                     paramOperations.get(i),
-                    &compiledParamOperations.__new()
+                    compiledParamOperations.last()
             );
         }
 

@@ -88,7 +88,11 @@ void set_full_name(sharp_function *sf) {
     sf->fullName = sf->owner->fullName + "." + sf->name;
 }
 
-bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> &comparee, bool explicitMatch) {
+bool function_parameters_match(
+        List<sharp_field*> &comparer,
+        List<sharp_field*> &comparee,
+        bool explicitMatch,
+        uInt excludedMatches) {
     if(comparer.size() != comparee.size()) return false;
 
     for(Int i = 0; i < comparer.size(); i++) {
@@ -96,7 +100,7 @@ bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> 
             return false;
         } else if(!explicitMatch){
             if(!is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type)
-                 && !is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, 0)) {
+                 && !is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, excludedMatches)) {
                 return false;
             }
         }
@@ -108,9 +112,15 @@ bool function_parameters_match(List<sharp_field*> &comparer, List<sharp_field*> 
 void sharp_function::free() {
     dependencies.free();
     if(!directlyCopyParams) deleteList(parameters);
+    deleteList(locals);
 }
 
 void sharp_function::copy_parameters(const List<sharp_field *> &params) {
     for(Int i = 0; i < params.size(); i++)
         parameters.add(new sharp_field(*params.get(i)));
+}
+
+void sharp_function::copy_locals(const List<sharp_field *> &localFields) {
+    for(Int i = 0; i < locals.size(); i++)
+        locals.add(new sharp_field(*localFields.get(i)));
 }

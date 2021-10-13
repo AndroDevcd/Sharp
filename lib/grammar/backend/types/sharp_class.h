@@ -57,7 +57,7 @@ struct sharp_class {
     }
 
     sharp_class(
-            string name,
+            string &name,
             sharp_class *owner,
             sharp_module* module,
             impl_location location,
@@ -191,6 +191,7 @@ struct sharp_class {
     recursive_mutex mut;
 };
 
+string get_simple_name(sharp_class *);
 void create_global_class();
 sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, bool, Ast*);
 sharp_class* create_closure_class(sharp_file*, sharp_module*, sharp_function*, Ast*);

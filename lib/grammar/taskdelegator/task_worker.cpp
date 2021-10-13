@@ -9,6 +9,7 @@
 #include "../backend/postprocessor/class_processor.h"
 #include "../backend/postprocessor/delegate_processor.h"
 #include "../backend/compiler/di/component_compiler.h"
+#include "../backend/compiler/field_compiler.h"
 
 thread_local worker_thread *currThread;
 
@@ -102,6 +103,13 @@ void post_process_() {
     file->stage = classes_post_processed;
 }
 
+void compile_fields_() {
+    sharp_file *file = currThread->currTask->file;
+
+    compile_fields();
+    file->stage = class_fields_compiled;
+}
+
 void process_delegates_() {
     sharp_file *file = currThread->currTask->file;
 
@@ -137,6 +145,10 @@ void execute_task() {
         }
         case task_post_process_: {
             post_process_();
+            break;
+        }
+        case task_compile_fields_: {
+            compile_fields_();
             break;
         }
         case task_process_delegates_: {

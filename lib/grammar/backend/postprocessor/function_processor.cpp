@@ -9,6 +9,8 @@
 #include "../types/sharp_class.h"
 #include "../types/sharp_field.h"
 #include "field_processor.h"
+#include "../../compiler_info.h"
+#include "../../settings/settings.h"
 
 void process_function(
         sharp_class *with_class,
@@ -152,6 +154,15 @@ void process_function(
             flags |= flag_public;
     } else flags = flag_public;
 
+    if(check_flag(with_class->flags, flag_global)) {
+        if (!check_flag(flags, flag_static)) {
+            flags |= flag_static;
+        } else {
+            create_new_warning(GENERIC, __w_access, ast->line, ast->col,
+                               "`static` access specifier is added by default on global functions");
+        }
+    }
+
     parse_utype_arg_list(params, ast->getSubAst(ast_utype_arg_list));
     for(Int i = 0; i < params.size(); i++) {
         sharp_field *param = params.get(i);
@@ -175,7 +186,7 @@ void process_function(
         sharp_function *fun = with_class->functions.last();
 
         if(fun->name == "to_string" && fun->owner->name == "_object_") {
-
+            // todo: remove here for testing only
             create_context(fun);
             string fname = "%test";
             create_function(with_class, flag_static, type, fname, false,
@@ -207,6 +218,7 @@ void process_function(
         }
 
         fun->returnType.copy(returnType);
+        fun->locals.addAll(fun->parameters);
     }
 }
 
@@ -216,10 +228,12 @@ void process_function_return_type(sharp_function *fun) {
         && currThread->currTask->file->stage >= pre_compilation_finished_state) {
         fun->returnType.type = type_undefined;
 
+        create_context(fun->owner);
         create_context(fun);
         expression e;
         compile_expression(e, fun->ast->getSubAst(ast_expression));
         validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+        delete_context();
         delete_context();
     }
 }

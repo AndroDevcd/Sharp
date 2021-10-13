@@ -76,7 +76,7 @@ struct context : public stored_context_item {
         storedItems()
     {}
 
-    List<stored_context_item> storedItems;
+    List<stored_context_item*> storedItems;
 };
 
 void create_context(sharp_class*, bool isStatic = false);

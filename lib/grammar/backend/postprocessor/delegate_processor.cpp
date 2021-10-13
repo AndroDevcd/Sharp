@@ -7,6 +7,7 @@
 #include "function_processor.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../astparser/ast_parser.h"
+#include "../../compiler_info.h"
 
 void process_delegates() {
     sharp_file *file = currThread->currTask->file;

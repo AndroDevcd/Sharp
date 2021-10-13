@@ -9,6 +9,7 @@
 #include "../astparser/ast_parser.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "class_preprocessor.h"
+#include "../../compiler_info.h"
 
 void pre_process_generic_class(sharp_class *parentClass, Ast *ast) {
     uInt flags = 0;

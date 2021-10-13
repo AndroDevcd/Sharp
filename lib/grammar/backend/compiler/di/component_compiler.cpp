@@ -9,6 +9,7 @@
 #include "../../types/types.h"
 #include "../expressions/expression.h"
 #include "../../postprocessor/field_processor.h"
+#include "../../../compiler_info.h"
 
 thread_local List<Ast*> processedComponents;
 
@@ -154,27 +155,15 @@ void compile_type_definition(
         } else {
             create_sub_component:
             processedComponents.add(ast);
-            if(typeDefinition.type == type_integer
-                || typeDefinition.type == type_decimal) {
-                typeDefinition.type = type_var;
-            } else if(typeDefinition.type == type_char
-               || typeDefinition.type == type_bool) {
-                typeDefinition.type = type_int8;
-            } else if(typeDefinition.type == type_string) {
-                typeDefinition.type = type_int8;
-            } else if(typeDefinition.type == type_null) {
-                typeDefinition.type = type_object;
-            } else if(typeDefinition.type == type_field) {
-                process_field(typeDefinition.type.field);
-                typeDefinition.type.copy(typeDefinition.type.field->type);
-            } else if(typeDefinition.type == type_nil) {
+            convert_expression_type_to_real_type(ast, file, typeDefinition);
+            if(typeDefinition.type == type_nil) {
                 file->errors->createNewError(GENERIC, ast,
-                         "type of `nil` cannot be defined in components.");
+                                             "type of `nil` cannot be defined in components.");
 
             } else if(typeDefinition.type == type_lambda_function) {
                 if(!is_fully_qualified_function(typeDefinition.type.fun)) {
                     file->errors->createNewError(GENERIC, ast,
-                             "lambda must be fully qualified to be injected.");
+                                                 "lambda must be fully qualified to be injected.");
                 }
 
                 typeDefinition.type = type_function_ptr;
@@ -215,6 +204,9 @@ void compile_type_definition(
     } else {
         if(!lastTry) {
             file->errors->pass();
+        } else {
+            file->errors->createNewError(GENERIC, ast,
+                    "cannot set type of `" + type_to_str(typeDefinition.type) + "` as a type definition.");
         }
     }
 

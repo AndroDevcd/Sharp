@@ -257,17 +257,17 @@ public class integer<native_type> {
         }
     }
 
-    def to_ulong() := new ulong { value };
-    def to_long() := new long { value };
-    def to_uint() := new uint { value };
-    def to_int() := new int { value };
-    def to_ushort() := new ushort { value };
-    def to_short() := new short { value };
-    def to_uchar() := new uchar { value };
-    def to_char() := new char { value };
-    def to_byte() := new byte { value };
-    def to_bool() := new bool { value };
-    def to_double() := new double { value };
+    def to_ulong() := new ulong(value);
+    def to_long() := new long(value);
+    def to_uint() := new uint(value);
+    def to_int() := new int(value);
+    def to_ushort() := new ushort(value);
+    def to_short() := new short(value);
+    def to_uchar() := new uchar(value);
+    def to_char() := new char(value);
+    def to_byte() := new byte(value);
+    def to_bool() := new bool(value);
+    def to_double() := new double(value);
 
     def get_value() := value;
 }

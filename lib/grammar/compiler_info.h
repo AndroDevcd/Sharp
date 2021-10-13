@@ -8,6 +8,7 @@
 #include "List.h"
 #include "frontend/ErrorManager.h"
 #include "backend/dependency/component_manager.h"
+#include "taskdelegator/task_delegator.h"
 
 #define PROG_NAME "sharp"
 #define PROG_VERS "0.3.0"
@@ -32,6 +33,7 @@ extern component_manager componentManager;
 #define main_component_name "__main__"
 #define any_component_name "?"
 #define single_component_field_name_prefix "@sub_component_"
+#define current_file currThread->currTask->file
 
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);

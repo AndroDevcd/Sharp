@@ -8,7 +8,6 @@
 #include "../../../../stdimports.h"
 #include "../../List.h"
 #include "../../frontend/parser/Ast.h"
-#include "../../compiler_info.h"
 
 struct unresolved_type;
 struct sharp_type;
@@ -145,9 +144,7 @@ struct unresolved_type {
         free();
     }
 
-    void free() {
-        deleteList(items);
-    }
+    void free();
 
     List<unresolved_item*> items;
 };

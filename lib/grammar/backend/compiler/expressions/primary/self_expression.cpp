@@ -9,6 +9,7 @@
 #include "dot_notation_call_expression.h"
 #include "../../../types/sharp_function.h"
 #include "../../../types/types.h"
+#include "../../../../compiler_info.h"
 
 void compile_self_expression(expression *e, Ast *ast) {
     context &ctx = currThread->currTask->file->context;
@@ -44,6 +45,7 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
                                                                "cannot access self from static context.");
         } else {
+            e->scheme.schemeType = scheme_get_primary_class_instance;
             create_get_primary_instance_class(&e->scheme, instanceClass);
         }
     }

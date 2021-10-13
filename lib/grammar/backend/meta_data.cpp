@@ -16,7 +16,7 @@ void print_impl_location(string name, string memberType, impl_location& location
         note << " `" << name << "`";
     note << " previously defined here" << endl;
 
-    note << "\t\t" << location.file->p->getLines().at(location.line)
+    note << "\t\t" << location.file->p->getLines().at(location.line - 1)
         << endl << "\t\t";
 
     for(int i = 0; i < location.col-1; i++)

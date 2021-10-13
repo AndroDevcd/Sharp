@@ -10,15 +10,15 @@
 #include "frontend/parser/Parser.h"
 #include "backend/dependency/dependancy.h"
 #include "backend/types/import_group.h"
-#include "compiler_info.h"
 #include "backend/context/context.h"
 
 enum compilation_stage {
-    not_compiled,
+    not_compiled=0,
     tokenized,
     parsed,
     classes_preprocessed,
     classes_post_processed, // ready to compile after this stage
+    class_fields_compiled,
     class_delegates_processed,
     components_processed,
     compiled
@@ -80,12 +80,7 @@ struct sharp_file {
         free();
     }
 
-    void free() {
-        dependencies.free();
-        imports.free();
-        context.free();
-        deleteList(importGroups);
-    }
+    void free();
 
     string name;
     tokenizer *tok;

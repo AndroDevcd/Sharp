@@ -6,6 +6,7 @@
 #include "../expression.h"
 #include "../../../context/context.h"
 #include "../../../../taskdelegator/task_delegator.h"
+#include "../../../../compiler_info.h"
 
 void compile_get_expression(expression *e, Ast *ast) {
     e->type.type = type_get_component_request;

@@ -290,6 +290,10 @@ struct sharp_type {
         return type == t;
     }
 
+    void operator=(native_type t) {
+        this->type = t;
+    }
+
     bool operator!=(native_type t) const {
         return type != t;
     }

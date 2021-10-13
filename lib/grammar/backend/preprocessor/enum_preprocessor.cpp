@@ -9,6 +9,7 @@
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_field.h"
 #include "class_preprocessor.h"
+#include "../../compiler_info.h"
 
 void pre_process_enum(
         sharp_class *parentClass,
