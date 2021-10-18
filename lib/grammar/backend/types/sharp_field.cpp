@@ -38,7 +38,7 @@ sharp_field* create_field(
                 type, flags, ft, ast
         );
 
-        GUARD(owner->mut)
+        GUARD(globalLock)
         owner->fields.add(sf);
         return sf;
     }
@@ -88,7 +88,7 @@ sharp_field* create_field(
                 type, flags, ft, ast
         );
 
-        GUARD(sc->mut)
+        GUARD(globalLock)
         sc->fields.add(sf);
         return sf;
     }

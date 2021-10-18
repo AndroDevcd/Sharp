@@ -57,7 +57,7 @@ void process_class_delegates(sharp_class* parentClass, sharp_class *with_class, 
 
     create_context(with_class, true);
     if(with_class->blueprintClass) {
-        GUARD(with_class->mut)
+        GUARD(globalLock)
 
         for(Int i = 0; i < with_class->genericClones.size(); i++) {
             process_class_delegates(NULL, with_class->genericClones.get(i), with_class->genericClones.get(i)->ast);

@@ -150,7 +150,7 @@ sharp_class* create_class(
             print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
     } else {
-        GUARD(owner->mut)
+        GUARD(globalLock)
         sc = new sharp_class(
                 name, owner, owner->module,
                 location, flags, ast, type
@@ -245,7 +245,7 @@ bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
 sharp_field* locate_field(
         string name,
         sharp_class *owner) {
-    GUARD(owner->mut)
+    GUARD(globalLock)
     for(Int i = 0; i < owner->fields.size(); i++) {
         if(owner->fields.get(i)->name == name)
             return owner->fields.get(i);
@@ -257,7 +257,7 @@ sharp_field* locate_field(
 generic_type_identifier* locate_generic_type(
         string name,
         sharp_class *owner) {
-    GUARD(owner->mut)
+    GUARD(globalLock)
     for(Int i = 0; i < owner->genericTypes.size(); i++) {
         if(owner->genericTypes.get(i).name == name)
             return &owner->genericTypes.get(i);
@@ -272,7 +272,7 @@ bool locate_functions_with_name(
         Int functionType,
         bool checkBaseClass,
         List<sharp_function*> &results) {
-    GUARD(owner->mut)
+    GUARD(globalLock)
     for(Int i = 0; i < owner->functions.size(); i++) {
         sharp_function *fun = owner->functions.get(i);
         if(name == fun->name &&
@@ -293,7 +293,7 @@ bool locate_functions_with_type(
         Int functionType,
         bool checkBaseClass,
         List<sharp_function*> &results) {
-    GUARD(owner->mut)
+    GUARD(globalLock)
     for(Int i = 0; i < owner->functions.size(); i++) {
         sharp_function *fun = owner->functions.get(i);
         if(functionType == fun->type)

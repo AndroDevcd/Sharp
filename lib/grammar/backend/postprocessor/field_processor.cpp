@@ -25,7 +25,7 @@ void process_field(sharp_class *with_class, Ast *ast) {
 }
 
 void process_field(sharp_field *field) {
-    GUARD(field->owner->mut)
+    GUARD(globalLock)
 
     Ast *ast = field->ast;
     if(field->type.type == type_untyped) {
@@ -126,7 +126,7 @@ void process_setter(sharp_field *field, Ast *ast) {
     sharp_type returnType(type_nil);
     string name = "set_" + field->name;
 
-    GUARD(field->owner->mut)
+    GUARD(globalLock)
     if(!create_function(
             field->owner,
             flags,
@@ -161,7 +161,7 @@ void process_getter(sharp_field *field, Ast *ast) {
     sharp_type returnType(field->type);
     string name = "get_" + field->name;
 
-    GUARD(field->owner->mut)
+    GUARD(globalLock)
     create_function(
             field->owner,
             flags,

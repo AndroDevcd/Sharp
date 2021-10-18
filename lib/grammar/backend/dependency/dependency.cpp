@@ -52,7 +52,7 @@ sharp_class* resolve_class(
         bool isGeneric,
         bool matchName) {
     sharp_class *child = NULL;
-    GUARD(sc->mut)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &sc->children;
 
     if(isGeneric) searchList = &sc->generics;
@@ -176,7 +176,7 @@ sharp_field* resolve_local_field(string name, stored_context_item *context) {
 }
 
 sharp_field* resolve_field(string name, sharp_class *searchClass, bool checkBase) {
-    GUARD(searchClass->mut)
+    GUARD(globalLock)
     for(Int i = 0; i < searchClass->fields.size(); i++) {
         if(searchClass->fields.get(i)->name == name) {
             return searchClass->fields.get(i);
@@ -234,7 +234,7 @@ sharp_field* resolve_enum(string name, import_group *group) {
 }
 
 sharp_field* resolve_enum(string name, sharp_class *searchClass) {
-    GUARD(searchClass->mut)
+    GUARD(globalLock)
 
     if(searchClass->type == class_enum) {
         for (Int i = 0; i < searchClass->fields.size(); i++) {
@@ -1635,10 +1635,6 @@ bool resolve_primary_class_function(
             true,
             true)) != NULL) {
         process_function_return_type(fun);
-        if(fun->returnType.type == type_untyped || fun->returnType.type == type_undefined) {
-            resultType.type = type_undefined;
-            return false;
-        }
 
         if((isStaticCall || (isPrimaryClass && ctx.isStatic)) && !check_flag(fun->flags, flag_static)) {
             if(isPrimaryClass && ctx.isStatic) {
@@ -1786,6 +1782,10 @@ void resolve_function_reference_item(
     unresolvedFunction = type_to_str(noType);
     params.free();
 
+    if(item.name == "append" && resolveLocation->line == 73 && resolveLocation->col == 30) {
+        int i = 0;
+    }
+
     if(resultType.type == type_untyped) {
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
@@ -1896,11 +1896,10 @@ bool resolve_primary_class_generic(
 sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint) {
     bool created = false;
 
-    GUARD(genericBlueprint->mut)
     sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created);
 
     if(created && generic) {
-        GUARD2(generic->mut)
+        GUARD2(globalLock)
         genericBlueprint->genericClones.add(generic);
         pre_process_class(NULL, generic, generic->ast);
         process_class(NULL, generic, generic->ast);

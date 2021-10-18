@@ -41,7 +41,6 @@ struct sharp_class {
             ast(NULL),
             module(NULL),
             baseClass(NULL),
-            mut(),
             functions(),
             generics(),
             aliases(),
@@ -75,7 +74,6 @@ struct sharp_class {
             owner(owner),
             children(),
             fullName(""),
-            mut(),
             functions(),
             generics(),
             aliases(),
@@ -117,7 +115,6 @@ struct sharp_class {
             owner(owner),
             children(),
             fullName(""),
-            mut(),
             functions(),
             generics(),
             aliases(),
@@ -146,7 +143,6 @@ struct sharp_class {
             owner(sc.owner),
             children(sc.children),
             fullName(sc.fullName),
-            mut(),
             functions(sc.functions),
             generics(sc.generics),
             aliases(sc.aliases),
@@ -188,7 +184,6 @@ struct sharp_class {
     List<generic_type_identifier> genericTypes;
     class_type type;
     bool blueprintClass;
-    recursive_mutex mut;
 };
 
 string get_simple_name(sharp_class *);

@@ -86,10 +86,10 @@ class string_builder : loopable<_int8> {
         return self;
     }
 
-    def append(ch: var) : string_builder
+    def append(ch: _int8) : string_builder
     {
         if(data == null)
-            data = new var[default_capacity];
+            data = new _int8[default_capacity];
         else if((cursor + 1) >= sizeof(data))
             expand(0);
 

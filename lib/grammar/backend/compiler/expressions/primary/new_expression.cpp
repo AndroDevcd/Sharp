@@ -73,6 +73,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
             sharp_function mock_function(mock, newType->_class, impl_location(),
                                          flag_none, NULL, params, returnType, undefined_function, true);
             sharp_type unresolvedType(&mock_function);
+
             currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
                     "cannot find constructor `" + type_to_str(unresolvedType) +"` for class `" + newType->_class->fullName + "`.");
         }

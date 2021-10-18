@@ -91,18 +91,28 @@ void compile_field(sharp_class *with_class, Ast *ast) {
 }
 
 void compile_field(sharp_field *field, Ast *ast) {
-    GUARD(field->owner->mut)
+    GUARD(globalLock)
 
     if(field->request == NULL
         && field->scheme == NULL) {
-        field->type.type = type_undefined;
 
         if(ast->hasSubAst(ast_expression)) {
             expression e;
             field->scheme = new operation_scheme();
             compile_expression(e, ast->getSubAst(ast_expression));
-            validate_field_type(false, field, e.type, &e.scheme,
-                    ast->getSubAst(ast_expression));
+
+            if(field->type == type_untyped) {
+                validate_field_type(false, field, e.type, &e.scheme,
+                                    ast->getSubAst(ast_expression));
+            } else {
+                convert_expression_type_to_real_type(ast, current_file, e);
+                if(!is_implicit_type_match(
+                        field->type, e.type, match_operator_overload | match_constructor)) {
+                    currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                               "cannot assign field `" + field->name + ": " +
+                                    type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
+                }
+            }
             field->scheme->copy(e.scheme);
         }
 
@@ -138,8 +148,19 @@ void compile_field(sharp_field *field, Ast *ast) {
                         expression e;
                         xtraField->scheme = new operation_scheme();
                         compile_expression(e, trunk->getSubAst(ast_expression));
-                        validate_field_type(false, xtraField, e.type, &e.scheme,
-                                            trunk->getSubAst(ast_expression));
+
+                        if(xtraField->type == type_untyped) {
+                            validate_field_type(false, xtraField, e.type, &e.scheme,
+                                                ast->getSubAst(ast_expression));
+                        } else {
+                            convert_expression_type_to_real_type(ast, current_file, e);
+                            if(!is_implicit_type_match(
+                                    xtraField->type, e.type, match_operator_overload | match_constructor)) {
+                                currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                            "cannot assign field `" + xtraField->name + ": " +
+                                                  type_to_str(xtraField->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
+                            }
+                        }
                         xtraField->scheme->copy(e.scheme);
                     }
                 }

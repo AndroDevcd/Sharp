@@ -85,7 +85,7 @@ void pre_process_enum_field(sharp_class *parentClass, Ast *ast) {
 
     create_field(
             currThread->currTask->file,
-            parentClass, name, flags, sharp_type(),
+            parentClass, name, flags, sharp_type(parentClass),
             normal_field, ast
     );
 }

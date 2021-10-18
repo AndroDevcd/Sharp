@@ -101,7 +101,7 @@ void process_generic_clone_functions(
         string &name,
         function_type type,
         Ast *ast) {
-    GUARD(with_class->mut)
+    GUARD(globalLock)
 
     for(Int i = 0; i < with_class->genericClones.size(); i++) {
         process_function(with_class->genericClones.get(i), name, type, ast);
@@ -111,7 +111,7 @@ void process_generic_clone_functions(
 void process_generic_extension_functions(
         sharp_class *with_class,
         sharp_class *blueprint) {
-    GUARD(blueprint->mut)
+    GUARD(globalLock)
 
     for(Int i = 0; i < blueprint->extensionFunctions.size(); i++) {
         unresolved_extension_function uef = blueprint->extensionFunctions.get(i);
@@ -130,7 +130,7 @@ void process_function(
         function_type type,
         Ast *ast) {
 
-    GUARD2(with_class->mut)
+    GUARD2(globalLock)
     uInt flags = flag_none;
     List<sharp_field*> params;
     if(ast->hasSubAst(ast_access_type)) {
@@ -185,7 +185,7 @@ void process_function(
             returnType, ast)) {
         sharp_function *fun = with_class->functions.last();
 
-        if(fun->name == "to_string" && fun->owner->name == "_object_") {
+        if(fun->name == "to_string" && fun->owner->name == "_object_" && false) {
             // todo: remove here for testing only
             create_context(fun);
             string fname = "%test";

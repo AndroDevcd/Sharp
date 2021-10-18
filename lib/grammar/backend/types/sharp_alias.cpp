@@ -34,7 +34,7 @@ sharp_alias* create_alias(
     } else {
         sa = new sharp_alias(name, owner, flags, location, ast);
 
-        GUARD(owner->mut)
+        GUARD(globalLock)
         owner->aliases.add(sa);
         return sa;
     }
@@ -63,7 +63,7 @@ sharp_alias* create_alias(
         owner = resolve_class(module, global_class_name, false, false);
         sa = new sharp_alias(name, owner, flags, location, ast);
 
-        GUARD(owner->mut)
+        GUARD(globalLock)
         owner->aliases.add(sa);
         return sa;
     }

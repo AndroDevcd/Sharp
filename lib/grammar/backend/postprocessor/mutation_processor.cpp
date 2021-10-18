@@ -39,7 +39,7 @@ void process_mutation(Ast *ast) {
 void process_generic_clone_mutations(
         sharp_class *with_class,
         Ast *ast) {
-    GUARD(with_class->mut)
+    GUARD(globalLock)
 
     for(Int i = 0; i < with_class->genericClones.size(); i++) {
         process_mutation(with_class->genericClones.get(i), ast);
@@ -49,7 +49,7 @@ void process_generic_clone_mutations(
 void process_generic_mutations(
         sharp_class *with_class,
         sharp_class *blueprint) {
-    GUARD(blueprint->mut)
+    GUARD(globalLock)
 
     for(Int i = 0; i < blueprint->mutations.size(); i++) {
         process_mutation(with_class, blueprint->mutations.get(i));

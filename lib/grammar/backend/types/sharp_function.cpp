@@ -61,7 +61,7 @@ void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation
                                       flags, createLocation, params,
                                       type, constructor_function);
 
-        GUARD(sc->mut)
+        GUARD(globalLock)
         sc->functions.add(sf);
     }
 }

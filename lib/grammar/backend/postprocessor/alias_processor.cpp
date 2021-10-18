@@ -17,6 +17,6 @@ void process_alias(sharp_class *with_class, Ast *ast) {
 }
 
 void process_alias(sharp_alias *alias) {
-    GUARD(alias->owner->mut)
+    GUARD(globalLock)
     alias->type = resolve(alias->ast->getSubAst(ast_utype));
 }

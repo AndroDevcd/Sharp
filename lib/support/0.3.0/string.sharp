@@ -57,10 +57,10 @@ class string : loopable<_int8> {
         return self;
     }
 
-    def append(ch: var) : string
+    def append(ch: _int8) : string
     {
         if(data == null)
-            data = new var[1];
+            data = new _int8[1];
         else
             realloc(data, sizeof(data) + 1);
 
