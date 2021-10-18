@@ -84,6 +84,10 @@ global scope and translate it to ``var result = $anonymous1(x, y);``
     for 100: { // operator < is assumed to be the poerator
        print("multi-line");
     }
+
+    for i := 0; i < 10; i++: {
+
+    }   
 ```
 - [X] (Fuckin donne!!!!!) fix bug that deadlocks lock statements due to return and goto
 ```javascript

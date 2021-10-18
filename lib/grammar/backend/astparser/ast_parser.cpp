@@ -116,6 +116,46 @@ void parse_utype_arg_list_opt(List<sharp_type*> &types, Ast *ast) {
     }
 }
 
+void parse_lambda_arg_list(List<sharp_field*> &fields, Ast *ast) {
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+
+        impl_location location(currThread->currTask->file, ast->getSubAst(i));
+        string name = ast->getSubAst(i)->getToken(0).getValue();
+        sharp_type type;
+        if(ast->getSubAst(i)->getSubAst(ast_utype)) {
+            parse_utype(type, ast->getSubAst(i)->getSubAst(ast_utype));
+        } else {
+            type.type = type_any;
+        }
+
+        fields.add(new sharp_field(
+                name,
+                NULL, location,
+                type, flag_public,
+                normal_field, ast->getSubAst(i)));
+    }
+}
+
+void parse_utype_arg_list_opt(List<sharp_field*> &fields, Ast *ast) {
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+        sharp_type emptyType;
+
+        impl_location location(currThread->currTask->file, ast->getSubAst(i));
+        string name;
+        if(ast->getSubAst(i)->getTokenCount() > 0) {
+            name = ast->getSubAst(i)->getToken(0).getValue();
+        }
+
+        fields.add(new sharp_field(
+                name,
+                NULL, location,
+                emptyType, flag_public,
+                normal_field, ast->getSubAst(i)));
+        parse_utype(fields.last()->type, ast->getSubAst(i)->getSubAst(ast_utype));
+
+    }
+}
+
 void parse_utype_arg_list(List<sharp_field*> &types, Ast *ast) {
     for(Int i = 0; i < ast->getSubAstCount(); i++) {
         sharp_type emptyType;

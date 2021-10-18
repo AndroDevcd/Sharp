@@ -100,7 +100,10 @@ enum ast_type
     ast_get_component,
     ast_component_name,
     ast_inject_request,
-    ast_for_statement,
+    ast_for_statement,        // for i := 0; i < 10; i++: {}
+    ast_for_style_2_statement, // for < 10: {}
+    ast_for_style_3_statement, // for 10: {}
+    ast_for_style_4_statement, // for(): {}
     ast_for_expresion_cond,
     ast_for_expresion_iter,
     ast_foreach_statement,

@@ -29,4 +29,6 @@ void compile_primary_expression(expression *e, Ast *ast) {
         compile_new_expression(e, ast->getSubAst(ast_new_e));
     else if(ast->hasSubAst(ast_get_component))
         compile_get_expression(e, ast->getSubAst(ast_get_component));
+    else if(ast->hasSubAst(ast_lambda_function))
+
 }

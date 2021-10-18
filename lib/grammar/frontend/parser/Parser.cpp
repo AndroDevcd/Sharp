@@ -471,34 +471,70 @@ void parser::parseForStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_for_statement);
 
     _current--;
-    if(branch->line >= 3000) {
-        int i = 0;
-    }
     expect(branch, "for");
+    bool hasParen = false;
 
-    expect(branch, "(");
+    if(peek(1)->getType() == RIGHTPAREN) {
+        hasParen = true;
+        expect(branch, "(", false);
+    }
 
-    if(peek(1)->getType() != SEMICOLON) {
-        _current++;
-        RETAIN_RECURSION(0)
-        parseVariableDecl(branch);
-        RESTORE_RECURSION()
+    if(peek(1)->getType() == RIGHTPAREN
+        || peek(1)->getType() == COLON) {
+        branch->setAstType(ast_for_style_4_statement);
+    } else if(isForLoopCompareSymbol(peek(1)->getValue())) {
+        advance();
+        branch->addToken(current());
+        branch->setAstType(ast_for_style_2_statement);
+        parseExpression(branch);
     } else {
-        expect(branch, ";");
+
+        errors->enterProtectedMode();
+        Token* old = _current;
+        parseExpression(branch);
+        if(peek(1)->getType() == COLON
+            || peek(1)->getType() == RIGHTPAREN) {
+            branch->setAstType(ast_for_style_3_statement);
+            errors->fail();
+        } else {
+            branch->freeLastSub();
+            errors->pass();
+            _current=old;
+
+            if(peek(1)->getType() != SEMICOLON) {
+                _current++;
+                RETAIN_RECURSION(0)
+                parseVariableDecl(branch);
+                RESTORE_RECURSION()
+            } else {
+                expect(branch, ";");
+            }
+
+            if(peek(1)->getType() != SEMICOLON) {
+                Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
+                parseExpression(exprCond);
+            }
+            expect(branch, ";");
+
+            if(peek(1)->getType() != RIGHTPAREN
+                && peek(1)->getType() != COLON) {
+                Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
+                parseExpression(exprIter);
+            }
+        }
+
     }
 
-    if(peek(1)->getType() != SEMICOLON) {
-        Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
-        parseExpression(exprCond);
-    }
-    expect(branch, ";");
 
-    if(peek(1)->getType() != RIGHTPAREN) {
-        Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
-        parseExpression(exprIter);
+    if(peek(1)->getType() == RIGHTPAREN) {
+        if(!hasParen) {
+
+        }
+
+        expect(branch, ")", false);
     }
 
-    expect(branch, ")");
+    expect(branch, ":", false);
 
     parseBlock(branch);
 }

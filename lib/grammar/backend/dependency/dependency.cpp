@@ -1782,10 +1782,6 @@ void resolve_function_reference_item(
     unresolvedFunction = type_to_str(noType);
     params.free();
 
-    if(item.name == "append" && resolveLocation->line == 73 && resolveLocation->col == 30) {
-        int i = 0;
-    }
-
     if(resultType.type == type_untyped) {
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
