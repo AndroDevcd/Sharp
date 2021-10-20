@@ -25,7 +25,7 @@ def main() {
 }    
 ```  
 
-Sharp is the first ever object-orientated to offer a built-in high performance
+Sharp is the first ever object-orientated language to offer a built-in high performance
 dependency injection system.
 
 ```javascript
