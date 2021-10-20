@@ -3030,6 +3030,12 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     if(peek(1)->getValue() == "get")
     {
         expect(branch, "get", false);
+        if(peek(1)->getType() == LESSTHAN) {
+            expect(branch, "<", false);
+            parseUtype(branch);
+            expect(branch, ">", false);
+        }
+
         expect(branch, "(", false);
         if(peek(1)->getId() == STRING_LITERAL) {
             advance();

@@ -30,9 +30,9 @@ type_definition* get_type_definition(
                 if(primary != NULL
                    && (td = get_type_definition(request.typeDefinitionName, primary)) != NULL) {
                     return td;
-                } else return  get_type_definition(manager, comparer, request.componentName);
+                } else return  get_type_definition(manager, request.typeDefinitionName);
             }
-        }
+        } else return get_type_definition(manager, comparer, request.componentName);
     }
 
     return NULL;
@@ -61,6 +61,7 @@ type_definition* get_type_definition(
 
     return ct;
 }
+
 type_definition* get_type_definition(
         component_manager &manager,
         string &typeDefinitionName,
@@ -73,6 +74,32 @@ type_definition* get_type_definition(
         component *c = manager.components.get(i);
 
         if((td = get_type_definition(typeDefinitionName, c)) != NULL) {
+            if(foundComponent && resolveLocation != NULL) {
+                create_new_warning(GENERIC, __w_dep, resolveLocation->line, resolveLocation->col,
+                                   "multiple type definitions found with name `" + typeDefinitionName + "`, please explicitly specify component to avoid incorrect type injection.");
+            }
+
+            foundComponent = true;
+        }
+    }
+
+    return td;
+}
+
+type_definition* get_type_definition(
+        component_manager &manager,
+        string &typeDefinitionName,
+        sharp_type &comparer,
+        Ast *resolveLocation) {
+    GUARD(globalLock)
+
+    bool foundComponent = false;
+    type_definition *td = NULL;
+    for(Int i = 0; i < manager.components.size(); i++) {
+        component *c = manager.components.get(i);
+
+        if((td = get_type_definition(typeDefinitionName, c)) != NULL
+           && is_explicit_type_match(comparer, *td->type)) {
             if(foundComponent && resolveLocation != NULL) {
                 create_new_warning(GENERIC, __w_dep, resolveLocation->line, resolveLocation->col,
                                    "multiple type definitions found with name `" + typeDefinitionName + "`, please explicitly specify component to avoid incorrect type injection.");
@@ -106,14 +133,14 @@ type_definition* get_type_definition(
 
 type_definition* get_type_definition(
         component_manager &manager,
-        string &subComponentName,
+        string &typeName,
         string &componentName) {
     GUARD(globalLock)
     for(Int i = 0; i < manager.components.size(); i++) {
         component *c = manager.components.get(i);
 
         if(c->name == componentName) {
-            return get_type_definition(subComponentName, c);
+            return get_type_definition(typeName, c);
         }
     }
 
@@ -136,13 +163,13 @@ component* get_component(
 }
 
 type_definition* get_type_definition(
-        string &subComponentName,
+        string &typeName,
         component *c) {
     GUARD(globalLock)
     for(Int i = 0; i < c->named.size(); i++) {
         type_definition *ct = c->named.get(i);
 
-        if(ct->name == subComponentName) {
+        if(ct->name == typeName) {
             return ct;
         }
     }

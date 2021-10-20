@@ -35,6 +35,7 @@ struct component_manager {
 type_definition* get_type_definition(component_manager &, sharp_type &, get_component_request&);
 type_definition* get_type_definition(component_manager &, sharp_type &, Ast *resolveLocation = NULL);
 type_definition* get_type_definition(component_manager &, string &, Ast *resolveLocation = NULL);
+type_definition* get_type_definition(component_manager &, string &, sharp_type&, Ast *resolveLocation = NULL);
 type_definition* get_type_definition(component_manager &, sharp_type &, string &);
 type_definition* get_type_definition(component_manager &, string &, string &);
 type_definition* get_type_definition(sharp_type &, component*);

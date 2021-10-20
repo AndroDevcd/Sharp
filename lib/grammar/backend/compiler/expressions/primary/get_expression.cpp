@@ -22,9 +22,59 @@ void compile_get_expression(expression *e, Ast *ast) {
         componentName = tok->getValue();
     }
 
-    if(get_primary_component(&currThread->currTask->file->context) == NULL) {
-        currThread->currTask->file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                    "cannot call `get()` outside of a component block.");
+    if(get_primary_component(&currThread->currTask->file->context) == NULL
+        && !ast->hasSubAst(ast_utype)) {
+        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                    "cannot call `get()` outside of a component block without explicitly declaring type. Try `get<my_type>()`.");
+    }
+
+    if(ast->getSubAst(ast_utype)) {
+        sharp_type requiredType = resolve(ast->getSubAst(ast_utype));
+        if(requiredType.type < type_untyped) {
+            type_definition *typeDefinition = NULL;
+
+            if(typeName.empty() && componentName.empty()) {
+                typeDefinition
+                    = get_type_definition(componentManager, requiredType, ast);
+
+                if(typeDefinition != NULL) {
+                    e->type.copy(*typeDefinition->type);
+                    e->scheme.copy(*typeDefinition->scheme);
+                    return;
+                } else {
+                    currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                         "No defined type found of `" + type_to_str(requiredType) + "`.");
+                }
+            } else {
+                if(!typeName.empty() && !componentName.empty()) {
+                    typeDefinition
+                            = get_type_definition(componentManager, typeName, componentName);
+                } else {
+                    if(!componentName.empty()) {
+                        typeDefinition
+                                = get_type_definition(componentManager, requiredType, componentName);
+                    } else {
+                        typeDefinition
+                            = get_type_definition(componentManager, typeName, requiredType, ast);
+                    }
+                }
+
+                if(typeDefinition != NULL) {
+                    if (is_explicit_type_match(requiredType, *typeDefinition->type)) {
+                        e->type.copy(*typeDefinition->type);
+                        e->scheme.copy(*typeDefinition->scheme);
+                        return;
+                    } else {
+                        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                            "Type mismatch on type definition. Type was found to be `" + type_to_str(*typeDefinition->type)
+                                + "`, but type `" + type_to_str(requiredType) + "` was expected.");
+                    }
+                } else {
+                    currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                             "Could not find type definition for type `" + type_to_str(requiredType) + "`.");
+                }
+            }
+        }
     }
 
     e->type.componentRequest = new get_component_request(typeName, componentName);
