@@ -23,7 +23,48 @@ def main() {
    for < 3:
       print("hello, world!");    
 }    
-```    
+```  
+
+Sharp is the first ever object-orientated to offer a built-in high performance
+dependency injection system.
+
+```javascript
+mod main;
+
+class user_client {
+    def create(name: string) {
+        println("created $name!");
+    }   
+}
+
+class user_api {
+    private client: user_client;
+        
+    user_api(uc: user_client) {
+        client = uc;
+    }
+
+    def create_user(name: string) {
+        client.create(name);
+    }
+}
+
+// inject value of user client into global variable
+inject api : user_api;
+
+def main() {
+    // use the Api!
+    api.create_user("james");
+}
+
+// create a component for the user api
+component user_component {
+    single { new user_api(get()) }
+    factory { new user_client() }
+}
+
+``` 
+
 
 The standard library comes with a comprehensive lightweight co-routines library `task`
 that makes handling work in the background simple to put together but looks good as well.
@@ -67,45 +108,6 @@ def main() {
 }  
 ```  
 
-Sharp is the first ever object-orientated to offer a built-in high performance
-dependency injection system directly within the language.
-
-```javascript
-mod main;
-
-class user_client {
-    def create(name: string) {
-        println("created $name!");
-    }   
-}
-
-class user_api {
-    private client: user_client;
-        
-    user_api(uc: user_client) {
-        client = uc;
-    }
-
-    def create_user(name: string) {
-        client.create(name);
-    }
-}
-
-// inject value of user client into global variable
-inject api : user_api;
-
-def main() {
-    // use the Api!
-    api.create_user("james");
-}
-
-// create a component for the user api
-component user_component {
-    single { new user_api(get()) }
-    factory { new user_client() }
-}
-
-``` 
 
 The language also supports several other convenient features that improve 
 the overall experience with programming in the language.
