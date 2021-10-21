@@ -11,6 +11,7 @@
 #include "null_expression.h"
 #include "new_expression.h"
 #include "get_expression.h"
+#include "lambda_expression.h"
 
 void compile_primary_expression(expression *e, Ast *ast) {
     if(ast->hasSubAst(ast_not_e))
@@ -30,5 +31,5 @@ void compile_primary_expression(expression *e, Ast *ast) {
     else if(ast->hasSubAst(ast_get_component))
         compile_get_expression(e, ast->getSubAst(ast_get_component));
     else if(ast->hasSubAst(ast_lambda_function))
-
+        compile_lambda_expression(e, ast->getSubAst(ast_lambda_function));
 }

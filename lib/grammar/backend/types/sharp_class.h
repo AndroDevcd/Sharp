@@ -46,6 +46,7 @@ struct sharp_class {
             aliases(),
             fields(),
             interfaces(),
+            uncompiledLambdas(),
             genericClones(),
             type(class_normal),
             genericTypes(),
@@ -78,6 +79,7 @@ struct sharp_class {
             generics(),
             aliases(),
             interfaces(),
+            uncompiledLambdas(),
             genericClones(),
             fields(),
             type(type),
@@ -117,6 +119,7 @@ struct sharp_class {
             fullName(""),
             functions(),
             generics(),
+            uncompiledLambdas(),
             aliases(),
             fields(),
             interfaces(),
@@ -144,6 +147,7 @@ struct sharp_class {
             children(sc.children),
             fullName(sc.fullName),
             functions(sc.functions),
+            uncompiledLambdas(sc.uncompiledLambdas),
             generics(sc.generics),
             aliases(sc.aliases),
             fields(sc.fields),
@@ -179,6 +183,7 @@ struct sharp_class {
     List<sharp_field*> fields;
     List<sharp_class*> genericClones;
     List<sharp_function*> functions;
+    List<sharp_function*> uncompiledLambdas;
     List<Ast*> mutations;
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;

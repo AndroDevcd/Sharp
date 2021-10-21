@@ -29,6 +29,7 @@ struct sharp_function {
             flags(flag_none),
             ast(NULL),
             closure(NULL),
+            scheme(NULL),
             parameters(),
             returnType(),
             locals(),
@@ -50,10 +51,12 @@ struct sharp_function {
             returnType(sf.returnType),
             type(sf.type),
             closure(sf.closure),
-            directlyCopyParams(sf.directlyCopyParams)
+            directlyCopyParams(sf.directlyCopyParams),
+            scheme(NULL)
     {
         copy_parameters(sf.parameters);
         copy_locals(sf.locals);
+        copy_scheme(sf.scheme);
     }
 
     sharp_function(
@@ -79,6 +82,7 @@ struct sharp_function {
             type(type),
             locals(),
             directlyCopyParams(directlyCopyParams),
+            scheme(NULL),
             closure(NULL)
     {
         this->returnType.copy(returnType);
@@ -94,6 +98,7 @@ struct sharp_function {
 
     void free();
     void copy_parameters(const List<sharp_field*> &params);
+    void copy_scheme(operation_scheme *operations);
     void copy_locals(const List<sharp_field*> &params);
 
     string name;
@@ -103,6 +108,7 @@ struct sharp_function {
     List<dependency> dependencies;
     List<sharp_field*> parameters;
     List<sharp_field*> locals;
+    operation_scheme *scheme;
     sharp_field* closure;
     sharp_type returnType;
     function_type type;

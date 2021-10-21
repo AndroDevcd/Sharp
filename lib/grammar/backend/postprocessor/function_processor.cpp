@@ -302,7 +302,7 @@ void validate_function_type(
     } else if(type.type == type_get_component_request) {
         currThread->currTask->file->errors->createNewError(
                 GENERIC, ast->line, ast->col,
-                "cannot assign `get()` to function `" + fun->fullName + "` outside a type definition block.");
+                "cannot resolve type from `get()` expression.");
     } else if(type.type != type_undefined) {
         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
                  " function `" + fun->fullName + "` cannot be assigned type `" + type_to_str(type) +

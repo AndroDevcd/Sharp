@@ -158,6 +158,7 @@ expression '[' <array-items> ']' [<dot-notation-call-expr>] expression
     | new uType { <expression-list> }               // new_class_field_expression
     | new uType { <qualifying-field-initlization-list> } // new_class_field_init
     | { [<identifier = name> [: <uType>]]* -> <lambda-return-type> <lambda-block> }    // lambda function
+    | [<identifier = name> [: <uType>]]* -> <expression>    // lambda function
     | { [<dict-type>] [<expression> : <expression>]* }    // dictionary
     | { [<dict-type>] : }    // empty dictionary
     | sizeof '(' expression ')'

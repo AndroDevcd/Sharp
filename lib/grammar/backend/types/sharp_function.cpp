@@ -8,6 +8,7 @@
 #include "../dependency/dependancy.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../../compiler_info.h"
+#include "../operation/operation.h"
 
 bool is_fully_qualified_function(sharp_function* function) {
     if(!function->parameters.empty()) {
@@ -113,6 +114,7 @@ void sharp_function::free() {
     dependencies.free();
     if(!directlyCopyParams) deleteList(parameters);
     deleteList(locals);
+    delete scheme; scheme = NULL;
 }
 
 void sharp_function::copy_parameters(const List<sharp_field *> &params) {
@@ -123,4 +125,11 @@ void sharp_function::copy_parameters(const List<sharp_field *> &params) {
 void sharp_function::copy_locals(const List<sharp_field *> &localFields) {
     for(Int i = 0; i < locals.size(); i++)
         locals.add(new sharp_field(*localFields.get(i)));
+}
+
+void sharp_function::copy_scheme(operation_scheme *operations) {
+    if(operations != NULL) {
+        delete scheme;
+        scheme = new operation_scheme(*operations);
+    }
 }

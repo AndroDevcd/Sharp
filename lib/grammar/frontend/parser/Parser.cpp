@@ -3128,6 +3128,33 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         return true;
     }
 
+
+    errors->enterProtectedMode();
+    old = _current;
+    Ast* newAst = getBranch(branch, ast_lambda_function);
+    parseLambdaArgList(newAst);
+
+    if(peek(1)->getValue() == "->") {
+        advance();
+        parseExpression(newAst);
+        branch = newAst;
+
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
+        else if(peek(1)->getType() == DOT)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+        else if(peek(1)->getType() == LEFTBRACE)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+        else if(peek(1)->getValue() == "as")
+            errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
+        return true;
+    } else {
+        branch->freeLastSub();
+        errors->pass();
+        _current=old;
+    }
+
+
     if(peek(1)->getValue() == "{")
     {
         errors->enterProtectedMode();
@@ -3135,7 +3162,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         advance();
 
         if(peek(1)->getValue() == "->") {
-            Ast* newAst = getBranch(branch, ast_lambda_function);
+            newAst = getBranch(branch, ast_lambda_function);
             advance();
 
             parseLambdaReturnType(newAst);
@@ -3155,7 +3182,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
                 errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
             return true;
         } else {
-            Ast* newAst = getBranch(branch, ast_lambda_function);
+            newAst = getBranch(branch, ast_lambda_function);
             parseLambdaArgList(newAst);
             if(peek(1)->getValue() == "->") {
                 advance();

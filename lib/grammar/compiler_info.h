@@ -9,6 +9,7 @@
 #include "frontend/ErrorManager.h"
 #include "backend/dependency/component_manager.h"
 #include "taskdelegator/task_delegator.h"
+#include <atomic>
 
 #define PROG_NAME "sharp"
 #define PROG_VERS "0.3.0"
@@ -28,11 +29,13 @@ extern List<sharp_class*> genericClasses;
 extern recursive_mutex globalLock;
 extern thread_local sharp_module* currModule;
 extern component_manager componentManager;
+extern atomic<uInt> uniqueId;
 
 #define global_class_name "__srt_global"
 #define main_component_name "__main__"
 #define any_component_name "?"
 #define single_component_field_name_prefix "@sub_component_"
+#define anonymous_func_prefix "@anonymous_fun_"
 #define current_file currThread->currTask->file
 
 #define GUARD(mut) \

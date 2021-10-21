@@ -7,6 +7,7 @@
 #include "../../../context/context.h"
 #include "../../../../taskdelegator/task_delegator.h"
 #include "../../../../compiler_info.h"
+#include "../../../../settings/settings.h"
 
 void compile_get_expression(expression *e, Ast *ast) {
     e->type.type = type_get_component_request;
@@ -23,7 +24,7 @@ void compile_get_expression(expression *e, Ast *ast) {
     }
 
     if(get_primary_component(&currThread->currTask->file->context) == NULL
-        && !ast->hasSubAst(ast_utype)) {
+        && (!ast->hasSubAst(ast_utype) && (typeName.empty() || componentName.empty()))) {
         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
                     "cannot call `get()` outside of a component block without explicitly declaring type. Try `get<my_type>()`.");
     }
@@ -47,6 +48,9 @@ void compile_get_expression(expression *e, Ast *ast) {
                 }
             } else {
                 if(!typeName.empty() && !componentName.empty()) {
+                    create_new_warning(GENERIC, __w_dep, ast->getSubAst(ast_utype)->line, ast->getSubAst(ast_utype)->col,
+                            "unnecessary explicit type declaration for `get()`");
+
                     typeDefinition
                             = get_type_definition(componentManager, typeName, componentName);
                 } else {
@@ -67,7 +71,7 @@ void compile_get_expression(expression *e, Ast *ast) {
                     } else {
                         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
                             "Type mismatch on type definition. Type was found to be `" + type_to_str(*typeDefinition->type)
-                                + "`, but type `" + type_to_str(requiredType) + "` was expected.");
+                                + "`, but `" + type_to_str(requiredType) + "` was expected.");
                     }
                 } else {
                     currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
