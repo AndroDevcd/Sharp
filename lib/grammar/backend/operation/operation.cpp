@@ -98,6 +98,55 @@ void create_new_class_array_operation(
     }
 }
 
+void create_cast_operation(
+        operation_scheme *scheme,
+        sharp_type *cast_type) {
+    if(scheme) {
+        scheme->schemeType = scheme_get_casted_value;
+
+        if(cast_type->type == type_class) {
+            scheme->steps.add(new operation_step(
+                    operation_cast_class, cast_type->_class));
+        } else if(cast_type->type == type_int8) {
+            scheme->steps.add(new operation_step(
+                    operation_int8_cast));
+        } else if(cast_type->type == type_int16) {
+            scheme->steps.add(new operation_step(
+                    operation_int16_cast));
+        } else if(cast_type->type == type_int32) {
+            scheme->steps.add(new operation_step(
+                    operation_int32_cast));
+        } else if(cast_type->type == type_int64) {
+            scheme->steps.add(new operation_step(
+                    operation_int64_cast));
+        } else if(cast_type->type == type_uint8) {
+            scheme->steps.add(new operation_step(
+                    operation_uint8_cast));
+        } else if(cast_type->type == type_uint16) {
+            scheme->steps.add(new operation_step(
+                    operation_uint16_cast));
+        } else if(cast_type->type == type_uint32) {
+            scheme->steps.add(new operation_step(
+                    operation_uint32_cast));
+        } else if(cast_type->type == type_uint64) {
+            scheme->steps.add(new operation_step(
+                    operation_uint64_cast));
+        } // ignore var and object casts
+    }
+}
+
+void create_sizeof_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueOperation) {
+    if(scheme) {
+        scheme->schemeType = scheme_get_size_of;
+        scheme->steps.add(new operation_step(
+                operation_get_value, valueOperation));
+        scheme->steps.add(new operation_step(
+                operation_get_sizeof));
+    }
+}
+
 void create_new_class_operation(
         operation_scheme *scheme,
         sharp_class *sc) {

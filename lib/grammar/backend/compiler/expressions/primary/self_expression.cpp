@@ -43,7 +43,7 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
     } else {
         if(ctx.isStatic) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
-                                                               "cannot access self from static context.");
+                     "cannot access self from static context.");
         } else {
             e->scheme.schemeType = scheme_get_primary_class_instance;
             create_get_primary_instance_class(&e->scheme, instanceClass);
@@ -54,10 +54,6 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
     e->type._class = instanceClass;
 
     if(ast->hasToken(PTR)) {
-
-        if(ast->line==18 &&  ast->col == 41) {
-            int i =0;
-        }
         compile_dot_notation_call_expression(
                 e, instanceClass, ast->getSubAst(ast_dotnotation_call_expr));
     }

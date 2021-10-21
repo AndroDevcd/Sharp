@@ -18,6 +18,10 @@ List<string> warnings;
 component_manager componentManager;
 atomic<uInt> uniqueId = { 0 };
 
+void create_new_warning(error_type error, int type, Ast *ast, string xcmnts) {
+    create_new_warning(error, type, ast->line, ast->col, xcmnts);
+}
+
 void create_new_warning(error_type error, int type, int line, int col, string xcmnts) {
     GUARD(globalLock)
 

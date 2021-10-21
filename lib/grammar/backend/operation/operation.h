@@ -29,6 +29,7 @@ enum operation_type {
     operation_push_value_to_stack,
     operation_assign_array_value,
     operation_get_value,
+    operation_get_sizeof,
     operation_pop_value_from_stack,
     operation_assign_array_element_from_stack,
     operation_nullify_value,
@@ -63,7 +64,16 @@ enum operation_type {
     operation_create_class_array,
     operation_create_number_array,
     operation_create_object_array,
-    operation_get_size_value
+    operation_get_size_value,
+    operation_cast_class,
+    operation_int8_cast,
+    operation_int16_cast,
+    operation_int32_cast,
+    operation_int64_cast,
+    operation_uint8_cast,
+    operation_uint16_cast,
+    operation_uint32_cast,
+    operation_uint64_cast,
 };
 
 enum _operation_scheme {
@@ -78,11 +88,13 @@ enum _operation_scheme {
     scheme_call_static_function,
     scheme_get_constant,
     scheme_new_class,
+    scheme_get_size_of,
     scheme_nullify_value,
     scheme_new_class_array,
     scheme_new_number_array,
     scheme_new_object_array,
     scheme_get_array_value,
+    scheme_get_casted_value,
     scheme_get_primary_class_instance
 };
 
@@ -491,5 +503,13 @@ void create_assign_array_element_operation(
 void create_new_class_operation(
         operation_scheme *scheme,
         sharp_class *sc);
+
+void create_sizeof_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueOperation);
+
+void create_cast_operation(
+        operation_scheme *scheme,
+        sharp_type *cast_type);
 
 #endif //SHARP_OPERATION_H

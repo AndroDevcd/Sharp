@@ -45,6 +45,7 @@ extern atomic<uInt> uniqueId;
     std::lock_guard<recursive_mutex> guard2(mut);
 
 void create_new_warning(error_type error, int type, int line, int col, string xcmnts);
+void create_new_warning(error_type error, int type, Ast *ast, string xcmnts);
 
 template<class T>
 static void deleteList(List<T> &lst)
