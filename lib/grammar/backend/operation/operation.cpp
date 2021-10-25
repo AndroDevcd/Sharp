@@ -135,6 +135,46 @@ void create_cast_operation(
     }
 }
 
+void create_is_operation(
+        operation_scheme *scheme,
+        sharp_type *cast_type) {
+    if(scheme) {
+        scheme->schemeType = scheme_check_type;
+
+        if(cast_type->type == type_class) {
+            scheme->steps.add(new operation_step(
+                    operation_is_class, cast_type->_class));
+        } else if(cast_type->type == type_int8) {
+            scheme->steps.add(new operation_step(
+                    operation_is_int8));
+        } else if(cast_type->type == type_int16) {
+            scheme->steps.add(new operation_step(
+                    operation_is_int16));
+        } else if(cast_type->type == type_int32) {
+            scheme->steps.add(new operation_step(
+                    operation_is_int32));
+        } else if(cast_type->type == type_int64) {
+            scheme->steps.add(new operation_step(
+                    operation_is_int64));
+        } else if(cast_type->type == type_uint8) {
+            scheme->steps.add(new operation_step(
+                    operation_is_uint8));
+        } else if(cast_type->type == type_uint16) {
+            scheme->steps.add(new operation_step(
+                    operation_is_uint16));
+        } else if(cast_type->type == type_uint32) {
+            scheme->steps.add(new operation_step(
+                    operation_is_uint32));
+        } else if(cast_type->type == type_uint64) {
+            scheme->steps.add(new operation_step(
+                    operation_is_uint64));
+        } else if(cast_type->type == type_function_ptr) {
+            scheme->steps.add(new operation_step(
+                    operation_is_fun_ptr, cast_type->fun));
+        }
+    }
+}
+
 void create_sizeof_operation(
         operation_scheme *scheme,
         operation_scheme *valueOperation) {
@@ -217,6 +257,15 @@ void create_assign_array_element_operation(
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_assign_array_element_from_stack, index));
+    }
+}
+
+void create_access_array_element_operation(
+        operation_scheme *scheme,
+        operation_scheme *indexScheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_get_array_element_at_index, indexScheme));
     }
 }
 
@@ -426,7 +475,7 @@ void create_static_function_call_operation(
         List<operation_scheme*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
-        scheme->schemeType = scheme_call_instance_function;
+        scheme->schemeType = scheme_call_static_function;
         scheme->fun = fun;
         scheme->free();
 

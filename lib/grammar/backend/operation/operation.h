@@ -74,6 +74,17 @@ enum operation_type {
     operation_uint16_cast,
     operation_uint32_cast,
     operation_uint64_cast,
+    operation_is_class,
+    operation_is_int8,
+    operation_is_int16,
+    operation_is_int32,
+    operation_is_int64,
+    operation_is_uint8,
+    operation_is_uint16,
+    operation_is_uint32,
+    operation_is_uint64,
+    operation_is_fun_ptr,
+    operation_get_array_element_at_index,
 };
 
 enum _operation_scheme {
@@ -95,7 +106,8 @@ enum _operation_scheme {
     scheme_new_object_array,
     scheme_get_array_value,
     scheme_get_casted_value,
-    scheme_get_primary_class_instance
+    scheme_get_primary_class_instance,
+    scheme_check_type
 };
 
 struct operation_scheme {
@@ -500,6 +512,10 @@ void create_assign_array_element_operation(
         operation_scheme *scheme,
         Int index);
 
+void create_access_array_element_operation(
+        operation_scheme *scheme,
+        operation_scheme *indexScheme);
+
 void create_new_class_operation(
         operation_scheme *scheme,
         sharp_class *sc);
@@ -509,6 +525,10 @@ void create_sizeof_operation(
         operation_scheme *valueOperation);
 
 void create_cast_operation(
+        operation_scheme *scheme,
+        sharp_type *cast_type);
+
+void create_is_operation(
         operation_scheme *scheme,
         sharp_type *cast_type);
 

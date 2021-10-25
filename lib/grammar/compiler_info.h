@@ -37,6 +37,7 @@ extern atomic<uInt> uniqueId;
 #define single_component_field_name_prefix "@sub_component_"
 #define anonymous_func_prefix "@anonymous_fun_"
 #define current_file currThread->currTask->file
+#define error_manager currThread->currTask->file->errors
 
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);

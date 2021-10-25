@@ -1564,7 +1564,7 @@ void resolve_function_ptr_item(
         Ast *resolveLocation) {
     List<sharp_field*> params;
     sharp_type returnType;
-    uInt flags = flag_public;
+    uInt flags = flag_public | flag_static;
     impl_location location(currThread->currTask->file, resolveLocation->line, resolveLocation->col);
     context &context = currThread->currTask->file->context;
     sharp_class *primaryClass = get_primary_class(&context);

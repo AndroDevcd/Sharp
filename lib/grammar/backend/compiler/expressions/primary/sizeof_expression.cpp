@@ -5,6 +5,7 @@
 #include "sizeof_expression.h"
 #include "../expression.h"
 #include "../../../../compiler_info.h"
+#include "post_ast_expression.h"
 
 void compile_sizeof_expression(expression *e, Ast *ast) {
     expression valueExpr;
@@ -21,5 +22,5 @@ void compile_sizeof_expression(expression *e, Ast *ast) {
                 "cannot get sizeof from expression of type `" + type_to_str(valueExpr.type) + "`");
     }
 
-    // todo: add post ast expression processing
+    compile_post_ast_expression(e, ast);
 }

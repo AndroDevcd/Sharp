@@ -474,7 +474,7 @@ void parser::parseForStatement(Ast *ast) {
     expect(branch, "for");
     bool hasParen = false;
 
-    if(peek(1)->getType() == RIGHTPAREN) {
+    if(peek(1)->getType() == LEFTPAREN) {
         hasParen = true;
         expect(branch, "(", false);
     }
@@ -528,13 +528,20 @@ void parser::parseForStatement(Ast *ast) {
 
     if(peek(1)->getType() == RIGHTPAREN) {
         if(!hasParen) {
-
+            errors->createNewError(GENERIC, current(), "unexpected symbol `)`");
         }
 
         expect(branch, ")", false);
-    }
 
-    expect(branch, ":", false);
+        if(peek(1)->getType() == COLON)
+            expect(branch, ":", false);
+    } else {
+        if(hasParen) {
+            errors->createNewError(GENERIC, current(), "expected symbol `)`");
+        }
+
+        expect(branch, ":", false);
+    }
 
     parseBlock(branch);
 }
@@ -2687,7 +2694,9 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
 bool parser::parseDotNotCallExpr(Ast* ast) {
     Ast *branch = getBranch(ast, ast_dotnotation_call_expr);
 
-    if(peek(1)->getType() == DOT)
+    if(peek(1)->getType() == DOT
+        || peek(1)->getType() == SAFEDOT
+        || peek(1)->getType() == FORCEDOT)
     {
         advance();
         branch->addToken(current());
@@ -2719,11 +2728,7 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
         }
         else if(peek(1)->getType() == LEFTBRACE) {
             Ast* arrayBranch = getBranch(branch, ast_arry_e);
-            advance();
-            arrayBranch->addToken(current());
-
-            parseExpression(arrayBranch);
-            expect(arrayBranch, "]");
+            parseArrayItems(arrayBranch);
 
             if(peek(1)->getType() == DOT) {
                 errors->enterProtectedMode();
@@ -2744,7 +2749,9 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             goto incCheck;
         }
         else {
-            if(peek(1)->getType() == DOT) {
+            if(peek(1)->getType() == DOT
+               || peek(1)->getType() == SAFEDOT
+               || peek(1)->getType() == FORCEDOT) {
                 errors->enterProtectedMode();
                 Token *old = _current;
                 if (!parseDotNotCallExpr(branch)) {
@@ -2935,6 +2942,7 @@ void parser::parseLambdaArgList(Ast* ast) {
 
 bool parser::parsePrimaryExpr(Ast* ast) {
     Ast* branch = getBranch(ast, ast_primary_expr);
+    Ast* newAst = NULL;
 
     if(peek(1)->getType() ==NOT) {
         advance();
@@ -3131,7 +3139,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
     errors->enterProtectedMode();
     old = _current;
-    Ast* newAst = getBranch(branch, ast_lambda_function);
+    newAst = getBranch(branch, ast_lambda_function);
     parseLambdaArgList(newAst);
 
     if(peek(1)->getValue() == "->") {

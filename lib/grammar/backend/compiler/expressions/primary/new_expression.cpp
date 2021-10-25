@@ -10,6 +10,7 @@
 #include "../../../postprocessor/field_processor.h"
 #include "../../../types/types.h"
 #include "../../../../compiler_info.h"
+#include "post_ast_expression.h"
 
 void compile_new_expression(expression *e, Ast *ast) {
     sharp_type newType = resolve(ast->getSubAst(ast_utype));
@@ -22,7 +23,7 @@ void compile_new_expression(expression *e, Ast *ast) {
         compile_new_class_expression(&newType, e, ast->getSubAst(ast_expression_list));
     }
 
-    // todo: add post ast expression processing
+    compile_post_ast_expression(e, ast, 2);
 }
 
 void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) {

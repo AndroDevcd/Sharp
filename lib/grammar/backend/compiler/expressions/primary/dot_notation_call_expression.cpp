@@ -6,6 +6,7 @@
 #include "../expression.h"
 #include "../../../dependency/dependancy.h"
 #include "../../../../taskdelegator/task_delegator.h"
+#include "post_ast_expression.h"
 
 void compile_dot_notation_call_expression(
         expression *e,
@@ -37,5 +38,6 @@ void compile_dot_notation_call_expression(
         e->scheme.steps.add(new operation_step(operation_get_value, scheme));
         delete scheme;
     }
-    // todo: add post ast expression processing
+
+    compile_post_ast_expression(e, ast);
 }
