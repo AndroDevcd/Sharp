@@ -33,11 +33,11 @@ void compile_dot_notation_call_expression(
                 GENERIC, dotNotationAst, "expression of type `"
                               + type_to_str(e->type) + "` must evaluate to a value");
     }
-    e->scheme.steps.add(new operation_step(operation_get_value, scheme));
+
     if(with_class != NULL) {
         e->scheme.steps.add(new operation_step(operation_get_value, scheme));
         delete scheme;
     }
 
-    compile_post_ast_expression(e, ast);
+    compile_post_ast_expression(e, dotNotationAst);
 }

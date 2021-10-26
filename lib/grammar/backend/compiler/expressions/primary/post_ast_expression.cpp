@@ -17,10 +17,6 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
     for(Int i = startPos; i < ast->getSubAstCount(); i++) {
         if(ast->getSubAst(i)->getType() == ast_post_inc_e)
             compile_post_inc_expression(e, ast->getSubAst(i), false);
-        else if(ast->getSubAst(i)->getType() == ast_cast_e)
-            compile_cast_expression(e, ast->getSubAst(i), false);
-        else if(ast->getSubAst(i)->getType() == ast_is_e)
-            compile_is_expression(e, ast->getSubAst(i), false);
         else if(ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
             sharp_class *with_class = NULL;
             if(e->type.type == type_class) {
@@ -48,7 +44,6 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                     + type_to_str(e->type) + "` was found.");
             }
         } else if(ast->getSubAst(i)->getType() == ast_dot_fn_e) {
-            // check function directly off type and call it
             sharp_function *funPtr = NULL;
             if(e->type.type == type_function_ptr) {
                 funPtr = e->type.fun;

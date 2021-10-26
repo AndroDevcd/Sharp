@@ -14,6 +14,9 @@
 #include "lambda_expression.h"
 #include "sizeof_expression.h"
 #include "paren_expression.h"
+#include "array_expression.h"
+#include "cast_expression.h"
+#include "is_expression.h"
 
 void compile_primary_expression(expression *e, Ast *ast) {
     if(ast->hasSubAst(ast_not_e))
@@ -38,4 +41,8 @@ void compile_primary_expression(expression *e, Ast *ast) {
         compile_sizeof_expression(e, ast->getSubAst(ast_sizeof_e));
     else if(ast->getSubAst(ast_paren_e))
         compile_paren_expression(e, ast->getSubAst(ast_paren_e));
+    else if(ast->getSubAst(ast_cast_e))
+        compile_cast_expression(e, ast->getSubAst(ast_cast_e));
+    else if(ast->getSubAst(ast_is_e))
+        compile_is_expression(e, ast->getSubAst(ast_is_e));
 }

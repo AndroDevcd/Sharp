@@ -185,22 +185,6 @@ void process_function(
             returnType, ast)) {
         sharp_function *fun = with_class->functions.last();
 
-        if(fun->name == "to_string" && fun->owner->name == "_object_" && false) {
-            // todo: remove here for testing only
-            create_context(fun);
-            string fname = "%test";
-            create_function(with_class, flag_static, type, fname, false,
-                    params, returnType, ast);
-
-            create_context(with_class->functions.last());
-            expression e;
-            compile_expression(e, fun->ast->getSubAst(ast_expression));
-
-            validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
-            delete_context();
-            delete_context();
-        }
-
         if(ast->hasSubAst(ast_method_return_type)) {
             Ast *returnTypeAst = ast->getSubAst(ast_method_return_type);
 

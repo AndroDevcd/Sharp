@@ -15,6 +15,14 @@ void get_real_type(sharp_type &st) {
     }
 }
 
+sharp_class* get_class_type(sharp_type &st) {
+    if(st == type_class)
+        return st._class;
+    else if(st == type_field && st.field->type == type_class)
+        return st.field->type._class;
+    else return NULL;
+}
+
 native_type str_to_native_type(string &str) {
     if(str == "_int8") return type_int8;
     if(str == "_int16") return type_int16;

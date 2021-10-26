@@ -121,7 +121,7 @@ private:
     bool parseTypeIdentifier(Ast*);
     bool parseUtype(Ast*);
     bool parseUtypeNaked(Ast*);
-    bool parseExpression(Ast*,bool ignoreBinary = false);
+    bool parseExpression(Ast*,bool ignoreBinary = false, bool ignoreInlineLambda = false);
     void parseDictExpression(Ast* ast);
     void parseDictElement(Ast* ast);
     void parseDictionaryType(Ast* ast);
@@ -136,7 +136,7 @@ private:
     bool addition(Ast*);
     bool unary(Ast*);
     bool binary(Ast*);
-    bool parsePrimaryExpr(Ast*);
+    bool parsePrimaryExpr(Ast*, bool ignoreInlineLambda);
     bool parseLiteral(Ast*);
     bool parseRegister(Ast*);
     bool parseAsmLiteral(Ast *ast);

@@ -36,11 +36,16 @@ void compile_array_expression(expression *e, Ast *ast) {
         paramOperations.add(new operation_scheme(expressions.last()->scheme));
     }
 
-    if(e->type.isArray) {
+    if(e->type.isArray || (e->type.type == type_field || e->type.field->type.isArray)) {
         if(expressions.singular()) {
             expression &arrayExpression = *expressions.last();
             if ((arrayExpression.type.type >= type_int8 && arrayExpression.type.type <= type_uint64)
                 || arrayExpression.type.type == type_var) {
+                if(e->type.type == type_field) {
+                    e->type.copy(e->type.field->type);
+                }
+
+                e->type.isArray = false;
                 create_access_array_element_operation(&e->scheme, &arrayExpression.scheme);
             } else {
                 currThread->currTask->file->errors->createNewError(

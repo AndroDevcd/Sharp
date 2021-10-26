@@ -18,9 +18,9 @@ enum compilation_stage {
     parsed,
     classes_preprocessed,
     classes_post_processed, // ready to compile after this stage
+    components_processed,
     class_fields_compiled,
     class_delegates_processed,
-    components_processed,
     compiled
 };
 

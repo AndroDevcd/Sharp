@@ -77,6 +77,7 @@ void parse_function_pointer(sharp_type &type, Ast *ast) {
     type.unresolvedType.items.add(new unresolved_item());
     unresolved_item &item = *type.unresolvedType.items.last();
     item.type = function_ptr_reference;
+    item.ast = ast;
 
     parse_utype_arg_list_opt(item.typeSpecifiers, ast->getSubAst(ast_utype_arg_list_opt));
 

@@ -9,6 +9,6 @@
 
 struct expression;
 
-void compile_is_expression(expression *e, Ast *ast, bool compileExpression = true);
+void compile_is_expression(expression *e, Ast *ast);
 
 #endif //SHARP_IS_EXPRESSION_H

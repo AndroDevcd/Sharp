@@ -9,6 +9,7 @@
 #include "expressions/expression.h"
 #include "../postprocessor/field_processor.h"
 #include "../../compiler_info.h"
+#include "../postprocessor/function_processor.h"
 
 void compile_fields() {
     sharp_file *file = current_file;
@@ -92,6 +93,23 @@ void compile_field(sharp_class *with_class, Ast *ast) {
 
 void compile_field(sharp_field *field, Ast *ast) {
     GUARD(globalLock)
+
+    if(field->name == "foo" && field->owner->name == "_object_") {
+        // todo: remove here for testing only
+        string fname = "%test";
+        List<sharp_field*> params;
+        sharp_type returnType(type_nil);
+        create_function(field->owner, flag_public, normal_function, fname, false,
+                params, returnType, ast);
+
+        sharp_function *fun = field->owner->functions.last();
+        create_context(fun);
+        expression e;
+        compile_expression(e, ast->getSubAst(ast_expression));
+
+        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+        delete_context();
+    }
 
     if(field->request == NULL
         && field->scheme == NULL) {

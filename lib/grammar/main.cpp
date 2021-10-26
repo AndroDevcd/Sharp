@@ -380,9 +380,17 @@ void run_post_processing_tasks() {
     wait_for_tasks();
 }
 
-void run_field_compilation_tasks() {
+void run_compilation_tasks() {
 
     task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_components_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+
     for(Int i = 0; i < sharpFiles.size(); i++) {
         t.type = task_compile_fields_;
         t.file = sharpFiles.get(i);
@@ -390,24 +398,9 @@ void run_field_compilation_tasks() {
     }
 
     wait_for_tasks();
-}
-void run_delegate_processing_tasks() {
 
-    task t;
     for(Int i = 0; i < sharpFiles.size(); i++) {
         t.type = task_process_delegates_;
-        t.file = sharpFiles.get(i);
-        submit_task(t);
-    }
-
-    wait_for_tasks();
-}
-
-void run_compilation_tasks() {
-
-    task t;
-    for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_compile_components_;
         t.file = sharpFiles.get(i);
         submit_task(t);
     }
@@ -427,8 +420,6 @@ int compile()
     start_task_delegator();
     run_pre_processing_tasks(); // todo: stop processing if any errors are generated
     run_post_processing_tasks();
-    run_field_compilation_tasks();
-    run_delegate_processing_tasks();
     run_compilation_tasks();
 
 //    stringstream ss;

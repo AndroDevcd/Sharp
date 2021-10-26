@@ -4,18 +4,21 @@ import (
     std.io
 )
 
+class a {} class b base a {}
+
 /**
  * Created by braxtonn on 11/19/2019.
  *
  * _object_ is the "god" class of all classes and enums in
  * Sharp. This class represents a common link shared between
- * each class allowing you to manipulate classes without
+ * each class allowing you to manipulate them without
  * needing to know its true makeup.
  */
 stable class _object_ : printable, unique {
 
-    def foo(n: var) {}
-    public def to_string() : string = self->foo(9);
+    x : b;
+    foo := x is a;
+    public def to_string() := new string();
 
     def wait() {
         asm {

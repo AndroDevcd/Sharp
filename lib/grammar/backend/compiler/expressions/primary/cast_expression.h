@@ -9,6 +9,6 @@
 
 struct expression;
 
-void compile_cast_expression(expression *e, Ast *ast, bool compileExpression = true);
+void compile_cast_expression(expression *e, Ast *ast);
 
 #endif //SHARP_CAST_EXPRESSION_H
