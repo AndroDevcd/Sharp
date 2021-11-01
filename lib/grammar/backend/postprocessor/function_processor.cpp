@@ -214,6 +214,10 @@ void process_function_return_type(sharp_function *fun) {
 
         create_context(fun->owner);
         create_context(fun);
+
+        if(fun->fullName == "std#string_builder.append") {
+            int i = 0;
+        }
         expression e;
         compile_expression(e, fun->ast->getSubAst(ast_expression));
         validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
@@ -293,5 +297,5 @@ void validate_function_type(
                  "` due to invalid type assignment format");
     }
 
-    fun->returnType = type;
+    fun->returnType.copy(type);
 }

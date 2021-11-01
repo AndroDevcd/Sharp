@@ -117,7 +117,9 @@ void compile_field(sharp_field *field, Ast *ast) {
         if(ast->hasSubAst(ast_expression)) {
             expression e;
             field->scheme = new operation_scheme();
+            create_context(field->owner, check_flag(field->flags, flag_static));
             compile_expression(e, ast->getSubAst(ast_expression));
+            delete_context();
 
             if(field->type == type_untyped) {
                 validate_field_type(false, field, e.type, &e.scheme,

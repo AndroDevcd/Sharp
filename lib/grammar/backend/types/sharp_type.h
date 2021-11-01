@@ -11,7 +11,7 @@
 #include "get_component_request.h"
 
 enum native_type {
-    type_int8,
+    type_int8=0,
     type_int16,
     type_int32,
     type_int64,
