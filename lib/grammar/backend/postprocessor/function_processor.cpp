@@ -292,6 +292,10 @@ void validate_function_type(
                 GENERIC, ast->line, ast->col,
                 "cannot resolve type from `get()` expression.");
     } else if(type.type != type_undefined) {
+        if(fun->fullName == "std#list<object>.empty") {
+            int i = 0;
+        }
+
         currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
                  " function `" + fun->fullName + "` cannot be assigned type `" + type_to_str(type) +
                  "` due to invalid type assignment format");

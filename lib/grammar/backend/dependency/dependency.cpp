@@ -1896,7 +1896,7 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
 
     if(created && generic) {
         GUARD2(globalLock)
-        genericBlueprint->genericClones.add(generic);
+        genericBlueprint->genericClones.add(generic); // todo: we might still have to update current file here
         pre_process_class(NULL, generic, generic->ast);
         process_class(NULL, generic, generic->ast);
         process_generic_extension_functions(generic, genericBlueprint);

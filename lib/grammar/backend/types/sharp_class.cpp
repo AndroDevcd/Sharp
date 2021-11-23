@@ -105,7 +105,7 @@ sharp_class* create_generic_class(
 
             classCreated = true;
             sc = create_class(
-                    currThread->currTask->file,
+                    genericBlueprint->implLocation.file,
                     genericBlueprint->owner,
                     typedName,
                     genericBlueprint->flags,
