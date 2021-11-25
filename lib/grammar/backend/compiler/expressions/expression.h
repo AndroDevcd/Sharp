@@ -44,8 +44,6 @@ void compile_expression(expression &, Ast*);
 void compile_expression_for_type(expression &, Ast*);
 
 void convert_expression_type_to_real_type(
-        Ast *ast,
-        sharp_file *file,
         expression &typeDefinition);
 
 void compile_class_function_overload(

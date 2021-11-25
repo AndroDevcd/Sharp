@@ -269,3 +269,7 @@ uInt is_implicit_type_match(
         default: return no_match_found;
     }
 }
+
+bool has_type(sharp_type &t) {
+    return !(t.type == type_untyped || t.type == type_undefined);
+}

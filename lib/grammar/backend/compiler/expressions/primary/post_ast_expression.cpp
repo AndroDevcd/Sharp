@@ -86,7 +86,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                         for(Int j = 0; j < expressions.size(); j++) {
                             expression mock;
                             mock.type.copy(expressions.get(j)->type);
-                            convert_expression_type_to_real_type(list->getSubAst(j), current_file, mock);
+                            convert_expression_type_to_real_type(mock);
 
                             if(!(is_explicit_type_match(funPtr->parameters.get(j)->type, mock.type)
                                 && is_implicit_type_match(funPtr->parameters.get(j)->type, mock.type,

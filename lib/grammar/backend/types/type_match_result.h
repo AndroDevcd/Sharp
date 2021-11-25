@@ -11,7 +11,8 @@ enum type_match_result {
     match_constructor =0x2,
     match_operator_overload = 0x4,
     match_initializer = 0x8,
-    exclude_all = 0xe // excludes constructors, operator overloads, and initializers
+    exclude_all = 0xe, // excludes constructors, operator overloads, and initializers
+    constructor_only = 0xc // excludes operator overloads and initializers
 };
 
 #endif //SHARP_TYPE_MATCH_RESULT_H

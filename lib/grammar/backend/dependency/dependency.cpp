@@ -1929,9 +1929,6 @@ bool resolve_primary_class_inner_class_generic(
         resultType.type = type_class;
         resultType._class = sc;
 
-        if(sc->blueprintClass) {
-            int i = 0;
-        }
         string fieldType = "class";
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, isSelfInstance,
@@ -2172,8 +2169,17 @@ void resolve(
             resultType = resultType.fun->returnType;
         }
 
-        resultType.isArray = unresolvedType.isArray;
-        resultType.nullable = unresolvedType.nullable;
+        if(unresolvedType.isArray) {
+            if(resultType.isArray) {
+                currThread->currTask->file->errors->createNewError(
+                        GENERIC, resolveLocation, "array arrays are not supported.");
+            }
+
+            resultType.isArray = unresolvedType.isArray;
+        }
+
+        if(unresolvedType.nullable)
+            resultType.nullable = unresolvedType.nullable;
 
         if(resultType.nullable && !resultType.isArray
             && (resultType.type >= type_int8 && resultType.type <= type_var)) {

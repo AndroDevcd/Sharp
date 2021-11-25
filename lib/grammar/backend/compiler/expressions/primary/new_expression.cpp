@@ -41,7 +41,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
     for(Int i = 0; i < ast->getSubAstCount(); i++) {
         expressions.add(new expression());
         compile_expression(*expressions.last(), ast->getSubAst(i));
-        convert_expression_type_to_real_type(ast->getSubAst(i), current_file, *expressions.last());
+        convert_expression_type_to_real_type(*expressions.last());
 
         impl_location location;
         params.add(new sharp_field(
@@ -54,8 +54,6 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
     }
 
     if(newType->type == type_class) {
-        string className = newType->_class->name;
-
         sharp_function *constructor = resolve_function(get_simple_name(newType->_class), newType->_class,
                 params, constructor_function,
                 match_initializer | match_operator_overload,

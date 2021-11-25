@@ -155,7 +155,7 @@ void compile_type_definition(
         } else {
             create_sub_component:
             processedComponents.add(ast);
-            convert_expression_type_to_real_type(ast, file, typeDefinition);
+            convert_expression_type_to_real_type(typeDefinition);
             if(typeDefinition.type == type_nil) {
                 file->errors->createNewError(GENERIC, ast,
                                              "type of `nil` cannot be defined in components.");

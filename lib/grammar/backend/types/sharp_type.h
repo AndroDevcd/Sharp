@@ -396,5 +396,6 @@ void get_real_type(sharp_type&);
 sharp_class* get_class_type(sharp_type&);
 native_type str_to_native_type(string&);
 string type_to_str(sharp_type &t);
+bool has_type(sharp_type &t);
 
 #endif //SHARP_SHARP_TYPE_H

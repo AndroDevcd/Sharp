@@ -192,5 +192,35 @@ private:
     bool shouldReportWarning(Token *token, const ParseError &last_err, const ParseError &e) const;
 };
 
+template<class T>
+void freeList(List<T> &lst)
+{
+    for(unsigned int i = 0; i < lst.size(); i++)
+    {
+        lst.get(i).free();
+    }
+    lst.free();
+}
+
+template<class T>
+void freeListPtr(List<T> &lst)
+{
+    for(unsigned int i = 0; i < lst.size(); i++)
+    {
+        lst.get(i)->free();
+    }
+    lst.free();
+}
+
+template<class T>
+void freeList(list<T> &lst)
+{
+    for(T item : lst)
+    {
+        item.free();
+    }
+    lst.clear();
+}
+
 
 #endif //SHARP_PARSEERROR_H

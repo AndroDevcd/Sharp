@@ -125,7 +125,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                 validate_field_type(false, field, e.type, &e.scheme,
                                     ast->getSubAst(ast_expression));
             } else {
-                convert_expression_type_to_real_type(ast, current_file, e);
+                convert_expression_type_to_real_type(e);
                 if(!is_implicit_type_match(
                         field->type, e.type, match_operator_overload | match_constructor)) {
                     currThread->currTask->file->errors->createNewError(GENERIC, ast,
@@ -173,7 +173,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                             validate_field_type(false, xtraField, e.type, &e.scheme,
                                                 ast->getSubAst(ast_expression));
                         } else {
-                            convert_expression_type_to_real_type(ast, current_file, e);
+                            convert_expression_type_to_real_type(e);
                             if(!is_implicit_type_match(
                                     xtraField->type, e.type, match_operator_overload | match_constructor)) {
                                 currThread->currTask->file->errors->createNewError(GENERIC, ast,

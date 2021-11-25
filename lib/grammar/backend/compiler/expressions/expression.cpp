@@ -10,6 +10,7 @@
 #include "unary/pre_increment_expression.h"
 #include "primary/primary_expression.h"
 #include "../../postprocessor/field_processor.h"
+#include "dictionary_expression.h"
 
 void compile_expression(expression &e, Ast *ast) {
     if(ast->hasSubAst(ast_minus_e))
@@ -18,6 +19,8 @@ void compile_expression(expression &e, Ast *ast) {
         compile_pre_increment_expression(&e, ast->getSubAst(ast_pre_inc_e));
     else if(ast->hasSubAst(ast_primary_expr))
         compile_primary_expression(&e, ast->getSubAst(ast_primary_expr));
+    else if(ast->hasSubAst(ast_dictionary_array))
+        compile_dictionary_expression(&e, ast->getSubAst(ast_dictionary_array));
 
 }
 
@@ -29,8 +32,6 @@ void compile_expression_for_type(sharp_type &type, Ast *ast) {
 }
 
 void convert_expression_type_to_real_type(
-        Ast *ast,
-        sharp_file *file,
         expression &typeDefinition) {
     if(typeDefinition.type == type_integer
        || typeDefinition.type == type_decimal) {
@@ -40,6 +41,7 @@ void convert_expression_type_to_real_type(
         typeDefinition.type = type_int8;
     } else if(typeDefinition.type == type_string) {
         typeDefinition.type = type_int8;
+        typeDefinition.type.isArray = true;
     } else if(typeDefinition.type == type_null) {
         typeDefinition.type = type_object;
     } else if(typeDefinition.type == type_field) {
