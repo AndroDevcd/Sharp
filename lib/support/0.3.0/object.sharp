@@ -4,7 +4,6 @@ import (
     std.io
 )
 
-class a {} class b base a {}
 
 /**
  * Created by braxtonn on 11/19/2019.
@@ -16,8 +15,7 @@ class a {} class b base a {}
  */
 stable class _object_ : printable, unique {
 
-    x : b;
-    foo := x is a;
+    foo := to_string<int>();
     public def to_string() := new string();
 
     def wait() {

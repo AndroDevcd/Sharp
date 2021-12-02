@@ -135,6 +135,18 @@ void create_cast_operation(
     }
 }
 
+void create_null_fallback_operation(
+        operation_scheme *scheme,
+        operation_scheme *nullScheme,
+        operation_scheme *fallbackScheme) {
+    scheme->schemeType = scheme_check_type;
+
+    scheme->steps.add(new operation_step(
+            operation_get_value, nullScheme));
+    scheme->steps.add(new operation_step(
+            operation_get_value_if_null, fallbackScheme));
+}
+
 void create_is_operation(
         operation_scheme *scheme,
         sharp_type *cast_type) {

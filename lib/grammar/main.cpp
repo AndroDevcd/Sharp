@@ -59,7 +59,7 @@ void help_warn() {
     cout <<               "    -wdecl            disable object declaration warnings"                      << endl;
     cout <<               "    -wmain            disable multiple main method warnings"                    << endl;
     cout <<               "    -wcast            disable type cast warnings"                               << endl;
-    cout <<               "    -wnull            disable null type warnings"                               << endl;
+    cout <<               "    -wnull            disable null/nullable type warnings"                               << endl;
     cout <<               "    -wdep             disable dependency injection warnings"                    << endl;
     cout <<               "    -werror           enable warnings as errors"                                << endl;
     cout <<               "    --hw              display this help message"                                << endl;

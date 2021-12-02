@@ -11,6 +11,9 @@
 #include "primary/primary_expression.h"
 #include "../../postprocessor/field_processor.h"
 #include "dictionary_expression.h"
+#include "vector_array_expression.h"
+#include "elvis_expression.h"
+#include "assign_expression.h"
 
 void compile_expression(expression &e, Ast *ast) {
     if(ast->hasSubAst(ast_minus_e))
@@ -21,7 +24,12 @@ void compile_expression(expression &e, Ast *ast) {
         compile_primary_expression(&e, ast->getSubAst(ast_primary_expr));
     else if(ast->hasSubAst(ast_dictionary_array))
         compile_dictionary_expression(&e, ast->getSubAst(ast_dictionary_array));
-
+    else if(ast->hasSubAst(ast_vect_e))
+        compile_vector_array_expression(&e, ast->getSubAst(ast_vect_e)->getSubAst(ast_vector_array));
+    else if(ast->hasSubAst(ast_elvis_e))
+        compile_elvis_expression(&e, ast->getSubAst(ast_elvis_e));
+    else if(ast->hasSubAst(ast_assign_e))
+        compile_assign_expression(&e, ast->getSubAst(ast_assign_e));
 }
 
 void compile_expression_for_type(sharp_type &type, Ast *ast) {

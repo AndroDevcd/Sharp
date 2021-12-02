@@ -2037,7 +2037,7 @@ bool parser::isExprSymbol(string token) {
            token == "&" || token == "|"||
            token == "&&" || token == "||"||
            token == "^" || token == "?" ||
-           token == "**" ||
+           token == "**" || token == "?:"||
             isAssignExprSymbol(token);
 }
 
@@ -2253,9 +2253,7 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary, bool ignoreInlineLambd
         advance();
         branch->addToken(current());
 
-        Ast *right = new Ast(branch->getType(), branch->line, branch->col);
-        parseExpression(right);
-        branch->addAst(right->getLastSubAst());
+        parseExpression(branch);
         branch->encapsulate(ast_assign_e);
 
         if(ignoreBinary) return true;

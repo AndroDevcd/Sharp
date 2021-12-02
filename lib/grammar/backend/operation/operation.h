@@ -85,6 +85,7 @@ enum operation_type {
     operation_is_uint64,
     operation_is_fun_ptr,
     operation_get_array_element_at_index,
+    operation_get_value_if_null,
 };
 
 enum _operation_scheme {
@@ -107,7 +108,8 @@ enum _operation_scheme {
     scheme_get_array_value,
     scheme_get_casted_value,
     scheme_get_primary_class_instance,
-    scheme_check_type
+    scheme_check_type,
+    scheme_null_fallback
 };
 
 struct operation_scheme {
@@ -531,5 +533,10 @@ void create_cast_operation(
 void create_is_operation(
         operation_scheme *scheme,
         sharp_type *cast_type);
+
+void create_null_fallback_operation(
+        operation_scheme *scheme,
+        operation_scheme *nullScheme,
+        operation_scheme *fallbackScheme);
 
 #endif //SHARP_OPERATION_H
