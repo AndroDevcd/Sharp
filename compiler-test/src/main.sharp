@@ -1,0 +1,21 @@
+mod main;
+
+http_codes :=
+    {
+        200 : "Success!",
+        new int(400) : "Oops something went wrong!"
+    };
+
+def main() {
+  println("hello, world!");
+}
+
+def foo(n: var) : int {
+    return n + 1;
+}
+
+component {
+    single { foo(get()) }
+    factory { 2 }
+
+}
