@@ -414,6 +414,28 @@ void create_get_string_constant_operation(
             operation_get_string_constant, _string));
 }
 
+
+void create_function_parameter_push_operation(
+        operation_scheme *scheme,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_push_value_to_stack));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_pop_value_from_stack));
+
+}
+
 void create_negate_operation(operation_scheme *scheme) {
     scheme->steps.add(new operation_step(operation_negate_value));
 }

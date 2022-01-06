@@ -8,7 +8,7 @@
 #include "../../types/types.h"
 #include "../../../taskdelegator/task_delegator.h"
 #include "unary/pre_increment_expression.h"
-#include "primary/primary_expression.h"
+#include "primary/binary_expression.h"
 #include "../../postprocessor/field_processor.h"
 #include "dictionary_expression.h"
 #include "vector_array_expression.h"

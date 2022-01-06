@@ -109,7 +109,8 @@ enum _operation_scheme {
     scheme_get_casted_value,
     scheme_get_primary_class_instance,
     scheme_check_type,
-    scheme_null_fallback
+    scheme_null_fallback,
+    scheme_assign_value
 };
 
 struct operation_scheme {
@@ -467,6 +468,11 @@ void create_get_bool_constant_operation(
 void create_get_string_constant_operation(
         operation_scheme *scheme,
         string &_string);
+
+void create_function_parameter_push_operation(
+        operation_scheme *scheme,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
 
 void create_negate_operation(operation_scheme *scheme);
 

@@ -11,5 +11,4 @@ struct expression;
 
 void compile_assign_expression(expression *e, Ast *ast);
 
-
 #endif //SHARP_ASSIGN_EXPRESSION_H

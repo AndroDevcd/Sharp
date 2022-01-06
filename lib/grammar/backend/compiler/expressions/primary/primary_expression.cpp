@@ -2,7 +2,7 @@
 // Created by BNunnally on 9/24/2021.
 //
 
-#include "primary_expression.h"
+#include "binary_expression.h"
 #include "../unary/not_expression.h"
 #include "literal_expression.h"
 #include "self_expression.h"
