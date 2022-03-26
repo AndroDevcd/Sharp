@@ -1,0 +1,135 @@
+mod std;
+
+class hashmap<k, v> {
+    data: entry<k, v>[];
+    threshold := 0.75;
+    max_size : var;
+    size : var;
+
+    private static const default_capacity := 128;
+    public hashmap(initialCapacity: var) {
+        data = new entry<k,v>[initialCapacity];
+        max_size = (sizeof(data) * threshold);
+    }
+
+    public hashmap() {
+        data = new entry<k,v>[default_capacity];
+        max_size = 96;
+    }
+
+    def set_threshold(threshold: var) {
+        self->threshold = threshold;
+        max_size = (sizeof(data) * threshold);
+    }
+
+    def hash(key: k) : var {
+        return key.hash() % sizeof(data);
+    }
+
+    def resize() {
+        old_data := data;
+        data = new entry<k,v>[sizeof(old_data) + (sizeof(old_data) >> 1)];
+        max_size = sizeof(data) * threshold;
+        foreach(entry in old_data)
+        {
+            while(entry != null)
+            {
+                next := entry.next;
+                index : var = hash(entry.key);
+                entry.next = data[index];
+                data[index] = entry;
+                entry = next;
+            }
+        }
+
+        old_data = null;
+    }
+
+    public def at(key: k) : v {
+        index: var = hash(key);
+        initialHash := -1;
+        no_value : v;
+
+        if(data[index] == null) {
+            return no_value;
+        } else {
+            entry := data[index];
+            while (entry != null) {
+                if (entry.key == key) {
+                    return entry.value;
+                }
+                entry = entry.next;
+            }
+
+            return no_value;
+        }
+    }
+
+    public def put(key: k, value: v) : var {
+        index: var = hash(key);
+        prev : entry<k,v>;
+        entry := data[index];
+
+        while (entry != null && entry.key != key) {
+            prev = entry;
+            entry = entry.next;
+        }
+
+        if(entry == null) {
+            size++;
+            entry =  new entry<k,v>(key, value);
+            if(prev == null) {
+                data[index] = entry;
+            } else {
+                prev.next = entry;
+            }
+
+            return true;
+        } else {
+            entry.value = value;
+            return false;
+        }
+    }
+
+    public def remove(key: k) : var {
+        index := hash(key);
+        if(data[index] == null) {
+            prev_entry: entry<k,v>;
+            entry := data[index];
+            while(entry != null && entry.key != key) {
+                prev_entry = entry;
+                entry = entry.next;
+            }
+
+            if(entry.key == key) {
+                if(prev_entry == null) {
+                    next_entry := entry.next;
+                    data[index] = next_entry;
+                } else {
+                    next_entry := entry.next;
+                    prev_entry.next = next_entry;
+                    entry = null;
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    class entry<k, v> {
+        protected key: k;
+        protected value: v;
+        protected next: entry<k, v>;
+
+        public entry(key: k, value: v) {
+            self->key = key;
+            self->value = value;
+        }
+
+        public def to_string() : string {
+            return "key " + key + " value " + value;
+        }
+    }
+}

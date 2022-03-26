@@ -424,7 +424,7 @@ SharpObject *GarbageCollector::newObject(int64_t size, unsigned short ntype) {
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
     object->init(size, _stype_var);
 
-    object->HEAD = (double*)__calloc(size, sizeof(double));
+    object->HEAD = (long double*)__calloc(size, sizeof(long double));
     object->ntype = ntype % 9;
     object->array = size > 1;
 
@@ -445,7 +445,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size, unsigned short ntyp
     if(object != NULL) {
         object->init(size, _stype_var);
 
-        object->HEAD = (double *) calloc(size, sizeof(double));
+        object->HEAD = (long double *) calloc(size, sizeof(long double));
         object->array = size > 1;
 
         if(object->HEAD != NULL) {
@@ -593,7 +593,7 @@ void GarbageCollector::createStringArray(Object *object, string& str) {
         *object = newObject(str.length(), _INT8);
 
         if(object->object != NULL) {
-            double *array = object->object->HEAD;
+            long double *array = object->object->HEAD;
             for (unsigned long i = 0; i < str.length(); i++) {
                 *array = str[i];
                 array++;
@@ -613,12 +613,12 @@ uInt GarbageCollector::getManagedMemory() {
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {
     if(o != NULL && TYPE(o->info) == _stype_var) {
         GUARD(mutex);
-        o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz, sizeof(double)*o->size);
+        o->HEAD = (long double*)__realloc(o->HEAD, sizeof(long double)*sz, sizeof(long double)*o->size);
 
         if(sz < o->size)
-            managedBytes -= (sizeof(double)*(o->size-sz));
+            managedBytes -= (sizeof(long double)*(o->size-sz));
         else
-            managedBytes += (sizeof(double)*(sz-o->size));
+            managedBytes += (sizeof(long double)*(sz-o->size));
 
         if(sz > o->size) {
             for(Int i = o->size; i < sz; i++) {

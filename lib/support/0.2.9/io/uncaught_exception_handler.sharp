@@ -1,0 +1,5 @@
+mod std.io;
+
+interface uncaught_exception_handler {
+    def uncaught_exception(err: throwable);
+}

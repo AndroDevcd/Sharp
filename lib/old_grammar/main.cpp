@@ -229,7 +229,7 @@ int _bootstrap(int argc, const char* argv[])
                     if(to_lower(x) == "base") {
                         c_options.target = alpha;
                     } else if(to_lower(x) == "alpha") {
-                        c_options.target = alpha_cr2;
+                        c_options.target = alpha_cr4;
                     }
                     else {
                         error("unknown target " + x);

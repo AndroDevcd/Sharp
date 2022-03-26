@@ -34,7 +34,7 @@
 #define EXE_BYTE_CHUNK 4
 #define min_file_vers 5
 #define file_vers 5
-#define BUILD_VERS alpha_cr2
+#define BUILD_VERS alpha_cr4
 #define HEADER_SIZE 0xc
 
 // Processing errors

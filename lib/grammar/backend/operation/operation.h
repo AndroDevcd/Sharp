@@ -86,6 +86,14 @@ enum operation_type {
     operation_is_fun_ptr,
     operation_get_array_element_at_index,
     operation_get_value_if_null,
+    operation_retain_numeric_value, // will try to store in register if possible
+    operation_discard_register,
+    operation_allocate_register,
+    operation_and,
+    operation_xor,
+    operation_or,
+    operation_and_and,
+    operation_or_or
 };
 
 enum _operation_scheme {
@@ -110,7 +118,8 @@ enum _operation_scheme {
     scheme_get_primary_class_instance,
     scheme_check_type,
     scheme_null_fallback,
-    scheme_assign_value
+    scheme_assign_value,
+    scheme_get_numeric_value
 };
 
 struct operation_scheme {
@@ -159,6 +168,8 @@ struct operation_step {
         function(NULL),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -174,6 +185,8 @@ struct operation_step {
             function(NULL),
             decimal(0),
             integer(0),
+            secondRegister(0),
+            thirdRegister(0),
             _char(0),
             _bool(false),
             _string(""),
@@ -191,6 +204,8 @@ struct operation_step {
         function(NULL),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -206,6 +221,8 @@ struct operation_step {
         function(NULL),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -221,6 +238,8 @@ struct operation_step {
         function(NULL),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -237,12 +256,48 @@ struct operation_step {
         integer(constant),
         decimal(0),
         _char(0),
+        secondRegister(0),
+        thirdRegister(0),
         _bool(false),
         _string(""),
         nativeType(type_undefined)
     {}
 
-    operation_step(operation_type type, native_type nt)
+    operation_step(operation_type type, Int leftRegister, Int rightRegister)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(leftRegister),
+            decimal(0),
+            _char(0),
+            secondRegister(rightRegister),
+            thirdRegister(0),
+            _bool(false),
+            _string(""),
+            nativeType(type_undefined)
+    {}
+
+    operation_step(operation_type type, Int r1, Int r2, Int r3)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(r1),
+            decimal(0),
+            _char(0),
+            secondRegister(r2),
+            thirdRegister(r3),
+            _bool(false),
+            _string(""),
+            nativeType(type_undefined)
+    {}
+
+    operation_step(operation_type type, data_type nt)
             :
             type(type),
             field(NULL),
@@ -251,6 +306,8 @@ struct operation_step {
             function(NULL),
             integer(0),
             decimal(0),
+            secondRegister(0),
+            thirdRegister(0),
             _char(0),
             _bool(false),
             _string(""),
@@ -266,6 +323,8 @@ struct operation_step {
             function(NULL),
             integer(0),
             decimal(0),
+            secondRegister(0),
+            thirdRegister(0),
             _char(constant),
             _bool(false),
             _string(""),
@@ -281,6 +340,8 @@ struct operation_step {
             function(NULL),
             integer(0),
             decimal(0),
+            secondRegister(0),
+            thirdRegister(0),
             _char(0),
             _bool(constant),
             _string(""),
@@ -297,6 +358,8 @@ struct operation_step {
             integer(0),
             decimal(0),
             _char(0),
+            secondRegister(0),
+            thirdRegister(0),
             _bool(false),
             _string(constant),
             nativeType(type_undefined)
@@ -312,6 +375,8 @@ struct operation_step {
         decimal(constant),
         integer(0),
         _char(0),
+        secondRegister(0),
+        thirdRegister(0),
         _bool(false),
         _string(""),
         nativeType(type_undefined)
@@ -326,6 +391,8 @@ struct operation_step {
         function(fun),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -341,6 +408,8 @@ struct operation_step {
         function(NULL),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -356,6 +425,8 @@ struct operation_step {
         function(NULL),
         decimal(0),
         integer(0),
+        secondRegister(0),
+        thirdRegister(0),
         _char(0),
         _bool(false),
         _string(""),
@@ -379,6 +450,8 @@ struct operation_step {
         _class = step._class;
         field = step.field;
         nativeType = step.nativeType;
+        secondRegister = step.secondRegister;
+        thirdRegister = step.thirdRegister;
 
         if(step.scheme)
             scheme = new operation_scheme(*step.scheme);
@@ -394,9 +467,11 @@ struct operation_step {
     long double decimal;
     char _char;
     bool _bool;
-    native_type nativeType;
+    data_type nativeType;
     string _string;
     operation_type type;
+    Int secondRegister;
+    Int thirdRegister;
 };
 
 void create_local_field_access_operation(
@@ -451,7 +526,9 @@ void create_function_parameter_push_operation(
 
 void create_get_integer_constant_operation(
         operation_scheme *scheme,
-        Int integer);
+        Int integer,
+        bool resetState = true,
+        bool setType = true);
 
 void create_get_decimal_constant_operation(
         operation_scheme *scheme,
@@ -480,11 +557,11 @@ void create_not_operation(operation_scheme *scheme);
 
 void create_increment_operation(
         operation_scheme *scheme,
-        native_type type);
+        data_type type);
 
 void create_decrement_operation(
         operation_scheme *scheme,
-        native_type type);
+        data_type type);
 
 void create_get_primary_instance_class(
         operation_scheme *scheme,
@@ -504,7 +581,7 @@ void create_new_class_array_operation(
 void create_new_number_array_operation(
         operation_scheme *scheme,
         operation_scheme *arraySizeOperations,
-        native_type nativeType);
+        data_type nativeType);
 
 void create_new_object_array_operation(
         operation_scheme *scheme,
@@ -512,6 +589,55 @@ void create_new_object_array_operation(
 
 void create_push_to_stack_operation(
         operation_scheme *scheme);
+
+void create_retain_numeric_value_operation(
+        operation_scheme *scheme,
+        Int registerId);
+
+void create_and_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_xor_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_or_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_and_and_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_or_or_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+#define ALLOCATE_REGISTER_2X(r1, r2, scheme, code) \
+            Int register_##r1 = create_allocate_register_operation(scheme); \
+            Int register_##r2 = create_allocate_register_operation(scheme); \
+             code \
+            create_deallocate_register_operation(scheme, register_##r1); \
+            create_deallocate_register_operation(scheme, register_##r2);
+
+void create_deallocate_register_operation(
+        operation_scheme *scheme,
+        Int registerId);
+
+Int create_allocate_register_operation(
+        operation_scheme *scheme);
+
+void create_get_value_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme,
+        bool resetState = true,
+        bool setType = true);
 
 void create_pop_value_from_stack_operation(
         operation_scheme *scheme);

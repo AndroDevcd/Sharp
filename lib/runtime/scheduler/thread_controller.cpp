@@ -264,7 +264,7 @@ void cancel_task(Thread *thread) {
 void wait_for_context_switch(Thread* thread) {
     const int sMaxRetries = 1000000;
     int retryCount = 0;
-    int retryLimit = 25;
+    int retryLimit = 10;
 
     while (!thread->waiting)
     {
@@ -291,7 +291,7 @@ void post_task(Thread* thread, fiber *newTask) {
         thread->newTask = newTask;
         const int sMaxRetries = 1000000;
         int retryCount = 0;
-        int retryLimit = 50;
+        int retryLimit = 10;
 
         while (thread->newTask != NULL)
         {
@@ -672,9 +672,8 @@ void interrupt_and_wait(Thread* thread) {
 
 void suspend_and_wait(Thread* thread, bool sendSignal) {
     const int sMaxRetries = 1000000;
-    const int sMaxSpinCount = 10; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
+    const int sMaxSpinCount = 25; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
 
-    int spinCount = 0;
     int retryCount = 0;
 
     if(sendSignal) send_suspend_signal(thread);
@@ -684,7 +683,7 @@ void suspend_and_wait(Thread* thread, bool sendSignal) {
         {
             send_suspend_signal(thread);
             retryCount = 0;
-            if(++spinCount >= sMaxSpinCount || thread->state >= THREAD_SUSPENDED)
+            if(thread->state >= THREAD_SUSPENDED)
                 return;
 
 #ifdef WIN32_
@@ -833,6 +832,10 @@ void suspend_self() {
 }
 
 Thread* get_thread(uInt id) {
+    if(vm.state >= VM_SHUTTING_DOWN) {
+        return NULL;
+    }
+
     GUARD(thread_mutex)
     _sched_thread *thread = sched_threads;
 
@@ -957,7 +960,8 @@ _sched_thread* sched_thread(_sched_thread *scht) {
 
     if (!scht->thread->waiting && is_thread_ready(scht->thread)) {
         enable_context_switch(scht->thread, true);
-        wait_for_context_switch(scht->thread);
+        __os_yield();
+//        wait_for_context_switch(scht->thread); // todo: try having an impaitent scheduler
     }
 
     if(scht->thread->waiting)

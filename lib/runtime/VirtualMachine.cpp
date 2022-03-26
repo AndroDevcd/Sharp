@@ -457,7 +457,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
     }
 }
 
-extern void populateString(string& s, double* arry, uInt len) {
+extern void populateString(string& s, long double* arry, uInt len) {
     for(Int i = 0; i < len; i++)
         s += (unsigned char)arry[i];
 }

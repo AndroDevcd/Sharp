@@ -1,0 +1,21 @@
+mod std.io;
+
+enum thread_result {
+    result_ok                      = 0x000,
+    result_ill_thread_start        = 0x001,
+    result_thread_running          = 0x002,
+    result_thread_terminated       = 0x003,
+    result_invalid_stack_size      = 0x004,
+    result_thread_not_started      = 0x005,
+    result_ill_thread_join         = 0x006,
+    result_thread_join_failed      = 0x007,
+    result_ill_thread_interrupt    = 0x008,
+    result_thread_interrupt_failed = 0x009,
+    result_ill_thread_destroy      = 0x00a,
+    result_thread_create_failed    = 0x00b,
+    result_no_thread_id            = 0x00c,
+    result_thread_destroy_failed   = 0x00d,
+    result_ill_priority_set        = 0x00e,
+    result_ill_thread_suspend      = 0x00f,
+    result_max_spin                = 0x0ff
+};

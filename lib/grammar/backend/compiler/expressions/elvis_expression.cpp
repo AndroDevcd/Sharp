@@ -23,6 +23,22 @@ void compile_elvis_expression(expression *e, Ast *ast) {
                            "expression of type `" + type_to_str(nullableExpression.type) + "` was found to be non nullable.");
     }
 
+    // If the types are not the same we need to check to see if they can be assigned to a single object value
+    if(!is_explicit_type_match(nullableExpression.type, fallbackExpression.type)
+        && !is_implicit_type_match(nullableExpression.type, fallbackExpression.type, exclude_all)) {
+        sharp_type objectType(type_object, nullableExpression.type.nullable || fallbackExpression.type.nullable);
+
+        if(!(is_implicit_type_match(objectType, nullableExpression.type, exclude_all)
+            && is_implicit_type_match(objectType, fallbackExpression.type, exclude_all))) {
+            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+                                  " expressions are not compatible and cannot be converted to type `object`, please check types and try again.");
+        } else {
+            e->type.copy(objectType.type);
+        }
+    } else {
+        e->type.copy(nullableExpression.type);
+    }
+
     create_null_fallback_operation(&e->scheme, &nullableExpression.scheme,
             &fallbackExpression.scheme);
 }

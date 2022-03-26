@@ -234,6 +234,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
     }
 
     pushArgumentsToStack(appArgs);
+    setupSleepFunction();
     start_thread(get_main_thread(), 0);
     start_idle_scheduler();
     run_scheduler();

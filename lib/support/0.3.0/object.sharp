@@ -15,7 +15,7 @@ import (
  */
 stable class _object_ : printable, unique {
 
-    foo := to_string<int>();
+    foo := to_string();
     public def to_string() := new string();
 
     def wait() {

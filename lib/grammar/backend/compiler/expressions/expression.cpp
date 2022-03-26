@@ -14,6 +14,8 @@
 #include "vector_array_expression.h"
 #include "elvis_expression.h"
 #include "assign_expression.h"
+#include "binary/binary_expression.h"
+#include "../../postprocessor/function_processor.h"
 
 void compile_expression(expression &e, Ast *ast) {
     if(ast->hasSubAst(ast_minus_e))
@@ -30,6 +32,8 @@ void compile_expression(expression &e, Ast *ast) {
         compile_elvis_expression(&e, ast->getSubAst(ast_elvis_e));
     else if(ast->hasSubAst(ast_assign_e))
         compile_assign_expression(&e, ast->getSubAst(ast_assign_e));
+    else if(ast->hasSubAst(ast_and_e))
+        compile_binary_expression(&e, ast);
 }
 
 void compile_expression_for_type(sharp_type &type, Ast *ast) {
@@ -76,6 +80,7 @@ void compile_class_function_overload(
             ast,
             true,
             true)) != NULL) {
+        process_function_return_type(fun);
 
         compile_function_call(&e.scheme, params, paramOperations, fun, false, false);
         e.type.copy(fun->returnType);

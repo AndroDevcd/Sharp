@@ -54,7 +54,7 @@ bool isNumber(string int_string) {
 
 void check_target() {
     switch(options.target) {
-        case alpha_cr2: {
+        case alpha_cr4: {
             return;
         }
         default: {
@@ -124,7 +124,7 @@ void set_target_platform(string target) {
         check_target();
     } else {
         if(toLower(target) == "alpha-cr2") {
-            options.target = alpha_cr2;
+            options.target = alpha_cr4;
         }
         else {
             error("unknown platform target $target");

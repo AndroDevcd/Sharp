@@ -10,7 +10,7 @@
 #include "import_group.h"
 
 void get_real_type(sharp_type &st) {
-    if(st.type == type_field) {
+    if(st.type == type_field) { // todo: keep this in mind for creating bugs by hiding field type due to translation
         st.copy(st.field->type);
     }
 }
@@ -23,7 +23,7 @@ sharp_class* get_class_type(sharp_type &st) {
     else return NULL;
 }
 
-native_type str_to_native_type(string &str) {
+data_type str_to_native_type(string &str) {
     if(str == "_int8") return type_int8;
     if(str == "_int16") return type_int16;
     if(str == "_int32") return type_int32;

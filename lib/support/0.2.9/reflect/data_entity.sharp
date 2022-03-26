@@ -1,0 +1,31 @@
+mod std.reflect;
+
+
+class data_entity {
+    name : string;
+    id : var;
+    full_name: string;
+    owner: _class_;
+    flags: var;
+    type: data_type;
+}
+
+enum data_type {
+    int8      =0,
+    int16     =1,
+    int32     =2,
+    int64     =3,
+    uint8     =4,
+    uint16    =5,
+    uint32    =6,
+    uint64    =7,
+    fnptr     =8,
+    _var      =9,
+    _object   =10,
+    _class    =11,
+    method    =12,
+    _nil      =13,
+    any       =14,
+    untyped   =15,
+    undefined =16
+};

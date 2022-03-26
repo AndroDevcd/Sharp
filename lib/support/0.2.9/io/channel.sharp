@@ -1,0 +1,371 @@
+mod std.io;
+
+import std.io.fiber;
+
+/*
+    [Master]
+       [0] *[item]
+       [1]  [2]
+       [2]  [item] [item] [item] ...
+       [3]  *[] [] []
+       [4]
+
+       index
+          * = blocking
+*/
+
+class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
+
+    private filters : list<filter<t> >;
+    private buff_type : buffer_type;
+    private capacity : var;
+    private state := channel_state.OPEN;
+
+    static const default_capacity := 10;
+    static const DEFAULT_FILTER := 0;
+
+
+    channel(capacity : var) {
+      channel(capacity, 1);
+    }
+
+    channel(capacity : var, filters: var) {
+      add_filters(filters);
+
+      if(capacity > 0) {
+         self->capacity = capacity;
+         if(capacity == 1) {
+            buff_type = SINGLE;
+         } else {
+            buff_type = BUFFERED;
+         }
+      } else {
+         throw new ill_state_except("channel capacity cannot be < 0");
+      }
+    }
+
+    channel(buff_type : buffer_type) {
+       channel(buff_type, 1);
+    }
+
+
+    channel(buff_type : buffer_type, filters: var) {
+       self->buff_type = buff_type;
+       add_filters(filters);
+
+       when (buff_type) {
+          EXCLUSIVE, SINGLE -> {
+              capacity = 1;
+          }
+          UNLIMITED -> {
+             capacity = -1;
+          }
+          BUFFERED -> {
+             capacity = default_capacity;
+          }
+       }
+    }
+
+    private def add_filters(filter_count : var) {
+      if(filter_count <= 0) {
+         throw new ill_state_except("channels must have at least 1 filter");
+      }
+
+      filters = new list<filter<t> >(filter_count);
+      for(i := 0; i < filter_count; i++) {
+         filters.add(new filter<t>());
+      }
+    }
+
+    def get_capacity() := capacity;
+    def get_buffer_type() := buff_type;
+    def is_closed() : var {
+       lock(self) {
+          return state == channel_state.CLOSED;
+       }
+    }
+
+    def send(data : t) {
+       send(data, DEFAULT_FILTER);
+    }
+
+    def send(data : t, filter: var) {
+       if(filter >= filters.size() || filter < 0) {
+          throw new bounds_except("invalid send on filter ($filter) when max filter is ${filters.size()}");
+       }
+
+       filters[filter].send(data, self);
+    }
+
+    def read() : t {
+       return read(DEFAULT_FILTER);
+    }
+
+    def read(filter: var) : t {
+       if(filter >= filters.size() || filter < 0) {
+          throw new bounds_except("invalid send on filter ($filter) when max filter is ${filters.size()}");
+       }
+
+       return filters[filter].read(self);
+    }
+
+    def close() {
+       lock(self) {
+          state = channel_state.CLOSED;
+       }
+    }
+
+    def open() {
+       lock(self) {
+          state = channel_state.OPEN;
+       }
+    }
+
+    def read_next(filter: var, count: var) : list<t> {
+       if(filter >= filters.size() || filter < 0) {
+          throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
+       }
+
+       data := new list<t>();
+       filtered_channel := filters[filter];
+
+       for(i := 0; i < count; i++) {
+          filtered_channel.wait_for_data_or_close(self);
+
+          if(filtered_channel.avail_data()) {
+             data.add(filtered_channel.read(self));
+          } else {
+             return data;
+          }
+       }
+
+       return data;
+    }
+
+    def read_next(filter: var) : list<t> {
+       if(filter >= filters.size() || filter < 0) {
+          throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
+       }
+
+       filtered_channel := filters[filter];
+       if(filtered_channel.avail_data() == 0) {
+          return null;
+       }
+
+       data := new list<t>();
+       lock(filtered_channel) {
+          for(;;) {
+             if(filtered_channel.avail_data()) {
+                data.add(filtered_channel.read(self));
+             } else {
+                return data;
+             }
+          }
+       }
+
+       return null;
+    }
+
+    def read_all(filter: var) : list<t> {
+       if(filter >= filters.size() || filter < 0) {
+          throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
+       }
+
+       data := new list<t>();
+       filtered_channel := filters[filter];
+
+       for(;;) {
+          filtered_channel.wait_for_data_or_close(self);
+
+          if(filtered_channel.avail_data()) {
+             data.add(filtered_channel.read(self));
+          } else {
+             return data;
+          }
+       }
+
+       return null;
+    }
+
+    def next() : var {
+       for(;;) {
+          if(state == channel_state.CLOSED)
+             return -1;
+
+          for(i := 0; i < filters.size(); i++) {
+             if(filters[i].avail_data()) {
+                return i;
+             }
+          }
+
+          delay(2);
+       }
+
+       return 0;
+    }
+
+    def get_elements() : t[] {
+       return read_all(DEFAULT_FILTER).get_elements();
+    }
+
+    def avail_data(filter: var) : var {
+        if(filter >= filters.size() || filter < 0) {
+           throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
+        }
+
+        filtered_channel := filters[filter];
+        return filtered_channel.avail_data();
+    }
+
+    enum channel_state {
+         OPEN,
+         CLOSED
+    }
+
+    class filter<t> {
+       head : channel_data<t>;
+       tail : channel_data<t>;
+       buff_size : var;
+
+       def filo() : t {
+          data := head.data;
+          head = head.next;
+          if(head == null)
+             tail = null;
+          return data;
+       }
+
+       private def wait_for_data() {
+          while(buff_size == 0) {}
+       }
+
+       private def wait_for_consume() {
+          while(buff_size != 0) {}
+       }
+
+       def wait_for_data_or_close(chan: channel<t>) {
+          if(buff_size == 0) {
+             while(buff_size == 0) {
+                if(chan.state == channel_state.CLOSED)
+                   break;
+
+                delay(1); // yield thread
+             }
+          }
+       }
+
+       def avail_data() : var {
+          return buff_size;
+       }
+
+       def read(chan: channel<t>) : t {
+          when(chan.buff_type) {
+             EXCLUSIVE -> {
+                wait_for_data();
+
+                data := head.data;
+                tail = null;
+                head = null;
+                buff_size = 0;
+                return data;
+             }
+             SINGLE -> {
+                wait_for_data();
+
+                data := head.data;
+                buff_size = 0;
+                return data;
+             }
+             UNLIMITED -> {
+                wait_for_data();
+
+                lock(self) {
+                    buff_size--;
+                    data := filo();
+                    return data;
+                }
+             }
+             BUFFERED -> {
+                wait_for_data();
+
+                lock(self) {
+                    if(buff_size < chan.capacity) {
+                       buff_size--;
+                       data := filo();
+                       return data;
+                    } else {
+                       buff_size--;
+                       data := filo();
+                       return data;
+                    }
+                }
+             }
+             else -> {
+                no_value : t;
+                return no_value;
+             }
+          }
+       }
+
+       def send(data : t, chan: channel<t>) {
+          if(chan.state == channel_state.OPEN) {
+             when(chan.buff_type) {
+                EXCLUSIVE -> {
+                   lock(self) {
+                       head = new channel_data<t> { data = data };
+                       tail = head;
+                       buff_size = 1;
+                   }
+                   wait_for_consume();
+                   return;
+                }
+                SINGLE -> {
+                   if(head == null) {
+                      head = new channel_data<t> { data = data };
+                      tail = head;
+                   } else {
+                      head.data = data;
+                   }
+
+                   buff_size = 1;
+                }
+                UNLIMITED -> {
+                   lock(self) {
+                       if(head == null) {
+                          head = new channel_data<t> { data = data };
+                          tail = head;
+                       } else {
+                          tail.next = new channel_data<t> { data = data };
+                          tail = tail.next;
+                       }
+
+                       buff_size++;
+                   }
+                }
+                BUFFERED -> {
+                    while(buff_size == chan.capacity) {}
+
+                    lock(self) {
+                        if(head == null) {
+                           head = new channel_data<t> { data = data };
+                           tail = head;
+                           buff_size++;
+                        } else {
+                           tail.next = new channel_data<t> { data = data };
+                           tail = tail.next;
+                           buff_size++;
+                        }
+                    }
+             }
+          }
+       }
+    }
+
+    class channel_data<t> {
+        data : t;
+        next : channel_data<t>;
+    }
+}
+}
+
+

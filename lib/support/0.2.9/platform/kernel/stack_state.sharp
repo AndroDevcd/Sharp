@@ -1,0 +1,6 @@
+mod platform.kernel;
+
+class stack_state {
+    methods : _int64[];
+    pc : _int64[];
+}

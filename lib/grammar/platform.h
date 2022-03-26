@@ -17,6 +17,7 @@ enum Platform {
     /**
      * Aug 10, 2021 Build release of Sharp 0.3.0
      *
+     * Alpha Compiler Revision 4
      * This version offers:
      * - Greater stability in the task scheduling system
      * - Newly revised compiler that includes:
@@ -25,7 +26,7 @@ enum Platform {
      *      - Significantly improved code optimization system
      *      - Supports compiled projects for the language
      */
-    alpha_cr2 = 3
+    alpha_cr4 = 3
 };
 
 #endif //SHARP_PLATFORM_H

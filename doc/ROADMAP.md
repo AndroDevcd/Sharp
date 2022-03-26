@@ -655,3 +655,35 @@ ip - in progress
 * deferr keyword added - s
 * [X] \u0000 unicode strings
 * [X] paramaterized array access i.e 'str[0, 5]' returns a substring from pos 0 to 5
+
+
+# Welcome to the v0.3.0 revision PR!
+This PR represents an overhaul of the programming language platform and the **4th generation** of the compiler.  Version 0.3.0 of the language aims to fix a wide range of bugs within the platform as well as put the language up to par with more mainstream programming languages.
+
+## Feature List
+Below is a list of all the new features included in the PR.
+
+- Built-in Dependancy injection framework
+- Base class definition for generics
+> **class** home_screen< T **base** view > { ... }
+- New package import format
+> **import** ( std, std.io );
+- Import groups added
+
+       import (
+            std,
+            std.io
+      ) as file_imports;
+
+       import (
+            std,
+            ducuments.builder
+      ) as doc_imports;
+
+       def foo() {
+            file :=  new file_imports#file("hello.txt");
+            doc :=  new doc_imports#file("hello.docx");
+      }
+
+- 
+

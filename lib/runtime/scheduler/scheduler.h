@@ -56,6 +56,7 @@ bool queue_task(fiber*);
 bool queue_thread(Thread*);
 void post_idle_tasks();
 void shift_to_next_task();
+void setupSleepFunction();
 
 
 #endif //SHARP_SCHEDULER_H

@@ -1,0 +1,44 @@
+mod std.export;
+
+import std.io;
+
+def _export(obj: object) : _int8[] {
+    result : _int8[];
+    asm {
+       pushl {obj}
+       int 0x4d
+       movl {result}
+       popObj
+    }
+
+    return result;
+}
+
+def _import(bytes: string) : object {
+    result : object;
+    data := bytes.get_data();
+
+    asm {
+       pushl {data}
+       int 0x4e
+       movl {result}
+       popObj
+    }
+
+    return result;
+}
+
+def _export(obj: object, filename: string) : file {
+    f := new file(filename);
+
+    if(!f.exists())
+       f.create();
+    f.write(_export(obj));
+    return f;
+}
+
+
+def _import_from(filename: string) : object {
+   f := new file(filename);
+   return _import(f.read());
+}

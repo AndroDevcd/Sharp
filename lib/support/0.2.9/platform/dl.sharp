@@ -1,0 +1,15 @@
+mod platform;
+
+import platform.kernel;
+
+def load_library(name: string) {
+    platform.load_library(name);
+}
+
+def free_library(name: string): var {
+    return platform.free_library(name);
+}
+
+def link(name: string, library: string): var {
+    return platform.link_func(name, library);
+}

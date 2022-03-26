@@ -46,7 +46,7 @@ object getField(object obj, const char* name){
     return lastField;
 }
 
-double* getVarPtr(object obj){
+long double* getVarPtr(object obj){
     if(obj) {
         SharpObject *shobj = ((Object*)obj)->object;
         if(shobj && TYPE(shobj->info) == _stype_var) {

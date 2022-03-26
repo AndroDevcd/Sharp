@@ -1,10 +1,6 @@
 mod main;
 
-http_codes :=
-    {
-        200 : "Success!",
-        new int(400) : "Oops something went wrong!"
-    };
+http_codes := get<int>() & 5;
 
 def main() {
   println("hello, world!");

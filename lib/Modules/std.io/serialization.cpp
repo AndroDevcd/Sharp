@@ -130,21 +130,21 @@ string export_obj(SharpObject* obj) {
 }
 
 Int pos, streamSize;
-char nextChar(double* data) {
+char nextChar(long double* data) {
     if(pos < streamSize) {
         return (char)data[++pos];
     } else
         throw Exception(vm.IndexOutOfBoundsExcept, "not enough data to process object stream, Is the data possibly corrupt?");
 }
 
-char peekChar(double* data) {
+char peekChar(long double* data) {
     if((pos+1) < streamSize) {
         return (char)data[pos+1];
     } else
         return 0;
 }
 
-Int readInt(double *data) {
+Int readInt(long double *data) {
     stringstream ss;
 
     for(;;) {
@@ -159,7 +159,7 @@ Int readInt(double *data) {
     return strtoll(ss.str().c_str(), NULL, 0);
 }
 
-string readString(double *data) {
+string readString(long double *data) {
     stringstream ss;
 
     for(;;) {
@@ -174,7 +174,7 @@ string readString(double *data) {
     return ss.str();
 }
 
-Int readDouble(double *data) {
+Int readDouble(long double *data) {
     stringstream ss;
 
     for(;;) {
@@ -189,7 +189,7 @@ Int readDouble(double *data) {
     return strtod(ss.str().c_str(), NULL);
 }
 
-void expectChar(double *data, char ch) {
+void expectChar(long double *data, char ch) {
     if(data[++pos] != ch) {
         stringstream ss;
         ss << "expected char: " << (Int)ch << " during object import";
@@ -198,7 +198,7 @@ void expectChar(double *data, char ch) {
 }
 
 SharpObject* load_obj(SharpObject* obj) {
-    double *data = obj->HEAD;
+    long double *data = obj->HEAD;
     if(data[++pos] == EXPORT_SECRET) {
         sharp_type type = (sharp_type)(Int)data[++pos];
         Int size = readInt(data);

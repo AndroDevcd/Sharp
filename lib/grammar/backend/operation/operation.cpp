@@ -7,6 +7,7 @@
 #include "../types/sharp_function.h"
 #include "../../compiler_info.h"
 
+Int uniqueRegisterIds = 0;
 void create_local_field_access_operation(
         operation_scheme *scheme,
         sharp_field *localField) {
@@ -139,7 +140,7 @@ void create_null_fallback_operation(
         operation_scheme *scheme,
         operation_scheme *nullScheme,
         operation_scheme *fallbackScheme) {
-    scheme->schemeType = scheme_check_type;
+    scheme->schemeType = scheme_null_fallback;
 
     scheme->steps.add(new operation_step(
             operation_get_value, nullScheme));
@@ -212,7 +213,7 @@ void create_new_class_operation(
 void create_new_number_array_operation(
         operation_scheme *scheme,
         operation_scheme *arraySizeOperations,
-        native_type nativeType) {
+        data_type nativeType) {
     if(scheme) {
         scheme->schemeType = scheme_new_number_array;
 
@@ -253,6 +254,75 @@ void create_push_to_stack_operation(
         scheme->steps.add(new operation_step(
                 operation_push_value_to_stack));
     }
+}
+
+void create_and_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_and, registerLeft, registerRight));
+}
+
+void create_xor_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_xor, registerLeft, registerRight));
+}
+
+void create_or_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_or, registerLeft, registerRight));
+}
+
+void create_and_and_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_and_and, registerLeft, registerRight));
+}
+
+void create_or_or_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_or_or, registerLeft, registerRight));
+}
+
+void create_retain_numeric_value_operation(
+        operation_scheme *scheme,
+        Int retainId) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_retain_numeric_value, retainId));
+    }
+}
+
+void create_deallocate_register_operation(
+        operation_scheme *scheme,
+        Int registerId) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_discard_register, registerId));
+    }
+}
+
+Int create_allocate_register_operation(
+        operation_scheme *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_allocate_register, uniqueRegisterIds));
+        return uniqueRegisterIds++;
+    }
+
+    return -1;
 }
 
 void create_pop_value_from_stack_operation(
@@ -369,9 +439,13 @@ void create_instance_function_call_operation(
 
 void create_get_integer_constant_operation(
         operation_scheme *scheme,
-        Int integer) {
-    scheme->schemeType = scheme_get_constant;
-    scheme->free();
+        Int integer,
+        bool resetState,
+        bool setType) {
+    if(setType)
+        scheme->schemeType = scheme_get_constant;
+    if(resetState)
+        scheme->free();
 
     scheme->steps.add(new operation_step(
             operation_get_integer_constant, integer));
@@ -436,6 +510,20 @@ void create_function_parameter_push_operation(
 
 }
 
+void create_get_value_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme,
+        bool resetState,
+        bool setType) {
+    if(resetState)
+        scheme->free();
+    if(setType)
+        scheme->schemeType = scheme_get_numeric_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+}
+
 void create_negate_operation(operation_scheme *scheme) {
     scheme->steps.add(new operation_step(operation_negate_value));
 }
@@ -445,7 +533,7 @@ void create_not_operation(operation_scheme *scheme) {
 
 void create_increment_operation(
         operation_scheme *scheme,
-        native_type type) {
+        data_type type) {
     if(type == type_var) {
         scheme->steps.add(new operation_step(operation_var_increment));
     } else if(type == type_int8) {
@@ -480,7 +568,7 @@ void create_get_primary_instance_class(
 
 void create_decrement_operation(
         operation_scheme *scheme,
-        native_type type) {
+        data_type type) {
     if(type == type_var) {
         scheme->steps.add(new operation_step(operation_var_decrement));
     } else if(type == type_int8) {

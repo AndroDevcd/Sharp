@@ -10,6 +10,7 @@
 #include "../linked_list.h"
 #include "../VirtualMachine.h"
 
+
 void __usleep(unsigned int usec)
 {
 #ifdef COROUTINE_DEBUGGING
@@ -18,19 +19,14 @@ void __usleep(unsigned int usec)
 #endif
 
 #ifdef WIN32_
-    HANDLE timer;
-    LARGE_INTEGER ft;
-
-    ft.QuadPart = -(10 * (__int64)usec);
-
-    timer = CreateWaitableTimer(NULL, TRUE, NULL);
-    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
-    WaitForSingleObject(timer, INFINITE);
-    CloseHandle(timer);
+    std::this_thread::sleep_for(std::chrono::microseconds(usec));
 #else
     __os_yield()
     usleep(usec);
 #endif
+}
+
+void setupSleepFunction() {
 }
 
 uInt schedTime = 0, clocks = 0, schedTasks = 0;
@@ -71,8 +67,8 @@ void run_scheduler() {
            clear_tasks();
        }
 
-       sched_unsched_items();
        schedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
+       sched_unsched_items();
        thread = sched_threads;
 
        if(next_task != NULL) {
@@ -120,7 +116,10 @@ void shift_to_next_task() {
 }
 
 void post_idle_tasks() {
-    Int postedTasks = 0;
+    uInt currentTime = NANO_TOMICRO(Clock::realTimeInNSecs());
+
+    uInt checkedTasks = 0;
+    const Int maxClocks = 2;
     sched_task *task = sched_tasks, *next;
     if(idleSched == NULL) return;
 
@@ -129,6 +128,7 @@ void post_idle_tasks() {
             break;
         }
 
+        checkedTasks++;
         next = task->next;
         if(is_idle_task(task)) {
             GUARD(task_mutex)
@@ -145,13 +145,15 @@ void post_idle_tasks() {
                 next_task = next_task->next;
 
             schedTasks--;
-            postedTasks++;
             post_idle_task(task);
         }
 
         task = next;
-        if(postedTasks >= 10000)
-            break;
+        if((checkedTasks % 1000) == 0) {
+            if(NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
+                return;
+            }
+        }
     }
 }
 
@@ -184,7 +186,7 @@ bool is_runnable(fiber *task, Thread *thread) {
 bool can_sched(fiber *task, Thread *thread) {
     return is_runnable(task, thread)
         && (task->acquiringMut == NULL || task->acquiringMut->fiberid == -1)
-        &&   (task->delayTime <= 0 || schedTime > task->delayTime);
+        &&   (task->delayTime <= 0 || (schedTime /1000L) > task->delayTime);
 }
 
 bool can_dispose(sched_task *task) {
@@ -249,41 +251,45 @@ bool queue_thread(Thread* thread) {
 }
 
 void sched_unsched_items() {
-    const Int maxTasks = 10000;
+    const Int maxClocks = 2;
     if(unSchedThreads.size() > 0) {
         GUARD(thread_mutex)
-        Int tasks = unSchedThreads.size() % maxTasks;
-        if(tasks == 0) tasks = maxTasks-1;
 
-        for(uInt i = 0; i < tasks; i++) {
+        for(uInt i = 0; i < unSchedThreads.size(); i++) {
+            if((i % 1000) == 0) {
+                if(NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
+                    unSchedThreads.removeUntil(i);
+                    return;
+                }
+            }
+
             if(!queue_thread(unSchedThreads.get(i))) {
                 unSchedThreads.removeUntil(i);
                 return;
             }
         }
 
-        if(unSchedThreads.size() > maxTasks) {
-            unSchedThreads.removeUntil(maxTasks);
-        } else
-            unSchedThreads.free();
+        unSchedThreads.free();
     }
 
     if(unSchedTasks.size() > 0) {
         GUARD(task_mutex)
-        Int tasks = unSchedTasks.size() % maxTasks;
-        if(tasks == 0) tasks = maxTasks-1;
 
-        for(uInt i = 0; i < tasks; i++) {
+        for(uInt i = 0; i < unSchedTasks.size(); i++) {
+            if((i % 1000) == 0) {
+                if(NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
+                    unSchedTasks.removeUntil(i);
+                    return;
+                }
+            }
+
             if(!queue_task(unSchedTasks.get(i))) {
                 unSchedTasks.removeUntil(i);
                 return;
             }
         }
 
-        if(unSchedTasks.size() > maxTasks) {
-            unSchedTasks.removeUntil(maxTasks);
-        } else
-            unSchedTasks.free();
+        unSchedTasks.free();
     }
 }
 

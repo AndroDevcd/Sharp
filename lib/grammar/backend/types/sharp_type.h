@@ -10,7 +10,7 @@
 #include "type_match_result.h"
 #include "get_component_request.h"
 
-enum native_type {
+enum data_type {
     type_int8=0,
     type_int16,
     type_int32,
@@ -232,7 +232,7 @@ struct sharp_type {
     {}
 
     sharp_type(
-            native_type type,
+            data_type type,
             bool nullable = false,
             bool isArray = false)
     :
@@ -286,15 +286,15 @@ struct sharp_type {
         componentRequest = NULL;
     }
 
-    bool operator==(native_type t) const {
+    bool operator==(data_type t) const {
         return type == t;
     }
 
-    void operator=(native_type t) {
+    void operator=(data_type t) {
         this->type = t;
     }
 
-    bool operator!=(native_type t) const {
+    bool operator!=(data_type t) const {
         return type != t;
     }
 
@@ -305,7 +305,7 @@ struct sharp_type {
     sharp_function *fun;
     get_component_request *componentRequest;
     unresolved_type unresolvedType;
-    native_type type;
+    data_type type;
     bool isArray;
     bool nullable;
     Int integer;
@@ -394,7 +394,7 @@ uInt is_implicit_type_match(
 
 void get_real_type(sharp_type&);
 sharp_class* get_class_type(sharp_type&);
-native_type str_to_native_type(string&);
+data_type str_to_native_type(string&);
 string type_to_str(sharp_type &t);
 bool has_type(sharp_type &t);
 

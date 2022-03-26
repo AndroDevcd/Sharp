@@ -96,7 +96,7 @@ struct options {
     /*
      * Machine platform target to run on
      */
-    int target = alpha_cr2;
+    int target = alpha_cr4;
 
     /*
      * List of user defined library paths

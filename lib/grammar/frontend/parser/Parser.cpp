@@ -2298,7 +2298,8 @@ bool parser::binary(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_and_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2333,7 +2334,8 @@ bool parser::equality(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_equal_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2367,7 +2369,8 @@ bool parser::comparason(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_less_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2401,7 +2404,8 @@ bool parser::shift(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_shift_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2436,7 +2440,8 @@ bool parser::addition(Ast *ast) {
             ast->sub_asts.pop_back();
 
             Ast *branch = getBranch(ast, ast_add_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
 
             advance();
@@ -2471,7 +2476,8 @@ bool parser::multiplication(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_mult_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2505,7 +2511,8 @@ bool parser::exponent(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_exponent_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
