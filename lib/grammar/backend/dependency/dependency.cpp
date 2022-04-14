@@ -1892,10 +1892,10 @@ bool resolve_primary_class_generic(
 sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint) {
     bool created = false;
 
+    GUARD(globalLock)
     sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created);
 
     if(created && generic) {
-        GUARD2(globalLock)
         genericBlueprint->genericClones.add(generic); // todo: we might still have to update current file here
         pre_process_class(NULL, generic, generic->ast);
         process_class(NULL, generic, generic->ast);

@@ -111,10 +111,6 @@ void compile_field(sharp_field *field, Ast *ast) {
         delete_context();
     }
 
-    if(field->name == "http_codes") {
-        int i = 3000;
-    }
-
     if(field->request == NULL
         && field->scheme == NULL) {
 

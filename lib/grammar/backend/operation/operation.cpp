@@ -296,6 +296,130 @@ void create_or_or_operation(
             operation_or_or, registerLeft, registerRight));
 }
 
+void create_eq_eq_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_eq_eq, registerLeft, registerRight));
+}
+
+void create_not_eq_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_not_eq, registerLeft, registerRight));
+}
+
+void create_lt_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_lt, registerLeft, registerRight));
+}
+
+void create_gt_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_gt, registerLeft, registerRight));
+}
+
+void create_lte_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_lte, registerLeft, registerRight));
+}
+
+void create_shl_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_shl, registerLeft, registerRight));
+}
+
+void create_shr_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_shr, registerLeft, registerRight));
+}
+
+void create_add_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_add, registerLeft, registerRight));
+}
+
+void create_sub_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_sub, registerLeft, registerRight));
+}
+
+void create_div_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_div, registerLeft, registerRight));
+}
+
+void create_mod_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_mod, registerLeft, registerRight));
+}
+
+void create_exponent_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_exponent, registerLeft, registerRight));
+}
+
+void create_mult_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_mult, registerLeft, registerRight));
+}
+
+void create_gte_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight) {
+    scheme->steps.add(new operation_step(
+            operation_gte, registerLeft, registerRight));
+}
+
+void create_instance_eq_operation(
+        operation_scheme *scheme) {
+    scheme->steps.add(new operation_step(
+            operation_instance_eq));
+}
+
+void create_instance_not_eq_operation(
+        operation_scheme *scheme) {
+    scheme->steps.add(new operation_step(
+            operation_instance_not_eq));
+}
+
 void create_retain_numeric_value_operation(
         operation_scheme *scheme,
         Int retainId) {

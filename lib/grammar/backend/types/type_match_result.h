@@ -11,7 +11,8 @@ enum type_match_result {
     match_constructor =0x2,
     match_operator_overload = 0x4,
     match_initializer = 0x8,
-    exclude_all = 0xe, // excludes constructors, operator overloads, and initializers
+    exclude_all = match_constructor | match_operator_overload | match_initializer, // excludes constructors, operator overloads, and initializers
+    overload_only = match_constructor | match_initializer,
     constructor_only = 0xc // excludes operator overloads and initializers
 };
 

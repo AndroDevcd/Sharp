@@ -5,13 +5,13 @@ import platform;
 import platform.kernel;
 
 chan := new channel<var>(UNLIMITED);
-task_count := 1_000;
+task_count := 100_000;
 counter := new atomic<var>{ 0 };
 
 def foo() : var {
     //set_thread_max(2);
     for(i := 0; i < task_count; i++) {
-        if((i % 1000) == 0)
+        if((i % 10000) == 0)
            println(i);
         coroutine.builder()
         = { ->

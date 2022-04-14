@@ -18,21 +18,29 @@
 #include "../../postprocessor/function_processor.h"
 
 void compile_expression(expression &e, Ast *ast) {
-    if(ast->hasSubAst(ast_minus_e))
-        compile_minus_expression(&e, ast->getSubAst(ast_minus_e));
-    else if(ast->hasSubAst(ast_pre_inc_e))
-        compile_pre_increment_expression(&e, ast->getSubAst(ast_pre_inc_e));
-    else if(ast->hasSubAst(ast_primary_expr))
-        compile_primary_expression(&e, ast->getSubAst(ast_primary_expr));
-    else if(ast->hasSubAst(ast_dictionary_array))
-        compile_dictionary_expression(&e, ast->getSubAst(ast_dictionary_array));
-    else if(ast->hasSubAst(ast_vect_e))
-        compile_vector_array_expression(&e, ast->getSubAst(ast_vect_e)->getSubAst(ast_vector_array));
-    else if(ast->hasSubAst(ast_elvis_e))
-        compile_elvis_expression(&e, ast->getSubAst(ast_elvis_e));
-    else if(ast->hasSubAst(ast_assign_e))
-        compile_assign_expression(&e, ast->getSubAst(ast_assign_e));
-    else if(ast->hasSubAst(ast_and_e))
+    if(ast->getType() == ast_expression)
+        compile_expression(e, ast->getSubAst(0));
+    else if(ast->getType() == ast_minus_e)
+        compile_minus_expression(&e, ast);
+    else if(ast->getType() == ast_pre_inc_e)
+        compile_pre_increment_expression(&e, ast);
+    else if(ast->getType() == ast_primary_expr)
+        compile_primary_expression(&e, ast);
+    else if(ast->getType() == ast_dictionary_array)
+        compile_dictionary_expression(&e, ast);
+    else if(ast->getType() == ast_vect_e)
+        compile_vector_array_expression(&e, ast->getSubAst(ast_vector_array));
+    else if(ast->getType() == ast_elvis_e)
+        compile_elvis_expression(&e, ast);
+    else if(ast->getType() == ast_assign_e)
+        compile_assign_expression(&e, ast);
+    else if(ast->getType() == ast_and_e
+        || ast->getType() == ast_equal_e
+        || ast->getType() == ast_less_e
+        || ast->getType() == ast_shift_e
+        || ast->getType() == ast_add_e
+        || ast->getType() == ast_mult_e
+        || ast->getType() == ast_exponent_e)
         compile_binary_expression(&e, ast);
 }
 

@@ -31,14 +31,24 @@ struct _sched_thread {
     _sched_thread *next, *prev;
 };
 
+struct unsched_task {
+    fiber *task;
+    unsched_task *next;
+};
+
+struct _unsched_thread {
+    Thread *thread;
+    _unsched_thread *next;
+};
+
 extern recursive_mutex task_mutex;
 extern recursive_mutex thread_mutex;
 extern uInt clocks;
 extern sched_task *sched_tasks;
 extern _sched_thread *sched_threads;
 extern _sched_thread *last_thread;
-extern _List<Thread*> unSchedThreads;
-extern _List<fiber*> unSchedTasks;
+extern unsched_task *unsched_tasks;
+extern _unsched_thread *unsched_threads;
 extern uInt schedTime;
 
 void run_scheduler();

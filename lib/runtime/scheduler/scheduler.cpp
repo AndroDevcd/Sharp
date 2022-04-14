@@ -32,13 +32,12 @@ void setupSleepFunction() {
 uInt schedTime = 0, clocks = 0, schedTasks = 0;
 sched_task *sched_tasks = NULL, *next_task = NULL, *last_task = NULL;
 _sched_thread *sched_threads = NULL, *last_thread = NULL;
+unsched_task *unsched_tasks;
+_unsched_thread *unsched_threads;
 bool postIdleTasks = false;
 
 recursive_mutex task_mutex;
 recursive_mutex thread_mutex;
-
-_List<Thread*> unSchedThreads;
-_List<fiber*> unSchedTasks;
 
 void run_scheduler() {
     fiber *fib = NULL;
@@ -196,12 +195,38 @@ bool can_dispose(sched_task *task) {
 
 void post(Thread* thread) {
     GUARD(thread_mutex)
-    unSchedThreads.add(thread);
+    _unsched_thread *t = (_unsched_thread*)malloc(sizeof(_unsched_thread));
+
+    if(t)
+    {
+        t->thread = thread;
+
+        if(unsched_threads == NULL) {
+            t->next = NULL;
+        } else {
+            t->next = unsched_threads;
+        }
+
+        unsched_threads = t;
+    }
 }
 
 void post(fiber* fib) {
     GUARD(task_mutex)
-    unSchedTasks.add(fib);
+    unsched_task *t = (unsched_task*)malloc(sizeof(unsched_task));
+
+    if(t)
+    {
+        t->task = fib;
+
+        if(unsched_tasks == NULL) {
+            t->next = NULL;
+        } else {
+            t->next = unsched_tasks;
+        }
+
+        unsched_tasks = t;
+    }
 }
 
 bool queue_task(fiber *fib) {
@@ -252,44 +277,44 @@ bool queue_thread(Thread* thread) {
 
 void sched_unsched_items() {
     const Int maxClocks = 2;
-    if(unSchedThreads.size() > 0) {
+    uInt i = 0;
+
+    {
         GUARD(thread_mutex)
+        while (unsched_threads != NULL) {
+//        if ((i++ % 1000) == 0) {
+//            if (NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
+//                return;
+//            }
+//        }
 
-        for(uInt i = 0; i < unSchedThreads.size(); i++) {
-            if((i % 1000) == 0) {
-                if(NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
-                    unSchedThreads.removeUntil(i);
-                    return;
-                }
-            }
-
-            if(!queue_thread(unSchedThreads.get(i))) {
-                unSchedThreads.removeUntil(i);
+            if (!queue_thread(unsched_threads->thread)) {
                 return;
             }
-        }
 
-        unSchedThreads.free();
+            auto *tmp = unsched_threads->next;
+            std::free(unsched_threads);
+            unsched_threads = tmp;
+        }
     }
 
-    if(unSchedTasks.size() > 0) {
+    {
         GUARD(task_mutex)
+        while (unsched_tasks != NULL) {
+//        if ((i++ % 1000) == 0) {
+//            if (NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
+//                return;
+//            }
+//        }
 
-        for(uInt i = 0; i < unSchedTasks.size(); i++) {
-            if((i % 1000) == 0) {
-                if(NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime > (maxClocks * CLOCK_CYCLE)) {
-                    unSchedTasks.removeUntil(i);
-                    return;
-                }
-            }
-
-            if(!queue_task(unSchedTasks.get(i))) {
-                unSchedTasks.removeUntil(i);
+            if (!queue_task(unsched_tasks->task)) {
                 return;
             }
-        }
 
-        unSchedTasks.free();
+            auto *tmp = unsched_tasks->next;
+            std::free(unsched_tasks);
+            unsched_tasks = tmp;
+        }
     }
 }
 

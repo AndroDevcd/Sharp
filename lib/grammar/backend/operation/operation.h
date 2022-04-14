@@ -93,7 +93,23 @@ enum operation_type {
     operation_xor,
     operation_or,
     operation_and_and,
-    operation_or_or
+    operation_or_or,
+    operation_eq_eq,
+    operation_not_eq,
+    operation_instance_eq,
+    operation_instance_not_eq,
+    operation_gt,
+    operation_lt,
+    operation_gte,
+    operation_lte,
+    operation_shr,
+    operation_shl,
+    operation_add,
+    operation_sub,
+    operation_div,
+    operation_mod,
+    operation_mult,
+    operation_exponent
 };
 
 enum _operation_scheme {
@@ -217,7 +233,7 @@ struct operation_step {
         type(type),
         field(NULL),
         _class(NULL),
-        scheme(scheme),
+        scheme(NULL),
         function(NULL),
         decimal(0),
         integer(0),
@@ -227,7 +243,9 @@ struct operation_step {
         _bool(false),
         _string(""),
         nativeType(type_undefined)
-    {}
+    {
+        this->scheme = new operation_scheme(*scheme);
+    }
 
     operation_step(operation_type type, sharp_field *field)
     :
@@ -618,6 +636,82 @@ void create_or_or_operation(
         operation_scheme *scheme,
         Int registerLeft,
         Int registerRight);
+
+void create_eq_eq_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_not_eq_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_lt_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_gt_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_lte_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_shl_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_shr_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_add_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_sub_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_div_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_mod_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_exponent_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_mult_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_gte_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight);
+
+void create_instance_eq_operation(
+        operation_scheme *scheme);
+
+void create_instance_not_eq_operation(
+        operation_scheme *scheme);
 
 #define ALLOCATE_REGISTER_2X(r1, r2, scheme, code) \
             Int register_##r1 = create_allocate_register_operation(scheme); \

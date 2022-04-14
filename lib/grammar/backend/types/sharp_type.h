@@ -253,7 +253,7 @@ struct sharp_type {
             _bool(false)
     {}
 
-    void copy(const sharp_type &st) {
+    sharp_type& copy(const sharp_type &st) {
         _class = st._class;
         field = st.field;
         fun = st.fun;
@@ -275,6 +275,8 @@ struct sharp_type {
         _string = st._string;
         _char = st._char;
         _bool = st._bool;
+
+        return *this;
     }
 
     ~sharp_type() {
@@ -392,7 +394,7 @@ uInt is_implicit_type_match(
         uInt excludeMatches,
         sharp_function *&matchedFun);
 
-void get_real_type(sharp_type&);
+sharp_type get_real_type(sharp_type&);
 sharp_class* get_class_type(sharp_type&);
 data_type str_to_native_type(string&);
 string type_to_str(sharp_type &t);

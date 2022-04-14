@@ -845,9 +845,12 @@ Thread* get_thread(uInt id) {
         thread = thread->next;
     }
 
-    for(uInt i = 0; i < unSchedThreads.size(); i++) {
-        if(unSchedThreads.get(i)->id == id)
-            return unSchedThreads.get(i);
+    _unsched_thread *unsched_t = unsched_threads;
+
+    while(unsched_t != NULL)
+    {
+        if(unsched_t->thread->id == id) return unsched_t->thread;
+        unsched_t = unsched_t->next;
     }
 
     return NULL;

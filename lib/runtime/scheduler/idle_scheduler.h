@@ -7,10 +7,10 @@
 
 #include "scheduler.h"
 
-#define MAX_TASK_RELEASE 3000                /* Max amount of tasks to release in one load */
-#define IDLE_SCHED_CLOCK_CYCLE (1000) /* Max time given to the idle scheduler per second in microseconds */
+#define MAX_TASK_RELEASE 30000                /* Max amount of tasks to release in one load */
+#define IDLE_SCHED_CLOCK_CYCLE (500) /* Max time given to the idle scheduler per second in microseconds */
 #define MIN_DELAY_TIME (5) /* The minimum amount of time to consider a task to be "idle" */
-#define MIN_SCHED_TASKS 10
+#define MIN_SCHED_TASKS 10000
 
 extern sched_task *idle_tasks, *last_idle_task;
 extern Thread *idleSched;

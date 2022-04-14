@@ -9,10 +9,11 @@
 #include "../../compiler_info.h"
 #include "import_group.h"
 
-void get_real_type(sharp_type &st) {
-    if(st.type == type_field) { // todo: keep this in mind for creating bugs by hiding field type due to translation
-        st.copy(st.field->type);
-    }
+sharp_type get_real_type(sharp_type &st) {
+    sharp_type tmp;
+    if(st.type == type_field) {
+        return tmp.copy(st.field->type);
+    } else return tmp.copy(st);
 }
 
 sharp_class* get_class_type(sharp_type &st) {
@@ -132,9 +133,9 @@ bool has_match_result_flag(uInt flags, type_match_result flag) {
 }
 
 // the comparer is the one to receive the value that the comparee holds
-uInt is_explicit_type_match(sharp_type& comparer, sharp_type& comparee) {
-    get_real_type(comparer);
-    get_real_type(comparee);
+uInt is_explicit_type_match(sharp_type& left, sharp_type& right) {
+    auto comparer = get_real_type(left);
+    auto comparee = get_real_type(right);
 
     if(
          (comparer.type == comparee.type && comparer.nullable == comparee.nullable)
@@ -160,7 +161,7 @@ uInt is_explicit_type_match(sharp_type& comparer, sharp_type& comparee) {
                            || (comparer.type <= type_var && comparer.isArray), match_normal);
 
     } else if(comparee.type == type_get_component_request) {
-        return is_type_definition_match(comparer, comparee);
+        return is_type_definition_match(comparer, right);
     } else return no_match_found;
 }
 
@@ -173,15 +174,15 @@ uInt is_implicit_type_match(
 }
 
 uInt is_implicit_type_match(
-        sharp_type& comparer,
-        sharp_type& comparee,
+        sharp_type& left,
+        sharp_type& right,
         uInt excludedMatches,
         sharp_function *&matchedFun) {
-    get_real_type(comparer);
-    get_real_type(comparee);
+    auto comparer = get_real_type(left);
+    auto comparee = get_real_type(right);
 
     if(comparee.type == type_get_component_request) {
-        return is_type_definition_match(comparer, comparee);
+        return is_type_definition_match(comparer, right);
     }
 
     switch(comparer.type) {
@@ -217,7 +218,7 @@ uInt is_implicit_type_match(
             params.add(new sharp_field(name, NULL, location,
                     comparee, flag_none, normal_field, NULL));
 
-            if(has_match_result_flag(excludedMatches, match_constructor)
+            if(!has_match_result_flag(excludedMatches, match_constructor)
                && ((matchedFun = resolve_function(comparer._class->name, comparer._class,
                                     params, constructor_function,
                                     match_constructor | match_initializer | match_operator_overload,
@@ -225,7 +226,7 @@ uInt is_implicit_type_match(
                 result |= match_constructor;
             }
 
-            if(has_match_result_flag(excludedMatches, match_initializer)
+            if(!has_match_result_flag(excludedMatches, match_initializer)
                && ((matchedFun = resolve_function("init<"+ comparer._class->name + ">", comparer._class,
                                     params, initializer_function,
                                     match_constructor | match_initializer | match_operator_overload,
@@ -233,7 +234,7 @@ uInt is_implicit_type_match(
                 result |= match_initializer;
             }
 
-            if(has_match_result_flag(excludedMatches, match_operator_overload)
+            if(!has_match_result_flag(excludedMatches, match_operator_overload)
                && ((matchedFun = resolve_function("operator=", comparer._class,
                                     params, operator_function,
                                     match_constructor | match_initializer | match_operator_overload,

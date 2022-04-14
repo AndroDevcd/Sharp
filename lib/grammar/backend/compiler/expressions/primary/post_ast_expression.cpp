@@ -27,7 +27,10 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
             }
 
             if(with_class != NULL) {
-                Token *access = &ast->getSubAst(i)->getToken(0);
+                Token *access = NULL;
+                if(ast->getSubAst(i)->getTokenCount() > 0)
+                    access = &ast->getSubAst(i)->getToken(0);
+                else access = &ast->getSubAst(i)->getSubAst(0)->getToken(0);
                 if(access->getType() == DOT
                     && e->type.nullable) {
                     current_file->errors->createNewError(GENERIC, ast, "Unsafe use of nullable type `"

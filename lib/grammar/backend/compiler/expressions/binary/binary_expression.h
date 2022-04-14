@@ -11,4 +11,11 @@ struct expression;
 
 void compile_binary_expression(expression *e, Ast *ast);
 
+void compile_binary_expression(
+        expression *e,
+        Ast *ast,
+        expression &left,
+        expression &right,
+        Token &operand);
+
 #endif //SHARP_BINARY_EXPRESSION_H

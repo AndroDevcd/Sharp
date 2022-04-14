@@ -76,7 +76,7 @@ if (SHARPC)
     )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/compiler_info.cpp lib/grammar/backend/meta_data.h lib/grammar/backend/meta_data.cpp lib/grammar/backend/types/sharp_type.h)
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/compiler_info.cpp lib/grammar/backend/meta_data.h lib/grammar/backend/meta_data.cpp lib/grammar/backend/types/sharp_type.h lib/grammar/backend/compiler/expressions/binary/equal_expression.cpp lib/grammar/backend/compiler/expressions/binary/equal_expression.h lib/grammar/backend/compiler/expressions/binary/less_expression.cpp lib/grammar/backend/compiler/expressions/binary/less_expression.h lib/grammar/backend/compiler/expressions/binary/shift_expression.cpp lib/grammar/backend/compiler/expressions/binary/shift_expression.h lib/grammar/backend/compiler/expressions/binary/add_expression.cpp lib/grammar/backend/compiler/expressions/binary/add_expression.h lib/grammar/backend/compiler/expressions/binary/mult_expression.cpp lib/grammar/backend/compiler/expressions/binary/mult_expression.h lib/grammar/backend/compiler/expressions/binary/exponent_expression.cpp lib/grammar/backend/compiler/expressions/binary/exponent_expression.h)
 
     add_executable(Sharpc ${SOURCE_FILES})
 elseif(LEGACY)

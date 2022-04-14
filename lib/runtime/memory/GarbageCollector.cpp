@@ -752,39 +752,53 @@ bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
         mutex_t *mut;
         node<mutex_t*> *node = locks.node_at(o, isLocker);
         if(node == NULL) {
-            mutex.lock();
+            GUARD(mutex)
             managedBytes += sizeof(mutex_t)+sizeof(recursive_mutex);
             mut = new mutex_t(o, new recursive_mutex());
             locks.createnode(mut);
             SET_LOCK(o->info, 1);
-            mutex.unlock();
         } else mut = node->data;
 
         Int past = NANO_TOMILL(Clock::realTimeInNSecs());
         if(mut->fiberid == thread->this_fiber->id) {
             mut->threadid=thread->id;
             mut->lockedCount++;
-            lockCheckMutex.unlock();
             return true;
+        } else {
+            thread->this_fiber->acquiringMut = mut;
         }
 
-        thread->this_fiber->acquiringMut = mut;
         lockObject:
-        int count = 0, limit = 100000;
-        while(mut->fiberid != -1) {
-            if(hasSignal(thread->signal, tsig_suspend))
-                suspend_self();
-            else if(thread->contextSwitching || (hasSignal(thread->signal, tsig_context_switch)
-                && !(hasSignal(thread->signal, tsig_except))
-                && try_context_switch(thread, false))) {
-                return false;
-            }
-            else if(count++ >= limit) {
-                __usleep(1);
-                count = 0;
-            } else if(hasSignal(thread->signal, tsig_kill)) {
-                enable_context_switch(thread, true);
-                return false;
+
+        const int sMaxRetries = 1000000;
+        int retryCount = 0;
+        int retryLimit = 10;
+        while(mut->fiberid != -1)
+        {
+            if (retryCount++ == sMaxRetries)
+            {
+                retryLimit--;
+                retryCount = 0;
+                if(thread->signal != tsig_empty)
+                {
+                    if(hasSignal(thread->signal, tsig_suspend))
+                        suspend_self();
+                    else if(thread->contextSwitching || (hasSignal(thread->signal, tsig_context_switch)
+                                                         && !(hasSignal(thread->signal, tsig_except))
+                                                         && try_context_switch(thread, false))) {
+                        return false;
+                    } else if(hasSignal(thread->signal, tsig_kill)) {
+                        enable_context_switch(thread, true);
+                        return false;
+                    }
+                }
+
+                __usleep(100);
+                if(retryLimit <= 0) {
+                    retryLimit = 10;
+                    enable_context_switch(thread, true);
+                    return false;
+                }
             }
         }
 

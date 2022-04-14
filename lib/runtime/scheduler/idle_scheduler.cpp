@@ -171,9 +171,12 @@ fiber* locate_idle_task(uInt taskId) {
         task = task->next;
     }
 
-    for(uInt i = 0; i < unSchedTasks.size(); i++) {
-        if(unSchedTasks.get(i)->id == taskId)
-            return unSchedTasks.get(i);
+    auto *unsched_t = unsched_tasks;
+    while(unsched_t == NULL) {
+        if(unsched_t->task->id == taskId)
+            return unsched_t->task;
+
+        unsched_t = unsched_t->next;
     }
 
     return NULL;
