@@ -241,11 +241,42 @@ enum resolve_filter {
     resolve_filter_generic_type_param = 0x400,
     resolve_filter_generic_inner_class = 0x800,
     resolve_filter_generic_class = 0x1000,
+    resolve_filter_class_function = 0x2000,
+    resolve_filter_function = 0x4000,
 
-    // quick resolve flag vars
-    resolve_hard_type = 0x638, // searches for only class aliases, func ptr, genericType, global aliases, classes, and inner classes
-    resolve_generic_type = 0x1800, // searches for generic inner & global classes
-    resolve_all = 0x1FFF
+    /**
+     * quick resolve flag vars
+     */
+    resolve_generic_type = resolve_filter_generic_class
+            | resolve_filter_generic_inner_class,
+
+    resolve_hard_type = resolve_filter_class_alias
+            | resolve_filter_alias
+            | resolve_filter_class
+            | resolve_filter_inner_class
+            | resolve_filter_generic_type_param
+            | resolve_generic_type,
+
+    resolve_all = resolve_filter_local_field
+            | resolve_filter_class_field
+            | resolve_filter_class_enum
+            | resolve_filter_class_alias
+            | resolve_filter_alias
+            | resolve_filter_class
+            | resolve_filter_enum
+            | resolve_filter_field
+            | resolve_filter_function_address
+            | resolve_filter_inner_class
+            | resolve_filter_generic_type_param
+            | resolve_filter_generic_inner_class
+            | resolve_filter_generic_class
+            | resolve_filter_class_function
+            | resolve_filter_function,
+
+    resolve_inner_class_type = resolve_filter_class_field
+            | resolve_filter_class_enum
+            | resolve_filter_class_alias
+            | resolve_filter_class_function
 };
 
 void resolve(

@@ -11,9 +11,6 @@
 void compile_and_expression(expression *e, Ast *ast) {
     expression left, right;
     Token &operand = ast->getToken(0);
-    if(ast->line == 142 && ast->col == 47) {
-        int i = 0;
-    }
 
     compile_expression(left, ast->getSubAst(0));
     compile_expression(right, ast->getSubAst(1));

@@ -10,6 +10,30 @@ public class integer<native_type> {
     integer(initial_val : var) {
         value = initial_val;
     }
+    integer(initial_val : _int8) {
+        value = initial_val;
+    }
+    integer(initial_val : _uint8) {
+        value = initial_val;
+    }
+    integer(initial_val : _int16) {
+        value = initial_val;
+    }
+    integer(initial_val : _uint16) {
+        value = initial_val;
+    }
+    integer(initial_val : _int32) {
+        value = initial_val;
+    }
+    integer(initial_val : _uint32) {
+        value = initial_val;
+    }
+    integer(initial_val : _int64) {
+        value = initial_val;
+    }
+    integer(initial_val : _uint64) {
+        value = initial_val;
+    }
 
     def hash() : _int64 {
         return value;
@@ -284,7 +308,6 @@ class ulong base integer<_uint64> {
     ulong(i : ushort) -> base(i.value) {}
     ulong(i : uchar) -> base(i.value) {}
     ulong(i : double) -> base(i.value) {}
-    ulong(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -395,7 +418,6 @@ class long base integer<_int64> {
     long(i : ushort) -> base(i.value) {}
     long(i : uchar) -> base(i.value) {}
     long(i : double) -> base(i.value) {}
-    long(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -507,7 +529,6 @@ class uint base integer<_uint32> {
     uint(i : ushort) -> base(i.value) {}
     uint(i : uchar) -> base(i.value) {}
     uint(i : double) -> base(i.value) {}
-    uint(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -618,7 +639,6 @@ class int base integer<_int32> {
     int(i : ushort) -> base(i.value) {}
     int(i : uchar) -> base(i.value) {}
     int(i : double) -> base(i.value) {}
-    int(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -729,7 +749,6 @@ class ushort base integer<_uint16> {
     ushort(i : ushort) -> base(i.value) {}
     ushort(i : uchar) -> base(i.value) {}
     ushort(i : double) -> base(i.value) {}
-    ushort(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -840,7 +859,6 @@ class short base integer<_int16> {
     short(i : ushort) -> base(i.value) {}
     short(i : uchar) -> base(i.value) {}
     short(i : double) -> base(i.value) {}
-    short(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -951,7 +969,6 @@ class uchar base integer<_uint8> {
     uchar(i : ushort) -> base(i.value) {}
     uchar(i : uchar) -> base(i.value) {}
     uchar(i : double) -> base(i.value) {}
-    uchar(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -1062,7 +1079,6 @@ class char base integer<_int8> {
     char(i : ushort) -> base(i.value) {}
     char(i : uchar) -> base(i.value) {}
     char(i : double) -> base(i.value) {}
-    char(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -1205,7 +1221,6 @@ class byte base uchar {
     byte(i : ushort) -> base(i.value) {}
     byte(i : uchar) -> base(i.value) {}
     byte(i : double) -> base(i.value) {}
-    byte(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);
@@ -1348,7 +1363,6 @@ class bool base integer<_int8> {
     bool(i : ushort) -> base(i.value) {}
     bool(i : uchar) -> base(i.value) {}
     bool(i : double) -> base(i.value) {}
-    bool(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (value = !value);
@@ -1468,7 +1482,6 @@ class double base integer<var> {
     double(i : ushort) -> base(i.value) {}
     double(i : uchar) -> base(i.value) {}
     double(i : double) -> base(i.value) {}
-    double(i : var) -> base(i) {}
 
     def operator!() := (!value);
     def operator++() := (++value);

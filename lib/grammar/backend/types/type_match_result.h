@@ -11,9 +11,10 @@ enum type_match_result {
     match_constructor =0x2,
     match_operator_overload = 0x4,
     match_initializer = 0x8,
-    exclude_all = match_constructor | match_operator_overload | match_initializer, // excludes constructors, operator overloads, and initializers
+    is_direct_match = 0x10,
+    exclude_all = match_constructor | match_operator_overload | match_initializer,
     overload_only = match_constructor | match_initializer,
-    constructor_only = 0xc // excludes operator overloads and initializers
+    constructor_only = match_operator_overload | match_initializer
 };
 
 #endif //SHARP_TYPE_MATCH_RESULT_H

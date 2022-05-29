@@ -483,10 +483,6 @@ void compile_binary_expression(
         expression &right,
         Token &operand) {
 
-    if(ast->line == 142) {
-        int i = 0;
-    }
-
     if(compile_expression_exceptions(left, operand, ast->getSubAst(0)))
         return;
 

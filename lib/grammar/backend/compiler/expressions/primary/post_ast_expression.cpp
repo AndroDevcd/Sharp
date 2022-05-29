@@ -41,7 +41,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                                + "` on non nullable type `" + type_to_str(e->type) + "`");
                 }
 
-                compile_dot_notation_call_expression(e, with_class, ast->getSubAst(i));
+                compile_dot_notation_call_expression(e, with_class, false, ast->getSubAst(i));
             } else {
                 current_file->errors->createNewError(GENERIC, ast, "expected `class` type but type `"
                     + type_to_str(e->type) + "` was found.");

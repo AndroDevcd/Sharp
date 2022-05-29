@@ -390,9 +390,6 @@ sharp_function* resolve_function(
     return NULL;
 }
 
-// this is used for recursion protection
-thread_local uInt recursionLevel = 0;
-thread_local List<sharp_function*> resolvedFunctions;
 sharp_function* resolve_function(
         string name,
         sharp_class *searchClass,
@@ -403,11 +400,17 @@ sharp_function* resolve_function(
         bool checkBaseClass,
         bool implicitCheck) {
     List<sharp_function*> locatedFunctions;
+    List<sharp_function*> resolvedFunctions;
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
-    recursionLevel++;
-    locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
-            locatedFunctions);
+
+    if(functionType == constructor_function) { // todo: research wether or not we should be accessing and calling constructor function from base
+        locate_functions_with_type(searchClass, functionType, checkBaseClass,
+                                   locatedFunctions);
+    } else {
+        locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
+                                   locatedFunctions);
+    }
 
     if(!locatedFunctions.empty()) {
         for(Int i = 0; i < locatedFunctions.size(); i++) {
@@ -444,9 +447,8 @@ sharp_function* resolve_function(
         currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to method `" + name + "` is ambiguous");
     }
 
-    recursionLevel--;
-    if(recursionLevel == 0)
-        resolvedFunctions.free();
+    resolvedFunctions.free();
+    locatedFunctions.free();
     return resolvedFunction;
 }
 
@@ -1786,6 +1788,7 @@ void resolve_function_reference_item(
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass && !check_flag(primaryClass->flags, flag_global)
+            && hasFilter(filter, resolve_filter_class_function)
             && resolve_primary_class_function(
                     item, primaryClass, true,
                     false, resultType, scheme,
@@ -1795,7 +1798,8 @@ void resolve_function_reference_item(
             return;
         }
 
-        if(resolve_global_class_function(item, resultType, scheme, context)) {
+        if(hasFilter(filter, resolve_filter_function)
+                && resolve_global_class_function(item, resultType, scheme, context)) {
             return;
         }
 
@@ -1803,16 +1807,18 @@ void resolve_function_reference_item(
         currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
                                resolveLocation, " `" + unresolvedFunction + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
-        if(resolve_global_class_function(item, resultType, scheme, context)) {
+        if(hasFilter(filter, resolve_filter_function)
+                && resolve_global_class_function(item, resultType, scheme, context)) {
             return;
         }
     } else {
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
 
-            if(resolve_primary_class_function(
-                    item, primaryClass, false, hardType,
-                    resultType, scheme, context)) {
+            if(hasFilter(filter, resolve_filter_class_function)
+                    && resolve_primary_class_function(
+                        item, primaryClass, false, hardType,
+                        resultType, scheme, context)) {
 
                 hardType = false;
                 return;
@@ -1825,7 +1831,8 @@ void resolve_function_reference_item(
             if(resultType.field->type.type == type_class) {
                 sharp_class *primaryClass = resultType.field->type._class;
 
-                if (resolve_primary_class_function(
+                if (hasFilter(filter, resolve_filter_class_function)
+                    && resolve_primary_class_function(
                         item, primaryClass, false, false,
                         resultType, scheme, context)) {
 

@@ -29,7 +29,7 @@ def strtol(str: string, base_num: var) : var {
     return result;
 }
 
-def snprintf(fmt: var, num: var, precision: var) : var[] {
+def snprintf(fmt: var, num: var, precision: var) : _int8[] {
     asm {
         loadl egx, {fmt}
         loadl ebx, {num}

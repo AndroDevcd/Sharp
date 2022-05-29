@@ -223,6 +223,7 @@ uInt is_implicit_type_match(
                                     params, constructor_function,
                                     match_constructor | match_initializer | match_operator_overload,
                                     NULL, true, true)) != NULL)) {
+
                 result |= match_constructor;
             }
 
