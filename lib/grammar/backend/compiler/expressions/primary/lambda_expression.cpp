@@ -70,7 +70,7 @@ void compile_lambda_expression(expression *e, Ast *ast) {
         validate_function_type(true, anon_func, returnType,
                                NULL, anon_func->ast);
         if(ast->hasSubAst(ast_block)) {
-            if(current_file->stage < pre_compilation_finished_state) {
+            if(current_file->stage < pre_compilation_state) {
                 primaryClass->uncompiledLambdas.add(anon_func);
             } else {
                 // todo: process block

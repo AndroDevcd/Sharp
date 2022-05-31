@@ -190,7 +190,7 @@ sharp_alias* resolve_alias(string, sharp_file*);
 sharp_alias* resolve_alias(string, import_group*);
 sharp_alias* resolve_alias(string, sharp_class*);
 
-sharp_field* resolve_field(string, sharp_module*, bool checkBase = false); // todo: add base class check for fields and aliases
+sharp_field* resolve_field(string, sharp_module*, bool checkBase = false);
 sharp_field* resolve_field(string, sharp_file*, bool checkBase = false);
 sharp_field* resolve_field(string, import_group*, bool checkBase = false);
 sharp_field* resolve_field(string, sharp_class*, bool checkBase = false);

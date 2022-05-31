@@ -88,7 +88,7 @@ void process_class_delegates(sharp_class* parentClass, sharp_class *with_class, 
 void process_delegates(sharp_class *with_class) {
     List<sharp_function*> functions, requiredFunctions;
 
-    if(currThread->currTask->file->stage < pre_compilation_finished_state)
+    if(currThread->currTask->file->stage < pre_compilation_state)
         return;
 
     if(with_class->baseClass != NULL

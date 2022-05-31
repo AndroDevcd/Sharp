@@ -52,7 +52,7 @@ void process_field(sharp_field *field) {
             validate_field_type(true, field, type, NULL, field->ast);
         } else {
             field->type.type = type_untyped;
-            if(current_file->stage > pre_compilation_finished_state) {
+            if(current_file->stage > pre_compilation_state) {
                 return compile_field(field, field->ast);
             }
 

@@ -16,6 +16,16 @@ sharp_type get_real_type(sharp_type &st) {
     } else return tmp.copy(st);
 }
 
+bool is_numeric_type(sharp_type &st) {
+    sharp_type type = get_real_type(st);
+    return type.type >= type_int8 && type.type <= type_var;
+}
+
+bool is_object_type(sharp_type &st) {
+    sharp_type type = get_real_type(st);
+    return type.type == type_object;
+}
+
 sharp_class* get_class_type(sharp_type &st) {
     if(st == type_class)
         return st._class;

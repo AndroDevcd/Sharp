@@ -10,6 +10,7 @@
 #include "../../../types/sharp_function.h"
 #include "../../../types/types.h"
 #include "../../../../compiler_info.h"
+#include "post_ast_expression.h"
 
 void compile_self_expression(expression *e, Ast *ast) {
     context &ctx = currThread->currTask->file->context;
@@ -58,8 +59,8 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
         compile_dot_notation_call_expression(
                 e, NULL, true, ast->getSubAst(ast_dotnotation_call_expr));
         delete_context();
+    } else {
+        compile_post_ast_expression(e, ast);
     }
-
-    // todo: process additional expressions after
 }
 

@@ -109,7 +109,8 @@ enum operation_type {
     operation_div,
     operation_mod,
     operation_mult,
-    operation_exponent
+    operation_exponent,
+    operation_assign_value,
 };
 
 enum _operation_scheme {
@@ -564,7 +565,7 @@ void create_get_string_constant_operation(
         operation_scheme *scheme,
         string &_string);
 
-void create_function_parameter_push_operation(
+void create_value_assignment_operation(
         operation_scheme *scheme,
         operation_scheme *asigneeScheme,
         operation_scheme *valueScheme);
@@ -732,6 +733,62 @@ void create_get_value_operation(
         operation_scheme *valueScheme,
         bool resetState = true,
         bool setType = true);
+
+void create_plus_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_sub_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_mult_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_div_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_mod_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_and_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_or_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
+
+void create_xor_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme);
 
 void create_pop_value_from_stack_operation(
         operation_scheme *scheme);
