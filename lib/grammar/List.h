@@ -148,6 +148,15 @@ public:
         return _Data[len-1];
     }
 
+    T& last(uint32_t _X) {
+        if(len == 0){
+            stringstream ss;
+            ss << "illegal state list::last() length: 0" << endl;
+            throw std::runtime_error(ss.str());
+        }
+        return _Data[len - (1 + _X)];
+    }
+
     T& first() {
         if(len == 0){
             stringstream ss;
@@ -170,6 +179,12 @@ public:
 
     void pop_back() {
         __shrink();
+    }
+
+    void drop(uint32_t _X) {
+        for(Int i = 0; i < _X; i++) {
+            pop_back();
+        }
     }
 
     bool addif(T _V) {

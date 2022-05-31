@@ -209,7 +209,7 @@ void process_function(
 void process_function_return_type(sharp_function *fun) {
     if(fun->returnType.type == type_untyped
         && fun->ast->hasSubAst(ast_expression)
-        && currThread->currTask->file->stage >= pre_compilation_finished_state) {
+        && currThread->currTask->file->stage >= pre_compilation_state) {
         fun->returnType.type = type_undefined;
 
         create_context(fun->owner);

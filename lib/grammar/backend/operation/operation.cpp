@@ -613,7 +613,7 @@ void create_get_string_constant_operation(
 }
 
 
-void create_function_parameter_push_operation(
+void create_value_assignment_operation(
         operation_scheme *scheme,
         operation_scheme *asigneeScheme,
         operation_scheme *valueScheme) {
@@ -631,6 +631,238 @@ void create_function_parameter_push_operation(
 
     scheme->steps.add(new operation_step(
             operation_pop_value_from_stack));
+
+}
+
+void create_plus_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_add, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_sub_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_sub, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_mult_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_sub, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_div_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_sub, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_mod_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_sub, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_and_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_and, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_or_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_or, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
+
+}
+
+void create_xor_value_assignment_operation(
+        operation_scheme *scheme,
+        Int registerLeft,
+        Int registerRight,
+        operation_scheme *asigneeScheme,
+        operation_scheme *valueScheme) {
+    scheme->free();
+    scheme->schemeType = scheme_assign_value;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerRight));
+
+    scheme->steps.add(new operation_step(
+            asigneeScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_retain_numeric_value, registerLeft));
+
+    scheme->steps.add(new operation_step(
+            operation_xor, registerLeft, registerRight));
+
+    scheme->steps.add(new operation_step(
+            operation_assign_value));
 
 }
 

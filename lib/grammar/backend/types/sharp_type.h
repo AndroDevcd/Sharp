@@ -396,6 +396,8 @@ uInt is_implicit_type_match(
 
 sharp_type get_real_type(sharp_type&);
 sharp_class* get_class_type(sharp_type&);
+bool is_numeric_type(sharp_type&);
+bool is_object_type(sharp_type&);
 data_type str_to_native_type(string&);
 string type_to_str(sharp_type &t);
 bool has_type(sharp_type &t);
