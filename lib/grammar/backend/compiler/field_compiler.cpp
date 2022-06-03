@@ -53,11 +53,13 @@ void compile_field(sharp_field *field, Ast *ast) {
         create_function(field->owner, flag_public, normal_function, fname, false,
                 params, returnType, ast);
 
+        create_block(&current_context, normal_block);
         sharp_function *fun = field->owner->functions.last();
         create_context(fun);
         expression e;
         compile_expression(e, ast->getSubAst(ast_expression));
 
+        delete_block();
         validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
         delete_context();
     }

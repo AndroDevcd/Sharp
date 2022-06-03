@@ -222,9 +222,13 @@ void process_function_return_type(sharp_function *fun) {
 
         create_context(fun->owner);
         create_context(fun);
+        create_block(&current_context, normal_block);
+
         expression e;
         compile_expression(e, fun->ast->getSubAst(ast_expression));
         validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
+
+        delete_block();
         delete_context();
         delete_context();
     }

@@ -111,7 +111,12 @@ enum operation_type {
     operation_mult,
     operation_exponent,
     operation_assign_value,
-    operation_record_line
+    operation_record_line,
+    operation_return_nil,
+    operation_return_number,
+    operation_return_object,
+    operation_lock,
+    operation_unlock
 };
 
 enum _operation_scheme {
@@ -138,7 +143,10 @@ enum _operation_scheme {
     scheme_null_fallback,
     scheme_assign_value,
     scheme_get_numeric_value,
-    scheme_line_info
+    scheme_line_info,
+    scheme_return,
+    scheme_lock,
+    scheme_unlock
 };
 
 struct operation_scheme {
@@ -507,6 +515,10 @@ void create_primary_instance_field_access_operation(
         operation_scheme *scheme,
         sharp_field *instanceField);
 
+void add_scheme_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme);
+
 void create_primary_instance_field_getter_operation(
         operation_scheme *scheme,
         sharp_field *instanceField);
@@ -713,6 +725,25 @@ void create_gte_operation(
         operation_scheme *scheme,
         Int registerLeft,
         Int registerRight);
+
+void create_return_operation(
+        operation_scheme *scheme);
+
+void create_numeric_return_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme);
+
+void create_object_return_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme);
+
+void create_lock_operation(
+        operation_scheme *scheme,
+        operation_scheme *lockScheme);
+
+void create_unlock_operation(
+        operation_scheme *scheme,
+        operation_scheme *lockScheme);
 
 void create_instance_eq_operation(
         operation_scheme *scheme);

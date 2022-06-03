@@ -11,7 +11,7 @@
 #include "statements/statement_compiler.h"
 
 void compile_function(sharp_function *function) {
-    create_context(&curr_context, function, check_flag(function->flags, flag_static));
+    create_context(&current_context, function, check_flag(function->flags, flag_static));
 
     if(function->type == initializer_function) {
         compile_block(function->ast->getSubAst(ast_block));
@@ -23,7 +23,7 @@ void compile_function(sharp_function *function) {
 }
 
 bool compile_block(Ast *ast) {
-    curr_context.blockId++;
+    create_block(&current_context, normal_block);
     bool controlPaths[]
          = {
                  false, // MAIN_CONTROL_PATH
@@ -48,6 +48,6 @@ bool compile_block(Ast *ast) {
         }
     }
 
-    curr_context.blockId--;
-    return validate_control_paths(controlPaths)
+    delete_block();
+    return validate_control_paths(controlPaths);
 }

@@ -16,6 +16,7 @@
 #include "assign_expression.h"
 #include "binary/binary_expression.h"
 #include "../../postprocessor/function_processor.h"
+#include "../../../compiler_info.h"
 
 void compile_expression(expression &e, Ast *ast) {
     if(ast->getType() == ast_expression)
@@ -68,6 +69,31 @@ void convert_expression_type_to_real_type(
         process_field(typeDefinition.type.field);
         typeDefinition.type.copy(typeDefinition.type.field->type);
     }
+}
+
+void compile_constructor_call(
+        Ast *ast,
+        sharp_function *constructor,
+        expression &e,
+        operation_scheme *scheme) {
+    string name = "";
+    List<sharp_field *> params;
+    List<operation_scheme *> paramOperations;
+
+    impl_location location;
+    params.add(new sharp_field(
+            name, get_primary_class(&currThread->currTask->file->context), location,
+            e.type, flag_public, normal_field,
+            ast
+    ));
+    paramOperations.add(new operation_scheme(e.scheme));
+
+    create_new_class_operation(scheme, get_class_type(current_context.functionCxt->returnType));
+    compile_function_call(
+            scheme, params,
+            paramOperations, constructor,
+            false,
+            false);
 }
 
 void compile_class_function_overload(

@@ -10,17 +10,17 @@
 
 
 void compile_statement(Ast *ast, bool *controlPaths) {
-    if(curr_context.line == -1 || curr_context.line < ast->line) {
-        curr_context.line = ast->line;
-        APPLY_TEMP_SCHEME(1, curr_context.functionCxt->scheme->steps,
-            create_line_record_operation(&scheme_1, ast->line);
+    if(current_context.blockInfo.line == -1 || current_context.blockInfo.line < ast->line) {
+        current_context.blockInfo.line = ast->line;
+        APPLY_TEMP_SCHEME(1, current_context.functionCxt->scheme->steps,
+                          create_line_record_operation(&scheme_1, ast->line);
         )
     }
 
-    if(!curr_context.reachable) {
+    if(!current_context.blockInfo.reachable) {
         if(ast->getType() != ast_label_decl)
             create_new_warning(GENERIC, __w_general, ast, "unreachable statement");
-        curr_context.reachable = true;
+        current_context.blockInfo.reachable = true;
     }
 
     switch(ast->getType()) {

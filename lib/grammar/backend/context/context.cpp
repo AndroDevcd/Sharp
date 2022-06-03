@@ -8,6 +8,8 @@
 #include "../../sharp_file.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_function.h"
+#include "../../compiler_info.h"
+#include "../operation/operation.h"
 
 void create_context(sharp_class *sc, bool isStatic) {
     create_context(&currThread->currTask->file->context, sc, isStatic);
@@ -45,6 +47,19 @@ void create_context(context *ctx, sharp_function *fun, bool isStatic) {
     ctx->localFields.addAll(fun->parameters);
 }
 
+void create_block(context *ctx, block_type type) {
+    if(ctx->blockInfo.type != invalid_block) {
+        store_block(&ctx->blockInfo);
+    }
+
+    delete ctx->blockInfo.lockScheme;
+    ctx->blockInfo.lockScheme = NULL;
+    ctx->blockInfo.type = type;
+    if(ctx->blockInfo.storedItems.empty())
+        ctx->blockInfo.id = 0;
+    else ctx->blockInfo.id = ctx->blockInfo.storedItems.last()->id + 1;
+}
+
 void create_context(context *ctx, component *comp) {
     if(ctx->type != no_context) {
         store_context(ctx);
@@ -54,8 +69,25 @@ void create_context(context *ctx, component *comp) {
     ctx->componentCtx = comp;
 }
 
+void delete_block() {
+    delete_block(&currThread->currTask->file->context.blockInfo);
+}
+
 void delete_context() {
     delete_context(&currThread->currTask->file->context);
+}
+
+void delete_block(block_info *info) {
+    if(info->storedItems.empty()) {
+        info->type = invalid_block;
+        info->id = -1;
+        info->line = -1;
+        info->reachable = true;
+        delete info->lockScheme; info->lockScheme = NULL;
+        deleteList(info->storedItems);
+    } else {
+        restore_block(info);
+    }
 }
 
 void delete_context(context *ctx) {
@@ -66,13 +98,48 @@ void delete_context(context *ctx) {
         ctx->classCxt = NULL;
         ctx->isStatic = false;
         ctx->localFields.free();
+        deleteList(ctx->blockInfo.storedItems);
     } else {
         restore_context(ctx);
     }
 }
 
+void store_block(block_info *info) {
+    info->storedItems.add(new stored_block_info(*info));
+}
+
 void store_context(context *ctx) {
     ctx->storedItems.add(new stored_context_item(*ctx));
+}
+
+void retrieve_lock_schemes(block_info *info, List<operation_scheme*> schemes) {
+    if(info->lockScheme != NULL)
+        schemes.add(info->lockScheme);
+
+    for(Int i = 0; i < info->storedItems.size(); i++) {
+        if(info->storedItems.get(i)->lockScheme != NULL)
+            schemes.add(info->storedItems.get(i)->lockScheme);
+    }
+}
+
+bool inside_block(block_info *info, block_type type) {
+    if(info->type != type) {
+        for(Int i = 0; i < info->storedItems.size(); i++) {
+            if(info->storedItems.get(i)->type == type)
+                return true;
+        }
+
+        return false;
+    } else return true;
+}
+
+void restore_block(block_info *info) {
+    // we preserve any carry-over items from the block were exiting
+    info->copy(*info->storedItems.last());
+    info->reachable = info->storedItems.last()->reachable;
+
+    free(info->storedItems.last());
+    info->storedItems.pop_back();
 }
 
 void restore_context(context *ctx) {
@@ -120,4 +187,25 @@ sharp_function *get_primary_function(context *ctx) {
     }
 
     return fun;
+}
+
+void block_info::copy_all(const block_info &info)  {
+    copy(*this);
+    deleteList(storedItems);
+
+    for(Int i = 0; i < info.storedItems.size(); i++) {
+        storedItems.add(new stored_block_info(*info.storedItems.get(i)));
+    }
+}
+
+void stored_block_info::free() {
+    delete lockScheme;
+}
+
+void stored_block_info::copy(const stored_block_info &item)  {
+    type = item.type;
+    id = item.id;
+    line = item.line;
+    reachable = item.reachable;
+    lockScheme = new operation_scheme(*item.lockScheme);
 }

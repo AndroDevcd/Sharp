@@ -56,11 +56,14 @@ void compile_lambda_expression(expression *e, Ast *ast) {
         } else if(ast->hasSubAst(ast_expression)) {
             create_context(anon_func->owner);
             create_context(anon_func);
+            create_block(&current_context, normal_block);
+
             expression expr;
             compile_expression(expr, ast->getSubAst(ast_expression));
             returnType.copy(expr.type);
 
             anon_func->copy_scheme(&expr.scheme);
+            delete_block();
             delete_context();
             delete_context();
         } else {

@@ -40,7 +40,7 @@ extern atomic<uInt> uniqueId;
 #define anonymous_func_prefix "@anonymous_fun_"
 #define current_file currThread->currTask->file
 #define error_manager currThread->currTask->file->errors
-#define curr_context currThread->currTask->file->context
+#define current_context currThread->currTask->file->context
 
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);

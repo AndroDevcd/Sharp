@@ -50,6 +50,12 @@ void create_primary_instance_field_access_operation(
     }
 }
 
+void add_scheme_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme) {
+    scheme->steps.add(new operation_step(valueScheme));
+}
+
 void create_primary_instance_field_getter_operation(
         operation_scheme *scheme,
         sharp_field *instanceField) {
@@ -406,6 +412,59 @@ void create_gte_operation(
         Int registerRight) {
     scheme->steps.add(new operation_step(
             operation_gte, registerLeft, registerRight));
+}
+
+void create_return_operation(
+        operation_scheme *scheme) {
+    if(scheme) {
+        scheme->schemeType = scheme_return;
+
+        scheme->steps.add(new operation_step(
+                operation_return_nil));
+    }
+}
+
+
+void create_numeric_return_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme) {
+    if(scheme) {
+        scheme->schemeType = scheme_return;
+
+        scheme->steps.add(new operation_step(
+                operation_return_number, valueScheme));
+    }
+}
+
+void create_object_return_operation(
+        operation_scheme *scheme,
+        operation_scheme *valueScheme) {
+    if(scheme) {
+        scheme->schemeType = scheme_return;
+
+        scheme->steps.add(new operation_step(
+                operation_return_object, valueScheme));
+    }
+}
+
+void create_lock_operation(
+        operation_scheme *scheme,
+        operation_scheme *lockScheme) {
+    if(scheme) {
+        scheme->schemeType = scheme_lock;
+        scheme->steps.add(new operation_step(
+                operation_lock, lockScheme));
+    }
+}
+
+void create_unlock_operation(
+        operation_scheme *scheme,
+        operation_scheme *lockScheme) {
+    if(scheme) {
+        scheme->schemeType = scheme_unlock;
+        scheme->steps.add(new operation_step(
+                operation_unlock, lockScheme));
+    }
 }
 
 void create_instance_eq_operation(

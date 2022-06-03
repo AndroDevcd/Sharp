@@ -46,6 +46,12 @@ void compile_expression_for_type(expression &, Ast*);
 void convert_expression_type_to_real_type(
         expression &typeDefinition);
 
+void compile_constructor_call(
+        Ast *ast,
+        sharp_function *constructor,
+        expression &e,
+        operation_scheme *scheme);
+
 void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,

@@ -123,6 +123,11 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     delete_context();
 }
 
+/**
+ * This function ensures that all control paths return a value before leaving a block.
+ * @param controlPaths
+ * @return
+ */
 bool validate_control_paths(bool *controlPaths) {
     return controlPaths[MAIN_CONTROL_PATH]
            || (controlPaths[IF_CONTROL_PATH] && controlPaths[ELSEIF_CONTROL_PATH] && controlPaths[ELSE_CONTROL_PATH])

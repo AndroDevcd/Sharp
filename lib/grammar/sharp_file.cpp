@@ -8,6 +8,7 @@
 void sharp_file::free()  {
     dependencies.free();
     imports.free();
-    context.free();
+    context.localFields.free();
+    deleteList(context.storedItems);
     deleteList(importGroups);
 }

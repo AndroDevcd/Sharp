@@ -22,6 +22,7 @@
 #include "../astparser/ast_parser.h"
 #include "../postprocessor/mutation_processor.h"
 #include "../postprocessor/delegate_processor.h"
+#include "../compiler/compiler.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -169,7 +170,7 @@ sharp_field* resolve_field(string name, sharp_file *file, bool checkBase) {
 sharp_field* resolve_local_field(string name, stored_context_item *context) {
     for(Int i = 0; i < context->localFields.size(); i++) {
         if(context->localFields.get(i)->name == name
-            && context->localFields.get(i)->block <= context->blockId)
+            && context->localFields.get(i)->block <= context->blockInfo.id)
             return context->localFields.get(i);
     }
 
@@ -551,6 +552,10 @@ bool resolve_local_field( // todo: support tls access for all fields
         operation_scheme *scheme,
         context &ctx) {
     sharp_field *field;
+
+    if(item.name == "c") {
+        int i = 0;
+    }
 
     if((field = resolve_local_field(item.name, &ctx)) != NULL) {
         resultType.type = type_field;
@@ -1905,6 +1910,10 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
         process_generic_extension_functions(generic, genericBlueprint);
         process_generic_mutations(generic, genericBlueprint);
         process_delegates(generic);
+
+        if(compilation_ready(current_file->stage)) {
+            compile_class(NULL, generic, generic->ast);
+        }
         return generic;
     } else if(generic)
         return generic;
