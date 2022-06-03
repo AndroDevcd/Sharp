@@ -36,3 +36,12 @@ void create_new_warning(error_type error, int type, int line, int col, string xc
         }
     }
 }
+
+bool all_files_parsed() {
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        if(sharpFiles.get(i)->p == NULL || !sharpFiles.get(i)->p->parsed)
+            return false;
+    }
+
+    return true;
+}

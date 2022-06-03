@@ -359,13 +359,20 @@ void run_pre_processing_tasks() {
         t.type = task_parse_;
         submit_task(t);
 
-        t.type = task_preprocess_;
-        submit_task(t);
-
 //        if(i == 0) break; // remove
     }
 
     wait_for_tasks();
+
+    if(all_files_parsed()) {
+        for (Int i = 0; i < sharpFiles.size(); i++) {
+            t.file = sharpFiles.get(i);
+            t.type = task_preprocess_;
+            submit_task(t);
+        }
+
+        wait_for_tasks();
+    }
 }
 
 void run_post_processing_tasks() {
@@ -392,7 +399,7 @@ void run_compilation_tasks() {
     wait_for_tasks();
 
     for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_compile_fields_;
+        t.type = task_process_delegates_;
         t.file = sharpFiles.get(i);
         submit_task(t);
     }
@@ -400,7 +407,7 @@ void run_compilation_tasks() {
     wait_for_tasks();
 
     for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_process_delegates_;
+        t.type = task_compile;
         t.file = sharpFiles.get(i);
         submit_task(t);
     }
@@ -418,9 +425,12 @@ int compile()
 
     sharpFiles.linearSort(isFileLarger);
     start_task_delegator();
-    run_pre_processing_tasks(); // todo: stop processing if any errors are generated
-    run_post_processing_tasks();
-    run_compilation_tasks();
+    run_pre_processing_tasks();
+
+    if(all_files_parsed()) {
+        run_post_processing_tasks();
+        run_compilation_tasks();
+    }
 
 //    stringstream ss;
 //    uInt tabCount = 0;

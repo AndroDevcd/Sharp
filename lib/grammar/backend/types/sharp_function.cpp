@@ -30,25 +30,42 @@ bool create_function(
         bool checkBaseClass,
         List<sharp_field*> &params,
         sharp_type &returnType,
-        Ast *createLocation) {
+        Ast *createLocation,
+        sharp_function *&createdFun) {
 
     GUARD(globalLock)
     sharp_function *sf;
     if((sf = resolve_function(name, sc, params, type,
-            0, createLocation, checkBaseClass, false)) == NULL) {
+                              0, createLocation, checkBaseClass, false)) == NULL) {
         sf = new sharp_function(name, sc,
-                impl_location(currThread->currTask->file, createLocation),
-                flags, createLocation, params, returnType, type);
+                                impl_location(currThread->currTask->file, createLocation),
+                                flags, createLocation, params, returnType, type);
 
         sc->functions.add(sf);
+        createdFun = sf;
         return true;
     } else {
         if(currThread->currTask->file->errors->createNewError(
                 PREVIOUSLY_DEFINED, createLocation, "function `" + name +
-                            "` is already defined"))
+                                                    "` is already defined"))
             print_impl_location(sf->name, "function", sf->implLocation);
         return false;
     }
+}
+
+bool create_function(
+        sharp_class *sc,
+        uInt flags,
+        function_type type,
+        string &name,
+        bool checkBaseClass,
+        List<sharp_field*> &params,
+        sharp_type &returnType,
+        Ast *createLocation) {
+
+    sharp_function *ignoreFun = NULL;
+    return create_function(sc, flags, type, name, checkBaseClass,
+                    params, returnType, createLocation, ignoreFun);
 }
 
 void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation) {

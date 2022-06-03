@@ -225,7 +225,7 @@ bool resolve_function_for_address(
         bool checkBase,
         List<sharp_function*> &results);
 
-sharp_field* resolve_local_field(string, stored_context_item*);
+sharp_field* resolve_local_field(string, stored_context_item*, Int);
 
 enum resolve_filter {
     resolve_filter_local_field = 0x1,

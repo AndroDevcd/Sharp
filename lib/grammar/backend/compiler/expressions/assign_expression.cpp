@@ -184,6 +184,8 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 }
 
                 if(match_result == match_normal) {
+                    e->type.copy(left.type);
+
                     ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
                         if(operand == "+=") {
                             create_plus_value_assignment_operation(&e->scheme, register_0, register_1, &left.scheme, &right.scheme);

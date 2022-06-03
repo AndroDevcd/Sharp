@@ -195,7 +195,6 @@ Token* Ast::getToken(token_id t) {
     return NULL;
 }
 
-// tODO: add param bool override (default true) to override the encapsulation
 Ast* Ast::encapsulate(ast_type at) {
     Ast *branch = new Ast(at, this->line, this->col);
 

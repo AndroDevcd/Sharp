@@ -29,7 +29,10 @@ struct stored_context_item {
         functionCxt(NULL),
         componentCtx(NULL),
         localFields(),
-        isStatic(false)
+        isStatic(false),
+        reachable(true),
+        blockId(-1),
+        line(-1)
     {}
 
     stored_context_item(const stored_context_item &item)
@@ -39,7 +42,10 @@ struct stored_context_item {
             functionCxt(NULL),
             componentCtx(NULL),
             localFields(),
-            isStatic(false)
+            isStatic(false),
+            reachable(true),
+            blockId(-1),
+            line(-1)
     {
         copy(item);
     }
@@ -55,6 +61,9 @@ struct stored_context_item {
         componentCtx = item.componentCtx;
         localFields.addAll(item.localFields);
         isStatic = item.isStatic;
+        blockId = item.blockId;
+        line = item.line;
+        reachable = item.reachable;
     }
 
     void free() {
@@ -66,7 +75,10 @@ struct stored_context_item {
     sharp_function *functionCxt;
     component *componentCtx;
     List<sharp_field*> localFields;
+    Int blockId;
+    Int line;
     bool isStatic;
+    bool reachable;
 };
 
 struct context : public stored_context_item {

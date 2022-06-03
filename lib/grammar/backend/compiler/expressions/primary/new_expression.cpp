@@ -57,7 +57,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
         sharp_function *constructor = resolve_function(get_simple_name(newType->_class), newType->_class,
                 params, constructor_function,
                 match_initializer | match_operator_overload,
-                ast, true, true);
+                ast, false, true);
 
         if(constructor != NULL) {
             create_new_class_operation(&e->scheme, newType->_class);

@@ -585,6 +585,16 @@ void create_get_decimal_constant_operation(
             operation_get_decimal_constant, decimal));
 }
 
+void create_line_record_operation(
+        operation_scheme *scheme,
+        Int line) {
+    scheme->schemeType = scheme_line_info;
+    scheme->free();
+
+    scheme->steps.add(new operation_step(
+            operation_record_line, line));
+}
+
 void create_get_char_constant_operation(
         operation_scheme *scheme,
         char _char) {

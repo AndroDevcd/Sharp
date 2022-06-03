@@ -84,7 +84,6 @@ void process_class_delegates(sharp_class* parentClass, sharp_class *with_class, 
     delete_context();
 }
 
-// todo: fix, does not find missing functions
 void process_delegates(sharp_class *with_class) {
     List<sharp_function*> functions, requiredFunctions;
 

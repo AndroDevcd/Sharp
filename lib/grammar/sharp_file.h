@@ -19,12 +19,12 @@ enum compilation_stage {
     classes_preprocessed,
     classes_post_processed, // ready to compile after this stage
     components_processed,
-    class_fields_compiled,
     class_delegates_processed,
     compiled
 };
 
 #define pre_compilation_state classes_post_processed
+#define compilation_ready(state) ((state) == class_delegates_processed)
 
 /**
  * Sharp file

@@ -72,11 +72,15 @@ if (SHARPC)
             "lib/grammar/backend/types/*.cpp"
             "lib/grammar/backend/compiler/di/*.h"
             "lib/grammar/backend/compiler/di/*.cpp"
+            "lib/grammar/backend/compiler/functions/*.h"
+            "lib/grammar/backend/compiler/functions/*.cpp"
+            "lib/grammar/backend/compiler/functions/statements/*.h"
+            "lib/grammar/backend/compiler/functions/statements/*.cpp"
             "lib/util/*.cpp"
     )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/compiler_info.cpp lib/grammar/backend/meta_data.h lib/grammar/backend/meta_data.cpp lib/grammar/backend/types/sharp_type.h lib/grammar/backend/compiler/expressions/binary/equal_expression.cpp lib/grammar/backend/compiler/expressions/binary/equal_expression.h lib/grammar/backend/compiler/expressions/binary/less_expression.cpp lib/grammar/backend/compiler/expressions/binary/less_expression.h lib/grammar/backend/compiler/expressions/binary/shift_expression.cpp lib/grammar/backend/compiler/expressions/binary/shift_expression.h lib/grammar/backend/compiler/expressions/binary/add_expression.cpp lib/grammar/backend/compiler/expressions/binary/add_expression.h lib/grammar/backend/compiler/expressions/binary/mult_expression.cpp lib/grammar/backend/compiler/expressions/binary/mult_expression.h lib/grammar/backend/compiler/expressions/binary/exponent_expression.cpp lib/grammar/backend/compiler/expressions/binary/exponent_expression.h)
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
 
     add_executable(Sharpc ${SOURCE_FILES})
 elseif(LEGACY)
@@ -113,7 +117,7 @@ elseif(LEGACY)
             )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/backend/compiler/functions/statements/statement_compiler.cpp lib/grammar/backend/compiler/functions/statements/statement_compiler.h)
 
     add_executable(LegacySharpc ${SOURCE_FILES})
 else()

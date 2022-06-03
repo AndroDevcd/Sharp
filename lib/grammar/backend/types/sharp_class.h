@@ -181,7 +181,7 @@ struct sharp_class {
     List<sharp_class*> generics;
     List<sharp_alias*> aliases;
     List<sharp_field*> fields;
-    List<sharp_class*> genericClones; // todo: create var "operation_scheme *prologueBlob" that holds code the represents code going into the beginning of constructors (possible list of schemes for var)
+    List<sharp_class*> genericClones;
     List<sharp_function*> functions;
     List<sharp_function*> uncompiledLambdas;
     List<Ast*> mutations;

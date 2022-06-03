@@ -11,63 +11,14 @@
 #include "../../compiler_info.h"
 #include "../postprocessor/function_processor.h"
 
-void compile_fields() {
-    sharp_file *file = current_file;
-    sharp_class *globalClass = NULL;
-
-    for(Int i = 0; i < file->p->size(); i++)
-    {
-        if(panic) return;
-
-        Ast *trunk = file->p->astAt(i);
-        if(i == 0) {
-            if(trunk->getType() == ast_module_decl) {
-                string package = concat_tokens(trunk);
-                currModule = create_module(package);
-            } else {
-                string package = "__$srt_undefined";
-                currModule = create_module(package);
-
-                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col, "module declaration must be ""first in every file");
-            }
-
-            globalClass = resolve_class(currModule, global_class_name, false, false);
-            create_context(globalClass, true);
-            continue;
-        }
-
-        switch(trunk->getType()) {
-            case ast_class_decl:
-                compile_class_fields(globalClass, NULL, trunk);
-                break;
-            case ast_variable_decl:
-                compile_field(globalClass, trunk);
-                break;
-            default:
-                /* */
-                break;
-        }
-    }
-
-    delete_context();
-}
-
-void compile_class_fields(sharp_class* parentClass, sharp_class *with_class, Ast *ast) {
-    Ast* block = ast->getSubAst(ast_block);
-
-    if(with_class == NULL) {
-        string name = ast->getToken(0).getValue();
-        with_class = resolve_class(parentClass, name, false, false);
-    }
+void compile_class_fields(sharp_class *with_class) {
+    Ast *block = with_class->ast->getSubAst(ast_block);
 
     create_context(with_class, true);
     for(Int i = 0; i < block->getSubAstCount(); i++) {
         Ast *trunk = block->getSubAst(i);
 
         switch(trunk->getType()) {
-            case ast_class_decl:
-                compile_class_fields(with_class, NULL, trunk);
-                break;
             case ast_variable_decl:
                 compile_field(with_class, trunk);
                 break;

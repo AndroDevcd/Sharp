@@ -5,11 +5,10 @@
 #include "../../util/File.h"
 #include "../compiler_info.h"
 #include "../backend/preprocessor/class_preprocessor.h"
-#include "../backend/postprocessor/import_processor.h"
 #include "../backend/postprocessor/class_processor.h"
 #include "../backend/postprocessor/delegate_processor.h"
 #include "../backend/compiler/di/component_compiler.h"
-#include "../backend/compiler/field_compiler.h"
+#include "../backend/compiler/compiler.h"
 
 thread_local worker_thread *currThread;
 
@@ -103,13 +102,6 @@ void post_process_() {
     file->stage = classes_post_processed;
 }
 
-void compile_fields_() {
-    sharp_file *file = currThread->currTask->file;
-
-    compile_fields();
-    file->stage = class_fields_compiled;
-}
-
 void process_delegates_() {
     sharp_file *file = currThread->currTask->file;
 
@@ -122,6 +114,13 @@ void compile_components_() {
 
     compile_components();
     file->stage = components_processed;
+}
+
+void compile_code() {
+    sharp_file *file = currThread->currTask->file;
+
+    __compile__();
+    file->stage = compiled;
 }
 
 void execute_task() {
@@ -147,16 +146,16 @@ void execute_task() {
             post_process_();
             break;
         }
-        case task_compile_fields_: {
-            compile_fields_();
+        case task_compile_components_: {
+            compile_components_();
             break;
         }
         case task_process_delegates_: {
             process_delegates_();
             break;
         }
-        case task_compile_components_: {
-            compile_components_();
+        case task_compile: {
+            compile_code();
             break;
         }
     }

@@ -111,6 +111,7 @@ enum operation_type {
     operation_mult,
     operation_exponent,
     operation_assign_value,
+    operation_record_line
 };
 
 enum _operation_scheme {
@@ -136,7 +137,8 @@ enum _operation_scheme {
     scheme_check_type,
     scheme_null_fallback,
     scheme_assign_value,
-    scheme_get_numeric_value
+    scheme_get_numeric_value,
+    scheme_line_info
 };
 
 struct operation_scheme {
@@ -570,6 +572,10 @@ void create_value_assignment_operation(
         operation_scheme *asigneeScheme,
         operation_scheme *valueScheme);
 
+void create_line_record_operation(
+        operation_scheme *scheme,
+        Int line);
+
 void create_negate_operation(operation_scheme *scheme);
 
 void create_not_operation(operation_scheme *scheme);
@@ -721,6 +727,10 @@ void create_instance_not_eq_operation(
             create_deallocate_register_operation(scheme, register_##r1); \
             create_deallocate_register_operation(scheme, register_##r2);
 
+#define APPLY_TEMP_SCHEME(scheme_num, scheme, code) \
+            operation_scheme scheme_##scheme_num; \
+             code                                   \
+            scheme.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
 void create_deallocate_register_operation(
         operation_scheme *scheme,
         Int registerId);

@@ -12,6 +12,9 @@
 #include "../dependency/dependancy.h"
 #include "../dependency/injection_request.h"
 
+#define invalid_block_id (-1)
+#define valid_block_id(id) ((id) >= 0)
+
 struct sharp_class;
 
 enum field_type {
@@ -30,6 +33,7 @@ struct sharp_field {
         flags(flag_none),
         fieldType(normal_field),
         closure(NULL),
+        block(invalid_block_id),
         type(),
         ast(NULL),
         getter(NULL),
@@ -50,6 +54,7 @@ struct sharp_field {
         fieldType(sf.fieldType),
         closure(sf.closure),
         ast(sf.ast),
+        block(sf.block),
         getter(sf.getter),
         setter(sf.setter),
         scheme(NULL),
@@ -79,6 +84,7 @@ struct sharp_field {
             flags(flags),
             fieldType(ft),
             closure(NULL),
+            block(invalid_block_id),
             ast(ast),
             getter(NULL),
             setter(NULL),
@@ -111,6 +117,7 @@ struct sharp_field {
     injection_request *request;
     sharp_type type;
     field_type fieldType;
+    Int block;
     uInt flags;
     Ast* ast;
 };

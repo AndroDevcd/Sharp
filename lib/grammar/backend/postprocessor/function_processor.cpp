@@ -19,7 +19,7 @@ void process_function(
     string name;
 
     if(type == initializer_function) {
-        name = "init<" + with_class->name + ">";
+        name = instance_init_name(with_class->name);
     } else if(type == constructor_function) {
         name = ast->getToken(0).getValue();
 
@@ -124,6 +124,22 @@ void process_generic_extension_functions(
     }
 }
 
+void process_function_parameters(List<sharp_field*> &params, sharp_class *with_class, Ast *ast) {
+    parse_utype_arg_list(params, ast);
+    for(Int i = 0; i < params.size(); i++) {
+        sharp_field *param = params.get(i);
+        sharp_type resolvedType;
+
+        param->owner = with_class;
+        resolve(param->type, resolvedType, false,
+                resolve_hard_type, param->ast);
+        param->type.free();
+        param->type = sharp_type();
+
+        validate_field_type(true, param, resolvedType, NULL, param->ast);
+    }
+}
+
 void process_function(
         sharp_class *with_class,
         string &name,
@@ -163,19 +179,7 @@ void process_function(
         }
     }
 
-    parse_utype_arg_list(params, ast->getSubAst(ast_utype_arg_list));
-    for(Int i = 0; i < params.size(); i++) {
-        sharp_field *param = params.get(i);
-        sharp_type resolvedType;
-
-        param->owner = with_class;
-        resolve(param->type, resolvedType, false,
-                resolve_hard_type, param->ast);
-        param->type.free();
-        param->type = sharp_type();
-
-        validate_field_type(true, param, resolvedType, NULL, param->ast);
-    }
+    process_function_parameters(params, with_class, ast->getSubAst(ast_utype_arg_list));
 
     sharp_type returnType;
 
@@ -184,6 +188,10 @@ void process_function(
             name, false, params,
             returnType, ast)) {
         sharp_function *fun = with_class->functions.last();
+
+        for(Int i = 0; i < fun->parameters.size(); i++) {
+            fun->parameters.get(i)->block = 0;
+        }
 
         if(ast->hasSubAst(ast_method_return_type)) {
             Ast *returnTypeAst = ast->getSubAst(ast_method_return_type);
@@ -214,10 +222,6 @@ void process_function_return_type(sharp_function *fun) {
 
         create_context(fun->owner);
         create_context(fun);
-
-        if(fun->fullName == "std#string_builder.append") {
-            int i = 0;
-        }
         expression e;
         compile_expression(e, fun->ast->getSubAst(ast_expression));
         validate_function_type(false, fun, e.type, &e.scheme, fun->ast);

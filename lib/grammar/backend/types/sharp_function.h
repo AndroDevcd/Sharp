@@ -112,6 +112,7 @@ struct sharp_function {
     sharp_field* closure;
     sharp_type returnType;
     function_type type;
+
     uInt flags;
     Ast* ast;
     bool directlyCopyParams; // we need to do this for get() expressions to preserve the resolved type definition found
@@ -130,6 +131,17 @@ bool create_function(
         List<sharp_field*> &params,
         sharp_type &returnType,
         Ast *createLocation);
+
+bool create_function(
+        sharp_class *sc,
+        uInt flags,
+        function_type type,
+        string &name,
+        bool checkBaseClass,
+        List<sharp_field*> &params,
+        sharp_type &returnType,
+        Ast *createLocation,
+        sharp_function *&createdFun);
 
 void create_default_constructor(sharp_class*, uInt, Ast*);
 

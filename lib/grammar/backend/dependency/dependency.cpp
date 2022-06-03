@@ -168,7 +168,8 @@ sharp_field* resolve_field(string name, sharp_file *file, bool checkBase) {
 
 sharp_field* resolve_local_field(string name, stored_context_item *context) {
     for(Int i = 0; i < context->localFields.size(); i++) {
-        if(context->localFields.get(i)->name == name)
+        if(context->localFields.get(i)->name == name
+            && context->localFields.get(i)->block <= context->blockId)
             return context->localFields.get(i);
     }
 
@@ -404,13 +405,8 @@ sharp_function* resolve_function(
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
 
-    if(functionType == constructor_function) { // todo: research wether or not we should be accessing and calling constructor function from base
-        locate_functions_with_type(searchClass, functionType, checkBaseClass,
-                                   locatedFunctions);
-    } else {
-        locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
-                                   locatedFunctions);
-    }
+    locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
+                               locatedFunctions);
 
     if(!locatedFunctions.empty()) {
         for(Int i = 0; i < locatedFunctions.size(); i++) {
