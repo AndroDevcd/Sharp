@@ -112,7 +112,7 @@ void store_context(context *ctx) {
     ctx->storedItems.add(new stored_context_item(*ctx));
 }
 
-void retrieve_lock_schemes(block_info *info, List<operation_scheme*> schemes) {
+void retrieve_lock_schemes(block_info *info, List<operation_schema*> schemes) {
     if(info->lockScheme != NULL)
         schemes.add(info->lockScheme);
 
@@ -207,5 +207,6 @@ void stored_block_info::copy(const stored_block_info &item)  {
     id = item.id;
     line = item.line;
     reachable = item.reachable;
-    lockScheme = new operation_scheme(*item.lockScheme);
+    if(item.lockScheme)
+        lockScheme = new operation_schema(*item.lockScheme);
 }

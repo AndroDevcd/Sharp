@@ -17,7 +17,7 @@ struct sharp_function;
 struct sharp_field;
 struct sharp_alias;
 struct import_group;
-struct operation_scheme;
+struct operation_schema;
 struct context;
 struct stored_context_item;
 
@@ -200,6 +200,8 @@ sharp_field* resolve_enum(string, sharp_file*);
 sharp_field* resolve_enum(string, import_group*);
 sharp_field* resolve_enum(string, sharp_class*);
 
+sharp_label* resolve_label(string name, stored_context_item *context);
+
 bool resolve_function_for_address(
         string,
         sharp_module*,
@@ -243,6 +245,7 @@ enum resolve_filter {
     resolve_filter_generic_class = 0x1000,
     resolve_filter_class_function = 0x2000,
     resolve_filter_function = 0x4000,
+    resolve_filter_label = 0x8000,
 
     /**
      * quick resolve flag vars
@@ -271,7 +274,8 @@ enum resolve_filter {
             | resolve_filter_generic_inner_class
             | resolve_filter_generic_class
             | resolve_filter_class_function
-            | resolve_filter_function,
+            | resolve_filter_function
+            | resolve_filter_label,
 
     resolve_inner_class_type = resolve_filter_class_field
             | resolve_filter_class_enum
@@ -285,12 +289,12 @@ void resolve(
         bool ignoreInitialType,
         uInt filter,
         Ast *resolveLocation,
-        operation_scheme *scheme = NULL);
+        operation_schema *scheme = NULL);
 
 sharp_type resolve(
         Ast *resolveLocation,
         uInt filter = resolve_hard_type,
-        operation_scheme *scheme = NULL,
+        operation_schema *scheme = NULL,
         sharp_class *with_class = NULL);
 
 #endif //SHARP_DEPENDANCY_H

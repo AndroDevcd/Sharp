@@ -15,6 +15,6 @@ void process_field(sharp_class*, Ast*);
 void process_field(sharp_field*);
 void process_setter(sharp_field*, Ast*);
 void process_getter(sharp_field*, Ast*);
-void validate_field_type(bool, sharp_field*, sharp_type&, operation_scheme*, Ast*);
+void validate_field_type(bool, sharp_field*, sharp_type&, operation_schema*, Ast*);
 
 #endif //SHARP_FIELD_PROCESSOR_H

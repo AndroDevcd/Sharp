@@ -39,6 +39,7 @@ enum data_type {
     type_bool,
     type_decimal,
     type_get_component_request,
+    type_label,
 };
 
 void dispose_function_ptr(sharp_type*);
@@ -48,6 +49,7 @@ struct sharp_field;
 struct sharp_module;
 struct import_group;
 struct sharp_function;
+struct sharp_label;
 
 struct sharp_type {
     sharp_type()
@@ -58,6 +60,7 @@ struct sharp_type {
         module(NULL),
         group(NULL),
         componentRequest(NULL),
+        label(NULL),
         unresolvedType(),
         type(type_untyped),
         isArray(false),
@@ -77,6 +80,7 @@ struct sharp_type {
            module(NULL),
            group(NULL),
            componentRequest(NULL),
+           label(NULL),
            unresolvedType(),
            type(type_untyped),
            isArray(false),
@@ -101,6 +105,7 @@ struct sharp_type {
             module(NULL),
             group(NULL),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(),
             type(type_class),
             isArray(isArray),
@@ -121,6 +126,7 @@ struct sharp_type {
             module(NULL),
             group(NULL),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(unresolvedType),
             type(type_untyped),
             isArray(false),
@@ -140,6 +146,7 @@ struct sharp_type {
             module(NULL),
             group(NULL),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(),
             type(type_field),
             isArray(false),
@@ -158,6 +165,7 @@ struct sharp_type {
             fun(NULL),
             module(NULL),
             group(NULL),
+            label(NULL),
             componentRequest(new get_component_request(componentRequest)),
             unresolvedType(),
             type(type_get_component_request),
@@ -178,6 +186,7 @@ struct sharp_type {
             fun(NULL),
             group(NULL),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(),
             type(type_module),
             isArray(false),
@@ -197,8 +206,29 @@ struct sharp_type {
             fun(NULL),
             group(group),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(),
             type(type_import_group),
+            isArray(false),
+            nullable(false),
+            integer(0),
+            decimal(0),
+            _string(""),
+            _char(0),
+            _bool(false)
+    {}
+
+    sharp_type(sharp_label *label)
+    :
+            _class(NULL),
+            field(NULL),
+            module(NULL),
+            fun(NULL),
+            group(NULL),
+            componentRequest(NULL),
+            label(label),
+            unresolvedType(),
+            type(type_label),
             isArray(false),
             nullable(false),
             integer(0),
@@ -219,6 +249,7 @@ struct sharp_type {
             module(NULL),
             group(NULL),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(),
             fun(fun),
             type(isLambda ? type_lambda_function : type_function),
@@ -242,6 +273,7 @@ struct sharp_type {
             module(NULL),
             group(NULL),
             componentRequest(NULL),
+            label(NULL),
             unresolvedType(),
             type(type),
             isArray(isArray),
@@ -275,6 +307,7 @@ struct sharp_type {
         _string = st._string;
         _char = st._char;
         _bool = st._bool;
+        label = st.label;
 
         return *this;
     }
@@ -315,6 +348,7 @@ struct sharp_type {
     char _char;
     bool _bool;
     long double decimal;
+    sharp_label *label;
 };
 
 /**

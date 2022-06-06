@@ -7,12 +7,13 @@
 #include "../../../types/types.h"
 #include "../../../../settings/settings.h"
 #include "return_statement.h"
+#include "if_statement.h"
 
 
-void compile_statement(Ast *ast, bool *controlPaths) {
+void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     if(current_context.blockInfo.line == -1 || current_context.blockInfo.line < ast->line) {
         current_context.blockInfo.line = ast->line;
-        APPLY_TEMP_SCHEME(1, current_context.functionCxt->scheme->steps,
+        APPLY_TEMP_SCHEME(1, *current_context.functionCxt->scheme,
                           create_line_record_operation(&scheme_1, ast->line);
         )
     }
@@ -25,7 +26,10 @@ void compile_statement(Ast *ast, bool *controlPaths) {
 
     switch(ast->getType()) {
         case ast_return_stmnt:
-            compile_return_statement(ast, controlPaths);
+            compile_return_statement(ast, scheme, controlPaths);
+            break;
+        case ast_if_statement:
+            compile_if_statement(ast, scheme, controlPaths);
             break;
         default:
             stringstream err;

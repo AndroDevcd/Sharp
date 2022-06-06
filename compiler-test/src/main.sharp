@@ -10,6 +10,14 @@ def foo(n: var) : int {
     return n + 1;
 }
 
+class x {
+
+    init(s: string) {
+        return;
+    }
+}
+
+
 component {
     single { foo(get()) }
     factory { 2 }

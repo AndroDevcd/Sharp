@@ -94,9 +94,9 @@ sharp_field* create_field(
     }
 }
 
-void sharp_field::create_scheme(operation_scheme *operations) {
+void sharp_field::create_scheme(operation_schema *operations) {
     if(operations != NULL)
-        this->scheme = new operation_scheme(*operations);
+        this->scheme = new operation_schema(*operations);
 }
 
 void sharp_field::set_full_name() {

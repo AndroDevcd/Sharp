@@ -37,7 +37,7 @@ struct expression {
 
 
     sharp_type type;
-    operation_scheme scheme;
+    operation_schema scheme;
 };
 
 void compile_expression(expression &, Ast*);
@@ -50,20 +50,20 @@ void compile_constructor_call(
         Ast *ast,
         sharp_function *constructor,
         expression &e,
-        operation_scheme *scheme);
+        operation_schema *scheme);
 
 void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
-        List<operation_scheme*> &paramOperations,
+        List<operation_schema*> &paramOperations,
         string &op,
         Ast *ast);
 
 void compile_function_call(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         List<sharp_field*> & params,
-        List<operation_scheme*> &paramOperations,
+        List<operation_schema*> &paramOperations,
         sharp_function *callee,
         bool isStaticCall,
         bool isPrimaryClass);

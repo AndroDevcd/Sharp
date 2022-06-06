@@ -15,11 +15,11 @@ void compile_dot_notation_call_expression(
         Ast *ast) {
 
     uInt filer = fromSelf ? resolve_inner_class_type : resolve_all;
-    operation_scheme *scheme;
+    operation_schema *scheme;
     if(with_class == NULL) {
         scheme = &e->scheme;
     } else {
-        scheme = new operation_scheme();
+        scheme = new operation_schema();
     }
 
     Ast *dotNotationAst = ast->getType() == ast_dotnotation_call_expr ? ast : ast->getSubAst(ast_dotnotation_call_expr);

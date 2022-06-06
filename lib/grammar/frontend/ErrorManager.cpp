@@ -238,7 +238,7 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
             lastCheckedError = e;
             return;
         } else if(asis) {
-            printError(e);
+             printError(e);
         }
 
         _err = true;

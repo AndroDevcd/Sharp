@@ -23,7 +23,7 @@ void validate_function_type(
         bool hardType,
         sharp_function *fun,
         sharp_type &type,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Ast *ast);
 
 #endif //SHARP_FUNCTION_PROCESSOR_H

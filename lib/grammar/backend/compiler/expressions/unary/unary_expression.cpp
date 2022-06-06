@@ -176,7 +176,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     e->type.type = field->type.type;
                 } else if(field->type.type == type_class) {
                     List<sharp_field*> emptyParams;
-                    List<operation_scheme*> noOperations;
+                    List<operation_schema*> noOperations;
 
                     compile_class_function_overload(
                             field->type._class, *e, emptyParams, noOperations, op, ast);
@@ -320,8 +320,8 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast) {
                     e->type.type = field->type.type;
                 } else if(field->type.type == type_class) {
                     List<sharp_field*> params;
-                    List<operation_scheme*> operations;
-                    operations.add(new operation_scheme());
+                    List<operation_schema*> operations;
+                    operations.add(new operation_schema());
                     create_get_integer_constant_operation(
                             operations.last(), 1);
 

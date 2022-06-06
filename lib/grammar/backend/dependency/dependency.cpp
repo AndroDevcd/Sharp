@@ -9,6 +9,7 @@
 #include "../../sharp_file.h"
 #include "../types/sharp_function.h"
 #include "../types/sharp_field.h"
+#include "../types/sharp_label.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_alias.h"
 #include "../types/import_group.h"
@@ -30,7 +31,7 @@ sharp_class* resolve_class(
         bool isGeneric,
         bool matchName) {
     sharp_class *sc = NULL;
-    GUARD(module->moduleLock)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &module->classes;
 
     if(isGeneric) searchList = &module->genericClasses;
@@ -126,7 +127,7 @@ sharp_class* resolve_class(
 sharp_field* resolve_field(string name, sharp_module *module, bool checkBase) {
     sharp_class *sc = NULL;
     sharp_field *sf = NULL;
-    GUARD(module->moduleLock)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -194,7 +195,7 @@ sharp_field* resolve_field(string name, sharp_class *searchClass, bool checkBase
 sharp_field* resolve_enum(string name, sharp_module *module) {
     sharp_class *sc = NULL;
     sharp_field *sf = NULL;
-    GUARD(module->moduleLock)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -235,6 +236,18 @@ sharp_field* resolve_enum(string name, import_group *group) {
     return NULL;
 }
 
+sharp_label* resolve_label(string name, sharp_function *function) {
+    GUARD(globalLock)
+
+    for(Int i = function->labels.size() - 1; i >= 0; i--) {
+        if(function->labels.get(i)->name == name) {
+            return function->labels.get(i);
+        }
+    }
+
+    return NULL;
+}
+
 sharp_field* resolve_enum(string name, sharp_class *searchClass) {
     GUARD(globalLock)
 
@@ -261,7 +274,7 @@ sharp_field* resolve_enum(string name, sharp_class *searchClass) {
 sharp_alias* resolve_alias(string name, sharp_module *module) {
     sharp_class *sc = NULL;
     sharp_alias *sa = NULL;
-    GUARD(module->moduleLock)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -373,7 +386,7 @@ sharp_function* resolve_function(
         bool implicitCheck) {
     sharp_class *sc = NULL;
     sharp_function *sf = NULL;
-    GUARD(module->moduleLock)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -469,7 +482,7 @@ bool resolve_function_for_address(
         bool checkBase,
         List<sharp_function*> &results) {
     sharp_class *sc = NULL;
-    GUARD(module->moduleLock)
+    GUARD(globalLock)
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -545,17 +558,37 @@ bool hasFilter(uInt filters, resolve_filter filter) {
     return ((filters & filter) == filter);
 }
 
+sharp_label* resolve_label(string name, stored_context_item *context) {
+    for(Int i = 0; i < context->labels.size(); i++) {
+        if(context->labels.get(i)->name == name)
+            return context->labels.get(i);
+    }
+
+    return NULL;
+}
+
+bool resolve_label(
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_schema *scheme,
+        context &ctx) {
+    sharp_label *label;
+
+    if((label = resolve_label(item.name, &ctx)) != NULL) {
+        resultType.type = type_label;
+        resultType.label = label;
+        return true;
+    }
+
+    return false;
+}
 
 bool resolve_local_field( // todo: support tls access for all fields
         unresolved_item &item,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
     sharp_field *field;
-
-    if(item.name == "c") {
-        int i = 0;
-    }
 
     if((field = resolve_local_field(item.name, &ctx)) != NULL) {
         resultType.type = type_field;
@@ -666,7 +699,7 @@ bool resolve_primary_class_field(
         bool isSelfInstance,
         bool isStatic,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     sharp_field *field;
@@ -731,7 +764,7 @@ bool resolve_primary_class_alias(
         sharp_class *primaryClass,
         bool isSelfInstance,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     sharp_alias *alias;
@@ -761,7 +794,7 @@ bool resolve_primary_class_enum(
         sharp_class *primaryClass,
         bool isSelfInstance,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     sharp_field *field;
@@ -788,7 +821,7 @@ bool resolve_primary_class_function_address(
         sharp_class *primaryClass,
         bool isSelfInstance,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     List<sharp_function*> functions;
@@ -830,7 +863,7 @@ bool resolve_primary_class_inner_class(
         sharp_class *primaryClass,
         bool isSelfInstance,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         bool isGeneric,
         context &ctx) {
 
@@ -855,7 +888,7 @@ bool resolve_primary_class(
         unresolved_item &item,
         sharp_class *primaryClass,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     if(primaryClass->name == item.name) {
@@ -873,7 +906,7 @@ bool resolve_generic_type_param(
         unresolved_item &item,
         sharp_class *primaryClass,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     for(Int i = 0; i < primaryClass->genericTypes.size(); i++) {
@@ -894,7 +927,7 @@ bool resolve_generic_type_param(
 bool resolve_global_class_field(
         unresolved_item &item,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     sharp_field *field;
@@ -940,7 +973,7 @@ bool resolve_global_class_field(
 bool resolve_global_class_alias(
         unresolved_item &item,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     sharp_alias *alias;
@@ -984,7 +1017,7 @@ bool resolve_global_class_alias(
 bool resolve_global_class_enum(
         unresolved_item &item,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     sharp_field *field;
@@ -1024,7 +1057,7 @@ bool resolve_global_class_enum(
 bool resolve_global_class_function_address(
         unresolved_item &item,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     List<sharp_function*> functions;
@@ -1123,14 +1156,14 @@ bool resolve_global_class(
 }
 
 // resolve logic flow
-// local fields -> class instance / static fields -> class aliases -> class enums -> function reference via name
+// local labels -> local fields -> class instance / static fields -> class aliases -> class enums -> function reference via name
 // local class (inner class inside primary class) -> Primary class -> genericType -> global field -> global alias -> global enums
 // -> global function reference -> global_class
 void resolve_normal_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
@@ -1138,6 +1171,15 @@ void resolve_normal_item(
 
     if(resultType.type == type_untyped) {
         // first item
+        if(context.type == block_context
+           && hasFilter(filter, resolve_filter_label)
+           && resolve_label(item, resultType, scheme, context)) {
+
+            hardType = false;
+            resultType.nullable = false;
+            return;
+        }
+
         if(context.type == block_context
             && hasFilter(filter, resolve_filter_local_field)
             && resolve_local_field(item, resultType, scheme, context)) {
@@ -1502,7 +1544,7 @@ void resolve_operator_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
@@ -1562,7 +1604,7 @@ void resolve_function_ptr_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     List<sharp_field*> params;
@@ -1607,7 +1649,7 @@ bool resolve_primary_class_function(
         bool isPrimaryClass,
         bool isStaticCall,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
     // we assume that the scheme is already setup before coming here with code for params
 
@@ -1667,7 +1709,7 @@ bool resolve_primary_class_function(
 bool resolve_global_class_function(
         unresolved_item &item,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
     // we assume that the scheme is already setup before coming here with code for params
 
@@ -1754,7 +1796,7 @@ void resolve_function_reference_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
@@ -1883,7 +1925,7 @@ bool resolve_primary_class_generic(
         sharp_class *primaryClass,
         string &typedClassName,
         sharp_type &resultType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         context &ctx) {
 
     if(primaryClass->name == typedClassName) {
@@ -2005,7 +2047,7 @@ void resolve_generic_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     List<sharp_type> resolvedTypes;
@@ -2131,7 +2173,7 @@ void resolve_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     switch(item.type) {
@@ -2162,7 +2204,7 @@ void resolve(
         bool ignoreInitialType,
         uInt filter,
         Ast *resolveLocation,
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     if(!ignoreInitialType && unresolvedType.type != type_untyped) {
         resultType.copy(unresolvedType);
     } else {
@@ -2218,7 +2260,7 @@ sharp_type expression_type_to_normal_type(expression *e) {
 sharp_type resolve(
         Ast *resolveLocation,
         uInt filter,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_class *with_class) {
     sharp_type unresolvedType, resolvedType;
 
@@ -2257,7 +2299,7 @@ sharp_type resolve(
             for(Int i = 0; i < expressions.size(); i++) {
                 sharp_type et = expression_type_to_normal_type(expressions.get(i));
                 item->typeSpecifiers.add(new sharp_type(et));
-                item->operations.add(new operation_scheme());
+                item->operations.add(new operation_schema());
                 item->operations.last()->copy(expressions.get(i)->scheme);
             }
         } else if(item->type == generic_reference) {

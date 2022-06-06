@@ -179,7 +179,7 @@ void compile_type_definition(
 
             if(subComponent != NULL) {
                 if(rule == factory_type_definition)
-                    subComponent->scheme = new operation_scheme(typeDefinition.scheme);
+                    subComponent->scheme = new operation_schema(typeDefinition.scheme);
                 else {
                     stringstream ss;
                     ss << single_component_field_name_prefix << subComponent->id;
@@ -194,8 +194,8 @@ void compile_type_definition(
                             ast
                     );
 
-                    single_field->scheme = new operation_scheme(typeDefinition.scheme);
-                    subComponent->scheme = new operation_scheme();
+                    single_field->scheme = new operation_schema(typeDefinition.scheme);
+                    subComponent->scheme = new operation_schema();
 
                     create_static_field_access_operation(subComponent->scheme, single_field);
                 }

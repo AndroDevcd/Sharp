@@ -3,13 +3,13 @@
 //
 
 #include "operation.h"
-#include "../types/sharp_field.h"
-#include "../types/sharp_function.h"
+#include "../types/types.h"
 #include "../../compiler_info.h"
 
 Int uniqueRegisterIds = 0;
+Int uniqueLabelIds = 0;
 void create_local_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *localField) {
     if(scheme) {
         scheme->schemeType = scheme_access_local_field;
@@ -21,7 +21,7 @@ void create_local_field_access_operation(
 }
 
 void create_static_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *staticField) {
     if(scheme) {
         scheme->free();
@@ -36,7 +36,7 @@ void create_static_field_access_operation(
 }
 
 void create_primary_instance_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField) {
     if(scheme) {
         scheme->free();
@@ -51,13 +51,13 @@ void create_primary_instance_field_access_operation(
 }
 
 void add_scheme_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme) {
+        operation_schema *scheme,
+        operation_schema *valueScheme) {
     scheme->steps.add(new operation_step(valueScheme));
 }
 
 void create_primary_instance_field_getter_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField) {
     if(scheme) {
         scheme->free();
@@ -74,7 +74,7 @@ void create_primary_instance_field_getter_operation(
 }
 
 void create_static_field_getter_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField) {
     if(scheme) {
         scheme->free();
@@ -91,8 +91,8 @@ void create_static_field_getter_operation(
 }
 
 void create_new_class_array_operation(
-        operation_scheme *scheme,
-        operation_scheme *arraySizeOperations,
+        operation_schema *scheme,
+        operation_schema *arraySizeOperations,
         sharp_class *sc) {
     if(scheme) {
         scheme->schemeType = scheme_new_class_array;
@@ -106,7 +106,7 @@ void create_new_class_array_operation(
 }
 
 void create_cast_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_type *cast_type) {
     if(scheme) {
         scheme->schemeType = scheme_get_casted_value;
@@ -143,9 +143,9 @@ void create_cast_operation(
 }
 
 void create_null_fallback_operation(
-        operation_scheme *scheme,
-        operation_scheme *nullScheme,
-        operation_scheme *fallbackScheme) {
+        operation_schema *scheme,
+        operation_schema *nullScheme,
+        operation_schema *fallbackScheme) {
     scheme->schemeType = scheme_null_fallback;
 
     scheme->steps.add(new operation_step(
@@ -155,7 +155,7 @@ void create_null_fallback_operation(
 }
 
 void create_is_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_type *cast_type) {
     if(scheme) {
         scheme->schemeType = scheme_check_type;
@@ -195,8 +195,8 @@ void create_is_operation(
 }
 
 void create_sizeof_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueOperation) {
+        operation_schema *scheme,
+        operation_schema *valueOperation) {
     if(scheme) {
         scheme->schemeType = scheme_get_size_of;
         scheme->steps.add(new operation_step(
@@ -207,7 +207,7 @@ void create_sizeof_operation(
 }
 
 void create_new_class_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_class *sc) {
     if(scheme) {
         scheme->schemeType = scheme_new_class;
@@ -217,8 +217,8 @@ void create_new_class_operation(
 }
 
 void create_new_number_array_operation(
-        operation_scheme *scheme,
-        operation_scheme *arraySizeOperations,
+        operation_schema *scheme,
+        operation_schema *arraySizeOperations,
         data_type nativeType) {
     if(scheme) {
         scheme->schemeType = scheme_new_number_array;
@@ -232,8 +232,8 @@ void create_new_number_array_operation(
 }
 
 void create_new_object_array_operation(
-        operation_scheme *scheme,
-        operation_scheme *arraySizeOperations) {
+        operation_schema *scheme,
+        operation_schema *arraySizeOperations) {
     if(scheme) {
         scheme->schemeType = scheme_new_object_array;
 
@@ -244,7 +244,7 @@ void create_new_object_array_operation(
     }
 }
 
-void create_null_value_operation(operation_scheme *scheme) {
+void create_null_value_operation(operation_schema *scheme) {
     if(scheme) {
         if(scheme->schemeType == scheme_none)
             scheme->schemeType = scheme_nullify_value;
@@ -255,7 +255,7 @@ void create_null_value_operation(operation_scheme *scheme) {
 }
 
 void create_push_to_stack_operation(
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_push_value_to_stack));
@@ -263,7 +263,7 @@ void create_push_to_stack_operation(
 }
 
 void create_and_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -271,7 +271,7 @@ void create_and_operation(
 }
 
 void create_xor_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -279,7 +279,7 @@ void create_xor_operation(
 }
 
 void create_or_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -287,7 +287,7 @@ void create_or_operation(
 }
 
 void create_and_and_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -295,7 +295,7 @@ void create_and_and_operation(
 }
 
 void create_or_or_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -303,7 +303,7 @@ void create_or_or_operation(
 }
 
 void create_eq_eq_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -311,7 +311,7 @@ void create_eq_eq_operation(
 }
 
 void create_not_eq_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -319,7 +319,7 @@ void create_not_eq_operation(
 }
 
 void create_lt_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -327,7 +327,7 @@ void create_lt_operation(
 }
 
 void create_gt_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -335,7 +335,7 @@ void create_gt_operation(
 }
 
 void create_lte_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -343,7 +343,7 @@ void create_lte_operation(
 }
 
 void create_shl_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -351,7 +351,7 @@ void create_shl_operation(
 }
 
 void create_shr_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -359,7 +359,7 @@ void create_shr_operation(
 }
 
 void create_add_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -367,7 +367,7 @@ void create_add_operation(
 }
 
 void create_sub_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -375,7 +375,7 @@ void create_sub_operation(
 }
 
 void create_div_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -383,7 +383,7 @@ void create_div_operation(
 }
 
 void create_mod_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -391,7 +391,7 @@ void create_mod_operation(
 }
 
 void create_exponent_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -399,7 +399,7 @@ void create_exponent_operation(
 }
 
 void create_mult_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -407,7 +407,7 @@ void create_mult_operation(
 }
 
 void create_gte_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight) {
     scheme->steps.add(new operation_step(
@@ -415,7 +415,7 @@ void create_gte_operation(
 }
 
 void create_return_operation(
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     if(scheme) {
         scheme->schemeType = scheme_return;
 
@@ -426,8 +426,8 @@ void create_return_operation(
 
 
 void create_numeric_return_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme) {
+        operation_schema *scheme,
+        operation_schema *valueScheme) {
     if(scheme) {
         scheme->schemeType = scheme_return;
 
@@ -437,8 +437,8 @@ void create_numeric_return_operation(
 }
 
 void create_object_return_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme) {
+        operation_schema *scheme,
+        operation_schema *valueScheme) {
     if(scheme) {
         scheme->schemeType = scheme_return;
 
@@ -448,8 +448,8 @@ void create_object_return_operation(
 }
 
 void create_lock_operation(
-        operation_scheme *scheme,
-        operation_scheme *lockScheme) {
+        operation_schema *scheme,
+        operation_schema *lockScheme) {
     if(scheme) {
         scheme->schemeType = scheme_lock;
         scheme->steps.add(new operation_step(
@@ -458,8 +458,8 @@ void create_lock_operation(
 }
 
 void create_unlock_operation(
-        operation_scheme *scheme,
-        operation_scheme *lockScheme) {
+        operation_schema *scheme,
+        operation_schema *lockScheme) {
     if(scheme) {
         scheme->schemeType = scheme_unlock;
         scheme->steps.add(new operation_step(
@@ -468,19 +468,19 @@ void create_unlock_operation(
 }
 
 void create_instance_eq_operation(
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     scheme->steps.add(new operation_step(
             operation_instance_eq));
 }
 
 void create_instance_not_eq_operation(
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     scheme->steps.add(new operation_step(
             operation_instance_not_eq));
 }
 
 void create_retain_numeric_value_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int retainId) {
     if(scheme) {
         scheme->steps.add(new operation_step(
@@ -489,7 +489,7 @@ void create_retain_numeric_value_operation(
 }
 
 void create_deallocate_register_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerId) {
     if(scheme) {
         scheme->steps.add(new operation_step(
@@ -497,8 +497,46 @@ void create_deallocate_register_operation(
     }
 }
 
+Int create_allocate_label_operation(
+        operation_schema *scheme) {
+        if(scheme) {
+            scheme->steps.add(new operation_step(
+                    operation_allocate_label, uniqueLabelIds));
+            return uniqueLabelIds++;
+        }
+
+        return -1;
+}
+
+void create_set_label_operation(
+        operation_schema *scheme,
+        sharp_label* label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_label, label->id));
+    }
+}
+
+void create_jump_if_false_operation(
+        operation_schema *scheme,
+        sharp_label* label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_jump_if_false, label->id));
+    }
+}
+
+void create_jump_operation(
+        operation_schema *scheme,
+        sharp_label* label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_jump, label->id));
+    }
+}
+
 Int create_allocate_register_operation(
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_allocate_register, uniqueRegisterIds));
@@ -509,7 +547,7 @@ Int create_allocate_register_operation(
 }
 
 void create_pop_value_from_stack_operation(
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_pop_value_from_stack));
@@ -517,7 +555,7 @@ void create_pop_value_from_stack_operation(
 }
 
 void create_assign_array_element_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int index) {
     if(scheme) {
         scheme->steps.add(new operation_step(
@@ -526,8 +564,8 @@ void create_assign_array_element_operation(
 }
 
 void create_access_array_element_operation(
-        operation_scheme *scheme,
-        operation_scheme *indexScheme) {
+        operation_schema *scheme,
+        operation_schema *indexScheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_get_array_element_at_index, indexScheme));
@@ -535,7 +573,7 @@ void create_access_array_element_operation(
 }
 
 void create_instance_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField) {
     if(scheme) {
         scheme->schemeType = scheme_access_instance_field;
@@ -547,7 +585,7 @@ void create_instance_field_access_operation(
 }
 
 void create_instance_field_getter_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField) {
     if(scheme) {
         scheme->schemeType = scheme_call_getter_function;
@@ -559,7 +597,7 @@ void create_instance_field_getter_operation(
 }
 
 void create_get_static_function_address_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->free();
@@ -571,8 +609,8 @@ void create_get_static_function_address_operation(
 }
 
 void create_primary_class_function_call_operation(
-        operation_scheme *scheme,
-        List<operation_scheme*> &paramScheme,
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
@@ -587,7 +625,7 @@ void create_primary_class_function_call_operation(
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
-                    new operation_scheme(*paramScheme.get(i)),
+                    new operation_schema(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
                     ));
         }
@@ -598,8 +636,8 @@ void create_primary_class_function_call_operation(
 }
 
 void create_instance_function_call_operation(
-        operation_scheme *scheme,
-        List<operation_scheme*> &paramScheme,
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_instance_function;
@@ -610,7 +648,7 @@ void create_instance_function_call_operation(
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
-                    new operation_scheme(*paramScheme.get(i)),
+                    new operation_schema(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
         }
@@ -621,7 +659,7 @@ void create_instance_function_call_operation(
 }
 
 void create_get_integer_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int integer,
         bool resetState,
         bool setType) {
@@ -635,7 +673,7 @@ void create_get_integer_constant_operation(
 }
 
 void create_get_decimal_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         long double decimal) {
     scheme->schemeType = scheme_get_constant;
     scheme->free();
@@ -645,7 +683,7 @@ void create_get_decimal_constant_operation(
 }
 
 void create_line_record_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int line) {
     scheme->schemeType = scheme_line_info;
     scheme->free();
@@ -655,7 +693,7 @@ void create_line_record_operation(
 }
 
 void create_get_char_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         char _char) {
     scheme->free();
 
@@ -664,7 +702,7 @@ void create_get_char_constant_operation(
 }
 
 void create_get_bool_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         bool _bool) {
     scheme->free();
 
@@ -673,7 +711,7 @@ void create_get_bool_constant_operation(
 }
 
 void create_get_string_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         string &_string) {
     scheme->free();
 
@@ -683,9 +721,9 @@ void create_get_string_constant_operation(
 
 
 void create_value_assignment_operation(
-        operation_scheme *scheme,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *scheme,
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -704,11 +742,11 @@ void create_value_assignment_operation(
 }
 
 void create_plus_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -733,11 +771,11 @@ void create_plus_value_assignment_operation(
 }
 
 void create_sub_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -762,11 +800,11 @@ void create_sub_value_assignment_operation(
 }
 
 void create_mult_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -791,11 +829,11 @@ void create_mult_value_assignment_operation(
 }
 
 void create_div_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -820,11 +858,11 @@ void create_div_value_assignment_operation(
 }
 
 void create_mod_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -849,11 +887,11 @@ void create_mod_value_assignment_operation(
 }
 
 void create_and_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -878,11 +916,11 @@ void create_and_value_assignment_operation(
 }
 
 void create_or_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -907,11 +945,11 @@ void create_or_value_assignment_operation(
 }
 
 void create_xor_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme) {
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme) {
     scheme->free();
     scheme->schemeType = scheme_assign_value;
 
@@ -936,8 +974,8 @@ void create_xor_value_assignment_operation(
 }
 
 void create_get_value_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme,
+        operation_schema *scheme,
+        operation_schema *valueScheme,
         bool resetState,
         bool setType) {
     if(resetState)
@@ -949,15 +987,15 @@ void create_get_value_operation(
             valueScheme, operation_get_value));
 }
 
-void create_negate_operation(operation_scheme *scheme) {
+void create_negate_operation(operation_schema *scheme) {
     scheme->steps.add(new operation_step(operation_negate_value));
 }
-void create_not_operation(operation_scheme *scheme) {
+void create_not_operation(operation_schema *scheme) {
     scheme->steps.add(new operation_step(operation_not_value));
 }
 
 void create_increment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         data_type type) {
     if(type == type_var) {
         scheme->steps.add(new operation_step(operation_var_increment));
@@ -983,7 +1021,7 @@ void create_increment_operation(
 }
 
 void create_get_primary_instance_class(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_class *primaryClass) {
     if(scheme) {
         scheme->steps.add(new operation_step(
@@ -992,7 +1030,7 @@ void create_get_primary_instance_class(
 }
 
 void create_decrement_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         data_type type) {
     if(type == type_var) {
         scheme->steps.add(new operation_step(operation_var_decrement));
@@ -1018,8 +1056,8 @@ void create_decrement_operation(
 }
 
 void create_static_function_call_operation(
-        operation_scheme *scheme,
-        List<operation_scheme*> &paramScheme,
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
         scheme->schemeType = scheme_call_static_function;
@@ -1028,7 +1066,7 @@ void create_static_function_call_operation(
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
-                    new operation_scheme(*paramScheme.get(i)),
+                    new operation_schema(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
         }
@@ -1043,8 +1081,8 @@ void create_function_parameter_push_operation(
         sharp_type *paramType,
         Int matchResult,
         sharp_function *constructor,
-        operation_scheme *paramScheme,
-        operation_scheme *resultScheme) {
+        operation_schema *paramScheme,
+        operation_schema *resultScheme) {
     if(paramType && paramScheme && resultScheme) {
         if(matchResult == match_normal) {
             resultScheme->copy(*paramScheme);
@@ -1062,7 +1100,7 @@ void create_function_parameter_push_operation(
                         )
                 );
 
-                List<operation_scheme*> scheme;
+                List<operation_schema*> scheme;
                 scheme.add(paramScheme);
                 create_instance_function_call_operation(
                         resultScheme, scheme, constructor);
@@ -1079,7 +1117,7 @@ void operation_step::freeStep()  {
     }
 }
 
-void operation_scheme::copy(const operation_scheme &scheme) {
+void operation_schema::copy(const operation_schema &scheme) {
     schemeType = scheme.schemeType;
     field = scheme.field;
     fun = scheme.fun;
@@ -1089,6 +1127,6 @@ void operation_scheme::copy(const operation_scheme &scheme) {
     }
 }
 
-void operation_scheme::free() {
+void operation_schema::free() {
     deleteList(steps);
 }

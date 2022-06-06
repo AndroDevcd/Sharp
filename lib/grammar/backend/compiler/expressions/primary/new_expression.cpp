@@ -29,7 +29,7 @@ void compile_new_expression(expression *e, Ast *ast) {
 void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) {
     List<expression*> expressions;
     List<sharp_field*> params;
-    List<operation_scheme*> paramOperations;
+    List<operation_schema*> paramOperations;
 
     if(newType->type == type_class
        && check_flag(newType->_class->flags, flag_extension)) {
@@ -50,7 +50,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
                 ast
         ));
 
-        paramOperations.add(new operation_scheme(expressions.last()->scheme));
+        paramOperations.add(new operation_schema(expressions.last()->scheme));
     }
 
     if(newType->type == type_class) {
@@ -87,7 +87,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
 }
 
 void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast) {
-    operation_scheme *arraySizeScheme = new operation_scheme();
+    operation_schema *arraySizeScheme = new operation_schema();
     arraySizeScheme->schemeType = scheme_get_constant;
     arraySizeScheme->steps.add(new operation_step(operation_get_integer_constant, (Int)ast->getSubAstCount()));
 
@@ -108,7 +108,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
         expression *expr = new expression();
         sharp_function *matchedConstructor = NULL;
         compile_expression(*expr, ast->getSubAst(i));
-        operation_scheme *setArrayItem = new operation_scheme();
+        operation_schema *setArrayItem = new operation_schema();
         setArrayItem->schemeType = scheme_get_array_value;
 
         if(expr->type.type == type_integer
@@ -150,7 +150,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
             if(matchResult == match_normal) {
                 setArrayItem->steps.add(new operation_step(operation_get_value, &expr->scheme));
             } else { // match_constructor
-                operation_scheme *arrayItemScheme = new operation_scheme(), resultScheme;
+                operation_schema *arrayItemScheme = new operation_schema(), resultScheme;
                 arrayItemScheme->schemeType = scheme_new_class;
                 arrayItemScheme->sc = newType->_class;
 
@@ -161,7 +161,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
                         )
                 );
 
-                List<operation_scheme*> scheme;
+                List<operation_schema*> scheme;
                 scheme.add(arrayItemScheme);
                 create_instance_function_call_operation(
                         &resultScheme, scheme, matchedConstructor);
@@ -188,7 +188,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) {
     expression arraySize;
     compile_expression(*e, ast);
-    operation_scheme *arraySieScheme = new operation_scheme(arraySize.scheme);
+    operation_schema *arraySieScheme = new operation_schema(arraySize.scheme);
 
     e->type.copy(*newType);
     e->type.isArray = true;

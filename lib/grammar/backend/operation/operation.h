@@ -15,6 +15,7 @@ struct sharp_class;
 struct sharp_function;
 struct operation_step;
 struct sharp_type;
+struct sharp_label;
 
 enum operation_type {
     operation_none,
@@ -89,6 +90,7 @@ enum operation_type {
     operation_retain_numeric_value, // will try to store in register if possible
     operation_discard_register,
     operation_allocate_register,
+    operation_allocate_label,
     operation_and,
     operation_xor,
     operation_or,
@@ -116,7 +118,10 @@ enum operation_type {
     operation_return_number,
     operation_return_object,
     operation_lock,
-    operation_unlock
+    operation_unlock,
+    operation_set_label,
+    operation_jump_if_false,
+    operation_jump
 };
 
 enum _operation_scheme {
@@ -146,11 +151,14 @@ enum _operation_scheme {
     scheme_line_info,
     scheme_return,
     scheme_lock,
-    scheme_unlock
+    scheme_unlock,
+    scheme_if,
+    scheme_elseif,
+    scheme_else
 };
 
-struct operation_scheme {
-    operation_scheme()
+struct operation_schema {
+    operation_schema()
             :
             schemeType(scheme_none),
             field(NULL),
@@ -159,7 +167,16 @@ struct operation_scheme {
             steps()
     {}
 
-    operation_scheme(const operation_scheme &scheme)
+    operation_schema(_operation_scheme type)
+            :
+            schemeType(type),
+            field(NULL),
+            sc(NULL),
+            fun(NULL),
+            steps()
+    {}
+
+    operation_schema(const operation_schema &scheme)
             :
             schemeType(scheme_none),
             field(NULL),
@@ -170,11 +187,11 @@ struct operation_scheme {
         copy(scheme);
     }
 
-    ~operation_scheme() {
+    ~operation_schema() {
         free();
     }
 
-    void copy(const operation_scheme &scheme);
+    void copy(const operation_schema &scheme);
 
     void free();
 
@@ -239,7 +256,7 @@ struct operation_step {
         nativeType(type_undefined)
     {}
 
-    operation_step(operation_scheme *scheme, operation_type type = operation_step_scheme)
+    operation_step(operation_schema *scheme, operation_type type = operation_step_scheme)
     :
         type(type),
         field(NULL),
@@ -255,7 +272,7 @@ struct operation_step {
         _string(""),
         nativeType(type_undefined)
     {
-        this->scheme = new operation_scheme(*scheme);
+        this->scheme = new operation_schema(*scheme);
     }
 
     operation_step(operation_type type, sharp_field *field)
@@ -445,7 +462,7 @@ struct operation_step {
         nativeType(type_undefined)
     {}
 
-    operation_step(operation_type type, operation_scheme *scheme)
+    operation_step(operation_type type, operation_schema *scheme)
     :
         type(type),
         field(NULL),
@@ -461,7 +478,7 @@ struct operation_step {
         _string(""),
         nativeType(type_undefined)
     {
-        this->scheme = new operation_scheme(*scheme);
+        this->scheme = new operation_schema(*scheme);
     }
 
     ~operation_step() {
@@ -483,12 +500,12 @@ struct operation_step {
         thirdRegister = step.thirdRegister;
 
         if(step.scheme)
-            scheme = new operation_scheme(*step.scheme);
+            scheme = new operation_schema(*step.scheme);
     }
 
     void freeStep();
 
-    operation_scheme *scheme;
+    operation_schema *scheme;
     sharp_field *field;
     sharp_class *_class;
     sharp_function *function;
@@ -504,252 +521,252 @@ struct operation_step {
 };
 
 void create_local_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *localField);
 
 void create_static_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *staticField);
 
 void create_primary_instance_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField);
 
 void add_scheme_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme);
+        operation_schema *scheme,
+        operation_schema *valueScheme);
 
 void create_primary_instance_field_getter_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField);
 
 void create_instance_field_access_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField);
 
 void create_instance_field_getter_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField);
 
 void create_get_static_function_address_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_function *fun);
 
 void create_instance_function_call_operation(
-        operation_scheme *scheme,
-        List<operation_scheme*> &paramScheme,
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
         sharp_function *fun);
 
 void create_primary_class_function_call_operation(
-        operation_scheme *scheme,
-        List<operation_scheme*> &paramScheme,
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
         sharp_function *fun);
 
 void create_static_function_call_operation(
-        operation_scheme *scheme,
-        List<operation_scheme*> &paramScheme,
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
         sharp_function *fun);
 
 void create_function_parameter_push_operation(
         sharp_type *paramType,
         Int matchResult,
         sharp_function *constructor,
-        operation_scheme *paramScheme,
-        operation_scheme *resultScheme);
+        operation_schema *paramScheme,
+        operation_schema *resultScheme);
 
 void create_get_integer_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int integer,
         bool resetState = true,
         bool setType = true);
 
 void create_get_decimal_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         long double decimal);
 
 void create_get_char_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         char _char);
 
 void create_get_bool_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         bool _bool);
 
 void create_get_string_constant_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         string &_string);
 
 void create_value_assignment_operation(
-        operation_scheme *scheme,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *scheme,
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_line_record_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int line);
 
-void create_negate_operation(operation_scheme *scheme);
+void create_negate_operation(operation_schema *scheme);
 
-void create_not_operation(operation_scheme *scheme);
+void create_not_operation(operation_schema *scheme);
 
 void create_increment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         data_type type);
 
 void create_decrement_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         data_type type);
 
 void create_get_primary_instance_class(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_class *primaryClass);
 
 void create_static_field_getter_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_field *instanceField);
 
-void create_null_value_operation(operation_scheme *scheme);
+void create_null_value_operation(operation_schema *scheme);
 
 void create_new_class_array_operation(
-        operation_scheme *scheme,
-        operation_scheme *arraySizeOperations,
+        operation_schema *scheme,
+        operation_schema *arraySizeOperations,
         sharp_class *sc);
 
 void create_new_number_array_operation(
-        operation_scheme *scheme,
-        operation_scheme *arraySizeOperations,
+        operation_schema *scheme,
+        operation_schema *arraySizeOperations,
         data_type nativeType);
 
 void create_new_object_array_operation(
-        operation_scheme *scheme,
-        operation_scheme *arraySizeOperations);
+        operation_schema *scheme,
+        operation_schema *arraySizeOperations);
 
 void create_push_to_stack_operation(
-        operation_scheme *scheme);
+        operation_schema *scheme);
 
 void create_retain_numeric_value_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerId);
 
 void create_and_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_xor_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_or_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_and_and_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_or_or_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_eq_eq_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_not_eq_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_lt_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_gt_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_lte_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_shl_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_shr_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_add_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_sub_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_div_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_mod_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_exponent_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_mult_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_gte_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight);
 
 void create_return_operation(
-        operation_scheme *scheme);
+        operation_schema *scheme);
 
 void create_numeric_return_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme);
+        operation_schema *scheme,
+        operation_schema *valueScheme);
 
 void create_object_return_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme);
+        operation_schema *scheme,
+        operation_schema *valueScheme);
 
 void create_lock_operation(
-        operation_scheme *scheme,
-        operation_scheme *lockScheme);
+        operation_schema *scheme,
+        operation_schema *lockScheme);
 
 void create_unlock_operation(
-        operation_scheme *scheme,
-        operation_scheme *lockScheme);
+        operation_schema *scheme,
+        operation_schema *lockScheme);
 
 void create_instance_eq_operation(
-        operation_scheme *scheme);
+        operation_schema *scheme);
 
 void create_instance_not_eq_operation(
-        operation_scheme *scheme);
+        operation_schema *scheme);
 
 #define ALLOCATE_REGISTER_2X(r1, r2, scheme, code) \
             Int register_##r1 = create_allocate_register_operation(scheme); \
@@ -759,108 +776,129 @@ void create_instance_not_eq_operation(
             create_deallocate_register_operation(scheme, register_##r2);
 
 #define APPLY_TEMP_SCHEME(scheme_num, scheme, code) \
-            operation_scheme scheme_##scheme_num; \
+            operation_schema scheme_##scheme_num; \
              code                                   \
-            scheme.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
+            (scheme).steps.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
+
+#define APPLY_TEMP_SCHEME_WITH_TYPE(scheme_num, scheme_type, scheme, code) \
+            operation_schema scheme_##scheme_num((scheme_type)); \
+             code                                   \
+            (scheme).steps.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
+
 void create_deallocate_register_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerId);
 
 Int create_allocate_register_operation(
-        operation_scheme *scheme);
+        operation_schema *scheme);
+
+Int create_allocate_label_operation(
+        operation_schema *scheme);
+
+void create_set_label_operation(
+        operation_schema *scheme,
+        sharp_label* label);
+
+void create_jump_if_false_operation(
+        operation_schema *scheme,
+        sharp_label* label);
+
+void create_jump_operation(
+        operation_schema *scheme,
+        sharp_label* label);
 
 void create_get_value_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueScheme,
+        operation_schema *scheme,
+        operation_schema *valueScheme,
         bool resetState = true,
         bool setType = true);
 
 void create_plus_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_sub_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_mult_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_div_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_mod_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_and_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_or_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_xor_value_assignment_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int registerLeft,
         Int registerRight,
-        operation_scheme *asigneeScheme,
-        operation_scheme *valueScheme);
+        operation_schema *asigneeScheme,
+        operation_schema *valueScheme);
 
 void create_pop_value_from_stack_operation(
-        operation_scheme *scheme);
+        operation_schema *scheme);
 
 void create_assign_array_element_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Int index);
 
 void create_access_array_element_operation(
-        operation_scheme *scheme,
-        operation_scheme *indexScheme);
+        operation_schema *scheme,
+        operation_schema *indexScheme);
 
 void create_new_class_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_class *sc);
 
 void create_sizeof_operation(
-        operation_scheme *scheme,
-        operation_scheme *valueOperation);
+        operation_schema *scheme,
+        operation_schema *valueOperation);
 
 void create_cast_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_type *cast_type);
 
 void create_is_operation(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         sharp_type *cast_type);
 
 void create_null_fallback_operation(
-        operation_scheme *scheme,
-        operation_scheme *nullScheme,
-        operation_scheme *fallbackScheme);
+        operation_schema *scheme,
+        operation_schema *nullScheme,
+        operation_schema *fallbackScheme);
 
 #endif //SHARP_OPERATION_H

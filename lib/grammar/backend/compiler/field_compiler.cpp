@@ -69,7 +69,7 @@ void compile_field(sharp_field *field, Ast *ast) {
 
         if(ast->hasSubAst(ast_expression)) {
             expression e;
-            field->scheme = new operation_scheme();
+            field->scheme = new operation_schema();
             create_context(field->owner, check_flag(field->flags, flag_static));
             compile_expression(e, ast->getSubAst(ast_expression));
             delete_context();
@@ -119,7 +119,7 @@ void compile_field(sharp_field *field, Ast *ast) {
 
                     if(trunk->hasSubAst(ast_expression)) {
                         expression e;
-                        xtraField->scheme = new operation_scheme();
+                        xtraField->scheme = new operation_schema();
                         compile_expression(e, trunk->getSubAst(ast_expression));
 
                         if(xtraField->type == type_untyped) {

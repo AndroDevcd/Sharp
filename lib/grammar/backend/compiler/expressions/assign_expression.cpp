@@ -44,7 +44,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
             string stdModule = "std";
             if (match_result != no_match_found) {
                 List<sharp_field *> params;
-                List<operation_scheme *> paramOperations;
+                List<operation_schema *> paramOperations;
 
                 impl_location location;
                 params.add(new sharp_field(
@@ -52,7 +52,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         right.type, flag_public, normal_field,
                         ast
                 ));
-                paramOperations.add(new operation_scheme(right.scheme));
+                paramOperations.add(new operation_schema(right.scheme));
 
                 compile_function_call(
                         &e->scheme, params,
@@ -67,7 +67,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
         } else if (left.type == type_field
             && left.type.field->getter != NULL) {
 
-            operation_scheme scheme;
+            operation_schema scheme;
             if(left.scheme.steps.size() >= 3
                 && left.scheme.steps.last()->type == operation_call_instance_function
                 && left.scheme.steps.last(1)->type == operation_push_value_to_stack
@@ -110,7 +110,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
 
             } else if(match_result != no_match_found){
                 List<sharp_field *> params;
-                List<operation_scheme *> paramOperations;
+                List<operation_schema *> paramOperations;
                 e->scheme.copy(left.scheme);
                 e->type.copy(matchedFun->returnType);
 
@@ -122,7 +122,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         right.type, flag_public, normal_field,
                         ast
                 ));
-                paramOperations.add(new operation_scheme(right.scheme));
+                paramOperations.add(new operation_schema(right.scheme));
 
                 compile_function_call(
                         &e->scheme, params,
@@ -159,8 +159,8 @@ void compile_assign_expression(expression *e, Ast *ast) {
     } else {
         if(get_class_type(left.type) != NULL) {
             List<sharp_field *> params;
-            List<operation_scheme *> operations;
-            operations.add(new operation_scheme());
+            List<operation_schema *> operations;
+            operations.add(new operation_schema());
             create_get_value_operation(operations.last(), &right.scheme, false);
             convert_expression_type_to_real_type(right);
 

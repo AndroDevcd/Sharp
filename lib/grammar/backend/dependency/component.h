@@ -12,7 +12,7 @@
 extern uInt uniqueComponentId;
 
 struct sharp_field;
-struct operation_scheme;
+struct operation_schema;
 struct sharp_type;
 
 enum type_definition_rule {
@@ -88,7 +88,7 @@ struct type_definition {
     uInt id;
     string name;
     sharp_field *accessor;
-    operation_scheme *scheme;
+    operation_schema *scheme;
     sharp_type *type;
     type_definition_rule representation;
     impl_location location;

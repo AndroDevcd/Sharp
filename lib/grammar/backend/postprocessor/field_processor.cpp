@@ -181,7 +181,7 @@ void validate_field_type(
         bool hardType,
         sharp_field *field,
         sharp_type &type,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Ast *ast) {
     if(type.type == type_class
         || (type.type >= type_int8 && type.type <= type_object)) {

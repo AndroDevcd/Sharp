@@ -103,7 +103,7 @@ struct sharp_field {
 
     void set_full_name();
 
-    void create_scheme(operation_scheme *);
+    void create_scheme(operation_schema *);
 
     string name;
     string fullName;
@@ -113,7 +113,7 @@ struct sharp_field {
     impl_location implLocation;
     List<dependency> dependencies;
     sharp_field* closure;
-    operation_scheme* scheme;
+    operation_schema* scheme;
     injection_request *request;
     sharp_type type;
     field_type fieldType;

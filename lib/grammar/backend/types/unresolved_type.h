@@ -12,7 +12,7 @@
 struct unresolved_type;
 struct sharp_type;
 struct sharp_function;
-struct operation_scheme;
+struct operation_schema;
 
 enum reference_access_type {
     access_normal = 0,
@@ -120,7 +120,7 @@ struct unresolved_item {
     reference_access_type accessType;
     reference_type type;
     List<sharp_type*> typeSpecifiers;
-    List<operation_scheme*> operations;
+    List<operation_schema*> operations;
     sharp_type *returnType;
     Ast *ast;
 };

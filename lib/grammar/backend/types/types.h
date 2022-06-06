@@ -13,5 +13,6 @@
 #include "sharp_module.h"
 #include "function_type.h"
 #include "unresolved_type.h"
+#include "sharp_label.h"
 
 #endif //SHARP_TYPES_H

@@ -35,6 +35,9 @@ extern atomic<uInt> uniqueId;
 #define main_component_name "__main__"
 #define instance_init_name(name) ("init<" + (name) + ">")
 #define static_init_name(name)  ("static_init<" + (name) + ">")
+#define set_internal_label_name(ss, name, id)  \
+            (ss).str("");                                \
+            (ss) << "$$01_internal_label_" << (name) << (id);
 #define any_component_name "?"
 #define single_component_field_name_prefix "@sub_component_"
 #define anonymous_func_prefix "@anonymous_fun_"

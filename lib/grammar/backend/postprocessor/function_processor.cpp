@@ -239,7 +239,7 @@ void validate_function_type(
         bool hardType,
         sharp_function *fun,
         sharp_type &type,
-        operation_scheme *scheme,
+        operation_schema *scheme,
         Ast *ast) {
     if(type.type == type_class
        || type.type == type_nil

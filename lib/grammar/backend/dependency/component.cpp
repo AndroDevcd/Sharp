@@ -19,7 +19,7 @@ void type_definition::copy(const type_definition &c) {
         accessor = new sharp_field(*c.accessor);
 
     if(c.scheme)
-        scheme = new operation_scheme(*c.scheme);
+        scheme = new operation_schema(*c.scheme);
 
     if(c.type)
         type = new sharp_type(*c.type);

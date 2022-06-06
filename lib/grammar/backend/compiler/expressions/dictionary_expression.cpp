@@ -57,8 +57,8 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
             dictionaryClass = create_generic_class(pairTypes, dictionaryClassGeneric);
 
             if (pairClass != NULL && dictionaryClass != NULL) {
-                operation_scheme *arraySizeScheme = new operation_scheme();
-                operation_scheme *arrayScheme = new operation_scheme();
+                operation_schema *arraySizeScheme = new operation_schema();
+                operation_schema *arrayScheme = new operation_schema();
                 arraySizeScheme->schemeType = scheme_get_constant;
                 arraySizeScheme->steps.add(
                         new operation_step(operation_get_integer_constant, (Int) dictionaryItems.size()));
@@ -68,11 +68,11 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
 
                 // pairList[n] = new pain<k, v>(<key>, <value>) is what were doing below
                 for (Int i = 0; i < dictionaryItems.size(); i++) {
-                    operation_scheme *pairItemScheme = new operation_scheme();
+                    operation_schema *pairItemScheme = new operation_schema();
                     expression *keyExpr = dictionaryItems.get(i).key;
                     expression *valExpr = dictionaryItems.get(i).value;
                     List<sharp_field *> params;
-                    List<operation_scheme *> paramOperations;
+                    List<operation_schema *> paramOperations;
 
                     impl_location location;
                     params.add(new sharp_field(
@@ -87,8 +87,8 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                             ast
                     ));
 
-                    paramOperations.add(new operation_scheme(keyExpr->scheme));
-                    paramOperations.add(new operation_scheme(valExpr->scheme));
+                    paramOperations.add(new operation_schema(keyExpr->scheme));
+                    paramOperations.add(new operation_schema(valExpr->scheme));
 
                     sharp_function *constructor = resolve_function(get_simple_name(pairClass), pairClass,
                                                                    params, constructor_function,
@@ -124,7 +124,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
 
                 // new dictionary(pairList) represents below code
                 List<sharp_field *> params;
-                List<operation_scheme *> paramOperations;
+                List<operation_schema *> paramOperations;
                 sharp_type pairArrayType(pairClass, false, true);
 
                 impl_location location;
@@ -134,7 +134,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                         ast
                 ));
 
-                paramOperations.add(new operation_scheme(*arrayScheme));
+                paramOperations.add(new operation_schema(*arrayScheme));
 
                 sharp_function *constructor = resolve_function(get_simple_name(dictionaryClass), dictionaryClass,
                                                                params, constructor_function,

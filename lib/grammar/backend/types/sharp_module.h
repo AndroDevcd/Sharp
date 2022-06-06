@@ -24,16 +24,14 @@ struct sharp_module {
     :
         name(""),
         classes(),
-        genericClasses(),
-        moduleLock()
+        genericClasses()
     {}
 
     sharp_module(string &package)
             :
             name(package),
             classes(),
-            genericClasses(),
-            moduleLock()
+            genericClasses()
     {}
 
 
@@ -41,8 +39,7 @@ struct sharp_module {
             :
             name(m.name),
             classes(),
-            genericClasses(),
-            moduleLock()
+            genericClasses()
     {
         classes.addAll(m.classes);
         genericClasses.addAll(m.genericClasses);
@@ -60,7 +57,6 @@ struct sharp_module {
     string name;
     List<sharp_class*> classes;
     List<sharp_class*> genericClasses;
-    recursive_mutex moduleLock;
 };
 
 sharp_module* get_module(string &packageName);

@@ -12,17 +12,23 @@
 
 void compile_function(sharp_function *function) {
     create_context(&current_context, function, check_flag(function->flags, flag_static));
+    function->scheme = new operation_schema();
+    bool codePathsReturnValue;
 
     if(function->type == initializer_function) {
-        compile_block(function->ast->getSubAst(ast_block));
+        codePathsReturnValue = compile_block(function->ast->getSubAst(ast_block), function->scheme);
     } else {
         // todo: support the rest here
     }
 
+
+    if(!codePathsReturnValue && function->returnType.type != type_nil) {
+        current_file->errors->createNewError(GENERIC, function->ast->getSubAst(ast_block), "not all code paths return a value");
+    }
     delete_context();
 }
 
-bool compile_block(Ast *ast) {
+bool compile_block(Ast *ast, operation_schema *scheme) {
     create_block(&current_context, normal_block);
     bool controlPaths[]
          = {
@@ -40,11 +46,11 @@ bool compile_block(Ast *ast) {
         Ast *branch = ast->getSubAst(i);
 
         if(branch->getType() == ast_block) {
-            compile_block(branch);
+            compile_block(branch, scheme);
             continue;
         } else {
             branch = branch->getSubAst(0);
-            compile_statement(branch, controlPaths);
+            compile_statement(branch, scheme, controlPaths);
         }
     }
 

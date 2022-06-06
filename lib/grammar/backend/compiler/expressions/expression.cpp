@@ -75,10 +75,10 @@ void compile_constructor_call(
         Ast *ast,
         sharp_function *constructor,
         expression &e,
-        operation_scheme *scheme) {
+        operation_schema *scheme) {
     string name = "";
     List<sharp_field *> params;
-    List<operation_scheme *> paramOperations;
+    List<operation_schema *> paramOperations;
 
     impl_location location;
     params.add(new sharp_field(
@@ -86,7 +86,7 @@ void compile_constructor_call(
             e.type, flag_public, normal_field,
             ast
     ));
-    paramOperations.add(new operation_scheme(e.scheme));
+    paramOperations.add(new operation_schema(e.scheme));
 
     create_new_class_operation(scheme, get_class_type(current_context.functionCxt->returnType));
     compile_function_call(
@@ -100,7 +100,7 @@ void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
-        List<operation_scheme*> &paramOperations,
+        List<operation_schema*> &paramOperations,
         string &op,
         Ast *ast) {
     sharp_function *fun;
@@ -126,15 +126,15 @@ void compile_class_function_overload(
 }
 
 void compile_function_call(
-        operation_scheme *scheme,
+        operation_schema *scheme,
         List<sharp_field*> & params,
-        List<operation_scheme*> &paramOperations,
+        List<operation_schema*> &paramOperations,
         sharp_function *callee,
         bool isStaticCall,
         bool isPrimaryClass) {
     if(scheme) {
         Int matchResult;
-        List<operation_scheme*> compiledParamOperations;
+        List<operation_schema*> compiledParamOperations;
         for (Int i = 0; i < params.size(); i++) {
             sharp_type *asignee = &callee->parameters.get(i)->type;
             sharp_type *assigner = &params.get(i)->type;
@@ -154,7 +154,7 @@ void compile_function_call(
             }
 
 
-            compiledParamOperations.add(new operation_scheme());
+            compiledParamOperations.add(new operation_schema());
             create_function_parameter_push_operation(
                     asignee,
                     matchResult,

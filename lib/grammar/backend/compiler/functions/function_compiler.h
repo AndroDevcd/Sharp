@@ -8,6 +8,6 @@
 #include "../../types/sharp_function.h"
 
 void compile_function(sharp_function *function);
-bool compile_block(Ast *ast);
+bool compile_block(Ast *ast, operation_schema *scheme);
 
 #endif //SHARP_FUNCTION_COMPILER_H

@@ -12,6 +12,7 @@ struct sharp_class;
 struct sharp_function;
 struct sharp_field;
 struct sharp_file;
+struct sharp_label;
 
 enum context_type {
     no_context,
@@ -79,7 +80,7 @@ struct stored_block_info {
     Int id;
     Int line;
     bool reachable;
-    operation_scheme *lockScheme;
+    operation_schema *lockScheme;
 };
 
 struct block_info : public stored_block_info {
@@ -102,6 +103,7 @@ struct stored_context_item {
         functionCxt(NULL),
         componentCtx(NULL),
         localFields(),
+        labels(),
         isStatic(false)
     {}
 
@@ -112,6 +114,7 @@ struct stored_context_item {
             functionCxt(NULL),
             componentCtx(NULL),
             localFields(),
+            labels(),
             isStatic(false),
             blockInfo()
     {
@@ -120,6 +123,7 @@ struct stored_context_item {
 
     ~stored_context_item() {
         localFields.free();
+        labels.free();
     }
 
     void copy(const stored_context_item &item) {
@@ -128,6 +132,7 @@ struct stored_context_item {
         functionCxt = item.functionCxt;
         componentCtx = item.componentCtx;
         localFields.addAll(item.localFields);
+        labels.addAll(item.labels);
         isStatic = item.isStatic;
         blockInfo.copy_all(item.blockInfo);
     }
@@ -137,6 +142,7 @@ struct stored_context_item {
     sharp_function *functionCxt;
     component *componentCtx;
     List<sharp_field*> localFields;
+    List<sharp_label*> labels;
     block_info blockInfo;
     bool isStatic;
 };
@@ -170,7 +176,7 @@ void delete_block(block_info *info);
 void store_block(block_info *info);
 void restore_block(block_info *info);
 bool inside_block(block_info *info, block_type type);
-void retrieve_lock_schemes(block_info *info, List<operation_scheme*> schemes);
+void retrieve_lock_schemes(block_info *info, List<operation_schema*> schemes);
 
 sharp_class *get_primary_class(context*);
 sharp_function *get_primary_function(context*);

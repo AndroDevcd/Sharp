@@ -55,7 +55,7 @@ struct sharp_alias {
             dependencies(alias.dependencies),
             flags(alias.flags),
             location(alias.location),
-            operation(new operation_scheme(*alias.operation)),
+            operation(new operation_schema(*alias.operation)),
             ast(alias.ast)
     {}
 
@@ -91,7 +91,7 @@ struct sharp_alias {
     sharp_class *owner;
     sharp_type type;
     uInt flags;
-    operation_scheme *operation;
+    operation_schema *operation;
     impl_location location;
     List<dependency> dependencies;
     Ast *ast;

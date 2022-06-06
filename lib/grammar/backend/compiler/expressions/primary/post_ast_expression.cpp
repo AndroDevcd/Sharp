@@ -58,7 +58,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
             if(funPtr != NULL) {
                 List<sharp_field*> params;
                 List<expression*> expressions;
-                List<operation_scheme*> paramOperations;
+                List<operation_schema*> paramOperations;
 
                 string name = "";
                 impl_location location;
@@ -80,7 +80,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                             list->getSubAst(j)
                     ));
 
-                    paramOperations.add(new operation_scheme(expressions.last()->scheme));
+                    paramOperations.add(new operation_schema(expressions.last()->scheme));
                 }
 
                 if(is_fully_qualified_function(funPtr)) {
@@ -101,7 +101,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                         }
 
                         if(parametersMatch) {
-                            operation_scheme scheme;
+                            operation_schema scheme;
                             compile_function_call(
                                     &scheme,
                                     params,

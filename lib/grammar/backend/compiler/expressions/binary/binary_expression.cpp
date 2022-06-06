@@ -546,8 +546,8 @@ void compile_binary_expression(
                 expressions_array_check(left.type, operand, ast->getSubAst(0));
 
                 List<sharp_field *> params;
-                List<operation_scheme *> operations;
-                operations.add(new operation_scheme());
+                List<operation_schema *> operations;
+                operations.add(new operation_schema());
                 create_get_value_operation(operations.last(), &right.scheme, false);
                 convert_expression_type_to_real_type(right);
 

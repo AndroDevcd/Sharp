@@ -8,18 +8,18 @@
 #include "../../../types/types.h"
 #include "../../compiler.h"
 
-void compile_constructor_call(Ast *ast, sharp_function *constructor, expression &e, operation_scheme *scheme);
+void compile_constructor_call(Ast *ast, sharp_function *constructor, expression &e, operation_schema *scheme);
 
-void compile_return_statement(Ast *ast, bool *controlPaths) {
+void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     current_context.blockInfo.reachable = false;
 
     sharp_function *function;
     uInt match_result;
     expression returnVal;
-    operation_scheme *scheme = new operation_scheme();
-    List<operation_scheme*> lockSchemes;
+    List<operation_schema*> lockSchemes;
+    operation_schema *subScheme = new operation_schema();
 
-    scheme->schemeType = scheme_return;
+    subScheme->schemeType = scheme_return;
     if(ast->getSubAst(ast_expression)) {
         compile_expression(returnVal, ast->getSubAst(ast_expression));
     }
@@ -29,22 +29,22 @@ void compile_return_statement(Ast *ast, bool *controlPaths) {
 
     retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
     for(Int i = 0; i < lockSchemes.size(); i++) {
-        operation_scheme* tmp = new operation_scheme();
+        operation_schema* tmp = new operation_schema();
         create_unlock_operation(tmp, lockSchemes.get(i));
-        add_scheme_operation(scheme, tmp);
+        add_scheme_operation(subScheme, tmp);
     }
 
     match_result = is_implicit_type_match(current_context.functionCxt->returnType, returnVal.type, constructor_only, function);
     if(match_result == match_constructor) {
-        operation_scheme* tmp = new operation_scheme();
+        operation_schema* tmp = new operation_schema();
         compile_constructor_call(ast, function, returnVal, tmp);
-        create_object_return_operation(scheme, tmp);
+        create_object_return_operation(subScheme, tmp);
     } else if(match_result == match_normal) {
         if(is_numeric_type(returnVal.type) && !returnVal.type.isArray)
-            create_numeric_return_operation(scheme, &returnVal.scheme);
+            create_numeric_return_operation(subScheme, &returnVal.scheme);
         else if(returnVal.type.type == type_nil)
-            create_return_operation(scheme);
-        else create_object_return_operation(scheme, &returnVal.scheme);
+            create_return_operation(subScheme);
+        else create_object_return_operation(subScheme, &returnVal.scheme);
     }else {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
                       + type_to_str(current_context.functionCxt->returnType) + "`.");
@@ -54,6 +54,6 @@ void compile_return_statement(Ast *ast, bool *controlPaths) {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
     }
 
-    add_scheme_operation(current_context.functionCxt->scheme, scheme);
+    add_scheme_operation(scheme, subScheme);
     controlPaths[MAIN_CONTROL_PATH] = true;
 }

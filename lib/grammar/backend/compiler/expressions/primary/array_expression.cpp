@@ -11,7 +11,7 @@
 void compile_array_expression(expression *e, Ast *ast) {
     List<sharp_field*> params;
     List<expression*> expressions;
-    List<operation_scheme*> paramOperations;
+    List<operation_schema*> paramOperations;
 
     Ast *list = ast->getSubAst(ast_array_index_items);
     string name = "";
@@ -33,7 +33,7 @@ void compile_array_expression(expression *e, Ast *ast) {
                 list->getSubAst(j)
         ));
 
-        paramOperations.add(new operation_scheme(expressions.last()->scheme));
+        paramOperations.add(new operation_schema(expressions.last()->scheme));
     }
 
     if(e->type.isArray || (e->type.type == type_field || e->type.field->type.isArray)) {

@@ -5,6 +5,7 @@
 #include "sharp_function.h"
 #include "sharp_field.h"
 #include "sharp_class.h"
+#include "sharp_label.h"
 #include "../dependency/dependancy.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../../compiler_info.h"
@@ -84,6 +85,31 @@ void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation
     }
 }
 
+sharp_label* create_label(
+        string name,
+        context *context,
+        Ast *createLocation,
+        operation_schema *scheme) {
+    if(scheme && context->functionCxt) {
+        sharp_label *label;
+        if((label = resolve_label(name, context)) == NULL) {
+            Int id = create_allocate_label_operation(scheme);
+            label = new sharp_label(name, id, impl_location(currThread->currTask->file, createLocation));
+            context->labels.add(label);
+            context->functionCxt->labels.add(label);
+            return label;
+        } else {
+            if(currThread->currTask->file->errors->createNewError(
+                    PREVIOUSLY_DEFINED, createLocation, "label `" + name +
+                                                        "` is already defined"))
+                print_impl_location(label->name, "label", label->location);
+            return label;
+        }
+    }
+
+    return NULL;
+}
+
 string function_to_str(sharp_function *fun) {
     stringstream ss;
     ss << fun->name << "(";
@@ -131,6 +157,7 @@ void sharp_function::free() {
     dependencies.free();
     if(!directlyCopyParams) deleteList(parameters);
     deleteList(locals);
+    deleteList(labels);
     delete scheme; scheme = NULL;
 }
 
@@ -144,9 +171,9 @@ void sharp_function::copy_locals(const List<sharp_field *> &localFields) {
         locals.add(new sharp_field(*localFields.get(i)));
 }
 
-void sharp_function::copy_scheme(operation_scheme *operations) {
+void sharp_function::copy_scheme(operation_schema *operations) {
     if(operations != NULL) {
         delete scheme;
-        scheme = new operation_scheme(*operations);
+        scheme = new operation_schema(*operations);
     }
 }

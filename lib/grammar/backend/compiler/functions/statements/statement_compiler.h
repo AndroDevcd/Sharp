@@ -6,7 +6,8 @@
 #define SHARP_STATEMENT_COMPILER_H
 
 class Ast;
+struct operation_schema;
 
-void compile_statement(Ast *ast, bool *controlPaths);
+void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths);
 
 #endif //SHARP_STATEMENT_COMPILER_H

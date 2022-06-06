@@ -154,6 +154,7 @@ void pre_process_class(
             case ast_operator_decl:
             case ast_construct_decl:
             case ast_init_decl:
+            case ast_init_func_decl:
             case ast_obfuscate_decl:
                 /* ignore */
                 break;

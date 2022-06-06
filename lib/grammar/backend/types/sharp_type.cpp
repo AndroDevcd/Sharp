@@ -2,10 +2,7 @@
 // Created by BNunnally on 9/2/2021.
 //
 
-#include "sharp_type.h"
-#include "sharp_class.h"
-#include "sharp_field.h"
-#include "sharp_function.h"
+#include "types.h"
 #include "../../compiler_info.h"
 #include "import_group.h"
 
@@ -84,6 +81,7 @@ string type_to_str(sharp_type &type) {
     else if(type.type == type_null) ss << "null";
     else if(type.type == type_nil) ss << "nil";
     else if(type.type == type_function) ss << function_to_str(type.fun);
+    else if(type.type == type_label) ss << "label(" << type.label->name << ")";
     else if(type.type == type_field) ss << type.field->fullName << ": " << type_to_str(type.field->type);
     else if(type.type == type_get_component_request) {
         get_component_request *request = type.componentRequest;
@@ -196,8 +194,11 @@ uInt is_implicit_type_match(
     }
 
     switch(comparer.type) {
-        case type_null: return with_result(comparee.type == type_null, match_normal);
-        case type_nil: return with_result(comparee.type == type_nil, match_normal);
+        case type_null:
+        case type_label:
+        case type_nil: {
+            return with_result(comparee.type == comparer.type, match_normal);
+        }
         case type_any:
         case type_untyped:
         case type_undefined: return no_match_found;
