@@ -13,6 +13,7 @@ struct sharp_function;
 struct sharp_field;
 struct sharp_file;
 struct sharp_label;
+struct sharp_alias;
 
 enum context_type {
     no_context,
@@ -31,7 +32,12 @@ enum block_type {
     if_block,
     elseif_block,
     else_block,
-    lock_block
+    lock_block,
+    for_block,
+    for_each_block,
+    while_block,
+    do_while_block,
+    when_block
 };
 
 /**
@@ -54,7 +60,10 @@ struct stored_block_info {
             reachable(true),
             id(-1),
             line(-1),
-            lockScheme(NULL)
+            lockScheme(NULL),
+            beginLabel(NULL),
+            endLabel(NULL),
+            finallyLabel(NULL)
     {}
 
     stored_block_info(const stored_block_info &item)
@@ -63,7 +72,10 @@ struct stored_block_info {
             reachable(true),
             id(-1),
             line(-1),
-            lockScheme(NULL)
+            lockScheme(NULL),
+            beginLabel(NULL),
+            finallyLabel(NULL),
+            endLabel(NULL)
     {
         copy(item);
     }
@@ -80,6 +92,9 @@ struct stored_block_info {
     Int id;
     Int line;
     bool reachable;
+    sharp_label *beginLabel;
+    sharp_label *endLabel;
+    sharp_label *finallyLabel;
     operation_schema *lockScheme;
 };
 
@@ -103,6 +118,7 @@ struct stored_context_item {
         functionCxt(NULL),
         componentCtx(NULL),
         localFields(),
+        localAliases(),
         labels(),
         isStatic(false)
     {}
@@ -114,6 +130,7 @@ struct stored_context_item {
             functionCxt(NULL),
             componentCtx(NULL),
             localFields(),
+            localAliases(),
             labels(),
             isStatic(false),
             blockInfo()
@@ -123,6 +140,7 @@ struct stored_context_item {
 
     ~stored_context_item() {
         localFields.free();
+        localAliases.free();
         labels.free();
     }
 
@@ -132,6 +150,7 @@ struct stored_context_item {
         functionCxt = item.functionCxt;
         componentCtx = item.componentCtx;
         localFields.addAll(item.localFields);
+        localAliases.addAll(item.localAliases);
         labels.addAll(item.labels);
         isStatic = item.isStatic;
         blockInfo.copy_all(item.blockInfo);
@@ -142,6 +161,7 @@ struct stored_context_item {
     sharp_function *functionCxt;
     component *componentCtx;
     List<sharp_field*> localFields;
+    List<sharp_alias*> localAliases;
     List<sharp_label*> labels;
     block_info blockInfo;
     bool isStatic;
@@ -175,8 +195,11 @@ void delete_block();
 void delete_block(block_info *info);
 void store_block(block_info *info);
 void restore_block(block_info *info);
+
 bool inside_block(block_info *info, block_type type);
 void retrieve_lock_schemes(block_info *info, List<operation_schema*> schemes);
+stored_block_info* retrieve_block(block_info *info, block_type type);
+sharp_label* retrieve_next_finally_label(block_info *info);
 
 sharp_class *get_primary_class(context*);
 sharp_function *get_primary_function(context*);

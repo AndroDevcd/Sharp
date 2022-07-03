@@ -99,7 +99,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                               overload_only, matchedFun);
             }
 
-            if(match_result == match_normal) {
+            if(is_match_normal(match_result)) {
                 if(left.type.type != type_field && options.optimize_level  == high_performance_optimization) {
                     e->scheme.copy(right.scheme);
                     e->type.copy(right.type);
@@ -142,7 +142,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                                   exclude_all, matchedFun);
                 }
 
-                if(match_result == match_normal) {
+                if(is_match_normal(match_result)) {
                     create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
                     e->type.copy(left.type);
                 } else {
@@ -175,7 +175,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     get_class_type(left.type), left, params, operations, operand.getValue(), ast);
             e->type.copy(left.type);
             e->scheme.copy(left.scheme);
-        } else if(is_numeric_type(left.type)) {
+        } else if(is_numeric_type(left.type) && left.type.type != type_function_ptr) {
             if(left.type == type_field) {
                 if (match_result == no_match_found) {
                     match_result =
@@ -183,7 +183,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                                                    exclude_all, matchedFun);
                 }
 
-                if(match_result == match_normal) {
+                if(is_match_normal(match_result)) {
                     e->type.copy(left.type);
 
                     ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
@@ -218,7 +218,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
         } else {
             currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
                   "expressions of type `" + type_to_str(left.type)
-                  + "` is not assignable.");
+                  + "` cannot be assigned via `" + operand.getValue() + "` operator.");
         }
     }
 }

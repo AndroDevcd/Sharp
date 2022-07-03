@@ -4,6 +4,7 @@
 
 #include "sharp_alias.h"
 #include "sharp_class.h"
+#include "sharp_function.h"
 #include "../../compiler_info.h"
 #include "../../sharp_file.h"
 
@@ -40,6 +41,40 @@ sharp_alias* create_alias(
     }
 }
 
+sharp_alias* create_local_alias(
+        sharp_file *file,
+        context *context,
+        string name,
+        uInt flags,
+        Ast *ast) {
+    impl_location location(file, 0, 0);
+
+    if(ast != NULL) {
+        location.line = ast->line;
+        location.col = ast->col;
+    }
+
+    if(context->functionCxt) {
+        sharp_alias *alias;
+        if((alias = resolve_local_alias(name, context)) == NULL) {
+            alias = new sharp_alias(name, NULL, flags, location, ast);
+
+            GUARD(globalLock)
+            alias->block = context->blockInfo.id;
+            context->localAliases.add(alias);
+            context->functionCxt->aliases.add(alias);
+            return alias;
+        } else {
+            file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "alias `" + name +
+                                                                                  "` is already defined in function: " + alias->name);
+            print_impl_location(alias->name, "alias", alias->location);
+            return alias;
+        }
+    }
+
+    return NULL;
+}
+
 sharp_alias* create_alias(
         sharp_file *file,
         sharp_module *module,
@@ -71,5 +106,5 @@ sharp_alias* create_alias(
 
 void sharp_alias::free() {
     dependencies.free();
-    delete operation; operation = NULL;
+    delete scheme; scheme = NULL;
 }

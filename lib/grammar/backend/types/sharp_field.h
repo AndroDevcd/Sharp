@@ -12,9 +12,6 @@
 #include "../dependency/dependancy.h"
 #include "../dependency/injection_request.h"
 
-#define invalid_block_id (-1)
-#define valid_block_id(id) ((id) >= 0)
-
 struct sharp_class;
 
 enum field_type {
@@ -144,6 +141,15 @@ sharp_field* create_closure_field(
         sharp_class*,
         string,
         sharp_type,
+        Ast*);
+
+sharp_field* create_local_field(
+        sharp_file*,
+        context*,
+        string,
+        uInt,
+        sharp_type,
+        field_type,
         Ast*);
 
 bool can_capture_closure(sharp_field*);

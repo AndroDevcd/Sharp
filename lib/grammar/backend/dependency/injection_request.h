@@ -7,6 +7,8 @@
 
 #include "../../../../stdimports.h"
 
+struct get_component_request;
+
 struct injection_request {
     injection_request()
     :
@@ -26,6 +28,8 @@ struct injection_request {
     {
         this->componentName = componentName;
     }
+
+    get_component_request* to_component_request();
 
     string componentName;
 };

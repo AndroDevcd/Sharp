@@ -236,7 +236,12 @@ bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee) {
 bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
     if(comparer->baseClass != NULL) {
         if(comparer->baseClass == baseClass) return true;
-        else return is_class_related_to(comparer->baseClass, baseClass);
+        for(Int i = 0; i < comparer->interfaces.size(); i++) {
+            if(is_implicit_type_match(comparer->interfaces.get(i), baseClass))
+                return true;
+        }
+
+        return is_class_related_to(comparer->baseClass, baseClass);
     }
 
     return false;

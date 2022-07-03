@@ -178,6 +178,16 @@ sharp_field* resolve_local_field(string name, stored_context_item *context) {
     return NULL;
 }
 
+sharp_alias* resolve_local_alias(string name, stored_context_item *context) {
+    for(Int i = 0; i < context->localAliases.size(); i++) {
+        if(context->localAliases.get(i)->name == name
+            && context->localAliases.get(i)->block <= context->blockInfo.id)
+            return context->localAliases.get(i);
+    }
+
+    return NULL;
+}
+
 sharp_field* resolve_field(string name, sharp_class *searchClass, bool checkBase) {
     GUARD(globalLock)
     for(Int i = 0; i < searchClass->fields.size(); i++) {
@@ -583,6 +593,29 @@ bool resolve_label(
     return false;
 }
 
+
+bool resolve_local_alias( // todo: support tls access for all fields
+        unresolved_item &item,
+        sharp_type &resultType,
+        operation_schema *scheme,
+        context &ctx) {
+    sharp_alias *alias;
+    for(Int i = ctx.storedItems.size() - 1; i >= 0; i--) {
+        stored_context_item *contextItem = ctx.storedItems.get(i);
+
+        if((alias = resolve_local_alias(item.name, contextItem)) != NULL) {
+
+            resultType.copy(alias->type);
+
+            if(resultType.type == type_class)
+                create_dependency(ctx.functionCxt, resultType._class);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool resolve_local_field( // todo: support tls access for all fields
         unresolved_item &item,
         sharp_type &resultType,
@@ -772,8 +805,8 @@ bool resolve_primary_class_alias(
         process_alias(alias);
         resultType.copy(alias->type);
 
-        if(alias->operation && scheme) {
-            scheme->copy(*alias->operation);
+        if(alias->scheme && scheme) {
+            scheme->copy(*alias->scheme);
         }
 
         string fieldType = "alias";
@@ -997,8 +1030,8 @@ bool resolve_global_class_alias(
         process_alias(alias);
         resultType.copy(alias->type);
 
-        if(alias->operation && scheme) {
-            scheme->copy(*alias->operation);
+        if(alias->scheme && scheme) {
+            scheme->copy(*alias->scheme);
         }
 
 
@@ -1156,7 +1189,7 @@ bool resolve_global_class(
 }
 
 // resolve logic flow
-// local labels -> local fields -> class instance / static fields -> class aliases -> class enums -> function reference via name
+// local labels -> local aliases -> local fields -> class instance / static fields -> class aliases -> class enums -> function reference via name
 // local class (inner class inside primary class) -> Primary class -> genericType -> global field -> global alias -> global enums
 // -> global function reference -> global_class
 void resolve_normal_item(
@@ -1177,6 +1210,14 @@ void resolve_normal_item(
 
             hardType = false;
             resultType.nullable = false;
+            return;
+        }
+
+        if(context.type == block_context
+            && hasFilter(filter, resolve_filter_local_alias)
+            && resolve_local_alias(item, resultType, scheme, context)) {
+
+            hardType = true;
             return;
         }
 

@@ -106,6 +106,8 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
 
     compile_class_fields(with_class);
     compile_inits(with_class);
+    // todo: compile all other functions
+    // todo: compile uncompiled functions like field setters and getters
 
     for(Int i = 0; i < block->getSubAstCount(); i++) {
         Ast *trunk = block->getSubAst(i);

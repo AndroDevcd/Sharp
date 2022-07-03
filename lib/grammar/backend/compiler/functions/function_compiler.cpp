@@ -12,7 +12,8 @@
 
 void compile_function(sharp_function *function) {
     create_context(&current_context, function, check_flag(function->flags, flag_static));
-    function->scheme = new operation_schema();
+    if(function->scheme == NULL)
+        function->scheme = new operation_schema();
     bool codePathsReturnValue;
 
     if(function->type == initializer_function) {
@@ -28,8 +29,20 @@ void compile_function(sharp_function *function) {
     delete_context();
 }
 
-bool compile_block(Ast *ast, operation_schema *scheme) {
-    create_block(&current_context, normal_block);
+bool compile_block(
+        Ast *ast,
+        operation_schema *scheme,
+        block_type bt,
+        sharp_label *beginLabel,
+        sharp_label *endLabel,
+        operation_schema *lockScheme,
+        sharp_label *finallyLabel) {
+    create_block(&current_context, bt);
+    current_context.blockInfo.beginLabel = beginLabel;
+    current_context.blockInfo.endLabel = endLabel;
+    current_context.blockInfo.lockScheme = lockScheme;
+    current_context.blockInfo.finallyLabel = finallyLabel;
+
     bool controlPaths[]
          = {
                  false, // MAIN_CONTROL_PATH

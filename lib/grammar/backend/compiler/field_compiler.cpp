@@ -42,6 +42,20 @@ void compile_field(sharp_class *with_class, Ast *ast) {
     compile_field(field, ast);
 }
 
+void compile_field_injection_request(sharp_field *field, Ast *ast) {
+    get_component_request *request = field->request->to_component_request();
+    type_definition *td = get_type_definition(componentManager, field->type, *request);
+    delete request; request = NULL;
+
+    if(td) {
+        field->scheme->copy(*td->scheme);
+    } else {
+        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                                           "cannot inject field `" + field->name + ": " +
+                                                           type_to_str(field->type) + "`, no type found in components.");
+    }
+}
+
 void compile_field(sharp_field *field, Ast *ast) {
     GUARD(globalLock)
 
@@ -64,8 +78,11 @@ void compile_field(sharp_field *field, Ast *ast) {
         delete_context();
     }
 
-    if(field->request == NULL
-        && field->scheme == NULL) {
+    if(field->request != NULL) {
+        compile_field_injection_request(field, ast);
+    }
+
+    if(field->scheme == NULL) {
 
         if(ast->hasSubAst(ast_expression)) {
             expression e;

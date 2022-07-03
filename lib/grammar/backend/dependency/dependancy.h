@@ -201,6 +201,8 @@ sharp_field* resolve_enum(string, import_group*);
 sharp_field* resolve_enum(string, sharp_class*);
 
 sharp_label* resolve_label(string name, stored_context_item *context);
+sharp_field* resolve_local_field(string name, stored_context_item *context);
+sharp_alias* resolve_local_alias(string name, stored_context_item *context);
 
 bool resolve_function_for_address(
         string,
@@ -246,6 +248,7 @@ enum resolve_filter {
     resolve_filter_class_function = 0x2000,
     resolve_filter_function = 0x4000,
     resolve_filter_label = 0x8000,
+    resolve_filter_local_alias = 0x10000,
 
     /**
      * quick resolve flag vars
@@ -275,7 +278,8 @@ enum resolve_filter {
             | resolve_filter_generic_class
             | resolve_filter_class_function
             | resolve_filter_function
-            | resolve_filter_label,
+            | resolve_filter_label
+            | resolve_filter_local_alias,
 
     resolve_inner_class_type = resolve_filter_class_field
             | resolve_filter_class_enum

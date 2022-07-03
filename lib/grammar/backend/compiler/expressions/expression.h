@@ -46,7 +46,14 @@ void compile_expression_for_type(expression &, Ast*);
 void convert_expression_type_to_real_type(
         expression &typeDefinition);
 
-void compile_constructor_call(
+/**
+ * This function can be used to call simple constructors or init() calls
+ * @param ast
+ * @param constructor
+ * @param e
+ * @param scheme
+ */
+void compile_initialization_call(
         Ast *ast,
         sharp_function *constructor,
         expression &e,

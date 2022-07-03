@@ -17,8 +17,8 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
     subScheme->schemeType = scheme_if;
 
     compile_expression(cond, ast->getSubAst(ast_expression));
-    if(!(is_numeric_type(cond.type) && cond.type.type != type_function_ptr)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "if statement condition expression must be true or false");
+    if(!is_evaluable_type(cond.type)) {
+        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "if statement condition expression must evaluate to true or false");
     }
 
     set_internal_label_name(ss, "if_end", uniqueId++)
@@ -30,7 +30,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
         blockEndLabel = create_label(ss.str(), &current_context, ast, subScheme);
         create_jump_if_false_operation(subScheme, blockEndLabel);
 
-        controlPaths[IF_CONTROL_PATH] = compile_block(ast->getSubAst(ast_block), subScheme);
+        controlPaths[IF_CONTROL_PATH] = compile_block(ast->getSubAst(ast_block), subScheme, if_block);
         controlPaths[ELSEIF_CONTROL_PATH] = true;
         current_context.blockInfo.reachable = true;
         create_jump_operation(subScheme, endLabel);
@@ -45,8 +45,8 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_elseif, *subScheme,
                         expression elseIfCond;
                         compile_expression(elseIfCond, ast->getSubAst(ast_expression));
-                        if(!(is_numeric_type(elseIfCond.type) && elseIfCond.type.type != type_function_ptr)) {
-                            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "else if statement condition expression must be true or false");
+                        if(!is_evaluable_type(elseIfCond.type)) {
+                            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "else if statement condition expression must evaluate to true or false");
                         }
 
                         set_internal_label_name(ss, "if_block_end", uniqueId++)
@@ -54,7 +54,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                         create_get_value_operation(&scheme_0, &cond.scheme, false, false);
                         create_jump_if_false_operation(&scheme_0, blockEndLabel);
 
-                        if(!compile_block(branch->getSubAst(ast_block), &scheme_0)) {
+                        if(!compile_block(branch->getSubAst(ast_block), &scheme_0, elseif_block)) {
                             controlPaths[ELSEIF_CONTROL_PATH] = false;
                         }
 
@@ -62,13 +62,13 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                             create_jump_operation(&scheme_0, endLabel);
                         }
 
-                        create_set_label_operation(&scheme_0, endLabel);
+                        create_set_label_operation(&scheme_0, blockEndLabel);
                     )
                 }
 
                 case ast_else_statement: {
                     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_else, *subScheme,
-                        controlPaths[ELSE_CONTROL_PATH] = compile_block(branch->getSubAst(ast_block), &scheme_0);
+                        controlPaths[ELSE_CONTROL_PATH] = compile_block(branch->getSubAst(ast_block), &scheme_0, else_block);
                     )
                 }
                 default: {
@@ -81,7 +81,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
         }
     } else {
         create_jump_if_false_operation(subScheme, endLabel);
-        compile_block(ast->getSubAst(ast_block), subScheme);
+        compile_block(ast->getSubAst(ast_block), subScheme, if_block);
         current_context.blockInfo.reachable = true;
     }
 

@@ -71,7 +71,7 @@ void convert_expression_type_to_real_type(
     }
 }
 
-void compile_constructor_call(
+void compile_initialization_call(
         Ast *ast,
         sharp_function *constructor,
         expression &e,
@@ -143,7 +143,7 @@ void compile_function_call(
             if(assigner->type == type_get_component_request) {
                 paramOperations.get(i)->copy(
                         *assigner->componentRequest->resolvedTypeDefinition->scheme);
-                matchResult = match_normal;
+                matchResult = direct_match;
             } else {
                 matchResult = is_explicit_type_match(*asignee, *assigner);
                 if (matchResult == no_match_found) {

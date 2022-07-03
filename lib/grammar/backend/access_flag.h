@@ -14,7 +14,8 @@ enum access_flag {
     flag_private = 0x002,
     flag_protected = 0x004,
 
-    flag_excuse = 0x008,
+    // todo: add errors for non-nullable fields not being assigned
+    flag_excuse = 0x008, // this flag excuses a non-nullable fields not being initialized
 
     flag_local = 0x0010,
 

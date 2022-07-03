@@ -33,6 +33,7 @@ struct sharp_function {
             parameters(),
             returnType(),
             locals(),
+            aliases(),
             labels(),
             type(undefined_function),
             directlyCopyParams(false)
@@ -49,6 +50,7 @@ struct sharp_function {
             ast(sf.ast),
             parameters(),
             locals(),
+            aliases(),
             labels(),
             returnType(sf.returnType),
             type(sf.type),
@@ -83,6 +85,7 @@ struct sharp_function {
             returnType(),
             type(type),
             locals(),
+            aliases(),
             labels(),
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
@@ -111,6 +114,7 @@ struct sharp_function {
     List<dependency> dependencies;
     List<sharp_field*> parameters;
     List<sharp_field*> locals;
+    List<sharp_alias*> aliases;
     List<sharp_label*> labels;
     operation_schema *scheme;
     sharp_field* closure;
@@ -150,11 +154,5 @@ bool create_function(
 void create_default_constructor(sharp_class*, uInt, Ast*);
 
 string function_to_str(sharp_function*);
-
-sharp_label* create_label(
-        string name,
-        context *context,
-        Ast *createLocation,
-        operation_schema *scheme);
 
 #endif //SHARP_SHARP_FUNCTION_H

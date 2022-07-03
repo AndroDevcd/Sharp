@@ -38,12 +38,17 @@ extern atomic<uInt> uniqueId;
 #define set_internal_label_name(ss, name, id)  \
             (ss).str("");                                \
             (ss) << "$$01_internal_label_" << (name) << (id);
+#define set_internal_variable_name(ss, name, id)  \
+            (ss).str("");                                \
+            (ss) << "$$02_internal_field_" << (name) << (id);
 #define any_component_name "?"
 #define single_component_field_name_prefix "@sub_component_"
 #define anonymous_func_prefix "@anonymous_fun_"
 #define current_file currThread->currTask->file
 #define error_manager currThread->currTask->file->errors
 #define current_context currThread->currTask->file->context
+#define invalid_block_id (-1)
+#define valid_block_id(id) ((id) >= 0)
 
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);

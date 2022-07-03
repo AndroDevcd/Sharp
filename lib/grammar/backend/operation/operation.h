@@ -16,6 +16,9 @@ struct sharp_function;
 struct operation_step;
 struct sharp_type;
 struct sharp_label;
+struct sharp_tc_data;
+struct catch_data;
+struct finally_data;
 
 enum operation_type {
     operation_none,
@@ -31,6 +34,7 @@ enum operation_type {
     operation_assign_array_value,
     operation_get_value,
     operation_get_sizeof,
+    operation_throw_exception,
     operation_pop_value_from_stack,
     operation_assign_array_element_from_stack,
     operation_nullify_value,
@@ -91,6 +95,14 @@ enum operation_type {
     operation_discard_register,
     operation_allocate_register,
     operation_allocate_label,
+    operation_allocate_try_catch_data,
+    operation_allocate_catch_data,
+    operation_allocate_finally_data,
+    operation_set_catch_field,
+    operation_set_finally_exception_field,
+    operation_set_catch_start,
+    operation_set_finally_start,
+    operation_set_finally_end,
     operation_and,
     operation_xor,
     operation_or,
@@ -115,13 +127,26 @@ enum operation_type {
     operation_assign_value,
     operation_record_line,
     operation_return_nil,
+    operation_return_with_error_state,
     operation_return_number,
     operation_return_object,
     operation_lock,
     operation_unlock,
     operation_set_label,
     operation_jump_if_false,
-    operation_jump
+    operation_jump_if_true,
+    operation_jump,
+    operation_label_reachable,
+    operation_setup_local_field,
+    operation_set_local_field,
+    operation_get_register_value,
+    operation_set_register_value,
+    operation_set_try_catch_start,
+    operation_set_try_catch_end,
+    operation_set_try_catch_block_start,
+    operation_set_try_catch_block_end,
+    operation_check_null,
+    operation_no_op,
 };
 
 enum _operation_scheme {
@@ -150,11 +175,23 @@ enum _operation_scheme {
     scheme_get_numeric_value,
     scheme_line_info,
     scheme_return,
-    scheme_lock,
-    scheme_unlock,
+    scheme_lock_data,
+    scheme_unlock_data,
     scheme_if,
     scheme_elseif,
-    scheme_else
+    scheme_else,
+    scheme_label,
+    scheme_for,
+    scheme_for_each,
+    scheme_increment_value,
+    scheme_for_each_position_check,
+    scheme_while,
+    scheme_throw,
+    scheme_break,
+    scheme_continue,
+    scheme_lock,
+    scheme_try,
+    scheme_when,
 };
 
 struct operation_schema {
@@ -644,7 +681,18 @@ void create_new_object_array_operation(
 void create_push_to_stack_operation(
         operation_schema *scheme);
 
+void create_check_null_operation(
+        operation_schema *scheme);
+
 void create_retain_numeric_value_operation(
+        operation_schema *scheme,
+        Int registerId);
+
+void create_get_value_from_register_operation(
+        operation_schema *scheme,
+        Int registerId);
+
+void create_set_value_to_register_operation(
         operation_schema *scheme,
         Int registerId);
 
@@ -746,6 +794,9 @@ void create_gte_operation(
 void create_return_operation(
         operation_schema *scheme);
 
+void create_return_with_error_operation(
+        operation_schema *scheme);
+
 void create_numeric_return_operation(
         operation_schema *scheme,
         operation_schema *valueScheme);
@@ -769,21 +820,30 @@ void create_instance_not_eq_operation(
         operation_schema *scheme);
 
 #define ALLOCATE_REGISTER_2X(r1, r2, scheme, code) \
-            Int register_##r1 = create_allocate_register_operation(scheme); \
+            { Int register_##r1 = create_allocate_register_operation(scheme); \
             Int register_##r2 = create_allocate_register_operation(scheme); \
              code \
             create_deallocate_register_operation(scheme, register_##r1); \
-            create_deallocate_register_operation(scheme, register_##r2);
+            create_deallocate_register_operation(scheme, register_##r2); }
+
+#define ALLOCATE_REGISTER_1X(r1, scheme, code) \
+            { Int register_##r1 = create_allocate_register_operation(scheme); \
+             code \
+            create_deallocate_register_operation(scheme, register_##r1); }
 
 #define APPLY_TEMP_SCHEME(scheme_num, scheme, code) \
             operation_schema scheme_##scheme_num; \
              code                                   \
             (scheme).steps.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
 
+#define APPLY_TEMP_SCHEME_WITHOUT_INJECT(scheme_num, code) \
+            operation_schema scheme_##scheme_num; \
+             code
+
 #define APPLY_TEMP_SCHEME_WITH_TYPE(scheme_num, scheme_type, scheme, code) \
-            operation_schema scheme_##scheme_num((scheme_type)); \
+             { operation_schema scheme_##scheme_num((scheme_type)); \
              code                                   \
-            (scheme).steps.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
+            (scheme).steps.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num))); }
 
 void create_deallocate_register_operation(
         operation_schema *scheme,
@@ -795,13 +855,82 @@ Int create_allocate_register_operation(
 Int create_allocate_label_operation(
         operation_schema *scheme);
 
+Int create_allocate_try_catch_data_operation(
+        operation_schema *scheme);
+
+Int create_allocate_catch_data_operation(
+        sharp_tc_data *parent,
+        operation_schema *scheme);
+
+Int create_allocate_finally_data_operation(
+        sharp_tc_data *parent,
+        operation_schema *scheme);
+
+void create_set_catch_field_operation(
+        catch_data *data,
+        sharp_field *field,
+        operation_schema *scheme);
+
+void create_set_finally_field_operation(
+        finally_data *data,
+        sharp_field *field,
+        operation_schema *scheme);
+
+void create_set_catch_class_operation(
+        catch_data *data,
+        sharp_class *sc,
+        operation_schema *scheme);
+
 void create_set_label_operation(
         operation_schema *scheme,
         sharp_label* label);
 
+void create_catch_start_operation(
+        operation_schema *scheme,
+        catch_data* data);
+
+void create_finally_start_operation(
+        operation_schema *scheme,
+        finally_data* data);
+
+void create_finally_end_operation(
+        operation_schema *scheme,
+        finally_data* data);
+
+void create_try_catch_start_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data);
+
+void create_try_catch_block_start_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data);
+
+void create_try_catch_end_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data);
+
+void create_no_operation(
+        operation_schema *scheme);
+
+void create_try_catch_block_end_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data);
+
 void create_jump_if_false_operation(
         operation_schema *scheme,
         sharp_label* label);
+
+void create_jump_if_true_operation(
+        operation_schema *scheme,
+        sharp_label* label);
+
+void create_set_local_field_operation(
+        operation_schema *scheme,
+        sharp_field* field);
+
+void create_setup_local_field_operation(
+        operation_schema *scheme,
+        sharp_field* field);
 
 void create_jump_operation(
         operation_schema *scheme,
@@ -885,6 +1014,10 @@ void create_new_class_operation(
         sharp_class *sc);
 
 void create_sizeof_operation(
+        operation_schema *scheme,
+        operation_schema *valueOperation);
+
+void create_throw_operation(
         operation_schema *scheme,
         operation_schema *valueOperation);
 

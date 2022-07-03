@@ -92,7 +92,6 @@ private:
     bool isKeyword(string s);
     bool iaAssemblyInstruction(string s);
     bool isExprSymbol(string token);
-    bool isForLoopCompareSymbol(string t);
     bool isObfuscationOption(Token &token);
     void parseAccessTypes();
     bool expectIdentifier(Ast*);

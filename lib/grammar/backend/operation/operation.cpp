@@ -206,6 +206,18 @@ void create_sizeof_operation(
     }
 }
 
+void create_throw_operation(
+        operation_schema *scheme,
+        operation_schema *valueOperation) {
+    if(scheme) {
+        scheme->schemeType = scheme_throw;
+        scheme->steps.add(new operation_step(
+                operation_get_value, valueOperation));
+        scheme->steps.add(new operation_step(
+                operation_throw_exception));
+    }
+}
+
 void create_new_class_operation(
         operation_schema *scheme,
         sharp_class *sc) {
@@ -259,6 +271,14 @@ void create_push_to_stack_operation(
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_push_value_to_stack));
+    }
+}
+
+void create_check_null_operation(
+        operation_schema *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_check_null));
     }
 }
 
@@ -424,6 +444,16 @@ void create_return_operation(
     }
 }
 
+void create_return_with_error_operation(
+        operation_schema *scheme) {
+    if(scheme) {
+        scheme->schemeType = scheme_return;
+
+        scheme->steps.add(new operation_step(
+                operation_return_with_error_state));
+    }
+}
+
 
 void create_numeric_return_operation(
         operation_schema *scheme,
@@ -451,7 +481,7 @@ void create_lock_operation(
         operation_schema *scheme,
         operation_schema *lockScheme) {
     if(scheme) {
-        scheme->schemeType = scheme_lock;
+        scheme->schemeType = scheme_lock_data;
         scheme->steps.add(new operation_step(
                 operation_lock, lockScheme));
     }
@@ -461,7 +491,7 @@ void create_unlock_operation(
         operation_schema *scheme,
         operation_schema *lockScheme) {
     if(scheme) {
-        scheme->schemeType = scheme_unlock;
+        scheme->schemeType = scheme_unlock_data;
         scheme->steps.add(new operation_step(
                 operation_unlock, lockScheme));
     }
@@ -488,6 +518,24 @@ void create_retain_numeric_value_operation(
     }
 }
 
+void create_get_value_from_register_operation(
+        operation_schema *scheme,
+        Int retainId) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_get_register_value, retainId));
+    }
+}
+
+void create_set_value_to_register_operation(
+        operation_schema *scheme,
+        Int retainId) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_register_value, retainId));
+    }
+}
+
 void create_deallocate_register_operation(
         operation_schema *scheme,
         Int registerId) {
@@ -501,13 +549,82 @@ Int create_allocate_label_operation(
         operation_schema *scheme) {
         if(scheme) {
             scheme->steps.add(new operation_step(
-                    operation_allocate_label, uniqueLabelIds));
-            return uniqueLabelIds++;
+                    operation_allocate_label, uniqueLabelIds++));
+            return scheme->steps.last()->integer;
         }
 
         return -1;
 }
 
+Int create_allocate_try_catch_data_operation(
+        operation_schema *scheme) {
+        if(scheme) {
+            scheme->steps.add(new operation_step(
+                    operation_allocate_try_catch_data, uniqueLabelIds++));
+            return scheme->steps.last()->integer;
+        }
+
+        return -1;
+}
+
+Int create_allocate_catch_data_operation(
+        sharp_tc_data *parent,
+        operation_schema *scheme) {
+    if(scheme && parent) {
+        scheme->steps.add(new operation_step(
+                operation_allocate_catch_data, parent->id, uniqueLabelIds++));
+        return scheme->steps.last()->secondRegister;
+    }
+
+    return -1;
+}
+
+Int create_allocate_finally_data_operation(
+        sharp_tc_data *parent,
+        operation_schema *scheme) {
+    if (scheme && parent) {
+        scheme->steps.add(new operation_step(
+                operation_allocate_finally_data, parent->id, uniqueLabelIds++));
+        return scheme->steps.last()->secondRegister;
+    }
+
+    return -1;
+}
+
+
+void create_set_catch_field_operation(
+        catch_data *data,
+        sharp_field *field,
+        operation_schema *scheme) {
+    if(scheme && data) {
+        scheme->steps.add(new operation_step(
+                operation_set_catch_field, data->parent->id, data->id));
+        scheme->steps.last()->field = field;
+    }
+}
+
+void create_set_finally_field_operation(
+        finally_data *data,
+        sharp_field *field,
+        operation_schema *scheme) {
+    if(scheme && data) {
+        scheme->steps.add(new operation_step(
+                operation_set_finally_exception_field, data->parent->id, data->id));
+        scheme->steps.last()->field = field;
+    }
+}
+
+
+void create_set_catch_class_operation(
+        catch_data *data,
+        sharp_class *sc,
+        operation_schema *scheme) {
+    if(scheme && data && sc) {
+        scheme->steps.add(new operation_step(
+                operation_set_catch_field, data->parent->id, data->id));
+        scheme->steps.last()->_class = sc;
+    }
+}
 void create_set_label_operation(
         operation_schema *scheme,
         sharp_label* label) {
@@ -517,12 +634,117 @@ void create_set_label_operation(
     }
 }
 
-void create_jump_if_false_operation(
+
+void create_catch_start_operation(
+        operation_schema *scheme,
+        catch_data* data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_catch_start, data->parent->id, data->id));
+    }
+}
+
+void create_finally_start_operation(
+        operation_schema *scheme,
+        finally_data* data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_finally_start, data->parent->id, data->id));
+    }
+}
+
+void create_finally_end_operation(
+        operation_schema *scheme,
+        finally_data* data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_finally_end, data->parent->id, data->id));
+    }
+}
+
+void create_try_catch_start_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_try_catch_start, tc_data->id));
+    }
+}
+
+void create_try_catch_block_start_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_try_catch_block_start, tc_data->id));
+    }
+}
+
+void create_try_catch_end_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_try_catch_end, tc_data->id));
+    }
+}
+
+void create_no_operation(
+        operation_schema *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_no_op));
+    }
+}
+
+void create_try_catch_block_end_operation(
+        operation_schema *scheme,
+        sharp_tc_data* tc_data) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_try_catch_block_end, tc_data->id));
+    }
+}
+
+void create_jump_if_false_operation( // todo: later add support for specifying a register to check for (true/false) for the jump?
         operation_schema *scheme,
         sharp_label* label) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_jump_if_false, label->id));
+    }
+}
+
+void create_jump_if_true_operation(
+        operation_schema *scheme,
+        sharp_label* label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_jump_if_true, label->id));
+    }
+}
+
+void create_set_local_field_operation(
+        operation_schema *scheme,
+        sharp_field* field) {
+    if(scheme) {
+        scheme->schemeType = scheme_access_local_field;
+        scheme->field = field;
+
+        scheme->steps.add(new operation_step(
+                operation_set_local_field, field));
+    }
+}
+
+void create_setup_local_field_operation(
+        operation_schema *scheme,
+        sharp_field* field) {
+    if(scheme) {
+        scheme->schemeType = scheme_access_local_field;
+        scheme->field = field;
+
+        scheme->steps.add(new operation_step(
+                operation_setup_local_field, field));
     }
 }
 
@@ -1084,7 +1306,7 @@ void create_function_parameter_push_operation(
         operation_schema *paramScheme,
         operation_schema *resultScheme) {
     if(paramType && paramScheme && resultScheme) {
-        if(matchResult == match_normal) {
+        if(is_match_normal(matchResult)) {
             resultScheme->copy(*paramScheme);
         } else { // assuming matchResult is match_constructor
             sharp_class *with_class = paramType->_class;

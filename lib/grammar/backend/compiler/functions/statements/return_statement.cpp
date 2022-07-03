@@ -8,8 +8,6 @@
 #include "../../../types/types.h"
 #include "../../compiler.h"
 
-void compile_constructor_call(Ast *ast, sharp_function *constructor, expression &e, operation_schema *scheme);
-
 void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     current_context.blockInfo.reachable = false;
 
@@ -18,8 +16,8 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     expression returnVal;
     List<operation_schema*> lockSchemes;
     operation_schema *subScheme = new operation_schema();
-
     subScheme->schemeType = scheme_return;
+
     if(ast->getSubAst(ast_expression)) {
         compile_expression(returnVal, ast->getSubAst(ast_expression));
     }
@@ -28,7 +26,7 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     }
 
     retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
-    for(Int i = 0; i < lockSchemes.size(); i++) {
+    for(Int i = 0; i < lockSchemes.size(); i++) { // todo look into also processing finally blocks in the same way
         operation_schema* tmp = new operation_schema();
         create_unlock_operation(tmp, lockSchemes.get(i));
         add_scheme_operation(subScheme, tmp);
@@ -37,9 +35,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     match_result = is_implicit_type_match(current_context.functionCxt->returnType, returnVal.type, constructor_only, function);
     if(match_result == match_constructor) {
         operation_schema* tmp = new operation_schema();
-        compile_constructor_call(ast, function, returnVal, tmp);
+        compile_initialization_call(ast, function, returnVal, tmp);
         create_object_return_operation(subScheme, tmp);
-    } else if(match_result == match_normal) {
+    } else if(is_match_normal(match_result)) {
         if(is_numeric_type(returnVal.type) && !returnVal.type.isArray)
             create_numeric_return_operation(subScheme, &returnVal.scheme);
         else if(returnVal.type.type == type_nil)

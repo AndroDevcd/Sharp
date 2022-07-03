@@ -147,7 +147,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
         }
 
         if(matchResult != no_match_found) {
-            if(matchResult == match_normal) {
+            if(is_match_normal(matchResult)) {
                 setArrayItem->steps.add(new operation_step(operation_get_value, &expr->scheme));
             } else { // match_constructor
                 operation_schema *arrayItemScheme = new operation_schema(), resultScheme;

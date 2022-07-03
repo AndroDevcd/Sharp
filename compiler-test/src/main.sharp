@@ -13,6 +13,9 @@ def foo(n: var) : int {
 class x {
 
     init(s: string) {
+        if(true) {
+            
+        }
         return;
     }
 }

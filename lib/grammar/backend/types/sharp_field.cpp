@@ -3,9 +3,8 @@
 //
 
 #include "sharp_field.h"
-#include "../types/sharp_module.h"
+#include "../types/types.h"
 #include "../../compiler_info.h"
-#include "../types/sharp_class.h"
 #include "../../sharp_file.h"
 #include "../operation/operation.h"
 
@@ -59,6 +58,45 @@ sharp_field* create_closure_field(
     if((sf = locate_field(name, sc)) != NULL) {
         return sf;
     } else return create_field(sc->implLocation.file, sc, name, flag_public, type, normal_field, ast);
+}
+
+sharp_field* create_local_field(
+        sharp_file *file,
+        context *context,
+        string name,
+        uInt flags,
+        sharp_type type,
+        field_type ft,
+        Ast *ast) {
+    impl_location location(file, 0, 0);
+
+    if(ast != NULL) {
+        location.line = ast->line;
+        location.col = ast->col;
+    }
+
+    if(context->functionCxt) {
+        sharp_field *field;
+        if((field = resolve_local_field(name, context)) == NULL) {
+            field = new sharp_field(
+                    name, NULL, location,
+                    type, flags, ft, ast
+            );
+
+            GUARD(globalLock)
+            field->block = context->blockInfo.id;
+            context->localFields.add(field);
+            context->functionCxt->locals.add(field);
+            return field;
+        } else {
+            file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "local field `" + name +
+                                                                                  "` is already defined in function: " + context->functionCxt->name);
+            print_impl_location(field->name, "field", field->implLocation);
+            return field;
+        }
+    }
+
+    return NULL;
 }
 
 sharp_field* create_field(

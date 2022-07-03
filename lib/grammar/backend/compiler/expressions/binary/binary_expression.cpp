@@ -265,7 +265,7 @@ void compile_binary_integer_expression(
         case type_var:
         case type_field: {
             if(right.type == type_field) {
-                if(!is_implicit_type_match(left.type, right.type, match_normal)) {
+                if(!is_implicit_type_match(left.type, right.type, match_constructor)) {
                     goto error;
                 }
             }
@@ -361,7 +361,7 @@ void compile_binary_numeric_expression(
         case type_field: {
 
             if(right.type == type_field) {
-                if(!is_implicit_type_match(left.type, right.type, match_normal)) {
+                if(!is_implicit_type_match(left.type, right.type, exclude_none)) {
                     goto error;
                 }
             }
@@ -437,6 +437,16 @@ void compile_binary_object_expression(
         return;
 
     switch(right.type.type) {
+        case type_null: {
+            create_get_value_operation(&e->scheme, &left.scheme, false);
+            create_check_null_operation(&e->scheme);
+
+            if(operand == "!=") {
+                create_not_operation(&e->scheme);
+            }
+            break;
+        }
+
         case type_object:
         case type_class:
         case type_field: {
@@ -447,7 +457,7 @@ void compile_binary_object_expression(
             }
 
             if(right.type == type_field) {
-                if(!is_implicit_type_match(left.type, right.type, match_normal)) {
+                if(!is_implicit_type_match(left.type, right.type, exclude_none)) {
                     goto error;
                 }
             }

@@ -133,6 +133,28 @@ bool inside_block(block_info *info, block_type type) {
     } else return true;
 }
 
+stored_block_info* retrieve_block(block_info *info, block_type type) {
+    if(info->type != type) {
+        for(Int i = info->storedItems.size() - 1; i >= 0; i--) {
+            if(info->storedItems.get(i)->type == type)
+                return info->storedItems.get(i);
+        }
+
+        return NULL;
+    } else return info;
+}
+
+sharp_label* retrieve_next_finally_label(block_info *info) {
+    if(info->finallyLabel != NULL)
+        return info->finallyLabel;
+
+    for(Int i = info->storedItems.size() - 1; i >= 0; i--) {
+        if(info->storedItems.get(i)->finallyLabel != NULL)
+            return info->storedItems.get(i)->finallyLabel;
+    }
+    return NULL;
+}
+
 void restore_block(block_info *info) {
     // we preserve any carry-over items from the block were exiting
     info->copy(*info->storedItems.last());
@@ -199,7 +221,7 @@ void block_info::copy_all(const block_info &info)  {
 }
 
 void stored_block_info::free() {
-    delete lockScheme;
+    delete lockScheme; lockScheme = NULL;
 }
 
 void stored_block_info::copy(const stored_block_info &item)  {
@@ -207,6 +229,9 @@ void stored_block_info::copy(const stored_block_info &item)  {
     id = item.id;
     line = item.line;
     reachable = item.reachable;
+    endLabel = item.endLabel;
+    beginLabel = item.beginLabel;
+    finallyLabel = item.finallyLabel;
     if(item.lockScheme)
         lockScheme = new operation_schema(*item.lockScheme);
 }

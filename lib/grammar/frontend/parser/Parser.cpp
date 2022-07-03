@@ -467,7 +467,7 @@ void parser::parseIfStatement(Ast *ast) {
     }
 }
 
-void parser::parseForStatement(Ast *ast) {
+void parser::parseForStatement(Ast *ast) { // remove ":" ending requirement for loop
     Ast* branch = getBranch(ast, ast_for_statement);
 
     _current--;
@@ -480,49 +480,29 @@ void parser::parseForStatement(Ast *ast) {
     }
 
     if(peek(1)->getType() == RIGHTPAREN
-        || peek(1)->getType() == COLON) {
-        branch->setAstType(ast_for_style_4_statement);
-    } else if(isForLoopCompareSymbol(peek(1)->getValue())) {
-        advance();
-        branch->addToken(current());
+        || peek(1)->getType() == COLON) { // for() or for: todo: try to look for loop compare symbol first if not try compilingvar decl. if that fails try var decl and check for ";" if that fails assume naked for "for{}"
         branch->setAstType(ast_for_style_2_statement);
-        parseExpression(branch);
-    } else {
-
-        errors->enterProtectedMode();
-        Token* old = _current;
-        parseExpression(branch);
-        if(peek(1)->getType() == COLON
-            || peek(1)->getType() == RIGHTPAREN) {
-            branch->setAstType(ast_for_style_3_statement);
-            errors->fail();
+    } else { // statndard: for i := 0; i < 10; i++ :
+        if(peek(1)->getType() != SEMICOLON) {
+            _current++;
+            RETAIN_RECURSION(0)
+            parseVariableDecl(branch);
+            RESTORE_RECURSION()
         } else {
-            branch->freeLastSub();
-            errors->pass();
-            _current=old;
-
-            if(peek(1)->getType() != SEMICOLON) {
-                _current++;
-                RETAIN_RECURSION(0)
-                parseVariableDecl(branch);
-                RESTORE_RECURSION()
-            } else {
-                expect(branch, ";");
-            }
-
-            if(peek(1)->getType() != SEMICOLON) {
-                Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
-                parseExpression(exprCond);
-            }
             expect(branch, ";");
-
-            if(peek(1)->getType() != RIGHTPAREN
-                && peek(1)->getType() != COLON) {
-                Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
-                parseExpression(exprIter);
-            }
         }
 
+        if(peek(1)->getType() != SEMICOLON) {
+            Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
+            parseExpression(exprCond);
+        }
+        expect(branch, ";");
+
+        if(peek(1)->getType() != RIGHTPAREN
+           && peek(1)->getType() != COLON) {
+            Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
+            parseExpression(exprIter);
+        }
     }
 
 
@@ -546,7 +526,7 @@ void parser::parseForStatement(Ast *ast) {
     parseBlock(branch);
 }
 
-void parser::parseWhileStatement(Ast *ast) {
+void parser::parseWhileStatement(Ast *ast) { // todo: make () non mandatory
     Ast* branch = getBranch(ast, ast_while_statement);
 
     _current--;
@@ -582,7 +562,7 @@ void parser::parseThrowStatement(Ast *ast) {
     expect(branch, ";", false);
 }
 
-void parser::parseGotoStatement(Ast *ast) {
+void parser::parseGotoStatement(Ast *ast) { // unused for now
     Ast* branch = getBranch(ast, ast_goto_statement);
 
     _current--;
@@ -1257,7 +1237,7 @@ void parser::parseForEachStatement(Ast *ast) {
     parseBlock(branch);
 }
 
-void parser::parseLabelDecl(Ast* ast) {
+void parser::parseLabelDecl(Ast* ast) { // unused for now
     Ast *branch = getBranch(ast, ast_label_decl);
 
     _current--;
@@ -1373,14 +1353,6 @@ bool parser::parseStatement(Ast* ast) {
         parseThrowStatement(branch);
         return true;
     }
-    else if(isGotoStatement(current()))
-    {
-        if(access_types.size() > 0)
-            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-
-        parseGotoStatement(branch);
-        return true;
-    }
     else if(isBreakStatement(current()))
     {
         if(access_types.size() > 0)
@@ -1443,21 +1415,6 @@ bool parser::parseStatement(Ast* ast) {
     }
     else
     {
-        /*
-         * label decl?
-         */
-        if(current().getId() == IDENTIFIER && !isKeyword(current().getValue())
-            && peek(2)->getType() == COLON)
-        {
-            labelDecl:
-            if(access_types.size() > 0) {
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
-            }
-
-            parseLabelDecl(branch);
-            return true;
-        }
-
         errors->enterProtectedMode();
         if(access_types.size() > 0) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
@@ -2018,11 +1975,6 @@ bool parser::isAssignExprSymbol(string token) {
            token == "&=" || token == "|="||
            token == "^=" || token == "%="||
            token == "=";
-}
-
-bool parser::isForLoopCompareSymbol(string token) {
-    return token == "<" || token == ">"||
-           token == "<=" || token == ">=";
 }
 
 bool parser::isExprSymbol(string token) {

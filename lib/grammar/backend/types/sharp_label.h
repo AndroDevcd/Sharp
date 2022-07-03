@@ -8,6 +8,9 @@
 #include "../../../../stdimports.h"
 #include "../meta_data.h"
 
+struct context;
+struct operation_schema;
+
 struct sharp_label {
     sharp_label()
             :
@@ -46,5 +49,11 @@ struct sharp_label {
     Int id;
     impl_location location;
 };
+
+sharp_label* create_label(
+        string name,
+        context *context,
+        Ast *createLocation,
+        operation_schema *scheme);
 
 #endif //SHARP_SHARP_LABEL_H
