@@ -12,8 +12,7 @@ enum task_type {
     task_preprocess_ = 3,
     task_post_process_ = 4,
     task_compile_components_ = 5,
-    task_process_delegates_ = 6,
-    task_compile = 7,
+    task_process_delegates_ = 6
 };
 
 #endif //SHARP_TASK_TYPE_H

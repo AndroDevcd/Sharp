@@ -13,7 +13,7 @@ void compile_post_inc_expression(expression *e, Ast *ast, bool compileExpression
         compile_expression(*e, ast->getSubAst(ast_expression));
 
     string op = ast->getToken(0).getValue();
-    compile_unary_postfix_expression(e, op, ast);
+    compile_unary_postfix_expression(e, op, ast, false);
 
     compile_post_ast_expression(e, ast);
 }

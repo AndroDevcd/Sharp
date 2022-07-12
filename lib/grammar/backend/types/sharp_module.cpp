@@ -26,3 +26,10 @@ sharp_module* create_module(string &packageName) {
     modules.add(module);
     return module;
 }
+
+void sharp_module::copy(const sharp_module &m) {
+    free();
+
+    classes.addAll(m.classes);
+    genericClasses.addAll(m.genericClasses);
+}

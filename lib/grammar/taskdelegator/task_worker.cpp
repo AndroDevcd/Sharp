@@ -23,6 +23,9 @@ workerStart(void *arg) {
     currThread->state = worker_idle;
 
     do {
+        if(currThread->state == worker_dead)
+            break;
+
         if(currThread->nextTask != NULL) {
             currThread->currTask = currThread->nextTask;
             currThread->nextTask = NULL;
@@ -116,13 +119,6 @@ void compile_components_() {
     file->stage = components_processed;
 }
 
-void compile_code() {
-    sharp_file *file = currThread->currTask->file;
-
-    __compile__();
-    file->stage = compiled;
-}
-
 void execute_task() {
     {
         GUARD(errorMutex);
@@ -152,10 +148,6 @@ void execute_task() {
         }
         case task_process_delegates_: {
             process_delegates_();
-            break;
-        }
-        case task_compile: {
-            compile_code();
             break;
         }
     }

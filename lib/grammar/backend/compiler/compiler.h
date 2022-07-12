@@ -12,7 +12,6 @@ void __compile__();
 void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast);
 bool validate_control_paths(bool *controlPaths);
 
-
 #define CONTROL_PATH_SIZE 8
 #define MAIN_CONTROL_PATH 0
 #define IF_CONTROL_PATH 1

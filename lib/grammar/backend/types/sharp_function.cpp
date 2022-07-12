@@ -3,9 +3,7 @@
 //
 
 #include "sharp_function.h"
-#include "sharp_field.h"
-#include "sharp_class.h"
-#include "sharp_label.h"
+#include "types.h"
 #include "../dependency/dependancy.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../../compiler_info.h"

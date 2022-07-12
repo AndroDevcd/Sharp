@@ -14,6 +14,7 @@
 #include "sharp_file.h"
 #include "taskdelegator/task_delegator.h"
 #include "../util/time.h"
+#include "backend/finalizer/finalizer.h"
 
 int compile();
 
@@ -405,14 +406,6 @@ void run_compilation_tasks() {
     }
 
     wait_for_tasks();
-
-    for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_compile;
-        t.file = sharpFiles.get(i);
-        submit_task(t);
-    }
-
-    wait_for_tasks();
 }
 
 int compile()
@@ -427,10 +420,13 @@ int compile()
     start_task_delegator();
     run_pre_processing_tasks();
 
+    // todo: stop compiling if there are any errors found above
     if(all_files_parsed()) {
         run_post_processing_tasks();
         run_compilation_tasks();
     }
+
+    finalize_compilation();
 
 //    stringstream ss;
 //    uInt tabCount = 0;

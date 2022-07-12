@@ -651,7 +651,7 @@ bool resolve_local_field( // todo: support tls access for all fields
                     sharp_class *closure_class = create_closure_class(
                             currThread->currTask->file, currModule, contextItem->functionCxt,
                             item.ast);
-                    sharp_field *closure = create_closure_field(closure_class, item.name, // todo: add scopeId to field struct and apply this to name for nested scoped locals w/ same name
+                    sharp_field *closure = create_closure_field(closure_class, item.name,
                             field->type, item.ast);
                     sharp_field *staticClosureRef = create_closure_field(
                             resolve_class(currModule, global_class_name, false, false),
@@ -660,8 +660,11 @@ bool resolve_local_field( // todo: support tls access for all fields
                             item.ast
                     );
 
+                    staticClosureRef->staticClosure = true;
+                    staticClosureRef->flags |= flag_static;
                     contextItem->functionCxt->closure = staticClosureRef;
                     field->closure = closure;
+                    field->closureRef = staticClosureRef;
                     resultType.field = closure;
 
                     create_static_field_access_operation(scheme, staticClosureRef);
@@ -2371,43 +2374,59 @@ sharp_type resolve(
 }
 
 void create_dependency(sharp_class* depender, sharp_class* dependee) {
+    if(!depender && dependee) return;
+
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->implLocation.file, dependee->implLocation.file);
 }
 
 void create_dependency(sharp_file* depender, sharp_file* dependee) {
+    if(!depender && dependee) return;
+
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
 }
 
 void create_dependency(sharp_function* depender, sharp_function* dependee) {
+    if(!depender && dependee) return;
+
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
 }
 
 void create_dependency(sharp_function* depender, sharp_class* dependee) {
+    if(!depender && dependee) return;
+
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee);
 }
 
 void create_dependency(sharp_function* depender, sharp_field* dependee) {
+    if(!depender && dependee) return;
+
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
 }
 
 void create_dependency(sharp_field* depender, sharp_function* dependee) {
+    if(!depender && dependee) return;
+
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
 }
 
 void create_dependency(sharp_field* depender, sharp_class* dependee) {
+    if(!depender && dependee) return;
+
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee);
 }
 
 void create_dependency(sharp_field* depender, sharp_field* dependee) {
+    if(!depender && dependee) return;
+
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);

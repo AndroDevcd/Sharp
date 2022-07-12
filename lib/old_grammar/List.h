@@ -146,7 +146,7 @@ public:
         len=0;
     }
 
-    uint32_t size() { return len; }
+    uint32_t size() const { return len; }
 
     bool singular() { return len == 1; }
 

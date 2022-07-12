@@ -135,9 +135,7 @@ struct unresolved_type {
     :
             items()
     {
-        for(Int i = 0; i < reference.items.size(); i++) {
-            items.add(new unresolved_item(*reference.items.get(i)));
-        }
+        copy(reference);
     }
 
     ~unresolved_type() {
@@ -145,6 +143,7 @@ struct unresolved_type {
     }
 
     void free();
+    void copy(const unresolved_type &type);
 
     List<unresolved_item*> items;
 };

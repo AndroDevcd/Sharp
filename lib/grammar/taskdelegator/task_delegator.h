@@ -16,6 +16,28 @@ enum worker_state {
 
 struct worker_thread {
 
+    worker_thread()
+        :
+            id(-1),
+            state(none),
+            currTask(NULL),
+            nextTask(NULL),
+            thread(NULL)
+    {}
+
+
+    worker_thread(
+            int id,
+            worker_state state,
+            task *pTask)
+            :
+                id(id),
+                state(state),
+                currTask(pTask),
+                nextTask(NULL),
+                thread(NULL)
+    {}
+
     Int id;
     worker_state state;
     task *currTask;
@@ -32,10 +54,12 @@ struct worker_thread {
 struct task_delegator {
     task_delegator()
     :
+        alive(false),
         allWorkersFree(false),
         thread(NULL)
     {}
 
+    bool alive;
     bool allWorkersFree;
 #ifdef WIN32_
     HANDLE thread;
@@ -52,6 +76,7 @@ extern thread_local worker_thread *currThread;
 int start_task_delegator();
 uInt start_worker(worker_thread*);
 worker_thread* create_worker();
+void killAllWorkers();
 
 int wait_for_idle(worker_thread*);
 

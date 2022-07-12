@@ -7,11 +7,10 @@
 #include "../../../taskdelegator/task_delegator.h"
 #include "../../../compiler_info.h"
 #include "../../astparser/ast_parser.h"
-#include "../../types/sharp_module.h"
-#include "../../types/sharp_class.h"
-#include "../../types/sharp_field.h"
+#include "../../types/types.h"
 #include "../../postprocessor/function_processor.h"
 #include "function_compiler.h"
+#include "../expressions/expression.h"
 
 
 void compile_init_declaration(sharp_class* with_class, Ast *ast) {
@@ -117,4 +116,39 @@ void compile_inits(sharp_class* with_class) {
                 break;
         }
     }
+}
+
+void compile_initialization_paring(sharp_class* with_class) {
+    sharp_function *function;
+    List<sharp_field*> params;
+    List<operation_schema*> paramOperations;
+    sharp_type void_type(type_nil);
+    string name = "";
+
+    GUARD2(globalLock)
+    function = resolve_function(
+            instance_init_name(with_class->name), with_class,
+            params,normal_function, exclude_all,
+            with_class->ast, false, false
+    );
+
+    if(function == NULL) {
+        name = instance_init_name(with_class->name);
+        create_function(
+                with_class, flag_private | flag_static,
+                normal_function, name,
+                false, params,
+                void_type, with_class->ast, function
+        );
+    }
+    for(Int i = 0; i < with_class->functions.size(); i++) {
+        if(with_class->functions.get(i)->type == constructor_function) {
+            if(with_class->functions.get(i)->scheme == NULL)
+                with_class->functions.get(i)->scheme = new operation_schema();
+
+            compile_function_call(with_class->functions.get(i)->scheme, params, paramOperations, function, false, true);
+        }
+    }
+
+    // todo: add all the static inits and call them on the static versions of every class new class().static_init<Class>()
 }

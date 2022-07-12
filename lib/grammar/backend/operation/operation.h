@@ -563,7 +563,8 @@ void create_local_field_access_operation(
 
 void create_static_field_access_operation(
         operation_schema *scheme,
-        sharp_field *staticField);
+        sharp_field *staticField,
+        bool resetState = true);
 
 void create_primary_instance_field_access_operation(
         operation_schema *scheme,

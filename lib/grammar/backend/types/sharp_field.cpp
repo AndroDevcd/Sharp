@@ -79,7 +79,7 @@ sharp_field* create_local_field(
         sharp_field *field;
         if((field = resolve_local_field(name, context)) == NULL) {
             field = new sharp_field(
-                    name, NULL, location,
+                    name, get_primary_class(context), location,
                     type, flags, ft, ast
             );
 

@@ -11,6 +11,7 @@
 #include "sharp_type.h"
 #include "../dependency/dependancy.h"
 #include "../dependency/injection_request.h"
+#include "../../compiler_info.h"
 
 struct sharp_class;
 
@@ -30,6 +31,8 @@ struct sharp_field {
         flags(flag_none),
         fieldType(normal_field),
         closure(NULL),
+        closureRef(NULL),
+        staticClosure(false),
         block(invalid_block_id),
         type(),
         ast(NULL),
@@ -50,6 +53,8 @@ struct sharp_field {
         flags(sf.flags),
         fieldType(sf.fieldType),
         closure(sf.closure),
+        closureRef(sf.closureRef),
+        staticClosure(sf.staticClosure),
         ast(sf.ast),
         block(sf.block),
         getter(sf.getter),
@@ -81,6 +86,8 @@ struct sharp_field {
             flags(flags),
             fieldType(ft),
             closure(NULL),
+            closureRef(NULL),
+            staticClosure(false),
             block(invalid_block_id),
             ast(ast),
             getter(NULL),
@@ -109,12 +116,13 @@ struct sharp_field {
     sharp_function *setter;
     impl_location implLocation;
     List<dependency> dependencies;
-    sharp_field* closure;
+    sharp_field* closure, *closureRef;
     operation_schema* scheme;
     injection_request *request;
     sharp_type type;
     field_type fieldType;
     Int block;
+    bool staticClosure;
     uInt flags;
     Ast* ast;
 };

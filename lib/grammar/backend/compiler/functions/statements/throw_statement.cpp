@@ -23,10 +23,10 @@ void compile_throw_statement(Ast *ast, operation_schema *scheme, bool *controlPa
         if(is_class_related_to(get_class_type(exception.type), throwable)) {
             create_throw_operation(subScheme, &exception.scheme);
         } else {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + exceptionExpr.utype->toString() + "` must inherit base level exception class `std#throwable`");
+            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + type_to_str(exception.type) + "` must inherit base level exception class `std#throwable`");
         }
     } else {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + exceptionExpr.utype->toString() + "` must evaluate to a class");
+        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + type_to_str(exception.type) + "` must evaluate to a class");
     }
 
     add_scheme_operation(scheme, subScheme);

@@ -51,3 +51,11 @@ string access_type_to_str(reference_access_type type) {
 void unresolved_type::free() {
     deleteList(items);
 }
+
+void unresolved_type::copy(const unresolved_type &type) {
+    free();
+
+    for(Int i = 0; i < type.items.size(); i++) {
+        items.add(new unresolved_item(*type.items.get(i)));
+    }
+}

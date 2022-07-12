@@ -14,8 +14,12 @@ void compile_assign_expression(expression *e, Ast *ast) {
     compile_expression(left, ast->getSubAst(0));
     compile_expression(right, ast->getSubAst(1));
 
+    sharp_field *assignedField = NULL;
     sharp_function *matchedFun = NULL;
     uInt match_result = is_explicit_type_match(left.type, right.type);
+
+    if(left.type == type_field)
+        assignedField = left.type.field;
 
     if(operand == "=") {
 
@@ -220,5 +224,15 @@ void compile_assign_expression(expression *e, Ast *ast) {
                   "expressions of type `" + type_to_str(left.type)
                   + "` cannot be assigned via `" + operand.getValue() + "` operator.");
         }
+    }
+
+    if(assignedField != NULL && assignedField->closure != NULL) { // todo: look into the code generator generating code for fields accessed earlier to support updating the static closure ref
+        APPLY_TEMP_SCHEME(0, e->scheme,
+            create_get_value_operation(&scheme_0, &left.scheme, false);
+            create_push_to_stack_operation(&scheme_0);
+            create_static_field_access_operation(&scheme_0, assignedField->closureRef, false);
+            create_instance_field_access_operation(&scheme_0, assignedField->closure);
+            create_pop_value_from_stack_operation(&scheme_0);
+        )
     }
 }

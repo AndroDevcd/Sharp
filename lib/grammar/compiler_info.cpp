@@ -17,6 +17,8 @@ thread_local sharp_module* currModule = NULL;
 List<string> warnings;
 component_manager componentManager;
 atomic<uInt> uniqueId = { 0 };
+sharp_function *main_method = NULL;
+int main_method_sig = 0;
 
 void create_new_warning(error_type error, int type, Ast *ast, string xcmnts) {
     create_new_warning(error, type, ast->line, ast->col, xcmnts);

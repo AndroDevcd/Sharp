@@ -269,3 +269,11 @@ type_definition* create_type_definition(
 void component_manager::free() {
     deleteList(components);
 }
+
+void component_manager::copy(const component_manager &c) {
+    free();
+
+    for(Int i = 0; i < c.components.size(); i++) {
+        components.add(new component(*c.components.get(i)));
+    }
+}

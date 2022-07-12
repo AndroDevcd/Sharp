@@ -15,10 +15,11 @@ import (
  */
 stable ext class _enum_ {
     private name : _int8[];
-    private ordinal : _int64; // TODO: add <, > and other math operators for enums and vars
+    private ordinal : var; // TODO: add <, > and other math operators for enums and vars
 
-    _enum_(ord : var) {
+    _enum_(n: _int8[], ord : var) {
         ordinal = ord;
+        name = n;
     }
 
     _enum_(e : _enum_) {

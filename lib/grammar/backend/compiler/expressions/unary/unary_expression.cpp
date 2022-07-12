@@ -197,8 +197,9 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
 }
 
 
-void compile_unary_postfix_expression(expression *e, string &op, Ast *ast) {
-    compile_expression(*e, ast->getSubAst(ast_expression));
+void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool compileExpression) {
+    if(compileExpression)
+        compile_expression(*e, ast->getSubAst(ast_expression));
 
     if(e->type == type_undefined)
         return;

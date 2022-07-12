@@ -8,6 +8,7 @@
 #include "../../types/sharp_function.h"
 #include "../../context/context.h"
 
+void compile_function(sharp_class *with_class, function_type type, Ast *ast);
 void compile_function(sharp_function *function);
 bool compile_block(
         Ast *ast,
@@ -17,5 +18,12 @@ bool compile_block(
         sharp_label *endLabel = NULL,
         operation_schema *lockScheme = NULL,
         sharp_label *finallyLabel = NULL);
+
+void compile_function(
+        sharp_class *with_class,
+        function_type type,
+        Ast *ast);
+
+void compile_class_functions(sharp_class *with_class);
 
 #endif //SHARP_FUNCTION_COMPILER_H

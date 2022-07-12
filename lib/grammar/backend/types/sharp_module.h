@@ -41,8 +41,7 @@ struct sharp_module {
             classes(),
             genericClasses()
     {
-        classes.addAll(m.classes);
-        genericClasses.addAll(m.genericClasses);
+        copy(m);
     }
 
     ~sharp_module() {
@@ -53,6 +52,8 @@ struct sharp_module {
         classes.free();
         genericClasses.free();
     }
+
+    void copy(const sharp_module &m);
 
     string name;
     List<sharp_class*> classes;

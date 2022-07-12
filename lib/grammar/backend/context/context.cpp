@@ -45,6 +45,7 @@ void create_context(context *ctx, sharp_function *fun, bool isStatic) {
     ctx->functionCxt = fun;
     ctx->isStatic = isStatic;
     ctx->localFields.addAll(fun->parameters);
+    ctx->blockInfo.free();
 }
 
 void create_block(context *ctx, block_type type) {
@@ -52,6 +53,8 @@ void create_block(context *ctx, block_type type) {
         store_block(&ctx->blockInfo);
     }
 
+    if(ctx->blockInfo.lockScheme)
+        int i = 0;
     delete ctx->blockInfo.lockScheme;
     ctx->blockInfo.lockScheme = NULL;
     ctx->blockInfo.type = type;
@@ -114,11 +117,11 @@ void store_context(context *ctx) {
 
 void retrieve_lock_schemes(block_info *info, List<operation_schema*> schemes) {
     if(info->lockScheme != NULL)
-        schemes.add(info->lockScheme);
+        schemes.add(new operation_schema(*info->lockScheme));
 
     for(Int i = 0; i < info->storedItems.size(); i++) {
         if(info->storedItems.get(i)->lockScheme != NULL)
-            schemes.add(info->storedItems.get(i)->lockScheme);
+            schemes.add(new operation_schema(*info->storedItems.get(i)->lockScheme));
     }
 }
 
@@ -135,7 +138,7 @@ bool inside_block(block_info *info, block_type type) {
 
 stored_block_info* retrieve_block(block_info *info, block_type type) {
     if(info->type != type) {
-        for(Int i = info->storedItems.size() - 1; i >= 0; i--) {
+        for(Int i = (Int)info->storedItems.size() - 1; i >= 0; i--) {
             if(info->storedItems.get(i)->type == type)
                 return info->storedItems.get(i);
         }
@@ -148,7 +151,7 @@ sharp_label* retrieve_next_finally_label(block_info *info) {
     if(info->finallyLabel != NULL)
         return info->finallyLabel;
 
-    for(Int i = info->storedItems.size() - 1; i >= 0; i--) {
+    for(Int i = (Int)info->storedItems.size() - 1; i >= 0; i--) {
         if(info->storedItems.get(i)->finallyLabel != NULL)
             return info->storedItems.get(i)->finallyLabel;
     }
@@ -234,4 +237,18 @@ void stored_block_info::copy(const stored_block_info &item)  {
     finallyLabel = item.finallyLabel;
     if(item.lockScheme)
         lockScheme = new operation_schema(*item.lockScheme);
+    else lockScheme = NULL;
+}
+
+void stored_context_item::copy(const stored_context_item &item)  {
+
+    type = item.type;
+    classCxt = item.classCxt;
+    functionCxt = item.functionCxt;
+    componentCtx = item.componentCtx;
+    localFields.addAll(item.localFields);
+    localAliases.addAll(item.localAliases);
+    labels.addAll(item.labels);
+    isStatic = item.isStatic;
+    blockInfo.copy_all(item.blockInfo);
 }

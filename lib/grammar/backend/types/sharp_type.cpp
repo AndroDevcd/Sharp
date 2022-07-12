@@ -5,6 +5,8 @@
 #include "types.h"
 #include "../../compiler_info.h"
 #include "import_group.h"
+#include "sharp_type.h"
+
 
 sharp_type get_real_type(sharp_type &st) {
     sharp_type tmp;
@@ -293,4 +295,33 @@ uInt is_implicit_type_match(
 
 bool has_type(sharp_type &t) {
     return !(t.type == type_untyped || t.type == type_undefined);
+}
+
+sharp_type &sharp_type::copy(const sharp_type &st)  {
+    free();
+
+    _class = st._class;
+    field = st.field;
+    fun = st.fun;
+    type = st.type;
+
+    if(st.componentRequest)
+        componentRequest = new get_component_request(*st.componentRequest);
+
+    for(Int i = 0; i < st.unresolvedType.items.size(); i++) {
+        unresolvedType.items.add(new unresolved_item(*st.unresolvedType.items.get(i)));
+    }
+
+    isArray = st.isArray;
+    nullable = st.nullable;
+    module = st.module;
+    group = st.group;
+    integer = st.integer;
+    decimal = st.decimal;
+    _string = st._string;
+    _char = st._char;
+    _bool = st._bool;
+    label = st.label;
+
+    return *this;
 }

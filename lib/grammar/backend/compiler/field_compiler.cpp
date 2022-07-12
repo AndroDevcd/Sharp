@@ -10,6 +10,7 @@
 #include "../postprocessor/field_processor.h"
 #include "../../compiler_info.h"
 #include "../postprocessor/function_processor.h"
+#include "functions/function_compiler.h"
 
 void compile_class_fields(sharp_class *with_class) {
     Ast *block = with_class->ast->getSubAst(ast_block);
@@ -31,6 +32,40 @@ void compile_class_fields(sharp_class *with_class) {
     delete_context();
 }
 
+void compile_static_closure_reference(sharp_field *field) {
+    GUARD2(globalLock)
+    sharp_function *function;
+    List<sharp_field*> params;
+    sharp_type void_type(type_nil);
+    string platform_kernel = "platform.kernel";
+    sharp_class *with_class = resolve_class(get_module(platform_kernel), "platform", false, false);
+
+    if(with_class != NULL) {
+        function = resolve_function(
+                static_init_function_name, with_class,
+                params, normal_function, exclude_all,
+                field->ast, false, false
+        );
+
+        if (function != NULL) {
+            if(function->scheme == NULL)
+                function->scheme = new operation_schema();
+
+            APPLY_TEMP_SCHEME(0, (*function->scheme),
+                 create_new_class_operation(&scheme_0, field->type._class);
+                 create_static_field_access_operation(&scheme_0, field, false);
+                 create_pop_value_from_stack_operation(&scheme_0);
+            )
+        } else {
+            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, field->ast,
+                       " cannot locate internal function `static_init` in platform class for closure.");
+        }
+    } else {
+        currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, field->ast,
+                  " cannot locate platform class `platform` for closure.");
+    }
+}
+
 void compile_field(sharp_class *with_class, Ast *ast) {
     string name;
     if(parser::isStorageType(ast->getToken(0))) {
@@ -40,6 +75,80 @@ void compile_field(sharp_class *with_class, Ast *ast) {
     sharp_field *field = resolve_field(name, with_class);
 
     compile_field(field, ast);
+
+    if(field->getter) {
+        compile_function(field->getter);
+    }
+
+    if(field->setter) {
+        compile_function(field->setter);
+    }
+
+    GUARD2(globalLock)
+    if(field->fieldType == normal_field && field->scheme) {
+        sharp_function *function;
+        List<sharp_field*> params;
+        sharp_type void_type(type_nil);
+
+        if(check_flag(field->flags, flag_static)) {
+            function = resolve_function(
+                    static_init_name(with_class->name), with_class,
+                    params,normal_function, exclude_all,
+                    ast, false, false
+            );
+
+            if(function == NULL) {
+                name = static_init_name(with_class->name);
+                create_function(
+                        with_class, flag_private | flag_static,
+                        normal_function, name,
+                        false, params,
+                        void_type, ast, function
+                );
+
+                function->scheme = new operation_schema();
+            }
+        } else {
+
+            function = resolve_function(
+                    instance_init_name(with_class->name), with_class,
+                    params,normal_function, exclude_all,
+                    ast, false, false
+            );
+
+            if(function == NULL) {
+                name = instance_init_name(with_class->name);
+                create_function(
+                        with_class, flag_private | flag_static,
+                        normal_function, name,
+                        false, params,
+                        void_type, ast, function
+                );
+
+                function->scheme = new operation_schema();
+            }
+        }
+
+        function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
+    } else if(field->scheme) {
+        sharp_function *function;
+        List<sharp_field*> params;
+        sharp_type void_type(type_nil);
+        string platform_kernel = "platform.kernel";
+        sharp_class *platformClass = resolve_class(get_module(platform_kernel), "platform", false, false);
+
+        function = resolve_function(
+                tls_init_function_name, platformClass,
+                params,normal_function, exclude_all,
+                ast, false, false
+        );
+
+        if(function->scheme == NULL) {
+            function->scheme = new operation_schema();
+        }
+
+        function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
+    }
 }
 
 void compile_field_injection_request(sharp_field *field, Ast *ast) {

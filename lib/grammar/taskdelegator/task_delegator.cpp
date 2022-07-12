@@ -51,6 +51,7 @@ void*
 delegatorStart(void *) {
     calculateMaxWorkers();
 
+    delegator.alive = true;
     if(options.green_mode) {
         throttle_max_threads();
     }
@@ -66,12 +67,18 @@ delegatorStart(void *) {
         if(!panic && !task_queue.empty()) {
             GUARD(taskMutex)
 
+            if(!delegator.alive)
+                break;
+
             for(Int i = 0; i < task_queue.size(); i++) {
                 if(post_task(task_queue.get(i))) {
                     task_queue.removeAt(i); i--;
                 }
             }
         }
+
+        if(!delegator.alive)
+            break;
 
         bool allTasksFinished = task_queue.empty();
         bool allWorkersIdle = true;
@@ -101,6 +108,16 @@ delegatorStart(void *) {
 #ifdef POSIX_
     return nullptr;
 #endif
+}
+
+void killAllWorkers() {
+    if(delegator.allWorkersFree) {
+        GUARD(taskMutex)
+        delegator.alive = false;
+        for(Int i = 0; i < workers.size(); i++) {
+            workers.get(i)->state = worker_dead;
+        }
+    }
 }
 
 uInt start_worker(worker_thread* wt) {

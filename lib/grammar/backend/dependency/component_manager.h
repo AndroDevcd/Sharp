@@ -18,9 +18,7 @@ struct component_manager {
             :
             components()
     {
-        for(Int i = 0; i < c.components.size(); i++) {
-            components.add(new component(*c.components.get(i)));
-        }
+        copy(c);
     }
 
     ~component_manager() {
@@ -28,6 +26,7 @@ struct component_manager {
     }
 
     void free();
+    void copy(const component_manager &c);
 
     List<component*> components;
 };

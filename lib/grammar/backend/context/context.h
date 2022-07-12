@@ -144,17 +144,7 @@ struct stored_context_item {
         labels.free();
     }
 
-    void copy(const stored_context_item &item) {
-        type = item.type;
-        classCxt = item.classCxt;
-        functionCxt = item.functionCxt;
-        componentCtx = item.componentCtx;
-        localFields.addAll(item.localFields);
-        localAliases.addAll(item.localAliases);
-        labels.addAll(item.labels);
-        isStatic = item.isStatic;
-        blockInfo.copy_all(item.blockInfo);
-    }
+    void copy(const stored_context_item &item);
 
     context_type type;
     sharp_class *classCxt;

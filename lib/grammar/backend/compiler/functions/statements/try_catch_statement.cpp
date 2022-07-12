@@ -27,7 +27,8 @@ sharp_class* compile_catch_clause(
         }
 
         if(get_class_type(handlingClass) == NULL) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class: `" + handlingClass->toString() + "`");
+            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class: `" +
+                    type_to_str(handlingClass) + "`");
         } else {
             create_set_catch_class_operation(catchData, get_class_type(handlingClass), scheme);
         }
@@ -37,11 +38,11 @@ sharp_class* compile_catch_clause(
     } else {
 
         if(handlingClass.isArray) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "handling class  `" + handlingClass->toString() + "` cannot evaluate to an array");
+            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "handling class  `" +  type_to_str(handlingClass) + "` cannot evaluate to an array");
         }
 
-        if(get_class_type(handlingClass)) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type `" + handlingClass->toString() + "` must be of type class: `" + handlingClass->toString() + "`");
+        if(get_class_type(handlingClass) == NULL) {
+            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type `" +  type_to_str(handlingClass) + "` must be of type class");
         } else {
             create_set_catch_class_operation(catchData, get_class_type(handlingClass), scheme);
         }
@@ -51,7 +52,7 @@ sharp_class* compile_catch_clause(
 
     exceptionClass = get_class_type(handlingClass);
     create_catch_start_operation(scheme, catchData);
-    if(!compile_block(ast->getSubAst(ast_block), scheme, catch_block) {
+    if(!compile_block(ast->getSubAst(ast_block), scheme, catch_block)) {
         controlPaths[CATCH_CONTROL_PATH] = false;
     }
 
@@ -134,7 +135,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
 
                 compile_block(branch->getSubAst(ast_block), subScheme, finally_block);
 
-                if(nextFinallyLabel != NULL) {
+                if(nextFinallyLabel == NULL) {
                     create_local_field_access_operation(subScheme, exceptionObject);
                     create_check_null_operation(subScheme);
                     create_jump_if_true_operation(subScheme, finallyEndLabel);

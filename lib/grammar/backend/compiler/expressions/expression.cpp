@@ -96,6 +96,21 @@ void compile_initialization_call(
             false);
 }
 
+void compile_initialization_call(
+        Ast *ast,
+        sharp_class *with_class,
+        sharp_function *constructor,
+        List<sharp_field*> & params,
+        List<operation_schema*> &paramOperations,
+        operation_schema *scheme) {
+    create_new_class_operation(scheme, with_class);
+    compile_function_call(
+            scheme, params,
+            paramOperations, constructor,
+            false,
+            false);
+}
+
 void compile_class_function_overload(
         sharp_class *with_class,
         expression &e,

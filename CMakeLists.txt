@@ -76,6 +76,8 @@ if (SHARPC)
             "lib/grammar/backend/compiler/functions/*.cpp"
             "lib/grammar/backend/compiler/functions/statements/*.h"
             "lib/grammar/backend/compiler/functions/statements/*.cpp"
+            "lib/grammar/backend/finalizer/*.h"
+            "lib/grammar/backend/finalizer/*.cpp"
             "lib/util/*.cpp"
     )
 

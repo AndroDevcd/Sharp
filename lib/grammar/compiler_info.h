@@ -30,9 +30,14 @@ extern recursive_mutex globalLock;
 extern thread_local sharp_module* currModule;
 extern component_manager componentManager;
 extern atomic<uInt> uniqueId;
+extern sharp_function *main_method;
+extern int main_method_sig;
 
 #define global_class_name "__srt_global"
 #define main_component_name "__main__"
+#define static_init_function_name "static_init"
+#define tls_init_function_name "tls_init"
+#define platform_class_name "platform.kernel#platform"
 #define instance_init_name(name) ("init<" + (name) + ">")
 #define static_init_name(name)  ("static_init<" + (name) + ">")
 #define set_internal_label_name(ss, name, id)  \

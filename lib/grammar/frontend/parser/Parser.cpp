@@ -423,10 +423,10 @@ void parser::parseComponentDeclaration(Ast *ast) {
     parseComponentTypeList(branch);
     expect(branch, "}", false);
 }
-
+thread_local bool inIf = false;
 void parser::parseIfStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_if_statement);
-
+    inIf = true;
     expect(branch, "(");
     parseExpression(branch);
     expect(branch, ")");
@@ -465,6 +465,7 @@ void parser::parseIfStatement(Ast *ast) {
         if(!isElse)
             goto condexpr;
     }
+    inIf = false;
 }
 
 void parser::parseForStatement(Ast *ast) { // remove ":" ending requirement for loop
@@ -1300,25 +1301,25 @@ bool parser::parseStatement(Ast* ast) {
     else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
        (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
     {
-        if(*peek(1) == ":") {
-            Token *old = _current;
-            _current++;
-
-            errors->enterProtectedMode();
-            parseUtype(branch);
-            branch->freeLastSub();
-            errors->pass();
-
-            if(*peek(1) == "=" || *peek(1) == ";"
-                || *peek(1) == ",") {
-                _current = old;
-                parseVariableDecl(branch);
-            } else {
-                _current = old;
-                goto labelDecl;
-            }
-        } else
-            parseVariableDecl(branch);
+//        if(*peek(1) == ":") {
+//            Token *old = _current;
+//            _current++;
+//
+//            errors->enterProtectedMode();
+//            parseUtype(branch);
+//            branch->freeLastSub();
+//            errors->pass();
+//
+//            if(*peek(1) == "=" || *peek(1) == ";"
+//                || *peek(1) == ",") {
+//                _current = old;
+//                parseVariableDecl(branch);
+//            } else {
+//                _current = old;
+//                goto labelDecl;
+//            }
+//        } else
+        parseVariableDecl(branch);
         return true;
     }
     else if(isForEachStatement(current()))
@@ -3590,20 +3591,22 @@ bool parser::parseReferencePointer(Ast *ast) {
 
     if(peek(1)->getValue() == "<") {
         Token *old = _current;
-        expect(refItem, "<", false);
+        Ast *tmp = getBranch(refItem, ast_generic_reference);
+        expect(tmp, "<", false);
         errors->enterProtectedMode();
-        parseUtypeList(refItem);
+        parseUtypeList(tmp);
 
+        errors->pass();
+        refItem->freeLastSub();
         if(*peek(1) == ">") {
-            errors->fail();
+            _current = old;
+            expect(refItem, "<", false);
+            parseUtypeList(refItem);
             expect(refItem, ">", false);
             refItem->encapsulate(ast_generic_reference);
         }
         else {
-            errors->pass();
             _current = old;
-            refItem->freeLastSub();
-            refItem->freeLastToken();
         }
     }
 
@@ -3623,20 +3626,22 @@ bool parser::parseReferencePointer(Ast *ast) {
         expectIdentifier(refItem);
         if(peek(1)->getValue() == "<") {
             Token *old = _current;
-            expect(refItem, "<");
+            Ast *tmp = getBranch(refItem, ast_generic_reference);
+            expect(tmp, "<", false);
             errors->enterProtectedMode();
-            parseUtypeList(refItem);
+            parseUtypeList(tmp);
 
+            errors->pass();
+            refItem->freeLastSub();
             if(*peek(1) == ">") {
-                errors->fail();
-                expect(refItem, ">");
+                _current = old;
+                expect(refItem, "<", false);
+                parseUtypeList(refItem);
+                expect(refItem, ">", false);
                 refItem->encapsulate(ast_generic_reference);
             }
             else {
-                errors->pass();
                 _current = old;
-                refItem->freeLastSub();
-                refItem->freeLastToken();
             }
         }
     }

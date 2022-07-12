@@ -75,4 +75,12 @@ void compile_function_call(
         bool isStaticCall,
         bool isPrimaryClass);
 
+void compile_initialization_call(
+        Ast *ast,
+        sharp_class *with_class,
+        sharp_function *constructor,
+        List<sharp_field*> & params,
+        List<operation_schema*> &paramOperations,
+        operation_schema *scheme);
+
 #endif //SHARP_EXPRESSION_H

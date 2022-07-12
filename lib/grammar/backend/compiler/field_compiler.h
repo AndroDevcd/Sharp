@@ -14,6 +14,7 @@ void compile_field(sharp_class *with_class, Ast *ast);
 void compile_field(sharp_field *field, Ast *ast);
 void compile_class_fields(sharp_class *with_class);
 void compile_field_injection_request(sharp_field *field, Ast *ast);
+void compile_static_closure_reference(sharp_field *field);
 
 
 #endif //SHARP_FIELD_COMPILER_H

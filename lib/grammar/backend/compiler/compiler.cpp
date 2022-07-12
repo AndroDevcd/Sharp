@@ -6,10 +6,13 @@
 #include "../../sharp_file.h"
 #include "../../compiler_info.h"
 #include "../astparser/ast_parser.h"
-#include "../types/sharp_module.h"
-#include "../types/sharp_class.h"
+#include "../types/types.h"
 #include "field_compiler.h"
 #include "functions/init_compiler.h"
+#include "functions/function_compiler.h"
+#include "mutate_compiler.h"
+#include "enum_compiler.h"
+#include "../../settings/settings.h"
 
 void compile_global_fields(sharp_class *with_class, sharp_file *file) {
     for(Int i = 0; i < file->p->size(); i++)
@@ -20,6 +23,34 @@ void compile_global_fields(sharp_class *with_class, sharp_file *file) {
         switch(trunk->getType()) {
             case ast_variable_decl:
                 compile_field(with_class, trunk);
+                break;
+            default:
+                /* */
+                break;
+        }
+    }
+}
+
+void compile_static_closure_references(sharp_class *with_class) {
+    for(Int i = 0; i < with_class->fields.size(); i++) {
+        if(with_class->fields.get(i)->staticClosure) {
+            compile_static_closure_reference(with_class->fields.get(i));
+        }
+    }
+}
+
+void compile_global_methods(sharp_class *with_class, sharp_file *file) {
+    for(Int i = 0; i < file->p->size(); i++)
+    {
+        if(panic) return;
+
+        Ast *trunk = file->p->astAt(i);
+        switch(trunk->getType()) {
+            case ast_method_decl:
+                compile_function(with_class, normal_function, trunk);
+                break;
+            case ast_operator_decl:
+                compile_function(with_class, operator_function, trunk);
                 break;
             default:
                 /* */
@@ -50,6 +81,9 @@ void __compile__() {
     }
 
     compile_global_fields(globalClass, file);
+    compile_global_methods(globalClass, file);
+//    compile_static_closure_references(globalClass);
+
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;
@@ -74,6 +108,12 @@ void __compile__() {
         switch(trunk->getType()) {
             case ast_class_decl:
                 compile_class(globalClass, NULL, trunk);
+                break;
+            case ast_mutate_decl:
+                compile_mutation(trunk);
+                break;
+            case ast_enum_decl:
+                compile_enum_fields(globalClass, trunk);
                 break;
             default:
                 /* */
@@ -104,10 +144,11 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
         return;
     }
 
-    compile_class_fields(with_class);
-    compile_inits(with_class);
-    // todo: compile all other functions
-    // todo: compile uncompiled functions like field setters and getters
+//    compile_class_fields(with_class);
+//    compile_inits(with_class);
+//    compile_initialization_paring(with_class);
+//    compile_class_functions(with_class);
+
 
     for(Int i = 0; i < block->getSubAstCount(); i++) {
         Ast *trunk = block->getSubAst(i);
@@ -116,6 +157,12 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
             case ast_generic_class_decl:
             case ast_class_decl:
                 compile_class(with_class, NULL, trunk);
+                break;
+            case ast_mutate_decl:
+                compile_mutation(trunk);
+                break;
+            case ast_enum_decl:
+                compile_enum_fields(with_class, trunk);
                 break;
             default:
                 break;

@@ -20,6 +20,8 @@ catch_data* create_catch_data_tracker(
     if(scheme) {
         return new catch_data(create_allocate_catch_data_operation(parent, scheme), parent);
     }
+
+    return NULL;
 }
 
 finally_data* create_finally_data_tracker(
@@ -28,4 +30,6 @@ finally_data* create_finally_data_tracker(
     if(scheme) {
         return new finally_data(create_allocate_finally_data_operation(parent, scheme), parent);
     }
+    
+    return NULL;
 }
