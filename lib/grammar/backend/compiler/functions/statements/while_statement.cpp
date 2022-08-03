@@ -22,7 +22,7 @@ void compile_while_statement(Ast *ast, operation_schema *scheme, bool *controlPa
     expression cond;
     compile_expression(cond, ast->getSubAst(ast_expression));
 
-    if(is_evaluable_type(cond.type)) {
+    if(!is_evaluable_type(cond.type)) {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "while loop condition expression must evaluate to true or false");
     }
 
@@ -35,6 +35,10 @@ void compile_while_statement(Ast *ast, operation_schema *scheme, bool *controlPa
 
     compile_block(ast->getSubAst(ast_block), subScheme, while_block, beginLabel, endLabel);
     current_context.blockInfo.reachable = !current_context.blockInfo.reachable;
+
+    if(!current_context.blockInfo.reachable && (cond.type != type_bool && !cond.type._bool) && (cond.type != type_integer && !cond.type.integer)) {
+        current_context.blockInfo.reachable = true;
+    }
 
     create_jump_operation(subScheme, beginLabel);
     create_set_label_operation(subScheme, endLabel);

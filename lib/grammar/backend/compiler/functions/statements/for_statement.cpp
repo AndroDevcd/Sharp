@@ -61,7 +61,7 @@ void compile_for_statement(Ast *ast, operation_schema *scheme, bool *controlPath
             }
 
             compile_block(ast->getSubAst(ast_block), subScheme, for_block, beginLabel, endLabel);
-            current_context.blockInfo.reachable = !current_context.blockInfo.reachable;
+            current_context.blockInfo.reachable = true;
 
 
             if(ast->hasSubAst(ast_for_expresion_iter)) {

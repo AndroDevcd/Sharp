@@ -98,11 +98,10 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
         function->locals.addAll(function->parameters);
     }
 
-    compile_function(function);
+    compile_function(function, ast);
 }
 
-void compile_inits(sharp_class* with_class) {
-    Ast *block = with_class->ast->getSubAst(ast_block);
+void compile_inits(sharp_class* with_class, Ast *block) {
 
     for (Int i = 0; i < block->getSubAstCount(); i++) {
         Ast *trunk = block->getSubAst(i);
@@ -135,7 +134,7 @@ void compile_initialization_paring(sharp_class* with_class) {
     if(function == NULL) {
         name = instance_init_name(with_class->name);
         create_function(
-                with_class, flag_private | flag_static,
+                with_class, flag_private,
                 normal_function, name,
                 false, params,
                 void_type, with_class->ast, function
@@ -146,7 +145,7 @@ void compile_initialization_paring(sharp_class* with_class) {
             if(with_class->functions.get(i)->scheme == NULL)
                 with_class->functions.get(i)->scheme = new operation_schema();
 
-            compile_function_call(with_class->functions.get(i)->scheme, params, paramOperations, function, false, true);
+            compile_function_call(with_class->functions.get(i)->scheme, params, paramOperations, function, false, true, false);
         }
     }
 

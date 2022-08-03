@@ -14,6 +14,7 @@
 #include "add_expression.h"
 #include "mult_expression.h"
 #include "exponent_expression.h"
+#include "../../../../settings/settings.h"
 
 void compile_binary_expression(expression *e, Ast *ast) {
     if(ast->getType() == ast_and_e)
@@ -117,6 +118,53 @@ long double get_numeric_expression_value_as_decimal(expression &e) {
 
         default:
             return 0;
+    }
+}
+
+void  compile_binary_string_expression(
+        expression *e,
+        expression &left,
+        expression &right,
+        Token &operand,
+        Ast *ast) {
+
+    if(compile_expression_exceptions(right, operand, ast->getSubAst(1)))
+        return;
+
+    string name = "";
+    sharp_type type = get_real_type(left.type);
+    type.nullable = true;
+    List<sharp_field*> params;
+    List<operation_schema*> paramOperations;
+    impl_location location(current_file, ast);
+
+    params.add(new sharp_field(
+            name, get_primary_class(&currThread->currTask->file->context), location,
+            type, flag_public, normal_field, ast
+    ));
+    paramOperations.add(new operation_schema(left.scheme));
+
+    string std = "std";
+    sharp_class *string_class = resolve_class(get_module(std), "string", false, false);
+    sharp_function *constructor = resolve_function("string", string_class, params, constructor_function, exclude_all, ast, false, false);
+
+    if(constructor != NULL) {
+        compile_initialization_call(ast, string_class, constructor, params, paramOperations, &e->scheme);
+
+
+        deleteList(params);
+        deleteList(paramOperations);
+        type = get_real_type(right.type);
+        params.add(new sharp_field(
+                name, get_primary_class(&currThread->currTask->file->context), location,
+                type, flag_public, normal_field, ast
+        ));
+
+        paramOperations.add(new operation_schema(right.scheme));
+        compile_class_function_overload(string_class, *e, params, paramOperations, operand.getValue(), ast);
+    } else {
+        currThread->currTask->file->errors->createNewError(
+                INTERNAL_ERROR, ast->getSubAst(1), "could not find support function in string class for type `" + type_to_str(left.type) + "`");
     }
 }
 
@@ -444,6 +492,8 @@ void compile_binary_object_expression(
             if(operand == "!=") {
                 create_not_operation(&e->scheme);
             }
+
+            e->type.type = type_var;
             break;
         }
 
@@ -496,13 +546,26 @@ void compile_binary_expression(
     if(compile_expression_exceptions(left, operand, ast->getSubAst(0)))
         return;
 
+    if(ast->line == 50 && ast->col == 105) {
+        int i = 0;
+    }
+
     switch(left.type.type) {
 
-        case type_integer:
+        case type_integer: // todo: support string "" + "" convert first type to std#string
         case type_char:
         case type_bool:
         case type_decimal: {
             compile_binary_integer_expression(e, left, right, operand, ast);
+            break;
+        }
+
+        case type_string: {
+            if(operand == "+" || operand == "+="
+                || operand == "==" || operand == "!=" ) {
+                compile_binary_string_expression(e, left, right, operand, ast);
+            } else
+                goto error;
             break;
         }
 
@@ -546,6 +609,9 @@ void compile_binary_expression(
                         is_implicit_type_match(left.type, right.type, overload_only);
                 if (result == no_match_found) {
                     goto error;
+                } else if(result == indirect_match_w_nullability_mismatch && right.type != type_null && left.type != type_null) {
+                    currThread->currTask->file->errors->createNewError(
+                            NULLABILITY_MISMATCH, ast->getSubAst(0), ", unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
                 } else if(result == match_operator_overload) {
                     goto _overload;
                 }

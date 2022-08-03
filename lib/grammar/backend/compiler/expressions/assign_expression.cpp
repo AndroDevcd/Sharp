@@ -62,6 +62,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         &e->scheme, params,
                         paramOperations, field->setter,
                         check_flag(field->setter->flags, flag_static),
+                        false,
                         false);
             } else {
                 currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
@@ -92,7 +93,9 @@ void compile_assign_expression(expression *e, Ast *ast) {
             }
 
             left.scheme.schemeType = scheme.schemeType;
-            left.scheme.steps.appendAll(scheme.steps);
+            for(Int i = 0; i < scheme.steps.size(); i++) {
+                left.scheme.steps.add(new operation_step(*scheme.steps.get(i)));
+            }
         }
 
         if (get_class_type(left.type) != NULL || is_object_type(left.type)) {
@@ -112,7 +115,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     e->type.copy(left.type);
                 }
 
-            } else if(match_result != no_match_found){
+            } else if(is_match_function(match_result)){
                 List<sharp_field *> params;
                 List<operation_schema *> paramOperations;
                 e->scheme.copy(left.scheme);
@@ -132,10 +135,14 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         &e->scheme, params,
                         paramOperations, matchedFun,
                         false,
+                        false,
                         false);
+            } else if(match_result == indirect_match_w_nullability_mismatch) {
+                currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                          " expressions are not compatible, assigning null to non nullable type of `" + type_to_str(left.type) + "`.");
             } else {
                 currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                  "expressions are not compatible, assigning `" + type_to_str(right.type)
+                  " expressions are not compatible, assigning `" + type_to_str(right.type)
                   + "` to expression of type `" + type_to_str(left.type) + "`.");
             }
         } else if(is_numeric_type(left.type)) {
@@ -151,12 +158,12 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     e->type.copy(left.type);
                 } else {
                     currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                               "expressions are not compatible, assigning `" + type_to_str(right.type)
+                               " expressions are not compatible, assigning `" + type_to_str(right.type)
                                + "` to field of type `" + type_to_str(left.type) + "`.");
                 }
             } else {
                 currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                         "expressions are not compatible, assigning `" + type_to_str(right.type)
+                         " expressions are not compatible, assigning `" + type_to_str(right.type)
                          + "` to expression of type `" + type_to_str(left.type) + "`.");
             }
         }
@@ -216,7 +223,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 }
             } else {
                 currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                        "expressions of type `" + type_to_str(left.type)
+                        " expressions of type `" + type_to_str(left.type)
                         + "` is not assignable.");
             }
         } else {

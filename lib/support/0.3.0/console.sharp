@@ -31,7 +31,7 @@ def strtol(str: string, base_num: var) : var {
     return result;
 }
 
-def snprintf(fmt: var, num: var, precision: var) : _int8[] {
+def snprintf(fmt: var, num: var, precision: var) : _int8[]? {
     asm {
         loadl egx, {fmt}
         loadl ebx, {num}
@@ -168,7 +168,7 @@ def println(o: printable) {
 }
 
 def print(o: printable) {
-    print_chars(o.to_string().data);
+    print_chars(o.to_string().get_data());
 }
 
 def print(data: var) {
@@ -215,7 +215,7 @@ def sizeOf(data: object[]) : var {
     return 0;
 }
 
-local def print_chars(str: _int8[]) {
+local def print_chars(str: _int8[]?) {
     foreach(ch in str) {
         asm {
             loadl ebx, {ch}
@@ -267,6 +267,7 @@ local def print_numbers(str: var[]) {
             }
         }
     }
+
     asm {
         movi ebx, ' '
         movi ecx, ']'

@@ -15,7 +15,8 @@
 #include "../mutate_compiler.h"
 
 void check_main_method_signature(sharp_function *function) {
-    if(current_context.type == global_context && function->name == "main") {
+    if(get_primary_class(&current_context) != NULL && check_flag(get_primary_class(&current_context)->flags, flag_global)
+        && function->name == "main") {
         string std = "std";
         sharp_class *stringClass = resolve_class(get_module(std), "string", false, false);
 
@@ -105,7 +106,8 @@ void call_base_constructor(Ast *ast, sharp_function *function) {
                          params,constructor_function, constructor_only, baseClassConstr, false, true);
 
             if(constructor != NULL) {
-                compile_function_call(function->scheme, params, paramOperations, constructor, false, true);
+                compile_function_call(function->scheme, params, paramOperations, constructor, false, true,
+                                      false);
             } else {
                 current_file->errors->createNewError(GENERIC, baseClassConstr->line, baseClassConstr->col,
                                        " could not resolve base class constructor in class `" +
@@ -125,7 +127,7 @@ void call_base_constructor(Ast *ast, sharp_function *function) {
                                                            params,constructor_function, constructor_only, function->ast, false, true);
 
             if(constructor != NULL) {
-                compile_function_call(function->scheme, params, paramOperations, constructor, false, true);
+                compile_function_call(function->scheme, params, paramOperations, constructor, false, true, false);
             } else {
                 current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
                                        " could not resolve base class constructor `" + function->owner->baseClass->name + "` in `" +
@@ -146,7 +148,7 @@ void compile_class_function(
 
     function = resolve_function(name, with_class, params, type, exclude_all, ast, false, false);
     if(function != NULL) {
-        compile_function(function);
+        compile_function(function, function->ast);
     } else {
         current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
                                              " could not resolve function `" + name + "` in `" + with_class->fullName + "`.");
@@ -215,48 +217,48 @@ void compile_class_functions(sharp_class *with_class) {
     delete_context();
 }
 
-void compile_function(sharp_function *function) {
+void compile_function(sharp_function *function, Ast *ast) {
     create_context(&current_context, function, check_flag(function->flags, flag_static));
     if(function->scheme == NULL)
         function->scheme = new operation_schema();
     bool codePathsReturnValue;
 
     if(function->type == initializer_function) {
-        codePathsReturnValue = compile_block(function->ast->getSubAst(ast_block), function->scheme);
+        codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
     } else {
         check_main_method_signature(function);
 
         if((function->name == static_init_function_name || function->name == tls_init_function_name)
            && function->owner->fullName == platform_class_name) {
-            if(function->ast->hasSubAst(ast_expression) || function->ast->getSubAst(ast_block)->sub_asts.size() > 0) {
-                current_file->errors->createNewError(GENERIC, function->ast, "platform level function `" +
+            if(ast->hasSubAst(ast_expression) || ast->getSubAst(ast_block)->sub_asts.size() > 0) {
+                current_file->errors->createNewError(GENERIC, ast, "platform level function `" +
                         function_to_str(function) + "` does not allow statements or expressions inside.");
             }
 
             return;
         }
 
-        if(function->ast->hasSubAst(ast_expression)) {
+        if(ast->hasSubAst(ast_expression)) {
             codePathsReturnValue = true;
             create_block(&current_context, normal_block);
-            current_context.blockInfo.line = function->ast->line;
+            current_context.blockInfo.line = ast->line;
             APPLY_TEMP_SCHEME(1, *current_context.functionCxt->scheme,
-                  create_line_record_operation(&scheme_1, function->ast->line);
+                  create_line_record_operation(&scheme_1, ast->line);
             )
 
             sharp_function *constructor;
             uInt match_result;
             expression e;
-            compile_expression(e, function->ast->getSubAst(ast_expression));
+            compile_expression(e, ast->getSubAst(ast_expression));
 
             if((match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor)) == no_match_found) {
-                current_file->errors->createNewError(GENERIC, function->ast->line, function->ast->col, "return value of type `" +
+                current_file->errors->createNewError(GENERIC, ast->line, ast->col, "return value of type `" +
                         type_to_str(e.type) + "` is not compatible with that of type `" + type_to_str(function->returnType) + "`");
             }
 
             if(match_result == match_constructor) {
                 APPLY_TEMP_SCHEME(0, e.scheme,
-                     compile_initialization_call(function->ast, constructor, e, &scheme_0);
+                     compile_initialization_call(ast, constructor, e, &scheme_0);
                      e.scheme.free();
                 )
             }
@@ -274,11 +276,11 @@ void compile_function(sharp_function *function) {
         } else {
             if(function->type == constructor_function) {
                 create_block(&current_context, normal_block);
-                call_base_constructor(function->ast, function);
+                call_base_constructor(ast, function);
                 delete_block();
             }
 
-            codePathsReturnValue = compile_block(function->ast->getSubAst(ast_block), function->scheme);
+            codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
 
             if(function->returnType.type == type_nil) {
                 create_return_operation(function->scheme);
@@ -288,7 +290,7 @@ void compile_function(sharp_function *function) {
 
 
     if(!codePathsReturnValue && function->returnType.type != type_nil) {
-        current_file->errors->createNewError(GENERIC, function->ast->getSubAst(ast_block), "not all code paths return a value");
+        current_file->errors->createNewError(GENERIC, ast->getSubAst(ast_block), "not all code paths return a value");
     }
     delete_context();
 }

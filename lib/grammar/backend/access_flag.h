@@ -23,7 +23,7 @@ enum access_flag {
     flag_static = 0x040,
 
     flag_stable = 0x080,
-    flag_unstable = 0x100,
+    flag_unstable = 0x100, // todo: add override flag support for delegates
 
     flag_extension = 0x200,
 

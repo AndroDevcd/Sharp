@@ -19,6 +19,9 @@ void process_function(
     string name;
 
     if(type == initializer_function) {
+        if(with_class->name == "string_builder") {
+            int r = 0;
+        }
         name = instance_init_name(with_class->name);
     } else if(type == constructor_function) {
         name = ast->getToken(0).getValue();

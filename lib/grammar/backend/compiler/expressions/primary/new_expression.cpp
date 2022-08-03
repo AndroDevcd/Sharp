@@ -63,7 +63,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
             create_new_class_operation(&e->scheme, newType->_class);
             compile_function_call(&e->scheme, params,
                     paramOperations, constructor,
-                    false, false);
+                    false, false, false);
 
             e->type.copy(*newType);
         } else {

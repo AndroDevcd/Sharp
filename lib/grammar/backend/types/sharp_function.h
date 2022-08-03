@@ -127,6 +127,7 @@ struct sharp_function {
 };
 
 bool is_fully_qualified_function(sharp_function*);
+void fully_qualify_function(sharp_function*, sharp_function*);
 bool function_parameters_match(List<sharp_field*>&, List<sharp_field*>&, bool, uInt excludedMateches = 0);
 
 
@@ -154,5 +155,6 @@ bool create_function(
 void create_default_constructor(sharp_class*, uInt, Ast*);
 
 string function_to_str(sharp_function*);
+string parameters_to_str(List<sharp_field*> &);
 
 #endif //SHARP_SHARP_FUNCTION_H

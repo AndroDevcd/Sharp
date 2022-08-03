@@ -206,7 +206,7 @@ public class job {
 	protected main1: (args : object[])();
 	protected main2: (object, object[])();
 	protected main3: (object)();
-	protected host : thread;
+	protected host : thread?;
 	protected fib : fiber;
 	protected name : string;
 	protected args : object[];

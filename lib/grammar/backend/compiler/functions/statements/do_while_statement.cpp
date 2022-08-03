@@ -25,8 +25,11 @@ void compile_do_while_statement(Ast *ast, operation_schema *scheme, bool *contro
 
     expression cond;
     compile_expression(cond, ast->getSubAst(ast_expression));
+    if(!current_context.blockInfo.reachable && (cond.type != type_bool && !cond.type._bool) && (cond.type != type_integer && !cond.type.integer)) {
+        current_context.blockInfo.reachable = true;
+    }
 
-    if(is_evaluable_type(cond.type)) {
+    if(!is_evaluable_type(cond.type)) {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "do while loop condition expression must evaluate to true or false");
     }
 

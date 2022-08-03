@@ -29,6 +29,7 @@ enum operation_type {
     operation_get_primary_class_instance,
     operation_call_instance_function,
     operation_call_static_function,
+    operation_call_dynamic_function,
     operation_get_static_function_address,
     operation_push_value_to_stack,
     operation_assign_array_value,
@@ -159,6 +160,7 @@ enum _operation_scheme {
     scheme_get_address,
     scheme_call_instance_function,
     scheme_call_static_function,
+    scheme_call_dynamic_function,
     scheme_get_constant,
     scheme_new_class,
     scheme_get_size_of,
@@ -604,6 +606,12 @@ void create_static_function_call_operation(
         operation_schema *scheme,
         List<operation_schema*> &paramScheme,
         sharp_function *fun);
+
+void create_dynamic_function_call_operation(
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
+        Int registerId,
+        bool resetState = true);
 
 void create_function_parameter_push_operation(
         sharp_type *paramType,

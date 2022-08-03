@@ -73,7 +73,8 @@ void compile_function_call(
         List<operation_schema*> &paramOperations,
         sharp_function *callee,
         bool isStaticCall,
-        bool isPrimaryClass);
+        bool isPrimaryClass,
+        bool isFunctionPointer);
 
 void compile_initialization_call(
         Ast *ast,

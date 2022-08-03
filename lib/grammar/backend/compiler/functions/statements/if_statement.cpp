@@ -64,12 +64,14 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
 
                         create_set_label_operation(&scheme_0, blockEndLabel);
                     )
+                    break;
                 }
 
                 case ast_else_statement: {
                     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_else, *subScheme,
                         controlPaths[ELSE_CONTROL_PATH] = compile_block(branch->getSubAst(ast_block), &scheme_0, else_block);
                     )
+                    break;
                 }
                 default: {
                     current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, "unexpected AST in if statement");

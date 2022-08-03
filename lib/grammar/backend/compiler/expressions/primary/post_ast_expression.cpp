@@ -52,7 +52,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                 funPtr = e->type.fun;
             } else if(e->type.type == type_field
                       && e->type.field->type.type == type_function_ptr) {
-                funPtr = e->type.field->type.fun;
+                funPtr = e->type.field->type.fun; // todo: track whether or not function pointer and perform dynamic call below
             }
 
             if(funPtr != NULL) {
@@ -102,17 +102,22 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
 
                         if(parametersMatch) {
                             operation_schema scheme;
+                            create_push_to_stack_operation(&scheme);
+
                             compile_function_call(
                                     &scheme,
                                     params,
                                     paramOperations,
                                     funPtr,
                                     true,
-                                    false
+                                    false,
+                                    true
                             );
 
                             e->type.copy(funPtr->returnType);
-                            e->scheme.steps.appendAll(scheme.steps);
+                            for(Int j = 0; j < scheme.steps.size(); j++) {
+                                e->scheme.steps.add(new operation_step(*scheme.steps.get(j)));
+                            }
                         }
                     } else {
                         stringstream ss;

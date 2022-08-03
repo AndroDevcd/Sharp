@@ -98,7 +98,7 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
             break;
         }
         case ast_lock_statement: {
-            compile_lock_statement(ast, scheme);
+            compile_lock_statement(ast, scheme, controlPaths);
             break;
         }
         case ast_trycatch_statement: {
@@ -107,6 +107,10 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
         }
         case ast_when_statement: {
             compile_when_statement(ast, scheme, controlPaths);
+            break;
+        }
+        case ast_assembly_statement: {
+            // todo: impl
             break;
         }
         default:

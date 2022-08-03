@@ -17,6 +17,7 @@
 #include "binary/binary_expression.h"
 #include "../../postprocessor/function_processor.h"
 #include "../../../compiler_info.h"
+#include "inline_if_expression.h"
 
 void compile_expression(expression &e, Ast *ast) {
     if(ast->getType() == ast_expression)
@@ -33,6 +34,8 @@ void compile_expression(expression &e, Ast *ast) {
         compile_vector_array_expression(&e, ast->getSubAst(ast_vector_array));
     else if(ast->getType() == ast_elvis_e)
         compile_elvis_expression(&e, ast);
+    else if(ast->getType() == ast_ques_e)
+        compile_inline_if_expression(&e, ast);
     else if(ast->getType() == ast_assign_e)
         compile_assign_expression(&e, ast);
     else if(ast->getType() == ast_and_e
@@ -75,7 +78,7 @@ void compile_initialization_call(
         Ast *ast,
         sharp_function *constructor,
         expression &e,
-        operation_schema *scheme) {
+        operation_schema *scheme) { // todo: invistegate this call to make sure its being implemented correctly
     string name = "";
     List<sharp_field *> params;
     List<operation_schema *> paramOperations;
@@ -93,10 +96,11 @@ void compile_initialization_call(
             scheme, params,
             paramOperations, constructor,
             false,
+            false,
             false);
 }
 
-void compile_initialization_call(
+void compile_initialization_call( // todo: we need to add duplicate object support herer for when we want to pop the class off the stack
         Ast *ast,
         sharp_class *with_class,
         sharp_function *constructor,
@@ -107,6 +111,7 @@ void compile_initialization_call(
     compile_function_call(
             scheme, params,
             paramOperations, constructor,
+            false,
             false,
             false);
 }
@@ -131,7 +136,8 @@ void compile_class_function_overload(
             true)) != NULL) {
         process_function_return_type(fun);
 
-        compile_function_call(&e.scheme, params, paramOperations, fun, false, false);
+        compile_function_call(&e.scheme, params, paramOperations, fun, false, false,
+                              false);
         e.type.copy(fun->returnType);
     } else {
         currThread->currTask->file->errors->createNewError(GENERIC, ast,
@@ -146,7 +152,8 @@ void compile_function_call(
         List<operation_schema*> &paramOperations,
         sharp_function *callee,
         bool isStaticCall,
-        bool isPrimaryClass) {
+        bool isPrimaryClass,
+        bool isFunctionPointer) {
     if(scheme) {
         Int matchResult;
         List<operation_schema*> compiledParamOperations;
@@ -179,7 +186,13 @@ void compile_function_call(
             );
         }
 
-        if (isStaticCall) {
+        if(isFunctionPointer) {
+            ALLOCATE_REGISTER_1X(1, scheme,
+              create_pop_value_from_stack_operation(scheme);
+              create_retain_numeric_value_operation(scheme, register_1);
+              create_dynamic_function_call_operation(scheme, compiledParamOperations, register_1, false);
+           )
+        } else if (isStaticCall) {
             create_static_function_call_operation(scheme, compiledParamOperations, callee);
         } else {
             if (isPrimaryClass)

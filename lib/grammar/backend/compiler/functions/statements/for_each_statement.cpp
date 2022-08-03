@@ -29,16 +29,16 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
     compile_expression(arrayExpr, ast->getSubAst(ast_expression));
 
     if(!get_real_type(arrayExpr.type).isArray
-        && !(get_class_type(arrayExpr.type) != NULL && is_class_related_to(get_class_type(arrayExpr.type), loopableClass))) {
+        && !(get_class_type(arrayExpr.type) != NULL && inherits_generic_class(get_class_type(arrayExpr.type), loopableClass))) {
             current_file->errors->createNewError(GENERIC, ast->line, ast->col,
                                " foreach expression`" + type_to_str(arrayExpr.type) + "` must be an array type.");
     }
 
     if(!get_real_type(arrayExpr.type).isArray && get_class_type(arrayExpr.type) != NULL
-        && is_class_related_to(get_class_type(arrayExpr.type), loopableClass)) {
+        && inherits_generic_class(get_class_type(arrayExpr.type), loopableClass)) {
         List<sharp_field*> params;
         List<operation_schema*> paramOperations;
-        sharp_function *get_elements = resolve_function("get_elements", loopableClass, params, normal_function, 0, ast, false, false);
+        sharp_function *get_elements = resolve_function("get_elements", get_class_type(arrayExpr.type), params, normal_function, 0, ast, false, false);
 
         if(get_elements != NULL) {
             if(check_flag(get_elements->flags, flag_static)) {
@@ -51,7 +51,8 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                                        " support function `" + function_to_str(get_elements) + "` must return an array.");
             }
 
-            compile_function_call(&arrayExpr.scheme, params, paramOperations, get_elements, false, false);
+            compile_function_call(&arrayExpr.scheme, params, paramOperations, get_elements, false, false,
+                                  false);
             arrayExpr.type.copy(get_elements->returnType);
         } else {
             current_file->errors->createNewError(GENERIC, ast->line, ast->col,
@@ -79,6 +80,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
     } else {
         string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
         fieldType.copy(get_real_type(arrayExpr.type));
+        fieldType.isArray = false;
         iteratorField = create_local_field(current_file, &current_context, name, flags, fieldType, normal_field, ast->getSubAst(ast_utype_arg));
         iterator_match_result = direct_match;
     }
@@ -183,9 +185,8 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         }
     }
 
-
     compile_block(ast->getSubAst(ast_block), subScheme, for_each_block, beginLabel, endLabel);
-    current_context.blockInfo.reachable = !current_context.blockInfo.reachable;
+    current_context.blockInfo.reachable = true;
 
     create_jump_operation(subScheme, beginLabel);
     create_set_label_operation(subScheme, endLabel);

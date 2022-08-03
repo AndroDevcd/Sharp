@@ -41,6 +41,7 @@ struct sharp_class {
             ast(NULL),
             module(NULL),
             baseClass(NULL),
+            genericBuilder(NULL),
             functions(),
             generics(),
             aliases(),
@@ -71,6 +72,7 @@ struct sharp_class {
             module(module),
             ast(ast),
             baseClass(NULL),
+            genericBuilder(NULL),
             dependencies(),
             owner(owner),
             children(),
@@ -115,6 +117,7 @@ struct sharp_class {
             baseClass(baseClass),
             dependencies(),
             owner(owner),
+            genericBuilder(NULL),
             children(),
             fullName(""),
             functions(),
@@ -140,6 +143,7 @@ struct sharp_class {
             flags(sc.flags),
             module(sc.module),
             baseClass(sc.baseClass),
+            genericBuilder(sc.genericBuilder),
             implLocation(sc.implLocation),
             dependencies(sc.dependencies),
             ast(sc.ast),
@@ -173,6 +177,7 @@ struct sharp_class {
     Ast* ast;
     sharp_class *owner;
     sharp_class *baseClass;
+    sharp_class *genericBuilder;
     sharp_module *module;
     impl_location implLocation;
     List<dependency> dependencies;
@@ -183,7 +188,7 @@ struct sharp_class {
     List<sharp_field*> fields;
     List<sharp_class*> genericClones;
     List<sharp_function*> functions;
-    List<sharp_function*> uncompiledLambdas;
+    List<sharp_function*> uncompiledLambdas; // todo: compile this list after all functions are compiled
     List<Ast*> mutations;
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
@@ -211,6 +216,12 @@ bool locate_functions_with_type(
         bool checkBaseClass,
         List<sharp_function*> &results);
 
+bool locate_functions_pointer_fields_with_name(
+        string name,
+        sharp_class *owner,
+        bool checkBaseClass,
+        List<sharp_field*> &results);
+
 generic_type_identifier* locate_generic_type(
         string name,
         sharp_class *owner);
@@ -230,5 +241,6 @@ bool is_implicit_type_match(sharp_class*, sharp_class*);
 
 // check whether or not a class holds the base class of the class provided
 bool is_class_related_to(sharp_class*, sharp_class*);
+bool inherits_generic_class(sharp_class *comparer, sharp_class *generic);
 
 #endif //SHARP_SHARP_CLASS_H

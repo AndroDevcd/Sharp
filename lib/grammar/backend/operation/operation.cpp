@@ -919,6 +919,7 @@ void create_get_char_constant_operation(
         operation_schema *scheme,
         char _char) {
     scheme->free();
+    scheme->schemeType = scheme_get_constant;
 
     scheme->steps.add(new operation_step(
             operation_get_char_constant, _char));
@@ -928,6 +929,7 @@ void create_get_bool_constant_operation(
         operation_schema *scheme,
         bool _bool) {
     scheme->free();
+    scheme->schemeType = scheme_get_constant;
 
     scheme->steps.add(new operation_step(
             operation_get_bool_constant, _bool));
@@ -937,6 +939,7 @@ void create_get_string_constant_operation(
         operation_schema *scheme,
         string &_string) {
     scheme->free();
+    scheme->schemeType = scheme_get_constant;
 
     scheme->steps.add(new operation_step(
             operation_get_string_constant, _string));
@@ -1299,6 +1302,27 @@ void create_static_function_call_operation(
     }
 }
 
+void create_dynamic_function_call_operation(
+        operation_schema *scheme,
+        List<operation_schema*> &paramScheme,
+        Int registerId,
+        bool resetState) {
+    if(scheme) {
+        scheme->schemeType = scheme_call_dynamic_function;
+
+        if(resetState) scheme->free();
+
+        for(Int i = 0; i < paramScheme.size(); i++) {
+            scheme->steps.add(new operation_step(
+                    new operation_schema(*paramScheme.get(i)),
+                    operation_push_parameter_to_stack
+            ));
+        }
+
+        scheme->steps.add(new operation_step(
+                operation_call_dynamic_function, registerId));
+    }
+}
 
 void create_function_parameter_push_operation(
         sharp_type *paramType,

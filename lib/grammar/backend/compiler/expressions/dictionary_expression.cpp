@@ -99,7 +99,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                         create_new_class_operation(pairItemScheme, pairClass);
                         compile_function_call(pairItemScheme, params,
                                               paramOperations, constructor,
-                                              false, false);
+                                              false, false, false);
                     } else {
                         sharp_type returnType;
                         string mock = get_simple_name(pairClass);
@@ -145,7 +145,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                     create_new_class_operation(&e->scheme, dictionaryClass);
                     compile_function_call(&e->scheme, params,
                                           paramOperations, constructor,
-                                          false, false);
+                                          false, false, false);
 
                     e->type.type = type_class;
                     e->type._class = dictionaryClass;

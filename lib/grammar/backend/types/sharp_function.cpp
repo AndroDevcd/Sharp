@@ -21,6 +21,16 @@ bool is_fully_qualified_function(sharp_function* function) {
     return true;
 }
 
+void fully_qualify_function(sharp_function* function, sharp_function* qualifiedFunction) {
+    if(!function->parameters.empty() && function->parameters.size() == qualifiedFunction->parameters.size()) {
+        for(Int i = 0; i < function->parameters.size(); i++) {
+            sharp_field *parameter = function->parameters.get(i);
+            if(parameter->type.type >= type_any)
+                parameter->type.copy(qualifiedFunction->parameters.get(i)->type);
+        }
+    }
+}
+
 bool create_function(
         sharp_class *sc,
         uInt flags,
@@ -83,20 +93,26 @@ void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation
     }
 }
 
-string function_to_str(sharp_function *fun) {
+string parameters_to_str(List<sharp_field*> &parameters) {
     stringstream ss;
-    ss << fun->name << "(";
+    ss << "(";
 
-    for(Int i = 0; i < fun->parameters.size(); i++) {
-        ss << type_to_str(fun->parameters.get(i)->type);
+    for(Int i = 0; i < parameters.size(); i++) {
+        ss << type_to_str(parameters.get(i)->type);
 
-        if((i + 1) < fun->parameters.size()) {
+        if((i + 1) < parameters.size()) {
             ss << ", ";
         }
     }
 
-    ss << "): ";
-    ss << type_to_str(fun->returnType) << "";
+    ss << ")";
+    return ss.str();
+}
+
+string function_to_str(sharp_function *fun) {
+    stringstream ss;
+    ss << fun->name << parameters_to_str(fun->parameters);
+    ss << ": " << type_to_str(fun->returnType) << "";
 
     return ss.str();
 }
@@ -113,11 +129,11 @@ bool function_parameters_match(
     if(comparer.size() != comparee.size()) return false;
 
     for(Int i = 0; i < comparer.size(); i++) {
-        if(explicitMatch && !is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type)) {
+        if(explicitMatch && !is_match_normal(is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type))) {
             return false;
         } else if(!explicitMatch){
-            if(!is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type)
-                 && !is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, excludedMatches)) {
+            if(!is_match_normal(is_explicit_type_match(comparer.get(i)->type, comparee.get(i)->type))
+                 && !is_match(is_implicit_type_match(comparer.get(i)->type, comparee.get(i)->type, excludedMatches))) {
                 return false;
             }
         }

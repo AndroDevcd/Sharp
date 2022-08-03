@@ -46,6 +46,9 @@ extern int main_method_sig;
 #define set_internal_variable_name(ss, name, id)  \
             (ss).str("");                                \
             (ss) << "$$02_internal_field_" << (name) << (id);
+#define set_internal_function_pointer_type_name(ss, name, id)  \
+            (ss).str("");                                \
+            (ss) << "$$02_internal_fptr_" << (name) << (id);
 #define any_component_name "?"
 #define single_component_field_name_prefix "@sub_component_"
 #define anonymous_func_prefix "@anonymous_fun_"

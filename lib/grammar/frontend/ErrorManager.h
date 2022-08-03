@@ -41,6 +41,7 @@ enum error_type
     INVALID_PARAM = 25,
     INCOMPATIBLE_TYPES = 26,
     DUPlICATE_DECLIRATION = 27,
+    NULLABILITY_MISMATCH = 28,
 
     NO_ERR = 999
 };
@@ -74,7 +75,7 @@ public:
     ParseError(KeyPair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
-        error = (err.value + addon);
+        error = (err.value + " " + addon);
         line = l;
         col = c;
         warning = false;
@@ -83,7 +84,7 @@ public:
     ParseError(bool warning, KeyPair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
-        error = (err.value + addon);
+        error = (err.value + " " + addon);
         line = l;
         col = c;
         this->warning = warning;
@@ -92,7 +93,7 @@ public:
     ParseError(KeyPair<error_type, string> err, Token token, string addon = "")
     {
         id = err.key;
-        error = (err.value + addon);
+        error = (err.value + " " + addon);
         line = token.getLine();
         col = token.getColumn();
         warning = false;

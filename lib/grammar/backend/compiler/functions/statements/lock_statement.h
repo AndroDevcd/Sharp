@@ -8,6 +8,6 @@
 class Ast;
 struct operation_schema;
 
-void compile_lock_statement(Ast *ast, operation_schema *scheme);
+void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPaths);
 
 #endif //SHARP_LOCK_STATEMENT_H

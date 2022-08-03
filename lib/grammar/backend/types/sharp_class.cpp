@@ -113,6 +113,7 @@ sharp_class* create_generic_class(
                     false,
                     genericBlueprint->ast);
 
+            sc->genericBuilder = genericBlueprint;
             sc->genericTypes.addAll(genericIdentifiers);
             genericIdentifiers.free();
             return sc;
@@ -234,6 +235,8 @@ bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee) {
 }
 
 bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
+    if(comparer == baseClass) return true;
+
     if(comparer->baseClass != NULL) {
         if(comparer->baseClass == baseClass) return true;
         for(Int i = 0; i < comparer->interfaces.size(); i++) {
@@ -242,6 +245,22 @@ bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
         }
 
         return is_class_related_to(comparer->baseClass, baseClass);
+    }
+
+    return false;
+}
+
+
+bool inherits_generic_class(sharp_class *comparer, sharp_class *generic) {
+    if(comparer->baseClass != NULL) {
+        if(comparer->baseClass->genericBuilder == generic) return true;
+
+        for(Int i = 0; i < comparer->interfaces.size(); i++) {
+            if(comparer->interfaces.get(i)->genericBuilder == generic || inherits_generic_class(comparer->interfaces.get(i), generic))
+                return true;
+        }
+
+        return inherits_generic_class(comparer->baseClass, generic);
     }
 
     return false;
@@ -271,6 +290,35 @@ generic_type_identifier* locate_generic_type(
     return NULL;
 }
 
+bool locate_functions_pointer_fields_with_name(
+        string name,
+        sharp_class *owner,
+        bool checkBaseClass,
+        List<sharp_field*> &results) {
+    GUARD(globalLock)
+    for(Int i = 0; i < owner->fields.size(); i++) {
+        sharp_field *field = owner->fields.get(i);
+        if(name == field->name &&
+           field->type == type_function_ptr)
+            results.add(field);
+    }
+
+    for(Int i = 0; i < owner->interfaces.size(); i++) {
+        locate_functions_pointer_fields_with_name(name, owner->interfaces.get(i),  true, results);
+    }
+
+    if(checkBaseClass && owner->baseClass) {
+        if(owner->type == class_interface && owner->baseClass->fullName == "std#_object_")
+            return !results.empty(); // this prevents a stack overflow exception
+
+        return locate_functions_pointer_fields_with_name(
+                name, owner->baseClass,
+                true, results);
+    }
+
+    return !results.empty();
+}
+
 bool locate_functions_with_name(
         string name,
         sharp_class *owner,
@@ -285,10 +333,18 @@ bool locate_functions_with_name(
             results.add(fun);
     }
 
-    if(checkBaseClass && owner->baseClass)
+    for(Int i = 0; i < owner->interfaces.size(); i++) {
+        locate_functions_with_name(name, owner->interfaces.get(i), functionType, true, results);
+    }
+
+    if(checkBaseClass && owner->baseClass) {
+        if(owner->type == class_interface && owner->baseClass->fullName == "std#_object_")
+            return !results.empty(); // this prevents a stack overflow exception
+
         return locate_functions_with_name(
                 name, owner->baseClass, functionType,
                 true, results);
+    }
 
     return !results.empty();
 }

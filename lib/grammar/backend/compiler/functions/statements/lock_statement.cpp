@@ -7,8 +7,9 @@
 #include "../../../types/types.h"
 #include "../../expressions/expression.h"
 #include "../function_compiler.h"
+#include "../../compiler.h"
 
-void compile_lock_statement(Ast *ast, operation_schema *scheme) {
+void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     List<operation_schema*> lockSchemes;
     stored_block_info* info;
     operation_schema *subScheme = new operation_schema();
@@ -21,7 +22,9 @@ void compile_lock_statement(Ast *ast, operation_schema *scheme) {
         || cond.type.isArray) {
         create_lock_operation(subScheme, &cond.scheme);
 
-        compile_block(ast->getSubAst(ast_block), subScheme, lock_block, NULL, NULL, &cond.scheme);
+        if(compile_block(ast->getSubAst(ast_block), subScheme, lock_block, NULL, NULL, &cond.scheme)) {
+            controlPaths[MAIN_CONTROL_PATH] = true;
+        }
         add_scheme_operation(scheme, subScheme);
     } else {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "attempt to lock non-lockable object of type `" +

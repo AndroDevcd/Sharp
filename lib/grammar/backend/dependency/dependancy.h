@@ -185,6 +185,51 @@ sharp_function* resolve_function(
         bool checkBaseClass,
         bool implicitCheck);
 
+sharp_field* resolve_function_pointer_field(
+        string name,
+        import_group *group,
+        List<sharp_field*> &parameters,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
+sharp_field* resolve_function_pointer_field(
+        string name,
+        sharp_file *file,
+        List<sharp_field*> &parameters,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
+sharp_field* resolve_function_pointer_field(
+        string name,
+        sharp_module *module,
+        List<sharp_field*> &parameters,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
+sharp_field* resolve_function_pointer_field(
+        string name,
+        sharp_class *searchClass,
+        List<sharp_field*> &parameters,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
+sharp_field* resolve_local_function_pointer_field(
+        string name,
+        stored_context_item *context,
+        List<sharp_field*> &parameters,
+        uInt excludeMatches,
+        Ast *resolveLocation,
+        bool checkBaseClass,
+        bool implicitCheck);
+
 sharp_alias* resolve_alias(string, sharp_module*);
 sharp_alias* resolve_alias(string, sharp_file*);
 sharp_alias* resolve_alias(string, import_group*);

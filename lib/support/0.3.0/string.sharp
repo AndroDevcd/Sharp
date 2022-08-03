@@ -5,14 +5,18 @@ import (
 )
 
 class string : loopable<_int8> {
-    private data : _int8[];
+    private data : _int8[]?;
     private static currentFormat := 'g';
     private static precision := 0;
 
-    string(str : _int8[]) {
+    string(str : _int8[]?) {
         if(str != null) {
             append(str);
         }
+    }
+
+    init(str : _int8[]) {
+        string(str);
     }
 
     string(ch: var) {

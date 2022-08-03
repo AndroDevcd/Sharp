@@ -12,8 +12,7 @@
 #include "../postprocessor/function_processor.h"
 #include "functions/function_compiler.h"
 
-void compile_class_fields(sharp_class *with_class) {
-    Ast *block = with_class->ast->getSubAst(ast_block);
+void compile_class_fields(sharp_class *with_class, Ast *block) {
 
     create_context(with_class, true);
     for(Int i = 0; i < block->getSubAstCount(); i++) {
@@ -77,11 +76,11 @@ void compile_field(sharp_class *with_class, Ast *ast) {
     compile_field(field, ast);
 
     if(field->getter) {
-        compile_function(field->getter);
+        compile_function(field->getter, field->getter->ast);
     }
 
     if(field->setter) {
-        compile_function(field->setter);
+        compile_function(field->setter, field->setter->ast);
     }
 
     GUARD2(globalLock)
@@ -119,7 +118,7 @@ void compile_field(sharp_class *with_class, Ast *ast) {
             if(function == NULL) {
                 name = instance_init_name(with_class->name);
                 create_function(
-                        with_class, flag_private | flag_static,
+                        with_class, flag_private,
                         normal_function, name,
                         false, params,
                         void_type, ast, function

@@ -26,7 +26,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
       self->bound_thread = t;
    }
 
-   def start(args: object[]) {
+   def start(args: object[]?) {
       if(id == -1)
          id = vm.start_fiber(self, bound_thread, args, fiber_main);
    }
@@ -91,7 +91,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
       return vm.current_fiber();
    }
 
-   static def poll(t: thread) : var {
+   static def poll(t: thread?) : var {
       return vm.get_bound_fibers(t);
    }
 

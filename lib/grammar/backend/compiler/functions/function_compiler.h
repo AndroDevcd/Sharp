@@ -9,7 +9,7 @@
 #include "../../context/context.h"
 
 void compile_function(sharp_class *with_class, function_type type, Ast *ast);
-void compile_function(sharp_function *function);
+void compile_function(sharp_function *function, Ast *block);
 bool compile_block(
         Ast *ast,
         operation_schema *scheme,

@@ -82,7 +82,7 @@ void __compile__() {
 
     compile_global_fields(globalClass, file);
     compile_global_methods(globalClass, file);
-//    compile_static_closure_references(globalClass);
+    compile_static_closure_references(globalClass);
 
     for(Int i = 0; i < file->p->size(); i++)
     {
@@ -144,8 +144,8 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
         return;
     }
 
-//    compile_class_fields(with_class);
-//    compile_inits(with_class);
+    compile_class_fields(with_class, block);
+    compile_inits(with_class, block);
 //    compile_initialization_paring(with_class);
 //    compile_class_functions(with_class);
 

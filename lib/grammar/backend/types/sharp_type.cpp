@@ -12,6 +12,16 @@ sharp_type get_real_type(sharp_type &st) {
     sharp_type tmp;
     if(st.type == type_field) {
         return tmp.copy(st.field->type);
+    } else if(st.type == type_string) {
+        return sharp_type(type_int8, false, true);
+    } else if(st.type == type_integer) {
+        return sharp_type(type_int64);
+    } else if(st.type == type_char) {
+        return sharp_type(type_int8);
+    } else if(st.type == type_bool) {
+        return sharp_type(type_int8);
+    } else if(st.type == type_decimal) {
+        return sharp_type(type_var);
     } else return tmp.copy(st);
 }
 
@@ -22,10 +32,7 @@ bool is_numeric_type(sharp_type &st) {
 
 bool is_evaluable_type(sharp_type &st) {
     sharp_type type = get_real_type(st);
-    return (is_numeric_type(type) && !type.isArray && type.type != type_function_ptr)
-        || (type.type == type_bool)
-        || (type.type == type_integer)
-        || (type.type == type_decimal);
+    return (is_numeric_type(type) && !type.isArray && type.type != type_function_ptr);
 }
 
 bool is_object_type(sharp_type &st) {
@@ -67,7 +74,9 @@ string type_to_str(sharp_type &type) {
     else if(type.type == type_uint32) ss << "_uint32";
     else if(type.type == type_uint64) ss << "_uint64";
     else if(type.type == type_var) ss << "var";
+    else if(type.type == type_any) ss << "any";
     else if(type.type == type_object) ss << "object";
+    else if(type.type == type_string) ss << "string_literal: " << type._string;
     else if(type.type == type_integer) ss << type.integer;
     else if(type.type == type_decimal) ss << type.decimal;
     else if(type.type == type_untyped) ss << "unknown";
@@ -88,9 +97,10 @@ string type_to_str(sharp_type &type) {
     }
     else if(type.type == type_module) ss << type.module->name;
     else if(type.type == type_import_group) ss << type.group->name;
-    else if(type.type == type_null) ss << "null";
+    else if(type.type == type_null) return "null";
     else if(type.type == type_nil) ss << "nil";
     else if(type.type == type_function) ss << function_to_str(type.fun);
+    else if(type.type == type_lambda_function) ss << function_to_str(type.fun);
     else if(type.type == type_label) ss << "label(" << type.label->name << ")";
     else if(type.type == type_field) ss << type.field->fullName << ": " << type_to_str(type.field->type);
     else if(type.type == type_get_component_request) {
@@ -100,17 +110,17 @@ string type_to_str(sharp_type &type) {
             ss << type_to_str(*request->resolvedTypeDefinition->type);
         } else {
             if (request->componentName.empty() && request->typeDefinitionName.empty()) {
-                ss << "unknown";
+                ss << "get(?)";
             } else {
                 if (!request->typeDefinitionName.empty()) {
                     if (!request->componentName.empty()) {
-                        ss << "unknown(typeName: " << request->typeDefinitionName
+                        ss << "get(typeName: " << request->typeDefinitionName
                             << ", component: " << request->componentName << ")";
                     } else {
-                        ss << "unknown(typeName: " << request->typeDefinitionName << ")";
+                        ss << "get(typeName: " << request->typeDefinitionName << ")";
                     }
                 } else {
-                    ss << "unknown(component: " << request->componentName << ")";
+                    ss << "get(component: " << request->componentName << ")";
                 }
             }
         }
@@ -120,6 +130,17 @@ string type_to_str(sharp_type &type) {
     if(type.isArray) ss << "[]";
     if(type.nullable) ss << "?";
     return ss.str();
+}
+
+type_match_result nullability_check(sharp_type& comparer, sharp_type& comparee, type_match_result success_result) {
+    if(is_match_normal(success_result)) {
+        if(comparer.nullable) return success_result;
+        else {
+            if(comparee.nullable == comparer.nullable)
+                return success_result;
+            else return indirect_match_w_nullability_mismatch;
+        }
+    } else return success_result;
 }
 
 uInt is_type_definition_match(sharp_type &comparer, sharp_type &comparee) {
@@ -147,7 +168,7 @@ type_match_result with_result(bool check, type_match_result result) {
 
 CXX11_INLINE
 bool has_match_result_flag(uInt flags, type_match_result flag) {
-    return ((flags >> flag) & 1U);
+    return ((flags) & flag) == flag;
 }
 
 // the comparer is the one to receive the value that the comparee holds
@@ -155,11 +176,19 @@ uInt is_explicit_type_match(sharp_type& left, sharp_type& right) {
     auto comparer = get_real_type(left);
     auto comparee = get_real_type(right);
 
+    if(comparee.type == type_get_component_request) {
+        return is_type_definition_match(comparer, right);
+    }
+
     if(
-         (comparer.type == comparee.type && comparer.nullable == comparee.nullable)
+         (comparer.type == comparee.type &&
+            (comparer.nullable == comparee.nullable || comparer.nullable))
          || (comparer.fun != NULL && comparee.fun != NULL)
+         || (comparer.type != type_untyped && comparer.type != type_undefined && comparee.type == type_any) // this is a half truth and only used to fully qualify lambdas
     ) {
         if(comparer.isArray != comparee.isArray) return no_match_found;
+        else if(comparer.type != type_untyped && comparer.type != type_undefined && comparee.type == type_any)
+            return direct_match;
 
         if(comparer.fun == NULL) {
             if(comparer.type == type_class) {
@@ -207,7 +236,7 @@ uInt is_implicit_type_match(
         case type_null:
         case type_label:
         case type_nil: {
-            return with_result(comparee.type == comparer.type, direct_match);
+            return with_result(comparee.type == comparer.type, nullability_check(comparer, comparee, direct_match));
         }
         case type_any:
         case type_untyped:
@@ -217,7 +246,7 @@ uInt is_implicit_type_match(
         case type_lambda_function: {
             if(comparee.fun != NULL) {
                 return with_result(comparer.isArray == comparee.isArray && function_parameters_match(comparer.fun->parameters, comparee.fun->parameters, true)
-                       && is_explicit_type_match(comparer.fun->returnType, comparee.fun->returnType), direct_match);
+                       && is_explicit_type_match(comparer.fun->returnType, comparee.fun->returnType), nullability_check(comparer, comparee, direct_match));
             } else return no_match_found;
         }
 
@@ -226,11 +255,13 @@ uInt is_implicit_type_match(
         }
 
         case type_class: {
-            if(comparee.type == type_class) {
-                if((comparer.isArray == comparee.isArray && comparer.nullable == comparee.nullable)
+           if(comparee.type == type_class) {
+                if((comparer.isArray == comparee.isArray)
                     && (is_implicit_type_match(comparer._class, comparee._class)))
-                    return indirect_match;
-            }
+                    return nullability_check(comparer, comparee, indirect_match);
+            } else if(comparee.type == type_null) {
+               return nullability_check(comparer, comparee, indirect_match);
+           }
 
             uInt result = no_match_found;
             List<sharp_field*> params;
@@ -269,12 +300,12 @@ uInt is_implicit_type_match(
         }
 
         case type_object: {
-            if(comparer.nullable != comparee.nullable) return no_match_found;
+            if(comparee.type == type_null) return nullability_check(comparer, comparee, indirect_match);
 
             return with_result(comparee.type == type_class
                    || comparee.type == type_object
                    || (comparee.type > type_var && comparee.isArray)
-                   || (comparee.type <= type_var && comparee.isArray && !comparer.isArray), indirect_match);
+                   || (comparee.type <= type_var && comparee.isArray && !comparer.isArray), nullability_check(comparer, comparee, indirect_match));
         }
 
         case type_int8:
@@ -286,8 +317,13 @@ uInt is_implicit_type_match(
         case type_uint32:
         case type_uint64:
         case type_var: {
-            if(comparer.nullable != comparee.nullable) return no_match_found;
-            return with_result(comparer.isArray == comparee.isArray && comparee.type <= type_var, indirect_match);
+            if(comparee.type == type_null) return nullability_check(comparer, comparee, indirect_match);
+            return with_result(
+                    comparer.isArray == comparee.isArray
+                    && (comparee.type <= type_var || comparee.type == type_integer
+                    || comparee.type == type_char || comparee.type == type_decimal
+                    || comparee.type == type_bool),
+                nullability_check(comparer, comparee, indirect_match));
         }
         default: return no_match_found;
     }

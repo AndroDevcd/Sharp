@@ -39,7 +39,7 @@ class vm {
         return result;
     }
 
-    static def start_fiber(fib: fiber, t: thread, args: object[], main: (object[])(var)) : var {
+    static def start_fiber(fib: fiber, t: thread, args: object[]?, main: (object[])(var)) : var {
         result: var;
         name := fib.name.get_data();
         threadid := -1; // -1 to unbind from thread
@@ -117,7 +117,7 @@ class vm {
         return result;
     }
 
-    static def get_bound_fibers(t: thread) : var {
+    static def get_bound_fibers(t: thread?) : var {
         threadid := t.get_native_handle();
         result: var;
 
@@ -262,7 +262,7 @@ class vm {
         }
     }
 
-    static def thread_start(t: thread, args: object[]) : thread_result {
+    static def thread_start(t: thread, args: object[]?) : thread_result {
         id := t.get_native_handle();
         stack_size := t.get_stack_size();
         result: var;

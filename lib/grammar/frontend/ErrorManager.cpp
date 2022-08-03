@@ -34,7 +34,7 @@ void initalizeErrors()
     err.set(ILLEGAL_CHAR_LITERAL_FORMAT, "illegal character literal format");
     predefinedErrors.push_back(err);
 
-    err.set(GENERIC, "");
+    err.set(GENERIC, "\b");
     predefinedErrors.push_back(err);
 
     err.set(ILLEGAL_ACCESS_DECLARATION, "illegal specification of access specifier(s)");
@@ -52,7 +52,7 @@ void initalizeErrors()
     err.set(MULTIPLE_DEFINITION, "multiple definition of");
     predefinedErrors.push_back(err);
 
-    err.set(PREVIOUSLY_DEFINED, "");
+    err.set(PREVIOUSLY_DEFINED, "\b");
     predefinedErrors.push_back(err);
 
     err.set(DUPLICATE_CLASS, "duplicate class:");
@@ -85,7 +85,7 @@ void initalizeErrors()
     err.set(INVALID_ACCESS, "invalid access of");
     predefinedErrors.push_back(err);
 
-    err.set(SYMBOL_ALREADY_DEFINED, "");
+    err.set(SYMBOL_ALREADY_DEFINED, "\b");
     predefinedErrors.push_back(err);
 
     err.set(INVALID_PARAM, "invalid param of type");
@@ -95,6 +95,9 @@ void initalizeErrors()
     predefinedErrors.push_back(err);
 
     err.set(DUPlICATE_DECLIRATION, "duplicate declaration of");
+    predefinedErrors.push_back(err);
+
+    err.set(NULLABILITY_MISMATCH, "nullability mismatch");
     predefinedErrors.push_back(err);
 }
 

@@ -191,7 +191,21 @@ def memcopy(src: _uint64[], dest: _uint64[],  destStart: var, srcStart: var, src
     }
 }
 
-def copy(src: object[], srcStart: var, srcEnd: var) : object[] {
+def copy(src: object[], srcStart: var, srcEnd: var) : object[]? {
+    asm {
+        pushl {src}
+        ipushl {srcStart}
+        ipushl {srcEnd}
+        int 0x37
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null; // to satisfy the compiler
+}
+
+def copy(src: var[], srcStart: var, srcEnd: var) : var[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -204,7 +218,7 @@ def copy(src: object[], srcStart: var, srcEnd: var) : object[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: var[], srcStart: var, srcEnd: var) : var[] {
+def copy(src: _int8[], srcStart: var, srcEnd: var) : _int8[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -217,7 +231,7 @@ def copy(src: var[], srcStart: var, srcEnd: var) : var[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int8[], srcStart: var, srcEnd: var) : _int8[] {
+def copy(src: _int16[], srcStart: var, srcEnd: var) : _int16[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -230,7 +244,7 @@ def copy(src: _int8[], srcStart: var, srcEnd: var) : _int8[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int16[], srcStart: var, srcEnd: var) : _int16[] {
+def copy(src: _int32[], srcStart: var, srcEnd: var) : _int32[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -243,7 +257,7 @@ def copy(src: _int16[], srcStart: var, srcEnd: var) : _int16[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int32[], srcStart: var, srcEnd: var) : _int32[] {
+def copy(src: _uint8[], srcStart: var, srcEnd: var) : _uint8[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -256,7 +270,7 @@ def copy(src: _int32[], srcStart: var, srcEnd: var) : _int32[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint8[], srcStart: var, srcEnd: var) : _uint8[] {
+def copy(src: _uint16[], srcStart: var, srcEnd: var) : _uint16[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -269,7 +283,7 @@ def copy(src: _uint8[], srcStart: var, srcEnd: var) : _uint8[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint16[], srcStart: var, srcEnd: var) : _uint16[] {
+def copy(src: _uint32[], srcStart: var, srcEnd: var) : _uint32[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -282,7 +296,7 @@ def copy(src: _uint16[], srcStart: var, srcEnd: var) : _uint16[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint32[], srcStart: var, srcEnd: var) : _uint32[] {
+def copy(src: _uint64[], srcStart: var, srcEnd: var) : _uint64[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -295,20 +309,7 @@ def copy(src: _uint32[], srcStart: var, srcEnd: var) : _uint32[] {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint64[], srcStart: var, srcEnd: var) : _uint64[] {
-    asm {
-        pushl {src}
-        ipushl {srcStart}
-        ipushl {srcEnd}
-        int 0x37
-        popObj2
-        returnObj
-        ret 0
-    }
-    return null; // to satisfy the compiler
-}
-
-def copy(src: _int64[], srcStart: var, srcEnd: var) : _int64[] {
+def copy(src: _int64[], srcStart: var, srcEnd: var) : _int64[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -322,7 +323,7 @@ def copy(src: _int64[], srcStart: var, srcEnd: var) : _int64[] {
 }
 
 
-def invert(src: object[], start: var, len: var) : object[] {
+def invert(src: object[], start: var, len: var) : object[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -332,10 +333,11 @@ def invert(src: object[], start: var, len: var) : object[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: var[], start: var, len: var) : var[] {
+def invert(src: var[], start: var, len: var) : var[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -345,10 +347,11 @@ def invert(src: var[], start: var, len: var) : var[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _int8[], start: var, len: var) : _int8[] {
+def invert(src: _int8[], start: var, len: var) : _int8[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -358,10 +361,11 @@ def invert(src: _int8[], start: var, len: var) : _int8[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _int16[], start: var, len: var) : _int16[] {
+def invert(src: _int16[], start: var, len: var) : _int16[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -371,10 +375,11 @@ def invert(src: _int16[], start: var, len: var) : _int16[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _int32[], start: var, len: var) : _int32[] {
+def invert(src: _int32[], start: var, len: var) : _int32[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -384,10 +389,11 @@ def invert(src: _int32[], start: var, len: var) : _int32[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _int64[], start: var, len: var) : _int64[] {
+def invert(src: _int64[], start: var, len: var) : _int64[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -397,10 +403,11 @@ def invert(src: _int64[], start: var, len: var) : _int64[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _uint8[], start: var, len: var) : _uint8[] {
+def invert(src: _uint8[], start: var, len: var) : _uint8[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -410,10 +417,11 @@ def invert(src: _uint8[], start: var, len: var) : _uint8[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _uint16[], start: var, len: var) : _uint16[] {
+def invert(src: _uint16[], start: var, len: var) : _uint16[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -423,10 +431,11 @@ def invert(src: _uint16[], start: var, len: var) : _uint16[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _uint32[], start: var, len: var) : _uint32[] {
+def invert(src: _uint32[], start: var, len: var) : _uint32[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -436,10 +445,11 @@ def invert(src: _uint32[], start: var, len: var) : _uint32[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 
-def invert(src: _uint64[], start: var, len: var) : _uint64[] {
+def invert(src: _uint64[], start: var, len: var) : _uint64[]? {
     asm {
         pushl {src}
         ipushl {start}
@@ -449,6 +459,7 @@ def invert(src: _uint64[], start: var, len: var) : _uint64[] {
         returnObj
         ret 0
     }
+
     return null; // to satisfy the compiler
 }
 

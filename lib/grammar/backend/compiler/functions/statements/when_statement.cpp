@@ -51,7 +51,7 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
 
                         create_get_value_operation(subScheme, &out.scheme, false, false);
                     } else {
-                        if(is_evaluable_type(comparer.type)) {
+                        if(!is_evaluable_type(comparer.type)) {
                             current_file->errors->createNewError(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
                         }
 

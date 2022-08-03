@@ -11,7 +11,7 @@
 void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     current_context.blockInfo.reachable = false;
 
-    sharp_function *function;
+    sharp_function *function = NULL;
     uInt match_result;
     expression returnVal;
     List<operation_schema*> lockSchemes;
@@ -32,6 +32,8 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         add_scheme_operation(subScheme, tmp);
     }
 
+    auto *f = current_context.functionCxt;
+
     match_result = is_implicit_type_match(current_context.functionCxt->returnType, returnVal.type, constructor_only, function);
     if(match_result == match_constructor) {
         operation_schema* tmp = new operation_schema();
@@ -43,7 +45,7 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         else if(returnVal.type.type == type_nil)
             create_return_operation(subScheme);
         else create_object_return_operation(subScheme, &returnVal.scheme);
-    }else {
+    } else {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
                       + type_to_str(current_context.functionCxt->returnType) + "`.");
     }

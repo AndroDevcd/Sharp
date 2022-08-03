@@ -9,6 +9,7 @@
 #include "../../../types/types.h"
 #include "../../../postprocessor/function_processor.h"
 #include "../expression.h"
+#include "../../functions/function_compiler.h"
 
 void compile_lambda_expression(expression *e, Ast *ast) {
     List<sharp_field*> params;
@@ -75,8 +76,8 @@ void compile_lambda_expression(expression *e, Ast *ast) {
         if(ast->hasSubAst(ast_block)) {
             if(current_file->stage < pre_compilation_state) {
                 primaryClass->uncompiledLambdas.add(anon_func);
-            } else {
-                // todo: process block
+            } else if(is_fully_qualified_function(anon_func)){
+                compile_function(anon_func, anon_func->ast);
             }
         }
 
