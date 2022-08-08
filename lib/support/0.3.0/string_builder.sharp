@@ -5,7 +5,7 @@ import (
 )
 
 class string_builder : loopable<_int8> {
-    private data : _int8[];
+    private data : _int8[]?;
     private static currentFormat := 'g';
     private static precision := 0;
     private static const default_capacity := 255;
@@ -28,7 +28,7 @@ class string_builder : loopable<_int8> {
         }
     }
 
-    string_builder(ch: var) {
+    string_builder(ch: _int8) {
         append(ch);
     }
 
@@ -46,24 +46,24 @@ class string_builder : loopable<_int8> {
     }
 
     string_builder(str: string) {
-        if(str != null) {
-            append(str.get_data());
+        if(str != null && str.get_data() != null) {
+            append(str.get_data()!!);
         }
     }
 
     string_builder(str: string_builder) {
-        if(str != null) {
-            append(str.data);
+        if(str != null && str.data != null) {
+            append(str.data!!);
         }
     }
 
-    string_builder(str : _int8[], offset: var) {
+    string_builder(str : _int8[], offset: _int64) {
         if(str != null) {
             if(!space_available(sizeof(str) - offset)) {
                 expand(sizeof(str));
             }
 
-            memcopy(str, data, cursor, offset, sizeof(str));
+            memcopy(str, data!!, cursor, offset, sizeof(str));
             cursor += sizeof(str) - offset;
         }
     }
@@ -74,7 +74,7 @@ class string_builder : loopable<_int8> {
 
     def expand(space_required : var) {
         new_size := ((cursor + 1) + space_required) + resize_capacity;
-        realloc(data, new_size);
+        realloc(data!!, new_size);
     }
 
     def replace(pos : var, ch: _int8) : string_builder {
@@ -110,12 +110,12 @@ class string_builder : loopable<_int8> {
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
-        memcopy(immstr, data, cursor, 0, sizeof(immstr));
+        memcopy(immstr, data!!, cursor, 0, sizeof(immstr));
         cursor += sizeof(immstr);
         return self;
     }
 
-    def append(immstr: _int8[], len: var) : string_builder
+    def append(immstr: _int8[], len: _int64) : string_builder
     {
         if(immstr == null) return self;
         if(len < 0)
@@ -129,7 +129,7 @@ class string_builder : loopable<_int8> {
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
-        memcopy(immstr, data, cursor, 0, len);
+        memcopy(immstr, data!!, cursor, 0, len);
         cursor += len;
         return self;
     }
@@ -146,12 +146,12 @@ class string_builder : loopable<_int8> {
     def operator+(obj : printable) : string_builder {
         s := new string_builder(data);
         if(obj != null)
-            return s.append(obj.to_string().get_data());
+            return s.append(obj.to_string().get_data()!!);
         else
             return s.append("null");
     }
 
-    def to_string() := new string(data, 0, cursor + 1);
+    def to_string() := new string(data!!, 0, cursor + 1);
 
     def operator==(str : _int8[]) : var {
         if((cursor + 1) != sizeof(str))
@@ -193,7 +193,7 @@ class string_builder : loopable<_int8> {
         else {
             data = new _int8[sizeof(immstr) + default_capacity];
             cursor = sizeof(immstr);
-            memcopy(immstr, data, 0, 0, sizeof(immstr));
+            memcopy(immstr, data!!, 0, 0, sizeof(immstr));
         }
     }
 
@@ -218,10 +218,10 @@ class string_builder : loopable<_int8> {
         precision = prec;
     }
 
-    def to_array() : _int8[]
+    def to_array() : _int8[]?
     {
         if(data == null || cursor == -1) return null;
-        return copy(data, 0, cursor+1);
+        return copy(data!!, 0, cursor+1);
     }
 
 
@@ -232,7 +232,7 @@ class string_builder : loopable<_int8> {
 
         for(i := 0; i < prefix.size(); i++)
         {
-            if(data[i]!=prefix.data[i])
+            if(data[i] != prefix[i])
                 return false;
         }
         return true;
@@ -279,11 +279,11 @@ class string_builder : loopable<_int8> {
     }
 
     def ends_with(postfix: string) : var {
-        if(sizeof(postfix.data) >= (cursor + 1))
+        if(postfix.size() >= (cursor + 1))
             return false;
 
-        for(i := (cursor + 1) - sizeof(postfix.data); i < (cursor + 1); i++){
-            if(data[i] != postfix.data[i])
+        for(i := (cursor + 1) - postfix.size(); i < (cursor + 1); i++){
+            if(data[i] != postfix[i])
                 return false;
         }
 
@@ -315,7 +315,7 @@ class string_builder : loopable<_int8> {
         if(obj is printable) {
            s := (obj as printable).to_string();
            if(s != null && s.get_data() != null)
-               return append(s.get_data());
+               return append(s.get_data()!!);
            else
                return append("null");
         } else
@@ -324,16 +324,16 @@ class string_builder : loopable<_int8> {
 
     def operator+=( str: string ) : string_builder
     {
-        return append(str.get_data());
+        return append(str.get_data()!!);
     }
 
     def get_data() : _int8[]{
-        return data;
+        return data!!;
     }
 
     def operator+=( str: string_builder ) : string_builder
     {
-        return append(str.data);
+        return append(str.data!!);
     }
 
     def operator+=( str: _int8[] ) : string_builder
@@ -341,7 +341,7 @@ class string_builder : loopable<_int8> {
         return append(str);
     }
 
-    public def substring(startPos: var, endPos: var) : string_builder {
+    public def substring(startPos: _int64, endPos: _int64) : string_builder {
         if((startPos >= (cursor + 1)) || (startPos < 0))
             throw bounds_error(startPos);
         if(endPos < startPos)
@@ -350,7 +350,7 @@ class string_builder : loopable<_int8> {
 
 
         str := new string_builder();
-        str.data = copy(data, startPos, endPos);
+        str.data = copy(data!!, startPos, endPos);
         return str;
     }
 

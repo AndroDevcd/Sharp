@@ -72,6 +72,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         iteratorField = create_local_field(current_file, &current_context, name, flags, fieldType, normal_field, ast->getSubAst(ast_utype_arg));
 
         fieldType.isArray = true; // this type has already been consumed so we can modify it now
+        fieldType.nullable = arrayExpr.type.nullable;
         if((iterator_match_result = is_implicit_type_match(fieldType, arrayExpr.type, match_operator_overload, initializer_function)) == no_match_found) {
             current_file->errors->createNewError(GENERIC, ast->line, ast->col,
                                    " incompatible types, cannot convert `" + type_to_str(arrayExpr.type) + "` to `" +
@@ -79,8 +80,10 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         }
     } else {
         string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
+
         fieldType.copy(get_real_type(arrayExpr.type));
         fieldType.isArray = false;
+        fieldType.nullable = false;
         iteratorField = create_local_field(current_file, &current_context, name, flags, fieldType, normal_field, ast->getSubAst(ast_utype_arg));
         iterator_match_result = direct_match;
     }

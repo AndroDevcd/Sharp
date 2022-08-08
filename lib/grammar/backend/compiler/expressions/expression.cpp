@@ -59,15 +59,13 @@ void convert_expression_type_to_real_type(
         expression &typeDefinition) {
     if(typeDefinition.type == type_integer
        || typeDefinition.type == type_decimal) {
-        typeDefinition.type = type_var;
+        typeDefinition.type = typeDefinition.type == type_decimal ? type_var : type_int64;
     } else if(typeDefinition.type == type_char
               || typeDefinition.type == type_bool) {
         typeDefinition.type = type_int8;
     } else if(typeDefinition.type == type_string) {
         typeDefinition.type = type_int8;
         typeDefinition.type.isArray = true;
-    } else if(typeDefinition.type == type_null) {
-        typeDefinition.type = type_object;
     } else if(typeDefinition.type == type_field) {
         process_field(typeDefinition.type.field);
         typeDefinition.type.copy(typeDefinition.type.field->type);
@@ -134,6 +132,7 @@ void compile_class_function_overload(
             ast,
             true,
             true)) != NULL) {
+        data_type prevType = fun->returnType.type;
         process_function_return_type(fun);
 
         compile_function_call(&e.scheme, params, paramOperations, fun, false, false,

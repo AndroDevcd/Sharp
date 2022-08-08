@@ -43,6 +43,7 @@ enum token_type
     ELVIS,              // ?:
     SAFEDOT,            // ?.
     FORCEDOT,           // !!.
+    DOUBLEBANG,           // !!
     SHL,                // <<
     SHR,                // >>
     LESSTHAN,

@@ -23,7 +23,7 @@ class platform
         }
     }
 
-    private static def get_lib_path(name: string) : _int8[] {
+    private static def get_lib_path(name: string) : _int8[]? {
         if(build.is_windows()) {
             name += ".dll";
         } else {
@@ -34,7 +34,7 @@ class platform
     }
 
     static def load_library(name: string) {
-        lib_name : _int8[] = get_lib_path(name);
+        lib_name : _int8[] = get_lib_path(name)!!;
         asm {
             pushl {lib_name}
             int 0x39
@@ -42,7 +42,7 @@ class platform
     }
 
     static def free_library(name: string): var {
-        lib_name : _int8[] = get_lib_path(name);
+        lib_name : _int8[] = get_lib_path(name)!!;
         result := 0;
         asm {
             pushl {lib_name}
@@ -54,7 +54,7 @@ class platform
     }
 
     static def link_func(name: string, library: string): var {
-        lib_name : _int8[] = get_lib_path(name);
+        lib_name : _int8[] = get_lib_path(name)!!;
         func_name := name.get_data();
         result := 0;
         asm {

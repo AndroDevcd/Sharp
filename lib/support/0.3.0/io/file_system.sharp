@@ -213,6 +213,7 @@ protected class file_system {
         tmp := new file(path);
         files := list(tmp);
         foreach(fl in files) {
+           j: string[]?? = null;
            tmp.update_path(fl);
            tmp.delete();
         }
@@ -262,7 +263,7 @@ protected class file_system {
      * pathname.  Return an array of strings naming the elements of the
      * directory if successful; otherwise, return null.
      */
-    def list(f: file) : string[] {
+    def list(f: file) : string[]? {
         // native code here
         path := f.get_absolute_path().get_data();
         files: string[];

@@ -7,6 +7,38 @@
 #include "compiler.h"
 #include "../preprocessor/class_preprocessor.h"
 #include "../postprocessor/class_processor.h"
+#include "../astparser/ast_parser.h"
+
+void compile_global_mutations(sharp_file *file) {
+    for(Int i = 0; i < file->p->size(); i++)
+    {
+        if(panic) return;
+
+        Ast *trunk = file->p->astAt(i);
+        if(i == 0) {
+            if(trunk->getType() == ast_module_decl) {
+                string package = concat_tokens(trunk);
+                currModule = create_module(package);
+            } else {
+                string package = "__$srt_undefined";
+                currModule = create_module(package);
+            }
+
+            sharp_class *globalClass = resolve_class(currModule, global_class_name, false, false);
+            create_context(globalClass, true);
+            continue;
+        }
+
+        switch(trunk->getType()) {
+            case ast_mutate_decl:
+                compile_mutation(trunk);
+                break;
+            default:
+                /* */
+                break;
+        }
+    }
+}
 
 void compile_mutation(Ast* ast) {
     sharp_type resolvedType =

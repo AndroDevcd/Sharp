@@ -612,7 +612,7 @@ sharp_function* resolve_function(
     bool ambiguous = false;
 
     locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
-                               locatedFunctions);
+                               searchClass->type != class_interface, locatedFunctions);
 
     if(!locatedFunctions.empty()) {
         for(Int i = 0; i < locatedFunctions.size(); i++) {
@@ -750,7 +750,7 @@ bool resolve_function_for_address(
         Int functionType,
         bool checkBase,
         List<sharp_function*> &results) {
-    return locate_functions_with_name(name, searchClass, functionType, checkBase, results);
+    return locate_functions_with_name(name, searchClass, functionType, checkBase, true, results);
 }
 
 bool hasFilter(uInt filters, resolve_filter filter) {
@@ -885,17 +885,19 @@ void check_access(
         context &ctx,
         bool inPrimaryClass,
         sharp_class *owner,
+        impl_location &location,
         Ast *ast) {
 
     if(owner != NULL) {
         sharp_class *primary = get_primary_class(&ctx);
+        auto f = currThread->currTask->file;
 
         if (check_flag(flags, flag_local)
-            && currThread->currTask->file != owner->implLocation.file) {
+            && currThread->currTask->file != location.file) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
                                                                "cannot access local " + type + " `" + name +
                                                                "`. outside of home file: `"
-                                                               + owner->implLocation.file->name + "`.");
+                                                               + location.file->name + "`.");
             return;
         }
 
@@ -908,7 +910,7 @@ void check_access(
         }
 
         if (check_flag(flags, flag_protected) && !inPrimaryClass
-            && !((primary->module == owner->module) || is_implicit_type_match(owner, primary))) {
+            && !((primary->module == location.file->module) || is_implicit_type_match(owner, primary))) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast,
                                                                "cannot access protected " + type + " `" + name +
                                                                "`. outside of class: `"
@@ -976,8 +978,8 @@ bool resolve_primary_class_field(
 
         string fieldType = "field";
         check_access(fieldType, field->fullName,
-                field->flags, ctx, isSelfInstance,
-                field->owner, item.ast);
+                field->flags, ctx, get_primary_class(&current_context) == field->owner,
+                field->owner, field->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -1003,8 +1005,8 @@ bool resolve_primary_class_alias(
 
         string fieldType = "alias";
         check_access(fieldType, alias->fullName,
-                     alias->flags, ctx, isSelfInstance,
-                     alias->owner, item.ast);
+                     alias->flags, ctx, get_primary_class(&current_context) == alias->owner,
+                     alias->owner, alias->location, item.ast);
 
         if(ctx.type == block_context && alias->type.type == type_field)
             create_dependency(ctx.functionCxt, alias->type.field);
@@ -1032,8 +1034,8 @@ bool resolve_primary_class_enum(
 
         string fieldType = "enum";
         check_access(fieldType, field->fullName,
-                     field->owner->flags, ctx, isSelfInstance,
-                     field->owner, item.ast);
+                     field->owner->flags, ctx, get_primary_class(&current_context) == field->owner,
+                     field->owner, field->implLocation, item.ast);
 
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
@@ -1075,8 +1077,8 @@ bool resolve_primary_class_function_address(
 
         string fieldType = "function";
         check_access(fieldType, functions.first()->fullName,
-                     functions.first()->flags, ctx, isSelfInstance,
-                     functions.first()->owner, item.ast);
+                     functions.first()->flags, ctx, get_primary_class(&current_context) == functions.first()->owner,
+                     functions.first()->owner, functions.first()->implLocation,item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, functions.first());
         return true;
@@ -1101,7 +1103,7 @@ bool resolve_primary_class_inner_class(
         string fieldType = "class";
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, isSelfInstance,
-                     sc->owner, item.ast);
+                     sc->owner, sc->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -1188,7 +1190,7 @@ bool resolve_global_class_field(
         string fieldType = "field";
         check_access(fieldType, field->fullName,
                      field->flags, ctx, false,
-                     field->owner, item.ast);
+                     field->owner, field->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -1230,7 +1232,7 @@ bool resolve_global_class_alias(
         string fieldType = "alias";
         check_access(fieldType, alias->fullName,
                      alias->flags, ctx, false,
-                     alias->owner, item.ast);
+                     alias->owner, alias->location, item.ast);
         if(ctx.type == block_context && alias->type.type == type_field)
             create_dependency(ctx.functionCxt, alias->type.field);
         else if(ctx.type == block_context && alias->type.type == type_function)
@@ -1271,7 +1273,7 @@ bool resolve_global_class_enum(
         string fieldType = "enum";
         check_access(fieldType, field->fullName,
                      field->flags, ctx, false,
-                     field->owner, item.ast);
+                     field->owner, field->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -1340,7 +1342,7 @@ bool resolve_global_class_function_address(
         string fieldType = "function";
         check_access(fieldType, functions.first()->fullName,
                      functions.first()->flags, ctx, false,
-                     functions.first()->owner, item.ast);
+                     functions.first()->owner, functions.first()->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, functions.first());
         return true;
@@ -1372,7 +1374,7 @@ bool resolve_global_class(
         string fieldType = "class";
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, false,
-                     sc->owner, item.ast);
+                     sc->owner, sc->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -1444,13 +1446,6 @@ void resolve_normal_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_function_address)
-               && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
-
-                hardType = false;
-                return;
-            }
-
             if(hasFilter(filter, resolve_filter_inner_class)
                && resolve_primary_class_inner_class(item, primaryClass, true, resultType, scheme, false, context)) {
 
@@ -1516,6 +1511,15 @@ void resolve_normal_item(
 
             hardType = true;
             return;
+        }
+
+        if(primaryClass != NULL) {
+            if (hasFilter(filter, resolve_filter_function_address)
+                && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
+
+                hardType = false;
+                return;
+            }
         }
 
         if(hasFilter(filter, resolve_filter_function_address)
@@ -1685,7 +1689,7 @@ void resolve_normal_item(
                     if(nullable) {
                         if(item.accessType == access_normal) {
                             currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
-                                   "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
+                                   "accessing nullable field `" + field->name + "` without `?.` or `!!.`."); // todo: add support for null skipping in expression when calling ?.
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
                     return;
@@ -2070,8 +2074,8 @@ bool resolve_primary_class_function_pointer_field(
 
         string fieldType = "field";
         check_access(fieldType, field->fullName,
-                     field->flags, ctx, isPrimaryClass,
-                     field->owner, item.ast);
+                     field->flags, ctx, get_primary_class(&current_context) == field->owner,
+                     field->owner, field->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         return true;
@@ -2220,7 +2224,7 @@ bool resolve_global_class_function_pointer_field(
         string fieldType = "field";
         check_access(fieldType, field->fullName,
                      field->flags, ctx, false,
-                     field->owner, item.ast);
+                     field->owner, field->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, field);
         params.free();
@@ -2613,7 +2617,7 @@ bool resolve_primary_class_inner_class_generic(
         string fieldType = "class";
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, isSelfInstance,
-                     sc->owner, item.ast);
+                     sc->owner, sc->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -2662,7 +2666,7 @@ bool resolve_global_class_generic(
         string fieldType = "class";
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, false,
-                     sc->owner, item.ast);
+                     sc->owner, sc->implLocation, item.ast);
         if(ctx.type == block_context)
             create_dependency(ctx.functionCxt, sc);
         create_dependency(primaryClass, sc);
@@ -2874,7 +2878,7 @@ void resolve(
 sharp_type expression_type_to_normal_type(expression *e) {
     if(e->type.type == type_integer
         || e->type.type == type_decimal) {
-        return sharp_type(type_var);
+        return sharp_type(e->type.type == type_decimal ? type_var : type_int64);
     } else if(e->type.type == type_bool || e->type.type == type_char) {
         return sharp_type(type_int8);
     } else if(e->type.type == type_string) {

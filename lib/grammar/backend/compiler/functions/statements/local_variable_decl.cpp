@@ -78,8 +78,9 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
                                     ast->getSubAst(ast_expression));
             } else {
                 convert_expression_type_to_real_type(e);
-                if(!is_implicit_type_match(
-                        field->type, e.type, match_operator_overload | match_constructor)) {
+
+                if(!is_match(is_implicit_type_match(
+                        field->type, e.type, match_operator_overload | match_constructor))) {
                     currThread->currTask->file->errors->createNewError(GENERIC, ast,
                                                                        "cannot assign field `" + field->name + ": " +
                                                                        type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");

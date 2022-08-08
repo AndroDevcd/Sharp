@@ -68,6 +68,9 @@ void post_process() {
             case ast_method_decl:
                 process_function(globalClass, normal_function, trunk);
                 break;
+            case ast_operator_decl:
+                process_function(globalClass, operator_function, trunk);
+                break;
             case ast_delegate_decl:
                 process_function(globalClass, delegate_function, trunk);
                 break;
@@ -101,7 +104,7 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     process_base_class(with_class, ast);
     process_interfaces(with_class, ast);
 
-    if(with_class->type != class_enum) {
+    if(block != NULL) {
         for (Int i = 0; i < block->getSubAstCount(); i++) {
             Ast *trunk = block->getSubAst(i);
 
@@ -118,6 +121,9 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                     break;
                 case ast_method_decl:
                     process_function(with_class, normal_function, trunk);
+                    break;
+                case ast_operator_decl:
+                    process_function(with_class, operator_function, trunk);
                     break;
                 case ast_delegate_decl:
                     process_function(with_class, delegate_function, trunk);

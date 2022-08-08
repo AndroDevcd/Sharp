@@ -1,7 +1,7 @@
 mod std.io;
 
 
-def realloc(data: object[], size: var) {
+def realloc(data: object[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -9,7 +9,7 @@ def realloc(data: object[], size: var) {
     }
 }
 
-def realloc(data: var[], size: var) {
+def realloc(data: var[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -17,7 +17,7 @@ def realloc(data: var[], size: var) {
     }
 }
 
-def realloc(data: _int8[], size: var) {
+def realloc(data: _int8[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -25,7 +25,7 @@ def realloc(data: _int8[], size: var) {
     }
 }
 
-def realloc(data: _int16[], size: var) {
+def realloc(data: _int16[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -33,7 +33,7 @@ def realloc(data: _int16[], size: var) {
     }
 }
 
-def realloc(data: _int32[], size: var) {
+def realloc(data: _int32[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -41,7 +41,7 @@ def realloc(data: _int32[], size: var) {
     }
 }
 
-def realloc(data: _int64[], size: var) {
+def realloc(data: _int64[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -49,7 +49,7 @@ def realloc(data: _int64[], size: var) {
     }
 }
 
-def realloc(data: _uint8[], size: var) {
+def realloc(data: _uint8[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -57,7 +57,7 @@ def realloc(data: _uint8[], size: var) {
     }
 }
 
-def realloc(data: _uint16[], size: var) {
+def realloc(data: _uint16[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -65,7 +65,7 @@ def realloc(data: _uint16[], size: var) {
     }
 }
 
-def realloc(data: _uint32[], size: var) {
+def realloc(data: _uint32[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -73,7 +73,7 @@ def realloc(data: _uint32[], size: var) {
     }
 }
 
-def realloc(data: _uint64[], size: var) {
+def realloc(data: _uint64[], size: _int64) {
     asm {
         pushl {data}
         ipushl {size}
@@ -92,7 +92,7 @@ def memcopy(src: object[], dest: object[],  destStart: var, srcStart: var, srcEn
     }
 }
 
-def memcopy(src: var[], dest: var[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: var[], dest: var[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -103,7 +103,7 @@ def memcopy(src: var[], dest: var[],  destStart: var, srcStart: var, srcEnd: var
     }
 }
 
-def memcopy(src: _int8[], dest: _int8[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _int8[], dest: _int8[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -114,7 +114,7 @@ def memcopy(src: _int8[], dest: _int8[],  destStart: var, srcStart: var, srcEnd:
     }
 }
 
-def memcopy(src: _int16[], dest: _int16[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _int16[], dest: _int16[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -125,7 +125,7 @@ def memcopy(src: _int16[], dest: _int16[],  destStart: var, srcStart: var, srcEn
     }
 }
 
-def memcopy(src: _int32[], dest: _int32[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _int32[], dest: _int32[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -136,7 +136,7 @@ def memcopy(src: _int32[], dest: _int32[],  destStart: var, srcStart: var, srcEn
     }
 }
 
-def memcopy(src: _int64[], dest: _int64[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _int64[], dest: _int64[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -147,7 +147,7 @@ def memcopy(src: _int64[], dest: _int64[],  destStart: var, srcStart: var, srcEn
     }
 }
 
-def memcopy(src: _uint8[], dest: _uint8[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _uint8[], dest: _uint8[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -158,7 +158,7 @@ def memcopy(src: _uint8[], dest: _uint8[],  destStart: var, srcStart: var, srcEn
     }
 }
 
-def memcopy(src: _uint16[], dest: _uint16[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _uint16[], dest: _uint16[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -169,7 +169,7 @@ def memcopy(src: _uint16[], dest: _uint16[],  destStart: var, srcStart: var, src
     }
 }
 
-def memcopy(src: _uint32[], dest: _uint32[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _uint32[], dest: _uint32[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -180,7 +180,7 @@ def memcopy(src: _uint32[], dest: _uint32[],  destStart: var, srcStart: var, src
     }
 }
 
-def memcopy(src: _uint64[], dest: _uint64[],  destStart: var, srcStart: var, srcEnd: var) {
+def memcopy(src: _uint64[], dest: _uint64[],  destStart: _int64, srcStart: _int64, srcEnd: _int64) {
     asm {
         pushl {dest}
         pushl {src}
@@ -191,7 +191,7 @@ def memcopy(src: _uint64[], dest: _uint64[],  destStart: var, srcStart: var, src
     }
 }
 
-def copy(src: object[], srcStart: var, srcEnd: var) : object[]? {
+def copy(src: object[], srcStart: _int64, srcEnd: _int64) : object[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -205,7 +205,7 @@ def copy(src: object[], srcStart: var, srcEnd: var) : object[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: var[], srcStart: var, srcEnd: var) : var[]? {
+def copy(src: var[], srcStart: _int64, srcEnd: _int64) : var[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -218,7 +218,7 @@ def copy(src: var[], srcStart: var, srcEnd: var) : var[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int8[], srcStart: var, srcEnd: var) : _int8[]? {
+def copy(src: _int8[], srcStart: _int64, srcEnd: _int64) : _int8[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -231,7 +231,7 @@ def copy(src: _int8[], srcStart: var, srcEnd: var) : _int8[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int16[], srcStart: var, srcEnd: var) : _int16[]? {
+def copy(src: _int16[], srcStart: _int64, srcEnd: _int64) : _int16[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -244,7 +244,7 @@ def copy(src: _int16[], srcStart: var, srcEnd: var) : _int16[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int32[], srcStart: var, srcEnd: var) : _int32[]? {
+def copy(src: _int32[], srcStart: _int64, srcEnd: _int64) : _int32[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -257,7 +257,7 @@ def copy(src: _int32[], srcStart: var, srcEnd: var) : _int32[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint8[], srcStart: var, srcEnd: var) : _uint8[]? {
+def copy(src: _uint8[], srcStart: _int64, srcEnd: _int64) : _uint8[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -270,7 +270,7 @@ def copy(src: _uint8[], srcStart: var, srcEnd: var) : _uint8[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint16[], srcStart: var, srcEnd: var) : _uint16[]? {
+def copy(src: _uint16[], srcStart: _int64, srcEnd: _int64) : _uint16[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -283,7 +283,7 @@ def copy(src: _uint16[], srcStart: var, srcEnd: var) : _uint16[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint32[], srcStart: var, srcEnd: var) : _uint32[]? {
+def copy(src: _uint32[], srcStart: _int64, srcEnd: _int64) : _uint32[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -296,7 +296,7 @@ def copy(src: _uint32[], srcStart: var, srcEnd: var) : _uint32[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint64[], srcStart: var, srcEnd: var) : _uint64[]? {
+def copy(src: _uint64[], srcStart: _int64, srcEnd: _int64) : _uint64[]? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -309,7 +309,7 @@ def copy(src: _uint64[], srcStart: var, srcEnd: var) : _uint64[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int64[], srcStart: var, srcEnd: var) : _int64[]? {
+def copy(src: _int64[], srcStart: _int64, srcEnd: _int64) : _int64[]? {
     asm {
         pushl {src}
         ipushl {srcStart}

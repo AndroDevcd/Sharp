@@ -208,6 +208,7 @@ bool locate_functions_with_name(
         sharp_class *owner,
         Int functionType,
         bool checkBaseClass,
+        bool ignoreInterfaceFunctions,
         List<sharp_function*> &results);
 
 bool locate_functions_with_type(
@@ -237,10 +238,10 @@ sharp_field* locate_field(
  * @return Returns whether or not a class has an implicit or explicit match
  */
 bool is_explicit_type_match(sharp_class*, sharp_class*);
-bool is_implicit_type_match(sharp_class*, sharp_class*);
+bool is_implicit_type_match(sharp_class*, sharp_class*, bool objBaseClass = false);
 
 // check whether or not a class holds the base class of the class provided
-bool is_class_related_to(sharp_class*, sharp_class*);
+bool is_class_related_to(sharp_class*, sharp_class*, bool objBaseClass = false);
 bool inherits_generic_class(sharp_class *comparer, sharp_class *generic);
 
 #endif //SHARP_SHARP_CLASS_H

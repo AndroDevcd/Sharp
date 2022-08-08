@@ -21,7 +21,8 @@ void compile_cast_expression(expression *e, Ast *ast) {
             create_new_warning(GENERIC, __w_cast, ast, "redundant cast from `" + type_to_str(e->type)
                 + "` to `" + type_to_str(castType) + "`");
         } else {
-            if((e->type == type_object && is_implicit_type_match(e->type, castType, exclude_all))
+            if((get_real_type(e->type) == type_object && is_implicit_type_match(e->type, castType, exclude_all))
+                || (get_real_type(e->type) == type_object && get_class_type(castType) != NULL)
                 || is_implicit_type_match(castType, e->type, exclude_all)
                 || (get_class_type(e->type) != NULL && get_class_type(castType)
                     && is_implicit_type_match(get_class_type(e->type), get_class_type(castType)))) {

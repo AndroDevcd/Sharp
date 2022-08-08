@@ -230,21 +230,25 @@ bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {
     return comparer == comparee;
 }
 
-bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee) {
-    return is_explicit_type_match(comparer, comparee) || is_class_related_to(comparer, comparee);
+bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee, bool objectBaseClass) {
+    return is_explicit_type_match(comparer, comparee) || is_class_related_to(comparee, comparer, objectBaseClass);
 }
 
-bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass) {
+bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass, bool objBaseClass) {
     if(comparer == baseClass) return true;
 
-    if(comparer->baseClass != NULL) {
-        if(comparer->baseClass == baseClass) return true;
-        for(Int i = 0; i < comparer->interfaces.size(); i++) {
-            if(is_implicit_type_match(comparer->interfaces.get(i), baseClass))
-                return true;
-        }
+    if(comparer->fullName == "std#_object_") {
+        objBaseClass = true;
+    }
 
-        return is_class_related_to(comparer->baseClass, baseClass);
+    for(Int i = 0; i < comparer->interfaces.size(); i++) {
+        if(is_implicit_type_match(comparer->interfaces.get(i), baseClass, objBaseClass))
+            return true;
+    }
+
+    if(!objBaseClass && comparer->baseClass != NULL) {
+        if(comparer->baseClass == baseClass) return true;
+        return is_class_related_to(comparer->baseClass, baseClass, false);
     }
 
     return false;
@@ -324,6 +328,7 @@ bool locate_functions_with_name(
         sharp_class *owner,
         Int functionType,
         bool checkBaseClass,
+        bool ignoreInterfaces,
         List<sharp_function*> &results) {
     GUARD(globalLock)
     for(Int i = 0; i < owner->functions.size(); i++) {
@@ -333,8 +338,10 @@ bool locate_functions_with_name(
             results.add(fun);
     }
 
-    for(Int i = 0; i < owner->interfaces.size(); i++) {
-        locate_functions_with_name(name, owner->interfaces.get(i), functionType, true, results);
+    if(!ignoreInterfaces) {
+        for (Int i = 0; i < owner->interfaces.size(); i++) {
+            locate_functions_with_name(name, owner->interfaces.get(i), functionType, true, false, results);
+        }
     }
 
     if(checkBaseClass && owner->baseClass) {
@@ -343,7 +350,7 @@ bool locate_functions_with_name(
 
         return locate_functions_with_name(
                 name, owner->baseClass, functionType,
-                true, results);
+                true, ignoreInterfaces, results);
     }
 
     return !results.empty();

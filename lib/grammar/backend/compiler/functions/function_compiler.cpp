@@ -191,8 +191,7 @@ void compile_function(
     }
 }
 
-void compile_class_functions(sharp_class *with_class) {
-    Ast *block = with_class->ast->getSubAst(ast_block);
+void compile_class_functions(sharp_class *with_class, Ast *block) {
 
     create_context(with_class, true);
     for(Int i = 0; i < block->getSubAstCount(); i++) {
@@ -207,6 +206,25 @@ void compile_class_functions(sharp_class *with_class) {
                 break;
             case ast_construct_decl:
                 compile_function(with_class, constructor_function, trunk);
+                break;
+            default:
+                /* */
+                break;
+        }
+    }
+
+    delete_context();
+}
+
+void compile_class_mutations(sharp_class *with_class, Ast *block) {
+
+    create_context(with_class, true);
+    for(Int i = 0; i < block->getSubAstCount(); i++) {
+        Ast *trunk = block->getSubAst(i);
+
+        switch(trunk->getType()) {
+            case ast_mutate_decl:
+                compile_mutation(trunk);
                 break;
             default:
                 /* */
@@ -251,7 +269,7 @@ void compile_function(sharp_function *function, Ast *ast) {
             expression e;
             compile_expression(e, ast->getSubAst(ast_expression));
 
-            if((match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor)) == no_match_found) {
+            if(function->returnType != type_untyped && (match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor)) == no_match_found) {
                 current_file->errors->createNewError(GENERIC, ast->line, ast->col, "return value of type `" +
                         type_to_str(e.type) + "` is not compatible with that of type `" + type_to_str(function->returnType) + "`");
             }

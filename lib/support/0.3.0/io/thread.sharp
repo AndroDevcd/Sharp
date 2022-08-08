@@ -138,13 +138,13 @@ public class thread {
     public static def sleep(mills_time : var) := time.sleep(milliseconds, mills_time);
 
     public static def suspend_for(mills_time : var) {
-        vm.current_thread().suspended = true;
+        vm.current_thread()?.suspended = true;
         time.wait(milliseconds, mills_time);
-        vm.current_thread().suspended = false;
+        vm.current_thread()?.suspended = false;
     }
 
     public static def exit(code : var) {
-        vm.exit_thread(current(), code);
+        vm.exit_thread(current()!!, code);
         asm { hlt }
     }
 
@@ -205,7 +205,7 @@ public class thread {
     private started : var;
 	private suspended : var;
     private stack_size : var;
-    private main: (object[])(var);
+    private main: (object[]?)(var);
 	private error_handler: uncaught_exception_handler;
 	private static id_generator : var;
 	private fib: fiber;

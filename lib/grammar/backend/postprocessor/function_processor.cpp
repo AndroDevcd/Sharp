@@ -19,9 +19,6 @@ void process_function(
     string name;
 
     if(type == initializer_function) {
-        if(with_class->name == "string_builder") {
-            int r = 0;
-        }
         name = instance_init_name(with_class->name);
     } else if(type == constructor_function) {
         name = ast->getToken(0).getValue();
@@ -40,10 +37,6 @@ void process_function(
         process_extension_class(with_class, type == delegate_function, name, ast->getSubAst(ast_refrence_pointer));
     else
         name = ast->getToken(0).getValue();
-
-
-    if(name.find("operator") != string::npos)
-        type = operator_function;
 
     if(with_class != NULL) {
         if(with_class->blueprintClass) {
@@ -221,6 +214,7 @@ void process_function_return_type(sharp_function *fun) {
     if(fun->returnType.type == type_untyped
         && fun->ast->hasSubAst(ast_expression)
         && currThread->currTask->file->stage >= pre_compilation_state) {
+        GUARD(globalLock)
         fun->returnType.type = type_undefined;
 
         create_context(fun->owner);
@@ -256,7 +250,7 @@ void validate_function_type(
         }
     } else if(type.type == type_integer
               || type.type == type_decimal) {
-        fun->returnType.type = type_var;
+        fun->returnType.type = type.type == type_decimal ? type_var : type_int64;
         return;
     } else if(type.type == type_char
               || type.type == type_bool) {

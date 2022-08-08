@@ -26,6 +26,8 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
             }
         }
 
+        e->type.copy(arrayType); // todo: check later to account for nullable items in arrray and convert to array[]??
+        e->type.isArray = true;
         operation_schema *arraySizeScheme = new operation_schema();
         arraySizeScheme->schemeType = scheme_get_constant;
         arraySizeScheme->steps.add(

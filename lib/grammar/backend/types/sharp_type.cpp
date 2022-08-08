@@ -350,6 +350,8 @@ sharp_type &sharp_type::copy(const sharp_type &st)  {
 
     isArray = st.isArray;
     nullable = st.nullable;
+    nullableItems = st.nullableItems;
+    arrayElement = st.arrayElement;
     module = st.module;
     group = st.group;
     integer = st.integer;

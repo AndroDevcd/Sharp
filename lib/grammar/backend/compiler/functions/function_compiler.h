@@ -24,6 +24,7 @@ void compile_function(
         function_type type,
         Ast *ast);
 
-void compile_class_functions(sharp_class *with_class);
+void compile_class_functions(sharp_class *with_class, Ast *block);
+void compile_class_mutations(sharp_class *with_class, Ast *block);
 
 #endif //SHARP_FUNCTION_COMPILER_H

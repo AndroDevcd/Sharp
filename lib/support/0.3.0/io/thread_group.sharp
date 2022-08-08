@@ -33,7 +33,7 @@ public class thread_group : loopable<thread> {
 	    lock (self) {
 	        _thread := find(id);
             if(_thread != null) {
-                handles.remove(_thread);
+                handles.remove(_thread!!);
                 n_threads--;
                 return true;
             }
@@ -46,7 +46,7 @@ public class thread_group : loopable<thread> {
         return handles.get_elements();
     }
 
-    def find(find_func: (thread)(var)) : thread {
+    def find(find_func: (thread)(var)) : thread? {
 	    lock (self) {
            for(i := 0; i < handles.size(); i++) {
                _thread := handles.at(i);
@@ -59,7 +59,7 @@ public class thread_group : loopable<thread> {
         }
     }
 
-    def find(id: var) : thread {
+    def find(id: var) : thread? {
 	    lock (self) {
            for(i := 0; i < handles.size(); i++) {
                if(handles[i].get_id() == id) {

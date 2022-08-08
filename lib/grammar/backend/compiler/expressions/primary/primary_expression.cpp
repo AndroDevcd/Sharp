@@ -17,6 +17,7 @@
 #include "array_expression.h"
 #include "cast_expression.h"
 #include "is_expression.h"
+#include "force_non_null_expression.h"
 
 void compile_primary_expression(expression *e, Ast *ast) {
     if(ast->hasSubAst(ast_not_e))
@@ -33,6 +34,8 @@ void compile_primary_expression(expression *e, Ast *ast) {
         compile_null_expression(e, ast->getSubAst(ast_null_e));
     else if(ast->hasSubAst(ast_new_e))
         compile_new_expression(e, ast->getSubAst(ast_new_e));
+    else if(ast->hasSubAst(ast_force_non_null_e))
+        compile_force_non_null_expression(e, ast->getSubAst(ast_force_non_null_e));
     else if(ast->hasSubAst(ast_get_component))
         compile_get_expression(e, ast->getSubAst(ast_get_component));
     else if(ast->hasSubAst(ast_lambda_function))

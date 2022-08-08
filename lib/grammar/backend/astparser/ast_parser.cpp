@@ -91,8 +91,18 @@ void parse_function_pointer(sharp_type &type, Ast *ast) {
 
 void parse_type_identifier(sharp_type &type, Ast *ast) {
     if(ast->hasSubAst(ast_native_type)) {
+        if(type.nullableItems) {
+            currThread->currTask->file->errors->createNewError(
+                    GENERIC, ast, "cannot specify non-nullable integer array items as nullable.");
+        }
+
         type.type = str_to_native_type(ast->getSubAst(ast_native_type)->getToken(0).getValue());
     } else if(ast->hasSubAst(ast_func_ptr)) {
+        if(type.nullableItems) {
+            currThread->currTask->file->errors->createNewError(
+                    GENERIC, ast, "cannot specify non-nullable integer array items as nullable.");
+        }
+
         parse_function_pointer(type, ast->getSubAst(ast_func_ptr));
     } else {
         parse_reference_pointer(type, ast->getSubAst(ast_refrence_pointer));
@@ -101,11 +111,20 @@ void parse_type_identifier(sharp_type &type, Ast *ast) {
 
 void parse_utype(sharp_type &type, Ast *ast) {
     type.type = type_untyped;
-    if(ast->hasToken(QUESMK))
-        type.nullable = true;
-
     if(ast->hasToken(LEFTBRACE) && ast->hasToken(RIGHTBRACE))
         type.isArray = true;
+
+    if(ast->hasToken(QUESMK))
+        type.nullable = true;
+    if(ast->tokenCount("?") == 2) {
+        type.nullableItems = true;
+
+        if(!type.isArray) {
+            currThread->currTask->file->errors->createNewError(
+                    GENERIC, ast, "cannot specify nullable array items on non-array type.");
+        }
+    }
+
 
     parse_type_identifier(type, ast->getSubAst(ast_type_identifier));
 }

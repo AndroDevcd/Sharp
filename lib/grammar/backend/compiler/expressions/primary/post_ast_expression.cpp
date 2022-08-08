@@ -17,7 +17,12 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
     for(Int i = startPos; i < ast->getSubAstCount(); i++) {
         if(ast->getSubAst(i)->getType() == ast_post_inc_e)
             compile_post_inc_expression(e, ast->getSubAst(i), false);
-        else if(ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
+        else if(ast->getSubAst(i)->getType() == ast_dotnotation_call_expr
+            || ast->getSubAst(i)->getType() == ast_dot_not_e) {
+            Ast *dotNotationCallExpr =
+                    ast->getSubAst(i)->getType() == ast_dotnotation_call_expr ?
+                        ast->getSubAst(i) : ast->getSubAst(i)->getSubAst(0);
+
             sharp_class *with_class = NULL;
             if(e->type.type == type_class) {
                 with_class = e->type._class;
@@ -28,9 +33,9 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
 
             if(with_class != NULL) {
                 Token *access = NULL;
-                if(ast->getSubAst(i)->getTokenCount() > 0)
-                    access = &ast->getSubAst(i)->getToken(0);
-                else access = &ast->getSubAst(i)->getSubAst(0)->getToken(0);
+                if(dotNotationCallExpr->getTokenCount() > 0)
+                    access = &dotNotationCallExpr->getToken(0);
+                else access = &dotNotationCallExpr->getSubAst(0)->getToken(0);
                 if(access->getType() == DOT
                     && e->type.nullable) {
                     current_file->errors->createNewError(GENERIC, ast, "Unsafe use of nullable type `"
@@ -41,7 +46,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                                + "` on non nullable type `" + type_to_str(e->type) + "`");
                 }
 
-                compile_dot_notation_call_expression(e, with_class, false, ast->getSubAst(i));
+                compile_dot_notation_call_expression(e, with_class, false, dotNotationCallExpr);
             } else {
                 current_file->errors->createNewError(GENERIC, ast, "expected `class` type but type `"
                     + type_to_str(e->type) + "` was found.");

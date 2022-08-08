@@ -9,6 +9,8 @@
 #include "../backend/postprocessor/delegate_processor.h"
 #include "../backend/compiler/di/component_compiler.h"
 #include "../backend/compiler/compiler.h"
+#include "../backend/compiler/mutate_compiler.h"
+#include "../backend/compiler/class_compiler.h"
 
 thread_local worker_thread *currThread;
 
@@ -119,10 +121,31 @@ void compile_components_() {
     file->stage = components_processed;
 }
 
+void compile_mutations_() {
+    sharp_file *file = currThread->currTask->file;
+
+    compile_global_mutations(file);
+    file->stage = mutations_compiled;
+}
+
+void compile_members_() {
+    sharp_file *file = currThread->currTask->file;
+
+    compile_global_members();
+    file->stage = members_compiled;
+}
+
+void compile_classes_() {
+    sharp_file *file = currThread->currTask->file;
+
+    compile_classes();
+    file->stage = classes_compiled;
+}
+
 void execute_task() {
     {
         GUARD(errorMutex);
-        cout << "executing task(" << currThread->currTask->type << ") on: " << currThread->currTask->file->name << endl;
+//        cout << "executing task(" << currThread->currTask->type << ") on: " << currThread->currTask->file->name << endl;
     }
     switch(currThread->currTask->type) {
         case task_none_: { break; }
@@ -148,6 +171,18 @@ void execute_task() {
         }
         case task_process_delegates_: {
             process_delegates_();
+            break;
+        }
+        case task_compile_mutations_: {
+            compile_mutations_();
+            break;
+        }
+        case task_compile_global_members_: {
+            compile_members_();
+            break;
+        }
+        case task_compile_classes_: {
+            compile_classes_();
             break;
         }
     }

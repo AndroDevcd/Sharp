@@ -65,6 +65,8 @@ struct sharp_type {
         type(type_untyped),
         isArray(false),
         nullable(false),
+        nullableItems(false),
+        arrayElement(false),
         integer(0),
         decimal(0),
         _string(""),
@@ -85,6 +87,8 @@ struct sharp_type {
            type(type_untyped),
            isArray(false),
            nullable(false),
+           nullableItems(false),
+           arrayElement(false),
            integer(0),
            decimal(0),
            _string(""),
@@ -97,7 +101,8 @@ struct sharp_type {
     sharp_type(
             sharp_class *sc,
             bool nullable = false,
-            bool isArray = false)
+            bool isArray = false,
+            bool nullableItems = false)
     :
             _class(sc),
             field(NULL),
@@ -110,6 +115,8 @@ struct sharp_type {
             type(type_class),
             isArray(isArray),
             nullable(nullable),
+            nullableItems(nullableItems),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -131,6 +138,8 @@ struct sharp_type {
             type(type_untyped),
             isArray(false),
             nullable(false),
+            nullableItems(false),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -151,6 +160,8 @@ struct sharp_type {
             type(type_field),
             isArray(false),
             nullable(false),
+            nullableItems(false),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -171,6 +182,8 @@ struct sharp_type {
             type(type_get_component_request),
             isArray(false),
             nullable(false),
+            nullableItems(false),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -191,6 +204,8 @@ struct sharp_type {
             type(type_module),
             isArray(false),
             nullable(false),
+            nullableItems(false),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -211,6 +226,8 @@ struct sharp_type {
             type(type_import_group),
             isArray(false),
             nullable(false),
+            nullableItems(false),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -231,6 +248,8 @@ struct sharp_type {
             type(type_label),
             isArray(false),
             nullable(false),
+            nullableItems(false),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -242,7 +261,8 @@ struct sharp_type {
             sharp_function *fun,
             bool nullable = false,
             bool isLambda = false,
-            bool isArray = false)
+            bool isArray = false,
+            bool nullableItems = false)
     :
             _class(NULL),
             field(NULL),
@@ -255,6 +275,8 @@ struct sharp_type {
             type(isLambda ? type_lambda_function : type_function),
             isArray(isArray),
             nullable(nullable),
+            nullableItems(nullableItems),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -265,7 +287,8 @@ struct sharp_type {
     sharp_type(
             data_type type,
             bool nullable = false,
-            bool isArray = false)
+            bool isArray = false,
+            bool nullableItems = false)
     :
             _class(NULL),
             field(NULL),
@@ -278,6 +301,8 @@ struct sharp_type {
             type(type),
             isArray(isArray),
             nullable(nullable),
+            nullableItems(nullableItems),
+            arrayElement(false),
             integer(0),
             decimal(0),
             _string(""),
@@ -318,6 +343,8 @@ struct sharp_type {
     data_type type;
     bool isArray;
     bool nullable;
+    bool nullableItems;
+    bool arrayElement;
     Int integer;
     string _string;
     char _char;

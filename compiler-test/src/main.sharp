@@ -1,12 +1,11 @@
 mod main;
 
-http_codes := get<int>() & 5;
 
 def main() {
   println("hello, world!");
 }
 
-def foo(n: var) : int {
+def foo(n: _int64) : int {
     return n + 1;
 }
 

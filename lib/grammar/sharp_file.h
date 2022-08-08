@@ -20,6 +20,9 @@ enum compilation_stage {
     classes_post_processed, // ready to compile after this stage
     components_processed,
     class_delegates_processed,
+    mutations_compiled,
+    members_compiled,
+    classes_compiled,
     compiled
 };
 
@@ -54,6 +57,7 @@ struct sharp_file {
         tok(NULL),
         p(NULL),
         errors(NULL),
+        module(NULL),
         stage(not_compiled),
         compilationFailed(false),
         dependencies(),
@@ -68,6 +72,7 @@ struct sharp_file {
             tok(NULL),
             p(NULL),
             errors(NULL),
+            module(NULL),
             stage(not_compiled),
             compilationFailed(false),
             dependencies(),
@@ -86,6 +91,7 @@ struct sharp_file {
     tokenizer *tok;
     parser *p;
     context context;
+    sharp_module *module;
     List<import_group*> importGroups;
     compilation_stage stage;
     bool compilationFailed;

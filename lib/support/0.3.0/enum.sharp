@@ -14,7 +14,7 @@ import (
  * enums.
  */
 stable ext class _enum_ {
-    private name : _int8[];
+    private name : _int8[]?;
     private ordinal : var; // TODO: add <, > and other math operators for enums and vars
 
     _enum_(n: _int8[], ord : var) {
@@ -24,7 +24,7 @@ stable ext class _enum_ {
 
     _enum_(e : _enum_) {
         ordinal = e.ordinal;
-        name = copy(e.name, 0, sizeof(e.name));
+        name = copy(e.name!!, 0, sizeof(e.name));
     }
 
     def operator!=(e : _enum_) : var {
@@ -43,7 +43,7 @@ stable ext class _enum_ {
         return ordinal==num;
     }
 
-    def get_name() : _int8[] {
+    def get_name() : _int8[]? {
          return name;
     }
 

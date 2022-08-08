@@ -10,19 +10,19 @@ import (
  * Class to be used as the baseline of throwing errors
  */
 class throwable {
-    private message : _int8[];
+    private message : _int8[]?;
 
-    stack_trace : string;
+    stack_trace : string?;
       get {
         if(stack_trace == null) {
             stack_trace =
-                vm.get_stack_trace(frame_info);
+                vm.get_stack_trace(frame_info!!);
         }
 
         return stack_trace;
       }
 
-    private frame_info : stack_state;
+    private frame_info : stack_state?;
 
     init {
         frame_info =

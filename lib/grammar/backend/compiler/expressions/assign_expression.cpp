@@ -146,7 +146,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                   + "` to expression of type `" + type_to_str(left.type) + "`.");
             }
         } else if(is_numeric_type(left.type)) {
-            if(left.type.type == type_field) {
+            if(left.type.type == type_field || left.type.arrayElement) {
                 if (match_result == no_match_found) {
                     match_result =
                             is_implicit_type_match(left.type, right.type,

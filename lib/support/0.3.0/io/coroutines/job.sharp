@@ -15,22 +15,22 @@ public class job {
 
 	protected def execute_async() : var {
 		if(state == created) {
-            if(!host.is_active()) {
-                if(host.start() != result_ok)
+            if(!host?.is_active()) {
+                if(host?.start() != result_ok)
                 {
                   return 2;
                 }
             }
 
             if(fiber.poll(host) >= 1) {
-                running_host : thread;
+                running_host : thread?;
                 if(!unconfined) running_host = host;
 
-                slice({ args ->
+                slice({ args: object[] -> (var)
                    schdj := args[0] as job;
                    schdj.execute();
                    return 0;
-                }, running_host, { self });
+                }, running_host!!, new object[]{ self });
                 return 0;
             }
 		} else if(state == active) {
@@ -62,10 +62,10 @@ public class job {
             if(recurring) {
                 jb := next_task;
                 while(jb != null) {
-                    jb.cancel();
-                    launcher.cleanup_job(jb);
+                    jb?.cancel();
+                    launcher.cleanup_job(jb!!);
 
-                    jb = jb.next_task;
+                    jb = jb?.next_task;
                 }
             }
 		}
@@ -119,10 +119,10 @@ public class job {
 		       reschedule();
 
            when {
-               main0 -> main0();
-               main1 -> main1(args);
-               main2 -> main2(deferred_obj, args);
-               main3 -> main3(deferred_obj);
+               main0 != 0 -> main0();
+               main1 != 0-> main1(args!!);
+               main2 != 0 -> main2(deferred_obj!!, args!!);
+               main3 != 0 -> main3(deferred_obj!!);
            }
 
 		   state = completed;
@@ -173,7 +173,7 @@ public class job {
 
         delay := (start_time + sched_time) - time.mills_time();
         jb := coroutine.builder()
-            .with_name(name)
+            .with_name(name!!)
             .recurring(sched_time, milliseconds);
 
         user_args := new object[sizeof(args) - 1];
@@ -187,10 +187,10 @@ public class job {
         jb.with_args(user_args);
 
         when {
-            main0 -> jb.scheduled_job.main0 = main0;
-            main1 -> jb.scheduled_job.main1 = main1;
-            main2 -> jb.scheduled_job.main2 = main2;
-            main3 -> jb.scheduled_job.main3 = main3;
+            main0 != 0 -> jb.scheduled_job.main0 = main0;
+            main1 != 0 -> jb.scheduled_job.main1 = main1;
+            main2 != 0 -> jb.scheduled_job.main2 = main2;
+            main3 != 0 -> jb.scheduled_job.main3 = main3;
         }
 
         if(delay > 0)
@@ -208,15 +208,15 @@ public class job {
 	protected main3: (object)();
 	protected host : thread?;
 	protected fib : fiber;
-	protected name : string;
-	protected args : object[];
-	protected deferred_obj : object;
+	protected name : string?;
+	protected args : object[]?;
+	protected deferred_obj : object?;
 	protected has_timeout := false;
 	protected timeout := 0;
 	protected start_time := 0;
 	protected sched_time := 0;
 	protected delay_time := 0;
-	protected next_task : job;
+	protected next_task : job?;
 	protected recurring := false;
 	protected tag := 0;
 	protected block_caller := false;

@@ -194,7 +194,7 @@ void validate_field_type(
         }
     } else if(type.type == type_integer
         || type.type == type_decimal) {
-        field->type.type = type_var;
+        field->type.type = type.type == type_decimal ? type_var : type_int64;
         return;
     } else if(type.type == type_char
         || type.type == type_bool) {

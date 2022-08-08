@@ -46,6 +46,7 @@ void pre_process() {
                                         "first in every file");
             }
 
+            file->module = currModule;
             globalClass = resolve_class(currModule, global_class_name, false, false);
             continue;
         }
@@ -180,7 +181,7 @@ void check_decl_conflicts(Ast *ast, sharp_class *with_class, string type, string
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with alias `" + name + "`");
         print_impl_location(name, "alias", alias->location);
-    } else if(type != "function" && locate_functions_with_name(name, with_class, undefined_function, false, functions)) {
+    } else if(type != "function" && locate_functions_with_name(name, with_class, undefined_function, false, false, functions)) {
         create_new_warning(GENERIC, __w_decl, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with function `" + name + "`");
         print_impl_location(name, "function", functions.first()->implLocation);

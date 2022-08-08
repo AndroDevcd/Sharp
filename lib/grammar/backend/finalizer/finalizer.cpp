@@ -138,20 +138,45 @@ void setup_core_functions() {
     }
 }
 
-void compile_all() {
-    task *mock = new task();
-    currThread = new worker_thread(0, worker_running, mock);
+void run_compile_global_mutations_tasks() {
 
+    task t;
     for(Int i = 0; i < sharpFiles.size(); i++) {
-        mock->file = sharpFiles.get(i);
-
-        __compile__();
-        current_file->stage = compiled;
+        t.type = task_compile_mutations_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
     }
+
+    wait_for_tasks();
+}
+
+void run_compile_global_members_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_global_members_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_classes_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_classes_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
 }
 
 void finalize_compilation() {
-    killAllWorkers();
-    compile_all();
+    run_compile_global_mutations_tasks();
+    run_compile_global_members_tasks();
+    run_compile_classes_tasks();
     setup_core_functions();
 }

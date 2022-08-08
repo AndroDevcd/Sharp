@@ -546,10 +546,6 @@ void compile_binary_expression(
     if(compile_expression_exceptions(left, operand, ast->getSubAst(0)))
         return;
 
-    if(ast->line == 50 && ast->col == 105) {
-        int i = 0;
-    }
-
     switch(left.type.type) {
 
         case type_integer: // todo: support string "" + "" convert first type to std#string
@@ -585,9 +581,12 @@ void compile_binary_expression(
                     goto error;
                 } else if(left.type.field->type.type == type_class) {
                     goto _class;
-                } else if(left.type.field->type.type == type_object) {
+                } else if(left.type.field->type.type == type_object ||
+                        (left.type.field->type.type >= type_int8 && left.type.field->type.type <= type_var && left.type.field->type.isArray)) {
                     goto _object;
                 }
+            } else if(left.type.type >= type_int8 && left.type.type <= type_var && left.type.isArray) {
+                goto _object;
             }
 
             compile_binary_numeric_expression(e, left, right, operand, ast);
@@ -645,7 +644,7 @@ void compile_binary_expression(
         default: {
             error:
             currThread->currTask->file->errors->createNewError(
-                    GENERIC, ast->getSubAst(0), "unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
+                    GENERIC, ast->getSubAst(0), "unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(left.type) + "` and `" + type_to_str(right.type) + "`");
             break;
         }
     }

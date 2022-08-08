@@ -129,6 +129,102 @@ class atomic<t> {
             }
      }
 
+     def operator==(num : _int8) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _int16) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _int32) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _int64) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _uint8) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _uint16) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _uint32) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator==(num : _uint64) : var {
+            lock(self) {
+               return (value==num);
+            }
+     }
+
+     def operator!=(num : _int8) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _int16) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _int32) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _int64) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _uint8) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _uint16) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _uint32) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
+     def operator!=(num : _uint64) : var {
+            lock(self) {
+               return (value!=num);
+            }
+     }
+
      def operator+(num : ulong)  : var {
             lock(self) {
                return (value+num.value);
@@ -551,6 +647,18 @@ class atomic<t> {
             }
      }
      def operator>(num : var)    : var {
+            lock(self) {
+               return (value>num);
+            }
+     }
+
+     def operator>(num : _int64)    : var { // todo: make these functions into generic classes dynamically
+            lock(self) {
+               return (value>num);
+            }
+     }
+
+     def operator<(num : _int64)    : var {
             lock(self) {
                return (value>num);
             }

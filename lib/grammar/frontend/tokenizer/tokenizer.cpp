@@ -265,7 +265,7 @@ void tokenizer::parse()
                 if(match('!')) {
                     if(match('.'))
                         add_token(FORCEDOT);
-                    else errors->createNewError(GENERIC, line, col, " expected char `.` after `!!`");
+                    else add_token(DOUBLEBANG);
                 }
                 else
                     add_token(match('=') ? NOTEQ : NOT);

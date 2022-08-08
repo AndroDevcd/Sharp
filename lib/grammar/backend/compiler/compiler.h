@@ -8,7 +8,7 @@
 class sharp_class;
 class Ast;
 
-void __compile__();
+void compile_global_members();
 void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast);
 bool validate_control_paths(bool *controlPaths);
 

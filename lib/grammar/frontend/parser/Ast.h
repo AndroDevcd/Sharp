@@ -135,6 +135,7 @@ enum ast_type
     ast_arry_e,
     ast_dot_fn_e,
     ast_cast_e,
+    ast_force_non_null_e,
     ast_is_e,
     ast_pre_inc_e,
     ast_paren_e,
@@ -209,6 +210,7 @@ public:
     bool hasSubAst(ast_type at);
     bool hasToken(token_type t);
     bool hasToken(string s);
+    long tokenCount(string s);
     void freeSubAsts();
     long getTokenCount();
     Token &getToken(long at);

@@ -32,7 +32,7 @@ string supported_versions[] = {
 };
 
 void warning(string message) {
-    cout << PROG_NAME << ":  warning: " << message;
+    cout << PROG_NAME << ":  warning: " << message << endl;
 }
 
 void error(string message) {
@@ -41,7 +41,7 @@ void error(string message) {
 }
 
 void printVersion() {
-    cout << PROG_NAME << " v" << PROG_VERS;
+    cout << PROG_NAME << " v" << PROG_VERS << endl;
 }
 
 bool isNumber(string int_string) {

@@ -36,7 +36,7 @@ void compile_array_expression(expression *e, Ast *ast) {
         paramOperations.add(new operation_schema(expressions.last()->scheme));
     }
 
-    if(e->type.isArray || (e->type.type == type_field || e->type.field->type.isArray)) {
+    if(e->type.isArray || (e->type.type == type_field && e->type.field->type.isArray)) {
         if(expressions.singular()) {
             expression &arrayExpression = *expressions.last();
             if ((arrayExpression.type.type >= type_int8 && arrayExpression.type.type <= type_uint64)
@@ -46,6 +46,9 @@ void compile_array_expression(expression *e, Ast *ast) {
                 }
 
                 e->type.isArray = false;
+                e->type.nullable = e->type.nullableItems;
+                e->type.nullableItems = false;
+                e->type.arrayElement = true;
                 create_access_array_element_operation(&e->scheme, &arrayExpression.scheme);
             } else {
                 currThread->currTask->file->errors->createNewError(
@@ -70,7 +73,10 @@ void compile_array_expression(expression *e, Ast *ast) {
             string op = "[";
             compile_class_function_overload(with_class, tmp, params, paramOperations, op, ast);
             e->type.copy(tmp.type);
-            e->scheme.steps.appendAll(tmp.scheme.steps);
+
+            for(Int i = 0; i < tmp.scheme.steps.size(); i++) {
+                e->scheme.steps.add(new operation_step(*tmp.scheme.steps.get(i)));
+            }
         } else {
             currThread->currTask->file->errors->createNewError(
                     GENERIC, ast,

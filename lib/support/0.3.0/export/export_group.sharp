@@ -160,7 +160,7 @@ class export_group {
    }
    
    def import_from(filename: string) {
-      result := _import_from(filename);
+      result := _import_from(filename) as export_group;
       data = result.data;
    }
 }

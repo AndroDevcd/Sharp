@@ -6,7 +6,7 @@ import (
 )
 
 class vm {
-    static def get_frame_info() : stack_state {
+    static def get_frame_info() : stack_state? {
         asm {
             int 0x35
             popObj2
@@ -16,7 +16,7 @@ class vm {
         return null;
     }
 
-    static def get_stack_trace(info : stack_state) : string {
+    static def get_stack_trace(info : stack_state) : string? {
         asm {
             pushl {info}
             int 0x36
@@ -99,12 +99,12 @@ class vm {
         return result;
     }
 
-    static def bind_fiber(fib: fiber, t: thread) : var {
+    static def bind_fiber(fib: fiber, t: thread?) : var {
         id := fib.id;
         threadid := -1; // -1 to unbind from thread
 
         if(t != null)
-           threadid = t.get_native_handle();
+           threadid = t?.get_native_handle();
         result: var;
 
         asm {
@@ -118,7 +118,7 @@ class vm {
     }
 
     static def get_bound_fibers(t: thread?) : var {
-        threadid := t.get_native_handle();
+        threadid := t?.get_native_handle();
         result: var;
 
         asm {
@@ -220,7 +220,7 @@ class vm {
         return thread_result.at(result);
     }
 
-    static def current_thread() : thread {
+    static def current_thread() : thread? {
         asm {
             int 0x15
             popObj2
@@ -310,7 +310,7 @@ class vm {
         }
     }
 
-    static def thread_args() : object[] {
+    static def thread_args() : object[]? {
         asm {
             int 0x16
             popObj2

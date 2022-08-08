@@ -30,7 +30,7 @@ public class file {
         update_path("$path");
     }
 
-    def get_name() : string {
+    def get_name() : string? {
         if(path == null || path.size()==0) {
             return null;
         }
@@ -55,7 +55,7 @@ public class file {
         self->path = fs.normalize(path);
     }
 
-    def get_parent_file() : file {
+    def get_parent_file() : file? {
         if(path == null || path.size()==0) {
             return null;
         }
@@ -215,8 +215,8 @@ public class file {
      * complete path.
      *
      */
-    def list() : list<string> {
-        return new list<string>(fs.list(self));
+    def list() : list<string?> {
+        return new list<string?>(fs.list(self));
     }
 
     /**
@@ -400,7 +400,7 @@ public class file {
     /* -- Temporary files -- */
 
     // file name generation
-    private static def generate_temp_file(prefix: string, suffix: string, dir: file) : file
+    private static def generate_temp_file(prefix: string, suffix: string, dir: file) : file?
     {
 //        int n = Math.randomIntInternal();
 //        if (n == Integer.MIN_VALUE) {
@@ -422,7 +422,7 @@ public class file {
      *
      */
     static def create_temp_file(prefix: string, suffix: string,
-                                      directory: file) : file
+                                      directory: file?) : file?
     {
 //        if (prefix.length() < 3)
 //            throw new IllegalArgumentException("Prefix string too short");
@@ -455,7 +455,7 @@ public class file {
      * createTempFile(prefix,&nbsp;suffix,&nbsp;null)}</code>.
      *
      */
-    static def create_temp_file(prefix: string, suffix: string) : file
+    static def create_temp_file(prefix: string, suffix: string) : file?
     {
         //create_temp_file(null, suffix, null);
         return create_temp_file(prefix, suffix, null);

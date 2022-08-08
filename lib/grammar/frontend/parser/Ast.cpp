@@ -471,6 +471,16 @@ bool Ast::hasToken(string s) {
     return false;
 }
 
+long Ast::tokenCount(string s) {
+    long count = 0;
+    for(long i = 0; i < tokens.size(); i++) {
+        if(tokens.get(i) == s)
+            count++;
+    }
+
+    return count;
+}
+
 long indent = -1;
 string getIndent() {
     stringstream str;

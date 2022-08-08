@@ -113,7 +113,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 
         if(expr->type.type == type_integer
            || expr->type.type == type_decimal) {
-            expr->type.type = type_var;
+            expr->type.type = expr->type.type == type_decimal ? type_var : type_int64;
         } else if(expr->type.type == type_char
                   || expr->type.type == type_bool) {
             expr->type.type = type_int8;
@@ -187,7 +187,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 
 void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) {
     expression arraySize;
-    compile_expression(*e, ast);
+    compile_expression(*e, ast->getSubAst(ast_expression));
     operation_schema *arraySieScheme = new operation_schema(arraySize.scheme);
 
     e->type.copy(*newType);

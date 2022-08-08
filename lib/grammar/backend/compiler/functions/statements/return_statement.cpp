@@ -45,6 +45,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         else if(returnVal.type.type == type_nil)
             create_return_operation(subScheme);
         else create_object_return_operation(subScheme, &returnVal.scheme);
+    } else if(match_result == indirect_match_w_nullability_mismatch) {
+        currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                                                           " expressions are not compatible, assigning null to non nullable type of `" + type_to_str(current_context.functionCxt->returnType) + "`.");
     } else {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
                       + type_to_str(current_context.functionCxt->returnType) + "`.");
