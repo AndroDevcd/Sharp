@@ -50,6 +50,10 @@ bool create_function(
                                 impl_location(currThread->currTask->file, createLocation),
                                 flags, createLocation, params, returnType, type);
 
+        if(check_flag(sc->flags, flag_global)) {
+            currThread->currTask->file->functions.add(sf);
+        }
+
         sc->functions.add(sf);
         createdFun = sf;
         return true;
@@ -89,6 +93,7 @@ void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation
                                       type, constructor_function);
 
         GUARD(globalLock)
+        currThread->currTask->file->functions.add(sf);
         sc->functions.add(sf);
     }
 }

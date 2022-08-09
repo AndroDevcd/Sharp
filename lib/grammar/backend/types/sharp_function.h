@@ -30,6 +30,7 @@ struct sharp_function {
             ast(NULL),
             closure(NULL),
             scheme(NULL),
+            used(false),
             parameters(),
             returnType(),
             locals(),
@@ -52,6 +53,7 @@ struct sharp_function {
             locals(),
             aliases(),
             labels(),
+            used(sf.used),
             returnType(sf.returnType),
             type(sf.type),
             closure(sf.closure),
@@ -87,6 +89,7 @@ struct sharp_function {
             locals(),
             aliases(),
             labels(),
+            used(false),
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
             closure(NULL)
@@ -120,6 +123,7 @@ struct sharp_function {
     sharp_field* closure;
     sharp_type returnType;
     function_type type;
+    bool used;
 
     uInt flags;
     Ast* ast;

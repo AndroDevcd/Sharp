@@ -6,6 +6,8 @@
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/types.h"
 #include "../compiler/compiler.h"
+#include "optimization/optimizer.h"
+#include "generation/generator.h"
 
 void setup_core_functions() {
     string starterClass = "platform";
@@ -13,7 +15,7 @@ void setup_core_functions() {
     string platform_kernel = "platform.kernel";
 
     sharp_class *StarterClass = resolve_class(get_module(platform_kernel), starterClass, false, false);
-    if(StarterClass != NULL && main_method != NULL) {
+    if(StarterClass != NULL && user_main_method != NULL) {
         List<sharp_field*> params;
         string name = "args";
         sharp_type type(type_object, false, true);
@@ -112,7 +114,7 @@ void setup_core_functions() {
 
                 APPLY_TEMP_SCHEME(0, (*StaticInit->scheme),
                      ALLOCATE_REGISTER_1X(0, &scheme_0,
-                         create_get_static_function_address_operation(&scheme_0, main_method);
+                         create_get_static_function_address_operation(&scheme_0, user_main_method);
                          create_retain_numeric_value_operation(&scheme_0, register_0);
                          create_static_field_access_operation(&scheme_0, userMain, false);
                          create_get_value_from_register_operation(&scheme_0, register_0);
@@ -129,11 +131,11 @@ void setup_core_functions() {
             create_return_operation(StaticInit->scheme);
             create_return_operation(TlsSetup->scheme);
 
-            main_method = init_function; // reset main method to __srt_init()
+            genesis_method = init_function; // reset main method to __srt_init()
         }
     } else if(StarterClass == NULL) {
         sharpFiles.get(0)->errors->createNewError(GENERIC, 0, 0, "Could not find starter class '" + starterClass + "' for application entry point.");
-    } else if(main_method == NULL) {
+    } else if(user_main_method == NULL) {
         sharpFiles.get(0)->errors->createNewError(GENERIC, 0, 0, "could not locate main method 'main(string[])'");
     }
 }
@@ -179,4 +181,8 @@ void finalize_compilation() {
     run_compile_global_members_tasks();
     run_compile_classes_tasks();
     setup_core_functions();
+
+    // todo: add check if all files compiled successfully
+    optimize();
+    generate();
 }

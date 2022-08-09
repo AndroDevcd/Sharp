@@ -2836,6 +2836,8 @@ void resolve(
         uInt filter,
         Ast *resolveLocation,
         operation_schema *scheme) {
+    GUARD(globalLock)
+
     if(!ignoreInitialType && unresolvedType.type != type_untyped) {
         resultType.copy(unresolvedType);
     } else {

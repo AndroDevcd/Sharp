@@ -139,7 +139,7 @@ void compile_classes_() {
     sharp_file *file = currThread->currTask->file;
 
     compile_classes();
-    file->stage = classes_compiled;
+    file->stage = compiled;
 }
 
 void execute_task() {

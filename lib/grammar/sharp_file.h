@@ -22,7 +22,6 @@ enum compilation_stage {
     class_delegates_processed,
     mutations_compiled,
     members_compiled,
-    classes_compiled,
     compiled
 };
 
@@ -58,6 +57,7 @@ struct sharp_file {
         p(NULL),
         errors(NULL),
         module(NULL),
+        used(false),
         stage(not_compiled),
         compilationFailed(false),
         dependencies(),
@@ -73,6 +73,7 @@ struct sharp_file {
             p(NULL),
             errors(NULL),
             module(NULL),
+            used(false),
             stage(not_compiled),
             compilationFailed(false),
             dependencies(),
@@ -93,8 +94,13 @@ struct sharp_file {
     context context;
     sharp_module *module;
     List<import_group*> importGroups;
+    List<sharp_field*> fields;
+    List<sharp_function*> functions;
+    List<sharp_class*> classes;
+    List<sharp_alias*> aliases;
     compilation_stage stage;
     bool compilationFailed;
+    bool used;
     List<dependency> dependencies;
     List<sharp_module*> imports;
     ErrorManager *errors;

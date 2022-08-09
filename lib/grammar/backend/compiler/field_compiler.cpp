@@ -128,6 +128,7 @@ void compile_field(sharp_class *with_class, Ast *ast) {
             }
         }
 
+        create_dependency(field, function);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     } else if(field->scheme) {
         sharp_function *function;
@@ -146,6 +147,7 @@ void compile_field(sharp_class *with_class, Ast *ast) {
             function->scheme = new operation_schema();
         }
 
+        create_dependency(field, function);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     }
 }

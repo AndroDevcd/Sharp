@@ -78,11 +78,19 @@ if (SHARPC)
             "lib/grammar/backend/compiler/functions/statements/*.cpp"
             "lib/grammar/backend/finalizer/*.h"
             "lib/grammar/backend/finalizer/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/*.h"
+            "lib/grammar/backend/finalizer/optimization/*.cpp"
+            "lib/grammar/backend/finalizer/generation/*.h"
+            "lib/grammar/backend/finalizer/generation/*.cpp"
+            "lib/grammar/backend/finalizer/generation/code/*.h"
+            "lib/grammar/backend/finalizer/generation/code/*.cpp"
+            "lib/grammar/backend/finalizer/generation/code/scheme/*.h"
+            "lib/grammar/backend/finalizer/generation/code/scheme/*.cpp"
             "lib/util/*.cpp"
     )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/runtime/Opcode.h lib/runtime/Opcode.cpp lib/runtime/ThreadStates.h)
 
     add_executable(Sharpc ${SOURCE_FILES})
 elseif(LEGACY)

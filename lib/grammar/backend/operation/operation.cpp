@@ -41,7 +41,7 @@ void create_primary_instance_field_access_operation(
         sharp_field *instanceField) {
     if(scheme) {
         scheme->free();
-        scheme->schemeType = scheme_access_instance_field;
+        scheme->schemeType = scheme_access_primary_instance_field;
         scheme->field = instanceField;
 
         scheme->steps.add(new operation_step(

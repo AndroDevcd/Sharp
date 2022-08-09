@@ -1,8 +1,11 @@
 mod main;
 
+fark := 9;
+
+feep := fark;
 
 def main() {
-  println("hello, world!");
+  println("hello, world! $feep");
 }
 
 def foo(n: _int64) : int {

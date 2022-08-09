@@ -4,9 +4,7 @@
 
 #include "sharp_field.h"
 #include "../types/types.h"
-#include "../../compiler_info.h"
-#include "../../sharp_file.h"
-#include "../operation/operation.h"
+#include "../finalizer/generation/code/code_info.h"
 
 sharp_field* create_field(
         sharp_file *file,
@@ -38,6 +36,7 @@ sharp_field* create_field(
         );
 
         GUARD(globalLock)
+        file->fields.add(sf);
         owner->fields.add(sf);
         return sf;
     }
@@ -126,7 +125,12 @@ sharp_field* create_field(
                 type, flags, ft, ast
         );
 
+
         GUARD(globalLock)
+        if(check_flag(sf->owner->flags, flag_global)) {
+            file->fields.add(sf);
+        }
+
         sc->fields.add(sf);
         return sf;
     }
@@ -145,6 +149,7 @@ void sharp_field::set_full_name() {
 
 void sharp_field::free() {
     dependencies.free();
+    delete ci; ci = NULL;
     delete scheme; scheme = NULL;
     delete request; request = NULL;
 }

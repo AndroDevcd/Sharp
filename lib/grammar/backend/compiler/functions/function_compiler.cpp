@@ -30,8 +30,8 @@ void check_main_method_signature(sharp_function *function) {
 
             if(function_parameters_match(function->parameters, params, false, exclude_all)) {
                 if(function->returnType == type_var) { // fn main(string[]) : var;
-                    if(main_method == NULL) {
-                        main_method = function;
+                    if(user_main_method == NULL) {
+                        user_main_method = function;
                         main_method_sig = 0;
                     } else {
                         current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
@@ -39,8 +39,8 @@ void check_main_method_signature(sharp_function *function) {
                     }
 
                 } else if(function->returnType == type_nil) { // fn main(string[]);
-                    if(main_method == NULL) {
-                        main_method = function;
+                    if(user_main_method == NULL) {
+                        user_main_method = function;
                         main_method_sig = 1;
                     } else {
                         current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
@@ -53,16 +53,16 @@ void check_main_method_signature(sharp_function *function) {
             deleteList(params);
             if(function_parameters_match(function->parameters, params, false, exclude_all)) {
                 if(function->returnType == type_nil) { // fn main();
-                    if(main_method == NULL) {
-                        main_method = function;
+                    if(user_main_method == NULL) {
+                        user_main_method = function;
                         main_method_sig = 2;
                     } else {
                         current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
                         print_impl_location(function->name, "function", function->implLocation);
                     }
                 } else if(function->returnType == type_var) { // fn main() : var;
-                    if(main_method == NULL) {
-                        main_method = function;
+                    if(user_main_method == NULL) {
+                        user_main_method = function;
                         main_method_sig = 3;
                     } else {
                         current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");

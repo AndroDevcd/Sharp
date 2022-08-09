@@ -152,6 +152,7 @@ enum operation_type {
 
 enum _operation_scheme {
     scheme_none,
+    scheme_access_primary_instance_field,
     scheme_access_instance_field,
     scheme_access_static_field,
     scheme_access_tls_field,

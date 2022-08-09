@@ -30,7 +30,8 @@ extern recursive_mutex globalLock;
 extern thread_local sharp_module* currModule;
 extern component_manager componentManager;
 extern atomic<uInt> uniqueId;
-extern sharp_function *main_method;
+extern sharp_function *user_main_method;
+extern sharp_function *genesis_method;
 extern int main_method_sig;
 
 #define global_class_name "__srt_global"

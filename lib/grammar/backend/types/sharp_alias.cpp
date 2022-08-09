@@ -36,6 +36,11 @@ sharp_alias* create_alias(
         sa = new sharp_alias(name, owner, flags, location, ast);
 
         GUARD(globalLock)
+
+        if(check_flag(owner->flags, flag_global)) {
+            file->aliases.add(sa);
+        }
+
         owner->aliases.add(sa);
         return sa;
     }
@@ -99,6 +104,7 @@ sharp_alias* create_alias(
         sa = new sharp_alias(name, owner, flags, location, ast);
 
         GUARD(globalLock)
+        file->aliases.add(sa);
         owner->aliases.add(sa);
         return sa;
     }

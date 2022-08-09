@@ -10,6 +10,7 @@
 #include "sharp_function.h"
 #include "sharp_alias.h"
 #include "sharp_field.h"
+#include "../finalizer/generation/code/code_info.h"
 
 
 void create_global_class() {
@@ -113,6 +114,10 @@ sharp_class* create_generic_class(
                     false,
                     genericBlueprint->ast);
 
+            if(check_flag(genericBlueprint->owner->flags, flag_global)) {
+                genericBlueprint->implLocation.file->classes.add(sc);
+            }
+
             sc->genericBuilder = genericBlueprint;
             sc->genericTypes.addAll(genericIdentifiers);
             genericIdentifiers.free();
@@ -157,6 +162,9 @@ sharp_class* create_class(
                 location, flags, ast, type
         );
 
+        if(check_flag(owner->flags, flag_global)) {
+            file->classes.add(sc);
+        }
         if(isGeneric) owner->generics.add(sc);
         else owner->children.add(sc);
         return sc;
@@ -190,14 +198,12 @@ sharp_class* create_class(
         owner = resolve_class(module, global_class_name, false, false);
 
         GUARD(globalLock)
-        if(check_flag(flags, flag_global) && owner != NULL) {
-            int i = 0;
-        }
         sc = new sharp_class(
                 name, owner, module,
                 location, flags, ast, type
         );
 
+        file->classes.add(sc);
         if(isGeneric) {
             if(owner != NULL) owner->generics.add(sc);
             genericClasses.add(sc);
@@ -219,6 +225,7 @@ void sharp_class::free() {
     interfaces.free();
     extensionFunctions.free();
     mutations.free();
+    delete ci; ci = NULL;
     deleteList(children);
     deleteList(functions);
     deleteList(generics);

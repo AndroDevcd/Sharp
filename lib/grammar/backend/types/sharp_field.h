@@ -14,6 +14,7 @@
 #include "../../compiler_info.h"
 
 struct sharp_class;
+struct code_info;
 
 enum field_type {
     normal_field,
@@ -28,11 +29,13 @@ struct sharp_field {
         owner(NULL),
         implLocation(),
         dependencies(),
+        ci(NULL),
         flags(flag_none),
         fieldType(normal_field),
         closure(NULL),
         closureRef(NULL),
         staticClosure(false),
+        used(false),
         block(invalid_block_id),
         type(),
         ast(NULL),
@@ -51,10 +54,12 @@ struct sharp_field {
         dependencies(sf.dependencies),
         type(sf.type),
         flags(sf.flags),
+        ci(NULL),
         fieldType(sf.fieldType),
         closure(sf.closure),
         closureRef(sf.closureRef),
         staticClosure(sf.staticClosure),
+        used(sf.used),
         ast(sf.ast),
         block(sf.block),
         getter(sf.getter),
@@ -83,11 +88,13 @@ struct sharp_field {
             implLocation(location),
             dependencies(),
             type(),
+            ci(NULL),
             flags(flags),
             fieldType(ft),
             closure(NULL),
             closureRef(NULL),
             staticClosure(false),
+            used(false),
             block(invalid_block_id),
             ast(ast),
             getter(NULL),
@@ -116,6 +123,7 @@ struct sharp_field {
     sharp_function *setter;
     impl_location implLocation;
     List<dependency> dependencies;
+    code_info *ci;
     sharp_field* closure, *closureRef;
     operation_schema* scheme;
     injection_request *request;
@@ -123,6 +131,7 @@ struct sharp_field {
     field_type fieldType;
     Int block;
     bool staticClosure;
+    bool used;
     uInt flags;
     Ast* ast;
 };

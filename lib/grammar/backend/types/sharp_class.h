@@ -15,6 +15,8 @@
 #include "generic_type_identifier.h"
 #include "unresolved_extension_function.h"
 
+struct code_info;
+
 enum class_type {
     class_normal,
     class_enum,
@@ -39,9 +41,11 @@ struct sharp_class {
             implLocation(),
             dependencies(),
             ast(NULL),
+            ci(NULL),
             module(NULL),
             baseClass(NULL),
             genericBuilder(NULL),
+            used(false),
             functions(),
             generics(),
             aliases(),
@@ -71,8 +75,10 @@ struct sharp_class {
             implLocation(location),
             module(module),
             ast(ast),
+            ci(NULL),
             baseClass(NULL),
             genericBuilder(NULL),
+            used(false),
             dependencies(),
             owner(owner),
             children(),
@@ -117,6 +123,8 @@ struct sharp_class {
             baseClass(baseClass),
             dependencies(),
             owner(owner),
+            used(false),
+            ci(NULL),
             genericBuilder(NULL),
             children(),
             fullName(""),
@@ -147,7 +155,9 @@ struct sharp_class {
             implLocation(sc.implLocation),
             dependencies(sc.dependencies),
             ast(sc.ast),
+            used(sc.used),
             owner(sc.owner),
+            ci(NULL),
             children(sc.children),
             fullName(sc.fullName),
             functions(sc.functions),
@@ -190,10 +200,12 @@ struct sharp_class {
     List<sharp_function*> functions;
     List<sharp_function*> uncompiledLambdas; // todo: compile this list after all functions are compiled
     List<Ast*> mutations;
+    code_info *ci;
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
     class_type type;
     bool blueprintClass;
+    bool used;
 };
 
 string get_simple_name(sharp_class *);
