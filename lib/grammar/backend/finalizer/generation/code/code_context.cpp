@@ -94,16 +94,24 @@ void consume_machine_data() {
                 break;
             }
 
+            case function_numeric_data:
             case numeric_instance_field:
             case numeric_local_field: {
                 generation_error("attempting to consume numeric data instead of object!");
                 break;
             }
 
-            case class_object_data:
+            case generic_object_data:
+            case new_class_data:
             case field_object_data: {
                 // do nothing
                 cc.machineData.dataAddress = -1;
+                break;
+            }
+
+            case function_object_data:
+            case class_object_data: {
+                add_instruction(Opcode::Builder::popObject2());
                 break;
             }
         }
@@ -114,70 +122,142 @@ void consume_machine_data() {
     }
 }
 
-void consume_machine_data(internal_register *internalRegister) {
+void push_machine_data_to_stack() {
     if(cc.machineData.type != no_data) {
         switch(cc.machineData.type) {
             case no_data: break;
             case numeric_constant: {
-                if(internalRegister->type == normal_register) {
-                    add_instruction(Opcode::Builder::ldc(
-                            (_register) internalRegister->address, cc.machineData.dataAddress));
+                if (floor(constantMap.get(cc.machineData.dataAddress)) == constantMap.get(cc.machineData.dataAddress)) {
+                    add_instruction(Opcode::Builder::istore( // todo: check if number is < int32 max
+                            (opcode_arg)constantMap.get(cc.machineData.dataAddress)));
                 } else {
-                    add_instruction(Opcode::Builder::ldc(EGX, cc.machineData.dataAddress));
-                    add_instruction(Opcode::Builder::smovr2(EGX, internalRegister->address));
+                    add_instruction(Opcode::Builder::ldc(
+                            EGX, cc.machineData.dataAddress));
+                    add_instruction(Opcode::Builder::rstore(EGX));
                 }
                 break;
             }
             case string_constant: {
-                generation_error("attempting to consume string data into register!");
+                add_instruction(Opcode::Builder::newString(cc.machineData.dataAddress));
                 break;
             }
             case numeric_local_field: {
-                if(internalRegister->type == normal_register) {
-                    add_instruction(Opcode::Builder::loadl(
-                            (_register) internalRegister->address, cc.machineData.dataAddress));
-                } else {
-                    add_instruction(Opcode::Builder::smovr4(
-                            internalRegister->address, cc.machineData.dataAddress));
-                }
+                add_instruction(Opcode::Builder::ipushl(
+                        cc.machineData.dataAddress));
                 break;
             }
             case numeric_register_data: {
-
-                if(internalRegister->type == normal_register) {
-                    if(internalRegister->address != cc.machineData.dataAddress) {
-                        add_instruction(Opcode::Builder::movr(
-                                (_register) internalRegister->address, (_register) cc.machineData.dataAddress));
-                    }
-                } else {
-                    add_instruction(Opcode::Builder::smovr2(
-                            (_register) cc.machineData.dataAddress, internalRegister->address));
-                }
+                add_instruction(Opcode::Builder::rstore((_register) cc.machineData.dataAddress));
                 break;
             }
             case numeric_instance_field: {
-                if(internalRegister->type == normal_register) {
-                    add_instruction(Opcode::Builder::iload((_register) internalRegister->address));
-                } else {
-                    add_instruction(Opcode::Builder::iload(EGX));
-                    add_instruction(Opcode::Builder::smovr2(EGX, internalRegister->address));
-                }
+                consume_machine_data(get_register(EGX));
+                add_instruction(Opcode::Builder::rstore(EGX));
                 break;
             }
-            case class_object_data: {
-                generation_error("attempting to consume class object data into register!");
-                break;
-            }
+            case class_object_data:
+            case generic_object_data:
             case local_field_object_data:
             case field_object_data: {
-                generation_error("attempting to consume data object data into register!");
+                add_instruction(Opcode::Builder::pushObject());
                 break;
+            }
+
+            case function_object_data:
+            case function_numeric_data:
+            case new_class_data: {
+                // do nothing
+                cc.machineData.dataAddress = -1;
             }
         }
 
         cc.machineData.type = no_data;
     } else {
         generation_error("attempting to consume empty machine data!");
+    }
+}
+
+void consume_machine_data(internal_register *internalRegister) {
+    if(internalRegister != NULL) {
+        if (cc.machineData.type != no_data) {
+            switch (cc.machineData.type) {
+                case no_data:
+                    break;
+                case numeric_constant: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::ldc(
+                                (_register) internalRegister->address, cc.machineData.dataAddress));
+                    } else {
+                        add_instruction(Opcode::Builder::ldc(EGX, cc.machineData.dataAddress));
+                        add_instruction(Opcode::Builder::smovr2(EGX, internalRegister->address));
+                    }
+                    break;
+                }
+                case string_constant: {
+                    generation_error("attempting to consume string data into register!");
+                    break;
+                }
+                case numeric_local_field: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::loadl(
+                                (_register) internalRegister->address, cc.machineData.dataAddress));
+                    } else {
+                        add_instruction(Opcode::Builder::smovr4(
+                                internalRegister->address, cc.machineData.dataAddress));
+                    }
+                    break;
+                }
+                case numeric_register_data: {
+
+                    if (internalRegister->type == normal_register) {
+                        if (internalRegister->address != cc.machineData.dataAddress) {
+                            add_instruction(Opcode::Builder::movr(
+                                    (_register) internalRegister->address, (_register) cc.machineData.dataAddress));
+                        }
+                    } else {
+                        add_instruction(Opcode::Builder::smovr2(
+                                (_register) cc.machineData.dataAddress, internalRegister->address));
+                    }
+                    break;
+                }
+                case numeric_instance_field: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::iload((_register) internalRegister->address));
+                    } else {
+                        add_instruction(Opcode::Builder::iload(EGX));
+                        add_instruction(Opcode::Builder::smovr2(EGX, internalRegister->address));
+                    }
+                    break;
+                }
+                case function_numeric_data: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::loadValue((_register) internalRegister->address));
+                    } else {
+                        add_instruction(Opcode::Builder::loadValue(EGX));
+                        add_instruction(Opcode::Builder::smovr2(EGX, internalRegister->address));
+                    }
+                    break;
+                }
+                case class_object_data: {
+                    generation_error("attempting to consume class object data into register!");
+                    break;
+                }
+                case generic_object_data:
+                case local_field_object_data:
+                case new_class_data:
+                case function_object_data:
+                case field_object_data: {
+                    generation_error("attempting to consume data object data into register!");
+                    break;
+                }
+            }
+
+            cc.machineData.type = no_data;
+        } else {
+            generation_error("attempting to consume empty machine data!");
+        }
+    } else {
+        generation_error("attempt to consume data to unknown register!");
     }
 }
 
@@ -247,11 +327,20 @@ void decrement_machine_data(data_type type) {
                 add_instruction(Opcode::Builder::imov(EGX));
                 break;
             }
+            case function_numeric_data: {
+                consume_machine_data(get_register(EGX));
+                add_instruction(Opcode::Builder::dec(EGX));
+                set_machine_data(get_register(EGX));
+                break;
+            }
             case class_object_data: {
                 generation_error("attempting to consume class object data into register!");
                 break;
             }
+            case generic_object_data:
             case local_field_object_data:
+            case new_class_data:
+            case function_object_data:
             case field_object_data: {
                 generation_error("attempting to consume data object data into register!");
                 break;
@@ -306,11 +395,20 @@ void increment_machine_data(data_type type) {
                 add_instruction(Opcode::Builder::imov(EGX));
                 break;
             }
+            case function_numeric_data: {
+                consume_machine_data(get_register(EGX));
+                add_instruction(Opcode::Builder::inc(EGX));
+                set_machine_data(get_register(EGX));
+                break;
+            }
             case class_object_data: {
                 generation_error("attempting to consume class object data into register!");
                 break;
             }
+            case generic_object_data:
             case local_field_object_data:
+            case new_class_data:
+            case function_object_data:
             case field_object_data: {
                 generation_error("attempting to consume data object data into register!");
                 break;

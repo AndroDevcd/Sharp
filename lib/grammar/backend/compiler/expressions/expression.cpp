@@ -114,7 +114,7 @@ void compile_initialization_call( // todo: we need to add duplicate object suppo
             false);
 }
 
-void compile_class_function_overload(
+sharp_function* compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
@@ -137,11 +137,13 @@ void compile_class_function_overload(
 
         compile_function_call(&e.scheme, params, paramOperations, fun, false, false,
                               false);
+
         e.type.copy(fun->returnType);
+        return fun;
     } else {
         currThread->currTask->file->errors->createNewError(GENERIC, ast,
                 "use of operator `" + op + "` does not have any qualified overloads with class `" + with_class->fullName + "`");
-
+        return NULL;
     }
 }
 
@@ -156,6 +158,7 @@ void compile_function_call(
     if(scheme) {
         Int matchResult;
         List<operation_schema*> compiledParamOperations;
+
         for (Int i = 0; i < params.size(); i++) {
             sharp_type *asignee = &callee->parameters.get(i)->type;
             sharp_type *assigner = &params.get(i)->type;
@@ -169,8 +172,11 @@ void compile_function_call(
                 matchResult = is_explicit_type_match(*asignee, *assigner);
                 if (matchResult == no_match_found) {
                     matchResult = is_implicit_type_match(
-                            *asignee, *asignee, 0,
+                            *asignee, *assigner, constructor_only,
                             matchedConstructor);
+
+                    if(matchedConstructor != NULL)
+                        create_dependency(callee, matchedConstructor);
                 }
             }
 
@@ -187,9 +193,7 @@ void compile_function_call(
 
         if(isFunctionPointer) {
             ALLOCATE_REGISTER_1X(1, scheme,
-              create_pop_value_from_stack_operation(scheme);
-              create_retain_numeric_value_operation(scheme, register_1);
-              create_dynamic_function_call_operation(scheme, compiledParamOperations, register_1, false);
+              create_dynamic_function_call_operation(scheme, compiledParamOperations, callee, register_1, false);
            )
         } else if (isStaticCall) {
             create_static_function_call_operation(scheme, compiledParamOperations, callee);

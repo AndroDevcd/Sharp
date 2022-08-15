@@ -491,6 +491,7 @@ string code_to_string(code_info *info) {
             case Opcode::CALL:
             {
                 ss << "call @" << GET_Da(opcodeData);
+                ss << " // " << compressedCompilationFunctions.get(GET_Da(opcodeData))->fullName;
 
                 break;
             }

@@ -26,6 +26,16 @@ void process_not_value(operation_step *step);
 void process_negate_value(operation_step *step);
 void process_increment_value(operation_step *step);
 void process_decrement_value(operation_step *step);
+void process_static_function_call(operation_step *step);
+void process_instance_function_call(operation_step *step);
+void process_push_parameter_to_stack(operation_step *step);
+void process_create_class(operation_step *step);
+void process_duplicate_item(operation_step *step);
+void process_push_value_to_stack(operation_step *step);
+void process_allocate_register(operation_step *step);
+void process_deallocate_register(operation_step *step);
+void process_retain_numeric_value(operation_step *step);
+void process_call_dynamic_function(operation_step *step);
 
 void process_step(operation_step *step);
 

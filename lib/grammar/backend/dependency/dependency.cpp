@@ -1942,12 +1942,12 @@ bool resolve_local_function_pointer_field(
         process_field(field);
 
         create_local_field_access_operation(scheme, field);
-        create_push_to_stack_operation(scheme);
 
         compile_function_call(
                 scheme, params, item.operations,
                 field->type.fun, false, false, true
         );
+        field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
         if(field->type.type == type_class)
             create_dependency(ctx.functionCxt, field->type._class);
@@ -1985,7 +1985,6 @@ bool resolve_local_function_pointer_field(
 
                     create_static_field_access_operation(scheme, staticClosureRef);
                     create_instance_field_access_operation(scheme, closure);
-                    create_push_to_stack_operation(scheme);
 
                     compile_function_call(
                             scheme, params, item.operations,
@@ -2099,12 +2098,11 @@ bool resolve_primary_class_function_pointer_field(
             }
         }
 
-        create_push_to_stack_operation(scheme);
-
         compile_function_call(
                 scheme, params, item.operations,
-                field->type.fun, false, false, true
+                field->type.fun, true, false, true
         );
+        field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
         string fieldType = "field";
         check_access(fieldType, field->fullName,
@@ -2253,11 +2251,12 @@ bool resolve_global_class_function_pointer_field(
             }
         }
 
-        create_push_to_stack_operation(scheme);
         compile_function_call(
                 scheme, params, item.operations,
                 field->type.fun, false, false, true
         );
+
+        field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
         string fieldType = "field";
         check_access(fieldType, field->fullName,

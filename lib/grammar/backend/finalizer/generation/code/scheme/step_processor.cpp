@@ -74,7 +74,121 @@ void process_step(operation_step *step) {
         case operation_uint16_decrement:
         case operation_uint32_decrement:
         case operation_uint64_decrement:
-            return process_increment_value(step);
+            return process_decrement_value(step);
+        case operation_call_static_function:
+            return process_static_function_call(step);
+        case operation_push_parameter_to_stack:
+            return process_push_parameter_to_stack(step);
+        case operation_create_class:
+            return process_create_class(step);
+        case operation_duplicate_item:
+            return process_duplicate_item(step);
+        case operation_push_value_to_stack:
+            return process_push_value_to_stack(step);
+        case operation_allocate_register:
+            return process_allocate_register(step);
+        case operation_discard_register:
+            return process_deallocate_register(step);
+        case operation_retain_numeric_value:
+            return process_retain_numeric_value(step);
+        case operation_call_dynamic_function:
+            return process_call_dynamic_function(step);
+        case operation_call_instance_function:
+            return process_instance_function_call(step);
+    }
+}
+
+void process_retain_numeric_value(operation_step *step) {
+    validate_step_type(step, operation_retain_numeric_value);
+
+    auto reg = find_register(step->integer);
+    consume_machine_data(reg);
+}
+
+void process_deallocate_register(operation_step *step) {
+    validate_step_type(step, operation_discard_register);
+
+    release_register(find_register(step->integer));
+}
+
+void process_allocate_register(operation_step *step) {
+    validate_step_type(step, operation_allocate_register);
+
+    allocate_register(step->integer);
+}
+
+void process_duplicate_item(operation_step *step) {
+    validate_step_type(step, operation_duplicate_item);
+
+    add_instruction(Opcode::Builder::dup());
+}
+
+void process_create_class(operation_step *step) {
+    validate_step_type(step, operation_create_class);
+
+    add_instruction(Opcode::Builder::newClass(step->_class->ci->address));
+    set_machine_data(new_class_data);
+}
+
+void process_push_value_to_stack(operation_step *step) {
+    validate_step_type(step, operation_push_value_to_stack);
+
+    push_machine_data_to_stack();
+}
+
+void process_push_parameter_to_stack(operation_step *step) {
+    validate_step_type(step, operation_push_parameter_to_stack);
+
+    process_scheme(step->scheme);
+    push_machine_data_to_stack();
+}
+
+void process_instance_function_call(operation_step *step) {
+    validate_step_type(step, operation_call_instance_function);
+
+    add_instruction(Opcode::Builder::call(step->function->ci->address));
+
+    if(is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
+        set_machine_data(function_numeric_data);
+    } else if(step->function->returnType.type != type_nil){
+        set_machine_data(function_object_data);
+    }
+}
+
+void process_call_dynamic_function(operation_step *step) {
+    validate_step_type(step, operation_call_dynamic_function);
+
+    auto reg = find_register(step->integer);
+
+    if(reg != NULL) {
+        Int address = reg->address;
+        if(reg->address != normal_register) {
+            set_machine_data(reg);
+            consume_machine_data(get_register(EGX));
+            address = EGX;
+        }
+
+        add_instruction(Opcode::Builder::calld((_register) address));
+
+        if (is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
+            set_machine_data(function_numeric_data);
+        } else if (step->function->returnType.type != type_nil) {
+            set_machine_data(function_object_data);
+        }
+    } else {
+        generation_error("attempt to call dynamic function on unknown register!");
+    }
+}
+
+void process_static_function_call(operation_step *step) {
+    validate_step_type(step, operation_call_static_function);
+
+    add_instruction(Opcode::Builder::call(step->function->ci->address));
+
+    if(is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
+        set_machine_data(function_numeric_data);
+    } else if(step->function->returnType.type != type_nil){
+        set_machine_data(function_object_data);
     }
 }
 

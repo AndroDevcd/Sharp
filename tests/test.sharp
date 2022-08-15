@@ -2,7 +2,9 @@ mod main;
 
 foo : var = 9;
 
-def fep() := !foo;
+ll: (t: int)(_int8);
+
+def fep() := ll(8);
 
 def main() {
     fep();

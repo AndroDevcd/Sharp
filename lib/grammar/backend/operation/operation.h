@@ -45,6 +45,7 @@ enum operation_type {
     operation_get_decimal_constant,
     operation_negate_value,
     operation_create_class,
+    operation_duplicate_item,
     operation_int8_increment,
     operation_int16_increment,
     operation_int32_increment,
@@ -165,13 +166,14 @@ enum _operation_scheme {
     scheme_return,
     scheme_get_constant,
     scheme_line_info,
+    scheme_call_primary_class_instance_function,
+    scheme_call_instance_function,
+    scheme_call_dynamic_function,
+    scheme_call_static_function,
 
     scheme_access_local_field,
     scheme_call_getter_function,
     scheme_get_address,
-    scheme_call_instance_function,
-    scheme_call_static_function,
-    scheme_call_dynamic_function,
     scheme_new_class,
     scheme_get_size_of,
     scheme_nullify_value,
@@ -623,6 +625,7 @@ void create_static_function_call_operation(
 void create_dynamic_function_call_operation(
         operation_schema *scheme,
         List<operation_schema*> &paramScheme,
+        sharp_function *fun,
         Int registerId,
         bool resetState = true);
 

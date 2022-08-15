@@ -216,8 +216,9 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     List<sharp_field*> emptyParams;
                     List<operation_schema*> noOperations;
 
-                    compile_class_function_overload(
+                    auto fun = compile_class_function_overload(
                             field->type._class, *e, emptyParams, noOperations, op, ast);
+                    create_dependency(field, fun);
                 } else {
                     currThread->currTask->file->errors->createNewError(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");
@@ -372,8 +373,9 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                     params.add(new sharp_field(name, get_primary_class(&current_file->context),
                             location, type, flag_public, normal_field, ast));
 
-                    compile_class_function_overload(
+                    auto fun = compile_class_function_overload(
                             field->type._class, *e, params, operations, op, ast);
+                    create_dependency(field, fun);
                 } else {
                     currThread->currTask->file->errors->createNewError(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");

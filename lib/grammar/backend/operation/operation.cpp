@@ -526,10 +526,10 @@ void create_instance_not_eq_operation(
 
 void create_retain_numeric_value_operation(
         operation_schema *scheme,
-        Int retainId) {
+        Int registerId) {
     if(scheme) {
         scheme->steps.add(new operation_step(
-                operation_retain_numeric_value, retainId));
+                operation_retain_numeric_value, registerId));
     }
 }
 
@@ -850,7 +850,7 @@ void create_primary_class_function_call_operation(
         List<operation_schema*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
-        scheme->schemeType = scheme_call_instance_function;
+        scheme->schemeType = scheme_call_primary_class_instance_function;
         scheme->fun = fun;
         scheme->steps.add(new operation_step(
                 operation_get_primary_class_instance, fun->owner
@@ -1332,6 +1332,7 @@ void create_static_function_call_operation(
 void create_dynamic_function_call_operation(
         operation_schema *scheme,
         List<operation_schema*> &paramScheme,
+        sharp_function *fun,
         Int registerId,
         bool resetState) {
     if(scheme) {
@@ -1339,6 +1340,7 @@ void create_dynamic_function_call_operation(
 
         if(resetState) scheme->free();
 
+        create_retain_numeric_value_operation(scheme, registerId);
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
                     new operation_schema(*paramScheme.get(i)),
@@ -1348,6 +1350,7 @@ void create_dynamic_function_call_operation(
 
         scheme->steps.add(new operation_step(
                 operation_call_dynamic_function, registerId));
+        scheme->steps.last()->function = fun;
     }
 }
 
@@ -1374,10 +1377,22 @@ void create_function_parameter_push_operation(
                         )
                 );
 
+                resultScheme->steps.add(
+                        new operation_step(operation_duplicate_item)
+                );
+
                 List<operation_schema*> scheme;
                 scheme.add(paramScheme);
+                operation_schema *tmp = new operation_schema();
                 create_instance_function_call_operation(
-                        resultScheme, scheme, constructor);
+                        tmp, scheme, constructor);
+
+
+                resultScheme->steps.add(
+                        new operation_step(operation_step_scheme, tmp)
+                );
+
+                delete tmp;
                 scheme.free();
             }
         }

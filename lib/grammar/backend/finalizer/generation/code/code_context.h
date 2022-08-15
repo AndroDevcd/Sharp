@@ -23,7 +23,11 @@ enum machine_data_type {
     class_object_data,
     field_object_data,
     local_field_object_data,
-    numeric_register_data
+    numeric_register_data,
+    generic_object_data,
+    new_class_data,
+    function_object_data,
+    function_numeric_data
 };
 
 struct machine_data {
@@ -70,7 +74,8 @@ void set_machine_data(internal_register *internalRegister, bool force = false);
 void set_machine_data(sharp_field *field, bool localField, bool force = false);
 void set_machine_data(machine_data_type dataType, Int dataAddr, bool force = false);
 void set_machine_data(machine_data_type dataType);
-void consume_machine_data(); // consumes to ebx
+void push_machine_data_to_stack();
+void consume_machine_data();
 void consume_machine_data(internal_register *);
 void increment_machine_data(data_type);
 void decrement_machine_data(data_type);

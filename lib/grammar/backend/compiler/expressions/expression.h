@@ -59,7 +59,7 @@ void compile_initialization_call(
         expression &e,
         operation_schema *scheme);
 
-void compile_class_function_overload(
+sharp_function* compile_class_function_overload(
         sharp_class *with_class,
         expression &e,
         List<sharp_field*> &params,
