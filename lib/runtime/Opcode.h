@@ -254,6 +254,9 @@
             &&IS,                                   \
             &&MOV_ABS,                                   \
             &&LOAD_ABS                                   \
+            &&ILOAD,                                   \
+            &&SMOVR_4,                                   \
+            &&IMOV                                   \
         };
 
 typedef unsigned int opcode_instr;
@@ -386,6 +389,9 @@ public:
         static const uint8_t IS           = 0x77;
         static const uint8_t MOV_ABS      = 0x78;
         static const uint8_t LOAD_ABS     = 0x79;
+        static const uint8_t ILOAD        = 0x7a;
+        static const uint8_t SMOVR_4      = 0x7b;
+        static const uint8_t IMOV         = 0x7c;
 
         enum instr_class {
             E_CLASS,
@@ -429,6 +435,7 @@ public:
         static opcode_instr dec(_register outRegister);
         static opcode_instr movr(_register outRegister, _register inRegister);
         static opcode_instr iaload(_register outRegister, _register indexRegister);
+        static opcode_instr iload(_register outRegister);
         static opcode_instr brh();
         static opcode_instr ife();
         static opcode_instr ifne();
@@ -492,11 +499,13 @@ public:
         static opcode_instr orl(_register inRegister, opcode_arg relStackAddress);
         static opcode_instr xorl(_register inRegister, opcode_arg relStackAddress);
         static opcode_instr rmov(_register indexRegister, _register inRegister);
+        static opcode_instr imov(_register inRegister);
         static opcode_instr smov(_register outRegister, opcode_arg relStackAddress);
         static opcode_instr returnValue(_register inRegister);
         static opcode_instr* istore(opcode_arg value);
         static opcode_instr smovr2(_register inRegister, opcode_arg relFrameAddress);
         static opcode_instr smovr3(opcode_arg relFrameAddress);
+        static opcode_instr* smovr4(opcode_arg relFrameAddress1, opcode_arg relFrameAddress2);
         static opcode_instr* istorel(opcode_arg relFrameAddress, opcode_arg integerValue);
         static opcode_instr popl(opcode_arg relFrameAddress);
         static opcode_instr pushNull();

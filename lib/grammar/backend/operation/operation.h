@@ -27,6 +27,7 @@ enum operation_type {
     operation_get_instance_field_value,
     operation_get_static_class_instance,
     operation_get_primary_class_instance,
+    operation_get_tls_field_value,
     operation_call_instance_function,
     operation_call_static_function,
     operation_call_dynamic_function,
@@ -156,13 +157,21 @@ enum _operation_scheme {
     scheme_access_instance_field,
     scheme_access_static_field,
     scheme_access_tls_field,
+    scheme_negate_value,
+    scheme_inc_value,
+    scheme_dec_value,
+    scheme_not_value,
+    scheme_master,
+    scheme_return,
+    scheme_get_constant,
+    scheme_line_info,
+
     scheme_access_local_field,
     scheme_call_getter_function,
     scheme_get_address,
     scheme_call_instance_function,
     scheme_call_static_function,
     scheme_call_dynamic_function,
-    scheme_get_constant,
     scheme_new_class,
     scheme_get_size_of,
     scheme_nullify_value,
@@ -171,13 +180,12 @@ enum _operation_scheme {
     scheme_new_object_array,
     scheme_get_array_value,
     scheme_get_casted_value,
+    scheme_increment_for_index_value,
     scheme_get_primary_class_instance,
     scheme_check_type,
     scheme_null_fallback,
     scheme_assign_value,
     scheme_get_numeric_value,
-    scheme_line_info,
-    scheme_return,
     scheme_lock_data,
     scheme_unlock_data,
     scheme_if,
@@ -186,7 +194,6 @@ enum _operation_scheme {
     scheme_label,
     scheme_for,
     scheme_for_each,
-    scheme_increment_value,
     scheme_for_each_position_check,
     scheme_while,
     scheme_throw,
@@ -573,6 +580,11 @@ void create_primary_instance_field_access_operation(
         operation_schema *scheme,
         sharp_field *instanceField);
 
+void create_tls_field_access_operation(
+        operation_schema *scheme,
+        sharp_field *tlsField,
+        bool resetState = true);
+
 void add_scheme_operation(
         operation_schema *scheme,
         operation_schema *valueScheme);
@@ -629,15 +641,21 @@ void create_get_integer_constant_operation(
 
 void create_get_decimal_constant_operation(
         operation_schema *scheme,
-        long double decimal);
+        long double decimal,
+        bool resetState = true,
+        bool setType = true);
 
 void create_get_char_constant_operation(
         operation_schema *scheme,
-        char _char);
+        char _char,
+        bool resetState = true,
+        bool setType = true);
 
 void create_get_bool_constant_operation(
         operation_schema *scheme,
-        bool _bool);
+        bool _bool,
+        bool resetState = true,
+        bool setType = true);
 
 void create_get_string_constant_operation(
         operation_schema *scheme,
@@ -843,7 +861,7 @@ void create_instance_not_eq_operation(
 
 #define APPLY_TEMP_SCHEME(scheme_num, scheme, code) \
             operation_schema scheme_##scheme_num; \
-             code                                   \
+             {code}                                   \
             (scheme).steps.add(new operation_step(operation_step_scheme, &(scheme_##scheme_num)));
 
 #define APPLY_TEMP_SCHEME_WITHOUT_INJECT(scheme_num, code) \

@@ -36,6 +36,20 @@ void create_static_field_access_operation(
     }
 }
 
+void create_tls_field_access_operation(
+        operation_schema *scheme,
+        sharp_field *tlsField,
+        bool resetState) {
+    if(scheme) {
+        if(resetState) scheme->free();
+        scheme->schemeType = scheme_access_tls_field;
+        scheme->field = tlsField;
+
+        scheme->steps.add(new operation_step(
+                operation_get_tls_field_value, tlsField));
+    }
+}
+
 void create_primary_instance_field_access_operation(
         operation_schema *scheme,
         sharp_field *instanceField) {
@@ -897,9 +911,13 @@ void create_get_integer_constant_operation(
 
 void create_get_decimal_constant_operation(
         operation_schema *scheme,
-        long double decimal) {
-    scheme->schemeType = scheme_get_constant;
-    scheme->free();
+        long double decimal,
+        bool resetState,
+        bool setType) {
+    if(setType)
+        scheme->schemeType = scheme_get_constant;
+    if(resetState)
+        scheme->free();
 
     scheme->steps.add(new operation_step(
             operation_get_decimal_constant, decimal));
@@ -917,9 +935,13 @@ void create_line_record_operation(
 
 void create_get_char_constant_operation(
         operation_schema *scheme,
-        char _char) {
-    scheme->free();
-    scheme->schemeType = scheme_get_constant;
+        char _char,
+        bool resetState,
+        bool setType) {
+    if(setType)
+        scheme->schemeType = scheme_get_constant;
+    if(resetState)
+        scheme->free();
 
     scheme->steps.add(new operation_step(
             operation_get_char_constant, _char));
@@ -927,9 +949,14 @@ void create_get_char_constant_operation(
 
 void create_get_bool_constant_operation(
         operation_schema *scheme,
-        bool _bool) {
-    scheme->free();
-    scheme->schemeType = scheme_get_constant;
+        bool _bool,
+        bool resetState,
+        bool setType) {
+    if(setType)
+        scheme->schemeType = scheme_get_constant;
+    if(resetState)
+        scheme->free();
+
 
     scheme->steps.add(new operation_step(
             operation_get_bool_constant, _bool));

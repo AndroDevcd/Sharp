@@ -47,16 +47,19 @@ void process_field(sharp_field *field) {
             }
         }
 
+        if(field->name == "feep") {
+            int r = 0;
+        }
         if(field->ast->hasToken(COLON)) {
             sharp_type type = resolve(field->ast->getSubAst(ast_utype));
             validate_field_type(true, field, type, NULL, field->ast);
-        } else {
+        } else if(ast->hasSubAst(ast_expression)) {
             field->type.type = type_untyped;
-            if(current_file->stage > pre_compilation_state) {
-                return compile_field(field, field->ast);
+            if(current_file->stage >= pre_compilation_state) {
+                expression e;
+                compile_expression(e, ast->getSubAst(ast_expression));
+                validate_field_type(false, field, e.type, &e.scheme, field->ast);
             }
-
-            return;
         }
 
         if(field->type.type != type_undefined) {
@@ -112,6 +115,11 @@ void process_setter(sharp_field *field, Ast *ast) {
                                "cannot apply setter to constant field `" + field->name + "`");
     }
 
+    if(field->fieldType == tls_field) {
+        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                               "cannot apply setter to thread_local field `" + field->name + "`");
+    }
+
     List<sharp_field*> fields;
     impl_location location(currThread->currTask->file, ast);
     fields.add(new sharp_field(
@@ -155,6 +163,12 @@ void process_getter(sharp_field *field, Ast *ast) {
         flags |= flag_private;
     else if(check_flag(field->flags, flag_protected))
         flags |= flag_protected;
+
+
+    if(field->fieldType == tls_field) {
+        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                                                           "cannot apply getter to thread_local field `" + field->name + "`");
+    }
 
     List<sharp_field*> fields;
 

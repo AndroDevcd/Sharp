@@ -577,6 +577,11 @@ void Thread::exec() {
                                 this_fiber->ptr->object->HEAD[(Int)registers[GET_Cb(*this_fiber->pc)]];
                 )
                 _brh
+            ILOAD:
+                CHECK_NULLVAR(
+                        registers[GET_Da(*this_fiber->pc)] = this_fiber->ptr->object->HEAD[0];
+                )
+                _brh
             POPOBJ:
                 CHECK_NULL(
                         *this_fiber->ptr = (this_fiber->sp--)->object;
@@ -591,6 +596,9 @@ void Thread::exec() {
             SMOVR_3:
                 (this_fiber->fp+GET_Da(*this_fiber->pc))->object=this_fiber->ptr;
                 _brh
+            SMOVR_4:
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var=(this_fiber->fp+((int32_t)*(this_fiber->pc+1)))->var;
+            _brh_inc(2)
             ANDL:
                 (this_fiber->fp+GET_Cb(*this_fiber->pc))->andl(registers[GET_Ca(*this_fiber->pc)]);
                 _brh
@@ -607,6 +615,12 @@ void Thread::exec() {
 
                         this_fiber->ptr->object->HEAD[(Int)registers[GET_Ca(*this_fiber->pc)]]=
                                 registers[GET_Cb(*this_fiber->pc)];
+                )
+                _brh
+            IMOV:
+                CHECK_NULLVAR(
+                        this_fiber->ptr->object->HEAD[0]=
+                                registers[GET_Da(*this_fiber->pc)];
                 )
                 _brh
             NEG:

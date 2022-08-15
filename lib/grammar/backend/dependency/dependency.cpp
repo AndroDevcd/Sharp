@@ -931,8 +931,6 @@ bool resolve_primary_class_field(
 
     sharp_field *field;
     if((field = resolve_field(item.name, primaryClass, true)) != NULL) {
-        resultType.type = type_field;
-        resultType.field = field;
         process_field(field);
 
         if(ctx.isStatic && !check_flag(field->flags, flag_static)
@@ -966,14 +964,25 @@ bool resolve_primary_class_field(
                 }
                 create_dependency(ctx.functionCxt, field->getter);
             } else {
-                if (!isSelfInstance) {
-                    if(isStatic)
-                        create_static_field_access_operation(scheme, field);
-                    else
-                        create_instance_field_access_operation(scheme, field);
+                if(field->fieldType == tls_field) {
+                    if(!isSelfInstance && !isStatic) {
+                        create_new_warning(GENERIC, __w_access, item.ast,
+                                           "accessing static thread_local field `" + field->fullName + "` through instance.");
+                    }
+
+                    create_tls_field_access_operation(scheme, field, false);
+                } else {
+                    if (!isSelfInstance) {
+                        if (isStatic)
+                            create_static_field_access_operation(scheme, field);
+                        else
+                            create_instance_field_access_operation(scheme, field);
+                    } else create_primary_instance_field_access_operation(scheme, field);
                 }
-                else create_primary_instance_field_access_operation(scheme, field);
             }
+
+            resultType.type = type_field;
+            resultType.field = field;
         }
 
         string fieldType = "field";
@@ -1183,7 +1192,10 @@ bool resolve_global_class_field(
             create_static_field_getter_operation(scheme, field);
             create_dependency(ctx.functionCxt, field->getter);
         } else {
-            create_static_field_access_operation(scheme, field);
+            if(field->fieldType == tls_field) {
+                create_tls_field_access_operation(scheme, field, false);
+            } else
+                create_static_field_access_operation(scheme, field);
         }
 
 
@@ -1425,8 +1437,15 @@ void resolve_normal_item(
 
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
-            if(hasFilter(filter, resolve_filter_class_field)
+            if(!context.isStatic && hasFilter(filter, resolve_filter_class_field)
                && resolve_primary_class_field(item, primaryClass, true, false, resultType, scheme, context)) {
+
+                hardType = false;
+                return;
+            }
+
+            if(context.isStatic && hasFilter(filter, resolve_filter_class_field)
+               && resolve_primary_class_field(item, primaryClass, false, true, resultType, scheme, context)) {
 
                 hardType = false;
                 return;
@@ -1514,8 +1533,15 @@ void resolve_normal_item(
         }
 
         if(primaryClass != NULL) {
-            if (hasFilter(filter, resolve_filter_function_address)
+            if (!context.isStatic && hasFilter(filter, resolve_filter_function_address)
                 && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
+
+                hardType = false;
+                return;
+            }
+
+            if (context.isStatic && hasFilter(filter, resolve_filter_function_address)
+                && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
 
                 hardType = false;
                 return;
@@ -2055,13 +2081,21 @@ bool resolve_primary_class_function_pointer_field(
                 }
                 create_dependency(ctx.functionCxt, field->getter);
             } else {
-                if (!isPrimaryClass) {
-                    if(isStaticCall)
-                        create_static_field_access_operation(scheme, field);
-                    else
-                        create_instance_field_access_operation(scheme, field);
+                if(field->fieldType == tls_field) {
+                    if(!isPrimaryClass && !isStaticCall) {
+                        create_new_warning(GENERIC, __w_access, item.ast,
+                                           "accessing static thread_local field `" + field->fullName + "` through instance.");
+                    }
+
+                    create_tls_field_access_operation(scheme, field, false);
+                } else {
+                    if (!isPrimaryClass) {
+                        if (isStaticCall)
+                            create_static_field_access_operation(scheme, field);
+                        else
+                            create_instance_field_access_operation(scheme, field);
+                    } else create_primary_instance_field_access_operation(scheme, field);
                 }
-                else create_primary_instance_field_access_operation(scheme, field);
             }
         }
 
@@ -2212,7 +2246,11 @@ bool resolve_global_class_function_pointer_field(
             create_static_field_getter_operation(scheme, field);
             create_dependency(ctx.functionCxt, field->getter);
         } else {
-            create_static_field_access_operation(scheme, field);
+            if(field->fieldType == tls_field) {
+                create_tls_field_access_operation(scheme, field, false);
+            } else {
+                create_static_field_access_operation(scheme, field);
+            }
         }
 
         create_push_to_stack_operation(scheme);
@@ -2361,7 +2399,7 @@ void resolve_function_reference_item(
 
         if(context.type == block_context
            && hasFilter(filter, resolve_filter_local_field)
-           && resolve_local_function_pointer_field(
+           && resolve_local_function_pointer_field( // todo: make sure thread_local modifier is not allowed on local fields
                 item, resultType, scheme, context)) {
 
             hardType = false;

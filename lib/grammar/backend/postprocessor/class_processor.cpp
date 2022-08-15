@@ -43,7 +43,7 @@ void post_process() {
             continue;
         }
 
-        switch(trunk->getType()) {
+        switch(trunk->getType()) { // todo process all functions first
             case ast_interface_decl:
             case ast_class_decl:
                 process_class(globalClass, NULL, trunk);

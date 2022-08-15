@@ -65,7 +65,7 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
                 GUARD(globalLock)
 
                 if(init_function->scheme == NULL)
-                    init_function->scheme = new operation_schema();
+                    init_function->scheme = new operation_schema(scheme_master);
 
                 APPLY_TEMP_SCHEME(0, (*init_function->scheme),
                      create_get_value_operation(&scheme_0, &valueScheme);

@@ -13,6 +13,7 @@
 #include "sharp_type.h"
 #include "function_type.h"
 
+struct code_info;
 struct sharp_class;
 struct sharp_field;
 
@@ -30,6 +31,7 @@ struct sharp_function {
             ast(NULL),
             closure(NULL),
             scheme(NULL),
+            ci(NULL),
             used(false),
             parameters(),
             returnType(),
@@ -58,7 +60,8 @@ struct sharp_function {
             type(sf.type),
             closure(sf.closure),
             directlyCopyParams(sf.directlyCopyParams),
-            scheme(NULL)
+            scheme(NULL),
+            ci(NULL)
     {
         copy_parameters(sf.parameters);
         copy_locals(sf.locals);
@@ -92,7 +95,8 @@ struct sharp_function {
             used(false),
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
-            closure(NULL)
+            closure(NULL),
+            ci(NULL)
     {
         this->returnType.copy(returnType);
         if(!directlyCopyParams)
@@ -124,7 +128,7 @@ struct sharp_function {
     sharp_type returnType;
     function_type type;
     bool used;
-
+    code_info *ci;
     uInt flags;
     Ast* ast;
     bool directlyCopyParams; // we need to do this for get() expressions to preserve the resolved type definition found

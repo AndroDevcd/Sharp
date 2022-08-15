@@ -190,6 +190,10 @@ opcode_instr OpBuilder::iaload(_register outRegister, _register indexRegister) {
     return SET_Ci(tmpInstr, IALOAD, outRegister, POSITIVE, indexRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::iload(_register outRegister) {
+    return SET_Di(tmpInstr, ILOAD, outRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::brh() {
     return SET_Ei(tmpInstr, BRH);
 }
@@ -512,6 +516,10 @@ opcode_instr OpBuilder::xorl(_register inRegister, opcode_arg relStackAddress) {
     return SET_Ci(tmpInstr, XORL, inRegister, POSITIVE, abs(relStackAddress), posNeg(relStackAddress));
 }
 
+opcode_instr OpBuilder::imov(_register inRegister) {
+    return SET_Di(tmpInstr, IMOV, inRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::rmov(_register indexRegister, _register inRegister) {
     return SET_Ci(tmpInstr, RMOV, indexRegister, POSITIVE, inRegister, POSITIVE);
 }
@@ -529,6 +537,14 @@ opcode_instr* OpBuilder::istore(opcode_arg value) {
 
     instruction_Buffer[0] = SET_Ei(tmpInstr, ISTORE);
     instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
+opcode_instr* OpBuilder::smovr4(opcode_arg relFrameAddress1, opcode_arg relFrameAddress2) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, ISTOREL, abs(relFrameAddress1), posNeg(relFrameAddress1));
+    instruction_Buffer[1] = relFrameAddress2;
     return instruction_Buffer;
 }
 

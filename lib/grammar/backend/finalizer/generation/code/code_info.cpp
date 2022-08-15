@@ -3,12 +3,24 @@
 //
 
 #include "code_info.h"
+#include "../generator.h"
+
+void line_info::copy(const line_info &li) {
+    start_pc = li.start_pc;
+    line = li.line;
+}
 
 void code_info::copy(const code_info &ci) {
     free();
 
     address = ci.address;
+    uuid = ci.uuid;
+    stackSize = ci.stackSize;
     code.addAll(ci.code);
+
+    for(Int i = 0; i < ci.lineTable.size(); i++) {
+        lineTable.add(new line_info(*ci.lineTable.get(i)));
+    }
 }
 
 void code_info::free() {
@@ -328,6 +340,13 @@ string code_to_string(code_info *info) {
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ILOAD:
+            {
+                ss<<"iload ";
+                ss<< register_to_str(GET_Da(opcodeData));
 
                 break;
             }
@@ -688,7 +707,7 @@ string code_to_string(code_info *info) {
             }
             case Opcode::NEWSTRING:
             {
-                ss << "newstr @" << GET_Da(opcodeData);
+                ss << "newstr @" << GET_Da(opcodeData) << " (" << stringMap.get(GET_Da(opcodeData)) << ")";
 
                 break;
             }
@@ -842,6 +861,13 @@ string code_to_string(code_info *info) {
 
                 break;
             }
+            case Opcode::IMOV:
+            {
+                ss<<"imov ";
+                ss<< register_to_str(GET_Da(opcodeData));
+
+                break;
+            }
             case Opcode::SMOV:
             {
                 ss<<"smov ";
@@ -977,7 +1003,7 @@ string code_to_string(code_info *info) {
                 ss<<"ldc ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 if(GET_Cb(opcodeData) >= 0)
-                    ss<< " @ " << GET_Cb(opcodeData);
+                    ss<< " @ " << GET_Cb(opcodeData) << " (" << constantMap.get(GET_Cb(opcodeData)) << ")";
 
                 break;
             }
@@ -1007,6 +1033,15 @@ string code_to_string(code_info *info) {
                 ss<< " -> ";
                 x++;
                 ss << "@ " << (int32_t)code.get(x);
+                break;
+            }
+            case Opcode::SMOVR_4:
+            {
+                ss<<"smovr_4 fp+";
+                ss<< GET_Da(opcodeData);
+                ss<< " <- ";
+                x++;
+                ss << "fp+" << (int32_t)code.get(x);
                 break;
             }
             case Opcode::LOAD_ABS:

@@ -114,7 +114,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
 
     create_set_label_operation(subScheme, beginLabel);
 
-    APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_increment_value, *subScheme,
+    APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_increment_for_index_value, *subScheme,
         create_local_field_access_operation(&scheme_0, indexField);
         create_increment_operation(&scheme_0, indexField->type.type);
     )

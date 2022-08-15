@@ -143,9 +143,11 @@ void compile_initialization_paring(sharp_class* with_class) {
     for(Int i = 0; i < with_class->functions.size(); i++) {
         if(with_class->functions.get(i)->type == constructor_function) {
             if(with_class->functions.get(i)->scheme == NULL)
-                with_class->functions.get(i)->scheme = new operation_schema();
+                with_class->functions.get(i)->scheme = new operation_schema(scheme_master);
 
-            compile_function_call(with_class->functions.get(i)->scheme, params, paramOperations, function, false, true, false);
+            APPLY_TEMP_SCHEME(0, *with_class->functions.get(i)->scheme,
+                 compile_function_call(&scheme_0, params, paramOperations, function, false, true, false);
+            )
         }
     }
 

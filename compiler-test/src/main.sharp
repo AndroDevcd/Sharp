@@ -1,16 +1,15 @@
 mod main;
 
-fark := 9;
+thread_local fark := 9;
 
-feep := fark;
+feep : var = -1;
 
 def main() {
+  foo(8);
   println("hello, world! $feep");
 }
 
-def foo(n: _int64) : int {
-    return n + 1;
-}
+def foo(n: _int64) : _int8 = !feep;
 
 class x {
 

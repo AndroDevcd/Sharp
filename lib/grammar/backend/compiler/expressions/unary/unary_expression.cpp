@@ -14,6 +14,18 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
     if(e->type == type_undefined)
         return;
 
+    operation_schema *schema = new operation_schema();
+    if(op == "-")
+        schema->schemeType = scheme_negate_value;
+    else if(op == "++")
+        schema->schemeType = scheme_inc_value;
+    else if(op == "--")
+        schema->schemeType = scheme_dec_value;
+    else if(op == "!")
+        schema->schemeType = scheme_not_value;
+
+    create_get_value_operation(schema, &e->scheme, false, false);
+
     if(e->type.isArray) {
         currThread->currTask->file->errors->createNewError(GENERIC, ast,
                                                            "expression of type `" + type_to_str(e->type) + "` must be of type `class` or numeric to use `" + op + "` operator");
@@ -58,7 +70,12 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 }
 
 
-                create_get_integer_constant_operation(&e->scheme, value);
+                schema->free();
+                create_get_integer_constant_operation(schema, value, false, false);
+
+                e->type.integer = value;
+                e->scheme.free();
+                e->scheme.copy(*schema);
                 break;
             }
 
@@ -81,7 +98,12 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 }
 
 
-                create_get_integer_constant_operation(&e->scheme, value);
+                schema->free();
+                create_get_integer_constant_operation(schema, value, false, false);
+
+                e->type._char = value;
+                e->scheme.free();
+                e->scheme.copy(*schema);
                 break;
             }
 
@@ -89,7 +111,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 bool value = false;
 
                 if(op == "-") {
-                    value = -e->type._bool;
+                    value = !e->type._bool;
                 } else if(op == "++" || op == "--") {
                     currThread->currTask->file->errors->createNewError(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` on bool expression");
@@ -103,7 +125,12 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     create_new_warning(GENERIC, __w_general, ast->line, ast->col, ss.str());
                 }
 
-                create_get_bool_constant_operation(&e->scheme, value);
+                schema->free();
+                create_get_bool_constant_operation(schema, value, false, false);
+
+                e->type._bool = value;
+                e->scheme.free();
+                e->scheme.copy(*schema);
                 break;
             }
 
@@ -134,7 +161,12 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     create_new_warning(GENERIC, __w_general, ast->line, ast->col, ss.str());
                 }
 
-                create_get_decimal_constant_operation(&e->scheme, value);
+                e->type.decimal = value;
+                schema->free();
+                create_get_decimal_constant_operation(schema, value, false, false);
+
+                e->scheme.free();
+                e->scheme.copy(*schema);
                 break;
             }
 
@@ -149,13 +181,16 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
             case type_var: {
 
                 if(op == "-")
-                    create_negate_operation(&e->scheme);
+                    create_negate_operation(schema);
                 else if(op == "++")
-                    create_increment_operation(&e->scheme, e->type.type);
+                    create_increment_operation(schema, e->type.type);
                 else if(op == "--")
-                    create_decrement_operation(&e->scheme, e->type.type);
+                    create_decrement_operation(schema, e->type.type);
                 else if(op == "!")
-                    create_not_operation(&e->scheme);
+                    create_not_operation(schema);
+
+                e->scheme.free();
+                e->scheme.copy(*schema);
                 break;
             }
 
@@ -165,15 +200,18 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 if((field->type.type >= type_int8 && field->type.type <= type_uint64)
                    || field->type.type == type_var) {
                     if(op == "-")
-                        create_negate_operation(&e->scheme);
+                        create_negate_operation(schema);
                     else if(op == "++")
-                        create_increment_operation(&e->scheme, e->type.type);
+                        create_increment_operation(schema, field->type.type);
                     else if(op == "--")
-                        create_decrement_operation(&e->scheme, e->type.type);
+                        create_decrement_operation(schema, field->type.type);
                     else if(op == "!")
-                        create_not_operation(&e->scheme);
+                        create_not_operation(schema);
 
                     e->type.type = field->type.type;
+
+                    e->scheme.free();
+                    e->scheme.copy(*schema);
                 } else if(field->type.type == type_class) {
                     List<sharp_field*> emptyParams;
                     List<operation_schema*> noOperations;
@@ -193,6 +231,8 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 break;
             }
         }
+
+        delete schema;
     }
 }
 
@@ -313,9 +353,9 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                     create_push_to_stack_operation(&e->scheme);
 
                     if(op == "++")
-                        create_increment_operation(&e->scheme, e->type.type);
+                        create_increment_operation(&e->scheme, field->type.type);
                     else if(op == "--")
-                        create_decrement_operation(&e->scheme, e->type.type);
+                        create_decrement_operation(&e->scheme, field->type.type);
 
                     create_pop_value_from_stack_operation(&e->scheme);
                     e->type.type = field->type.type;

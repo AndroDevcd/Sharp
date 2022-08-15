@@ -43,7 +43,7 @@ enum error_type
     DUPlICATE_DECLIRATION = 27,
     NULLABILITY_MISMATCH = 28,
 
-    NO_ERR = 999
+    NOT_AN_ERR = 999
 };
 
 static std::list<KeyPair<error_type, string>> predefinedErrors;
@@ -57,7 +57,7 @@ public:
             :
             error()
     {
-        id = NO_ERR;
+        id = NOT_AN_ERR;
         line = -1;
         col = -1;
     }

@@ -8,6 +8,7 @@
 #include "../../taskdelegator/task_delegator.h"
 #include "../../compiler_info.h"
 #include "../operation/operation.h"
+#include "../finalizer/generation/code/code_info.h"
 
 bool is_fully_qualified_function(sharp_function* function) {
     if(!function->parameters.empty()) {
@@ -154,6 +155,7 @@ void sharp_function::free() {
     deleteList(aliases);
     deleteList(labels);
     delete scheme; scheme = NULL;
+    delete ci; ci = NULL;
 }
 
 void sharp_function::copy_parameters(const List<sharp_field *> &params) {

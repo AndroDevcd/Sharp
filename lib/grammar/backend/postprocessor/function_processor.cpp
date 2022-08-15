@@ -217,6 +217,9 @@ void process_function_return_type(sharp_function *fun) {
         GUARD(globalLock)
         fun->returnType.type = type_undefined;
 
+        if(fun->name == "foo") {
+            int r = 0;
+        }
         create_context(fun->owner);
         create_context(fun);
         create_block(&current_context, normal_block);

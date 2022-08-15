@@ -1,0 +1,9 @@
+mod main;
+
+foo : var = 9;
+
+def fep() := !foo;
+
+def main() {
+    fep();
+}

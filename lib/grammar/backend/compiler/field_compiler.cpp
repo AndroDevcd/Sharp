@@ -48,7 +48,7 @@ void compile_static_closure_reference(sharp_field *field) {
 
         if (function != NULL) {
             if(function->scheme == NULL)
-                function->scheme = new operation_schema();
+                function->scheme = new operation_schema(scheme_master);
 
             APPLY_TEMP_SCHEME(0, (*function->scheme),
                  create_new_class_operation(&scheme_0, field->type._class);
@@ -65,25 +65,9 @@ void compile_static_closure_reference(sharp_field *field) {
     }
 }
 
-void compile_field(sharp_class *with_class, Ast *ast) {
-    string name;
-    if(parser::isStorageType(ast->getToken(0))) {
-        name = ast->getToken(1).getValue();
-    } else name = ast->getToken(0).getValue();
-
-    sharp_field *field = resolve_field(name, with_class);
-
-    compile_field(field, ast);
-
-    if(field->getter) {
-        compile_function(field->getter, field->getter->ast);
-    }
-
-    if(field->setter) {
-        compile_function(field->setter, field->setter->ast);
-    }
-
+void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field *field) {
     GUARD2(globalLock)
+    string name;
     if(field->fieldType == normal_field && field->scheme) {
         sharp_function *function;
         List<sharp_field*> params;
@@ -105,7 +89,7 @@ void compile_field(sharp_class *with_class, Ast *ast) {
                         void_type, ast, function
                 );
 
-                function->scheme = new operation_schema();
+                function->scheme = new operation_schema(scheme_master);
             }
         } else {
 
@@ -124,11 +108,11 @@ void compile_field(sharp_class *with_class, Ast *ast) {
                         void_type, ast, function
                 );
 
-                function->scheme = new operation_schema();
+                function->scheme = new operation_schema(scheme_master);
             }
         }
 
-        create_dependency(field, function);
+        create_dependency(function, field);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     } else if(field->scheme) {
         sharp_function *function;
@@ -144,11 +128,54 @@ void compile_field(sharp_class *with_class, Ast *ast) {
         );
 
         if(function->scheme == NULL) {
-            function->scheme = new operation_schema();
+            function->scheme = new operation_schema(scheme_master);
         }
 
-        create_dependency(field, function);
+        create_dependency(function, field);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
+    }
+}
+
+// todo: come back later and support updating fields with closures attached to them as well
+void compile_field(sharp_class *with_class, Ast *ast) {
+    string name;
+    if(parser::isStorageType(ast->getToken(0))) {
+        name = ast->getToken(1).getValue();
+    } else name = ast->getToken(0).getValue();
+
+    sharp_field *field = resolve_field(name, with_class);
+
+    compile_field(field, ast);
+
+    if(field->getter) {
+        compile_function(field->getter, field->getter->ast);
+    }
+
+    if(field->setter) {
+        field->setter->parameters.get(0)->type.copy(field->type);
+        compile_function(field->setter, field->setter->ast);
+    }
+
+    inject_field_initialization(with_class, ast, field);
+    if(ast->hasSubAst(ast_variable_decl)) {
+        long startAst = 0;
+        for (long i = 0; i < ast->getSubAstCount(); i++) {
+            if (ast->getSubAst(i)->getType() == ast_variable_decl) {
+                startAst = i;
+                break;
+            }
+        }
+
+        for (long i = startAst; i < ast->getSubAstCount(); i++) {
+            Ast *trunk = ast->getSubAst(i);
+
+            name = trunk->getToken(0).getValue();
+            sharp_field *xtraField = resolve_field(name, field->owner);
+
+            if (xtraField && xtraField->scheme != NULL && xtraField->scheme->schemeType != scheme_none) {
+                inject_field_initialization(with_class, ast, xtraField);
+            }
+        }
     }
 }
 
@@ -261,6 +288,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                                                   type_to_str(xtraField->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
                             }
                         }
+
                         xtraField->scheme->copy(e.scheme);
                     }
                 }

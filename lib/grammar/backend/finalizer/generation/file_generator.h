@@ -7,6 +7,6 @@
 
 #include "../../../sharp_file.h"
 
-void generate(sharp_file *file);
+void generate_addresses(sharp_file *file);
 
 #endif //SHARP_FILE_GENERATOR_H

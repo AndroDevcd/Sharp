@@ -238,7 +238,7 @@ void compile_class_mutations(sharp_class *with_class, Ast *block) {
 void compile_function(sharp_function *function, Ast *ast) {
     create_context(&current_context, function, check_flag(function->flags, flag_static));
     if(function->scheme == NULL)
-        function->scheme = new operation_schema();
+        function->scheme = new operation_schema(scheme_master);
     bool codePathsReturnValue;
 
     if(function->type == initializer_function) {

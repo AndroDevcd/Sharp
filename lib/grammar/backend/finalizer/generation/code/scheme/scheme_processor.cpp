@@ -3,15 +3,58 @@
 //
 
 #include "scheme_processor.h"
-#include "scheme_access_static_field.h"
 #include "../code_context.h"
+#include "step_processor.h"
+#include "scheme_access_static_field.h"
+#include "scheme_access_primary_instance_field.h"
+#include "scheme_access_tls_field.h"
+#include "../../generator.h"
+#include "scheme_master.h"
+#include "scheme_return.h"
+#include "scheme_negate_value.h"
+#include "scheme_line_info.h"
+#include "scheme_inc_value.h"
+#include "scheme_dec_value.h"
+#include "scheme_not_value.h"
 
 void process_scheme(operation_schema *scheme) {
-    switch (scheme->schemeType) {
-        case scheme_access_static_field:
-            return process_access_static_field_scheme(scheme);
-        case scheme_access_primary_instance_field:
-            return process_access_primary_instance_field(scheme);
+    if(scheme != NULL) {
+        switch (scheme->schemeType) {
+            case scheme_access_primary_instance_field:
+                return process_access_primary_instance_field(scheme);
+            case scheme_access_instance_field:
+                return process_access_primary_instance_field(scheme);
+            case scheme_access_static_field:
+                return process_access_static_field_scheme(scheme);
+            case scheme_access_tls_field:
+                return process_access_tls_field_scheme(scheme);
+            case scheme_master:
+                return process_master_scheme(scheme);
+            case scheme_return:
+                return process_return_scheme(scheme);
+            case scheme_negate_value:
+                return process_negate_value_scheme(scheme);
+            case scheme_line_info:
+                return process_line_info_scheme(scheme);
+            case scheme_inc_value:
+                return process_increment_value_scheme(scheme);
+            case scheme_dec_value:
+                return process_decrement_value_scheme(scheme);
+            case scheme_not_value:
+                return process_not_value_scheme(scheme);
+        }
+    }
+}
+
+/**
+ * A very simplistic way to process a scheme that dosen't require any additional reflection/logic
+ * to ensure the correct coe is generated
+ *
+ * @param scheme
+ */
+void process_scheme_steps(operation_schema *scheme) {
+    for(Int i = 0; i < scheme->steps.size(); i++) {
+        process_step(scheme->steps.get(i));
     }
 }
 
