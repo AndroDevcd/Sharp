@@ -1474,7 +1474,7 @@ bool VirtualMachine::link(string &func, string &libame) {
     return false;
 }
 
-bool VirtualMachine::isType(Object *obj, int32_t type) {
+bool VirtualMachine::isType(Object *obj, int32_t type) { // todo: fix this to accept type properly
     if(obj && obj->object) {
         if(TYPE(obj->object->info) == _stype_var) {
             if (type == -1) { // _int8

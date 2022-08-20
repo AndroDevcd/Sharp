@@ -115,7 +115,8 @@ string code_to_string(code_info *info) {
             case Opcode::CAST:
             {
                 ss<<"cast ";
-                ss<< register_to_str(GET_Da(opcodeData));
+                ss<< GET_Da(opcodeData) << " // ";
+                ss << compressedCompilationClasses.get(GET_Da(opcodeData))->fullName;
 
                 break;
             }

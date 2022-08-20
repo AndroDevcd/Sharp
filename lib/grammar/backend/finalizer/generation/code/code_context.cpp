@@ -12,6 +12,8 @@ code_context cc;
 void code_context::free() {
     deleteList(lineTable);
     deleteList(registers);
+    deleteList(dynamicInstructions);
+    deleteList(labels);
     instructions.free();
     container = NULL;
     ci = NULL;
@@ -29,6 +31,7 @@ void flush_context() {
         cc.ci->lineTable.add(new line_info(*cc.lineTable.get(i)));
     }
 
+    resolve_dynamic_instructions();
     cc.ci->stackSize = (check_flag(cc.container->flags, flag_static) ? 0 : 1) +
             cc.container->locals.size() + (cc.registers.size() - MIN_REGISTERS);
     cc.ci->code.appendAll(cc.instructions);
@@ -43,6 +46,8 @@ void set_machine_data(sharp_field *field, bool localField, bool force) {
         set_machine_data(localField ? local_field_object_data : field_object_data,
                          field->ci->address, force);
     }
+
+    cc.machineData.field = field;
 }
 
 void set_machine_data(internal_register *internalRegister, bool force) {
@@ -79,11 +84,6 @@ void consume_machine_data() {
                 generation_error("attempting to consume numeric data instead of object!");
                 break;
             }
-            case string_constant: {
-                add_instruction(Opcode::Builder::newString(cc.machineData.dataAddress));
-                // todo: would we want to pull this off the stack after creation?
-                break;
-            }
             case local_field_object_data: {
                 add_instruction(Opcode::Builder::movl(cc.machineData.dataAddress));
                 break;
@@ -101,16 +101,25 @@ void consume_machine_data() {
                 break;
             }
 
+            case null_data: {
+                add_instruction(Opcode::Builder::pushNull());
+                add_instruction(Opcode::Builder::popObject2());
+                break;
+            }
+
             case generic_object_data:
-            case new_class_data:
+            case class_object_data:
             case field_object_data: {
                 // do nothing
                 cc.machineData.dataAddress = -1;
                 break;
             }
 
-            case function_object_data:
-            case class_object_data: {
+            case array_object_data:
+            case array_numeric_data:
+            case new_class_data:
+            case string_constant:
+            case function_object_data: {
                 add_instruction(Opcode::Builder::popObject2());
                 break;
             }
@@ -120,6 +129,86 @@ void consume_machine_data() {
     } else {
         generation_error("attempting to consume empty machine data!");
     }
+}
+
+void pop_machine_data_from_stack() {
+    if(cc.machineData.type != no_data) {
+        switch(cc.machineData.type) {
+            case no_data: break;
+            case numeric_constant: {
+                generation_error("attempting to assign numeric constant!");
+                break;
+            }
+            case local_field_object_data: {
+                add_instruction(Opcode::Builder::popl(cc.machineData.dataAddress));
+                break;
+            }
+
+            case numeric_register_data: {
+                add_instruction(Opcode::Builder::loadValue((_register) cc.machineData.dataAddress));
+                break;
+            }
+
+            case numeric_instance_field: {
+                add_instruction(Opcode::Builder::loadValue(EGX));
+                if(cc.machineData.field->type.type < type_function_ptr) {
+                    cast_machine_data(EGX, cc.machineData.field->type.type);
+                }
+
+                add_instruction(Opcode::Builder::imov(EGX));
+                break;
+            }
+
+            case numeric_local_field: {
+                if(cc.machineData.field->type.type < type_function_ptr) {
+                    add_instruction(Opcode::Builder::loadValue(EGX));
+                    cast_machine_data(EGX, cc.machineData.field->type.type);
+                    add_instruction(Opcode::Builder::smovr2(EGX, cc.machineData.dataAddress));
+                } else {
+                    add_instruction(Opcode::Builder::ipopl(cc.machineData.dataAddress));
+                }
+                break;
+            }
+
+            case function_numeric_data: {
+                generation_error("attempting to assign temporary numeric function data!");
+                break;
+            }
+
+            case null_data: {
+                generation_error("attempting to assign null data!");
+                break;
+            }
+
+            case generic_object_data:
+            case class_object_data:
+            case field_object_data: {
+                // do nothing
+                add_instruction(Opcode::Builder::popObject());
+                break;
+            }
+
+            case array_object_data:
+            case array_numeric_data:
+            case new_class_data:
+            case string_constant:
+            case function_object_data: {
+                generation_error("attempting to assign stack data!");
+                break;
+            }
+        }
+
+        cc.machineData.type = no_data;
+    } else {
+        generation_error("attempting to consume empty machine data!");
+    }
+}
+
+
+void clear_machine_data() {
+    cc.machineData.type = no_data;
+    cc.machineData.dataAddress = -1;
+    cc.machineData.field = NULL;
 }
 
 void push_machine_data_to_stack() {
@@ -137,8 +226,8 @@ void push_machine_data_to_stack() {
                 }
                 break;
             }
-            case string_constant: {
-                add_instruction(Opcode::Builder::newString(cc.machineData.dataAddress));
+            case null_data: {
+                add_instruction(Opcode::Builder::pushNull());
                 break;
             }
             case numeric_local_field: {
@@ -163,8 +252,11 @@ void push_machine_data_to_stack() {
                 break;
             }
 
+            case array_object_data:
+            case array_numeric_data:
             case function_object_data:
             case function_numeric_data:
+            case string_constant:
             case new_class_data: {
                 // do nothing
                 cc.machineData.dataAddress = -1;
@@ -177,6 +269,83 @@ void push_machine_data_to_stack() {
     }
 }
 
+// this will pull data from register depending on data type
+void consume_machine_data_from_register(internal_register *internalRegister) {
+    if(internalRegister != NULL) {
+        if (cc.machineData.type != no_data) {
+            switch (cc.machineData.type) {
+                case no_data:
+                    break;
+                case numeric_constant: {
+                    generation_error("attempting to assign numeric constant!");
+                    break;
+                }
+                case string_constant: {
+                    generation_error("attempting to consume string data into register!");
+                    break;
+                }
+                case numeric_local_field: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::smovr2(
+                                (_register) internalRegister->address, cc.machineData.dataAddress));
+                    } else {
+                        add_instruction(Opcode::Builder::smovr4(
+                                cc.machineData.dataAddress, internalRegister->address));
+                    }
+                    break;
+                }
+                case numeric_register_data: {
+                    if (internalRegister->type == normal_register) {
+                        if (internalRegister->address != cc.machineData.dataAddress) {
+                            add_instruction(Opcode::Builder::movr(
+                                    (_register) cc.machineData.dataAddress, (_register) internalRegister->address));
+                        }
+                    } else {
+                        add_instruction(Opcode::Builder::loadl(
+                                (_register) cc.machineData.dataAddress, internalRegister->address));
+                    }
+                    break;
+                }
+                case numeric_instance_field: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::imov((_register) internalRegister->address));
+                    } else {
+                        add_instruction(Opcode::Builder::loadl(EGX, internalRegister->address));
+                        add_instruction(Opcode::Builder::imov(EGX));
+                    }
+                    break;
+                }
+                case function_numeric_data: {
+                    generation_error("attempting to set temporary data from register!");
+                    break;
+                }
+                case class_object_data: {
+                    generation_error("attempting to consume class object data into register!");
+                    break;
+                }
+                case null_data:
+                case generic_object_data:
+                case local_field_object_data:
+                case new_class_data:
+                case array_object_data:
+                case array_numeric_data:
+                case function_object_data:
+                case field_object_data: {
+                    generation_error("attempting to consume data object data into register!");
+                    break;
+                }
+            }
+
+            cc.machineData.type = no_data;
+        } else {
+            generation_error("attempting to consume empty machine data!");
+        }
+    } else {
+        generation_error("attempt to consume data to unknown register!");
+    }
+}
+
+// this will set this register supplied depending on curent data type
 void consume_machine_data(internal_register *internalRegister) {
     if(internalRegister != NULL) {
         if (cc.machineData.type != no_data) {
@@ -215,7 +384,7 @@ void consume_machine_data(internal_register *internalRegister) {
                                     (_register) internalRegister->address, (_register) cc.machineData.dataAddress));
                         }
                     } else {
-                        add_instruction(Opcode::Builder::smovr2(
+                        add_instruction(Opcode::Builder::loadl(
                                 (_register) cc.machineData.dataAddress, internalRegister->address));
                     }
                     break;
@@ -242,9 +411,12 @@ void consume_machine_data(internal_register *internalRegister) {
                     generation_error("attempting to consume class object data into register!");
                     break;
                 }
+                case null_data:
                 case generic_object_data:
                 case local_field_object_data:
                 case new_class_data:
+                case array_object_data:
+                case array_numeric_data:
                 case function_object_data:
                 case field_object_data: {
                     generation_error("attempting to consume data object data into register!");
@@ -299,10 +471,12 @@ void decrement_machine_data(data_type type) {
                 if(type == type_var) {
                     add_instruction(Opcode::Builder::isubl(1, cc.machineData.dataAddress));
                 } else {
+                    auto address = cc.machineData.dataAddress;
                     consume_machine_data(get_register(EGX));
                     set_machine_data(get_register(EGX));
                     add_instruction(Opcode::Builder::dec(EGX));
                     cast_machine_data(EGX, type);
+                    add_instruction(Opcode::Builder::smovr2(EGX, address));
                 }
                 break;
             }
@@ -337,9 +511,12 @@ void decrement_machine_data(data_type type) {
                 generation_error("attempting to consume class object data into register!");
                 break;
             }
+            case null_data:
             case generic_object_data:
             case local_field_object_data:
             case new_class_data:
+            case array_object_data:
+            case array_numeric_data:
             case function_object_data:
             case field_object_data: {
                 generation_error("attempting to consume data object data into register!");
@@ -367,10 +544,12 @@ void increment_machine_data(data_type type) {
                 if(type == type_var) {
                     add_instruction(Opcode::Builder::iaddl(1, cc.machineData.dataAddress));
                 } else {
+                    auto address = cc.machineData.dataAddress;
                     consume_machine_data(get_register(EGX));
                     set_machine_data(get_register(EGX));
                     add_instruction(Opcode::Builder::inc(EGX));
                     cast_machine_data(EGX, type);
+                    add_instruction(Opcode::Builder::smovr2(EGX, address));
                 }
                 break;
             }
@@ -405,9 +584,12 @@ void increment_machine_data(data_type type) {
                 generation_error("attempting to consume class object data into register!");
                 break;
             }
+            case null_data:
             case generic_object_data:
             case local_field_object_data:
             case new_class_data:
+            case array_object_data:
+            case array_numeric_data:
             case function_object_data:
             case field_object_data: {
                 generation_error("attempting to consume data object data into register!");
@@ -416,6 +598,126 @@ void increment_machine_data(data_type type) {
         }
     } else {
         generation_error("attempting to consume empty machine data!");
+    }
+}
+
+Int create_label() {
+    auto id = UUIDGenerator++;
+    create_label(id);
+    return id;
+}
+
+void create_label(Int id) {
+    if(find_label(id) == NULL) {
+        cc.labels.add(new internal_label(id));
+    } else {
+        generation_error("attempting to create label with same id!");
+    }
+}
+
+void set_label(internal_label *l) {
+    if(l != NULL) {
+        if (l->address == -1) {
+            l->address = cc.instructions.size();
+        } else {
+            generation_error("attempting to set label that was previously set!");
+        }
+    } else {
+        generation_error("attempting to set unknown label!");
+    }
+}
+
+internal_label* find_label(Int id) {
+    for(Int i = 0; i < cc.labels.size(); i++) {
+        if(cc.labels.get(i)->id == id)
+            return cc.labels.get(i);
+    }
+
+    return NULL;
+}
+
+opcode_arg get_dynamic_arg_value(dynamic_argument &da) {
+    switch(da.type) {
+        case regular_argument: {
+            return da.argData;
+        }
+        case label_argument: {
+            internal_label *label = find_label(da.argData);
+
+            if(label != NULL && label->address != -1) {
+                return label->address;
+            } else {
+                generation_error("attempting to get data from uninitialized label!");
+            }
+        }
+        default: {
+            generation_error("attempting to get data from unknown dynamic argument type!");
+            break;
+        }
+    }
+
+    return -1;
+}
+
+void create_dynamic_instruction(dynamic_instruction di) {
+    if(dynamic_instruction_supported(di.opcode)) {
+        di.ip = cc.instructions.size();
+        for(int i = 0; i < di.size; i++) {
+            cc.instructions.add(0);
+        }
+
+        cc.dynamicInstructions.add(new dynamic_instruction(di));
+    } else {
+        generation_error("attempting to create unsupported dynamic instruction!");
+    }
+}
+
+void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instruction &di) {
+    switch(di.opcode) {
+        case Opcode::MOVI: {
+            opcode_instr *instr = Opcode::Builder::movi(
+                    get_dynamic_arg_value(di.arg1), (_register) get_dynamic_arg_value(di.arg2));
+
+            Int instrPos = 0;
+            for(Int i = di.ip; i < INSTRUCTION_BUFFER_SIZE; i++) {
+                instructions.get(i) = instr[instrPos++];
+            }
+            break;
+        }
+        case Opcode::JE: {
+            instructions.get(di.ip) = Opcode::Builder::je(get_dynamic_arg_value(di.arg1));
+            break;
+        }
+        case Opcode::JNE: {
+            instructions.get(di.ip) = Opcode::Builder::jne(get_dynamic_arg_value(di.arg1));
+            break;
+        }
+        case Opcode::JMP: {
+            instructions.get(di.ip) = Opcode::Builder::jmp(get_dynamic_arg_value(di.arg1));
+            break;
+        }
+        default:
+            generation_error("attempting to inject unsupported dynamic instruction!");
+            break;
+    }
+}
+
+void resolve_dynamic_instructions() {
+    for(Int i = 0; i < cc.dynamicInstructions.size(); i++) {
+        resolve_dynamic_instruction(cc.instructions, *cc.dynamicInstructions.get(i));
+    }
+}
+
+bool dynamic_instruction_supported(int opcode) {
+    switch(opcode) {
+        case Opcode::MOVI:
+        case Opcode::JE:
+        case Opcode::JNE:
+        case Opcode::JMP:
+            return true;
+
+        default:
+            return false;
     }
 }
 
@@ -432,7 +734,7 @@ Int create_constant(double constant) {
 Int create_constant(string &constant) {
     Int index;
     if((index = stringMap.indexof(constant)) == -1) {
-        index = constantMap.size();
+        index = stringMap.size();
         stringMap.add(constant);
     }
 

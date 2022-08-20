@@ -34,11 +34,13 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
                 new operation_step(operation_get_integer_constant, (Int) arrayItems.size()));
 
 
-
+        bool isNumeric = false;
         if(arrayType.type == type_class)
             create_new_class_array_operation(&e->scheme, arraySizeScheme, e->type._class);
-        else if(arrayType.type >= type_int8 && arrayType.type <= type_var)
+        else if(arrayType.type >= type_int8 && arrayType.type <= type_var) {
+            isNumeric = true;
             create_new_number_array_operation(&e->scheme, arraySizeScheme, e->type.type);
+        }
         else if(arrayType.type == type_object)
             create_new_object_array_operation(&e->scheme, arraySizeScheme);
         else {
@@ -52,7 +54,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
             expression *expr = arrayItems.get(i);
             sharp_function *matchedConstructor = NULL;
             operation_schema *setArrayItem = new operation_schema();
-            setArrayItem->schemeType = scheme_get_array_value;
+            setArrayItem->schemeType = scheme_assign_array_value;
             matchResult = is_explicit_type_match(arrayType, expr->type);
             if (matchResult == no_match_found) {
                 matchResult = is_implicit_type_match(
@@ -86,7 +88,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
                 }
 
                 create_push_to_stack_operation(setArrayItem);
-                create_assign_array_element_operation(setArrayItem, i);
+                create_assign_array_element_operation(setArrayItem, i, isNumeric);
             }
 
             e->scheme.steps.add(new operation_step(operation_assign_array_value, setArrayItem));

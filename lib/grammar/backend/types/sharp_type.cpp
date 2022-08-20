@@ -76,7 +76,10 @@ string type_to_str(sharp_type &type) {
     else if(type.type == type_var) ss << "var";
     else if(type.type == type_any) ss << "any";
     else if(type.type == type_object) ss << "object";
-    else if(type.type == type_string) ss << "string_literal: " << type._string;
+    else if(type.type == type_string) {
+        ss << "string_literal: \"" << type._string << "\"";
+        return ss.str();
+    }
     else if(type.type == type_integer) ss << type.integer;
     else if(type.type == type_decimal) ss << type.decimal;
     else if(type.type == type_untyped) ss << "unknown";
@@ -318,12 +321,18 @@ uInt is_implicit_type_match(
         case type_uint64:
         case type_var: {
             if(comparee.type == type_null) return nullability_check(comparer, comparee, indirect_match);
-            return with_result(
-                    comparer.isArray == comparee.isArray
-                    && (comparee.type <= type_var || comparee.type == type_integer
-                    || comparee.type == type_char || comparee.type == type_decimal
-                    || comparee.type == type_bool),
-                nullability_check(comparer, comparee, indirect_match));
+            if(comparer.isArray || comparee.isArray) {
+                if(comparee.isArray == comparer.isArray
+                    && (comparee.type == comparer.type)) {
+                    return nullability_check(comparer, comparee, indirect_match);
+                } else
+                    return no_match_found;
+            } else {
+                return with_result(comparee.type <= type_var || comparee.type == type_integer
+                            || comparee.type == type_char || comparee.type == type_decimal
+                            || comparee.type == type_bool,
+                        nullability_check(comparer, comparee, indirect_match));
+            }
         }
         default: return no_match_found;
     }

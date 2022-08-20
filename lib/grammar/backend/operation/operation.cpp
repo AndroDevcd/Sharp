@@ -131,28 +131,36 @@ void create_cast_operation(
                     operation_cast_class, cast_type->_class));
         } else if(cast_type->type == type_int8) {
             scheme->steps.add(new operation_step(
-                    operation_int8_cast));
+                    operation_int8_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_int16) {
             scheme->steps.add(new operation_step(
-                    operation_int16_cast));
+                    operation_int16_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_int32) {
             scheme->steps.add(new operation_step(
-                    operation_int32_cast));
+                    operation_int32_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_int64) {
             scheme->steps.add(new operation_step(
-                    operation_int64_cast));
+                    operation_int64_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_uint8) {
             scheme->steps.add(new operation_step(
-                    operation_uint8_cast));
+                    operation_uint8_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_uint16) {
             scheme->steps.add(new operation_step(
-                    operation_uint16_cast));
+                    operation_uint16_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_uint32) {
             scheme->steps.add(new operation_step(
-                    operation_uint32_cast));
+                    operation_uint32_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } else if(cast_type->type == type_uint64) {
             scheme->steps.add(new operation_step(
-                    operation_uint64_cast));
+                    operation_uint64_cast, cast_type->isArray));
+            scheme->steps.last()->integer = cast_type->type;
         } // ignore var and object casts
     }
 }
@@ -166,7 +174,7 @@ void create_null_fallback_operation(
     scheme->steps.add(new operation_step(
             operation_get_value, nullScheme));
     scheme->steps.add(new operation_step(
-            operation_get_value_if_null, fallbackScheme));
+            operation_get_value, fallbackScheme));
 }
 
 void create_is_operation(
@@ -202,9 +210,10 @@ void create_is_operation(
         } else if(cast_type->type == type_uint64) {
             scheme->steps.add(new operation_step(
                     operation_is_uint64));
-        } else if(cast_type->type == type_function_ptr) {
+        } else if(cast_type->type == type_function_ptr
+            || cast_type->type == type_var) {
             scheme->steps.add(new operation_step(
-                    operation_is_fun_ptr, cast_type->fun));
+                    operation_is_var));
         }
     }
 }
@@ -793,10 +802,12 @@ void create_pop_value_from_stack_operation(
 
 void create_assign_array_element_operation(
         operation_schema *scheme,
-        Int index) {
+        Int index,
+        bool isNumeric) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_assign_array_element_from_stack, index));
+        scheme->steps.last()->_bool = isNumeric;
     }
 }
 
@@ -1000,8 +1011,7 @@ void create_plus_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1019,7 +1029,7 @@ void create_plus_value_assignment_operation(
             operation_add, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1029,8 +1039,7 @@ void create_sub_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1048,7 +1057,7 @@ void create_sub_value_assignment_operation(
             operation_sub, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1058,8 +1067,7 @@ void create_mult_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1077,7 +1085,7 @@ void create_mult_value_assignment_operation(
             operation_sub, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1087,8 +1095,7 @@ void create_div_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1106,7 +1113,7 @@ void create_div_value_assignment_operation(
             operation_sub, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1116,8 +1123,7 @@ void create_mod_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1132,10 +1138,10 @@ void create_mod_value_assignment_operation(
             operation_retain_numeric_value, registerLeft));
 
     scheme->steps.add(new operation_step(
-            operation_sub, registerLeft, registerRight));
+            operation_mod, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1145,8 +1151,7 @@ void create_and_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1164,7 +1169,7 @@ void create_and_value_assignment_operation(
             operation_and, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1174,8 +1179,7 @@ void create_or_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1193,7 +1197,7 @@ void create_or_value_assignment_operation(
             operation_or, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1203,8 +1207,7 @@ void create_xor_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme) {
-    scheme->free();
-    scheme->schemeType = scheme_assign_value;
+    scheme->schemeType = scheme_compound_assign_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
@@ -1222,7 +1225,7 @@ void create_xor_value_assignment_operation(
             operation_xor, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
-            operation_assign_value));
+            operation_assign_numeric_value));
 
 }
 
@@ -1273,6 +1276,13 @@ void create_increment_operation(
     }
 }
 
+void create_duplicate_operation(operation_schema *scheme) {
+    if(scheme) {
+        scheme->steps.add(
+                new operation_step(operation_duplicate_item)
+        );
+    }
+}
 void create_get_primary_instance_class(
         operation_schema *scheme,
         sharp_class *primaryClass) {
@@ -1411,6 +1421,7 @@ void operation_schema::copy(const operation_schema &scheme) {
     field = scheme.field;
     fun = scheme.fun;
     sc = scheme.sc;
+    type.copy(scheme.type);
     for(Int i = 0; i < scheme.steps.size(); i++) {
         steps.add(new operation_step(*scheme.steps.get(i)));
     }

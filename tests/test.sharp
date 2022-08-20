@@ -2,10 +2,12 @@ mod main;
 
 foo : var = 9;
 
-ll: (t: int)(_int8);
+def ll(k: _int8) := 9;
 
-def fep() := ll(8);
+x : string;
+y : _int8;
+def fep(n: _int8) := n = y;
 
 def main() {
-    fep();
+    fep(9);
 }

@@ -11,10 +11,10 @@ void compile_sizeof_expression(expression *e, Ast *ast) {
     expression valueExpr;
     compile_expression(valueExpr, ast->getSubAst(ast_expression));
 
-    if(valueExpr.type.type == type_string
-        || valueExpr.type == type_class
-        || valueExpr.type == type_field
-        || valueExpr.type.isArray) {
+    auto type = get_real_type(valueExpr.type);
+    if(type.type == type_string
+        || type.type == type_class
+        || type.isArray) {
         create_sizeof_operation(&e->scheme, &valueExpr.scheme);
         e->type.type = type_int64;
     } else {

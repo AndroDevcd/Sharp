@@ -52,9 +52,13 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
             pairTypes.__new().copy(value);
 
             pairClass = create_generic_class(pairTypes, pairClassGeneric);
+            create_dependency(get_primary_function(&current_context), pairClass);
+            create_dependency(get_primary_class(&current_context), pairClass);
 
             sharp_type pairType(pairClass, false, false);
             dictionaryClass = create_generic_class(pairTypes, dictionaryClassGeneric);
+            create_dependency(get_primary_function(&current_context), dictionaryClass);
+            create_dependency(get_primary_class(&current_context), dictionaryClass);
 
             if (pairClass != NULL && dictionaryClass != NULL) {
                 operation_schema *arraySizeScheme = new operation_schema();
@@ -64,15 +68,17 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                         new operation_step(operation_get_integer_constant, (Int) dictionaryItems.size()));
 
                 create_new_class_array_operation(arrayScheme, arraySizeScheme, pairClass);
-                create_push_to_stack_operation(arrayScheme);
 
                 // pairList[n] = new pain<k, v>(<key>, <value>) is what were doing below
                 for (Int i = 0; i < dictionaryItems.size(); i++) {
                     operation_schema *pairItemScheme = new operation_schema();
+                    operation_schema *resultScheme = new operation_schema();
                     expression *keyExpr = dictionaryItems.get(i).key;
                     expression *valExpr = dictionaryItems.get(i).value;
                     List<sharp_field *> params;
                     List<operation_schema *> paramOperations;
+                    resultScheme->sc = pairClass;
+                    pairItemScheme->schemeType = scheme_assign_array_value;
 
                     impl_location location;
                     params.add(new sharp_field(
@@ -96,10 +102,20 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                                                                    ast, false, true);
 
                     if (constructor != NULL) {
-                        create_new_class_operation(pairItemScheme, pairClass);
-                        compile_function_call(pairItemScheme, params,
+                        create_new_class_operation(resultScheme, pairClass);
+                        create_duplicate_operation(resultScheme);
+
+                        operation_schema *tmp = new operation_schema();
+                        compile_function_call(tmp, params,
                                               paramOperations, constructor,
                                               false, false, false);
+
+                        resultScheme->steps.add(
+                                new operation_step(operation_step_scheme, tmp)
+                        );
+                        resultScheme->schemeType = scheme_new_class;
+                        pairItemScheme->steps.add(new operation_step(operation_step_scheme, resultScheme));
+                        create_dependency(get_primary_function(&current_context), constructor);
                     } else {
                         sharp_type returnType;
                         string mock = get_simple_name(pairClass);
@@ -113,14 +129,12 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                     }
 
                     create_push_to_stack_operation(pairItemScheme);
-                    create_assign_array_element_operation(pairItemScheme, i);
+                    create_assign_array_element_operation(pairItemScheme, i, false);
                     arrayScheme->steps.add(new operation_step(operation_assign_array_value, pairItemScheme));
 
                     deleteList(params);
                     deleteList(paramOperations);
                 }
-
-                create_pop_value_from_stack_operation(arrayScheme);
 
                 // new dictionary(pairList) represents below code
                 List<sharp_field *> params;
@@ -143,10 +157,17 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
 
                 if (constructor != NULL) {
                     create_new_class_operation(&e->scheme, dictionaryClass);
-                    compile_function_call(&e->scheme, params,
+                    create_duplicate_operation(&e->scheme);
+
+                    operation_schema *tmp = new operation_schema();
+                    compile_function_call(tmp, params,
                                           paramOperations, constructor,
                                           false, false, false);
 
+                    e->scheme.steps.add(
+                            new operation_step(operation_step_scheme, tmp)
+                    );
+                    create_dependency(get_primary_function(&current_context), constructor);
                     e->type.type = type_class;
                     e->type._class = dictionaryClass;
                 } else {

@@ -232,7 +232,8 @@ void Thread::exec() {
                         gc.newObject(registers[GET_Ca(*this_fiber->pc)], GET_Cb(*this_fiber->pc));
                 _brh
             CAST:
-                CHECK_NULL(this_fiber->ptr->castObject(registers[GET_Da(*this_fiber->pc)]);)
+//                old version CHECK_NULL(this_fiber->ptr->castObject(registers[GET_Da(*this_fiber->pc)]);)
+                CHECK_NULL(this_fiber->ptr->castObject(GET_Da(*this_fiber->pc));)
                 _brh
             VARCAST:
                 CHECK_NULL2(
@@ -503,13 +504,13 @@ void Thread::exec() {
                 registers[CMT]=registers[GET_Ca(*this_fiber->pc)]&&registers[GET_Cb(*this_fiber->pc)];
                 _brh
             UAND:
-                registers[CMT]=(Int)registers[GET_Ca(*this_fiber->pc)]&(Int)registers[GET_Cb(*this_fiber->pc)];
+                registers[BMR]=(Int)registers[GET_Ca(*this_fiber->pc)]&(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             OR:
-                registers[CMT]=(Int)registers[GET_Ca(*this_fiber->pc)]|(Int)registers[GET_Cb(*this_fiber->pc)];
+                registers[BMR]=(Int)registers[GET_Ca(*this_fiber->pc)]|(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             XOR:
-                registers[CMT]=(Int)registers[GET_Ca(*this_fiber->pc)]^(Int)registers[GET_Cb(*this_fiber->pc)];
+                registers[BMR]=(Int)registers[GET_Ca(*this_fiber->pc)]^(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             THROW:
                 this_fiber->exceptionObject = (this_fiber->sp--)->object;

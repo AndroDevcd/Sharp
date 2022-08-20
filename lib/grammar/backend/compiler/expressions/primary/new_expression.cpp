@@ -60,11 +60,22 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
                 ast, false, true);
 
         if(constructor != NULL) {
+
+            create_dependency(get_primary_class(&current_context), newType->_class);
+            create_dependency(get_primary_function(&current_context), constructor);
+
             create_new_class_operation(&e->scheme, newType->_class);
-            compile_function_call(&e->scheme, params,
+            create_duplicate_operation(&e->scheme);
+
+
+            operation_schema *tmp = new operation_schema();
+            compile_function_call(tmp, params,
                     paramOperations, constructor,
                     false, false, false);
 
+            e->scheme.steps.add(
+                    new operation_step(operation_step_scheme, tmp)
+            );
             e->type.copy(*newType);
         } else {
             sharp_type returnType;
@@ -91,10 +102,13 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
     arraySizeScheme->schemeType = scheme_get_constant;
     arraySizeScheme->steps.add(new operation_step(operation_get_integer_constant, (Int)ast->getSubAstCount()));
 
+    bool isNumeric = false;
     if(newType->type == type_class)
-        create_new_class_array_operation(&e->scheme, arraySizeScheme, e->type._class);
-    else if(newType->type >= type_int8 && newType->type <= type_var)
-        create_new_number_array_operation(&e->scheme, arraySizeScheme, e->type.type);
+        create_new_class_array_operation(&e->scheme, arraySizeScheme, newType->_class);
+    else if(newType->type >= type_int8 && newType->type <= type_var) {
+        isNumeric = true;
+        create_new_number_array_operation(&e->scheme, arraySizeScheme, newType->type);
+    }
     else if(newType->type == type_object)
         create_new_object_array_operation(&e->scheme, arraySizeScheme);
     else {
@@ -109,7 +123,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
         sharp_function *matchedConstructor = NULL;
         compile_expression(*expr, ast->getSubAst(i));
         operation_schema *setArrayItem = new operation_schema();
-        setArrayItem->schemeType = scheme_get_array_value;
+        setArrayItem->schemeType = scheme_assign_array_value;
 
         if(expr->type.type == type_integer
            || expr->type.type == type_decimal) {
@@ -150,27 +164,40 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
             if(is_match_normal(matchResult)) {
                 setArrayItem->steps.add(new operation_step(operation_get_value, &expr->scheme));
             } else { // match_constructor
-                operation_schema *arrayItemScheme = new operation_schema(), resultScheme;
-                arrayItemScheme->schemeType = scheme_new_class;
-                arrayItemScheme->sc = newType->_class;
+                operation_schema resultScheme;
+                resultScheme.sc = newType->_class;
 
-                arrayItemScheme->steps.add(
+                create_dependency(get_primary_class(&current_context), newType->_class);
+                create_dependency(get_primary_function(&current_context), matchedConstructor);
+
+                resultScheme.steps.add(
                         new operation_step(
                                 operation_create_class,
-                                e->type._class
+                                newType->_class
                         )
                 );
 
-                List<operation_schema*> scheme;
-                scheme.add(arrayItemScheme);
+                resultScheme.steps.add(
+                        new operation_step(operation_duplicate_item)
+                );
+
+                List<operation_schema*> schemes;
+                schemes.add(&expr->scheme);
+
+                operation_schema *tmp = new operation_schema();
                 create_instance_function_call_operation(
-                        &resultScheme, scheme, matchedConstructor);
-                deleteList(scheme);
+                        tmp, schemes, matchedConstructor);
+                schemes.free();
+
+                resultScheme.steps.add(
+                        new operation_step(operation_step_scheme, tmp)
+                );
+                resultScheme.schemeType = scheme_new_class;
                 setArrayItem->steps.add(new operation_step(operation_step_scheme, &resultScheme));
             }
 
             create_push_to_stack_operation(setArrayItem);
-            create_assign_array_element_operation(setArrayItem, i);
+            create_assign_array_element_operation(setArrayItem, i, isNumeric);
         } else {
             currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
                          "cannot assign array item of type `" + type_to_str(e->type) +"` to array of type `" + type_to_str(*newType) + "`.");
@@ -182,7 +209,6 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 
     e->type.copy(*newType);
     e->type.isArray = true;
-    create_pop_value_from_stack_operation(&e->scheme);
 }
 
 void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) {

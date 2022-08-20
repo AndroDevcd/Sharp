@@ -91,9 +91,8 @@ enum operation_type {
     operation_is_uint16,
     operation_is_uint32,
     operation_is_uint64,
-    operation_is_fun_ptr,
+    operation_is_var,
     operation_get_array_element_at_index,
-    operation_get_value_if_null,
     operation_retain_numeric_value, // will try to store in register if possible
     operation_discard_register,
     operation_allocate_register,
@@ -127,7 +126,7 @@ enum operation_type {
     operation_mod,
     operation_mult,
     operation_exponent,
-    operation_assign_value,
+    operation_assign_numeric_value,
     operation_record_line,
     operation_return_nil,
     operation_return_with_error_state,
@@ -170,23 +169,25 @@ enum _operation_scheme {
     scheme_call_instance_function,
     scheme_call_dynamic_function,
     scheme_call_static_function,
-
+    scheme_get_primary_class_instance,
     scheme_access_local_field,
-    scheme_call_getter_function,
-    scheme_get_address,
-    scheme_new_class,
-    scheme_get_size_of,
-    scheme_nullify_value,
     scheme_new_class_array,
     scheme_new_number_array,
     scheme_new_object_array,
-    scheme_get_array_value,
+    scheme_nullify_value,
+    scheme_new_class,
+    scheme_assign_array_value,
+    scheme_get_size_of,
     scheme_get_casted_value,
-    scheme_increment_for_index_value,
-    scheme_get_primary_class_instance,
     scheme_check_type,
     scheme_null_fallback,
+    scheme_inline_if,
     scheme_assign_value,
+    scheme_compound_assign_value,
+
+    scheme_call_getter_function,
+    scheme_get_address,
+    scheme_increment_for_index_value,
     scheme_get_numeric_value,
     scheme_lock_data,
     scheme_unlock_data,
@@ -213,7 +214,8 @@ struct operation_schema {
             field(NULL),
             sc(NULL),
             fun(NULL),
-            steps()
+            steps(),
+            type()
     {}
 
     operation_schema(_operation_scheme type)
@@ -222,7 +224,8 @@ struct operation_schema {
             field(NULL),
             sc(NULL),
             fun(NULL),
-            steps()
+            steps(),
+            type()
     {}
 
     operation_schema(const operation_schema &scheme)
@@ -231,7 +234,8 @@ struct operation_schema {
             field(NULL),
             sc(NULL),
             fun(NULL),
-            steps()
+            steps(),
+            type()
     {
         copy(scheme);
     }
@@ -246,6 +250,7 @@ struct operation_schema {
 
     _operation_scheme schemeType;
     sharp_field *field;
+    sharp_type type;
     sharp_function *fun;
     sharp_class *sc;
     List<operation_step*> steps;
@@ -685,6 +690,9 @@ void create_decrement_operation(
         operation_schema *scheme,
         data_type type);
 
+void create_duplicate_operation(
+        operation_schema *scheme);
+
 void create_get_primary_instance_class(
         operation_schema *scheme,
         sharp_class *primaryClass);
@@ -1034,7 +1042,8 @@ void create_pop_value_from_stack_operation(
 
 void create_assign_array_element_operation(
         operation_schema *scheme,
-        Int index);
+        Int index,
+        bool isNumeric);
 
 void create_access_array_element_operation(
         operation_schema *scheme,

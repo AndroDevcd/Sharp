@@ -34,6 +34,9 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
             create_set_label_operation(&e->scheme, ifFalseLabel);
             create_get_value_operation(&e->scheme, &falseExpr.scheme, false);
             create_set_label_operation(&e->scheme, endLabel);
+
+            e->scheme.schemeType = scheme_inline_if;
+            e->scheme.type = get_real_type(trueExpr.type);
         } else if(match_result == indirect_match_w_nullability_mismatch) {
             current_file->errors->createNewError(NULLABILITY_MISMATCH, ast->line, ast->col, " expression of type `" + type_to_str(falseExpr.type) + "` is not equal to that of type `"
                                                                                + type_to_str(trueExpr.type) + "`.");

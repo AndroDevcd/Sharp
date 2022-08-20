@@ -6,6 +6,7 @@
 #include "../../types/types.h"
 #include "generator.h"
 #include "code/scheme/scheme_processor.h"
+#include "field_generator.h"
 
 uInt functionAddressCounter = 0;
 void generate_address(sharp_function *sf) {
@@ -23,6 +24,10 @@ code_info* get_or_initialize_code(sharp_function *sf) {
 }
 
 void generate(sharp_function *sf) {
+    for(Int i = 0; i < sf->locals.size(); i++) {
+        generate_address(sf->locals.get(i), i);
+    }
+
     if(sf->name == "foo")
         process_scheme(sf->scheme, sf->ci, sf);
 

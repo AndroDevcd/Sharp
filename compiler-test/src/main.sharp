@@ -5,13 +5,17 @@ thread_local fark := 9;
 feep : int = new int(-1);
 
 def main() {
-  foo(8);
+  new ff().foo(9);
   println("hello, world! $feep");
 }
 
 ll: int = new int(9);
 
-def foo(n: _int64) : _int8 = ++ll;
+class ff {
+    x : string;
+    y : _int8;
+    def foo(n: _int8) := n += y;
+}
 
 class x {
 
@@ -25,7 +29,7 @@ class x {
 
 
 component {
-    single { foo(get()) }
-    factory { 2 }
+    //single { foo(get()) }
+    //factory { 2 }
 
 }

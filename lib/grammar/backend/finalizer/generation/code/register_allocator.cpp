@@ -8,9 +8,13 @@
 #include "../generator.h"
 
 void setup_register_alloc() {
-    cc.registers.add(new internal_register(-1, ADX, normal_register, status_free));
+    // compiler allocated register
+    cc.registers.add(new internal_register(-1, ADX, normal_register, status_busy));
+
     cc.registers.add(new internal_register(-1, CX, normal_register, status_free));
-    cc.registers.add(new internal_register(-1, CMT, normal_register, status_free));
+
+    // compiler allocated register
+    cc.registers.add(new internal_register(-1, CMT, normal_register, status_busy));
 
     // compiler allocated register
     cc.registers.add(new internal_register(-1, EBX, normal_register, status_busy));
@@ -19,7 +23,9 @@ void setup_register_alloc() {
     cc.registers.add(new internal_register(-1, ECF, normal_register, status_free));
     cc.registers.add(new internal_register(-1, EDF, normal_register, status_free));
     cc.registers.add(new internal_register(-1, EHF, normal_register, status_free));
-    cc.registers.add(new internal_register(-1, BMR, normal_register, status_free));
+
+    // compiler allocated register
+    cc.registers.add(new internal_register(-1, BMR, normal_register, status_busy));
 
     // compiler allocated register
     cc.registers.add(new internal_register(-1, EGX, normal_register, status_busy));

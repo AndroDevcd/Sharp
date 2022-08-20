@@ -44,8 +44,8 @@ opcode_instr OpBuilder::newVarArray(_register inRegister, unsigned short ntype) 
     return SET_Ci(tmpInstr, NEWARRAY, inRegister, POSITIVE, ntype, POSITIVE);
 }
 
-opcode_instr OpBuilder::cast(_register outRegister) {
-    return SET_Di(tmpInstr, CAST, outRegister, POSITIVE);
+opcode_instr OpBuilder::cast(opcode_arg classAddress) {
+    return SET_Di(tmpInstr, CAST, classAddress, POSITIVE);
 }
 
 opcode_instr OpBuilder::mov8(_register outRegister, _register registerToCast) {

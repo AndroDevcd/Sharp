@@ -232,14 +232,4 @@ void compile_assign_expression(expression *e, Ast *ast) {
                   + "` cannot be assigned via `" + operand.getValue() + "` operator.");
         }
     }
-
-    if(assignedField != NULL && assignedField->closure != NULL) { // todo: look into the code generator generating code for fields accessed earlier to support updating the static closure ref
-        APPLY_TEMP_SCHEME(0, e->scheme,
-            create_get_value_operation(&scheme_0, &left.scheme, false);
-            create_push_to_stack_operation(&scheme_0);
-            create_static_field_access_operation(&scheme_0, assignedField->closureRef, false);
-            create_instance_field_access_operation(&scheme_0, assignedField->closure);
-            create_pop_value_from_stack_operation(&scheme_0);
-        )
-    }
 }

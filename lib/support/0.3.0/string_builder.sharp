@@ -38,7 +38,7 @@ class string_builder : loopable<_int8> {
                 expand(sizeof(str));
             }
 
-            data = new var[sizeof(str)];
+            data = new _int8[sizeof(str)];
             foreach(ch in str) {
                 data[cursor++] = ch.get_value();
             }
@@ -106,7 +106,7 @@ class string_builder : loopable<_int8> {
         if(immstr == null) return self;
 
         if(data == null)
-            data = new var[sizeof(immstr) + default_capacity];
+            data = new _int8[sizeof(immstr) + default_capacity];
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
@@ -125,7 +125,7 @@ class string_builder : loopable<_int8> {
             throw new error("length of: $len is greater than the string: ${sizeof(immstr)}");
 
         if(data == null)
-            data = new var[len + default_capacity];
+            data = new _int8[len + default_capacity];
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 

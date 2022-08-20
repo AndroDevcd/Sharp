@@ -22,6 +22,20 @@
 #include "scheme_new_class.h"
 #include "scheme_call_primary_class_instance_function.h"
 #include "scheme_call_dynamic_function.h"
+#include "scheme_get_primary_class_instance.h"
+#include "scheme_access_local_field.h"
+#include "scheme_get_address.h"
+#include "scheme_nullify_value.h"
+#include "scheme_new_class_array.h"
+#include "scheme_new_number_array.h"
+#include "scheme_new_object_array.h"
+#include "scheme_assign_array_value.h"
+#include "scheme_get_size_of.h"
+#include "scheme_get_casted_value.h"
+#include "scheme_null_fallback.h"
+#include "scheme_inline_if.h"
+#include "scheme_assign_value.h"
+#include "scheme_compound_assign_value.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -44,7 +58,6 @@ void process_scheme(operation_schema *scheme) {
                 return process_line_info_scheme(scheme);
             case scheme_inc_value:
                 return process_increment_value_scheme(scheme);
-                return process_increment_value_scheme(scheme);
             case scheme_dec_value:
                 return process_decrement_value_scheme(scheme);
             case scheme_not_value:
@@ -61,6 +74,34 @@ void process_scheme(operation_schema *scheme) {
                 return process_new_class_scheme(scheme);
             case scheme_call_dynamic_function:
                 return process_call_dynamic_function_scheme(scheme);
+            case scheme_get_primary_class_instance:
+                return process_get_primary_class_instance_scheme(scheme);
+            case scheme_access_local_field:
+                return process_access_local_field_scheme(scheme);
+            case scheme_get_address:
+                return process_get_address_scheme(scheme);
+            case scheme_nullify_value:
+                return process_nullify_value_scheme(scheme);
+            case scheme_new_class_array:
+                return process_new_class_array_scheme(scheme);
+            case scheme_new_number_array:
+                return process_new_number_array_scheme(scheme);
+            case scheme_new_object_array:
+                return process_new_object_array_scheme(scheme);
+            case scheme_assign_array_value:
+                return process_assign_array_value_scheme(scheme);
+            case scheme_get_size_of:
+                return process_get_size_of_scheme(scheme);
+            case scheme_get_casted_value:
+                return process_get_casted_value_scheme(scheme);
+            case scheme_null_fallback:
+                return process_null_fallback_scheme(scheme);
+            case scheme_inline_if:
+                return process_inline_if_scheme(scheme);
+            case scheme_assign_value:
+                return process_assign_value_scheme(scheme);
+            case scheme_compound_assign_value:
+                return process_compound_assign_value_scheme(scheme);
         }
     }
 }

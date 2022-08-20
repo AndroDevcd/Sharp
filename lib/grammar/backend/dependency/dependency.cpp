@@ -1949,8 +1949,7 @@ bool resolve_local_function_pointer_field(
         );
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
-        if(field->type.type == type_class)
-            create_dependency(ctx.functionCxt, field->type._class);
+        create_dependency(ctx.functionCxt, field);
         params.free();
         return true;
     }
@@ -2079,6 +2078,7 @@ bool resolve_primary_class_function_pointer_field(
                     create_primary_instance_field_getter_operation(scheme, field);
                 }
                 create_dependency(ctx.functionCxt, field->getter);
+                create_dependency(ctx.functionCxt, field);
             } else {
                 if(field->fieldType == tls_field) {
                     if(!isPrimaryClass && !isStaticCall) {
@@ -2921,7 +2921,7 @@ sharp_type expression_type_to_normal_type(expression *e) {
     } else if(e->type.type == type_bool || e->type.type == type_char) {
         return sharp_type(type_int8);
     } else if(e->type.type == type_string) {
-        return sharp_type(type_var, false, true);
+        return sharp_type(type_int8, false, true);
     } else {
         return e->type;
     }
@@ -3014,7 +3014,7 @@ void create_dependency(sharp_file* depender, sharp_file* dependee) {
         depender->dependencies.addif(dependency(dependee));
 }
 
-void create_dependency(sharp_function* depender, sharp_function* dependee) {
+void create_dependency(sharp_function* depender, sharp_function* dependee) { // todo" create better high level create dependancy function and track firld contextxs as well to be used
     if(!depender && dependee) return;
 
     if(depender != dependee)

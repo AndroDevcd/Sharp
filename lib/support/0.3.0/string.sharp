@@ -25,7 +25,7 @@ class string : loopable<_int8> {
 
     string(str : char[]) {
         if(str != null) {
-            data = new var[sizeof(str)];
+            data = new _int8[sizeof(str)];
             iter := 0;
             foreach(ch in str) {
                 data[iter++] = ch.get_value();
@@ -101,7 +101,7 @@ class string : loopable<_int8> {
         old_size := sizeof(data);
 
         if(data == null)
-            data = new var[len];
+            data = new _int8[len];
         else
             realloc(data!!, sizeof(data) + len);
 

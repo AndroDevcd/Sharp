@@ -36,6 +36,18 @@ void generate_address(sharp_field *field) {
     }
 }
 
+void generate_address(sharp_field *field, Int localFieldIndex) {
+    if (field->ci == NULL && field->used) {
+        bool isStatic = check_flag(field->flags, flag_static);
+        bool threadLocal = field->fieldType == tls_field;
+
+        field->ci = new code_info();
+        field->ci->uuid = UUIDGenerator++;
+
+        field->ci->address = localFieldIndex;
+    }
+}
+
 code_info* get_or_initialize_code(sharp_field *field) {
     generate_address(field);
     return field->ci;

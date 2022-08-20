@@ -409,7 +409,7 @@ public:
         static opcode_instr ret(opcode_arg errState);
         static opcode_instr hlt();
         static opcode_instr newVarArray(_register inRegister, unsigned short ntype);
-        static opcode_instr cast(_register outRegister);
+        static opcode_instr cast(opcode_arg classAddress);
         static opcode_instr mov8(_register outRegister, _register registerToCast);
         static opcode_instr mov16(_register outRegister, _register registerToCast);
         static opcode_instr mov32(_register outRegister, _register registerToCast);

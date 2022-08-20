@@ -9,17 +9,22 @@
 
 void run_and_mark_tree(List<dependency> &dependencies);
 
-void mark(sharp_function *fun) {
-    if(!fun->used) {
-        fun->used = true;
-        run_and_mark_tree(fun->dependencies);
-    }
-}
 
 void mark(sharp_field *sf) {
     if(!sf->used) {
         sf->used = true;
         run_and_mark_tree(sf->dependencies);
+    }
+}
+
+void mark(sharp_function *fun) {
+    if(!fun->used) {
+        fun->used = true;
+        for(Int i = 0; i < fun->parameters.size(); i++) {
+            mark(fun->parameters.get(i));
+        }
+
+        run_and_mark_tree(fun->dependencies);
     }
 }
 

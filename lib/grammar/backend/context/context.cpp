@@ -203,6 +203,8 @@ component *get_primary_component(context *ctx) {
 }
 
 sharp_function *get_primary_function(context *ctx) {
+    if(ctx->type == block_context)
+        return ctx->functionCxt;
 
     sharp_function *fun = NULL;
     for(Int i = (Int)ctx->storedItems.size() - 1; i >= 0; i--) {
