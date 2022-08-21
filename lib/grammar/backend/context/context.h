@@ -19,6 +19,7 @@ enum context_type {
     no_context,
     global_context,
     class_context,
+    field_context,
     block_context,
     component_context
 };
@@ -117,6 +118,7 @@ struct stored_context_item {
         classCxt(NULL),
         functionCxt(NULL),
         componentCtx(NULL),
+        fieldCxt(NULL),
         localFields(),
         localAliases(),
         labels(),
@@ -129,6 +131,7 @@ struct stored_context_item {
             classCxt(NULL),
             functionCxt(NULL),
             componentCtx(NULL),
+            fieldCxt(NULL),
             localFields(),
             localAliases(),
             labels(),
@@ -149,6 +152,7 @@ struct stored_context_item {
     context_type type;
     sharp_class *classCxt;
     sharp_function *functionCxt;
+    sharp_field *fieldCxt;
     component *componentCtx;
     List<sharp_field*> localFields;
     List<sharp_alias*> localAliases;
@@ -169,8 +173,10 @@ struct context : public stored_context_item {
 
 void create_context(sharp_class*, bool isStatic = false);
 void create_context(sharp_function*);
+void create_context(sharp_field*);
 void create_context(component*);
 
+void create_context(context *ctx, sharp_field *, bool isStatic);
 void create_context(context *ctx, sharp_class*, bool isStatic);
 void create_context(context *ctx, sharp_function*, bool isStatic);
 void create_context(context *ctx, component*);
@@ -193,6 +199,7 @@ sharp_label* retrieve_next_finally_label(block_info *info);
 
 sharp_class *get_primary_class(context*);
 sharp_function *get_primary_function(context*);
+sharp_field *get_primary_field(context*);
 component *get_primary_component(context*);
 
 #endif //SHARP_CONTEXT_H

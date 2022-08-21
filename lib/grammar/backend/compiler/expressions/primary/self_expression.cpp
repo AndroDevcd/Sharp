@@ -39,8 +39,8 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
 
         fun->closure = staticClosureRef;
 
-        create_dependency(fun, closure);
-        create_dependency(fun, staticClosureRef);
+        create_dependency(closure);
+        create_dependency(staticClosureRef);
         create_static_field_access_operation(&e->scheme, staticClosureRef);
         create_instance_field_access_operation(&e->scheme, closure);
     } else {

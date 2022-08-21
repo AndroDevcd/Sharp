@@ -27,6 +27,7 @@ void process_field(sharp_class *with_class, Ast *ast) {
 void process_field(sharp_field *field) {
     GUARD(globalLock)
 
+    create_context(field);
     Ast *ast = field->ast;
     if(field->type.type == type_untyped) {
         field->type.type = type_undefined;
@@ -95,6 +96,8 @@ void process_field(sharp_field *field) {
             }
         }
     }
+
+    delete_context();
 }
 
 void process_setter(sharp_field *field, Ast *ast) {
@@ -200,7 +203,7 @@ void validate_field_type(
     if(type.type == type_class
         || (type.type >= type_int8 && type.type <= type_object)) {
         if(type.type == type_class)
-            create_dependency(field, type._class);
+            create_dependency(type._class);
 
         if(!hardType && scheme->steps.empty()) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign hard type as value for field `" + field->fullName + "`");
@@ -222,7 +225,7 @@ void validate_field_type(
         field->type.type = type_object;
         return;
     } else if(type.type == type_field) {
-        create_dependency(field, type.field);
+        create_dependency(type.field);
 
         if(hardType) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
@@ -237,7 +240,7 @@ void validate_field_type(
         field->type = type.field->type;
         return;
     } else if(type.type == type_lambda_function) {
-        create_dependency(field, type.fun);
+        create_dependency(type.fun);
 
         if(!is_fully_qualified_function(type.fun)) {
             currThread->currTask->file->errors->createNewError(
@@ -246,7 +249,7 @@ void validate_field_type(
             type.type = type_function_ptr;
         }
     } else if(type.type == type_function_ptr) {
-        create_dependency(field, type.fun);
+        create_dependency(type.fun);
 
         if(hardType && type.fun->type != blueprint_function) {
             currThread->currTask->file->errors->createNewError(

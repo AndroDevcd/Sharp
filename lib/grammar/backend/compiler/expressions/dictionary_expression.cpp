@@ -52,13 +52,13 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
             pairTypes.__new().copy(value);
 
             pairClass = create_generic_class(pairTypes, pairClassGeneric);
-            create_dependency(get_primary_function(&current_context), pairClass);
-            create_dependency(get_primary_class(&current_context), pairClass);
+            create_dependency(pairClass);
+            create_dependency(pairClass);
 
             sharp_type pairType(pairClass, false, false);
             dictionaryClass = create_generic_class(pairTypes, dictionaryClassGeneric);
-            create_dependency(get_primary_function(&current_context), dictionaryClass);
-            create_dependency(get_primary_class(&current_context), dictionaryClass);
+            create_dependency(dictionaryClass);
+            create_dependency(dictionaryClass);
 
             if (pairClass != NULL && dictionaryClass != NULL) {
                 operation_schema *arraySizeScheme = new operation_schema();
@@ -115,7 +115,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                         );
                         resultScheme->schemeType = scheme_new_class;
                         pairItemScheme->steps.add(new operation_step(operation_step_scheme, resultScheme));
-                        create_dependency(get_primary_function(&current_context), constructor);
+                        create_dependency(constructor);
                     } else {
                         sharp_type returnType;
                         string mock = get_simple_name(pairClass);
@@ -167,7 +167,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                     e->scheme.steps.add(
                             new operation_step(operation_step_scheme, tmp)
                     );
-                    create_dependency(get_primary_function(&current_context), constructor);
+                    create_dependency(constructor);
                     e->type.type = type_class;
                     e->type._class = dictionaryClass;
                 } else {

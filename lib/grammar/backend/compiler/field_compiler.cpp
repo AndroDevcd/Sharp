@@ -33,6 +33,8 @@ void compile_class_fields(sharp_class *with_class, Ast *block) {
 
 void compile_static_closure_reference(sharp_field *field) {
     GUARD2(globalLock)
+    create_context(field);
+
     sharp_function *function;
     List<sharp_field*> params;
     sharp_type void_type(type_nil);
@@ -63,6 +65,8 @@ void compile_static_closure_reference(sharp_field *field) {
         currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, field->ast,
                   " cannot locate platform class `platform` for closure.");
     }
+
+    delete_context();
 }
 
 void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field *field) {
@@ -112,7 +116,7 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
             }
         }
 
-        create_dependency(function, field);
+        create_dependency(field);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     } else if(field->scheme) {
         sharp_function *function;
@@ -131,7 +135,7 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
             function->scheme = new operation_schema(scheme_master);
         }
 
-        create_dependency(function, field);
+        create_dependency(field);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     }
 }
@@ -195,6 +199,7 @@ void compile_field_injection_request(sharp_field *field, Ast *ast) {
 
 void compile_field(sharp_field *field, Ast *ast) {
     GUARD(globalLock)
+    create_context(field);
 
     if(field->name == "foo" && field->owner->name == "_object_") {
         // todo: remove here for testing only
@@ -251,6 +256,7 @@ void compile_field(sharp_field *field, Ast *ast) {
             process_setter(field, ast->getSubAst(ast_setter));
         }
 
+        delete_context();
         if(ast->hasSubAst(ast_variable_decl)) {
             long startAst = 0;
             for(long i = 0; i < ast->getSubAstCount(); i++) {
@@ -268,6 +274,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                 sharp_field *xtraField = resolve_field(name, field->owner);
 
                 if(xtraField) {
+                    create_context(xtraField);
                     xtraField->fieldType = field->fieldType;
                     xtraField->type.copy(field->type);
 
@@ -291,6 +298,8 @@ void compile_field(sharp_field *field, Ast *ast) {
 
                         xtraField->scheme->copy(e.scheme);
                     }
+
+                    delete_context();
                 }
             }
         }

@@ -177,7 +177,7 @@ void compile_function_call(
                             matchedConstructor);
 
                     if(matchedConstructor != NULL)
-                        create_dependency(callee, matchedConstructor);
+                        create_dependency( matchedConstructor);
                 }
             }
 

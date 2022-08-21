@@ -218,7 +218,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
 
                     auto fun = compile_class_function_overload(
                             field->type._class, *e, emptyParams, noOperations, op, ast);
-                    create_dependency(field, fun);
+                    create_dependency(fun);
                 } else {
                     currThread->currTask->file->errors->createNewError(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");
@@ -379,7 +379,7 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
 
                     auto fun = compile_class_function_overload(
                             field->type._class, *e, params, operations, op, ast);
-                    create_dependency(field, fun);
+                    create_dependency(fun);
                 } else {
                     currThread->currTask->file->errors->createNewError(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");

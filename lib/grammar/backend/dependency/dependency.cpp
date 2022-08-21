@@ -797,7 +797,7 @@ bool resolve_local_alias( // todo: support tls access for all fields
             resultType.copy(alias->type);
 
             if(resultType.type == type_class)
-                create_dependency(ctx.functionCxt, resultType._class);
+                create_dependency(resultType._class);
             return true;
         }
     }
@@ -819,7 +819,7 @@ bool resolve_local_field( // todo: support tls access for all fields
         create_local_field_access_operation(scheme, field);
 
         if(field->type.type == type_class)
-            create_dependency(ctx.functionCxt, field->type._class);
+            create_dependency(field->type._class);
         return true;
     }
 
@@ -834,7 +834,7 @@ bool resolve_local_field( // todo: support tls access for all fields
                 create_local_field_access_operation(scheme, field);
 
                 if(field->type.type == type_class)
-                    create_dependency(ctx.functionCxt, field->type._class);
+                    create_dependency(field->type._class);
             } else {
                 if(can_capture_closure(field)) {
                     sharp_class *closure_class = create_closure_class(
@@ -860,9 +860,9 @@ bool resolve_local_field( // todo: support tls access for all fields
                     create_instance_field_access_operation(scheme, closure);
 
                     if(field->type.type == type_class)
-                        create_dependency(ctx.functionCxt, field->type._class);
-                    create_dependency(ctx.functionCxt, closure_class);
-                    create_dependency(ctx.functionCxt, staticClosureRef);
+                        create_dependency(field->type._class);
+                    create_dependency(closure_class);
+                    create_dependency(staticClosureRef);
                 } else {
                     resultType.field = field;
                     currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
@@ -962,7 +962,7 @@ bool resolve_primary_class_field(
                 else {
                         create_primary_instance_field_getter_operation(scheme, field);
                 }
-                create_dependency(ctx.functionCxt, field->getter);
+                create_dependency(field->getter);
             } else {
                 if(field->fieldType == tls_field) {
                     if(!isSelfInstance && !isStatic) {
@@ -989,8 +989,7 @@ bool resolve_primary_class_field(
         check_access(fieldType, field->fullName,
                 field->flags, ctx, get_primary_class(&current_context) == field->owner,
                 field->owner, field->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         return true;
     } else return false;
 }
@@ -1017,10 +1016,10 @@ bool resolve_primary_class_alias(
                      alias->flags, ctx, get_primary_class(&current_context) == alias->owner,
                      alias->owner, alias->location, item.ast);
 
-        if(ctx.type == block_context && alias->type.type == type_field)
-            create_dependency(ctx.functionCxt, alias->type.field);
-        else if(ctx.type == block_context && alias->type.type == type_function)
-            create_dependency(ctx.functionCxt, alias->type.fun);
+        if(alias->type.type == type_field)
+            create_dependency(alias->type.field);
+        else if(alias->type.type == type_function)
+            create_dependency(alias->type.fun);
         return true;
     } else return false;
 }
@@ -1046,8 +1045,7 @@ bool resolve_primary_class_enum(
                      field->owner->flags, ctx, get_primary_class(&current_context) == field->owner,
                      field->owner, field->implLocation, item.ast);
 
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         return true;
     } else return false;
 }
@@ -1088,8 +1086,7 @@ bool resolve_primary_class_function_address(
         check_access(fieldType, functions.first()->fullName,
                      functions.first()->flags, ctx, get_primary_class(&current_context) == functions.first()->owner,
                      functions.first()->owner, functions.first()->implLocation,item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, functions.first());
+        create_dependency(functions.first());
         return true;
     } else return false;
 }
@@ -1113,9 +1110,7 @@ bool resolve_primary_class_inner_class(
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, isSelfInstance,
                      sc->owner, sc->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, sc);
-        create_dependency(primaryClass, sc);
+        create_dependency(sc);
         return true;
     } else return false;
 }
@@ -1132,8 +1127,8 @@ bool resolve_primary_class(
         resultType._class = primaryClass;
 
         if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, primaryClass);
-        create_dependency(primaryClass, primaryClass);
+            create_dependency(primaryClass);
+        create_dependency(primaryClass);
         return true;
     } else return false;
 }
@@ -1150,8 +1145,7 @@ bool resolve_generic_type_param(
             resultType.copy(primaryClass->genericTypes.get(i).type);
 
             if(resultType.type == type_class) {
-                if(ctx.type == block_context)
-                    create_dependency(ctx.functionCxt, resultType._class);
+                create_dependency(resultType._class);
             }
             return true;
         }
@@ -1190,7 +1184,7 @@ bool resolve_global_class_field(
 
         if(field->getter != NULL) {
             create_static_field_getter_operation(scheme, field);
-            create_dependency(ctx.functionCxt, field->getter);
+            create_dependency(field->getter);
         } else {
             if(field->fieldType == tls_field) {
                 create_tls_field_access_operation(scheme, field, false);
@@ -1203,8 +1197,7 @@ bool resolve_global_class_field(
         check_access(fieldType, field->fullName,
                      field->flags, ctx, false,
                      field->owner, field->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         return true;
     } else return false;
 }
@@ -1245,10 +1238,10 @@ bool resolve_global_class_alias(
         check_access(fieldType, alias->fullName,
                      alias->flags, ctx, false,
                      alias->owner, alias->location, item.ast);
-        if(ctx.type == block_context && alias->type.type == type_field)
-            create_dependency(ctx.functionCxt, alias->type.field);
-        else if(ctx.type == block_context && alias->type.type == type_function)
-            create_dependency(ctx.functionCxt, alias->type.fun);
+        if(alias->type.type == type_field)
+            create_dependency(alias->type.field);
+        else if(alias->type.type == type_function)
+            create_dependency(alias->type.fun);
         return true;
     } else return false;
 }
@@ -1286,8 +1279,7 @@ bool resolve_global_class_enum(
         check_access(fieldType, field->fullName,
                      field->flags, ctx, false,
                      field->owner, field->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         return true;
     } else return false;
 }
@@ -1355,8 +1347,7 @@ bool resolve_global_class_function_address(
         check_access(fieldType, functions.first()->fullName,
                      functions.first()->flags, ctx, false,
                      functions.first()->owner, functions.first()->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, functions.first());
+        create_dependency(functions.first());
         return true;
     } else return false;
 }
@@ -1387,9 +1378,8 @@ bool resolve_global_class(
         check_access(fieldType, sc->fullName,
                      sc->flags, ctx, false,
                      sc->owner, sc->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, sc);
-        create_dependency(primaryClass, sc);
+        create_dependency(sc);
+        create_dependency(sc);
         return true;
     } else return false;
 }
@@ -1949,7 +1939,7 @@ bool resolve_local_function_pointer_field(
         );
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
-        create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         params.free();
         return true;
     }
@@ -1991,9 +1981,9 @@ bool resolve_local_function_pointer_field(
                     );
 
                     if(field->type.type == type_class)
-                        create_dependency(ctx.functionCxt, field->type._class); // todo: look into supporting thread_local closure fields
-                    create_dependency(ctx.functionCxt, closure_class);
-                    create_dependency(ctx.functionCxt, staticClosureRef);
+                        create_dependency(field->type._class); // todo: look into supporting thread_local closure fields
+                    create_dependency(closure_class);
+                    create_dependency(staticClosureRef);
                 } else {
                     resultType.field = field;
                     currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
@@ -2077,8 +2067,8 @@ bool resolve_primary_class_function_pointer_field(
                 else {
                     create_primary_instance_field_getter_operation(scheme, field);
                 }
-                create_dependency(ctx.functionCxt, field->getter);
-                create_dependency(ctx.functionCxt, field);
+                create_dependency(field->getter);
+                create_dependency(field);
             } else {
                 if(field->fieldType == tls_field) {
                     if(!isPrimaryClass && !isStaticCall) {
@@ -2108,8 +2098,7 @@ bool resolve_primary_class_function_pointer_field(
         check_access(fieldType, field->fullName,
                      field->flags, ctx, get_primary_class(&current_context) == field->owner,
                      field->owner, field->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         return true;
     } else return false;
 }
@@ -2171,8 +2160,7 @@ bool resolve_primary_class_function(
                 fun, isStaticCall, isPrimaryClass, false
         );
 
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, fun);
+        create_dependency(fun);
         return true;
     } else return false;
 }
@@ -2242,7 +2230,7 @@ bool resolve_global_class_function_pointer_field(
 
         if(field->getter != NULL) {
             create_static_field_getter_operation(scheme, field);
-            create_dependency(ctx.functionCxt, field->getter);
+            create_dependency(field->getter);
         } else {
             if(field->fieldType == tls_field) {
                 create_tls_field_access_operation(scheme, field, false);
@@ -2262,8 +2250,7 @@ bool resolve_global_class_function_pointer_field(
         check_access(fieldType, field->fullName,
                      field->flags, ctx, false,
                      field->owner, field->implLocation, item.ast);
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, field);
+        create_dependency(field);
         params.free();
         return true;
     } else {
@@ -2348,8 +2335,7 @@ bool resolve_global_class_function(
             );
         }
 
-        if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, fun);
+        create_dependency(fun);
         params.free();
         return true;
     } else {
@@ -2601,8 +2587,8 @@ bool resolve_primary_class_generic(
         resultType._class = primaryClass;
 
         if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, primaryClass);
-        create_dependency(primaryClass, primaryClass);
+            create_dependency(primaryClass);
+        create_dependency(primaryClass);
         return true;
     } else return false;
 }
@@ -2656,8 +2642,8 @@ bool resolve_primary_class_inner_class_generic(
                      sc->flags, ctx, isSelfInstance,
                      sc->owner, sc->implLocation, item.ast);
         if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, sc);
-        create_dependency(primaryClass, sc);
+            create_dependency(sc);
+        create_dependency(sc);
         return true;
     }
 
@@ -2705,8 +2691,8 @@ bool resolve_global_class_generic(
                      sc->flags, ctx, false,
                      sc->owner, sc->implLocation, item.ast);
         if(ctx.type == block_context)
-            create_dependency(ctx.functionCxt, sc);
-        create_dependency(primaryClass, sc);
+            create_dependency(sc);
+        create_dependency(sc);
         return true;
     } else return false;
 }
@@ -3056,5 +3042,40 @@ void create_dependency(sharp_field* depender, sharp_field* dependee) {
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
+}
+
+
+void create_dependency(sharp_field* dependee) {
+    sharp_field *sf = get_primary_field(&current_context);
+    sharp_function *fun = get_primary_function(&current_context);
+    sharp_class *sc = get_primary_class(&current_context);
+
+    create_dependency(sf, dependee);
+    create_dependency(fun, dependee);
+
+    if(fun == NULL && sf == NULL)
+        create_dependency(sc, dependee->owner);
+}
+
+void create_dependency(sharp_function* dependee) {
+    sharp_field *sf = get_primary_field(&current_context);
+    sharp_function *fun = get_primary_function(&current_context);
+    sharp_class *sc = get_primary_class(&current_context);
+
+    create_dependency(sf, dependee);
+    create_dependency(fun, dependee);
+
+    if(fun == NULL && sf == NULL)
+        create_dependency(sc, dependee->owner);
+}
+
+void create_dependency(sharp_class* dependee) {
+    sharp_field *sf = get_primary_field(&current_context);
+    sharp_function *fun = get_primary_function(&current_context);
+    sharp_class *sc = get_primary_class(&current_context);
+
+    create_dependency(sf, dependee);
+    create_dependency(fun, dependee);
+    create_dependency(sc, dependee);
 }
 

@@ -137,6 +137,10 @@ void create_dependency(sharp_field* depender, sharp_function* dependee);
 void create_dependency(sharp_field* depender, sharp_class* dependee);
 void create_dependency(sharp_field* depender, sharp_field* dependee);
 
+void create_dependency(sharp_field* dependee);
+void create_dependency(sharp_function* dependee);
+void create_dependency(sharp_class* dependee);
+
 sharp_class* resolve_class(import_group*, string, bool, bool);
 sharp_class* resolve_class(sharp_module*, string, bool, bool);
 sharp_class* resolve_class(sharp_file*, string, bool, bool);

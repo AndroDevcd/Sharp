@@ -242,7 +242,7 @@ void validate_function_type(
        || type.type == type_nil
        || (type.type >= type_int8 && type.type <= type_object)) {
         if(type.type == type_class)
-            create_dependency(fun, type._class);
+            create_dependency(type._class);
 
         if(!hardType && scheme->steps.empty()) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign hard type as value for function `" + fun->fullName + "`");
@@ -264,7 +264,7 @@ void validate_function_type(
         fun->returnType.isArray = true;
         return;
     } else if(type.type == type_field) {
-        create_dependency(fun, type.field);
+        create_dependency(type.field);
 
         if(hardType) {
             currThread->currTask->file->errors->createNewError(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
@@ -274,7 +274,7 @@ void validate_function_type(
         fun->returnType = type.field->type;
         return;
     } else if(type.type == type_lambda_function) {
-        create_dependency(fun, type.fun);
+        create_dependency(type.fun);
 
         if(!is_fully_qualified_function(type.fun)) {
             currThread->currTask->file->errors->createNewError(
@@ -283,7 +283,7 @@ void validate_function_type(
             type.type = type_function_ptr;
         }
     } else if(type.type == type_function_ptr) {
-        create_dependency(fun, type.fun);
+        create_dependency(type.fun);
 
         if(hardType && type.fun->type != blueprint_function) {
             currThread->currTask->file->errors->createNewError(

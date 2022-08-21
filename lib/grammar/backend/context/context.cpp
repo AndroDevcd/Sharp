@@ -7,12 +7,16 @@
 #include "../types/sharp_class.h"
 #include "../../sharp_file.h"
 #include "../../taskdelegator/task_delegator.h"
-#include "../types/sharp_function.h"
+#include "../types/types.h"
 #include "../../compiler_info.h"
 #include "../operation/operation.h"
 
 void create_context(sharp_class *sc, bool isStatic) {
     create_context(&currThread->currTask->file->context, sc, isStatic);
+}
+
+void create_context(sharp_field *sf) {
+    create_context(&currThread->currTask->file->context, sf, check_flag(sf->flags, flag_static));
 }
 
 void create_context(sharp_function *fun) {
@@ -33,6 +37,16 @@ void create_context(context *ctx, sharp_class *sc, bool isStatic) {
     else ctx->type = class_context;
 
     ctx->classCxt = sc;
+    ctx->isStatic = isStatic;
+}
+
+void create_context(context *ctx, sharp_field *sf, bool isStatic) {
+    if(ctx->type != no_context) {
+        store_context(ctx);
+    }
+
+    ctx->type = field_context;
+    ctx->fieldCxt = sf;
     ctx->isStatic = isStatic;
 }
 
@@ -202,6 +216,20 @@ component *get_primary_component(context *ctx) {
     return NULL;
 }
 
+sharp_field *get_primary_field(context *ctx) {
+    if(ctx->type == field_context)
+        return ctx->fieldCxt;
+
+    sharp_field *sf = NULL;
+    for(Int i = (Int)ctx->storedItems.size() - 1; i >= 0; i--) {
+        stored_context_item *contextItem = ctx->storedItems.get(i);
+        if(contextItem->type == field_context)
+            sf = contextItem->fieldCxt;
+    }
+
+    return sf;
+}
+
 sharp_function *get_primary_function(context *ctx) {
     if(ctx->type == block_context)
         return ctx->functionCxt;
@@ -248,6 +276,7 @@ void stored_context_item::copy(const stored_context_item &item)  {
     classCxt = item.classCxt;
     functionCxt = item.functionCxt;
     componentCtx = item.componentCtx;
+    fieldCxt = item.fieldCxt;
     localFields.addAll(item.localFields);
     localAliases.addAll(item.localAliases);
     labels.addAll(item.labels);

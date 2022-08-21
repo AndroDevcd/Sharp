@@ -61,8 +61,8 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
 
         if(constructor != NULL) {
 
-            create_dependency(get_primary_class(&current_context), newType->_class);
-            create_dependency(get_primary_function(&current_context), constructor);
+            create_dependency(newType->_class);
+            create_dependency(constructor);
 
             create_new_class_operation(&e->scheme, newType->_class);
             create_duplicate_operation(&e->scheme);
@@ -167,8 +167,8 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
                 operation_schema resultScheme;
                 resultScheme.sc = newType->_class;
 
-                create_dependency(get_primary_class(&current_context), newType->_class);
-                create_dependency(get_primary_function(&current_context), matchedConstructor);
+                create_dependency(newType->_class);
+                create_dependency(matchedConstructor);
 
                 resultScheme.steps.add(
                         new operation_step(
