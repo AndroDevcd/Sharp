@@ -49,7 +49,7 @@ void compile_array_expression(expression *e, Ast *ast) {
                 e->type.nullable = e->type.nullableItems;
                 e->type.nullableItems = false;
                 e->type.arrayElement = true;
-                create_access_array_element_operation(&e->scheme, &arrayExpression.scheme);
+                create_access_array_element_operation(&e->scheme, e->type, &arrayExpression.scheme);
             } else {
                 currThread->currTask->file->errors->createNewError(
                         GENERIC, ast, "array index expression must be numeric but was found to be of type `"

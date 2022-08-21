@@ -4,10 +4,16 @@ foo : var = 9;
 
 def ll(k: _int8) := 9;
 
-x : _int8;
-y : _int8;
-def fep(n: _int8) := n || y;
+class ff {
+    x : _int8;
+    y : _int8[];
+
+    def flarky() := y;
+
+    def fep(n: _int8) := flarky()[8];
+
+    }
 
 def main() {
-    fep(9);
+   // fep(9);
 }

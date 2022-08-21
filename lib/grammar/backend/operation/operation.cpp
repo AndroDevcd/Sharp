@@ -847,10 +847,12 @@ void create_assign_array_element_operation(
 
 void create_access_array_element_operation(
         operation_schema *scheme,
+        sharp_type &type,
         operation_schema *indexScheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_get_array_element_at_index, indexScheme));
+        scheme->steps.last()->nativeType = type.type;
     }
 }
 
@@ -1275,6 +1277,11 @@ void create_get_value_operation(
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));
+}
+
+void create_post_access_operation(
+        operation_schema *scheme) {
+    scheme->steps.add(new operation_step(operation_post_access));
 }
 
 void create_negate_operation(operation_schema *scheme) {

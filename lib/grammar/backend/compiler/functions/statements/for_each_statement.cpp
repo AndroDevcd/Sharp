@@ -151,7 +151,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                 create_get_integer_constant_operation(&scheme_0, -1);
             )
 
-            create_access_array_element_operation(&scheme_0, &scheme_1);
+            create_access_array_element_operation(&scheme_0, iteratorField->type, &scheme_1);
             create_push_to_stack_operation(&scheme_0);
         )
 
@@ -170,7 +170,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                 create_get_integer_constant_operation(&scheme_0, -1);
              )
 
-             create_access_array_element_operation(&scheme_0, &scheme_1);
+             create_access_array_element_operation(&scheme_0, iteratorField->type, &scheme_1);
              create_push_to_stack_operation(&scheme_0);
         )
 

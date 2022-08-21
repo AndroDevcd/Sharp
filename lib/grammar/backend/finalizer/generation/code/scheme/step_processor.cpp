@@ -201,6 +201,44 @@ void process_step(operation_step *step) {
             return process_instance_eq(step);
         case operation_instance_not_eq:
             return process_instance_not_eq(step);
+        case operation_post_access:
+            return process_post_access(step);
+        case operation_get_array_element_at_index:
+            return process_get_array_element_at_index(step);
+    }
+}
+
+void process_get_array_element_at_index(operation_step *step) {
+    validate_step_type(step, operation_get_array_element_at_index);
+
+    push_machine_data_to_stack();
+    process_scheme(step->scheme);
+    consume_machine_data(get_register(ADX));
+
+    add_instruction(Opcode::Builder::popObject2());
+    add_instruction(Opcode::Builder::checklen(ADX));
+    add_instruction(Opcode::Builder::movnd(ADX));
+
+    if(step->nativeType <= type_var) {
+        add_instruction(Opcode::Builder::iload(EBX));
+        set_machine_data(get_register(EBX));
+    } else {
+        set_machine_data(generic_object_data);
+    }
+}
+
+void process_post_access(operation_step *step) {
+    validate_step_type(step, operation_post_access);
+
+    if(cc.machineData.type == numeric_register_data
+        || cc.machineData.type == numeric_instance_field
+        || cc.machineData.type == numeric_local_field
+        || cc.machineData.type == function_numeric_data) {
+        consume_machine_data(get_register(EBX));
+        set_machine_data(get_register(EBX));
+    } else {
+        consume_machine_data();
+        set_machine_data(generic_object_data);
     }
 }
 

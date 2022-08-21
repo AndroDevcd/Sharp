@@ -46,6 +46,8 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                                + "` on non nullable type `" + type_to_str(e->type) + "`");
                 }
 
+                if(ast->getSubAst(i)->getType() == ast_dot_not_e)
+                    create_post_access_operation(&e->scheme);
                 compile_dot_notation_call_expression(e, with_class, false, dotNotationCallExpr);
             } else {
                 current_file->errors->createNewError(GENERIC, ast, "expected `class` type but type `"
@@ -96,9 +98,9 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                             mock.type.copy(expressions.get(j)->type);
                             convert_expression_type_to_real_type(mock);
 
-                            if(!(is_explicit_type_match(funPtr->parameters.get(j)->type, mock.type)
-                                && is_implicit_type_match(funPtr->parameters.get(j)->type, mock.type,
-                                        match_initializer | match_operator_overload))) {
+                            Int match_result = is_implicit_type_match(funPtr->parameters.get(j)->type, mock.type,
+                                                                      constructor_only);
+                            if(!is_match(match_result)) {
                                 parametersMatch = false;
                                 current_file->errors->createNewError(GENERIC, list->getSubAst(j), "Parameter type mismatch parameter of type `"
                                            + type_to_str(mock.type) + "` was found but `" + type_to_str(funPtr->parameters.get(j)->type) + "` was expected.");
@@ -107,8 +109,6 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
 
                         if(parametersMatch) {
                             operation_schema scheme;
-                            create_push_to_stack_operation(&scheme);
-
                             compile_function_call(
                                     &scheme,
                                     params,

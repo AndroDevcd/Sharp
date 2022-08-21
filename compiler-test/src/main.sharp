@@ -13,9 +13,11 @@ ll: int = new int(9);
 
 class ff {
     x : _int8;
-    y : _int8;
+    y : _int8[];
 
-    def foo(n: _int8) := n++;
+    def flarky() := y;
+
+    def foo(n: _int8) := flarky()[8];
 }
 
 class x {

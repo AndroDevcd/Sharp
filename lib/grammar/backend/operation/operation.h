@@ -36,6 +36,7 @@ enum operation_type {
     operation_post_scheme_start,
     operation_assign_array_value,
     operation_get_value,
+    operation_post_access,
     operation_get_sizeof,
     operation_throw_exception,
     operation_pop_value_from_stack,
@@ -689,6 +690,8 @@ void create_negate_operation(operation_schema *scheme);
 
 void create_not_operation(operation_schema *scheme);
 
+void create_post_access_operation(operation_schema *scheme);
+
 void create_increment_operation(
         operation_schema *scheme,
         data_type type);
@@ -1065,6 +1068,7 @@ void create_assign_array_element_operation(
 
 void create_access_array_element_operation(
         operation_schema *scheme,
+        sharp_type &type,
         operation_schema *indexScheme);
 
 void create_new_class_operation(
