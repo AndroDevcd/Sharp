@@ -440,10 +440,10 @@ void Thread::exec() {
                 __os_sleep((Int)registers[GET_Da(*this_fiber->pc)]);
                 _brh
             TEST:
-                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]==registers[GET_Cb(*this_fiber->pc)];
+                registers[BMR]=registers[GET_Ca(*this_fiber->pc)]==registers[GET_Cb(*this_fiber->pc)];
                 _brh
             TNE:
-                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]!=registers[GET_Cb(*this_fiber->pc)];
+                registers[BMR]=registers[GET_Ca(*this_fiber->pc)]!=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             LOCK:
                 CHECK_NULL2(
@@ -501,7 +501,7 @@ void Thread::exec() {
                 registers[CMT]=registers[GET_Da(*this_fiber->pc)]==((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             AND:
-                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]&&registers[GET_Cb(*this_fiber->pc)];
+                registers[BMR]=registers[GET_Ca(*this_fiber->pc)]&&registers[GET_Cb(*this_fiber->pc)];
                 _brh
             UAND:
                 registers[BMR]=(Int)registers[GET_Ca(*this_fiber->pc)]&(Int)registers[GET_Cb(*this_fiber->pc)];
@@ -644,6 +644,7 @@ void Thread::exec() {
             PUSHNULL:
                 grow_stack
                 STACK_CHECK
+                gc.releaseObject(&(++this_fiber->sp)->object);
                 gc.releaseObject(&(++this_fiber->sp)->object);
                 _brh
             IPUSHL:

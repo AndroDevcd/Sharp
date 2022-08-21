@@ -35,9 +35,6 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
 
     process_assign_numeric_value(scheme->steps.get(stepPos++));
 
-    // resettig the data again after it has consumed the bmr register
-    cc.machineData.dataAddress = asignee.dataAddress;
-    cc.machineData.type = asignee.type;
     process_deallocate_register(scheme->steps.get(stepPos++));
     process_deallocate_register(scheme->steps.get(stepPos++));
 

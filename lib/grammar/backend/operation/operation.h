@@ -184,6 +184,12 @@ enum _operation_scheme {
     scheme_inline_if,
     scheme_assign_value,
     scheme_compound_assign_value,
+    scheme_binary_math,
+    scheme_accelerated_binary_math,
+    scheme_or,
+    scheme_null_check,
+    scheme_instance_check,
+    scheme_post_increment,
 
     scheme_call_getter_function,
     scheme_get_address,
@@ -757,8 +763,8 @@ void create_and_and_operation(
 
 void create_or_or_operation(
         operation_schema *scheme,
-        Int registerLeft,
-        Int registerRight);
+        operation_schema *leftScheme,
+        operation_schema *rightScheme);
 
 void create_eq_eq_operation(
         operation_schema *scheme,
@@ -924,6 +930,10 @@ void create_set_label_operation(
         operation_schema *scheme,
         sharp_label* label);
 
+void create_set_label_operation(
+        operation_schema *scheme,
+        Int label);
+
 void create_catch_start_operation(
         operation_schema *scheme,
         catch_data* data);
@@ -962,6 +972,10 @@ void create_jump_if_false_operation(
 void create_jump_if_true_operation(
         operation_schema *scheme,
         sharp_label* label);
+
+void create_jump_if_true_operation(
+        operation_schema *scheme,
+        Int label);
 
 void create_set_local_field_operation(
         operation_schema *scheme,

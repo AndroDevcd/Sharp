@@ -149,6 +149,8 @@ void process_step(operation_step *step) {
             return process_is_type(step);
         case operation_jump_if_false:
             return process_jump_if_false(step);
+        case operation_jump_if_true:
+            return process_jump_if_true(step);
         case operation_jump:
             return process_jump(step);
         case operation_set_label:
@@ -173,13 +175,182 @@ void process_step(operation_step *step) {
             return process_xor(step);
         case operation_assign_numeric_value:
             return process_assign_numeric_value(step);
+        case operation_and_and:
+            return process_and_and(step);
+        case operation_eq_eq:
+            return process_eq_eq(step);
+        case operation_not_eq:
+            return process_not_eq(step);
+        case operation_lt:
+            return process_lt(step);
+        case operation_gt:
+            return process_gt(step);
+        case operation_gte:
+            return process_gte(step);
+        case operation_lte:
+            return process_lte(step);
+        case operation_shl:
+            return process_shl(step);
+        case operation_shr:
+            return process_shr(step);
+        case operation_exponent:
+            return process_exponent(step);
+        case operation_check_null:
+            return process_check_null(step);
+        case operation_instance_eq:
+            return process_instance_eq(step);
+        case operation_instance_not_eq:
+            return process_instance_not_eq(step);
     }
+}
+
+void process_instance_eq(operation_step *step) {
+    validate_step_type(step, operation_instance_eq);
+
+    add_instruction(Opcode::Builder::itest(CMT));
+    set_machine_data(get_register(CMT));
+}
+
+void process_instance_not_eq(operation_step *step) {
+    validate_step_type(step, operation_instance_not_eq);
+
+    add_instruction(Opcode::Builder::itest(CMT));
+    add_instruction(Opcode::Builder::_not(CMT, CMT));
+    set_machine_data(get_register(CMT));
+}
+
+void process_check_null(operation_step *step) {
+    validate_step_type(step, operation_check_null);
+
+    add_instruction(Opcode::Builder::checkNull(CMT));
+    set_machine_data(get_register(CMT));
+}
+
+void process_exponent(operation_step *step) {
+    validate_step_type(step, operation_exponent);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::exp(
+            BMR, (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(BMR));
+}
+
+void process_shr(operation_step *step) {
+    validate_step_type(step, operation_shr);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::shr(
+            BMR, (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(BMR));
+}
+
+void process_shl(operation_step *step) {
+    validate_step_type(step, operation_shl);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::shl(
+           BMR,  (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(BMR));
+}
+
+void process_gte(operation_step *step) {
+    validate_step_type(step, operation_gte);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::ge(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(CMT));
+}
+
+void process_lte(operation_step *step) {
+    validate_step_type(step, operation_lte);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::le(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(CMT));
+}
+
+void process_gt(operation_step *step) {
+    validate_step_type(step, operation_gt);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::gt(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(CMT));
+}
+
+void process_lt(operation_step *step) {
+    validate_step_type(step, operation_lt);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::lt(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(CMT));
+}
+
+void process_not_eq(operation_step *step) {
+    validate_step_type(step, operation_not_eq);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::tne(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(BMR));
+}
+
+void process_eq_eq(operation_step *step) {
+    validate_step_type(step, operation_eq_eq);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::te(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(BMR));
+}
+
+void process_and_and(operation_step *step) {
+    validate_step_type(step, operation_and_and);
+
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume( step->secondRegister, false);
+
+    add_instruction(Opcode::Builder::_and(
+            (_register) left->address, (_register)right->address));
+    set_machine_data(get_register(BMR));
 }
 
 void process_assign_numeric_value(operation_step *step) {
     validate_step_type(step, operation_assign_numeric_value);
 
     consume_machine_data_from_register(get_register(BMR));
+    set_machine_data(get_register(BMR));
 }
 
 internal_register* get_register_or_consume(Int registerId, bool leftSide) {
@@ -196,7 +367,8 @@ internal_register* get_register_or_consume(Int registerId, bool leftSide) {
 void process_add(operation_step *step) {
     validate_step_type(step, operation_add);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+            get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::add(
@@ -207,7 +379,8 @@ void process_add(operation_step *step) {
 void process_sub(operation_step *step) {
     validate_step_type(step, operation_sub);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::sub(
@@ -218,7 +391,8 @@ void process_sub(operation_step *step) {
 void process_mult(operation_step *step) {
     validate_step_type(step, operation_mult);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::mul(
@@ -229,7 +403,8 @@ void process_mult(operation_step *step) {
 void process_div(operation_step *step) {
     validate_step_type(step, operation_div);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::div(
@@ -240,7 +415,8 @@ void process_div(operation_step *step) {
 void process_mod(operation_step *step) {
     validate_step_type(step, operation_mod);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::mod(
@@ -251,7 +427,8 @@ void process_mod(operation_step *step) {
 void process_and(operation_step *step) {
     validate_step_type(step, operation_and);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::uand(
@@ -262,7 +439,8 @@ void process_and(operation_step *step) {
 void process_or(operation_step *step) {
     validate_step_type(step, operation_or);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::_or(
@@ -273,7 +451,8 @@ void process_or(operation_step *step) {
 void process_xor(operation_step *step) {
     validate_step_type(step, operation_xor);
 
-    internal_register* left = get_register_or_consume(step->integer, true);
+    internal_register* left = step->integer == -1 ?
+                              get_register(BMR) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume( step->secondRegister, false);
 
     add_instruction(Opcode::Builder::_xor(
@@ -287,6 +466,17 @@ void process_jump_if_false(operation_step *step) {
     consume_machine_data(get_register(CMT));
     create_dynamic_instruction(
             dynamic_instruction(Opcode::JNE, 1,
+                                dynamic_argument(label_argument, step->integer)
+            )
+    );
+}
+
+void process_jump_if_true(operation_step *step) {
+    validate_step_type(step, operation_jump_if_true);
+
+    consume_machine_data(get_register(CMT));
+    create_dynamic_instruction(
+            dynamic_instruction(Opcode::JE, 1,
                                 dynamic_argument(label_argument, step->integer)
             )
     );

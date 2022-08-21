@@ -106,6 +106,7 @@ void compile_initialization_call( // todo: we need to add duplicate object suppo
         List<operation_schema*> &paramOperations,
         operation_schema *scheme) {
     create_new_class_operation(scheme, with_class);
+    create_duplicate_operation(scheme);
     compile_function_call(
             scheme, params,
             paramOperations, constructor,

@@ -493,6 +493,9 @@ opcode_instr* OpBuilder::imodl(opcode_arg value, opcode_arg relFrameAddress) {
 }
 
 opcode_instr OpBuilder::loadl(_register inRegister, opcode_arg relFrameAddress) {
+    if(inRegister == BMR) {
+        int r = 0;
+    }
     return SET_Ci(tmpInstr, LOADL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
@@ -543,7 +546,7 @@ opcode_instr* OpBuilder::istore(opcode_arg value) {
 opcode_instr* OpBuilder::smovr4(opcode_arg relFrameAddress1, opcode_arg relFrameAddress2) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
 
-    instruction_Buffer[0] = SET_Di(tmpInstr, ISTOREL, abs(relFrameAddress1), posNeg(relFrameAddress1));
+    instruction_Buffer[0] = SET_Di(tmpInstr, SMOVR_4, abs(relFrameAddress1), posNeg(relFrameAddress1));
     instruction_Buffer[1] = relFrameAddress2;
     return instruction_Buffer;
 }

@@ -58,6 +58,7 @@ void process_var_class(operation_step *step);
 void process_is_class(operation_step *step);
 void process_is_type(operation_step *step);
 void process_jump_if_false(operation_step *step);
+void process_jump_if_true(operation_step *step);
 void process_jump(operation_step *step);
 void process_set_label(operation_step *step);
 void process_allocate_label(operation_step *step);
@@ -71,6 +72,19 @@ void process_or(operation_step *step);
 void process_xor(operation_step *step);
 void process_assign_numeric_value(operation_step *step);
 internal_register* get_register_or_consume(Int registerId, bool leftSide);
+void process_and_and(operation_step *step);
+void process_eq_eq(operation_step *step);
+void process_not_eq(operation_step *step);
+void process_lt(operation_step *step);
+void process_gt(operation_step *step);
+void process_gte(operation_step *step);
+void process_lte(operation_step *step);
+void process_shl(operation_step *step);
+void process_shr(operation_step *step);
+void process_exponent(operation_step *step);
+void process_check_null(operation_step *step);
+void process_instance_not_eq(operation_step *step);
+void process_instance_eq(operation_step *step);
 
 void process_step(operation_step *step);
 

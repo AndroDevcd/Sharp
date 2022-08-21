@@ -286,11 +286,24 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
                 }
                 case numeric_local_field: {
                     if (internalRegister->type == normal_register) {
+                        if(cc.machineData.field->type.type < type_function_ptr) {
+                            cast_machine_data((_register) internalRegister->address, cc.machineData.field->type.type);
+                        }
+
                         add_instruction(Opcode::Builder::smovr2(
                                 (_register) internalRegister->address, cc.machineData.dataAddress));
                     } else {
-                        add_instruction(Opcode::Builder::smovr4(
-                                cc.machineData.dataAddress, internalRegister->address));
+                        if(cc.machineData.field->type.type < type_function_ptr) {
+                            add_instruction(Opcode::Builder::loadl(
+                                    EGX, internalRegister->address));
+
+                            cast_machine_data(EGX, cc.machineData.field->type.type);
+                            add_instruction(Opcode::Builder::smovr2(
+                                    EGX, cc.machineData.dataAddress));
+                        } else {
+                            add_instruction(Opcode::Builder::smovr4(
+                                    cc.machineData.dataAddress, internalRegister->address));
+                        }
                     }
                     break;
                 }
@@ -308,9 +321,17 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
                 }
                 case numeric_instance_field: {
                     if (internalRegister->type == normal_register) {
+                        if(cc.machineData.field->type.type < type_function_ptr) {
+                            cast_machine_data((_register) internalRegister->address, cc.machineData.field->type.type);
+                        }
+
                         add_instruction(Opcode::Builder::imov((_register) internalRegister->address));
                     } else {
                         add_instruction(Opcode::Builder::loadl(EGX, internalRegister->address));
+                        if(cc.machineData.field->type.type < type_function_ptr) {
+                            cast_machine_data(EGX, cc.machineData.field->type.type);
+                        }
+
                         add_instruction(Opcode::Builder::imov(EGX));
                     }
                     break;
@@ -384,7 +405,7 @@ void consume_machine_data(internal_register *internalRegister) {
                                     (_register) internalRegister->address, (_register) cc.machineData.dataAddress));
                         }
                     } else {
-                        add_instruction(Opcode::Builder::loadl(
+                        add_instruction(Opcode::Builder::smovr2(
                                 (_register) cc.machineData.dataAddress, internalRegister->address));
                     }
                     break;

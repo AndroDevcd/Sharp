@@ -359,6 +359,8 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                         create_decrement_operation(&e->scheme, field->type.type);
 
                     create_pop_value_from_stack_operation(&e->scheme);
+
+                    e->scheme.schemeType = scheme_post_increment;
                     e->type.type = field->type.type;
                 } else if(field->type.type == type_class) {
                     List<sharp_field*> params;

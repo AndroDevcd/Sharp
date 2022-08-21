@@ -36,6 +36,11 @@
 #include "scheme_inline_if.h"
 #include "scheme_assign_value.h"
 #include "scheme_compound_assign_value.h"
+#include "scheme_binary_math.h"
+#include "scheme_accelerated_binary_math.h"
+#include "scheme_or.h"
+#include "scheme_null_check.h"
+#include "scheme_instance_check.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -102,6 +107,16 @@ void process_scheme(operation_schema *scheme) {
                 return process_assign_value_scheme(scheme);
             case scheme_compound_assign_value:
                 return process_compound_assign_value_scheme(scheme);
+            case scheme_binary_math:
+                return process_binary_math_scheme(scheme);
+            case scheme_accelerated_binary_math:
+                return process_accelerated_binary_math_scheme(scheme);
+            case scheme_or:
+                return process_or_scheme(scheme);
+            case scheme_null_check:
+                return process_null_check_scheme(scheme);
+            case scheme_instance_check:
+                return process_instance_check_scheme(scheme);
         }
     }
 }

@@ -317,53 +317,58 @@ void compile_binary_integer_expression(
                     goto error;
                 }
             }
+            if(operand == "||") {
+                create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
+            } else {
+                ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
+                      create_get_value_operation(&e->scheme, &right.scheme, false);
+                      create_retain_numeric_value_operation(&e->scheme, register_1);
+                      create_get_integer_constant_operation(&e->scheme,
+                                                            get_numeric_expression_value_as_int(
+                                                                    left), false);
+                      create_retain_numeric_value_operation(&e->scheme, register_0);
 
-            ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
-                    create_get_value_operation(&e->scheme, &right.scheme, false);
-                    create_retain_numeric_value_operation(&e->scheme, register_1);
-                    create_get_integer_constant_operation(&e->scheme, get_numeric_expression_value_as_int(left), false);
-                    create_retain_numeric_value_operation(&e->scheme, register_0);
+                      if (operand == "&") {
+                          create_and_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "^") {
+                          create_xor_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "|") {
+                          create_or_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "&&") {
+                          create_and_and_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "==") {
+                          create_eq_eq_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "!=") {
+                          create_not_eq_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "<") {
+                          create_lt_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == ">") {
+                          create_gt_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "<=") {
+                          create_lte_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == ">=") {
+                          create_gte_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "<<") {
+                          create_shl_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == ">>") {
+                          create_shr_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "+") {
+                          create_add_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "-") {
+                          create_sub_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "/") {
+                          create_div_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "*") {
+                          create_mult_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "%") {
+                          create_mod_operation(&e->scheme, register_0, register_1);
+                      } else if (operand == "**") {
+                          create_exponent_operation(&e->scheme, register_0, register_1);
+                      }
 
-                    if(operand == "&") {
-                        create_and_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "^") {
-                        create_xor_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "|") {
-                        create_or_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "&&") {
-                        create_and_and_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "||") {
-                        create_or_or_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "==") {
-                        create_eq_eq_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "!=") {
-                        create_not_eq_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "<") {
-                        create_lt_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == ">") {
-                        create_gt_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "<=") {
-                        create_lte_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == ">=") {
-                        create_gte_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "<<") {
-                        create_shl_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == ">>") {
-                        create_shr_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "+") {
-                        create_add_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "-") {
-                        create_sub_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "/") {
-                        create_div_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "*") {
-                        create_mult_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "%") {
-                        create_mod_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "**") {
-                        create_exponent_operation(&e->scheme, register_0, register_1);
-                    }
-            )
+                      e->scheme.schemeType = scheme_binary_math;
+                )
+            }
 
             e->type.type = type_int64;
             break;
@@ -413,53 +418,104 @@ void compile_binary_numeric_expression(
                     goto error;
                 }
             }
+            if(operand == "||") {
+                create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
+            } else {
+                if (left.scheme.schemeType == scheme_binary_math) {
+                    ALLOCATE_REGISTER_1X(0, &e->scheme,
+                         create_get_value_operation(&e->scheme, &right.scheme, false);
+                         create_retain_numeric_value_operation(&e->scheme, register_0);
+                         create_get_value_operation(&e->scheme, &left.scheme, false);
 
-            ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
-                    create_get_value_operation(&e->scheme, &right.scheme, false);
-                    create_retain_numeric_value_operation(&e->scheme, register_1);
-                    create_get_value_operation(&e->scheme, &left.scheme, false);
-                    create_retain_numeric_value_operation(&e->scheme, register_0);
+                         if (operand == "&") {
+                             create_and_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "^") {
+                             create_xor_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "|") {
+                             create_or_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "&&") {
+                             create_and_and_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "==") {
+                             create_eq_eq_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "!=") {
+                             create_not_eq_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "<") {
+                             create_lt_operation(&e->scheme, -1, register_0);
+                         } else if (operand == ">") {
+                             create_gt_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "<=") {
+                             create_lte_operation(&e->scheme, -1, register_0);
+                         } else if (operand == ">=") {
+                             create_gte_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "<<") {
+                             create_shl_operation(&e->scheme, -1, register_0);
+                         } else if (operand == ">>") {
+                             create_shr_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "+") {
+                             create_add_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "-") {
+                             create_sub_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "/") {
+                             create_div_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "*") {
+                             create_mult_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "%") {
+                             create_mod_operation(&e->scheme, -1, register_0);
+                         } else if (operand == "**") {
+                             create_exponent_operation(&e->scheme, -1, register_0);
+                         }
 
-                    if(operand == "&") {
-                        create_and_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "^") {
-                        create_xor_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "|") {
-                        create_or_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "&&") {
-                        create_and_and_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "||") {
-                        create_or_or_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "==") {
-                        create_eq_eq_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "!=") {
-                        create_not_eq_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "<") {
-                        create_lt_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == ">") {
-                        create_gt_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "<=") {
-                        create_lte_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == ">=") {
-                        create_gte_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "<<") {
-                        create_shl_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == ">>") {
-                        create_shr_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "+") {
-                        create_add_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "-") {
-                        create_sub_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "/") {
-                        create_div_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "*") {
-                        create_mult_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "%") {
-                        create_mod_operation(&e->scheme, register_0, register_1);
-                    } else if(operand == "**") {
-                        create_exponent_operation(&e->scheme, register_0, register_1);
-                    }
-            )
+                         e->scheme.schemeType = scheme_accelerated_binary_math;
+                    )
+                } else {
+                    ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
+                         create_get_value_operation(&e->scheme, &right.scheme, false);
+                         create_retain_numeric_value_operation(&e->scheme, register_1);
+                         create_get_value_operation(&e->scheme, &left.scheme, false);
+                         create_retain_numeric_value_operation(&e->scheme, register_0);
+
+                         if (operand == "&") {
+                             create_and_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "^") {
+                             create_xor_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "|") {
+                             create_or_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "&&") {
+                             create_and_and_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "==") {
+                             create_eq_eq_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "!=") {
+                             create_not_eq_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "<") {
+                             create_lt_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == ">") {
+                             create_gt_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "<=") {
+                             create_lte_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == ">=") {
+                             create_gte_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "<<") {
+                             create_shl_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == ">>") {
+                             create_shr_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "+") {
+                             create_add_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "-") {
+                             create_sub_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "/") {
+                             create_div_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "*") {
+                             create_mult_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "%") {
+                             create_mod_operation(&e->scheme, register_0, register_1);
+                         } else if (operand == "**") {
+                             create_exponent_operation(&e->scheme, register_0, register_1);
+                         }
+
+                         e->scheme.schemeType = scheme_binary_math;
+                    )
+                }
+            }
 
             e->type.type = type_int64;
             break;
@@ -493,6 +549,8 @@ void compile_binary_object_expression(
                 create_not_operation(&e->scheme);
             }
 
+            e->scheme.schemeType = scheme_null_check;
+
             e->type.type = type_var;
             break;
         }
@@ -523,6 +581,7 @@ void compile_binary_object_expression(
                 create_instance_not_eq_operation(&e->scheme);
             }
 
+            e->scheme.schemeType = scheme_instance_check;
             e->type.type = type_int64;
             break;
         }
@@ -644,7 +703,8 @@ void compile_binary_expression(
         default: {
             error:
             currThread->currTask->file->errors->createNewError(
-                    GENERIC, ast->getSubAst(0), "unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(left.type) + "` and `" + type_to_str(right.type) + "`");
+                    GENERIC, ast->getSubAst(0), "unqualified use  of operator `"
+                    + operand.getValue() + "` with type `" + type_to_str(left.type) + "` and `" + type_to_str(right.type) + "`");
             break;
         }
     }

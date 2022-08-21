@@ -340,10 +340,17 @@ void create_and_and_operation(
 
 void create_or_or_operation(
         operation_schema *scheme,
-        Int registerLeft,
-        Int registerRight) {
-    scheme->steps.add(new operation_step(
-            operation_or_or, registerLeft, registerRight));
+        operation_schema *leftScheme,
+        operation_schema *rightScheme) {
+    scheme->schemeType = scheme_or;
+
+    Int endLabel = create_allocate_label_operation(scheme);
+
+    create_get_value_operation(scheme, leftScheme, false, false);
+    create_jump_if_true_operation(scheme, endLabel);
+
+    create_get_value_operation(scheme, rightScheme, false, false);
+    create_set_label_operation(scheme, endLabel);
 }
 
 void create_eq_eq_operation(
@@ -649,6 +656,16 @@ void create_set_catch_class_operation(
         scheme->steps.last()->_class = sc;
     }
 }
+
+void create_set_label_operation(
+        operation_schema *scheme,
+        Int label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_set_label, label));
+    }
+}
+
 void create_set_label_operation(
         operation_schema *scheme,
         sharp_label* label) {
@@ -745,6 +762,15 @@ void create_jump_if_true_operation(
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_jump_if_true, label->id));
+    }
+}
+
+void create_jump_if_true_operation(
+        operation_schema *scheme,
+        Int label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_jump_if_true, label));
     }
 }
 
