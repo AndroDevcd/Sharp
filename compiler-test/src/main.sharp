@@ -5,7 +5,7 @@ thread_local fark := 9;
 feep : int = new int(-1);
 
 def main() {
-  new ff().foo(null);
+  new ff().foo(8);
   println("hello, world! $feep");
 }
 
@@ -15,7 +15,7 @@ class ff {
     x : _int8;
     y : _int8;
 
-    def foo(n: object?) := n == n;
+    def foo(n: _int8) := n++;
 }
 
 class x {

@@ -41,6 +41,7 @@
 #include "scheme_or.h"
 #include "scheme_null_check.h"
 #include "scheme_instance_check.h"
+#include "scheme_post_increment.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -117,6 +118,8 @@ void process_scheme(operation_schema *scheme) {
                 return process_null_check_scheme(scheme);
             case scheme_instance_check:
                 return process_instance_check_scheme(scheme);
+            case scheme_post_increment:
+                return process_post_increment_scheme(scheme);
         }
     }
 }

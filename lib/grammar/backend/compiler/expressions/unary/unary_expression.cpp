@@ -349,8 +349,10 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
             case type_field: {
                 sharp_field *field = e->type.field;
 
-                if((field->type.type >= type_int8 && field->type.type <= type_uint64)
-                   || field->type.type == type_var) {
+                if(((field->type.type >= type_int8 && field->type.type <= type_uint64)
+                   || field->type.type == type_var) && !field->type.isArray) {
+                    create_post_scheme_start_operation(&e->scheme);
+
                     create_push_to_stack_operation(&e->scheme);
 
                     if(op == "++")

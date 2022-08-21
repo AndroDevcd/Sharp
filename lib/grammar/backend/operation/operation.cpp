@@ -298,6 +298,14 @@ void create_push_to_stack_operation(
     }
 }
 
+void create_post_scheme_start_operation(
+        operation_schema *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_post_scheme_start));
+    }
+}
+
 void create_check_null_operation(
         operation_schema *scheme) {
     if(scheme) {

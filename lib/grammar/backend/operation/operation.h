@@ -33,6 +33,7 @@ enum operation_type {
     operation_call_dynamic_function,
     operation_get_static_function_address,
     operation_push_value_to_stack,
+    operation_post_scheme_start,
     operation_assign_array_value,
     operation_get_value,
     operation_get_sizeof,
@@ -724,6 +725,9 @@ void create_new_object_array_operation(
         operation_schema *arraySizeOperations);
 
 void create_push_to_stack_operation(
+        operation_schema *scheme);
+
+void create_post_scheme_start_operation(
         operation_schema *scheme);
 
 void create_check_null_operation(
