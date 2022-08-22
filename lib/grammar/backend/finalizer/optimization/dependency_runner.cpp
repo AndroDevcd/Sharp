@@ -20,8 +20,8 @@ void mark(sharp_field *sf) {
 void mark(sharp_function *fun) {
     if(!fun->used) {
         fun->used = true;
-        for(Int i = 0; i < fun->parameters.size(); i++) {
-            mark(fun->parameters.get(i));
+        for(Int i = 0; i < fun->locals.size(); i++) {
+            mark(fun->locals.get(i));
         }
 
         run_and_mark_tree(fun->dependencies);

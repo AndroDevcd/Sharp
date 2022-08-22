@@ -107,12 +107,15 @@ void compile_initialization_call( // todo: we need to add duplicate object suppo
         operation_schema *scheme) {
     create_new_class_operation(scheme, with_class);
     create_duplicate_operation(scheme);
-    compile_function_call(
-            scheme, params,
-            paramOperations, constructor,
-            false,
-            false,
-            false);
+
+    APPLY_TEMP_SCHEME(0, *scheme,
+         compile_function_call(
+                 &scheme_0, params,
+                 paramOperations, constructor,
+                 false,
+                 false,
+                 false);
+    )
 }
 
 sharp_function* compile_class_function_overload(
@@ -139,6 +142,7 @@ sharp_function* compile_class_function_overload(
         compile_function_call(&e.scheme, params, paramOperations, fun, false, false,
                               false);
 
+        create_dependency(fun);
         e.type.copy(fun->returnType);
         return fun;
     } else {

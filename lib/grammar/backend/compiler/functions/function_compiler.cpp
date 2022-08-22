@@ -301,7 +301,9 @@ void compile_function(sharp_function *function, Ast *ast) {
             codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
 
             if(function->returnType.type == type_nil) {
-                create_return_operation(function->scheme);
+                APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_none, *function->scheme,
+                   create_return_operation(&scheme_0);
+                )
             }
         }
     }

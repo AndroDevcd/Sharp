@@ -29,7 +29,7 @@ void compile_cast_expression(expression *e, Ast *ast) {
 
                 if(!(castType.type == type_object
                     || (get_class_type(e->type) != NULL && get_class_type(castType)
-                        && is_implicit_type_match(get_class_type(e->type), get_class_type(castType))))) {
+                        && !is_implicit_type_match(get_class_type(e->type), get_class_type(castType))))) {
                     create_cast_operation(&e->scheme, &castType);
                 }
 

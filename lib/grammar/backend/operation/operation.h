@@ -40,6 +40,7 @@ enum operation_type {
     operation_get_sizeof,
     operation_throw_exception,
     operation_pop_value_from_stack,
+    operation_unused_data,
     operation_assign_array_element_from_stack,
     operation_nullify_value,
     operation_push_parameter_to_stack,
@@ -142,7 +143,6 @@ enum operation_type {
     operation_jump,
     operation_label_reachable,
     operation_setup_local_field,
-    operation_set_local_field,
     operation_get_register_value,
     operation_set_register_value,
     operation_set_try_catch_start,
@@ -192,11 +192,12 @@ enum _operation_scheme {
     scheme_null_check,
     scheme_instance_check,
     scheme_post_increment,
+    scheme_unused_data,
+    scheme_get_value,
 
     scheme_call_getter_function,
     scheme_get_address,
     scheme_increment_for_index_value,
-    scheme_get_numeric_value,
     scheme_lock_data,
     scheme_unlock_data,
     scheme_if,
@@ -984,10 +985,6 @@ void create_jump_if_true_operation(
         operation_schema *scheme,
         Int label);
 
-void create_set_local_field_operation(
-        operation_schema *scheme,
-        sharp_field* field);
-
 void create_setup_local_field_operation(
         operation_schema *scheme,
         sharp_field* field);
@@ -1059,6 +1056,9 @@ void create_xor_value_assignment_operation(
         operation_schema *valueScheme);
 
 void create_pop_value_from_stack_operation(
+        operation_schema *scheme);
+
+void create_unused_expression_data_operation(
         operation_schema *scheme);
 
 void create_assign_array_element_operation(

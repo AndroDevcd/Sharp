@@ -2154,6 +2154,9 @@ bool resolve_primary_class_function(
         }
 
         resultType.copy(fun->returnType);
+        if(check_flag(fun->flags, flag_static)) {
+            isStaticCall = true;
+        }
 
         compile_function_call(
                 scheme, params, item.operations,

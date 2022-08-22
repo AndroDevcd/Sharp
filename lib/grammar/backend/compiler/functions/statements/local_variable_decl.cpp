@@ -104,13 +104,21 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
     }
     flags |= flag_public;
 
-    operation_schema *subScheme = new operation_schema(scheme_assign_value);
+    operation_schema *subScheme = new operation_schema(scheme_master);
     sharp_field *field = compile_local_variable_statement(current_context.functionCxt, NULL, flags, ast);
-    create_setup_local_field_operation(scheme, field);
-    if(field->scheme->schemeType != scheme_none && !field->scheme->steps.empty()) {
-        create_get_value_operation(subScheme, field->scheme);
-        create_set_local_field_operation(subScheme, field);
-    }
+
+    APPLY_TEMP_SCHEME(0, *subScheme,
+        operation_schema *fieldScheme = new operation_schema();
+
+        if(field->scheme->schemeType != scheme_none && !field->scheme->steps.empty()) {
+            create_local_field_access_operation(fieldScheme, field);
+            create_value_assignment_operation(&scheme_0, fieldScheme, field->scheme);
+        } else {
+            create_setup_local_field_operation(&scheme_0, field);
+        }
+
+        delete fieldScheme;
+    )
 
     if(ast->hasSubAst(ast_variable_decl)) {
         long startAst = 0;
@@ -125,13 +133,21 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
         for(Int i = startAst; i < ast->getSubAstCount(); i++) {
             sharp_field *subField = compile_local_variable_statement(current_context.functionCxt, &field->type, flags, ast->getSubAst(i));
 
-            create_setup_local_field_operation(scheme, subField);
-            if(subField->scheme->schemeType != scheme_none && !subField->scheme->steps.empty()) {
-                create_get_value_operation(subScheme, subField->scheme);
-                create_set_local_field_operation(subScheme, subField);
-            }
+            APPLY_TEMP_SCHEME(1, *subScheme,
+                operation_schema *fieldScheme = new operation_schema();
+
+                if(field->scheme->schemeType != scheme_none && !subField->scheme->steps.empty()) {
+                    create_local_field_access_operation(fieldScheme, subField);
+                    create_value_assignment_operation(&scheme_1, fieldScheme, subField->scheme);
+                } else {
+                    create_setup_local_field_operation(&scheme_1, subField);
+                }
+
+                delete fieldScheme;
+            )
         }
     }
 
     add_scheme_operation(scheme, subScheme);
+    delete subScheme;
 }

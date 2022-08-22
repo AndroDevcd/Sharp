@@ -782,18 +782,6 @@ void create_jump_if_true_operation(
     }
 }
 
-void create_set_local_field_operation(
-        operation_schema *scheme,
-        sharp_field* field) {
-    if(scheme) {
-        scheme->schemeType = scheme_access_local_field;
-        scheme->field = field;
-
-        scheme->steps.add(new operation_step(
-                operation_set_local_field, field));
-    }
-}
-
 void create_setup_local_field_operation(
         operation_schema *scheme,
         sharp_field* field) {
@@ -824,6 +812,14 @@ Int create_allocate_register_operation(
     }
 
     return -1;
+}
+
+void create_unused_expression_data_operation(
+        operation_schema *scheme) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_unused_data));
+    }
 }
 
 void create_pop_value_from_stack_operation(
@@ -897,6 +893,7 @@ void create_primary_class_function_call_operation(
         List<operation_schema*> &paramScheme,
         sharp_function *fun) {
     if(scheme) {
+
         scheme->schemeType = scheme_call_primary_class_instance_function;
         scheme->fun = fun;
         scheme->steps.add(new operation_step(
@@ -1273,7 +1270,7 @@ void create_get_value_operation(
     if(resetState)
         scheme->free();
     if(setType)
-        scheme->schemeType = scheme_get_numeric_value;
+        scheme->schemeType = scheme_get_value;
 
     scheme->steps.add(new operation_step(
             valueScheme, operation_get_value));

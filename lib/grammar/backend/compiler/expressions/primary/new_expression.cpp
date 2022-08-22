@@ -213,7 +213,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 
 void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) {
     expression arraySize;
-    compile_expression(*e, ast->getSubAst(ast_expression));
+    compile_expression(arraySize, ast->getSubAst(ast_expression));
     operation_schema *arraySieScheme = new operation_schema(arraySize.scheme);
 
     e->type.copy(*newType);

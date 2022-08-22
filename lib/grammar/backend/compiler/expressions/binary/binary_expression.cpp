@@ -149,8 +149,13 @@ void  compile_binary_string_expression(
     sharp_function *constructor = resolve_function("string", string_class, params, constructor_function, exclude_all, ast, false, false);
 
     if(constructor != NULL) {
-        compile_initialization_call(ast, string_class, constructor, params, paramOperations, &e->scheme);
+        create_dependency(constructor);
+        create_dependency(string_class);
 
+        APPLY_TEMP_SCHEME(0, e->scheme,
+            compile_initialization_call(ast, string_class, constructor, params, paramOperations, &scheme_0);
+            scheme_0.schemeType = scheme_new_class;
+        )
 
         deleteList(params);
         deleteList(paramOperations);
@@ -317,7 +322,7 @@ void compile_binary_integer_expression(
                     goto error;
                 }
             }
-            if(operand == "||") {
+            if(operand == "||") { // todo: make "&&" like "||" as well to allow "&&" shor circuting
                 create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
             } else {
                 ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
@@ -602,7 +607,7 @@ void compile_binary_expression(
         expression &right,
         Token &operand) {
 
-    if(compile_expression_exceptions(left, operand, ast->getSubAst(0)))
+    if(compile_expression_exceptions(left, operand, ast->getSubAst(0), true))
         return;
 
     switch(left.type.type) {
@@ -616,8 +621,8 @@ void compile_binary_expression(
         }
 
         case type_string: {
-            if(operand == "+" || operand == "+="
-                || operand == "==" || operand == "!=" ) {
+            if(operand == "+" || operand == "=="
+                || operand == "!=" ) {
                 compile_binary_string_expression(e, left, right, operand, ast);
             } else
                 goto error;

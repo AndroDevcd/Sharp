@@ -6,13 +6,98 @@ def ll(k: _int8) := 9;
 
 class ff {
     x : _int8;
-    y : _int8[];
+    y : int;
 
-    def flarky() := y;
-
-    def fep(n: _int8) := flarky()[8];
+    static def flarky()  {
 
     }
+
+    static def flarkyfoo() := 10;
+
+    def foo(n: _int8) {
+        -5;
+        flarky();
+        -x;
+        flarky();
+        ++x;
+        flarky();
+        --x;
+        flarky();
+        !x;
+        flarky();
+        -flarkyfoo();
+        flarky();
+        ++flarkyfoo();
+        flarky();
+        --flarkyfoo();
+        flarky();
+        !flarkyfoo();
+        flarky();
+        ++y;
+        flarky();
+        'h';
+        0x9;
+        "hi";
+        true;
+        flarky();
+        self;
+        flarky();
+        self->x;
+        flarky();
+        self->flarky();
+        flarky();
+        base;
+        flarky();
+        null;
+        flarky();
+        new string();
+        flarky();
+        new _int8[9];
+        flarky();
+        new _int8[] { 1, 2, 3 };
+        flarky();
+        //new string()!!;
+        //get<_int64>();
+        sizeof(self);
+        flarky();
+        ("hi");
+        flarky();
+        //self as _object_;
+        flarky();
+        //self is _object_;
+        flarky();
+        //a := {
+        //    5 : "a",
+        //    6 : "b"
+        //};
+        flarky();
+        //a : _int64[]? = { 1, 2, 3 };
+        flarky();
+        //a ?: null;
+        flarky();
+        //a == null ? n : 2;
+        flarky();
+        n = 8;
+        flarky();
+        5 + 5;
+        flarky();
+        5 + n;
+        flarky();
+        5 || n;
+        flarky();
+        5 && n;
+        flarky();
+        "" == "";
+        flarky();
+        "hello " + " j";
+        flarky();
+        n + 8;
+        flarky();
+        //flarkyfoo2(null) == "hi";
+        //flarky();
+        //flarkyfoo2(null) + "hi";
+    }
+}
 
 def main() {
    // fep(9);

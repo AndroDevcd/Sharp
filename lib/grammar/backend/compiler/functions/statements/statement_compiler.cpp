@@ -50,18 +50,16 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
 
             APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_none, *scheme,
                 scheme_0.copy(e.scheme);
-
-                if((e.scheme.schemeType == scheme_call_static_function
-                   || e.scheme.schemeType == scheme_call_getter_function
-                   || e.scheme.schemeType == scheme_call_instance_function)
-                   && e.type.type != type_nil) {
-                    create_pop_value_from_stack_operation(&scheme_0);
-                }
+                create_unused_expression_data_operation(&scheme_0);
             )
             break;
         }
         case ast_variable_decl: {
             compile_local_variable_statement(ast, scheme);
+
+            APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_unused_data, *scheme,
+                  create_unused_expression_data_operation(&scheme_0);
+            )
             break;
         }
         case ast_alias_decl: {

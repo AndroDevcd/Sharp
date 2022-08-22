@@ -505,7 +505,7 @@ string code_to_string(code_info *info) {
             }
             case Opcode::NEWCLASS:
             {
-                ss<<"new_class @" << code.get(x+1);
+                ss<<"new_class @" << compressedCompilationClasses.get(code.get(x+1))->fullName;
                 x++;
                 break;
             }
@@ -703,7 +703,7 @@ string code_to_string(code_info *info) {
                 ss<< register_to_str(GET_Da(opcodeData));
                 ss<< " ";
                 x++;
-                ss << "@ " << code.get(x);
+                ss << "@ " << compressedCompilationClasses.get(code.get(x))->fullName;
 
                 break;
             }

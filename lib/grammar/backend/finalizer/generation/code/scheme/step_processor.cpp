@@ -205,6 +205,24 @@ void process_step(operation_step *step) {
             return process_post_access(step);
         case operation_get_array_element_at_index:
             return process_get_array_element_at_index(step);
+        case operation_unused_data:
+            return process_unused_data(step);
+        case operation_setup_local_field:
+            return process_setup_local_field(step);
+        default:
+            generation_error("attempt to execute unknown operation step!");
+            break;
+    }
+}
+
+void process_setup_local_field(operation_step *step) {
+    validate_step_type(step, operation_setup_local_field);
+
+    if(is_numeric_type(step->field->type) && !step->field->type.isArray) {
+        add_instruction(Opcode::Builder::istorel(step->field->ci->address, 0));
+    } else {
+        add_instruction(Opcode::Builder::pushNull());
+        add_instruction(Opcode::Builder::popl(step->field->ci->address));
     }
 }
 
@@ -240,6 +258,19 @@ void process_post_access(operation_step *step) {
         consume_machine_data();
         set_machine_data(generic_object_data);
     }
+}
+
+void process_unused_data(operation_step *step) {
+    validate_step_type(step, operation_unused_data);
+
+    if(cc.machineData.type == string_constant
+        || cc.machineData.type == new_class_data
+        || cc.machineData.type == function_numeric_data
+        || cc.machineData.type == function_object_data) {
+        add_instruction(Opcode::Builder::pop());
+    }
+
+    clear_machine_data();
 }
 
 void process_instance_eq(operation_step *step) {

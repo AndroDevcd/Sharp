@@ -15,7 +15,7 @@ void process_null_fallback_scheme(operation_schema *scheme) {
 
     Int label = create_label();
     create_dynamic_instruction(
-            dynamic_instruction(Opcode::JE, 1,
+            dynamic_instruction(Opcode::JNE, 1,
                        dynamic_argument(label_argument, label)
             )
     );

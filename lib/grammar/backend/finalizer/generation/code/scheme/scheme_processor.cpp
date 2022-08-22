@@ -42,6 +42,8 @@
 #include "scheme_null_check.h"
 #include "scheme_instance_check.h"
 #include "scheme_post_increment.h"
+#include "scheme_unused_data.h"
+#include "scheme_get_value.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -120,6 +122,13 @@ void process_scheme(operation_schema *scheme) {
                 return process_instance_check_scheme(scheme);
             case scheme_post_increment:
                 return process_post_increment_scheme(scheme);
+            case scheme_unused_data:
+                return process_unused_data_scheme(scheme);
+            case scheme_get_value:
+                return process_get_value_scheme(scheme);
+            default:
+                generation_error("attempt to execute unknown scheme!");
+                break;
         }
     }
 }

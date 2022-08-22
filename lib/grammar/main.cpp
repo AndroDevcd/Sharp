@@ -424,9 +424,9 @@ int compile()
     if(all_files_parsed()) {
         run_post_processing_tasks();
         run_compilation_tasks();
+        finalize_compilation();
     }
 
-    finalize_compilation();
 
 //    stringstream ss;
 //    uInt tabCount = 0;
