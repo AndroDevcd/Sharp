@@ -13,7 +13,7 @@ sharp_class* compile_catch_clause(
         operation_schema *scheme,
         sharp_tc_data *tc_data,
         bool *controlPaths) {
-    catch_data *catchData = create_catch_data_tracker(tc_data, scheme);
+    catch_data_info *catchData = create_catch_data_tracker(tc_data, scheme);
     sharp_class *exceptionClass = NULL;
 
     sharp_type handlingClass = resolve(ast->getSubAst(ast_utype_arg)->getSubAst(ast_utype));
@@ -30,6 +30,7 @@ sharp_class* compile_catch_clause(
             current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class: `" +
                     type_to_str(handlingClass) + "`");
         } else {
+            create_dependency(get_class_type(handlingClass));
             create_set_catch_class_operation(catchData, get_class_type(handlingClass), scheme);
         }
 
@@ -64,11 +65,11 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
     string std = "std";
     sharp_tc_data *tc_data = NULL;
     sharp_field *exceptionObject = NULL;
+    sharp_field *returnAddressField = NULL;
     List<sharp_class*> catchedClasses;
     List<operation_schema*> lockSchemes;
-    sharp_label *finallyBeginLabel, *finallyEndLabel, *endLabel;
+    sharp_label *finallyBeginLabel, *finallyEndLabel, *endLabel, *returnCheckEndLabel;
     operation_schema *subScheme = new operation_schema();
-    subScheme->schemeType = scheme_try;
 
     set_internal_label_name(ss, "finally_begin", uniqueId++)
     finallyBeginLabel = create_label(ss.str(), &current_context, ast, subScheme);
@@ -76,27 +77,42 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
     finallyEndLabel = create_label(ss.str(), &current_context, ast, subScheme);
     set_internal_label_name(ss, "try_end", uniqueId++)
     endLabel = create_label(ss.str(), &current_context, ast, subScheme);
+    set_internal_label_name(ss, "return_check_end", uniqueId++)
+    returnCheckEndLabel = create_label(ss.str(), &current_context, ast, subScheme);
 
     sharp_class *throwable = resolve_class(get_module(std), "throwable", false, false);
     bool hasFinallyBlock = ast->hasSubAst(ast_finally_block);
+    bool hasCatchBlock = ast->hasSubAst(ast_catch_clause);
 
     if(hasFinallyBlock) {
         uInt flags = flag_public;
-        set_internal_label_name(ss, "exception_object", 0)
+        set_internal_variable_name(ss, "exception_object", 0)
         if((exceptionObject = resolve_local_field(ss.str(), &current_context)) == NULL) {
             sharp_type fieldType = sharp_type(type_object);
             exceptionObject =  create_local_field(current_file, &current_context, ss.str(), flags, fieldType, normal_field, ast);
+            create_dependency(exceptionObject);
+        }
+
+        set_internal_variable_name(ss, "return_address", 0)
+        if((returnAddressField = resolve_local_field(ss.str(), &current_context)) == NULL) {
+            sharp_type fieldType = sharp_type(type_var);
+            returnAddressField =  create_local_field(current_file, &current_context, ss.str(), flags, fieldType, normal_field, ast);
+            create_dependency(returnAddressField);
         }
     }
 
     tc_data = create_try_catch_data_tracker(subScheme);
     create_try_catch_start_operation(subScheme, tc_data);
     create_try_catch_block_start_operation(subScheme, tc_data);
+    create_setup_local_field_operation(subScheme, returnAddressField);
 
-    controlPaths[TRY_CONTROL_PATH] = compile_block(ast->getSubAst(ast_block), subScheme, try_block, NULL, NULL, NULL, finallyBeginLabel);
+    controlPaths[TRY_CONTROL_PATH] =
+            compile_block(ast->getSubAst(ast_block), subScheme, try_block,
+                          NULL, NULL, NULL, finallyBeginLabel);
     create_try_catch_block_end_operation(subScheme, tc_data);
 
-    create_jump_operation(subScheme, endLabel);
+    if(hasCatchBlock)
+        create_jump_operation(subScheme, endLabel); // todo: optimize this out if we dont have a catch block
 
     controlPaths[CATCH_CONTROL_PATH] = true;
     for(Int i = 1; i < ast->getSubAstCount(); i++) {
@@ -105,7 +121,8 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
         current_context.blockInfo.reachable = true;
         switch (branch->getType()) {
             case ast_catch_clause: {
-                sharp_class *klass = compile_catch_clause(branch, subScheme, tc_data, controlPaths);
+                operation_schema *catchScheme = new operation_schema(scheme_catch_clause);
+                sharp_class *klass = compile_catch_clause(branch, catchScheme, tc_data, controlPaths);
 
                 if(klass != NULL && !catchedClasses.addif(klass)) {
                     current_file->errors->createNewError(GENERIC, ast->line, ast->col, "class `" + klass->fullName + "` has already been caught.");
@@ -116,52 +133,111 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
                 }
 
 
-                create_jump_operation(subScheme, endLabel);
+                create_jump_operation(catchScheme, endLabel);
+                add_scheme_operation(subScheme, catchScheme);
                 current_context.blockInfo.reachable = true;
+
+                delete catchScheme;
                 break;
             }
 
             case ast_finally_block: {
-                create_try_catch_end_operation(subScheme, tc_data);
+                operation_schema *finallyScheme = new operation_schema();
+                create_try_catch_end_operation(finallyScheme, tc_data);
 
                 sharp_label *nextFinallyLabel = retrieve_next_finally_label(&current_context.blockInfo);
-                finally_data *finallyData = create_finally_data_tracker(tc_data, subScheme);
+                finally_data_info *finallyData = create_finally_data_tracker(tc_data, finallyScheme);
 
-                create_set_label_operation(subScheme, endLabel);
-                create_setup_local_field_operation(subScheme, exceptionObject);
-                create_set_label_operation(subScheme, finallyBeginLabel);
-                create_finally_start_operation(subScheme, finallyData);
-                create_set_finally_field_operation(finallyData, exceptionObject, subScheme);
+                create_set_label_operation(finallyScheme, endLabel);
+                create_setup_local_field_operation(finallyScheme, exceptionObject);
+                create_set_label_operation(finallyScheme, finallyBeginLabel);
+                create_finally_start_operation(finallyScheme, finallyData);
+                create_set_finally_field_operation(finallyData, exceptionObject, finallyScheme);
 
-                compile_block(branch->getSubAst(ast_block), subScheme, finally_block);
+                compile_block(branch->getSubAst(ast_block), finallyScheme, finally_block);
 
                 if(nextFinallyLabel == NULL) {
-                    create_local_field_access_operation(subScheme, exceptionObject);
-                    create_check_null_operation(subScheme);
-                    create_jump_if_true_operation(subScheme, finallyEndLabel);
+                    create_local_field_access_operation(finallyScheme, exceptionObject);
+                    create_check_null_operation(finallyScheme);
+                    create_jump_if_true_operation(finallyScheme, finallyEndLabel);
 
 
                     retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
                     for(Int j = 0; j < lockSchemes.size(); j++) { // todo look into also processing finally blocks in the same way
                         operation_schema* tmp = new operation_schema();
                         create_unlock_operation(tmp, lockSchemes.get(j));
-                        add_scheme_operation(subScheme, tmp);
+                        add_scheme_operation(finallyScheme, tmp);
                     }
 
-                    create_local_field_access_operation(subScheme, exceptionObject);
-                    create_push_to_stack_operation(subScheme);
-                    create_return_with_error_operation(subScheme); // it will only return of exception object still has not been handled
+                    create_local_field_access_operation(finallyScheme, exceptionObject);
+                    create_push_to_stack_operation(finallyScheme);
+                    create_return_with_error_operation(finallyScheme); // it will only return of exception object still has not been handled
+
+                    finallyScheme->schemeType =  scheme_last_finally_clause;
                 } else {
-                    create_local_field_access_operation(subScheme, exceptionObject);
-                    create_check_null_operation(subScheme);
-                    create_jump_if_true_operation(subScheme, finallyEndLabel);
+                    create_local_field_access_operation(finallyScheme, exceptionObject);
+                    create_check_null_operation(finallyScheme);
+                    create_jump_if_true_operation(finallyScheme, finallyEndLabel);
 
-                    create_jump_operation(subScheme, nextFinallyLabel); // it will only return of exception object still has not been handled
+                    create_jump_operation(finallyScheme, nextFinallyLabel); // it will only return of exception object still has not been handled
 
+                    finallyScheme->schemeType = scheme_finally_clause;
                 }
 
-                create_set_label_operation(subScheme, finallyEndLabel);
-                create_finally_end_operation(subScheme, finallyData);
+                create_set_label_operation(finallyScheme, finallyEndLabel);
+                operation_schema *returnAddressScheme = new operation_schema();
+
+                if(nextFinallyLabel == NULL) {
+                    ALLOCATE_REGISTER_2X(0, 1, returnAddressScheme,
+                         operation_schema *valueScheme = new operation_schema();
+                         create_get_integer_constant_operation(valueScheme, 0);
+
+                         create_get_value_operation(returnAddressScheme, valueScheme, false);
+                         create_retain_numeric_value_operation(returnAddressScheme, register_0);
+
+                         delete valueScheme; valueScheme = new operation_schema();
+                         create_local_field_access_operation(valueScheme, returnAddressField);
+                         create_get_value_operation(returnAddressScheme, valueScheme, false);
+                         create_retain_numeric_value_operation(returnAddressScheme, register_1);
+
+                         create_eq_eq_operation(returnAddressScheme, register_0, register_1);
+                         create_jump_if_true_operation(returnAddressScheme, returnCheckEndLabel);
+                         create_branch_operation(returnAddressScheme, register_1);
+
+                         returnAddressScheme->schemeType = scheme_return_address_check_1;
+                         delete valueScheme;
+                    )
+
+                    add_scheme_operation(finallyScheme, returnAddressScheme);
+                } else {
+                    ALLOCATE_REGISTER_2X(0, 1, returnAddressScheme,
+                         operation_schema *valueScheme = new operation_schema();
+                         create_get_integer_constant_operation(valueScheme, 0);
+
+                         create_get_value_operation(returnAddressScheme, valueScheme, false);
+                         create_retain_numeric_value_operation(returnAddressScheme, register_0);
+
+                         delete valueScheme; valueScheme = new operation_schema();
+                         create_local_field_access_operation(valueScheme, returnAddressField);
+                         create_get_value_operation(returnAddressScheme, valueScheme, false);
+                         create_retain_numeric_value_operation(returnAddressScheme, register_1);
+
+                         create_eq_eq_operation(returnAddressScheme, register_0, register_1);
+                         create_jump_if_false_operation(returnAddressScheme, nextFinallyLabel);
+
+                         returnAddressScheme->schemeType = scheme_return_address_check_2;
+                         delete valueScheme;
+                    )
+
+                    add_scheme_operation(finallyScheme, returnAddressScheme);
+                }
+
+                delete returnAddressScheme;
+                create_set_label_operation(finallyScheme, returnCheckEndLabel);
+                create_finally_end_operation(finallyScheme, finallyData);
+                add_scheme_operation(subScheme, finallyScheme);
+
+                delete finallyScheme;
                 break;
             }
 
@@ -173,9 +249,9 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
         create_set_label_operation(subScheme, endLabel);
         create_try_catch_end_operation(subScheme, tc_data);
     }
-    create_no_operation(subScheme);
 
+    subScheme->schemeType = scheme_try;
     catchedClasses.free();
     lockSchemes.free();
-    add_scheme_operation(scheme, subScheme);
+    add_scheme_operation(scheme, subScheme); // todo: delete all sub schemes at end of each statement this is leaking lots of data
 }

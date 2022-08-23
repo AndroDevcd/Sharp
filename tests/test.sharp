@@ -17,10 +17,18 @@ class ff {
     static def flarkyfoo() := 10;
 
 
-    def foo(n: _int8) {
-        foreach(j in x) {
+    def foo(n: var) {
 
-        }
+       try {
+            try {
+            n = 3;
+            } finally {
+                n = 1;
+            }
+               return;
+       } finally {
+            n = 0;
+       }
     }
 }
 

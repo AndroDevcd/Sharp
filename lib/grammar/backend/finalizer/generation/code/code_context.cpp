@@ -14,6 +14,7 @@ void code_context::free() {
     deleteList(registers);
     deleteList(dynamicInstructions);
     deleteList(labels);
+    deleteList(tryCatchTable);
     instructions.free();
     container = NULL;
     ci = NULL;
@@ -640,6 +641,110 @@ void create_label(Int id) {
     }
 }
 
+void create_finally_data(Int id, Int parentId) {
+    if(id != -1) {
+        try_catch_data *tcd =
+                find_try_catch_data(parentId);
+
+        if(tcd != NULL) {
+            finally_data *fd =
+                    tcd->finallyData;
+
+            if(fd == NULL) {
+                fd = new finally_data(id);
+                tcd->finallyData = fd;
+            } else {
+                generation_error("attempting to create already created finally data!");
+            }
+        } else {
+            generation_error("attempting to create finally data from unknown parent!");
+        }
+    } else {
+        generation_error("attempting to create finally data without id!");
+    }
+}
+
+finally_data* get_finally_data(Int id, try_catch_data *tcd) {
+    if(tcd != NULL) {
+        finally_data *fd =
+                tcd->finallyData;
+
+        if(fd != NULL) {
+            if (fd->id == id) {
+                return fd;
+            } else {
+                generation_error("attempt to get finally data with incorrect id;");
+                return NULL;
+            }
+        } else {
+            return NULL;
+        }
+    } else {
+        generation_error("attempt to get finally data from unknown parent!");
+        return NULL;
+    }
+}
+
+
+void create_catch_data(Int id, Int parentId) {
+    if(id != -1) {
+        try_catch_data *tcd =
+                find_try_catch_data(parentId);
+
+        if(tcd != NULL) {
+            catch_data *cd =
+                    find_catch_data(id, tcd);
+
+            if(cd == NULL) {
+                cd = new catch_data(id);
+                tcd->catchTable.add(cd);
+            } else {
+                generation_error("attempting to create already created catch data!");
+            }
+        } else {
+            generation_error("attempting to create catch data from unknown parent!");
+        }
+    } else {
+        generation_error("attempting to create catch data without id!");
+    }
+}
+
+catch_data* find_catch_data(Int id, try_catch_data *tcd) {
+    if(tcd != NULL) {
+        for (Int i = 0; i < tcd->catchTable.size(); i++) {
+            if (tcd->catchTable.get(i)->id == id)
+                return tcd->catchTable.get(i);
+        }
+    }
+    
+    return NULL;
+}
+
+try_catch_data* find_try_catch_data(Int id) {
+    for(Int i = 0; i < cc.tryCatchTable.size(); i++) {
+        if(cc.tryCatchTable.get(i)->id == id)
+            return cc.tryCatchTable.get(i);
+    }
+
+    return NULL;
+}
+
+void create_try_catch_data(Int id) {
+    if(id != -1) {
+        try_catch_data *tcd =
+                find_try_catch_data(id);
+
+        if(tcd == NULL) {
+            tcd = new try_catch_data(id);
+            cc.tryCatchTable.add(tcd);
+        } else {
+            generation_error("attempting to create already created try catch data!");
+        }
+    } else {
+        generation_error("attempting to create try catch data without id!");
+    }
+}
+
 void set_label(internal_label *l) {
     if(l != NULL) {
         if (l->address == -1) {
@@ -704,8 +809,8 @@ void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instr
                     get_dynamic_arg_value(di.arg1), (_register) get_dynamic_arg_value(di.arg2));
 
             Int instrPos = 0;
-            for(Int i = di.ip; i < INSTRUCTION_BUFFER_SIZE; i++) {
-                instructions.get(i) = instr[instrPos++];
+            for(Int i = 0; i < INSTRUCTION_BUFFER_SIZE; i++) {
+                instructions.get(di.ip + i) = instr[instrPos++];
             }
             break;
         }

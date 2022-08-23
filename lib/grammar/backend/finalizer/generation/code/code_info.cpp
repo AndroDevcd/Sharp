@@ -1069,3 +1069,8 @@ string code_to_string(code_info *info) {
 
     return ss.str();
 }
+
+void try_catch_data::free() {
+    deleteList(catchTable);
+    delete finallyData; finallyData = NULL;
+}

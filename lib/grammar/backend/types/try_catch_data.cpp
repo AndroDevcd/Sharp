@@ -14,21 +14,21 @@ sharp_tc_data* create_try_catch_data_tracker(
     return NULL;
 }
 
-catch_data* create_catch_data_tracker(
+catch_data_info* create_catch_data_tracker(
         sharp_tc_data *parent,
         operation_schema *scheme) {
     if(scheme) {
-        return new catch_data(create_allocate_catch_data_operation(parent, scheme), parent);
+        return new catch_data_info(create_allocate_catch_data_operation(parent, scheme), parent);
     }
 
     return NULL;
 }
 
-finally_data* create_finally_data_tracker(
+finally_data_info* create_finally_data_tracker(
         sharp_tc_data *parent,
         operation_schema *scheme) {
     if(scheme) {
-        return new finally_data(create_allocate_finally_data_operation(parent, scheme), parent);
+        return new finally_data_info(create_allocate_finally_data_operation(parent, scheme), parent);
     }
     
     return NULL;

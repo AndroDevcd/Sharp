@@ -42,7 +42,7 @@ internal_register* allocate_register(Int id) {
         }
     }
 
-    cc.registers.add(new internal_register(
+    cc.registers.add(new internal_register( // todo: fix values looks like it needs a +1 value added for instance functions
             id, (check_flag(cc.container->flags, flag_static) ? 0 : 1) +
             cc.container->locals.size() + (cc.registers.size() - MIN_REGISTERS),
             stack_register, status_busy));

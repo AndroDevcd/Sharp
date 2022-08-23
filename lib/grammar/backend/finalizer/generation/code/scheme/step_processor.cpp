@@ -8,6 +8,7 @@
 #include "../../class_generator.h"
 #include "../../field_generator.h"
 #include "scheme_processor.h"
+#include "../code_info.h"
 
 void add_instruction(opcode_instr instr) {
     cc.instructions.add(instr);
@@ -151,6 +152,8 @@ void process_step(operation_step *step) {
             return process_jump_if_false(step);
         case operation_jump_if_true:
             return process_jump_if_true(step);
+        case operation_branch:
+            return process_branch(step);
         case operation_jump:
             return process_jump(step);
         case operation_set_label:
@@ -215,10 +218,224 @@ void process_step(operation_step *step) {
             return process_lock(step);
         case operation_no_op:
             return process_no_op(step);
+        case operation_allocate_try_catch_data:
+            return process_allocate_try_catch_data(step);
+        case operation_set_try_catch_start:
+            return process_set_try_catch_start(step);
+        case operation_set_try_catch_block_start:
+            return process_set_try_catch_block_start(step);
+        case operation_set_try_catch_block_end:
+            return process_set_try_catch_block_end(step);
+        case operation_allocate_catch_data:
+            return process_allocate_catch_data(step);
+        case operation_set_catch_class:
+            return process_set_catch_class(step);
+        case operation_set_catch_field:
+            return process_set_catch_field(step);
+        case operation_set_catch_start:
+            return process_set_catch_start(step);
+        case operation_set_try_catch_end:
+            return process_set_try_catch_end(step);
+        case operation_allocate_finally_data:
+            return process_allocate_finally_data(step);
+        case operation_set_finally_start:
+            return process_set_finally_start(step);
+        case operation_set_finally_exception_field:
+            return process_set_finally_exception_field(step);
+        case operation_set_finally_end:
+            return process_set_finally_end(step);
+        case operation_return_with_error_state:
+            return process_return_with_error_state(step);
+        case operation_retain_label_value:
+            return process_retain_label_value(step);
         default:
             generation_error("attempt to execute unknown operation step!");
             break;
     }
+}
+
+void process_retain_label_value(operation_step *step) {
+    validate_step_type(step, operation_retain_label_value);
+
+    create_dynamic_instruction(
+            dynamic_instruction(Opcode::MOVI, INSTRUCTION_BUFFER_SIZE,
+                                dynamic_argument(label_argument, step->integer),
+                                dynamic_argument(regular_argument, ADX)
+            )
+    );
+
+    set_machine_data(get_register(ADX));
+}
+
+void process_return_with_error_state(operation_step *step) {
+    validate_step_type(step, operation_return_with_error_state);
+
+    add_instruction(Opcode::Builder::ret(ERR_STATE));
+}
+
+void process_allocate_finally_data(operation_step *step) {
+    validate_step_type(step, operation_allocate_finally_data);
+
+    create_finally_data(step->secondRegister, step->integer);
+}
+
+void process_set_finally_exception_field(operation_step *step) {
+    validate_step_type(step, operation_set_finally_exception_field);
+
+    finally_data *fd =
+            get_finally_data(step->secondRegister, find_try_catch_data(step->integer));
+
+    if(fd != NULL) {
+        fd->exceptionFieldAddress = step->field->ci->address;
+    } else {
+        generation_error("attempt to set unknown catch data!");
+    }
+}
+
+void process_set_finally_end(operation_step *step) {
+    validate_step_type(step, operation_set_finally_end);
+
+    finally_data *fd =
+            get_finally_data(step->secondRegister, find_try_catch_data(step->integer));
+
+    if(fd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        fd->endPc = label;
+    } else {
+        generation_error("attempt to set unknown catch data!");
+    }
+}
+
+void process_set_finally_start(operation_step *step) {
+    validate_step_type(step, operation_set_finally_start);
+
+    finally_data *fd =
+            get_finally_data(step->secondRegister, find_try_catch_data(step->integer));
+
+    if(fd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        fd->startPc = label;
+    } else {
+        generation_error("attempt to set unknown catch data!");
+    }
+}
+
+void process_set_catch_start(operation_step *step) {
+    validate_step_type(step, operation_set_catch_start);
+
+    catch_data *cd =
+            find_catch_data(step->secondRegister, find_try_catch_data(step->integer));
+
+    if(cd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        cd->handlerPc = label;
+    } else {
+        generation_error("attempt to set unknown catch data!");
+    }
+}
+
+void process_set_catch_field(operation_step *step) {
+    validate_step_type(step, operation_set_catch_field);
+
+    catch_data *cd =
+            find_catch_data(step->secondRegister, find_try_catch_data(step->integer));
+
+    if(cd != NULL) {
+        if(step->field != NULL)
+            cd->exceptionFieldAddress = step->field->ci->address;
+        else
+            cd->exceptionFieldAddress = -1;
+    } else {
+        generation_error("attempt to set unknown catch data!");
+    }
+}
+
+void process_set_catch_class(operation_step *step) {
+    validate_step_type(step, operation_set_catch_class);
+
+    catch_data *cd =
+            find_catch_data(step->secondRegister, find_try_catch_data(step->integer));
+
+    if(cd != NULL) {
+        cd->classAddress = step->_class->ci->address;
+    } else {
+        generation_error("attempt to set unknown catch data!");
+    }
+}
+
+void process_allocate_catch_data(operation_step *step) {
+    validate_step_type(step, operation_allocate_catch_data);
+
+    create_catch_data(step->secondRegister, step->integer);
+}
+
+void process_set_try_catch_end(operation_step *step) {
+    validate_step_type(step, operation_set_try_catch_end);
+
+    try_catch_data *tcd =
+            find_try_catch_data(step->integer);
+
+    if(tcd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        tcd->tryEndPc = label;
+    } else {
+        generation_error("attempt to set unknown try catch data!");
+    }
+}
+
+void process_set_try_catch_block_end(operation_step *step) {
+    validate_step_type(step, operation_set_try_catch_block_end);
+
+    try_catch_data *tcd =
+            find_try_catch_data(step->integer);
+
+    if(tcd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        tcd->blockEndPc = label;
+    } else {
+        generation_error("attempt to set unknown try catch data!");
+    }
+}
+
+void process_set_try_catch_block_start(operation_step *step) {
+    validate_step_type(step, operation_set_try_catch_block_start);
+
+    try_catch_data *tcd =
+            find_try_catch_data(step->integer);
+
+    if(tcd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        tcd->blockStartPc = label;
+    } else {
+        generation_error("attempt to set unknown try catch data!");
+    }
+}
+
+void process_set_try_catch_start(operation_step *step) {
+    validate_step_type(step, operation_set_try_catch_start);
+
+    try_catch_data *tcd =
+            find_try_catch_data(step->integer);
+
+    if(tcd != NULL) {
+        Int label = create_label();
+        set_label(find_label(label));
+        tcd->tryStartPc = label;
+    } else {
+        generation_error("attempt to set unknown try catch data!");
+    }
+}
+
+void process_allocate_try_catch_data(operation_step *step) {
+    validate_step_type(step, operation_allocate_try_catch_data);
+
+    create_try_catch_data(step->integer);
 }
 
 void process_no_op(operation_step *step) {
@@ -579,6 +796,14 @@ void process_jump_if_true(operation_step *step) {
                                 dynamic_argument(label_argument, step->integer)
             )
     );
+}
+
+void process_branch(operation_step *step) {
+    validate_step_type(step, operation_branch);
+
+    set_machine_data(find_register(step->integer));
+    consume_machine_data(get_register(ADX));
+    add_instruction(Opcode::Builder::brh());
 }
 
 void process_jump(operation_step *step) {

@@ -15,6 +15,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     uInt match_result;
     expression returnVal;
     List<operation_schema*> lockSchemes;
+    sharp_field *returnAddressField = NULL;
+    stringstream ss;
+    sharp_label *returnStartLabel;
     operation_schema *subScheme = new operation_schema();
     subScheme->schemeType = scheme_return;
 
@@ -25,6 +28,39 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         returnVal.type.type = type_nil;
     }
 
+    set_internal_label_name(ss, "return_begin", uniqueId++)
+    returnStartLabel = create_label(ss.str(), &current_context, ast, subScheme);
+    sharp_label *finallyLabel = retrieve_next_finally_label(&current_context.blockInfo);
+
+    if(finallyLabel != NULL) {
+        uInt flags = flag_public;
+        set_internal_variable_name(ss, "return_address", 0)
+        if ((returnAddressField = resolve_local_field(ss.str(), &current_context)) == NULL) {
+            sharp_type fieldType = sharp_type(type_var);
+            returnAddressField = create_local_field(current_file, &current_context, ss.str(), flags, fieldType,
+                                                    normal_field, ast);
+            create_dependency(returnAddressField);
+        }
+
+
+        APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_assign_value, *subScheme,
+               operation_schema *addressValueScheme = new operation_schema(scheme_get_value);
+               operation_schema *addressVariableScheme = new operation_schema();
+               create_retain_label_value_operation(addressValueScheme,  returnStartLabel);
+               create_get_value_operation(&scheme_0, addressValueScheme, false, false);
+               create_push_to_stack_operation(&scheme_0);
+
+               create_local_field_access_operation(addressVariableScheme, returnAddressField);
+               create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
+               create_pop_value_from_stack_operation(&scheme_0);
+               create_unused_expression_data_operation(&scheme_0);
+        )
+
+        create_jump_operation(subScheme, finallyLabel);
+    }
+
+
+    create_set_label_operation(subScheme, returnStartLabel);
     retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
     for(Int i = 0; i < lockSchemes.size(); i++) { // todo look into also processing finally blocks in the same way
         operation_schema* tmp = new operation_schema();

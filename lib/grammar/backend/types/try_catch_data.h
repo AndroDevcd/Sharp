@@ -12,26 +12,26 @@ struct context;
 struct operation_schema;
 struct sharp_tc_data;
 
-struct finally_data {
-    finally_data()
+struct finally_data_info {
+    finally_data_info()
             :
             id(-1)
     {}
 
-    finally_data(Int id, sharp_tc_data *parent)
+    finally_data_info(Int id, sharp_tc_data *parent)
             :
             id(id),
             parent(parent)
     {
     }
 
-    finally_data(const finally_data &tc_data)
+    finally_data_info(const finally_data_info &tc_data)
             :
             id(tc_data.id),
             parent(tc_data.parent)
     {}
 
-    ~finally_data()
+    ~finally_data_info()
     {
     }
 
@@ -39,26 +39,26 @@ struct finally_data {
     sharp_tc_data *parent;
 };
 
-struct catch_data {
-    catch_data()
+struct catch_data_info {
+    catch_data_info()
             :
             id(-1)
     {}
 
-    catch_data(Int id, sharp_tc_data *parent)
+    catch_data_info(Int id, sharp_tc_data *parent)
             :
             id(id),
             parent(parent)
     {
     }
 
-    catch_data(const catch_data &tc_data)
+    catch_data_info(const catch_data_info &tc_data)
             :
             id(tc_data.id),
             parent(tc_data.parent)
     {}
 
-    ~catch_data()
+    ~catch_data_info()
     {
     }
 
@@ -93,11 +93,11 @@ struct sharp_tc_data {
 sharp_tc_data* create_try_catch_data_tracker(
         operation_schema *scheme);
 
-catch_data* create_catch_data_tracker(
+catch_data_info* create_catch_data_tracker(
         sharp_tc_data *parent,
         operation_schema *scheme);
 
-finally_data* create_finally_data_tracker(
+finally_data_info* create_finally_data_tracker(
         sharp_tc_data *parent,
         operation_schema *scheme);
 

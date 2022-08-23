@@ -557,6 +557,24 @@ void create_retain_numeric_value_operation(
     }
 }
 
+void create_retain_label_value_operation(
+        operation_schema *scheme,
+        sharp_label* label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_retain_label_value, label->id));
+    }
+}
+
+void create_branch_operation(
+        operation_schema *scheme,
+        Int registerId) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_branch, registerId));
+    }
+}
+
 void create_get_value_from_register_operation(
         operation_schema *scheme,
         Int retainId) {
@@ -632,7 +650,7 @@ Int create_allocate_finally_data_operation(
 
 
 void create_set_catch_field_operation(
-        catch_data *data,
+        catch_data_info *data,
         sharp_field *field,
         operation_schema *scheme) {
     if(scheme && data) {
@@ -643,7 +661,7 @@ void create_set_catch_field_operation(
 }
 
 void create_set_finally_field_operation(
-        finally_data *data,
+        finally_data_info *data,
         sharp_field *field,
         operation_schema *scheme) {
     if(scheme && data) {
@@ -655,12 +673,12 @@ void create_set_finally_field_operation(
 
 
 void create_set_catch_class_operation(
-        catch_data *data,
+        catch_data_info *data,
         sharp_class *sc,
         operation_schema *scheme) {
     if(scheme && data && sc) {
         scheme->steps.add(new operation_step(
-                operation_set_catch_field, data->parent->id, data->id));
+                operation_set_catch_class, data->parent->id, data->id));
         scheme->steps.last()->_class = sc;
     }
 }
@@ -686,7 +704,7 @@ void create_set_label_operation(
 
 void create_catch_start_operation(
         operation_schema *scheme,
-        catch_data* data) {
+        catch_data_info* data) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_set_catch_start, data->parent->id, data->id));
@@ -695,7 +713,7 @@ void create_catch_start_operation(
 
 void create_finally_start_operation(
         operation_schema *scheme,
-        finally_data* data) {
+        finally_data_info* data) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_set_finally_start, data->parent->id, data->id));
@@ -704,7 +722,7 @@ void create_finally_start_operation(
 
 void create_finally_end_operation(
         operation_schema *scheme,
-        finally_data* data) {
+        finally_data_info* data) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_set_finally_end, data->parent->id, data->id));

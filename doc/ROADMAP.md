@@ -685,5 +685,5 @@ Below is a list of all the new features included in the PR.
             doc :=  new doc_imports#file("hello.docx");
       }
 
-- 
+- support base generic typing only restrict this as a hard type task as task<* base _object_>();
 

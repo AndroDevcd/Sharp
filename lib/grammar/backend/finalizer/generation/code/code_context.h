@@ -11,6 +11,9 @@
 #include "register_allocator.h"
 
 struct code_info;
+struct try_catch_data;
+struct catch_data;
+struct finally_data;
 struct line_info;
 struct internal_register;
 
@@ -123,6 +126,21 @@ struct dynamic_instruction {
             arg3()
     {}
 
+    dynamic_instruction(
+            int op,
+            int size,
+            dynamic_argument a1,
+            dynamic_argument a2
+    )
+            :
+            opcode(op),
+            ip(0),
+            size(size),
+            arg1(a1),
+            arg2(a2),
+            arg3()
+    {}
+
     dynamic_instruction(const dynamic_instruction &di)
             :
             opcode(di.opcode),
@@ -173,6 +191,7 @@ struct code_context {
             lineTable(),
             dynamicInstructions(),
             instructions(),
+            tryCatchTable(),
             registers()
     {}
 
@@ -182,6 +201,7 @@ struct code_context {
             instructions(cc.instructions),
             container(cc.container),
             lineTable(cc.lineTable),
+            tryCatchTable(cc.tryCatchTable),
             dynamicInstructions(cc.dynamicInstructions),
             registers(cc.registers)
     {
@@ -194,6 +214,7 @@ struct code_context {
     void free();
 
     code_info* ci;
+    List<try_catch_data*> tryCatchTable;
     List<internal_register*> registers;
     List<line_info*> lineTable;
     List<dynamic_instruction*> dynamicInstructions;
@@ -225,6 +246,12 @@ internal_label* find_label(Int id);
 void create_label(Int id);
 Int create_label();
 void set_label(internal_label *l);
+void create_try_catch_data(Int id);
+try_catch_data* find_try_catch_data(Int id);
+void create_catch_data(Int id, Int tcd);
+catch_data* find_catch_data(Int id, try_catch_data *tcd);
+void create_finally_data(Int id, Int tcd);
+finally_data* get_finally_data(Int id, try_catch_data *tcd);
 
 Int create_constant(double constant);
 Int create_constant(string &constant);

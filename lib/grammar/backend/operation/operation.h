@@ -17,8 +17,8 @@ struct operation_step;
 struct sharp_type;
 struct sharp_label;
 struct sharp_tc_data;
-struct catch_data;
-struct finally_data;
+struct catch_data_info;
+struct finally_data_info;
 
 enum operation_type {
     operation_none,
@@ -103,6 +103,8 @@ enum operation_type {
     operation_allocate_try_catch_data,
     operation_allocate_catch_data,
     operation_allocate_finally_data,
+    operation_set_catch_class,
+    operation_branch,
     operation_set_catch_field,
     operation_set_finally_exception_field,
     operation_set_catch_start,
@@ -133,6 +135,7 @@ enum operation_type {
     operation_record_line,
     operation_return_nil,
     operation_return_with_error_state,
+    operation_retain_label_value,
     operation_return_number,
     operation_return_object,
     operation_lock,
@@ -212,6 +215,12 @@ enum _operation_scheme {
     scheme_when,
     scheme_when_clause,
     scheme_when_else_clause,
+    scheme_try,
+    scheme_catch_clause,
+    scheme_last_finally_clause,
+    scheme_finally_clause,
+    scheme_return_address_check_1,
+    scheme_return_address_check_2,
 
     scheme_call_getter_function,
     scheme_get_address,
@@ -221,7 +230,6 @@ enum _operation_scheme {
     scheme_break,
     scheme_continue,
     scheme_lock,
-    scheme_try,
 };
 
 struct operation_schema {
@@ -745,9 +753,17 @@ void create_post_scheme_start_operation(
 void create_check_null_operation(
         operation_schema *scheme);
 
+void create_branch_operation(
+        operation_schema *scheme,
+        Int registerId);
+
 void create_retain_numeric_value_operation(
         operation_schema *scheme,
         Int registerId);
+
+void create_retain_label_value_operation(
+        operation_schema *scheme,
+        sharp_label* label);
 
 void create_get_value_from_register_operation(
         operation_schema *scheme,
@@ -928,17 +944,17 @@ Int create_allocate_finally_data_operation(
         operation_schema *scheme);
 
 void create_set_catch_field_operation(
-        catch_data *data,
+        catch_data_info *data,
         sharp_field *field,
         operation_schema *scheme);
 
 void create_set_finally_field_operation(
-        finally_data *data,
+        finally_data_info *data,
         sharp_field *field,
         operation_schema *scheme);
 
 void create_set_catch_class_operation(
-        catch_data *data,
+        catch_data_info *data,
         sharp_class *sc,
         operation_schema *scheme);
 
@@ -952,15 +968,15 @@ void create_set_label_operation(
 
 void create_catch_start_operation(
         operation_schema *scheme,
-        catch_data* data);
+        catch_data_info* data);
 
 void create_finally_start_operation(
         operation_schema *scheme,
-        finally_data* data);
+        finally_data_info* data);
 
 void create_finally_end_operation(
         operation_schema *scheme,
-        finally_data* data);
+        finally_data_info* data);
 
 void create_try_catch_start_operation(
         operation_schema *scheme,

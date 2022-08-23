@@ -92,6 +92,22 @@ void process_setup_local_field(operation_step *step);
 void process_unlock(operation_step *step);
 void process_lock(operation_step *step);
 void process_no_op(operation_step *step);
+void process_allocate_try_catch_data(operation_step *step);
+void process_set_try_catch_start(operation_step *step);
+void process_set_try_catch_block_start(operation_step *step);
+void process_set_try_catch_block_end(operation_step *step);
+void process_allocate_catch_data(operation_step *step);
+void process_set_catch_class(operation_step *step);
+void process_set_catch_field(operation_step *step);
+void process_set_catch_start(operation_step *step);
+void process_set_try_catch_end(operation_step *step);
+void process_allocate_finally_data(operation_step *step);
+void process_set_finally_start(operation_step *step);
+void process_set_finally_exception_field(operation_step *step);
+void process_set_finally_end(operation_step *step);
+void process_return_with_error_state(operation_step *step);
+void process_retain_label_value(operation_step *step);
+void process_branch(operation_step *step);
 
 void process_step(operation_step *step);
 

@@ -61,6 +61,12 @@
 #include "scheme_when.h"
 #include "scheme_when_clause.h"
 #include "scheme_when_else_clause.h"
+#include "scheme_finally_clause.h"
+#include "scheme_last_finally_clause.h"
+#include "scheme_try.h"
+#include "scheme_catch_clause.h"
+#include "scheme_return_address_check_1.h"
+#include "scheme_return_address_check_2.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -177,6 +183,18 @@ void process_scheme(operation_schema *scheme) {
                 return process_when_clause_scheme(scheme);
             case scheme_when_else_clause:
                 return process_when_else_clause_scheme(scheme);
+            case scheme_finally_clause:
+                return process_finally_scheme(scheme);
+            case scheme_last_finally_clause:
+                return process_last_finally_scheme(scheme);
+            case scheme_try:
+                return process_try_scheme(scheme);
+            case scheme_catch_clause:
+                return process_catch_clause_scheme(scheme);
+            case scheme_return_address_check_1:
+                return process_return_address_check_1_scheme(scheme);
+            case scheme_return_address_check_2:
+                return process_return_address_check_2_scheme(scheme);
             default:
                 generation_error("attempt to execute unknown scheme!");
                 break;

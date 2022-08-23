@@ -27,15 +27,18 @@ class ff {
         return "";
     }
 
-    def foo(n: _int8) {
-        when(n) {
-            true, false -> {
-                n = 0;
-            }
-            else -> {
+    def foo(n: var) {
+
+       try {
+            try {
+            n = 3;
+            } finally {
                 n = 1;
             }
-        }
+               return;
+       } finally {
+            n = 0;
+       }
     }
 }
 
