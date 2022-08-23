@@ -24,15 +24,15 @@ void process_post_increment_scheme(operation_schema *scheme) {
     }
 
     machine_data md(cc.machineData);
-    process_push_value_to_stack(scheme->steps.get(stepPos++));
+    process_push_value_to_stack(next_step);
 
     // this will re-hydrate the machine data type after pushing it to the sack
     cc.machineData.type = md.type;
     cc.machineData.dataAddress = md.dataAddress;
     cc.machineData.field = md.field;
-    process_step(scheme->steps.get(stepPos++));
+    process_step(next_step);
 
     set_machine_data(get_register(EBX), true);
-    process_pop_value_from_stack(scheme->steps.get(stepPos++));
+    process_pop_value_from_stack(next_step);
     set_machine_data(get_register(EBX));
 }

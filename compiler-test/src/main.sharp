@@ -12,12 +12,14 @@ def main() {
 ll: int = new int(9);
 
 class ff {
-    x : _int8;
+    x : var[];
     y : int;
 
     static def flarky()  {
 
     }
+
+    static def addUpTo(n: _int8) := 9;
 
     static def flarkyfoo() := 10;
 
@@ -26,87 +28,14 @@ class ff {
     }
 
     def foo(n: _int8) {
-        -5;
-        flarky();
-        -x;
-        flarky();
-        ++x;
-        flarky();
-        --x;
-        flarky();
-        !x;
-        flarky();
-        -flarkyfoo();
-        flarky();
-        ++flarkyfoo();
-        flarky();
-        --flarkyfoo();
-        flarky();
-        !flarkyfoo();
-        flarky();
-        ++y;
-        flarky();
-        'h';
-        0x9;
-        "hi";
-        true;
-        flarky();
-        self;
-        flarky();
-        self->x;
-        flarky();
-        self->flarky();
-        flarky();
-        base;
-        flarky();
-        null;
-        flarky();
-        new string();
-        flarky();
-        new _int8[9];
-        flarky();
-        new _int8[] { 1, 2, 3 };
-        flarky();
-        //new string()!!;
-        //get<_int64>();
-        sizeof(self);
-        flarky();
-        ("hi");
-        flarky();
-        //self as _object_;
-        flarky();
-        //self is _object_;
-        flarky();
-        //a := {
-        //    5 : "a",
-        //    6 : "b"
-        //};
-        flarky();
-        //a : _int64[]? = { 1, 2, 3 };
-        flarky();
-        //a ?: null;
-        flarky();
-        //a == null ? n : 2;
-        flarky();
-        n = 8;
-        flarky();
-        5 + 5;
-        flarky();
-        5 + n;
-        flarky();
-        5 || n;
-        flarky();
-        5 && n;
-        flarky();
-        "" == "";
-        flarky();
-        "hello " + " j";
-        flarky();
-        n + 8;
-        flarky();
-        //flarkyfoo2(null) == "hi";
-        //flarky();
-        //flarkyfoo2(null) + "hi";
+        when(n) {
+            true, false -> {
+                n = 0;
+            }
+            else -> {
+                n = 1;
+            }
+        }
     }
 }
 

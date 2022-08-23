@@ -7,17 +7,18 @@
 #include "../code_context.h"
 #include "../../../../types/types.h"
 #include "../code_info.h"
+#include "scheme_processor.h"
 
 void process_compound_assign_value_scheme(operation_schema *scheme) {
     sharp_field *closureRef = NULL, *closure = NULL;
     Int stepPos = 0;
 
-    process_allocate_register(scheme->steps.get(stepPos++));
-    process_allocate_register(scheme->steps.get(stepPos++));
-    process_get_value(scheme->steps.get(stepPos++));
-    process_retain_numeric_value(scheme->steps.get(stepPos++));
+    process_allocate_register(next_step);
+    process_allocate_register(next_step);
+    process_get_value(next_step);
+    process_retain_numeric_value(next_step);
 
-    process_get_value(scheme->steps.get(stepPos++));
+    process_get_value(next_step);
     machine_data asignee(cc.machineData);
 
     if((cc.machineData.type == local_field_object_data || cc.machineData.type == numeric_local_field)
@@ -26,17 +27,17 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
         closure = cc.container->locals.get(cc.machineData.dataAddress)->closure;
     }
 
-    process_retain_numeric_value(scheme->steps.get(stepPos++));
+    process_retain_numeric_value(next_step);
 
-    process_step(scheme->steps.get(stepPos++)); // add, sub, mult, div, mod, etc
+    process_step(next_step); // add, sub, mult, div, mod, etc
 
     cc.machineData.dataAddress = asignee.dataAddress;
     cc.machineData.type = asignee.type;
 
-    process_assign_numeric_value(scheme->steps.get(stepPos++));
+    process_assign_numeric_value(next_step);
 
-    process_deallocate_register(scheme->steps.get(stepPos++));
-    process_deallocate_register(scheme->steps.get(stepPos++));
+    process_deallocate_register(next_step);
+    process_deallocate_register(next_step);
 
     if(closureRef && closure) {
         push_machine_data_to_stack();

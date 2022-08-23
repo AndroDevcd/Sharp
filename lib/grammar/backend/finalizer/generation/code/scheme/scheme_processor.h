@@ -8,6 +8,10 @@
 #include "../../../../operation/operation.h"
 #include "../code_info.h"
 
+#define next_step (scheme->steps.get(stepPos++))
+#define current_step (scheme->steps.get(stepPos))
+#define has_next_step (stepPos < scheme->steps.size())
+
 void process_scheme_steps(operation_schema *scheme);
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container);
 void process_scheme(operation_schema *scheme);

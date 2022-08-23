@@ -126,7 +126,7 @@ void process_step(operation_step *step) {
         case operation_get_sizeof:
             return process_get_size_of(step);
         case operation_cast_class:
-            return process_cast_class(step);
+            return process_class_cast(step);
         case operation_int8_cast:
         case operation_int16_cast:
         case operation_int32_cast:
@@ -135,7 +135,7 @@ void process_step(operation_step *step) {
         case operation_uint16_cast:
         case operation_uint32_cast:
         case operation_uint64_cast:
-            return process_var_class(step);
+            return process_var_cast(step);
         case operation_is_class:
             return process_is_class(step);
         case operation_is_int8:
@@ -209,10 +209,40 @@ void process_step(operation_step *step) {
             return process_unused_data(step);
         case operation_setup_local_field:
             return process_setup_local_field(step);
+        case operation_unlock:
+            return process_unlock(step);
+        case operation_lock:
+            return process_lock(step);
+        case operation_no_op:
+            return process_no_op(step);
         default:
             generation_error("attempt to execute unknown operation step!");
             break;
     }
+}
+
+void process_no_op(operation_step *step) {
+    validate_step_type(step, operation_no_op);
+
+    add_instruction(Opcode::Builder::nop());
+}
+
+void process_lock(operation_step *step) {
+    validate_step_type(step, operation_lock);
+
+    process_scheme(step->scheme);
+    consume_machine_data();
+
+    add_instruction(Opcode::Builder::lock());
+}
+
+void process_unlock(operation_step *step) {
+    validate_step_type(step, operation_unlock);
+
+    process_scheme(step->scheme);
+    consume_machine_data();
+
+    add_instruction(Opcode::Builder::unlock());
 }
 
 void process_setup_local_field(operation_step *step) {
@@ -610,7 +640,7 @@ void process_is_class(operation_step *step) {
     set_machine_data(get_register(BMR));
 }
 
-void process_var_class(operation_step *step) {
+void process_var_cast(operation_step *step) {
     if(step->type >= operation_int8_cast && step->type <=operation_uint64_cast) {
         consume_machine_data();
         add_instruction(Opcode::Builder::varCast(step->integer, step->_bool));
@@ -621,7 +651,7 @@ void process_var_class(operation_step *step) {
     }
 }
 
-void process_cast_class(operation_step *step) {
+void process_class_cast(operation_step *step) {
     validate_step_type(step, operation_cast_class);
 
     consume_machine_data();

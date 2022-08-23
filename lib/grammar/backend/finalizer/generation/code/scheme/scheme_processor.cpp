@@ -44,6 +44,23 @@
 #include "scheme_post_increment.h"
 #include "scheme_unused_data.h"
 #include "scheme_get_value.h"
+#include "scheme_for.h"
+#include "scheme_for_cond.h"
+#include "scheme_for_iter.h"
+#include "scheme_for_infinite.h"
+#include "scheme_lock.h"
+#include "scheme_unlock_data.h"
+#include "scheme_if_single.h"
+#include "scheme_compound_if.h"
+#include "scheme_elseif.h"
+#include "scheme_else.h"
+#include "scheme_increment_for_index_value.h"
+#include "scheme_for_each.h"
+#include "scheme_for_each_position_check.h"
+#include "scheme_for_each_get_array_item.h"
+#include "scheme_when.h"
+#include "scheme_when_clause.h"
+#include "scheme_when_else_clause.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -126,6 +143,40 @@ void process_scheme(operation_schema *scheme) {
                 return process_unused_data_scheme(scheme);
             case scheme_get_value:
                 return process_get_value_scheme(scheme);
+            case scheme_for:
+                return process_for_scheme(scheme);
+            case scheme_for_cond:
+                return process_for_cond_scheme(scheme);
+            case scheme_for_iter:
+                return process_for_iter_scheme(scheme);
+            case scheme_for_infinite:
+                return process_for_infinite(scheme);
+            case scheme_lock_data:
+                return process_lock_data_scheme(scheme);
+            case scheme_unlock_data:
+                return process_unlock_data_scheme(scheme);
+            case scheme_if_single:
+                return process_if_single_scheme(scheme);
+            case scheme_compound_if:
+                return process_compound_if_scheme(scheme);
+            case scheme_elseif:
+                return process_elseif_scheme(scheme);
+            case scheme_else:
+                return process_else_scheme(scheme);
+            case scheme_increment_for_index_value:
+                return process_increment_for_index_value_scheme(scheme);
+            case scheme_for_each:
+                return process_for_each_scheme(scheme);
+            case scheme_for_each_position_check:
+                return process_for_each_position_check_scheme(scheme);
+            case scheme_for_each_get_array_item:
+                return process_for_each_get_array_item_scheme(scheme);
+            case scheme_when:
+                return process_when_scheme(scheme);
+            case scheme_when_clause:
+                return process_when_clause_scheme(scheme);
+            case scheme_when_else_clause:
+                return process_when_else_clause_scheme(scheme);
             default:
                 generation_error("attempt to execute unknown scheme!");
                 break;

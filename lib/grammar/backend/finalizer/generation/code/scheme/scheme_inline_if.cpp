@@ -11,26 +11,26 @@ void process_inline_if_scheme(operation_schema *scheme) {
     bool isNumeric = is_numeric_type(scheme->type) && !scheme->type.isArray;
     int stepPos = 0;
 
-    process_allocate_label(scheme->steps.get(stepPos++));
-    process_allocate_label(scheme->steps.get(stepPos++));
-    process_get_value(scheme->steps.get(stepPos++));
-    process_jump_if_false(scheme->steps.get(stepPos++));
-    process_get_value(scheme->steps.get(stepPos++));
+    process_allocate_label(next_step);
+    process_allocate_label(next_step);
+    process_get_value(next_step);
+    process_jump_if_false(next_step);
+    process_get_value(next_step);
 
     if(isNumeric) {
         consume_machine_data(get_register(EBX));
     } else
         consume_machine_data();
 
-    process_jump(scheme->steps.get(stepPos++));
-    process_set_label(scheme->steps.get(stepPos++));
-    process_get_value(scheme->steps.get(stepPos++));
+    process_jump(next_step);
+    process_set_label(next_step);
+    process_get_value(next_step);
 
     if(isNumeric) {
         consume_machine_data(get_register(EBX));
     } else
         consume_machine_data();
-    process_set_label(scheme->steps.get(stepPos++));
+    process_set_label(next_step);
 
     if(isNumeric)
         set_machine_data(get_register(EBX));

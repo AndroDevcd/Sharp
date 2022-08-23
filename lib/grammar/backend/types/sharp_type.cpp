@@ -280,17 +280,13 @@ uInt is_implicit_type_match(
                                     NULL, true, true)) != NULL)) {
 
                 result |= match_constructor;
-            }
-
-            if(!has_match_result_flag(excludedMatches, match_initializer)
+            } else if(!has_match_result_flag(excludedMatches, match_initializer)
                && ((matchedFun = resolve_function("init<"+ comparer._class->name + ">", comparer._class,
                                     params, initializer_function,
                                     match_constructor | match_initializer | match_operator_overload,
                                     NULL, true, true)) != NULL)) {
                 result |= match_initializer;
-            }
-
-            if(!has_match_result_flag(excludedMatches, match_operator_overload)
+            } else if(!has_match_result_flag(excludedMatches, match_operator_overload)
                && ((matchedFun = resolve_function("operator=", comparer._class,
                                     params, operator_function,
                                     match_constructor | match_initializer | match_operator_overload,

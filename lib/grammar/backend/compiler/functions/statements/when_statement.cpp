@@ -32,10 +32,11 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
 
         switch(branch->getType()) {
             case ast_when_clause: {
+                operation_schema *whenClauseScheme = new operation_schema(scheme_when_clause);
                 set_internal_label_name(ss, "when_next_case", uniqueId++)
-                nextClauseLabel = create_label(ss.str(), &current_context, ast, subScheme);
+                nextClauseLabel = create_label(ss.str(), &current_context, ast, whenClauseScheme);
                 set_internal_label_name(ss, "when_case_start", uniqueId++)
-                clauseBeginLabel = create_label(ss.str(), &current_context, ast, subScheme);
+                clauseBeginLabel = create_label(ss.str(), &current_context, ast, whenClauseScheme);
 
                 for(Int j = 0; j < branch->getSubAstCount() - 1; j++) {
                     Ast *expressionAst = branch->getSubAst(j);
@@ -49,39 +50,43 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                             current_file->errors->createNewError(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
                         }
 
-                        create_get_value_operation(subScheme, &out.scheme, false, false);
+                        create_get_value_operation(whenClauseScheme, &out.scheme, false, false);
                     } else {
                         if(!is_evaluable_type(comparer.type)) {
                             current_file->errors->createNewError(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
                         }
 
-                        create_get_value_operation(subScheme, &comparer.scheme, false, false);
+                        create_get_value_operation(whenClauseScheme, &comparer.scheme, false, false);
                     }
 
 
                     if((j + 1) < (branch->getSubAstCount() -1)) {
-                        create_jump_if_true_operation(subScheme, clauseBeginLabel);
+                        create_jump_if_true_operation(whenClauseScheme, clauseBeginLabel);
                     } else {
-                        create_jump_if_false_operation(subScheme, nextClauseLabel);
+                        create_jump_if_false_operation(whenClauseScheme, nextClauseLabel);
                     }
                 }
 
-                create_set_label_operation(subScheme, clauseBeginLabel);
-                if(!compile_block(branch->getSubAst(ast_block),subScheme,  when_block)) {
+                create_set_label_operation(whenClauseScheme, clauseBeginLabel);
+                if(!compile_block(branch->getSubAst(ast_block),whenClauseScheme,  when_block)) {
                     controlPaths[WHEN_CONTROL_PATH] = false;
                 }
 
                 if((i+1) < whenBlock->getSubAstCount()) {
-                    create_jump_operation(subScheme, endLabel);
+                    create_jump_operation(whenClauseScheme, endLabel);
                 }
 
                 current_context.blockInfo.reachable = true;
-                create_set_label_operation(subScheme, nextClauseLabel);
+                create_set_label_operation(whenClauseScheme, nextClauseLabel);
+                add_scheme_operation(subScheme, whenClauseScheme);
                 break;
             }
 
             case ast_when_else_clause: {
-                controlPaths[WHEN_ELSE_CONTROL_PATH] = compile_block(branch->getSubAst(ast_block), subScheme, when_block);
+                operation_schema *whenElseClauseScheme = new operation_schema(scheme_when_else_clause);
+                controlPaths[WHEN_ELSE_CONTROL_PATH] =
+                        compile_block(branch->getSubAst(ast_block), whenElseClauseScheme, when_block);
+                add_scheme_operation(subScheme, whenElseClauseScheme);
                 break;
             }
 
@@ -91,6 +96,5 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
     }
 
     create_set_label_operation(subScheme, endLabel);
-    create_no_operation(subScheme);
     add_scheme_operation(scheme, subScheme);
 }

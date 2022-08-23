@@ -7,13 +7,16 @@
 #include "../code_context.h"
 #include "../../../../types/types.h"
 #include "../code_info.h"
+#include "scheme_processor.h"
 
 void process_assign_value_scheme(operation_schema *scheme) {
     sharp_field *closureRef = NULL, *closure = NULL;
-    process_get_value(scheme->steps.get(0));
-    process_push_value_to_stack(scheme->steps.get(1));
+    Int stepPos = 0;
 
-    process_get_value(scheme->steps.get(2));
+    process_get_value(next_step);
+    process_push_value_to_stack(next_step);
+
+    process_get_value(next_step);
     machine_data asignee(cc.machineData);
 
     if((cc.machineData.type == local_field_object_data || cc.machineData.type == numeric_local_field)
@@ -22,10 +25,18 @@ void process_assign_value_scheme(operation_schema *scheme) {
         closure = cc.container->locals.get(cc.machineData.dataAddress)->closure;
     }
 
-    process_pop_value_from_stack(scheme->steps.get(3));
+    process_pop_value_from_stack(next_step);
 
     cc.machineData.dataAddress = asignee.dataAddress;
     cc.machineData.type = asignee.type;
+
+    if(has_next_step && current_step->type == operation_unused_data) {
+        process_unused_data(next_step);
+    } else if(has_next_step && current_step->type >= operation_int8_cast
+        && current_step->type <= operation_uint64_cast)
+        process_var_cast(next_step);
+    else  if(has_next_step && current_step->type == operation_cast_class)
+        process_class_cast(next_step);
 
     if(closureRef && closure) {
         push_machine_data_to_stack();

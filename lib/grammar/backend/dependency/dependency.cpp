@@ -2989,7 +2989,7 @@ sharp_type resolve(
 }
 
 void create_dependency(sharp_class* depender, sharp_class* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
@@ -2997,14 +2997,14 @@ void create_dependency(sharp_class* depender, sharp_class* dependee) {
 }
 
 void create_dependency(sharp_file* depender, sharp_file* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
 }
 
 void create_dependency(sharp_function* depender, sharp_function* dependee) { // todo" create better high level create dependancy function and track firld contextxs as well to be used
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
@@ -3012,35 +3012,35 @@ void create_dependency(sharp_function* depender, sharp_function* dependee) { // 
 }
 
 void create_dependency(sharp_function* depender, sharp_class* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee);
 }
 
 void create_dependency(sharp_function* depender, sharp_field* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
 }
 
 void create_dependency(sharp_field* depender, sharp_function* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
 }
 
 void create_dependency(sharp_field* depender, sharp_class* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee);
 }
 
 void create_dependency(sharp_field* depender, sharp_field* dependee) {
-    if(!depender && dependee) return;
+    if(depender == NULL || dependee == NULL) return;
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));

@@ -76,7 +76,7 @@ void compile_initialization_call(
         Ast *ast,
         sharp_function *constructor,
         expression &e,
-        operation_schema *scheme) { // todo: invistegate this call to make sure its being implemented correctly
+        operation_schema *scheme) {
     string name = "";
     List<sharp_field *> params;
     List<operation_schema *> paramOperations;
@@ -89,13 +89,17 @@ void compile_initialization_call(
     ));
     paramOperations.add(new operation_schema(e.scheme));
 
-    create_new_class_operation(scheme, get_class_type(current_context.functionCxt->returnType));
+    create_new_class_operation(scheme, constructor->owner);
+    create_duplicate_operation(scheme);
+
+    APPLY_TEMP_SCHEME(0, *scheme,
     compile_function_call(
-            scheme, params,
+            &scheme_0, params,
             paramOperations, constructor,
             false,
             false,
             false);
+    )
 }
 
 void compile_initialization_call( // todo: we need to add duplicate object support herer for when we want to pop the class off the stack

@@ -329,6 +329,7 @@ bool compile_block(
     if(lockScheme)
         current_context.blockInfo.lockScheme = new operation_schema(*lockScheme);
     current_context.blockInfo.finallyLabel = finallyLabel;
+    operation_schema *blockScheme = new operation_schema(scheme_master);
 
     bool controlPaths[]
          = {
@@ -346,14 +347,15 @@ bool compile_block(
         Ast *branch = ast->getSubAst(i);
 
         if(branch->getType() == ast_block) {
-            compile_block(branch, scheme);
+            compile_block(branch, blockScheme);
             continue;
         } else {
             branch = branch->getSubAst(0);
-            compile_statement(branch, scheme, controlPaths);
+            compile_statement(branch, blockScheme, controlPaths);
         }
     }
 
     delete_block();
+    add_scheme_operation(scheme, blockScheme);
     return validate_control_paths(controlPaths);
 }

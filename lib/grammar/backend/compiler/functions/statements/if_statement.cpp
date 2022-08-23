@@ -14,7 +14,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
     stringstream ss;
     sharp_label *endLabel, *blockEndLabel;
     operation_schema *subScheme = new operation_schema();
-    subScheme->schemeType = scheme_if;
+    subScheme->schemeType = scheme_if_single;
 
     compile_expression(cond, ast->getSubAst(ast_expression));
     if(!is_evaluable_type(cond.type)) {
@@ -26,6 +26,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
     create_get_value_operation(subScheme, &cond.scheme, false, false);
 
     if(ast->getSubAstCount() > 2) {
+        subScheme->schemeType = scheme_compound_if;
         set_internal_label_name(ss, "if_block_end", uniqueId++)
         blockEndLabel = create_label(ss.str(), &current_context, ast, subScheme);
         create_jump_if_false_operation(subScheme, blockEndLabel);
@@ -44,14 +45,14 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                 case ast_elseif_statement: {
                     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_elseif, *subScheme,
                         expression elseIfCond;
-                        compile_expression(elseIfCond, ast->getSubAst(ast_expression));
+                        compile_expression(elseIfCond, branch->getSubAst(ast_expression));
                         if(!is_evaluable_type(elseIfCond.type)) {
-                            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "else if statement condition expression must evaluate to true or false");
+                            current_file->errors->createNewError(GENERIC, branch->line, branch->col, "else if statement condition expression must evaluate to true or false");
                         }
 
                         set_internal_label_name(ss, "if_block_end", uniqueId++)
                         blockEndLabel = create_label(ss.str(), &current_context, ast, &scheme_0);
-                        create_get_value_operation(&scheme_0, &cond.scheme, false, false);
+                        create_get_value_operation(&scheme_0, &elseIfCond.scheme, false, false);
                         create_jump_if_false_operation(&scheme_0, blockEndLabel);
 
                         if(!compile_block(branch->getSubAst(ast_block), &scheme_0, elseif_block)) {

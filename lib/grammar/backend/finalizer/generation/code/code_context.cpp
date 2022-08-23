@@ -246,9 +246,13 @@ void push_machine_data_to_stack() {
             }
             case class_object_data:
             case generic_object_data:
-            case local_field_object_data:
             case field_object_data: {
                 add_instruction(Opcode::Builder::pushObject());
+                break;
+            }
+
+            case local_field_object_data: {
+                add_instruction(Opcode::Builder::pushl(cc.machineData.dataAddress));
                 break;
             }
 

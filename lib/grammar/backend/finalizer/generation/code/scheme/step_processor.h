@@ -53,8 +53,8 @@ void process_create_object_array(operation_step *step);
 void process_assign_array_element_from_stack(operation_step *step);
 void process_assign_array_value(operation_step *step);
 void process_get_size_of(operation_step *step);
-void process_cast_class(operation_step *step);
-void process_var_class(operation_step *step);
+void process_class_cast(operation_step *step);
+void process_var_cast(operation_step *step);
 void process_is_class(operation_step *step);
 void process_is_type(operation_step *step);
 void process_jump_if_false(operation_step *step);
@@ -89,6 +89,9 @@ void process_post_access(operation_step *step);
 void process_get_array_element_at_index(operation_step *step);
 void process_unused_data(operation_step *step);
 void process_setup_local_field(operation_step *step);
+void process_unlock(operation_step *step);
+void process_lock(operation_step *step);
+void process_no_op(operation_step *step);
 
 void process_step(operation_step *step);
 
