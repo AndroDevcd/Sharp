@@ -248,6 +248,8 @@ void process_step(operation_step *step) {
             return process_return_with_error_state(step);
         case operation_retain_label_value:
             return process_retain_label_value(step);
+        case operation_throw_exception:
+            return process_throw_exception(step);
         default:
             generation_error("attempt to execute unknown operation step!");
             break;
@@ -265,6 +267,12 @@ void process_retain_label_value(operation_step *step) {
     );
 
     set_machine_data(get_register(ADX));
+}
+
+void process_throw_exception(operation_step *step) {
+    validate_step_type(step, operation_throw_exception);
+
+    add_instruction(Opcode::Builder::_throw());
 }
 
 void process_return_with_error_state(operation_step *step) {

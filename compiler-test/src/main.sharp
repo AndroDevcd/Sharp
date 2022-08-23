@@ -28,17 +28,11 @@ class ff {
     }
 
     def foo(n: var) {
-
-       try {
-            try {
-            n = 3;
-            } finally {
-                n = 1;
+        while(true) {
+            lock(self) {
+                return;
             }
-               return;
-       } finally {
-            n = 0;
-       }
+        }
     }
 }
 

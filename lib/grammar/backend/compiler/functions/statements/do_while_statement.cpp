@@ -11,7 +11,7 @@ void compile_do_while_statement(Ast *ast, operation_schema *scheme, bool *contro
     stringstream ss;
     sharp_label *beginLabel, *endLabel;
     operation_schema *subScheme = new operation_schema();
-    subScheme->schemeType = scheme_while;
+    subScheme->schemeType = scheme_do_while;
 
     set_internal_label_name(ss, "do_while_begin", uniqueId++)
     beginLabel = create_label(ss.str(), &current_context, ast, subScheme);
@@ -34,10 +34,7 @@ void compile_do_while_statement(Ast *ast, operation_schema *scheme, bool *contro
     }
 
     create_get_value_operation(subScheme, &cond.scheme, false, false);
-    ALLOCATE_REGISTER_1X(0, subScheme,
-        create_retain_numeric_value_operation(subScheme, register_0);
-        create_jump_if_true_operation(subScheme, endLabel);
-    )
+    create_jump_if_true_operation(subScheme, beginLabel);
 
     create_set_label_operation(subScheme, endLabel);
     add_scheme_operation(scheme, subScheme);

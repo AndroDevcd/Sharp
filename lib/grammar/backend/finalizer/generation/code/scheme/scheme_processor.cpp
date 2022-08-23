@@ -67,6 +67,11 @@
 #include "scheme_catch_clause.h"
 #include "scheme_return_address_check_1.h"
 #include "scheme_return_address_check_2.h"
+#include "scheme_while.h"
+#include "scheme_do_while.h"
+#include "scheme_throw.h"
+#include "scheme_continue.h"
+#include "scheme_break.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -195,6 +200,16 @@ void process_scheme(operation_schema *scheme) {
                 return process_return_address_check_1_scheme(scheme);
             case scheme_return_address_check_2:
                 return process_return_address_check_2_scheme(scheme);
+            case scheme_while:
+                return process_while_scheme(scheme);
+            case scheme_do_while:
+                return process_do_while_scheme(scheme);
+            case scheme_throw:
+                return process_throw_scheme(scheme);
+            case scheme_continue:
+                return process_continue_scheme(scheme);
+            case scheme_break:
+                return process_break_scheme(scheme);
             default:
                 generation_error("attempt to execute unknown scheme!");
                 break;

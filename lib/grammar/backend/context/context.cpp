@@ -129,7 +129,7 @@ void store_context(context *ctx) {
     ctx->storedItems.add(new stored_context_item(*ctx));
 }
 
-void retrieve_lock_schemes(block_info *info, List<operation_schema*> schemes) {
+void retrieve_lock_schemes(block_info *info, List<operation_schema*> &schemes) {
     if(info->lockScheme != NULL)
         schemes.add(new operation_schema(*info->lockScheme));
 

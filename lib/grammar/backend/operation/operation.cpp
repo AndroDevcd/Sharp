@@ -238,6 +238,9 @@ void create_throw_operation(
         scheme->steps.add(new operation_step(
                 operation_get_value, valueOperation));
         scheme->steps.add(new operation_step(
+                operation_push_value_to_stack));
+
+        scheme->steps.add(new operation_step(
                 operation_throw_exception));
     }
 }

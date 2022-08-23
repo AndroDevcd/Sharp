@@ -28,10 +28,7 @@ void compile_while_statement(Ast *ast, operation_schema *scheme, bool *controlPa
 
     create_set_label_operation(subScheme, beginLabel);
     create_get_value_operation(subScheme, &cond.scheme, false, false);
-    ALLOCATE_REGISTER_1X(0, subScheme,
-        create_retain_numeric_value_operation(subScheme, register_0);
-        create_jump_if_false_operation(subScheme, endLabel);
-    )
+    create_jump_if_false_operation(subScheme, endLabel);
 
     compile_block(ast->getSubAst(ast_block), subScheme, while_block, beginLabel, endLabel);
     current_context.blockInfo.reachable = !current_context.blockInfo.reachable;
