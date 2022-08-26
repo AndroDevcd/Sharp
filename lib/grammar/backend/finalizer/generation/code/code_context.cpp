@@ -371,7 +371,7 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
     }
 }
 
-// this will set this register supplied depending on curent data type
+// this will set this register supplied depending on current data type
 void consume_machine_data(internal_register *internalRegister) {
     if(internalRegister != NULL) {
         if (cc.machineData.type != no_data) {

@@ -3038,35 +3038,35 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
         branch->encapsulate(ast_get_component);
         return true;
     }
-
-    if(!ignoreInlineLambda) {
-        errors->enterProtectedMode();
-        old = _current;
-        newAst = getBranch(branch, ast_lambda_function);
-        parseLambdaArgList(newAst);
-
-        if (peek(1)->getValue() == "->") {
-            advance();
-            parseExpression(newAst);
-            branch = newAst;
-
-            if (peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
-            else if (peek(1)->getType() == DOT)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
-            else if (peek(1)->getType() == LEFTBRACE)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-            else if (peek(1)->getValue() == "as")
-                errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
-            else if(peek(1)->getType() == DOUBLEBANG)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
-            return true;
-        } else {
-            branch->freeLastSub();
-            errors->pass();
-            _current = old;
-        }
-    }
+//
+//    if(!ignoreInlineLambda) {
+//        errors->enterProtectedMode();
+//        old = _current;
+//        newAst = getBranch(branch, ast_lambda_function);
+//        parseLambdaArgList(newAst);
+//
+//        if (peek(1)->getValue() == "->") {
+//            advance();
+//            parseExpression(newAst);
+//            branch = newAst;
+//
+//            if (peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
+//            else if (peek(1)->getType() == DOT)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+//            else if (peek(1)->getType() == LEFTBRACE)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+//            else if (peek(1)->getValue() == "as")
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
+//            else if(peek(1)->getType() == DOUBLEBANG)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
+//            return true;
+//        } else {
+//            branch->freeLastSub();
+//            errors->pass();
+//            _current = old;
+//        }
+//    }
 
     dotNot:
     errors->enterProtectedMode();
@@ -3140,6 +3140,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto isExpr;
         return true;
     }
+
 
 
     if(peek(1)->getValue() == "{")

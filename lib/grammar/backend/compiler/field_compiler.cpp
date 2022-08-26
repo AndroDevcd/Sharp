@@ -69,78 +69,6 @@ void compile_static_closure_reference(sharp_field *field) {
     delete_context();
 }
 
-void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field *field) {
-    GUARD2(globalLock)
-    string name;
-    if(field->fieldType == normal_field && field->scheme) {
-        sharp_function *function;
-        List<sharp_field*> params;
-        sharp_type void_type(type_nil);
-
-        if(check_flag(field->flags, flag_static)) {
-            function = resolve_function(
-                    static_init_name(with_class->name), with_class,
-                    params,normal_function, exclude_all,
-                    ast, false, false
-            );
-
-            if(function == NULL) {
-                name = static_init_name(with_class->name);
-                create_function(
-                        with_class, flag_private | flag_static,
-                        normal_function, name,
-                        false, params,
-                        void_type, ast, function
-                );
-
-                function->scheme = new operation_schema(scheme_master);
-            }
-        } else {
-
-            function = resolve_function(
-                    instance_init_name(with_class->name), with_class,
-                    params,normal_function, exclude_all,
-                    ast, false, false
-            );
-
-            if(function == NULL) {
-                name = instance_init_name(with_class->name);
-                create_function(
-                        with_class, flag_private,
-                        normal_function, name,
-                        false, params,
-                        void_type, ast, function
-                );
-
-                function->scheme = new operation_schema(scheme_master);
-            }
-        }
-
-        create_dependency(field);
-        function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
-    } else if(field->scheme) {
-        sharp_function *function;
-        List<sharp_field*> params;
-        sharp_type void_type(type_nil);
-        string platform_kernel = "platform.kernel";
-        sharp_class *platformClass = resolve_class(get_module(platform_kernel), "platform", false, false);
-
-        function = resolve_function(
-                tls_init_function_name, platformClass,
-                params,normal_function, exclude_all,
-                ast, false, false
-        );
-
-        if(function->scheme == NULL) {
-            function->scheme = new operation_schema(scheme_master);
-        }
-
-        create_dependency(field);
-        function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
-    }
-}
-
-// todo: come back later and support updating fields with closures attached to them as well
 void compile_field(sharp_class *with_class, Ast *ast) {
     string name;
     if(parser::isStorageType(ast->getToken(0))) {
@@ -160,7 +88,6 @@ void compile_field(sharp_class *with_class, Ast *ast) {
         compile_function(field->setter, field->setter->ast);
     }
 
-    inject_field_initialization(with_class, ast, field);
     if(ast->hasSubAst(ast_variable_decl)) {
         long startAst = 0;
         for (long i = 0; i < ast->getSubAstCount(); i++) {
@@ -176,9 +103,7 @@ void compile_field(sharp_class *with_class, Ast *ast) {
             name = trunk->getToken(0).getValue();
             sharp_field *xtraField = resolve_field(name, field->owner);
 
-            if (xtraField && xtraField->scheme != NULL && xtraField->scheme->schemeType != scheme_none) {
-                inject_field_initialization(with_class, ast, xtraField);
-            }
+            compile_field(xtraField, trunk);
         }
     }
 }
@@ -201,25 +126,6 @@ void compile_field(sharp_field *field, Ast *ast) {
     GUARD(globalLock)
     create_context(field);
 
-    if(field->name == "foo" && field->owner->name == "_object_") {
-        // todo: remove here for testing only
-        string fname = "%test";
-        List<sharp_field*> params;
-        sharp_type returnType(type_nil);
-        create_function(field->owner, flag_public, normal_function, fname, false,
-                params, returnType, ast);
-
-        create_block(&current_context, normal_block);
-        sharp_function *fun = field->owner->functions.last();
-        create_context(fun);
-        expression e;
-        compile_expression(e, ast->getSubAst(ast_expression));
-
-        delete_block();
-        validate_function_type(false, fun, e.type, &e.scheme, fun->ast);
-        delete_context();
-    }
-
     if(field->request != NULL) {
         compile_field_injection_request(field, ast);
     }
@@ -230,7 +136,9 @@ void compile_field(sharp_field *field, Ast *ast) {
             expression e;
             field->scheme = new operation_schema();
             create_context(field->owner, check_flag(field->flags, flag_static));
+            create_context(field);
             compile_expression(e, ast->getSubAst(ast_expression));
+            delete_context();
             delete_context();
 
             if(field->type == type_untyped) {
@@ -245,7 +153,31 @@ void compile_field(sharp_field *field, Ast *ast) {
                                     type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
                 }
             }
-            field->scheme->copy(e.scheme);
+
+            APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+                  scheme_0.schemeType = scheme_assign_value;
+
+                  operation_schema *resultVariableScheme = new operation_schema();
+                  create_get_value_operation(&scheme_0, &e.scheme, false, false);
+                  create_push_to_stack_operation(&scheme_0);
+
+                  if(check_flag(field->flags, flag_static)) {
+                      if(field->fieldType == normal_field) {
+                          create_static_field_access_operation(resultVariableScheme, field);
+                      } else {
+                          create_tls_field_access_operation(resultVariableScheme, field);
+                      }
+                  } else {
+                      create_instance_field_access_operation(resultVariableScheme, field);
+                  }
+                  create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
+                  create_pop_value_from_stack_operation(&scheme_0);
+                          create_unused_data_operation(&scheme_0);
+            )
+
+            field->scheme->copy(scheme_0);
+        } else {
+            create_setup_local_field_operation(field->scheme, field);
         }
 
         if(ast->hasSubAst(ast_getter) && field->getter == NULL) {
@@ -281,7 +213,11 @@ void compile_field(sharp_field *field, Ast *ast) {
                     if(trunk->hasSubAst(ast_expression)) {
                         expression e;
                         xtraField->scheme = new operation_schema();
+                        create_context(field->owner, check_flag(field->flags, flag_static));
+                        create_context(field);
                         compile_expression(e, trunk->getSubAst(ast_expression));
+                        delete_context();
+                        delete_context();
 
                         if(xtraField->type == type_untyped) {
                             validate_field_type(false, xtraField, e.type, &e.scheme,
@@ -296,7 +232,28 @@ void compile_field(sharp_field *field, Ast *ast) {
                             }
                         }
 
-                        xtraField->scheme->copy(e.scheme);
+                        APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+                             scheme_0.schemeType = scheme_assign_value;
+
+                             operation_schema *resultVariableScheme = new operation_schema();
+                             create_get_value_operation(&scheme_0, &e.scheme, false, false);
+                             create_push_to_stack_operation(&scheme_0);
+
+                             if(check_flag(field->flags, flag_static)) {
+                                 if(field->fieldType == normal_field) {
+                                     create_static_field_access_operation(resultVariableScheme, xtraField);
+                                 } else {
+                                     create_tls_field_access_operation(resultVariableScheme, xtraField);
+                                 }
+                             } else {
+                                 create_instance_field_access_operation(resultVariableScheme, xtraField);
+                             }
+                             create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
+                             create_pop_value_from_stack_operation(&scheme_0);
+                                     create_unused_data_operation(&scheme_0);
+                        )
+
+                        xtraField->scheme->copy(scheme_0);
                     }
 
                     delete_context();

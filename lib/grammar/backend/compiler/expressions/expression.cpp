@@ -200,6 +200,7 @@ void compile_function_call(
             );
         }
 
+        create_dependency(callee);
         if(isFunctionPointer) {
             ALLOCATE_REGISTER_1X(1, scheme,
               create_dynamic_function_call_operation(scheme, compiledParamOperations, callee, register_1, false);

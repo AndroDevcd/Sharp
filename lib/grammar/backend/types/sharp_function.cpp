@@ -19,7 +19,7 @@ bool is_fully_qualified_function(sharp_function* function) {
         }
     }
 
-    return true;
+    return function->returnType.type < type_any;
 }
 
 void fully_qualify_function(sharp_function* function, sharp_function* qualifiedFunction) {
@@ -28,6 +28,10 @@ void fully_qualify_function(sharp_function* function, sharp_function* qualifiedF
             sharp_field *parameter = function->parameters.get(i);
             if(parameter->type.type >= type_any)
                 parameter->type.copy(qualifiedFunction->parameters.get(i)->type);
+        }
+
+        if(function->returnType.type >= type_any) {
+            function->returnType.copy(qualifiedFunction->returnType);
         }
     }
 }

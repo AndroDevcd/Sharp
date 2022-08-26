@@ -104,7 +104,9 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
     tc_data = create_try_catch_data_tracker(subScheme);
     create_try_catch_start_operation(subScheme, tc_data);
     create_try_catch_block_start_operation(subScheme, tc_data);
-    create_setup_local_field_operation(subScheme, returnAddressField);
+
+    if(hasFinallyBlock)
+        create_setup_local_field_operation(subScheme, returnAddressField);
 
     controlPaths[TRY_CONTROL_PATH] =
             compile_block(ast->getSubAst(ast_block), subScheme, try_block,

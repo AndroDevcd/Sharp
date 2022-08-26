@@ -24,7 +24,9 @@ void process_try_scheme(operation_schema *scheme) {
     process_allocate_try_catch_data(next_step);
     process_set_try_catch_start(next_step);
     process_set_try_catch_block_start(next_step);
-    process_setup_local_field(next_step);
+
+    if(current_step->type == operation_setup_local_field)
+        process_setup_local_field(next_step);
 
     process_master_scheme(next_step->scheme);
 

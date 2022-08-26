@@ -48,7 +48,7 @@
 #include "scheme_for_cond.h"
 #include "scheme_for_iter.h"
 #include "scheme_for_infinite.h"
-#include "scheme_lock.h"
+#include "scheme_lock_data.h"
 #include "scheme_unlock_data.h"
 #include "scheme_if_single.h"
 #include "scheme_compound_if.h"
@@ -72,6 +72,10 @@
 #include "scheme_throw.h"
 #include "scheme_continue.h"
 #include "scheme_break.h"
+#include "../../function_generator.h"
+#include "scheme_check_type.h"
+#include "scheme_lock.h"
+#include "scheme_call_getter_function.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -208,8 +212,22 @@ void process_scheme(operation_schema *scheme) {
                 return process_throw_scheme(scheme);
             case scheme_continue:
                 return process_continue_scheme(scheme);
-            case scheme_break:
+            case scheme_break: // todo: finish processing the remaining schemes and steps
                 return process_break_scheme(scheme);
+            case scheme_none:
+                generation_error("Scheme is missing type!");
+                break;
+            case scheme_check_type:
+                return process_check_type_scheme(scheme);
+            case scheme_lock:
+                process_lock_scheme(scheme);
+                break;
+            case scheme_call_getter_function:
+                process_call_getter_function_scheme(scheme);
+                break;
+            case scheme_label:
+                // todo:  not supprted as of now
+                break;
             default:
                 generation_error("attempt to execute unknown scheme!");
                 break;
@@ -231,6 +249,10 @@ void process_scheme_steps(operation_schema *scheme) {
 
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container) {
     update_context(ci, container);
+    generate_initial_closure_setup(container);
+    if(container->name == "foo") {
+        int r = 0;
+    }
     process_scheme(scheme);
     flush_context();
 }

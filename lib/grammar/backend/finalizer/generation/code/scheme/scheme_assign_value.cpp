@@ -30,7 +30,9 @@ void process_assign_value_scheme(operation_schema *scheme) {
     cc.machineData.dataAddress = asignee.dataAddress;
     cc.machineData.type = asignee.type;
 
+    bool clearData = false;
     if(has_next_step && current_step->type == operation_unused_data) {
+        clearData = true;
         process_unused_data(next_step);
     } else if(has_next_step && current_step->type >= operation_int8_cast
         && current_step->type <= operation_uint64_cast)
@@ -39,8 +41,13 @@ void process_assign_value_scheme(operation_schema *scheme) {
         process_class_cast(next_step);
 
     if(closureRef && closure) {
+        cc.machineData.dataAddress = asignee.dataAddress;
+        cc.machineData.type = asignee.type;
+
         push_machine_data_to_stack();
-        add_instruction(Opcode::Builder::dup());
+        if(!clearData) {
+            add_instruction(Opcode::Builder::dup());
+        }
 
         add_instruction(Opcode::Builder::movg(closureRef->owner->ci->address));
         add_instruction(Opcode::Builder::movn(closureRef->ci->address));
@@ -49,13 +56,15 @@ void process_assign_value_scheme(operation_schema *scheme) {
         set_machine_data(closure, false);
         pop_machine_data_from_stack();
 
-        if(is_numeric_type(closure->closure->type) && !closure->type.isArray) {
-            set_machine_data(get_register(EBX));
-            pop_machine_data_from_stack();
-            set_machine_data(get_register(EBX));
-        } else {
-            add_instruction(Opcode::Builder::popObject2());
-            set_machine_data(generic_object_data);
+        if(!clearData) {
+            if (is_numeric_type(closure->closure->type) && !closure->type.isArray) {
+                set_machine_data(get_register(EBX));
+                pop_machine_data_from_stack();
+                set_machine_data(get_register(EBX));
+            } else {
+                add_instruction(Opcode::Builder::popObject2());
+                set_machine_data(generic_object_data);
+            }
         }
     }
 }

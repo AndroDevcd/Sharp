@@ -6,6 +6,7 @@
 #include "../../../sharp_file.h"
 #include "../../../compiler_info.h"
 #include "dependency_runner.h"
+#include "field_injector.h"
 
 // this field represents a compressed list of all source files to only include the source files that the user
 // code depends on
@@ -14,6 +15,7 @@ List<sharp_file*> compressedCompilationFiles;
 void optimize() {
     if(genesis_method != NULL && user_main_method != NULL) {
         markRelevantDependencyMembers();
+        injectAllRelevantFields();
 
         // todo optimize code later
     } else {

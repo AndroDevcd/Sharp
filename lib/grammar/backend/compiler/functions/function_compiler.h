@@ -26,5 +26,6 @@ void compile_function(
 
 void compile_class_functions(sharp_class *with_class, Ast *block);
 void compile_class_mutations(sharp_class *with_class, Ast *block);
+void compile_class_lambdas(sharp_class *with_class);
 
 #endif //SHARP_FUNCTION_COMPILER_H

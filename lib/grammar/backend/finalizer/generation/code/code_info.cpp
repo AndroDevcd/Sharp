@@ -1034,7 +1034,7 @@ string code_to_string(code_info *info) {
                 ss<< register_to_str(GET_Da(opcodeData));
                 ss<< " -> ";
                 x++;
-                ss << "@ " << (int32_t)code.get(x);
+                ss << "@ " << compressedCompilationClasses.get(code.get(x))->fullName;
                 break;
             }
             case Opcode::SMOVR_4:

@@ -20,6 +20,7 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
         flags |= flag_static;
     }
 
+
     sharp_field *field = create_local_field(
             current_file,
             &current_context,
@@ -86,6 +87,7 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
                                                                        type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
                 }
             }
+
             field->scheme->copy(e.scheme);
         }
     }

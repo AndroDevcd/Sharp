@@ -140,13 +140,19 @@ void compile_initialization_paring(sharp_class* with_class) {
                 void_type, with_class->ast, function
         );
     }
-    for(Int i = 0; i < with_class->functions.size(); i++) {
-        if(with_class->functions.get(i)->type == constructor_function) {
-            if(with_class->functions.get(i)->scheme == NULL)
-                with_class->functions.get(i)->scheme = new operation_schema(scheme_master);
 
-            APPLY_TEMP_SCHEME(0, *with_class->functions.get(i)->scheme,
+    for(Int i = 0; i < with_class->functions.size(); i++) {
+        sharp_function *constructor = with_class->functions.get(i);
+
+        if(constructor->type == constructor_function) {
+            if(constructor->scheme == NULL)
+                constructor->scheme = new operation_schema(scheme_master);
+
+            APPLY_TEMP_SCHEME(0, *constructor->scheme,
+                 create_context(constructor);
                  compile_function_call(&scheme_0, params, paramOperations, function, false, true, false);
+                         create_unused_data_operation(&scheme_0);
+                 delete_context();
             )
         }
     }

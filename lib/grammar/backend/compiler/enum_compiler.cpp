@@ -10,6 +10,9 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
     string name = ast->getToken(0).getValue();
     sharp_field *enum_field = resolve_field(name, with_class, false);
 
+    if(enum_field->fullName == "std.io#thread_priority.min_priority") {
+        int r = 0;
+    }
     if(enum_field != NULL) {
         if(ast->hasSubAst(ast_expression)) {
             expression e;
@@ -72,6 +75,9 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
                      create_static_field_access_operation(&scheme_0, enum_field);
                      create_pop_value_from_stack_operation(&scheme_0);
                 )
+
+                delete enum_field->scheme;
+                enum_field->scheme = NULL;
             } else {
                 currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast,
                                "cannot locate internal function `static_init` in platform class for closure.");

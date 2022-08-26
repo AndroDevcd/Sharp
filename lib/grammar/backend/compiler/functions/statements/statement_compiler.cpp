@@ -48,18 +48,13 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
             expression e;
             compile_expression(e, ast);
 
-            APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_none, *scheme,
-                scheme_0.copy(e.scheme);
-                create_unused_expression_data_operation(&scheme_0);
+            APPLY_TEMP_SCHEME_WITH_TYPE(1, scheme_none, *scheme,
+                create_get_value_operation(&scheme_1, &e.scheme);
             )
             break;
         }
         case ast_variable_decl: {
             compile_local_variable_statement(ast, scheme);
-
-            APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_unused_data, *scheme,
-                  create_unused_expression_data_operation(&scheme_0);
-            )
             break;
         }
         case ast_alias_decl: {
@@ -117,4 +112,8 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
             currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
             break;
     }
+
+    APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_unused_data, *scheme,
+                                create_unused_data_operation(&scheme_0);
+    )
 }

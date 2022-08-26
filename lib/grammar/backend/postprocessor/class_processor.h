@@ -10,6 +10,7 @@
 struct sharp_class;
 
 void post_process();
+void create_class_init_functions(sharp_class *with_class, Ast *ast);
 void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast);
 
 #endif //SHARP_CLASS_PROCESSOR_H

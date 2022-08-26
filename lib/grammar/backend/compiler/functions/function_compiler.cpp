@@ -191,6 +191,18 @@ void compile_function(
     }
 }
 
+void compile_class_lambdas(sharp_class *with_class) {
+    create_context(with_class, true);
+    for(Int i = 0; i < with_class->uncompiledLambdas.size(); i++) {
+        sharp_function *lambda = with_class->uncompiledLambdas.get(i);
+
+        compile_function(lambda, lambda->ast);
+    }
+
+    with_class->uncompiledLambdas.free();
+    delete_context();
+}
+
 void compile_class_functions(sharp_class *with_class, Ast *block) {
 
     create_context(with_class, true);
@@ -241,6 +253,11 @@ void compile_function(sharp_function *function, Ast *ast) {
         function->scheme = new operation_schema(scheme_master);
     bool codePathsReturnValue;
 
+    GUARD(globalLock)
+
+    if(function->name == "foo") {
+        int r = 0;
+    }
     if(function->type == initializer_function) {
         codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
     } else {
@@ -330,6 +347,10 @@ bool compile_block(
         current_context.blockInfo.lockScheme = new operation_schema(*lockScheme);
     current_context.blockInfo.finallyLabel = finallyLabel;
     operation_schema *blockScheme = new operation_schema(scheme_master);
+
+    APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_unused_data, *blockScheme,
+       create_unused_data_operation(&scheme_0);
+    )
 
     bool controlPaths[]
          = {

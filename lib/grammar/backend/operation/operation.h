@@ -114,7 +114,6 @@ enum operation_type {
     operation_xor,
     operation_or,
     operation_and_and,
-    operation_or_or,
     operation_eq_eq,
     operation_not_eq,
     operation_instance_eq,
@@ -144,10 +143,7 @@ enum operation_type {
     operation_jump_if_false,
     operation_jump_if_true,
     operation_jump,
-    operation_label_reachable,
     operation_setup_local_field,
-    operation_get_register_value,
-    operation_set_register_value,
     operation_set_try_catch_start,
     operation_set_try_catch_end,
     operation_set_try_catch_block_start,
@@ -201,7 +197,6 @@ enum _operation_scheme {
     scheme_for_infinite,
     scheme_for_cond,
     scheme_for_iter,
-    scheme_for_variable,
     scheme_lock_data,
     scheme_unlock_data,
     scheme_if_single,
@@ -224,13 +219,12 @@ enum _operation_scheme {
     scheme_while,
     scheme_do_while,
     scheme_throw,
-
-    scheme_call_getter_function,
-    scheme_get_address,
-    scheme_label,
     scheme_break,
     scheme_continue,
     scheme_lock,
+    scheme_call_getter_function,
+    scheme_get_address,
+    scheme_label,
 };
 
 struct operation_schema {
@@ -352,6 +346,10 @@ struct operation_step {
         _string(""),
         nativeType(type_undefined)
     {
+        if(type == operation_push_parameter_to_stack
+            && scheme->schemeType == scheme_none) {
+            int r = 0;
+        }
         this->scheme = new operation_schema(*scheme);
     }
 
@@ -636,7 +634,8 @@ void create_instance_field_getter_operation(
 
 void create_get_static_function_address_operation(
         operation_schema *scheme,
-        sharp_function *fun);
+        sharp_function *fun,
+        bool resetState = true);
 
 void create_instance_function_call_operation(
         operation_schema *scheme,
@@ -767,10 +766,6 @@ void create_retain_label_value_operation(
         sharp_label* label);
 
 void create_get_value_from_register_operation(
-        operation_schema *scheme,
-        Int registerId);
-
-void create_set_value_to_register_operation(
         operation_schema *scheme,
         Int registerId);
 
@@ -1083,7 +1078,7 @@ void create_xor_value_assignment_operation(
 void create_pop_value_from_stack_operation(
         operation_schema *scheme);
 
-void create_unused_expression_data_operation(
+void create_unused_data_operation(
         operation_schema *scheme);
 
 void create_assign_array_element_operation(

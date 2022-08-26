@@ -250,7 +250,7 @@ sharp_field* resolve_enum(string, import_group*);
 sharp_field* resolve_enum(string, sharp_class*);
 
 sharp_label* resolve_label(string name, stored_context_item *context);
-sharp_field* resolve_local_field(string name, stored_context_item *context);
+sharp_field* resolve_local_field(string name, stored_context_item *context, bool ignoreBlockId = false);
 sharp_alias* resolve_local_alias(string name, stored_context_item *context);
 
 bool resolve_function_for_address(

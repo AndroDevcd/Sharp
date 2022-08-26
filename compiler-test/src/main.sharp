@@ -5,11 +5,23 @@ thread_local fark := 9;
 feep : int = new int(-1);
 
 def main() {
-  new ff().foo(8);
+  new ff().foo(null);
   println("hello, world! $feep");
 }
 
 ll: int = new int(9);
+
+import (
+    std.io.*,
+    platform,
+    platform.kernel
+)
+
+chan := new channel<var>(UNLIMITED);
+const loop_count := 10000;
+const slices := 10;
+const n := 0;
+counter := new atomic<var>(0);
 
 class ff {
     x : var[];
@@ -27,12 +39,8 @@ class ff {
         return "";
     }
 
-    def foo(n: var) {
-        while(true) {
-            lock(self) {
-                return;
-            }
-        }
+    def foo(n: object?) {
+        n is int;
     }
 }
 

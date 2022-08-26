@@ -53,7 +53,7 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
                create_local_field_access_operation(addressVariableScheme, returnAddressField);
                create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
                create_pop_value_from_stack_operation(&scheme_0);
-               create_unused_expression_data_operation(&scheme_0);
+                       create_unused_data_operation(&scheme_0);
         )
 
         create_jump_operation(subScheme, finallyLabel);

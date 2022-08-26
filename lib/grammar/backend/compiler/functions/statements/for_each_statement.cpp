@@ -107,7 +107,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
          create_local_field_access_operation(indexVariableScheme, indexField);
          create_get_value_operation(&scheme_0, indexVariableScheme, false, false);
          create_pop_value_from_stack_operation(&scheme_0);
-         create_unused_expression_data_operation(&scheme_0);
+                 create_unused_data_operation(&scheme_0);
     )
 
     set_internal_variable_name(ss, "foreach_array_result", uniqueId++)
@@ -123,7 +123,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
          create_local_field_access_operation(resultVariableScheme, resultField);
          create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
          create_pop_value_from_stack_operation(&scheme_0);
-         create_unused_expression_data_operation(&scheme_0);
+                 create_unused_data_operation(&scheme_0);
     )
 
     create_set_label_operation(subScheme, beginLabel);

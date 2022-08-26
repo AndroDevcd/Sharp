@@ -4,6 +4,16 @@ foo : var = 9;
 
 def ll(k: _int8) := 9;
 
+import std.*;
+import platform;
+import platform.kernel;
+
+chan := new channel<var>(UNLIMITED);
+const loop_count := 10000;
+const slices := 10;
+const n := 0;
+counter := new atomic<var>(0);
+
 class ff {
     x : var[];
     y : int;
@@ -18,9 +28,28 @@ class ff {
 
 
     def foo(n: var) {
-        while(true) {
-            n = 0;
+        for(i := 0; i < slices; i++) {
+            launcher = { ->
+    //            for(i := 0; i < 10000000; i++) {
+    //            }
+
+                println("start");
+                for(i := 0; i < loop_count; i++) {
+                    counter++;
+                }
+                println("done");
+
+            };
         }
+
+        for(i := 0; i < 10000000; i++) {
+        }
+
+        chan.read_next(0, slices * loop_count);
+
+        println("done");
+
+        // took 8.288s
     }
 }
 

@@ -39,6 +39,7 @@ void post_process() {
             }
 
             globalClass = resolve_class(currModule, global_class_name, false, false);
+            create_class_init_functions(globalClass, trunk);
             create_context(globalClass, true);
             continue;
         }
@@ -92,6 +93,51 @@ void post_process() {
     delete_context();
 }
 
+void create_class_init_functions(sharp_class *with_class, Ast *ast) {
+    string name;
+    sharp_function *function;
+    List<sharp_field*> params;
+    sharp_type void_type(type_nil);
+    GUARD(globalLock)
+
+    function = resolve_function(
+            static_init_name(with_class->name), with_class,
+            params,normal_function, exclude_all,
+            ast, false, false
+    );
+
+    if(function == NULL) {
+        name = static_init_name(with_class->name);
+        create_function(
+                with_class, flag_private | flag_static,
+                normal_function, name,
+                false, params,
+                void_type, ast, function
+        );
+
+        function->scheme = new operation_schema(scheme_master);
+    }
+
+
+    function = resolve_function(
+            instance_init_name(with_class->name), with_class,
+            params,normal_function, exclude_all,
+            ast, false, false
+    );
+
+    if(function == NULL) {
+        name = instance_init_name(with_class->name);
+        create_function(
+                with_class, flag_private,
+                normal_function, name,
+                false, params,
+                void_type, ast, function
+        );
+
+        function->scheme = new operation_schema(scheme_master);
+    }
+}
+
 void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) {
     Ast* block = ast->getSubAst(ast_block);
 
@@ -103,6 +149,7 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     create_context(with_class, true);
     process_base_class(with_class, ast);
     process_interfaces(with_class, ast);
+    create_class_init_functions(with_class, ast);
 
     if(block != NULL) {
         for (Int i = 0; i < block->getSubAstCount(); i++) {

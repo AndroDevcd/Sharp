@@ -139,6 +139,7 @@ void process_step(operation_step *step) {
             return process_var_cast(step);
         case operation_is_class:
             return process_is_class(step);
+        case operation_is_var:
         case operation_is_int8:
         case operation_is_int16:
         case operation_is_int32:
@@ -250,6 +251,15 @@ void process_step(operation_step *step) {
             return process_retain_label_value(step);
         case operation_throw_exception:
             return process_throw_exception(step);
+        case operation_none:
+            generation_error("attempt to execute invalid operation step!");
+            break;
+        case operation_post_scheme_start:
+            generation_error("attempt to execute non-executable operation step!");
+            break;
+        case operation_illegal:
+            generation_error("attempt to execute illegal operation step!");
+            break;
         default:
             generation_error("attempt to execute unknown operation step!");
             break;
@@ -875,9 +885,36 @@ void process_is_class(operation_step *step) {
 
 void process_var_cast(operation_step *step) {
     if(step->type >= operation_int8_cast && step->type <=operation_uint64_cast) {
-        consume_machine_data();
-        add_instruction(Opcode::Builder::varCast(step->integer, step->_bool));
-        set_machine_data(generic_object_data);
+        if(step->_bool) {
+            consume_machine_data();
+            add_instruction(Opcode::Builder::varCast(step->integer, step->_bool));
+            set_machine_data(generic_object_data);
+        } else {
+            data_type type = type_undefined;
+            if(step->type == operation_int8_cast) {
+                type = type_int8;
+            } else if(step->type == operation_int16_cast) {
+                type = type_int16;
+            } else if(step->type == operation_int32_cast) {
+                type = type_int32;
+            } else if(step->type == operation_int64_cast) {
+                type = type_int64;
+            } else if(step->type == operation_uint8_cast) {
+                type = type_uint8;
+            } else if(step->type == operation_uint16_cast) {
+                type = type_uint16;
+            } else if(step->type == operation_uint32_cast) {
+                type = type_uint32;
+            } else if(step->type == operation_uint64_cast) {
+                type = type_uint64;
+            } else {
+                generation_error("incorrect data type found for numeric cast!");
+            }
+
+            consume_machine_data(get_register(EGX));
+            cast_machine_data(EGX, type);
+            set_machine_data(get_register(EGX));
+        }
     }
     else {
         generation_error("incorrect numeric cast operation type found!");

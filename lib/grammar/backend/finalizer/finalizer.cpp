@@ -112,21 +112,28 @@ void setup_core_functions() {
                     init_function->implLocation.file->errors->createNewError(GENERIC, userMain->ast, "main method function pointer field '" + userMain->name + ": " + type_to_str(userMain->type) + "' must be a function pointer");
                 }
 
-                APPLY_TEMP_SCHEME(0, (*StaticInit->scheme),
-                     ALLOCATE_REGISTER_1X(0, &scheme_0,
-                         create_get_static_function_address_operation(&scheme_0, user_main_method);
-                         create_retain_numeric_value_operation(&scheme_0, register_0);
-                         create_static_field_access_operation(&scheme_0, userMain, false);
-                         create_get_value_from_register_operation(&scheme_0, register_0);
-                     )
+
+
+                APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_assign_value, (*StaticInit->scheme),
+                    operation_schema *resultVariableScheme = new operation_schema();
+                    operation_schema *functionAddressScheme = new operation_schema();
+
+                    ALLOCATE_REGISTER_1X(0, functionAddressScheme,
+                        create_get_static_function_address_operation(functionAddressScheme, user_main_method, false);
+                    )
+                    create_get_value_operation(&scheme_0, functionAddressScheme, false, false);
+                    create_push_to_stack_operation(&scheme_0);
+
+                    create_static_field_access_operation(resultVariableScheme, userMain);
+                    create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
+                    create_pop_value_from_stack_operation(&scheme_0);
+                    create_unused_expression_data_operation(&scheme_0);
+
+                    delete resultVariableScheme;
+                    delete functionAddressScheme;
                 )
             } else
                 init_function->implLocation.file->errors->createNewError(INTERNAL_ERROR,  init_function->ast, "user main method function pointer was not found");
-
-            for(Int i = 0; i < classes.size(); i++) {
-                // todo: init static class inserts
-                //create_static_function_call_operation(StaticInit->scheme, params, classes.);
-            }
 
             create_return_operation(StaticInit->scheme);
             create_return_operation(TlsSetup->scheme);

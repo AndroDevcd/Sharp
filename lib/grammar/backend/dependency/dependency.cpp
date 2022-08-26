@@ -168,10 +168,10 @@ sharp_field* resolve_field(string name, sharp_file *file, bool checkBase) {
     return NULL;
 }
 
-sharp_field* resolve_local_field(string name, stored_context_item *context) {
+sharp_field* resolve_local_field(string name, stored_context_item *context, bool ignoreBlockId) {
     for(Int i = 0; i < context->localFields.size(); i++) {
         if(context->localFields.get(i)->name == name
-            && context->localFields.get(i)->block <= context->blockInfo.id)
+            && (ignoreBlockId || (context->localFields.get(i)->block <= context->blockInfo.id)))
             return context->localFields.get(i);
     }
 
@@ -651,7 +651,7 @@ sharp_function* resolve_function(
         for(Int i = 0; i < parameters.size(); i++) {
             if(parameters.get(i)->type == type_lambda_function
                 && !is_fully_qualified_function(parameters.get(i)->type.fun)) {
-                fully_qualify_function(parameters.get(i)->type.fun, resolvedFunction);
+                fully_qualify_function(parameters.get(i)->type.fun, resolvedFunction->parameters.get(i)->type.fun);
             }
         }
     }
@@ -826,7 +826,7 @@ bool resolve_local_field( // todo: support tls access for all fields
     for(Int i = ctx.storedItems.size() - 1; i >= 0; i--) {
         stored_context_item *contextItem = ctx.storedItems.get(i);
 
-        if((field = resolve_local_field(item.name, contextItem)) != NULL) {
+        if((field = resolve_local_field(item.name, contextItem, true)) != NULL) {
 
             if(ctx.functionCxt == contextItem->functionCxt) { // same func no closure needed
                 resultType.field = field;
@@ -862,6 +862,7 @@ bool resolve_local_field( // todo: support tls access for all fields
                     if(field->type.type == type_class)
                         create_dependency(field->type._class);
                     create_dependency(closure_class);
+                    create_dependency(closure);
                     create_dependency(staticClosureRef);
                 } else {
                     resultType.field = field;
@@ -1983,6 +1984,7 @@ bool resolve_local_function_pointer_field(
                     if(field->type.type == type_class)
                         create_dependency(field->type._class); // todo: look into supporting thread_local closure fields
                     create_dependency(closure_class);
+                    create_dependency(closure);
                     create_dependency(staticClosureRef);
                 } else {
                     resultType.field = field;

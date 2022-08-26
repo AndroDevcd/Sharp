@@ -40,11 +40,13 @@ void compile_lambda_expression(expression *e, Ast *ast) {
     if(primaryClass == NULL)
         primaryClass = resolve_class(currModule, global_class_name, false, false);
 
+    sharp_function *anon_func = NULL;
     if(create_function(primaryClass, flag_public | flag_static,
             normal_function, functionName, false,
-            params, noType, ast)) {
-        sharp_function *anon_func = primaryClass->functions.last();
+            params, noType, ast, anon_func)) {
+        create_dependency(anon_func);
 
+        anon_func->locals.addAll(anon_func->parameters);
         if(ast->hasSubAst(ast_method_return_type)) {
             Ast *returnTypeAst = ast->getSubAst(ast_method_return_type);
 
@@ -54,6 +56,8 @@ void compile_lambda_expression(expression *e, Ast *ast) {
                 returnType = resolve(returnTypeAst->getSubAst(ast_utype));
             }
 
+            validate_function_type(true, anon_func, returnType,
+                                   NULL, anon_func->ast);
         } else if(ast->hasSubAst(ast_expression)) {
             create_context(anon_func->owner);
             create_context(anon_func);
@@ -67,12 +71,13 @@ void compile_lambda_expression(expression *e, Ast *ast) {
             delete_block();
             delete_context();
             delete_context();
+
+            validate_function_type(true, anon_func, returnType,
+                                   NULL, anon_func->ast);
         } else {
-            returnType.type = type_nil;
+            anon_func->returnType.type = type_any;
         }
 
-        validate_function_type(true, anon_func, returnType,
-                               NULL, anon_func->ast);
         if(ast->hasSubAst(ast_block)) {
             if(current_file->stage < pre_compilation_state) {
                 primaryClass->uncompiledLambdas.add(anon_func);

@@ -578,24 +578,6 @@ void create_branch_operation(
     }
 }
 
-void create_get_value_from_register_operation(
-        operation_schema *scheme,
-        Int retainId) {
-    if(scheme) {
-        scheme->steps.add(new operation_step(
-                operation_get_register_value, retainId));
-    }
-}
-
-void create_set_value_to_register_operation(
-        operation_schema *scheme,
-        Int retainId) {
-    if(scheme) {
-        scheme->steps.add(new operation_step(
-                operation_set_register_value, retainId));
-    }
-}
-
 void create_deallocate_register_operation(
         operation_schema *scheme,
         Int registerId) {
@@ -807,6 +789,9 @@ void create_setup_local_field_operation(
         operation_schema *scheme,
         sharp_field* field) {
     if(scheme) {
+        if(field == NULL) {
+            int r= 0;
+        }
         scheme->schemeType = scheme_access_local_field;
         scheme->field = field;
 
@@ -828,14 +813,14 @@ Int create_allocate_register_operation(
         operation_schema *scheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
-                operation_allocate_register, uniqueRegisterIds));
-        return uniqueRegisterIds++;
+                operation_allocate_register, uniqueRegisterIds++));
+        return scheme->steps.last()->integer;
     }
 
     return -1;
 }
 
-void create_unused_expression_data_operation(
+void create_unused_data_operation(
         operation_schema *scheme) {
     if(scheme) {
         scheme->steps.add(new operation_step(
@@ -899,9 +884,11 @@ void create_instance_field_getter_operation(
 
 void create_get_static_function_address_operation(
         operation_schema *scheme,
-        sharp_function *fun) {
+        sharp_function *fun,
+        bool resetState) {
     if(scheme) {
-        scheme->free();
+        if(resetState)
+            scheme->free();
         scheme->schemeType = scheme_get_address;
 
         scheme->steps.add(new operation_step(
@@ -953,6 +940,10 @@ void create_instance_function_call_operation(
                     new operation_schema(*paramScheme.get(i)),
                     operation_push_parameter_to_stack
             ));
+        }
+
+        if(fun->fullName == "std#string.init<string>") {
+            int r = 0;
         }
 
         scheme->steps.add(new operation_step(
@@ -1455,6 +1446,7 @@ void create_function_parameter_push_operation(
                 operation_schema *tmp = new operation_schema();
                 create_instance_function_call_operation(
                         tmp, scheme, constructor);
+                create_dependency(constructor);
 
 
                 resultScheme->steps.add(
