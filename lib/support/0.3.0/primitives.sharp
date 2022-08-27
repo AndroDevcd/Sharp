@@ -60,6 +60,24 @@ public class integer<native_type> {
     def operator!=(num : bool) := (value!=num.value);
     def operator==(num : bool) := (value==num.value);
     def operator==(num : double) := (value==num.value);
+    def operator!=(num : var) := (value!=num);
+    def operator==(num : var) := (value==num);
+    def operator!=(num : _int8) := (value!=num);
+    def operator==(num : _int8) := (value==num);
+    def operator!=(num : _int16) := (value!=num);
+    def operator==(num : _int16) := (value==num);
+    def operator!=(num : _int32) := (value!=num);
+    def operator==(num : _int32) := (value==num);
+    def operator!=(num : _int64) := (value!=num);
+    def operator==(num : _int64) := (value==num);
+    def operator!=(num : _uint8) := (value!=num);
+    def operator==(num : _uint8) := (value==num);
+    def operator!=(num : _uint16) := (value!=num);
+    def operator==(num : _uint16) := (value==num);
+    def operator!=(num : _uint32) := (value!=num);
+    def operator==(num : _uint32) := (value==num);
+    def operator!=(num : _uint64) := (value!=num);
+    def operator==(num : _uint64) := (value==num);
 
     def operator+(num : ulong)  := (value+num.value);
     def operator+(num : long)   := (value+num.value);
@@ -73,6 +91,14 @@ public class integer<native_type> {
     def operator+(num : bool)   := (value+num.value);
     def operator+(num : double)   := (value+num.value);
     def operator+(num : var)    := (value+num);
+    def operator+(num : _int8)    := (value+num);
+    def operator+(num : _int16)    := (value+num);
+    def operator+(num : _int32)    := (value+num);
+    def operator+(num : _int64)    := (value+num);
+    def operator+(num : _uint8)    := (value+num);
+    def operator+(num : _uint16)    := (value+num);
+    def operator+(num : _uint32)    := (value+num);
+    def operator+(num : _uint64)    := (value+num);
 
     def operator-(num : ulong)  := (value-num.value);
     def operator-(num : long)   := (value-num.value);
@@ -86,6 +112,14 @@ public class integer<native_type> {
     def operator-(num : bool)   := (value-num.value);
     def operator-(num : double)   := (value-num.value);
     def operator-(num : var)    := (value-num);
+    def operator-(num : _int8)    := (value-num);
+    def operator-(num : _int16)    := (value-num);
+    def operator-(num : _int32)    := (value-num);
+    def operator-(num : _int64)    := (value-num);
+    def operator-(num : _uint8)    := (value-num);
+    def operator-(num : _uint16)    := (value-num);
+    def operator-(num : _uint32)    := (value-num);
+    def operator-(num : _uint64)    := (value-num);
 
     def operator*(num : ulong)  := (value*num.value);
     def operator*(num : long)   := (value*num.value);
@@ -99,6 +133,14 @@ public class integer<native_type> {
     def operator*(num : bool)   := (value*num.value);
     def operator*(num : double)   := (value*num.value);
     def operator*(num : var)    := (value*num);
+    def operator*(num : _int8)    := (value*num);
+    def operator*(num : _int16)   := (value+num);
+    def operator*(num : _int32)   := (value+num);
+    def operator*(num : _int64)   := (value+num);
+    def operator*(num : _uint8)   := (value+num);
+    def operator*(num : _uint16)  := (value+num);
+    def operator*(num : _uint32)  := (value+num);
+    def operator*(num : _uint64)  := (value+num);
 
     def operator/(num : ulong)  := (value/num.value);
     def operator/(num : long)   := (value/num.value);
@@ -112,6 +154,14 @@ public class integer<native_type> {
     def operator/(num : bool)   := (value/num.value);
     def operator/(num : double)   := (value/num.value);
     def operator/(num : var)    := (value/num);
+    def operator/(num : _int8)    := (value/num);
+    def operator/(num : _int16)   := (value/num);
+    def operator/(num : _int32)   := (value/num);
+    def operator/(num : _int64)   := (value/num);
+    def operator/(num : _uint8)   := (value/num);
+    def operator/(num : _uint16)  := (value/num);
+    def operator/(num : _uint32)  := (value/num);
+    def operator/(num : _uint64)  := (value/num);
 
     def operator%(num : ulong)  := (value%num.value);
     def operator%(num : long)   := (value%num.value);
@@ -125,6 +175,14 @@ public class integer<native_type> {
     def operator%(num : bool)   := (value%num.value);
     def operator%(num : double)   := (value%num.value);
     def operator%(num : var)    := (value%num);
+    def operator%(num : _int8)    := (value%num);
+    def operator%(num : _int16)   := (value%num);
+    def operator%(num : _int32)   := (value%num);
+    def operator%(num : _int64)   := (value%num);
+    def operator%(num : _uint8)   := (value%num);
+    def operator%(num : _uint16)  := (value%num);
+    def operator%(num : _uint32)  := (value%num);
+    def operator%(num : _uint64)  := (value%num);
 
     def operator<(num : ulong)  := (value<num.value);
     def operator<(num : long)   := (value<num.value);
@@ -138,6 +196,14 @@ public class integer<native_type> {
     def operator<(num : bool)   := (value<num.value);
     def operator<(num : double)   := (value<num.value);
     def operator<(num : var)    := (value<num);
+    def operator<(num : _int8)    := (value<num);
+    def operator<(num : _int16)   := (value<num);
+    def operator<(num : _int32)   := (value<num);
+    def operator<(num : _int64)   := (value<num);
+    def operator<(num : _uint8)   := (value<num);
+    def operator<(num : _uint16)  := (value<num);
+    def operator<(num : _uint32)  := (value<num);
+    def operator<(num : _uint64)  := (value<num);
 
     def operator>(num : ulong)  := (value>num.value);
     def operator>(num : long)   := (value>num.value);
@@ -151,19 +217,56 @@ public class integer<native_type> {
     def operator>(num : bool)   := (value>num.value);
     def operator>(num : double)   := (value>num.value);
     def operator>(num : var)    := (value>num);
+    def operator>(num : _int8)    := (value>num);
+    def operator>(num : _int16)   := (value>num);
+    def operator>(num : _int32)   := (value>num);
+    def operator>(num : _int64)   := (value>num);
+    def operator>(num : _uint8)   := (value>num);
+    def operator>(num : _uint16)  := (value>num);
+    def operator>(num : _uint32)  := (value>num);
+    def operator>(num : _uint64)  := (value>num);
 
-    def operator<=(num : ulong)  := (value>=num.value);
-    def operator<=(num : long)   := (value>=num.value);
-    def operator<=(num : uint)   := (value>=num.value);
-    def operator<=(num : int)    := (value>=num.value);
-    def operator<=(num : ushort) := (value>=num.value);
-    def operator<=(num : short)  := (value>=num.value);
-    def operator<=(num : uchar)  := (value>=num.value);
-    def operator<=(num : char)   := (value>=num.value);
-    def operator<=(num : byte)   := (value>=num.value);
-    def operator<=(num : bool)   := (value>=num.value);
-    def operator<=(num : double)   := (value>=num.value);
-    def operator<=(num : var)    := (value>=num);
+    def operator<=(num : ulong)  := (value<=num.value);
+    def operator<=(num : long)   := (value<=num.value);
+    def operator<=(num : uint)   := (value<=num.value);
+    def operator<=(num : int)    := (value<=num.value);
+    def operator<=(num : ushort) := (value<=num.value);
+    def operator<=(num : short)  := (value<=num.value);
+    def operator<=(num : uchar)  := (value<=num.value);
+    def operator<=(num : char)   := (value<=num.value);
+    def operator<=(num : byte)   := (value<=num.value);
+    def operator<=(num : bool)   := (value<=num.value);
+    def operator<=(num : double)   := (value <=num.value);
+    def operator<=(num : var)    := (value<=num);
+    def operator<=(num : _int8)    := (value<=num);
+    def operator<=(num : _int16)   := (value<=num);
+    def operator<=(num : _int32)   := (value<=num);
+    def operator<=(num : _int64)   := (value<=num);
+    def operator<=(num : _uint8)   := (value<=num);
+    def operator<=(num : _uint16)  := (value<=num);
+    def operator<=(num : _uint32)  := (value<=num);
+    def operator<=(num : _uint64)  := (value<=num);
+
+    def operator>=(num : ulong)  := (value>=num.value);
+    def operator>=(num : long)   := (value>=num.value);
+    def operator>=(num : uint)   := (value>=num.value);
+    def operator>=(num : int)    := (value>=num.value);
+    def operator>=(num : ushort) := (value>=num.value);
+    def operator>=(num : short)  := (value>=num.value);
+    def operator>=(num : uchar)  := (value>=num.value);
+    def operator>=(num : char)   := (value>=num.value);
+    def operator>=(num : byte)   := (value>=num.value);
+    def operator>=(num : bool)   := (value>=num.value);
+    def operator>=(num : double)   := (value>=num.value);
+    def operator>=(num : var)    := (value>=num);
+    def operator>=(num : _int8)    := (value>=num);
+    def operator>=(num : _int16)   := (value>=num);
+    def operator>=(num : _int32)   := (value>=num);
+    def operator>=(num : _int64)   := (value>=num);
+    def operator>=(num : _uint8)   := (value>=num);
+    def operator>=(num : _uint16)  := (value>=num);
+    def operator>=(num : _uint32)  := (value>=num);
+    def operator>=(num : _uint64)  := (value>=num);
 
     def operator**(num : ulong)  := (value**num.value);
     def operator**(num : long)   := (value**num.value);
@@ -177,6 +280,14 @@ public class integer<native_type> {
     def operator**(num : bool)   := (value**num.value);
     def operator**(num : double)   := (value**num.value);
     def operator**(num : var)    := (value**num);
+    def operator**(num : _int8)    := (value**num);
+    def operator**(num : _int16)   := (value**num);
+    def operator**(num : _int32)   := (value**num);
+    def operator**(num : _int64)   := (value**num);
+    def operator**(num : _uint8)   := (value**num);
+    def operator**(num : _uint16)  := (value**num);
+    def operator**(num : _uint32)  := (value**num);
+    def operator**(num : _uint64)  := (value**num);
 
     def operator<<(num : ulong)  := (value<<num.value);
     def operator<<(num : long)   := (value<<num.value);
@@ -190,6 +301,14 @@ public class integer<native_type> {
     def operator<<(num : bool)   := (value<<num.value);
     def operator<<(num : double)   := (value<<num.value);
     def operator<<(num : var)    := (value<<num);
+    def operator<<(num : _int8)    := (value<<num);
+    def operator<<(num : _int16)   := (value<<num);
+    def operator<<(num : _int32)   := (value<<num);
+    def operator<<(num : _int64)   := (value<<num);
+    def operator<<(num : _uint8)   := (value<<num);
+    def operator<<(num : _uint16)  := (value<<num);
+    def operator<<(num : _uint32)  := (value<<num);
+    def operator<<(num : _uint64)  := (value<<num);
 
     def operator>>(num : ulong)  := (value>>num.value);
     def operator>>(num : long)   := (value>>num.value);
@@ -203,6 +322,14 @@ public class integer<native_type> {
     def operator>>(num : bool)   := (value>>num.value);
     def operator>>(num : double)   := (value>>num.value);
     def operator>>(num : var)    := (value>>num);
+    def operator>>(num : _int8)    := (value>>num);
+    def operator>>(num : _int16)   := (value>>num);
+    def operator>>(num : _int32)   := (value>>num);
+    def operator>>(num : _int64)   := (value>>num);
+    def operator>>(num : _uint8)   := (value>>num);
+    def operator>>(num : _uint16)  := (value>>num);
+    def operator>>(num : _uint32)  := (value>>num);
+    def operator>>(num : _uint64)  := (value>>num);
 
     def operator^(num : ulong)  := (value^num.value);
     def operator^(num : long)   := (value^num.value);
@@ -216,6 +343,14 @@ public class integer<native_type> {
     def operator^(num : bool)   := (value^num.value);
     def operator^(num : double)   := (value^num.value);
     def operator^(num : var)    := (value^num);
+    def operator^(num : _int8)    := (value^num);
+    def operator^(num : _int16)   := (value^num);
+    def operator^(num : _int32)   := (value^num);
+    def operator^(num : _int64)   := (value^num);
+    def operator^(num : _uint8)   := (value^num);
+    def operator^(num : _uint16)  := (value^num);
+    def operator^(num : _uint32)  := (value^num);
+    def operator^(num : _uint64)  := (value^num);
 
     def operator&(num : ulong)  := (value&num.value);
     def operator&(num : long)   := (value&num.value);
@@ -229,6 +364,14 @@ public class integer<native_type> {
     def operator&(num : bool)   := (value&num.value);
     def operator&(num : double)   := (value&num.value);
     def operator&(num : var)    := (value&num);
+    def operator&(num : _int8)    := (value&num);
+    def operator&(num : _int16)   := (value&num);
+    def operator&(num : _int32)   := (value&num);
+    def operator&(num : _int64)   := (value&num);
+    def operator&(num : _uint8)   := (value&num);
+    def operator&(num : _uint16)  := (value&num);
+    def operator&(num : _uint32)  := (value&num);
+    def operator&(num : _uint64)  := (value&num);
 
     def operator|(num : ulong)  := (value|num.value);
     def operator|(num : long)   := (value|num.value);
@@ -242,10 +385,178 @@ public class integer<native_type> {
     def operator|(num : bool)   := (value|num.value);
     def operator|(num : double)   := (value|num.value);
     def operator|(num : var)    := (value|num);
+    def operator|(num : _int8)    := (value|num);
+    def operator|(num : _int16)   := (value|num);
+    def operator|(num : _int32)   := (value|num);
+    def operator|(num : _int64)   := (value|num);
+    def operator|(num : _uint8)   := (value|num);
+    def operator|(num : _uint16)  := (value|num);
+    def operator|(num : _uint32)  := (value|num);
+    def operator|(num : _uint64)  := (value|num);
 
-    def operator!=(num : var) := value!=num;
-    def operator==(num : var) := value==num;
     def operator=(num : var) := value=num;
+    def operator=(num : _int8)    := (value=num);
+    def operator=(num : _int16)   := (value=num);
+    def operator=(num : _int32)   := (value=num);
+    def operator=(num : _int64)   := (value=num);
+    def operator=(num : _uint8)   := (value=num);
+    def operator=(num : _uint16)  := (value=num);
+    def operator=(num : _uint32)  := (value=num);
+    def operator=(num : _uint64)  := (value=num);
+
+
+    def operator!() := (!value);
+    def operator++() := (++value);
+    def operator++(num : var) := (value++);
+    def operator--() := (--value);
+    def operator--(num : var) := (value--);
+
+    def operator+=(num : ulong)  := (value+=num.value);
+    def operator+=(num : long)   := (value+=num.value);
+    def operator+=(num : uint)   := (value+=num.value);
+    def operator+=(num : int)    := (value+=num.value);
+    def operator+=(num : ushort) := (value+=num.value);
+    def operator+=(num : short)  := (value+=num.value);
+    def operator+=(num : uchar)  := (value+=num.value);
+    def operator+=(num : char)   := (value+=num.value);
+    def operator+=(num : byte)   := (value+=num.value);
+    def operator+=(num : bool)   := (value+=num.value);
+    def operator+=(num : double)   := (value+=num.value);
+    def operator+=(num : var)    := (value+=num);
+    def operator+=(num : _int8)    := (value+=num);
+    def operator+=(num : _int16)   := (value+=num);
+    def operator+=(num : _int32)   := (value+=num);
+    def operator+=(num : _int64)   := (value+=num);
+    def operator+=(num : _uint8)   := (value+=num);
+    def operator+=(num : _uint16)  := (value+=num);
+    def operator+=(num : _uint32)  := (value+=num);
+    def operator+=(num : _uint64)  := (value+=num);
+
+    def operator-=(num : ulong)  := (value-=num.value);
+    def operator-=(num : long)   := (value-=num.value);
+    def operator-=(num : uint)   := (value-=num.value);
+    def operator-=(num : int)    := (value-=num.value);
+    def operator-=(num : ushort) := (value-=num.value);
+    def operator-=(num : short)  := (value-=num.value);
+    def operator-=(num : uchar)  := (value-=num.value);
+    def operator-=(num : char)   := (value-=num.value);
+    def operator-=(num : byte)   := (value-=num.value);
+    def operator-=(num : bool)   := (value-=num.value);
+    def operator-=(num : double)   := (value-=num.value);
+    def operator-=(num : var)    := (value-=num);
+    def operator-=(num : _int8)    := (value-=num);
+    def operator-=(num : _int16)   := (value-=num);
+    def operator-=(num : _int32)   := (value-=num);
+    def operator-=(num : _int64)   := (value-=num);
+    def operator-=(num : _uint8)   := (value-=num);
+    def operator-=(num : _uint16)  := (value-=num);
+    def operator-=(num : _uint32)  := (value-=num);
+    def operator-=(num : _uint64)  := (value-=num);
+
+    def operator*=(num : ulong)  := (value*=num.value);
+    def operator*=(num : long)   := (value*=num.value);
+    def operator*=(num : uint)   := (value*=num.value);
+    def operator*=(num : int)    := (value*=num.value);
+    def operator*=(num : ushort) := (value*=num.value);
+    def operator*=(num : short)  := (value*=num.value);
+    def operator*=(num : uchar)  := (value*=num.value);
+    def operator*=(num : char)   := (value*=num.value);
+    def operator*=(num : byte)   := (value*=num.value);
+    def operator*=(num : bool)   := (value*=num.value);
+    def operator*=(num : double)   := (value*=num.value);
+    def operator*=(num : var)    := (value*=num);
+    def operator*=(num : _int8)    := (value*=num);
+    def operator*=(num : _int16)   := (value*=num);
+    def operator*=(num : _int32)   := (value*=num);
+    def operator*=(num : _int64)   := (value*=num);
+    def operator*=(num : _uint8)   := (value*=num);
+    def operator*=(num : _uint16)  := (value*=num);
+    def operator*=(num : _uint32)  := (value*=num);
+    def operator*=(num : _uint64)  := (value*=num);
+
+    def operator/=(num : ulong)  := (value/=num.value);
+    def operator/=(num : long)   := (value/=num.value);
+    def operator/=(num : uint)   := (value/=num.value);
+    def operator/=(num : int)    := (value/=num.value);
+    def operator/=(num : ushort) := (value/=num.value);
+    def operator/=(num : short)  := (value/=num.value);
+    def operator/=(num : uchar)  := (value/=num.value);
+    def operator/=(num : char)   := (value/=num.value);
+    def operator/=(num : byte)   := (value/=num.value);
+    def operator/=(num : bool)   := (value/=num.value);
+    def operator/=(num : double)   := (value/=num.value);
+    def operator/=(num : var)    := (value/=num);
+    def operator/=(num : _int8)    := (value/=num);
+    def operator/=(num : _int16)   := (value/=num);
+    def operator/=(num : _int32)   := (value/=num);
+    def operator/=(num : _int64)   := (value/=num);
+    def operator/=(num : _uint8)   := (value/=num);
+    def operator/=(num : _uint16)  := (value/=num);
+    def operator/=(num : _uint32)  := (value/=num);
+    def operator/=(num : _uint64)  := (value/=num);
+
+    def operator%=(num : ulong)  := (value%=num.value);
+    def operator%=(num : long)   := (value%=num.value);
+    def operator%=(num : uint)   := (value%=num.value);
+    def operator%=(num : int)    := (value%=num.value);
+    def operator%=(num : ushort) := (value%=num.value);
+    def operator%=(num : short)  := (value%=num.value);
+    def operator%=(num : uchar)  := (value%=num.value);
+    def operator%=(num : char)   := (value%=num.value);
+    def operator%=(num : byte)   := (value%=num.value);
+    def operator%=(num : bool)   := (value%=num.value);
+    def operator%=(num : double)   := (value%=num.value);
+    def operator%=(num : var)    := (value%=num);
+    def operator%=(num : _int8)    := (value%=num);
+    def operator%=(num : _int16)   := (value%=num);
+    def operator%=(num : _int32)   := (value%=num);
+    def operator%=(num : _int64)   := (value%=num);
+    def operator%=(num : _uint8)   := (value%=num);
+    def operator%=(num : _uint16)  := (value%=num);
+    def operator%=(num : _uint32)  := (value%=num);
+    def operator%=(num : _uint64)  := (value%=num);
+
+    def operator&=(num : ulong)  := (value&=num.value);
+    def operator&=(num : long)   := (value&=num.value);
+    def operator&=(num : uint)   := (value&=num.value);
+    def operator&=(num : int)    := (value&=num.value);
+    def operator&=(num : ushort) := (value&=num.value);
+    def operator&=(num : short)  := (value&=num.value);
+    def operator&=(num : uchar)  := (value&=num.value);
+    def operator&=(num : char)   := (value&=num.value);
+    def operator&=(num : byte)   := (value&=num.value);
+    def operator&=(num : bool)   := (value&=num.value);
+    def operator&=(num : double)   := (value&=num.value);
+    def operator&=(num : var)    := (value&=num);
+    def operator&=(num : _int8)    := (value&=num);
+    def operator&=(num : _int16)   := (value&=num);
+    def operator&=(num : _int32)   := (value&=num);
+    def operator&=(num : _int64)   := (value&=num);
+    def operator&=(num : _uint8)   := (value&=num);
+    def operator&=(num : _uint16)  := (value&=num);
+    def operator&=(num : _uint32)  := (value&=num);
+    def operator&=(num : _uint64)  := (value&=num);
+
+    def operator|=(num : ulong)  := (value|=num.value);
+    def operator|=(num : long)   := (value|=num.value);
+    def operator|=(num : uint)   := (value|=num.value);
+    def operator|=(num : int)    := (value|=num.value);
+    def operator|=(num : ushort) := (value|=num.value);
+    def operator|=(num : short)  := (value|=num.value);
+    def operator|=(num : uchar)  := (value|=num.value);
+    def operator|=(num : char)   := (value|=num.value);
+    def operator|=(num : byte)   := (value|=num.value);
+    def operator|=(num : bool)   := (value|=num.value);
+    def operator|=(num : double)   := (value|=num.value);
+    def operator|=(num : var)    := (value|=num);
+    def operator|=(num : _int8)    := (value|=num);
+    def operator|=(num : _int16)   := (value|=num);
+    def operator|=(num : _int32)   := (value|=num);
+    def operator|=(num : _int64)   := (value|=num);
+    def operator|=(num : _uint8)   := (value|=num);
+    def operator|=(num : _uint16)  := (value|=num);
+    def operator|=(num : _uint32)  := (value|=num);
+    def operator|=(num : _uint64)  := (value|=num);
 
     def to_string() : string {
         return "$value";
@@ -318,102 +629,26 @@ class ulong base integer<_uint64> {
     ulong(initial_val : _int64)  -> base(initial_val) {}
     ulong(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { ulong(initial_val); }
+    init(initial_val : _int8)   { ulong(initial_val); }
+    init(initial_val : _int16)  { ulong(initial_val); }
+    init(initial_val : _int32)  { ulong(initial_val); }
+    init(initial_val : _int64)  { ulong(initial_val); }
+    init(initial_val : _uint8)  { ulong(initial_val); }
+    init(initial_val : _uint16) { ulong(initial_val); }
+    init(initial_val : _uint32) { ulong(initial_val); }
+    init(initial_val : _uint64) { ulong(initial_val); }
+    init(initial_val : long)    { ulong(initial_val); }
+    init(initial_val : int)     { ulong(initial_val); }
+    init(initial_val : short)   { ulong(initial_val); }
+    init(initial_val : char)    { ulong(initial_val); }
+    init(initial_val : byte)    { ulong(initial_val); }
+    init(initial_val : bool)    { ulong(initial_val); }
+    init(initial_val : ulong)   { ulong(initial_val); }
+    init(initial_val : ushort)  { ulong(initial_val); }
+    init(initial_val : uint)    { ulong(initial_val); }
+    init(initial_val : uchar)   { ulong(initial_val); }
+    init(initial_val : double)  { ulong(initial_val); }
 }
 class long base integer<_int64> {
     long(i : long) -> base(i.value) {}
@@ -437,102 +672,26 @@ class long base integer<_int64> {
     long(initial_val : _int64)  -> base(initial_val) {}
     long(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { long(initial_val); }
+    init(initial_val : _int8)   { long(initial_val); }
+    init(initial_val : _int16)  { long(initial_val); }
+    init(initial_val : _int32)  { long(initial_val); }
+    init(initial_val : _int64)  { long(initial_val); }
+    init(initial_val : _uint8)  { long(initial_val); }
+    init(initial_val : _uint16) { long(initial_val); }
+    init(initial_val : _uint32) { long(initial_val); }
+    init(initial_val : _uint64) { long(initial_val); }
+    init(initial_val : long)    { long(initial_val); }
+    init(initial_val : int)     { long(initial_val); }
+    init(initial_val : short)   { long(initial_val); }
+    init(initial_val : char)    { long(initial_val); }
+    init(initial_val : byte)    { long(initial_val); }
+    init(initial_val : bool)    { long(initial_val); }
+    init(initial_val : ulong)   { long(initial_val); }
+    init(initial_val : ushort)  { long(initial_val); }
+    init(initial_val : uint)    { long(initial_val); }
+    init(initial_val : uchar)   { long(initial_val); }
+    init(initial_val : double)  { long(initial_val); }
 }
 
 class uint base integer<_uint32> {
@@ -557,102 +716,26 @@ class uint base integer<_uint32> {
     uint(initial_val : _int64)  -> base(initial_val) {}
     uint(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { uint(initial_val); }
+    init(initial_val : _int8)   { uint(initial_val); }
+    init(initial_val : _int16)  { uint(initial_val); }
+    init(initial_val : _int32)  { uint(initial_val); }
+    init(initial_val : _int64)  { uint(initial_val); }
+    init(initial_val : _uint8)  { uint(initial_val); }
+    init(initial_val : _uint16) { uint(initial_val); }
+    init(initial_val : _uint32) { uint(initial_val); }
+    init(initial_val : _uint64) { uint(initial_val); }
+    init(initial_val : long)    { uint(initial_val); }
+    init(initial_val : int)     { uint(initial_val); }
+    init(initial_val : short)   { uint(initial_val); }
+    init(initial_val : char)    { uint(initial_val); }
+    init(initial_val : byte)    { uint(initial_val); }
+    init(initial_val : bool)    { uint(initial_val); }
+    init(initial_val : ulong)   { uint(initial_val); }
+    init(initial_val : ushort)  { uint(initial_val); }
+    init(initial_val : uint)    { uint(initial_val); }
+    init(initial_val : uchar)   { uint(initial_val); }
+    init(initial_val : double)  { uint(initial_val); }
 }
 class int base integer<_int32> {
     int(i : long) -> base(i.value) {}
@@ -676,102 +759,26 @@ class int base integer<_int32> {
     int(initial_val : _int64)  -> base(initial_val) {}
     int(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { int(initial_val); }
+    init(initial_val : _int8)   { int(initial_val); }
+    init(initial_val : _int16)  { int(initial_val); }
+    init(initial_val : _int32)  { int(initial_val); }
+    init(initial_val : _int64)  { int(initial_val); }
+    init(initial_val : _uint8)  { int(initial_val); }
+    init(initial_val : _uint16) { int(initial_val); }
+    init(initial_val : _uint32) { int(initial_val); }
+    init(initial_val : _uint64) { int(initial_val); }
+    init(initial_val : long)    { int(initial_val); }
+    init(initial_val : int)     { int(initial_val); }
+    init(initial_val : short)   { int(initial_val); }
+    init(initial_val : char)    { int(initial_val); }
+    init(initial_val : byte)    { int(initial_val); }
+    init(initial_val : bool)    { int(initial_val); }
+    init(initial_val : ulong)   { int(initial_val); }
+    init(initial_val : ushort)  { int(initial_val); }
+    init(initial_val : uint)    { int(initial_val); }
+    init(initial_val : uchar)   { int(initial_val); }
+    init(initial_val : double)  { int(initial_val); }
 }
 class ushort base integer<_uint16> {
     ushort(i : long) -> base(i.value) {}
@@ -795,102 +802,26 @@ class ushort base integer<_uint16> {
     ushort(initial_val : _int64)  -> base(initial_val) {}
     ushort(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { ushort(initial_val); }
+    init(initial_val : _int8)   { ushort(initial_val); }
+    init(initial_val : _int16)  { ushort(initial_val); }
+    init(initial_val : _int32)  { ushort(initial_val); }
+    init(initial_val : _int64)  { ushort(initial_val); }
+    init(initial_val : _uint8)  { ushort(initial_val); }
+    init(initial_val : _uint16) { ushort(initial_val); }
+    init(initial_val : _uint32) { ushort(initial_val); }
+    init(initial_val : _uint64) { ushort(initial_val); }
+    init(initial_val : long)    { ushort(initial_val); }
+    init(initial_val : int)     { ushort(initial_val); }
+    init(initial_val : short)   { ushort(initial_val); }
+    init(initial_val : char)    { ushort(initial_val); }
+    init(initial_val : byte)    { ushort(initial_val); }
+    init(initial_val : bool)    { ushort(initial_val); }
+    init(initial_val : ulong)   { ushort(initial_val); }
+    init(initial_val : ushort)  { ushort(initial_val); }
+    init(initial_val : uint)    { ushort(initial_val); }
+    init(initial_val : uchar)   { ushort(initial_val); }
+    init(initial_val : double)  { ushort(initial_val); }
 }
 class short base integer<_int16> {
     short(i : long) -> base(i.value) {}
@@ -914,102 +845,26 @@ class short base integer<_int16> {
     short(initial_val : _int64)  -> base(initial_val) {}
     short(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { short(initial_val); }
+    init(initial_val : _int8)   { short(initial_val); }
+    init(initial_val : _int16)  { short(initial_val); }
+    init(initial_val : _int32)  { short(initial_val); }
+    init(initial_val : _int64)  { short(initial_val); }
+    init(initial_val : _uint8)  { short(initial_val); }
+    init(initial_val : _uint16) { short(initial_val); }
+    init(initial_val : _uint32) { short(initial_val); }
+    init(initial_val : _uint64) { short(initial_val); }
+    init(initial_val : long)    { short(initial_val); }
+    init(initial_val : int)     { short(initial_val); }
+    init(initial_val : short)   { short(initial_val); }
+    init(initial_val : char)    { short(initial_val); }
+    init(initial_val : byte)    { short(initial_val); }
+    init(initial_val : bool)    { short(initial_val); }
+    init(initial_val : ulong)   { short(initial_val); }
+    init(initial_val : ushort)  { short(initial_val); }
+    init(initial_val : uint)    { short(initial_val); }
+    init(initial_val : uchar)   { short(initial_val); }
+    init(initial_val : double)  { short(initial_val); }
 }
 class uchar base integer<_uint8> {
     uchar(i : long) -> base(i.value) {}
@@ -1033,102 +888,26 @@ class uchar base integer<_uint8> {
     uchar(initial_val : _int64)  -> base(initial_val) {}
     uchar(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { uchar(initial_val); }
+    init(initial_val : _int8)   { uchar(initial_val); }
+    init(initial_val : _int16)  { uchar(initial_val); }
+    init(initial_val : _int32)  { uchar(initial_val); }
+    init(initial_val : _int64)  { uchar(initial_val); }
+    init(initial_val : _uint8)  { uchar(initial_val); }
+    init(initial_val : _uint16) { uchar(initial_val); }
+    init(initial_val : _uint32) { uchar(initial_val); }
+    init(initial_val : _uint64) { uchar(initial_val); }
+    init(initial_val : long)    { uchar(initial_val); }
+    init(initial_val : int)     { uchar(initial_val); }
+    init(initial_val : short)   { uchar(initial_val); }
+    init(initial_val : char)    { uchar(initial_val); }
+    init(initial_val : byte)    { uchar(initial_val); }
+    init(initial_val : bool)    { uchar(initial_val); }
+    init(initial_val : ulong)   { uchar(initial_val); }
+    init(initial_val : ushort)  { uchar(initial_val); }
+    init(initial_val : uint)    { uchar(initial_val); }
+    init(initial_val : uchar)   { uchar(initial_val); }
+    init(initial_val : double)  { uchar(initial_val); }
 }
 class char base integer<_int8> {
     char(i : long) -> base(i.value) {}
@@ -1152,102 +931,26 @@ class char base integer<_int8> {
     char(initial_val : _int64)  -> base(initial_val) {}
     char(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { char(initial_val); }
+    init(initial_val : _int8)   { char(initial_val); }
+    init(initial_val : _int16)  { char(initial_val); }
+    init(initial_val : _int32)  { char(initial_val); }
+    init(initial_val : _int64)  { char(initial_val); }
+    init(initial_val : _uint8)  { char(initial_val); }
+    init(initial_val : _uint16) { char(initial_val); }
+    init(initial_val : _uint32) { char(initial_val); }
+    init(initial_val : _uint64) { char(initial_val); }
+    init(initial_val : long)    { char(initial_val); }
+    init(initial_val : int)     { char(initial_val); }
+    init(initial_val : short)   { char(initial_val); }
+    init(initial_val : char)    { char(initial_val); }
+    init(initial_val : byte)    { char(initial_val); }
+    init(initial_val : bool)    { char(initial_val); }
+    init(initial_val : ulong)   { char(initial_val); }
+    init(initial_val : ushort)  { char(initial_val); }
+    init(initial_val : uint)    { char(initial_val); }
+    init(initial_val : uchar)   { char(initial_val); }
+    init(initial_val : double)  { char(initial_val); }
 
     static def is_digit(ch: var) : var {
         return ch >= '0' && ch <= '9';
@@ -1303,102 +1006,26 @@ class byte base uchar {
     byte(initial_val : _int64)  -> base(initial_val) {}
     byte(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { byte(initial_val); }
+    init(initial_val : _int8)   { byte(initial_val); }
+    init(initial_val : _int16)  { byte(initial_val); }
+    init(initial_val : _int32)  { byte(initial_val); }
+    init(initial_val : _int64)  { byte(initial_val); }
+    init(initial_val : _uint8)  { byte(initial_val); }
+    init(initial_val : _uint16) { byte(initial_val); }
+    init(initial_val : _uint32) { byte(initial_val); }
+    init(initial_val : _uint64) { byte(initial_val); }
+    init(initial_val : long)    { byte(initial_val); }
+    init(initial_val : int)     { byte(initial_val); }
+    init(initial_val : short)   { byte(initial_val); }
+    init(initial_val : char)    { byte(initial_val); }
+    init(initial_val : byte)    { byte(initial_val); }
+    init(initial_val : bool)    { byte(initial_val); }
+    init(initial_val : ulong)   { byte(initial_val); }
+    init(initial_val : ushort)  { byte(initial_val); }
+    init(initial_val : uint)    { byte(initial_val); }
+    init(initial_val : uchar)   { byte(initial_val); }
+    init(initial_val : double)  { byte(initial_val); }
 
     static def is_digit(ch: var) : var {
         return ch >= '0' && ch <= '9';
@@ -1454,102 +1081,26 @@ class bool base integer<_int8> {
     bool(initial_val : _int64)  -> base(initial_val) {}
     bool(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (value = !value);
-    def operator++(num : var) := (!value);
-    def operator--() := (value = !value);
-    def operator--(num : var) := (value = !value);
-
-    def operator+=(num : ulong)  := check_value(value+=num.value);
-    def operator+=(num : long)   := check_value(value+=num.value);
-    def operator+=(num : uint)   := check_value(value+=num.value);
-    def operator+=(num : int)    := check_value(value+=num.value);
-    def operator+=(num : ushort) := check_value(value+=num.value);
-    def operator+=(num : short)  := check_value(value+=num.value);
-    def operator+=(num : uchar)  := check_value(value+=num.value);
-    def operator+=(num : char)   := check_value(value+=num.value);
-    def operator+=(num : byte)   := check_value(value+=num.value);
-    def operator+=(num : bool)   := check_value(value+=num.value);
-    def operator+=(num : double)   := check_value(value+=num.value);
-    def operator+=(num : var)    := check_value(value+=num);
-
-    def operator-=(num : ulong)  := check_value(value-=num.value);
-    def operator-=(num : long)   := check_value(value-=num.value);
-    def operator-=(num : uint)   := check_value(value-=num.value);
-    def operator-=(num : int)    := check_value(value-=num.value);
-    def operator-=(num : ushort) := check_value(value-=num.value);
-    def operator-=(num : short)  := check_value(value-=num.value);
-    def operator-=(num : uchar)  := check_value(value-=num.value);
-    def operator-=(num : char)   := check_value(value-=num.value);
-    def operator-=(num : byte)   := check_value(value-=num.value);
-    def operator-=(num : bool)   := check_value(value-=num.value);
-    def operator-=(num : double)   := check_value(value-=num.value);
-    def operator-=(num : var)    := check_value(value-=num);
-
-    def operator*=(num : ulong)  := check_value(value*=num.value);
-    def operator*=(num : long)   := check_value(value*=num.value);
-    def operator*=(num : uint)   := check_value(value*=num.value);
-    def operator*=(num : int)    := check_value(value*=num.value);
-    def operator*=(num : ushort) := check_value(value*=num.value);
-    def operator*=(num : short)  := check_value(value*=num.value);
-    def operator*=(num : uchar)  := check_value(value*=num.value);
-    def operator*=(num : char)   := check_value(value*=num.value);
-    def operator*=(num : byte)   := check_value(value*=num.value);
-    def operator*=(num : bool)   := check_value(value*=num.value);
-    def operator*=(num : double)   := check_value(value*=num.value);
-    def operator*=(num : var)    := check_value(value*=num);
-
-    def operator/=(num : ulong)  := check_value(value/=num.value);
-    def operator/=(num : long)   := check_value(value/=num.value);
-    def operator/=(num : uint)   := check_value(value/=num.value);
-    def operator/=(num : int)    := check_value(value/=num.value);
-    def operator/=(num : ushort) := check_value(value/=num.value);
-    def operator/=(num : short)  := check_value(value/=num.value);
-    def operator/=(num : uchar)  := check_value(value/=num.value);
-    def operator/=(num : char)   := check_value(value/=num.value);
-    def operator/=(num : byte)   := check_value(value/=num.value);
-    def operator/=(num : bool)   := check_value(value/=num.value);
-    def operator/=(num : double)   := check_value(value/=num.value);
-    def operator/=(num : var)    := check_value(value/=num);
-
-    def operator%=(num : ulong)  := check_value(value%=num.value);
-    def operator%=(num : long)   := check_value(value%=num.value);
-    def operator%=(num : uint)   := check_value(value%=num.value);
-    def operator%=(num : int)    := check_value(value%=num.value);
-    def operator%=(num : ushort) := check_value(value%=num.value);
-    def operator%=(num : short)  := check_value(value%=num.value);
-    def operator%=(num : uchar)  := check_value(value%=num.value);
-    def operator%=(num : char)   := check_value(value%=num.value);
-    def operator%=(num : byte)   := check_value(value%=num.value);
-    def operator%=(num : bool)   := check_value(value%=num.value);
-    def operator%=(num : double)   := check_value(value%=num.value);
-    def operator%=(num : var)    := check_value(value%=num);
-
-    def operator&=(num : ulong)  := check_value(value&=num.value);
-    def operator&=(num : long)   := check_value(value&=num.value);
-    def operator&=(num : uint)   := check_value(value&=num.value);
-    def operator&=(num : int)    := check_value(value&=num.value);
-    def operator&=(num : ushort) := check_value(value&=num.value);
-    def operator&=(num : short)  := check_value(value&=num.value);
-    def operator&=(num : uchar)  := check_value(value&=num.value);
-    def operator&=(num : char)   := check_value(value&=num.value);
-    def operator&=(num : byte)   := check_value(value&=num.value);
-    def operator&=(num : bool)   := check_value(value&=num.value);
-    def operator&=(num : double)   := check_value(value&=num.value);
-    def operator&=(num : var)    := check_value(value&=num);
-
-    def operator|=(num : ulong)  := check_value(value|=num.value);
-    def operator|=(num : long)   := check_value(value|=num.value);
-    def operator|=(num : uint)   := check_value(value|=num.value);
-    def operator|=(num : int)    := check_value(value|=num.value);
-    def operator|=(num : ushort) := check_value(value|=num.value);
-    def operator|=(num : short)  := check_value(value|=num.value);
-    def operator|=(num : uchar)  := check_value(value|=num.value);
-    def operator|=(num : char)   := check_value(value|=num.value);
-    def operator|=(num : byte)   := check_value(value|=num.value);
-    def operator|=(num : bool)   := check_value(value|=num.value);
-    def operator|=(num : double)   := check_value(value|=num.value);
-    def operator|=(num : var)    := check_value(value|=num);
+    init(initial_val : var)     { bool(initial_val); }
+    init(initial_val : _int8)   { bool(initial_val); }
+    init(initial_val : _int16)  { bool(initial_val); }
+    init(initial_val : _int32)  { bool(initial_val); }
+    init(initial_val : _int64)  { bool(initial_val); }
+    init(initial_val : _uint8)  { bool(initial_val); }
+    init(initial_val : _uint16) { bool(initial_val); }
+    init(initial_val : _uint32) { bool(initial_val); }
+    init(initial_val : _uint64) { bool(initial_val); }
+    init(initial_val : long)    { bool(initial_val); }
+    init(initial_val : int)     { bool(initial_val); }
+    init(initial_val : short)   { bool(initial_val); }
+    init(initial_val : char)    { bool(initial_val); }
+    init(initial_val : byte)    { bool(initial_val); }
+    init(initial_val : bool)    { bool(initial_val); }
+    init(initial_val : ulong)   { bool(initial_val); }
+    init(initial_val : ushort)  { bool(initial_val); }
+    init(initial_val : uint)    { bool(initial_val); }
+    init(initial_val : uchar)   { bool(initial_val); }
+    init(initial_val : double)  { bool(initial_val); }
 
     def check_value(new_val: var) : var {
         return new_val ? 1 : 0;
@@ -1582,100 +1133,24 @@ class double base integer<var> {
     double(initial_val : _int64)  -> base(initial_val) {}
     double(initial_val : _uint64)  -> base(initial_val) {}
 
-    def operator!() := (!value);
-    def operator++() := (++value);
-    def operator++(num : var) := (value++);
-    def operator--() := (--value);
-    def operator--(num : var) := (value--);
-
-    def operator+=(num : ulong)  := (value+=num.value);
-    def operator+=(num : long)   := (value+=num.value);
-    def operator+=(num : uint)   := (value+=num.value);
-    def operator+=(num : int)    := (value+=num.value);
-    def operator+=(num : ushort) := (value+=num.value);
-    def operator+=(num : short)  := (value+=num.value);
-    def operator+=(num : uchar)  := (value+=num.value);
-    def operator+=(num : char)   := (value+=num.value);
-    def operator+=(num : byte)   := (value+=num.value);
-    def operator+=(num : bool)   := (value+=num.value);
-    def operator+=(num : double)   := (value+=num.value);
-    def operator+=(num : var)    := (value+=num);
-
-    def operator-=(num : ulong)  := (value-=num.value);
-    def operator-=(num : long)   := (value-=num.value);
-    def operator-=(num : uint)   := (value-=num.value);
-    def operator-=(num : int)    := (value-=num.value);
-    def operator-=(num : ushort) := (value-=num.value);
-    def operator-=(num : short)  := (value-=num.value);
-    def operator-=(num : uchar)  := (value-=num.value);
-    def operator-=(num : char)   := (value-=num.value);
-    def operator-=(num : byte)   := (value-=num.value);
-    def operator-=(num : bool)   := (value-=num.value);
-    def operator-=(num : double)   := (value-=num.value);
-    def operator-=(num : var)    := (value-=num);
-
-    def operator*=(num : ulong)  := (value*=num.value);
-    def operator*=(num : long)   := (value*=num.value);
-    def operator*=(num : uint)   := (value*=num.value);
-    def operator*=(num : int)    := (value*=num.value);
-    def operator*=(num : ushort) := (value*=num.value);
-    def operator*=(num : short)  := (value*=num.value);
-    def operator*=(num : uchar)  := (value*=num.value);
-    def operator*=(num : char)   := (value*=num.value);
-    def operator*=(num : byte)   := (value*=num.value);
-    def operator*=(num : bool)   := (value*=num.value);
-    def operator*=(num : double)   := (value*=num.value);
-    def operator*=(num : var)    := (value*=num);
-
-    def operator/=(num : ulong)  := (value/=num.value);
-    def operator/=(num : long)   := (value/=num.value);
-    def operator/=(num : uint)   := (value/=num.value);
-    def operator/=(num : int)    := (value/=num.value);
-    def operator/=(num : ushort) := (value/=num.value);
-    def operator/=(num : short)  := (value/=num.value);
-    def operator/=(num : uchar)  := (value/=num.value);
-    def operator/=(num : char)   := (value/=num.value);
-    def operator/=(num : byte)   := (value/=num.value);
-    def operator/=(num : bool)   := (value/=num.value);
-    def operator/=(num : double)   := (value/=num.value);
-    def operator/=(num : var)    := (value/=num);
-
-    def operator%=(num : ulong)  := (value%=num.value);
-    def operator%=(num : long)   := (value%=num.value);
-    def operator%=(num : uint)   := (value%=num.value);
-    def operator%=(num : int)    := (value%=num.value);
-    def operator%=(num : ushort) := (value%=num.value);
-    def operator%=(num : short)  := (value%=num.value);
-    def operator%=(num : uchar)  := (value%=num.value);
-    def operator%=(num : char)   := (value%=num.value);
-    def operator%=(num : byte)   := (value%=num.value);
-    def operator%=(num : bool)   := (value%=num.value);
-    def operator%=(num : double)   := (value%=num.value);
-    def operator%=(num : var)    := (value%=num);
-
-    def operator&=(num : ulong)  := (value&=num.value);
-    def operator&=(num : long)   := (value&=num.value);
-    def operator&=(num : uint)   := (value&=num.value);
-    def operator&=(num : int)    := (value&=num.value);
-    def operator&=(num : ushort) := (value&=num.value);
-    def operator&=(num : short)  := (value&=num.value);
-    def operator&=(num : uchar)  := (value&=num.value);
-    def operator&=(num : char)   := (value&=num.value);
-    def operator&=(num : byte)   := (value&=num.value);
-    def operator&=(num : bool)   := (value&=num.value);
-    def operator&=(num : double)   := (value&=num.value);
-    def operator&=(num : var)    := (value&=num);
-
-    def operator|=(num : ulong)  := (value|=num.value);
-    def operator|=(num : long)   := (value|=num.value);
-    def operator|=(num : uint)   := (value|=num.value);
-    def operator|=(num : int)    := (value|=num.value);
-    def operator|=(num : ushort) := (value|=num.value);
-    def operator|=(num : short)  := (value|=num.value);
-    def operator|=(num : uchar)  := (value|=num.value);
-    def operator|=(num : char)   := (value|=num.value);
-    def operator|=(num : byte)   := (value|=num.value);
-    def operator|=(num : bool)   := (value|=num.value);
-    def operator|=(num : double)   := (value|=num.value);
-    def operator|=(num : var)    := (value|=num);
+    init(initial_val : var)     { double(initial_val); }
+    init(initial_val : _int8)   { double(initial_val); }
+    init(initial_val : _int16)  { double(initial_val); }
+    init(initial_val : _int32)  { double(initial_val); }
+    init(initial_val : _int64)  { double(initial_val); }
+    init(initial_val : _uint8)  { double(initial_val); }
+    init(initial_val : _uint16) { double(initial_val); }
+    init(initial_val : _uint32) { double(initial_val); }
+    init(initial_val : _uint64) { double(initial_val); }
+    init(initial_val : long)    { double(initial_val); }
+    init(initial_val : int)     { double(initial_val); }
+    init(initial_val : short)   { double(initial_val); }
+    init(initial_val : char)    { double(initial_val); }
+    init(initial_val : byte)    { double(initial_val); }
+    init(initial_val : bool)    { double(initial_val); }
+    init(initial_val : ulong)   { double(initial_val); }
+    init(initial_val : ushort)  { double(initial_val); }
+    init(initial_val : uint)    { double(initial_val); }
+    init(initial_val : uchar)   { double(initial_val); }
+    init(initial_val : double)  { double(initial_val); }
 }

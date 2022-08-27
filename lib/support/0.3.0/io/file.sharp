@@ -215,8 +215,8 @@ public class file {
      * complete path.
      *
      */
-    def list() : list<string?> {
-        return new list<string?>(fs.list(self));
+    def list() : list<string> {
+        return new list<string>(fs.list(self)!!);
     }
 
     /**

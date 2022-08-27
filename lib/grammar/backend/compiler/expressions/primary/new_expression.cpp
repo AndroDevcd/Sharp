@@ -33,7 +33,7 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
 
     if(newType->type == type_class
        && check_flag(newType->_class->flags, flag_extension)) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                  "cannot instantiate extension class `" + type_to_str(*newType) +"`.");
     }
 
@@ -84,11 +84,11 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
                                          flag_none, NULL, params, returnType, undefined_function, true);
             sharp_type unresolvedType(&mock_function);
 
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                     "cannot find constructor `" + type_to_str(unresolvedType) +"` for class `" + newType->_class->fullName + "`.");
         }
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                "cannot instantiate non-class type `" + type_to_str(*newType) +"`.");
     }
 
@@ -112,7 +112,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
     else if(newType->type == type_object)
         create_new_object_array_operation(&e->scheme, arraySizeScheme);
     else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                                                            "cannot create array of type `" + type_to_str(e->type) +"`.");
     }
 
@@ -139,12 +139,12 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
             process_field(expr->type.field);
             expr->type.copy(expr->type.field->type);
         } else if(expr->type.type == type_nil) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                                          "type of `nil` cannot be defined as array element.");
 
         } else if(expr->type.type == type_lambda_function) {
             if(!is_fully_qualified_function(expr->type.fun)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                create_new_error(GENERIC, ast,
                                              "lambda must be fully qualified.");
             }
 
@@ -199,7 +199,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
             create_push_to_stack_operation(setArrayItem);
             create_assign_array_element_operation(setArrayItem, i, isNumeric);
         } else {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                          "cannot assign array item of type `" + type_to_str(e->type) +"` to array of type `" + type_to_str(*newType) + "`.");
         }
 
@@ -226,7 +226,7 @@ void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) 
     else if(e->type.type == type_object)
         create_new_object_array_operation(&e->scheme, arraySieScheme);
     else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                  "cannot create array of type `" + type_to_str(e->type) +"`.");
     }
 }

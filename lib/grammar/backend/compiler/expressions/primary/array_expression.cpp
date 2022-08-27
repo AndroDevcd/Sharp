@@ -21,7 +21,7 @@ void compile_array_expression(expression *e, Ast *ast) {
         compile_expression(*expressions.last(), list->getSubAst(j));
 
         if(expressions.last()->scheme.schemeType == scheme_none) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, list->getSubAst(j), "expression of type `" + type_to_str(expressions.last()->type)
                                                  + "` must evaluate to a value");
         }
@@ -51,12 +51,12 @@ void compile_array_expression(expression *e, Ast *ast) {
                 e->type.arrayElement = true;
                 create_access_array_element_operation(&e->scheme, e->type, &arrayExpression.scheme);
             } else {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "array index expression must be numeric but was found to be of type `"
                                       + type_to_str(arrayExpression.type) + "`.");
             }
         } else {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, "Multi-dimensional arrays are not supported.");
         }
     } else {
@@ -78,7 +78,7 @@ void compile_array_expression(expression *e, Ast *ast) {
                 e->scheme.steps.add(new operation_step(*tmp.scheme.steps.get(i)));
             }
         } else {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast,
                     "type `" + type_to_str(e->type) + "` must be either a class or array type.");
         }

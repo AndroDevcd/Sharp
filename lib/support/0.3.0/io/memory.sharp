@@ -191,7 +191,7 @@ def memcopy(src: _uint64[], dest: _uint64[],  destStart: _int64, srcStart: _int6
     }
 }
 
-def copy(src: object[], srcStart: _int64, srcEnd: _int64) : object[]? {
+def copy(src: object, srcStart: _int64, srcEnd: _int64) : object? {
     asm {
         pushl {src}
         ipushl {srcStart}
@@ -323,7 +323,7 @@ def copy(src: _int64[], srcStart: _int64, srcEnd: _int64) : _int64[]? {
 }
 
 
-def invert(src: object[], start: var, len: var) : object[]? {
+def invert(src: object[], start: var, len: var) : object? {
     asm {
         pushl {src}
         ipushl {start}

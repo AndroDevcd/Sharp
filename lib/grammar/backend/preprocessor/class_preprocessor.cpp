@@ -42,7 +42,7 @@ void pre_process() {
                 currModule = create_module(package);
                 create_global_class();
 
-                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col, "module declaration must be "
+                create_new_error(GENERIC, trunk->line, trunk->col, "module declaration must be "
                                         "first in every file");
             }
 
@@ -70,7 +70,7 @@ void pre_process() {
                 pre_process_enum(globalClass, NULL, trunk);
                 break;
             case ast_module_decl: /* fail-safe */
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
                 break;
             case ast_import_decl:
@@ -84,7 +84,7 @@ void pre_process() {
             default:
                 stringstream err;
                 err << ": unknown ast type: " << trunk->getType();
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         INTERNAL_ERROR, trunk->line, trunk->col, err.str());
                 break;
         }
@@ -162,7 +162,7 @@ void pre_process_class(
             default:
                 stringstream err;
                 err << ": unknown ast type: " << trunk->getType();
-                currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                create_new_error(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
                 break;
         }
     }

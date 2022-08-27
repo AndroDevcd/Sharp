@@ -43,7 +43,6 @@ void generate() {
         generate_addresses(compressedCompilationFiles.get(i));
     }
 
-    // todo: generate code or all functions
     compressedCompilationFunctions.linearSort(is_greater_than);
     compressedCompilationClasses.linearSort(is_greater_than);
 

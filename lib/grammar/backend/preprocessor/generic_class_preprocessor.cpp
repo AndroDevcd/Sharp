@@ -77,7 +77,7 @@ void pre_process_generic_identifier_list(sharp_class *genericClass, Ast *ast) {
         else {
             stringstream err;
             err << "duplicate generic key `" << gt.name << "`";
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            create_new_error(GENERIC, ast->line, ast->col, err.str());
         }
     }
 }

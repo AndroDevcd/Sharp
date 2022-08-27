@@ -33,13 +33,13 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
 
     field->scheme = new operation_schema();
     if(ast->hasSubAst(ast_setter)) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                     "local field `" + field->name +
                     "` cannot have setter");
     }
 
     if(ast->hasSubAst(ast_getter)) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                     "local field `" + field->name +
                     "` cannot have getter");
     }
@@ -55,7 +55,7 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
 
     if(field->ast->hasSubAst(ast_inject_request)) {
         if(field->ast->hasSubAst(ast_expression)) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                                                                "injected field `" + field->name +
                                                                "` cannot be assigned a value");
         } else {
@@ -82,7 +82,7 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
 
                 if(!is_match(is_implicit_type_match(
                         field->type, e.type, match_operator_overload | match_constructor))) {
-                    currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                    create_new_error(GENERIC, ast,
                                                                        "cannot assign field `" + field->name + ": " +
                                                                        type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
                 }
@@ -113,7 +113,10 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
         operation_schema *fieldScheme = new operation_schema();
 
         if(field->scheme->schemeType != scheme_none && !field->scheme->steps.empty()) {
-            create_local_field_access_operation(fieldScheme, field);
+            if(field->fieldType == tls_field)
+                create_tls_field_access_operation(fieldScheme, field);
+            else
+                create_local_field_access_operation(fieldScheme, field);
             create_value_assignment_operation(&scheme_0, fieldScheme, field->scheme);
         } else {
             create_setup_local_field_operation(&scheme_0, field);
@@ -139,7 +142,10 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
                 operation_schema *fieldScheme = new operation_schema();
 
                 if(field->scheme->schemeType != scheme_none && !subField->scheme->steps.empty()) {
-                    create_local_field_access_operation(fieldScheme, subField);
+                    if(field->fieldType == tls_field)
+                        create_tls_field_access_operation(fieldScheme, field);
+                    else
+                        create_local_field_access_operation(fieldScheme, field);
                     create_value_assignment_operation(&scheme_1, fieldScheme, subField->scheme);
                 } else {
                     create_setup_local_field_operation(&scheme_1, subField);

@@ -32,6 +32,10 @@ void flush_context() {
         cc.ci->lineTable.add(new line_info(*cc.lineTable.get(i)));
     }
 
+    for(Int i = 0; i < cc.tryCatchTable.size(); i++) {
+        cc.ci->tryCatchTable.add(new try_catch_data(*cc.tryCatchTable.get(i)));
+    }
+
     resolve_dynamic_instructions();
     cc.ci->stackSize = (check_flag(cc.container->flags, flag_static) ? 0 : 1) +
             cc.container->locals.size() + (cc.registers.size() - MIN_REGISTERS);
@@ -217,8 +221,9 @@ void push_machine_data_to_stack() {
         switch(cc.machineData.type) {
             case no_data: break;
             case numeric_constant: {
-                if (floor(constantMap.get(cc.machineData.dataAddress)) == constantMap.get(cc.machineData.dataAddress)) {
-                    add_instruction(Opcode::Builder::istore( // todo: check if number is < int32 max
+                if (floor(constantMap.get(cc.machineData.dataAddress)) == constantMap.get(cc.machineData.dataAddress)
+                && constantMap.get(cc.machineData.dataAddress) < INT32_MAX) {
+                    add_instruction(Opcode::Builder::istore(
                             (opcode_arg)constantMap.get(cc.machineData.dataAddress)));
                 } else {
                     add_instruction(Opcode::Builder::ldc(
@@ -460,7 +465,7 @@ void consume_machine_data(internal_register *internalRegister) {
 }
 
 void cast_machine_data(_register r, data_type type) {
-    if(type == type_int8) { // todo: make sure that variables cannot be assigned after calling ++ before or after
+    if(type == type_int8) {
         add_instruction(Opcode::Builder::mov8(r, r));
     } else if(type == type_int16) {
         add_instruction(Opcode::Builder::mov16(r, r));

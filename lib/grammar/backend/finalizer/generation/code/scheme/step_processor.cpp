@@ -1069,11 +1069,16 @@ void process_push_parameter_to_stack(operation_step *step) {
 void process_instance_function_call(operation_step *step) {
     validate_step_type(step, operation_call_instance_function);
 
-    add_instruction(Opcode::Builder::call(step->function->ci->address));
+    sharp_function *fun = step->function;
+    if(fun->type == delegate_function) {
+        add_instruction(Opcode::Builder::invokeDelegate(fun->ci->address, fun->parameters.size(), check_flag(fun->flags, flag_static)));
+    } else {
+        add_instruction(Opcode::Builder::call(fun->ci->address));
+    }
 
-    if(is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
+    if(is_numeric_type(fun->returnType) && !fun->returnType.isArray) {
         set_machine_data(function_numeric_data);
-    } else if(step->function->returnType.type != type_nil){
+    } else if(fun->returnType.type != type_nil){
         set_machine_data(function_object_data);
     }
 }
@@ -1106,11 +1111,16 @@ void process_call_dynamic_function(operation_step *step) {
 void process_static_function_call(operation_step *step) {
     validate_step_type(step, operation_call_static_function);
 
-    add_instruction(Opcode::Builder::call(step->function->ci->address));
+    sharp_function *fun = step->function;
+    if(fun->type == delegate_function) {
+        add_instruction(Opcode::Builder::invokeDelegate(fun->ci->address, fun->parameters.size(), check_flag(fun->flags, flag_static)));
+    } else {
+        add_instruction(Opcode::Builder::call(fun->ci->address));
+    }
 
-    if(is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
+    if(is_numeric_type(fun->returnType) && !fun->returnType.isArray) {
         set_machine_data(function_numeric_data);
-    } else if(step->function->returnType.type != type_nil){
+    } else if(fun->returnType.type != type_nil){
         set_machine_data(function_object_data);
     }
 }

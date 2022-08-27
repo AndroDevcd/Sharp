@@ -17,6 +17,7 @@ enum compilation_stage {
     tokenized,
     parsed,
     classes_preprocessed,
+    imports_processed,
     classes_post_processed, // ready to compile after this stage
     components_processed,
     class_delegates_processed,

@@ -11,6 +11,7 @@
 #include "../backend/compiler/compiler.h"
 #include "../backend/compiler/mutate_compiler.h"
 #include "../backend/compiler/class_compiler.h"
+#include "../backend/postprocessor/import_processor.h"
 
 thread_local worker_thread *currThread;
 
@@ -100,6 +101,13 @@ void pre_process_() {
     file->stage = classes_preprocessed;
 }
 
+void pre_process_imports_() {
+    sharp_file *file = currThread->currTask->file;
+
+    process_imports();
+    file->stage = imports_processed;
+}
+
 void post_process_() {
     sharp_file *file = currThread->currTask->file;
 
@@ -159,6 +167,10 @@ void execute_task() {
         }
         case task_preprocess_: {
             pre_process_();
+            break;
+        }
+        case task_process_imports: {
+            pre_process_imports_();
             break;
         }
         case task_post_process_: {

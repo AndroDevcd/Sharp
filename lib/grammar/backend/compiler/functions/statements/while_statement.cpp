@@ -23,7 +23,7 @@ void compile_while_statement(Ast *ast, operation_schema *scheme, bool *controlPa
     compile_expression(cond, ast->getSubAst(ast_expression));
 
     if(!is_evaluable_type(cond.type)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "while loop condition expression must evaluate to true or false");
+        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "while loop condition of type `" + type_to_str(cond.type) + "` must evaluate to true or false");
     }
 
     create_set_label_operation(subScheme, beginLabel);

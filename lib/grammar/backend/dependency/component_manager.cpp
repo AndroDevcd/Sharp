@@ -207,7 +207,7 @@ component *create_component(
         return manager.components.last();
     } else {
         if(c->location != location) {
-            currThread->currTask->file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+            create_new_error(PREVIOUSLY_DEFINED, ast->line, ast->col,
                     "component `" + componentName + "` has already been defined.");
             print_impl_location(componentName, "component", c->location);
         }
@@ -229,7 +229,7 @@ type_definition* create_type_definition(
 
     if(subCompName.empty()) {
         if((ct = get_type_definition(type, comp)) != NULL) {
-            currThread->currTask->file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+            create_new_error(PREVIOUSLY_DEFINED, ast->line, ast->col,
                      "type definition of type `" + type_to_str(type) + "` has already been defined.");
             print_impl_location(subCompName, "type definition", ct->location);
         } else {
@@ -246,7 +246,7 @@ type_definition* create_type_definition(
         }
     } else {
         if((ct = get_type_definition(subCompName, comp)) != NULL) {
-            currThread->currTask->file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+            create_new_error(PREVIOUSLY_DEFINED, ast->line, ast->col,
                 "type definition with name `" + subCompName + "` has already been defined.");
             print_impl_location(subCompName, "type definition", ct->location);
         } else {

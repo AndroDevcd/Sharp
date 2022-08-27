@@ -30,17 +30,17 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
         process_function_parameters(params, with_class, ast->getSubAst(ast_utype_arg_list));
 
         if(check_flag(flags, flag_static)) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                    "static initializer functions are not allowed.");
         }
 
         if(params.empty()) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                       "expected parameter for initializer function, but none were provided.");
         } else if(!params.singular()) {
             stringstream ss;
             ss << "expected 1 parameter for initializer function, but " << params.size() << " were provided.";
-            currThread->currTask->file->errors->createNewError(GENERIC, ast, ss.str());
+            create_new_error(GENERIC, ast, ss.str());
         }
 
         function = resolve_function(
@@ -50,7 +50,7 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
         );
 
         if(function == NULL) {
-            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast,
+            create_new_error(INTERNAL_ERROR, ast,
                          "could not locate initializer function in class `" + with_class->fullName + "`.");
         }
     }

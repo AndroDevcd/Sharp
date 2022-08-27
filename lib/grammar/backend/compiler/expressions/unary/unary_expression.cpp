@@ -27,18 +27,18 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
     create_get_value_operation(schema, &e->scheme, false, false);
 
     if(e->type.isArray) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                                                            "expression of type `" + type_to_str(e->type) + "` must be of type `class` or numeric to use `" + op + "` operator");
     } else {
         switch(e->type.type) {
             case type_nil: {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "cannot use `" + op + "` operator on expression that returns nil");
                 break;
             }
 
             case type_untyped: {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         INTERNAL_ERROR, ast, "cannot apply `" + op + "` operator to untyped expression.");
                 break;
             }
@@ -47,7 +47,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 break;
 
             case type_object: {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast, "expressions of type object must be casted before using `" + op + "` operator, try `" + op + "(<your-expression> as Type)` instead");
+                create_new_error(GENERIC, ast, "expressions of type object must be casted before using `" + op + "` operator, try `" + op + "(<your-expression> as Type)` instead");
                 break;
             }
 
@@ -113,7 +113,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 if(op == "-") {
                     value = !e->type._bool;
                 } else if(op == "++" || op == "--") {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` on bool expression");
                     value = false;
                 } else if(op == "!") {
@@ -137,7 +137,7 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
             case type_string: {
                 if(op == "-" || op == "++" || op == "--"
                     || op == "!") {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` on string expression");
                 }
                 break;
@@ -220,14 +220,14 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                             field->type._class, *e, emptyParams, noOperations, op, ast);
                     create_dependency(fun);
                 } else {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");
                 }
                 break;
             }
 
             default: {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "unqualified use  of operator `" + op + "` with type `" + type_to_str(e->type) + "`");
                 break;
             }
@@ -246,18 +246,18 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
         return;
 
     if(e->type.isArray) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                        "expression of type `" + type_to_str(e->type) + "` must be of type `class` or numeric to use `" + op + "` operator");
     } else {
         switch(e->type.type) {
             case type_nil: {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "cannot use `" + op + "` operator on expression that returns nil");
                 break;
             }
 
             case type_untyped: {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         INTERNAL_ERROR, ast, "cannot apply `" + op + "` operator to untyped expression.");
                 break;
             }
@@ -266,7 +266,7 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                 break;
 
             case type_object: {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast, "expressions of type object must be casted before using `" + op + "` operator, try `(<your-expression> as Type)" + op + "` instead");
+                create_new_error(GENERIC, ast, "expressions of type object must be casted before using `" + op + "` operator, try `(<your-expression> as Type)" + op + "` instead");
                 break;
             }
 
@@ -302,7 +302,7 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                 bool value = false;
 
                 if(op == "++" || op == "--") {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` on bool expression");
                     value = false;
                 }
@@ -314,7 +314,7 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
             case type_string: {
                 if(op == "-" || op == "++" || op == "--"
                    || op == "!") {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` on string expression");
                 }
                 break;
@@ -381,14 +381,14 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                             field->type._class, *e, params, operations, op, ast);
                     create_dependency(fun);
                 } else {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");
                 }
                 break;
             }
 
             default: {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "unqualified use  of operator `" + op + "` with type `" + type_to_str(e->type) + "`");
                 break;
             }

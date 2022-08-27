@@ -6,7 +6,7 @@ import (
 
 class synced_list<t> : loopable<t> {
     private n_elements : var;
-    private data : t[];
+    private data : t[]?;
     private is_compact: var;
 
     private static const default_capacity := 10;
@@ -26,10 +26,10 @@ class synced_list<t> : loopable<t> {
         }
     }
 
-    def get_elements() : t[] {
+    override def get_elements() : t[]? {
         lock(self) {
             if(n_elements == 0) return null;
-            else return copy(data, 0, n_elements);
+            else return copy(data!!, 0, n_elements) as t[];
         }
     }
 
@@ -66,9 +66,9 @@ class synced_list<t> : loopable<t> {
 
     private def expand() {
         if(is_compact) {
-            realloc(data, sizeof(data) + min_capacity);
+            realloc(data!!, sizeof(data) + min_capacity);
         } else
-            realloc(data, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
+            realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
     }
 
     def clear() {
@@ -96,8 +96,8 @@ class synced_list<t> : loopable<t> {
 
     def add_all(lst: list<t>) {
         lock(self) {
-            data = copy(lst.data, 0, lst.n_elements) as t[];
-            n_elements = lst.n_elements;
+            data = copy(lst.get_elements()!!, 0, lst.size()) as t[];
+            n_elements = lst.size();
         }
     }
 
@@ -123,7 +123,7 @@ class synced_list<t> : loopable<t> {
 
     def pop_back() {
         if(n_elements > 0) {
-            no_val : t;
+            excuse no_val : t;
             data[--n_elements] = no_val;
         }
     }
@@ -188,7 +188,7 @@ class synced_list<t> : loopable<t> {
 
             num_moved := n_elements - index - 1;
             if (num_moved > 0)
-                memcopy(data, data, index, index+1, n_elements);
+                memcopy(data!!, data!!, index, index+1, n_elements);
 
             pop_back();
         }
@@ -224,7 +224,7 @@ class synced_list<t> : loopable<t> {
         }
     }
 
-    def find(comparer : t, find_func: (t, t)(var)) : t {
+    def find(comparer : t, find_func: (t, t)(var)) : t? {
         lock(self) {
             for(i := 0; i < n_elements; i++) {
                 if(find_func(data[i], comparer)) {
@@ -232,8 +232,7 @@ class synced_list<t> : loopable<t> {
                 }
             }
 
-            no_val : t;
-            return no_val;
+            return null;
         }
     }
 

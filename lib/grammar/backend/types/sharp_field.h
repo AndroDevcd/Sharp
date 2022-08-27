@@ -24,48 +24,52 @@ enum field_type {
 struct sharp_field {
     sharp_field()
     :
-        name(""),
-        fullName(""),
-        owner(NULL),
-        implLocation(),
-        dependencies(),
-        ci(NULL),
-        flags(flag_none),
-        fieldType(normal_field),
-        closure(NULL),
-        closureRef(NULL),
-        staticClosure(false),
-        used(false),
-        block(invalid_block_id),
-        type(),
-        ast(NULL),
-        getter(NULL),
-        setter(NULL),
-        scheme(NULL),
-        request(NULL)
+            name(""),
+            fullName(""),
+            owner(NULL),
+            implLocation(),
+            dependencies(),
+            ci(NULL),
+            flags(flag_none),
+            fieldType(normal_field),
+            closure(NULL),
+            closureRef(NULL),
+            staticClosure(false),
+            used(false),
+            hasConstValue(false),
+            constValue(0),
+            block(invalid_block_id),
+            type(),
+            ast(NULL),
+            getter(NULL),
+            setter(NULL),
+            scheme(NULL),
+            request(NULL)
     {}
 
     sharp_field(const sharp_field &sf)
     :
-        name(sf.name),
-        fullName(sf.fullName),
-        owner(sf.owner),
-        implLocation(sf.implLocation),
-        dependencies(sf.dependencies),
-        type(sf.type),
-        flags(sf.flags),
-        ci(NULL),
-        fieldType(sf.fieldType),
-        closure(sf.closure),
-        closureRef(sf.closureRef),
-        staticClosure(sf.staticClosure),
-        used(sf.used),
-        ast(sf.ast),
-        block(sf.block),
-        getter(sf.getter),
-        setter(sf.setter),
-        scheme(NULL),
-        request(NULL)
+            name(sf.name),
+            fullName(sf.fullName),
+            owner(sf.owner),
+            implLocation(sf.implLocation),
+            dependencies(sf.dependencies),
+            type(sf.type),
+            flags(sf.flags),
+            constValue(sf.constValue),
+            hasConstValue(sf.hasConstValue),
+            ci(NULL),
+            fieldType(sf.fieldType),
+            closure(sf.closure),
+            closureRef(sf.closureRef),
+            staticClosure(sf.staticClosure),
+            used(sf.used),
+            ast(sf.ast),
+            block(sf.block),
+            getter(sf.getter),
+            setter(sf.setter),
+            scheme(NULL),
+            request(NULL)
     {
         create_scheme(sf.scheme);
 
@@ -95,6 +99,8 @@ struct sharp_field {
             closureRef(NULL),
             staticClosure(false),
             used(false),
+            constValue(0),
+            hasConstValue(false),
             block(invalid_block_id),
             ast(ast),
             getter(NULL),
@@ -129,6 +135,8 @@ struct sharp_field {
     injection_request *request;
     sharp_type type;
     field_type fieldType;
+    Int constValue;
+    bool hasConstValue;
     Int block;
     bool staticClosure;
     bool used;

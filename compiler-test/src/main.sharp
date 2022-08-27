@@ -5,7 +5,7 @@ thread_local fark := 9;
 feep : int = new int(-1);
 
 def main() {
-  new ff().foo(null);
+  new ff().foo(0);
   println("hello, world! $feep");
 }
 
@@ -17,7 +17,7 @@ import (
     platform.kernel
 )
 
-chan := new channel<var>(UNLIMITED);
+chan := new channel<int>(UNLIMITED);
 const loop_count := 10000;
 const slices := 10;
 const n := 0;
@@ -39,8 +39,9 @@ class ff {
         return "";
     }
 
-    def foo(n: object?) {
-        n is int;
+    def foo(n: var) {
+        thread_local x := 9;
+        new list<int>();
     }
 }
 

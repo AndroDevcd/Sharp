@@ -109,7 +109,7 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
         default:
             stringstream err;
             err << ": unknown ast type: " << ast->getType();
-            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+            create_new_error(INTERNAL_ERROR, ast->line, ast->col, err.str());
             break;
     }
 

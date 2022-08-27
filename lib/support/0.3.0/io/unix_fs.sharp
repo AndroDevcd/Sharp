@@ -9,7 +9,7 @@ protected class unix_fs base file_system {
     private slash := '/';
     private buffer := new _int8[512];
 
-    def path_separator() : var {
+    override def path_separator() : var {
         return slash;
     }
 
@@ -17,7 +17,7 @@ protected class unix_fs base file_system {
     * Make sure we know that our path has the correct
     * path seperators to be accessed
     */
-    def normalize(pathname: string) : string {
+    override def normalize(pathname: string) : string {
         lock(self) {
            n := pathname.size();
            buf_index := 0;
@@ -64,7 +64,7 @@ protected class unix_fs base file_system {
       * by the given abstract pathname, or zero if it does not exist or some
       * other I/O error occurs.
       */
-     def get_attributes(f: file) : var {
+     override def get_attributes(f: file) : var {
         path := f.path.get_data();
         attrs := 0;
 
@@ -88,7 +88,7 @@ protected class unix_fs base file_system {
       * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
       * Return false if access is denied or an I/O error occurs
       */
-     def check_access(f: file, access: var) : var {
+     override def check_access(f: file, access: var) : var {
         path := f.path.get_data();
         result := 0;
 

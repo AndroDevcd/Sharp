@@ -97,7 +97,7 @@ class string_builder : loopable<_int8> {
         return self;
     }
 
-    def get_elements() := to_string().get_elements();
+    override def get_elements() := to_string().get_elements();
 
     def append(c: char) := append(c.get_value());
 

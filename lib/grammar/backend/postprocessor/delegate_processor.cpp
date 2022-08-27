@@ -85,7 +85,7 @@ void process_class_delegates(sharp_class* parentClass, sharp_class *with_class, 
 }
 
 void process_delegates(sharp_class *with_class) {
-    List<sharp_function*> functions, requiredFunctions;
+    List<sharp_function*> functions, locatedFunctions, requiredFunctions;
 
     if(currThread->currTask->file->stage < pre_compilation_state)
         return;
@@ -94,7 +94,7 @@ void process_delegates(sharp_class *with_class) {
         || !with_class->interfaces.empty()) {
         locate_functions_with_type(
                 with_class, normal_function,
-                false, functions);
+                false, locatedFunctions);
 
         if(with_class->baseClass != NULL) {
             locate_functions_with_type(
@@ -108,14 +108,23 @@ void process_delegates(sharp_class *with_class) {
                     true, requiredFunctions);
         }
 
-        for(Int i = 0; i < functions.size(); i++) {
-            process_function_return_type(functions.get(i));
+        for(Int i = 0; i < locatedFunctions.size(); i++) {
+            process_function_return_type(locatedFunctions.get(i));
         }
 
         for(Int i = 0; i < requiredFunctions.size(); i++) {
             process_function_return_type(requiredFunctions.get(i));
         }
 
+        for(Int i = 0; i < locatedFunctions.size(); i++) {
+            sharp_function *fun = locatedFunctions.get(i);
+
+            if(check_flag(fun->flags, flag_override)) {
+                functions.add(fun);
+            }
+        }
+
+        locatedFunctions.free();
         bool foundFunc;
         for(Int i = 0; i < requiredFunctions.size(); i++) {
             sharp_function *delegate = requiredFunctions.get(i);
@@ -129,17 +138,27 @@ void process_delegates(sharp_class *with_class) {
                 if(is_explicit_type_match(comparer, comparee)
                     && is_explicit_type_match(delegate->returnType, fun->returnType)) {
                     foundFunc = true;
+                    fun->delegate = delegate;
+                    delegate->impls.addif(fun);
+                    functions.removeAt(j);
                     break;
                 }
             }
 
             if(!foundFunc) {
-                stringstream err;
+                stringstream err;  // todo: look into where delegate functions are being defined and fix the incorrect implLocation
                 err << "delegate function `" << function_to_str(delegate) << "` must be defined in class `"
                     << with_class->fullName << "`:";
-                if(currThread->currTask->file->errors->createNewError(GENERIC, with_class->ast, err.str()))
+                if(create_new_error(GENERIC, with_class->ast, err.str()) == 0)
                     print_impl_location(delegate->name, "delegate", delegate->implLocation);
             }
+        }
+
+        for(Int i = 0; i < functions.size(); i++) {
+            stringstream err;
+            err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"
+                << with_class->fullName << "`:";
+            create_new_error(GENERIC, with_class->ast, err.str());
         }
 
         functions.free();

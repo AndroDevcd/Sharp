@@ -31,11 +31,13 @@ struct sharp_function {
             ast(NULL),
             closure(NULL),
             scheme(NULL),
+            delegate(NULL),
             ci(NULL),
             used(false),
             parameters(),
             returnType(),
             locals(),
+            impls(),
             aliases(),
             labels(),
             type(undefined_function),
@@ -49,8 +51,10 @@ struct sharp_function {
             owner(sf.owner),
             implLocation(sf.implLocation),
             dependencies(sf.dependencies),
+            impls(sf.impls),
             flags(sf.flags),
             ast(sf.ast),
+            delegate(sf.delegate),
             parameters(),
             locals(),
             aliases(),
@@ -90,12 +94,14 @@ struct sharp_function {
             returnType(),
             type(type),
             locals(),
+            impls(),
             aliases(),
             labels(),
             used(false),
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
             closure(NULL),
+            delegate(NULL),
             ci(NULL)
     {
         this->returnType.copy(returnType);
@@ -125,6 +131,8 @@ struct sharp_function {
     List<sharp_label*> labels;
     operation_schema *scheme;
     sharp_field* closure;
+    sharp_function* delegate;
+    List<sharp_function*> impls;
     sharp_type returnType;
     function_type type;
     bool used;

@@ -343,10 +343,17 @@ void create_or_operation(
 
 void create_and_and_operation(
         operation_schema *scheme,
-        Int registerLeft,
-        Int registerRight) {
-    scheme->steps.add(new operation_step(
-            operation_and_and, registerLeft, registerRight));
+        operation_schema *leftScheme,
+        operation_schema *rightScheme) {
+    scheme->schemeType = scheme_and;
+
+    Int endLabel = create_allocate_label_operation(scheme);
+
+    create_get_value_operation(scheme, leftScheme, false, false);
+    create_jump_if_false_operation(scheme, endLabel); // && short circuit
+
+    create_get_value_operation(scheme, rightScheme, false, false);
+    create_set_label_operation(scheme, endLabel);
 }
 
 void create_or_or_operation(
@@ -758,7 +765,16 @@ void create_try_catch_block_end_operation(
     }
 }
 
-void create_jump_if_false_operation( // todo: later add support for specifying a register to check for (true/false) for the jump?
+void create_jump_if_false_operation(
+        operation_schema *scheme,
+        Int label) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(
+                operation_jump_if_false, label));
+    }
+}
+
+void create_jump_if_false_operation(
         operation_schema *scheme,
         sharp_label* label) {
     if(scheme) {

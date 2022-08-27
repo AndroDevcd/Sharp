@@ -20,7 +20,7 @@ void process_mutation(Ast *ast) {
         sharp_class *with_class = resolvedType._class;
 
         if(check_flag(with_class->flags, flag_stable)) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                     "cannot mutate stable class `" + with_class->fullName + "`");
         }
 
@@ -31,7 +31,7 @@ void process_mutation(Ast *ast) {
             process_mutation(with_class, ast);
         }
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                 "expected mutate host to be of type `class` but was found to be of type `" + type_to_str(resolvedType) + "`");
     }
 }

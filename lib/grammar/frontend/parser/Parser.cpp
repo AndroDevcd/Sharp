@@ -482,7 +482,7 @@ void parser::parseForStatement(Ast *ast) { // remove ":" ending requirement for 
     }
 
     if(peek(1)->getType() == RIGHTPAREN
-        || peek(1)->getType() == COLON) { // for() or for: todo: try to look for loop compare symbol first if not try compilingvar decl. if that fails try var decl and check for ";" if that fails assume naked for "for{}"
+        || !hasParen) {
         branch->setAstType(ast_for_style_2_statement);
     } else { // statndard: for i := 0; i < 10; i++ :
         if(peek(1)->getType() != SEMICOLON) {
@@ -514,21 +514,16 @@ void parser::parseForStatement(Ast *ast) { // remove ":" ending requirement for 
         }
 
         expect(branch, ")", false);
-
-        if(peek(1)->getType() == COLON)
-            expect(branch, ":", false);
     } else {
         if(hasParen) {
             errors->createNewError(GENERIC, current(), "expected symbol `)`");
         }
-
-        expect(branch, ":", false);
     }
 
     parseBlock(branch);
 }
 
-void parser::parseWhileStatement(Ast *ast) { // todo: make () non mandatory
+void parser::parseWhileStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_while_statement);
 
     _current--;
@@ -3730,6 +3725,7 @@ bool parser::isAccessDecl(Token &token) {
             (token.getValue() == "stable") ||
             (token.getValue() == "native") ||
             (token.getValue() == "excuse") ||
+            (token.getValue() == "override") ||
             (token.getValue() == "public"));
 }
 

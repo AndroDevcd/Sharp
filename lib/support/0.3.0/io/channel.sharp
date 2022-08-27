@@ -1,7 +1,8 @@
 mod std.io;
 
 import (
-    std.io.fiber
+    std.io.fiber,
+    std
 )
 
 /*
@@ -18,10 +19,10 @@ import (
 
 class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
-    private filters : list<filter<t> >;
-    private buff_type : buffer_type;
-    private capacity : var;
-    private state := channel_state.OPEN;
+    protected filters : list<filter<t> >;
+    protected buff_type : buffer_type;
+    protected capacity : var;
+    protected state := channel_state.OPEN;
 
     static const default_capacity := 10;
     static const DEFAULT_FILTER := 0;
@@ -87,11 +88,11 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        }
     }
 
-    def send(data : t) {
+    override def send(data : t) {
        send(data, DEFAULT_FILTER);
     }
 
-    def send(data : t, filter: var) {
+    override def send(data : t, filter: var) {
        if(filter >= filters.size() || filter < 0) {
           throw new bounds_except("invalid send on filter ($filter) when max filter is ${filters.size()}");
        }
@@ -99,11 +100,11 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        filters[filter].send(data, self);
     }
 
-    def read() : t {
+    override def read() : t {
        return read(DEFAULT_FILTER);
     }
 
-    def read(filter: var) : t {
+    override def read(filter: var) : t {
        if(filter >= filters.size() || filter < 0) {
           throw new bounds_except("invalid send on filter ($filter) when max filter is ${filters.size()}");
        }
@@ -111,19 +112,19 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        return filters[filter].read(self);
     }
 
-    def close() {
+    override def close() {
        lock(self) {
           state = channel_state.CLOSED;
        }
     }
 
-    def open() {
+    override def open() {
        lock(self) {
           state = channel_state.OPEN;
        }
     }
 
-    def read_next(filter: var, count: var) : list<t> {
+    override def read_next(filter: var, count: var) : list<t> {
        if(filter >= filters.size() || filter < 0) {
           throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
        }
@@ -144,14 +145,14 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        return data;
     }
 
-    def read_next(filter: var) : list<t> {
+    override def read_next(filter: var) : list<t> {
        if(filter >= filters.size() || filter < 0) {
           throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
        }
 
        filtered_channel := filters[filter];
        if(filtered_channel.avail_data() == 0) {
-          return null;
+          return new list<t>();
        }
 
        data := new list<t>();
@@ -165,10 +166,10 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
           }
        }
 
-       return null;
+       return new list<t>();
     }
 
-    def read_all(filter: var) : list<t> {
+    override def read_all(filter: var) : list<t> {
        if(filter >= filters.size() || filter < 0) {
           throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
        }
@@ -186,10 +187,10 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
           }
        }
 
-       return null;
+       return new list<t>();
     }
 
-    def next() : var {
+    override def next() : var {
        for(;;) {
           if(state == channel_state.CLOSED)
              return -1;
@@ -206,11 +207,11 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        return 0;
     }
 
-    def get_elements() : t[] {
+    override def get_elements() : t[]? {
        return read_all(DEFAULT_FILTER).get_elements();
     }
 
-    def avail_data(filter: var) : var {
+    override def avail_data(filter: var) : var {
         if(filter >= filters.size() || filter < 0) {
            throw new bounds_except("invalid read on filter ($filter) when max filter is ${filters.size()}");
         }
@@ -224,14 +225,16 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
          CLOSED
     }
 
+    def get_state() := state;
+
     class filter<t> {
-       head : channel_data<t>;
-       tail : channel_data<t>;
+       head : channel_data<t>?;
+       tail : channel_data<t>?;
        buff_size : var;
 
        def filo() : t {
-          data := head.data;
-          head = head.next;
+          data := head?.data;
+          head = head?.next;
           if(head == null)
              tail = null;
           return data;
@@ -248,7 +251,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        def wait_for_data_or_close(chan: channel<t>) {
           if(buff_size == 0) {
              while(buff_size == 0) {
-                if(chan.state == channel_state.CLOSED)
+                if(chan.get_state() == channel<t>.channel_state.CLOSED)
                    break;
 
                 delay(1); // yield thread
@@ -265,7 +268,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
              EXCLUSIVE -> {
                 wait_for_data();
 
-                data := head.data;
+                data := head?.data;
                 tail = null;
                 head = null;
                 buff_size = 0;
@@ -274,7 +277,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
              SINGLE -> {
                 wait_for_data();
 
-                data := head.data;
+                data := head?.data;
                 buff_size = 0;
                 return data;
              }
@@ -310,7 +313,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        }
 
        def send(data : t, chan: channel<t>) {
-          if(chan.state == channel_state.OPEN) {
+          if(chan.get_state() == channel<t>.channel_state.OPEN) {
              when(chan.buff_type) {
                 EXCLUSIVE -> {
                    lock(self) {
@@ -326,7 +329,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                       head = new channel_data<t>(data);
                       tail = head;
                    } else {
-                      head.data = data;
+                      head?.data = data;
                    }
 
                    buff_size = 1;
@@ -337,8 +340,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                           head = new channel_data<t>(data);
                           tail = head;
                        } else {
-                          tail.next = new channel_data<t>(data);
-                          tail = tail.next;
+                          tail?.next = new channel_data<t>(data);
+                          tail = tail?.next;
                        }
 
                        buff_size++;
@@ -353,8 +356,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                            tail = head;
                            buff_size++;
                         } else {
-                           tail.next = new channel_data<t>(data);
-                           tail = tail.next;
+                           tail?.next = new channel_data<t>(data);
+                           tail = tail?.next;
                            buff_size++;
                         }
                     }

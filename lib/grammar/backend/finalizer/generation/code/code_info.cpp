@@ -57,6 +57,7 @@ string register_to_str(int64_t r) {
     }
 }
 
+extern uInt delegateFunctionAddressCounter;
 string code_to_string(code_info *info) {
     List<opcode_instr> &code = info->code;
     stringstream ss, endData;
@@ -369,7 +370,7 @@ string code_to_string(code_info *info) {
 
                 break;
             }
-            case Opcode::JE: // TODO: continue here
+            case Opcode::JE:
             {
                 ss<<"je " << GET_Da(opcodeData);
 
@@ -492,7 +493,7 @@ string code_to_string(code_info *info) {
             case Opcode::CALL:
             {
                 ss << "call @" << GET_Da(opcodeData);
-                ss << " // " << compressedCompilationFunctions.get(GET_Da(opcodeData))->fullName;
+                ss << " // " << compressedCompilationFunctions.get(GET_Da(opcodeData) + delegateFunctionAddressCounter)->fullName;
 
                 break;
             }

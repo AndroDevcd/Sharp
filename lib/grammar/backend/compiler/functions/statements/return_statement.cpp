@@ -32,7 +32,7 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     returnStartLabel = create_label(ss.str(), &current_context, ast, subScheme);
     sharp_label *finallyLabel = retrieve_next_finally_label(&current_context.blockInfo);
 
-    if(finallyLabel != NULL) {
+    if(finallyLabel != NULL) { // todo: if finally or lock get return value and push to stack first
         uInt flags = flag_public;
         set_internal_variable_name(ss, "return_address", 0)
         if ((returnAddressField = resolve_local_field(ss.str(), &current_context)) == NULL) {
@@ -82,8 +82,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
             create_return_operation(subScheme);
         else create_object_return_operation(subScheme, &returnVal.scheme);
     } else if(match_result == indirect_match_w_nullability_mismatch) {
-        currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                                                           " expressions are not compatible, assigning null to non nullable type of `" + type_to_str(current_context.functionCxt->returnType) + "`.");
+        create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                                                           " expressions are not compatible, assigning nullable type of `" +
+                                                                   type_to_str(returnVal.type) + "` to non nullable type of `" + type_to_str(current_context.functionCxt->returnType) + "`.");
     } else {
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
                       + type_to_str(current_context.functionCxt->returnType) + "`.");

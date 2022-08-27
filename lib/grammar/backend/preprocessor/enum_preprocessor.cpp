@@ -72,7 +72,7 @@ void pre_process_enum(
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << trunk->getType();
-                    currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                    create_new_error(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
                     break;
             }
         }

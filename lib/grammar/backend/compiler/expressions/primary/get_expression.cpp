@@ -25,7 +25,7 @@ void compile_get_expression(expression *e, Ast *ast) {
 
     if(get_primary_component(&currThread->currTask->file->context) == NULL
         && (!ast->hasSubAst(ast_utype) && (typeName.empty() || componentName.empty()))) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                     "cannot call `get()` outside of a component block without explicitly declaring type. Try `get<my_type>()`.");
     }
 
@@ -43,7 +43,7 @@ void compile_get_expression(expression *e, Ast *ast) {
                     e->scheme.copy(*typeDefinition->scheme);
                     return;
                 } else {
-                    currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                    create_new_error(GENERIC, ast->line, ast->col,
                          "No defined type found of `" + type_to_str(requiredType) + "`.");
                 }
             } else {
@@ -69,12 +69,12 @@ void compile_get_expression(expression *e, Ast *ast) {
                         e->scheme.copy(*typeDefinition->scheme);
                         return;
                     } else {
-                        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                        create_new_error(GENERIC, ast->line, ast->col,
                             "Type mismatch on type definition. Type was found to be `" + type_to_str(*typeDefinition->type)
                                 + "`, but `" + type_to_str(requiredType) + "` was expected.");
                     }
                 } else {
-                    currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                    create_new_error(GENERIC, ast->line, ast->col,
                              "Could not find type definition for type `" + type_to_str(requiredType) + "`.");
                 }
             }

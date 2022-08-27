@@ -150,7 +150,7 @@ sharp_function* compile_class_function_overload(
         e.type.copy(fun->returnType);
         return fun;
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                 "use of operator `" + op + "` does not have any qualified overloads with class `" + with_class->fullName + "`");
         return NULL;
     }

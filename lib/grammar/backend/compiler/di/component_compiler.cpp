@@ -29,7 +29,7 @@ void compile_components() {
                 string package = "__$srt_undefined";
                 currModule = create_module(package);
 
-                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col,
+                create_new_error(GENERIC, trunk->line, trunk->col,
                                                                    "module declaration must be ""first in every file");
             }
 

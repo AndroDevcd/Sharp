@@ -38,7 +38,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     left.type, right.type,
                     match_constructor | match_initializer,
                     matchedFun) != no_match_found)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                                                                    "Conflicting assignment on field `" + field->name +
                                                                    "` of type `" + type_to_str(field->type) +
                                                                    "`. Cannot assign value via setter when `operator=` function is required.");
@@ -65,7 +65,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         false,
                         false);
             } else {
-                currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                          "cannot assign field `" + field->fullName + "` of type `" + type_to_str(field->type)
                          + "` to expression of type `" + type_to_str(right.type) + "`.");
             }
@@ -138,10 +138,10 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         false,
                         false);
             } else if(match_result == indirect_match_w_nullability_mismatch) {
-                currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                           " expressions are not compatible, assigning null to non nullable type of `" + type_to_str(left.type) + "`.");
             } else {
-                currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                   " expressions are not compatible, assigning `" + type_to_str(right.type)
                   + "` to expression of type `" + type_to_str(left.type) + "`.");
             }
@@ -157,12 +157,12 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
                     e->type.copy(left.type);
                 } else {
-                    currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                    create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                                " expressions are not compatible, assigning `" + type_to_str(right.type)
                                + "` to field of type `" + type_to_str(left.type) + "`.");
                 }
             } else {
-                currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                          " expressions are not compatible, assigning `" + type_to_str(right.type)
                          + "` to expression of type `" + type_to_str(left.type) + "`.");
             }
@@ -217,17 +217,17 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         }
                     )
                 } else {
-                    currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                    create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                            "expressions are not compatible, assigning `" + type_to_str(right.type)
                            + "` to expression of type `" + type_to_str(left.type) + "`.");
                 }
             } else {
-                currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                         " expressions of type `" + type_to_str(left.type)
                         + "` is not assignable.");
             }
         } else {
-            currThread->currTask->file->errors->createNewError(INCOMPATIBLE_TYPES, ast->line, ast->col,
+            create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                   "expressions of type `" + type_to_str(left.type)
                   + "` cannot be assigned via `" + operand.getValue() + "` operator.");
         }

@@ -10,14 +10,15 @@ enum task_type {
     task_tokenize_ = 1,
     task_parse_ = 2,
     task_preprocess_ = 3,
-    task_post_process_ = 4,
-    task_compile_components_ = 5,
-    task_process_delegates_ = 6,
+    task_process_imports = 4,
+    task_post_process_ = 5,
+    task_compile_components_ = 6,
+    task_process_delegates_ = 7,
 
     // finalization_tasks
-    task_compile_mutations_ = 7,
-    task_compile_global_members_ = 8,
-    task_compile_classes_ = 9
+    task_compile_mutations_ = 8,
+    task_compile_global_members_ = 9,
+    task_compile_classes_ = 10
 };
 
 #endif //SHARP_TASK_TYPE_H

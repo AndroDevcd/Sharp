@@ -18,7 +18,7 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
 
     if(with_class == NULL) {
         string name = ast->getToken(0).getValue();
-        with_class = resolve_class(parentClass, name, false, false);
+        with_class = resolve_class(parentClass, name, ast->getType() == ast_generic_class_decl, false);
     }
 
     create_context(with_class, true);
@@ -85,6 +85,7 @@ void compile_classes() {
 
         switch(trunk->getType()) {
             case ast_class_decl:
+            case ast_generic_class_decl:
                 compile_class(globalClass, NULL, trunk);
                 break;
             case ast_enum_decl:

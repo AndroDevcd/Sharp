@@ -229,7 +229,7 @@ bool ErrorManager::shouldReportWarning(Token *token, const ParseError &lastError
     return false;
 }
 
-void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
+Int ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
     KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(kp, l,c, xcmts);
     ParseError last_err = protectedMode ? lastCheckedError : lastError;
@@ -239,7 +239,7 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
         if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
-            return;
+            return 1;
         } else if(asis) {
              printError(e);
         }
@@ -248,10 +248,13 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
         errors->push_back(e);
         unfilteredErrors->push_back(e);
         lastError = e;
+        return 1;
     }
     else if(!protectedMode) {
         unfilteredErrors->push_back(e);
     }
+
+    return 0;
 }
 
 void ErrorManager::createNewWarning(error_type err, int l, int c, string xcmts) {

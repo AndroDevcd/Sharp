@@ -153,7 +153,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                    create_retain_numeric_value_operation(&scheme_0, register_1);
                    create_lt_operation(&scheme_0, register_0, register_1);
                    create_jump_if_false_operation(&scheme_0, endLabel);
-                   create_unused_expression_data_operation(&scheme_0);
+                   create_unused_data_operation(&scheme_0);
 
                    scheme_0.schemeType = scheme_for_each_position_check;
             )

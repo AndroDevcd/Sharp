@@ -21,14 +21,14 @@ void process_base_class(
             && with_class->type != class_interface) {
             stringstream err;
             err << "class '" << with_class->fullName << "' can only be inherited by another interface";
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            create_new_error(GENERIC, ast->line, ast->col, err.str());
             err.str("");
             return;
         } else if(base->type == class_enum
             && with_class->type != class_enum) {
             stringstream err;
             err << "enum '" << with_class->fullName << "' can only be inherited by another enum";
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, err.str());
             err.str("");
             return;
@@ -36,7 +36,7 @@ void process_base_class(
             stringstream err;
             err << "class '" << with_class->fullName << "' cannot inherit god level class `"
                 << base->fullName << "` as a base class";
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, err.str());
             err.str("");
             return;
@@ -46,7 +46,7 @@ void process_base_class(
             stringstream err;
             err << "class '" << with_class->fullName << "' already has a base class of `"
                 << with_class->baseClass->fullName << "` and cannot be overridden";
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, err.str());
         } else with_class->baseClass = base;
     } else {
@@ -66,7 +66,7 @@ void inherit_object_class(sharp_class *with_class, Ast *ast) {
         if(sc != NULL && (sc->type == class_enum)) {
             stringstream err;
             err << "support class for objects must be of type class";
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, err.str());
         } else {
             if(sc != NULL) {
@@ -74,7 +74,7 @@ void inherit_object_class(sharp_class *with_class, Ast *ast) {
                     with_class->baseClass = sc;
                 }
             } else {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "support class for objects not found");
             }
         }
@@ -89,13 +89,13 @@ void inherit_enum_class(sharp_class *with_class, Ast *ast) {
         if(sc != NULL && (sc->type == class_enum)) {
             stringstream err;
             err << "support class for enums must be of type class";
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, err.str());
         } else {
             if(sc != NULL) {
                 with_class->baseClass = sc;
             } else {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast, "support class for enums not found");
             }
         }
@@ -108,7 +108,7 @@ sharp_class* resolve_base_class(sharp_class *with_class, Ast *ast) {
 
         if(baseClass.type == type_class) {
             if(is_implicit_type_match(baseClass._class, with_class)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                create_new_error(GENERIC, ast,
                                        "cyclic dependency of class `" + with_class->fullName + "` in parent class `" +
                                        baseClass._class->fullName + "`");
                 return NULL;
@@ -118,7 +118,7 @@ sharp_class* resolve_base_class(sharp_class *with_class, Ast *ast) {
         } else {
             stringstream err;
             err << " base class must be of type class but was found to be of type: " << type_to_str(baseClass);
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, err.str());
         }
 

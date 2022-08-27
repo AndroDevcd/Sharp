@@ -42,8 +42,8 @@ public class thread_group : loopable<thread> {
 		}
 	}
 
-    def get_elements() : thread[] {
-        return handles.get_elements();
+    override def get_elements() : thread[] {
+        return handles.get_elements()!!;
     }
 
     def find(find_func: (thread)(var)) : thread? {

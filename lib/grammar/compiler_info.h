@@ -27,6 +27,7 @@ extern List<sharp_module*> modules;
 extern List<sharp_class*> classes;
 extern List<sharp_class*> genericClasses;
 extern recursive_mutex globalLock;
+extern impl_location *alternateLocation;
 extern thread_local sharp_module* currModule;
 extern component_manager componentManager;
 extern atomic<uInt> uniqueId;
@@ -65,9 +66,13 @@ extern int main_method_sig;
 #define GUARD2(mut) \
     std::lock_guard<recursive_mutex> guard2(mut);
 
+bool create_new_error(error_type error, Token &t, string xcmnts);
+bool create_new_error(error_type error, int line, int col, string xcmnts);
 void create_new_warning(error_type error, int type, int line, int col, string xcmnts);
 void create_new_warning(error_type error, int type, Ast *ast, string xcmnts);
+bool create_new_error(error_type error, Ast *ast, string xcmnts);
 bool all_files_parsed();
+bool all_files_compiled_successfully();
 
 template<class T>
 static void deleteList(List<T> &lst)

@@ -96,7 +96,7 @@ void process_import_item(List<sharp_module*> &imports, Ast *branch) {
         }
 
         if(!found) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, branch->line, branch->col, "modules under prefix `" + mod +
                                                                        "*` could not be found");
         }
@@ -108,7 +108,7 @@ void process_import_item(List<sharp_module*> &imports, Ast *branch) {
             }
         }
         else {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, branch->line, branch->col, "module `" + mod + "` could not be found");
         }
     }

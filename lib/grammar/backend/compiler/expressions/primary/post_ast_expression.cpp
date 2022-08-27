@@ -76,7 +76,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
 
                     if(expressions.last()->scheme.schemeType == scheme_none
                        && expressions.last()->type != type_get_component_request) {
-                        currThread->currTask->file->errors->createNewError(
+                        create_new_error(
                                 GENERIC, list->getSubAst(j), "expression of type `" + type_to_str(expressions.last()->type)
                                     + "` must evaluate to a value");
                     }

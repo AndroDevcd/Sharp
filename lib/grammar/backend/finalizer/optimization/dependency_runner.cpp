@@ -9,6 +9,10 @@
 
 void run_and_mark_tree(List<dependency> &dependencies);
 
+void mark(sharp_field *sf);
+void mark(sharp_function *fun);
+void mark(sharp_class *sc);
+void mark(sharp_file *sf);
 
 void mark(sharp_field *sf) {
     if(!sf->used) {
@@ -22,6 +26,14 @@ void mark(sharp_function *fun) {
         fun->used = true;
         for(Int i = 0; i < fun->locals.size(); i++) {
             mark(fun->locals.get(i));
+        }
+
+        if(fun->type == delegate_function) {
+            for(Int i = 0; i < fun->impls.size(); i++) {
+                mark(fun->impls.get(i));
+                mark(fun->impls.get(i)->implLocation.file);
+                mark(fun->impls.get(i)->owner);
+            }
         }
 
         run_and_mark_tree(fun->dependencies);

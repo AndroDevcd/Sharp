@@ -84,7 +84,7 @@ def run_scheduler() {
 	const SLEEP_TIME := 2;
 	const SPIN_COUNT := 60000 / SLEEP_TIME;
 	spins_left := SPIN_COUNT;
-	cancel_list := new list<var>();
+	cancel_list := new list<int>();
     count := 0;
 
     while(true)

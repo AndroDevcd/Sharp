@@ -18,7 +18,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
 
     compile_expression(cond, ast->getSubAst(ast_expression));
     if(!is_evaluable_type(cond.type)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "if statement condition expression must evaluate to true or false");
+        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "if statement of type `" + type_to_str(cond.type) + "` condition expression must evaluate to true or false");
     }
 
     set_internal_label_name(ss, "if_end", uniqueId++)
@@ -47,7 +47,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                         expression elseIfCond;
                         compile_expression(elseIfCond, branch->getSubAst(ast_expression));
                         if(!is_evaluable_type(elseIfCond.type)) {
-                            current_file->errors->createNewError(GENERIC, branch->line, branch->col, "else if statement condition expression must evaluate to true or false");
+                            current_file->errors->createNewError(GENERIC, branch->line, branch->col, "else if statement of type `" + type_to_str(elseIfCond.type) + "` condition expression must evaluate to true or false");
                         }
 
                         set_internal_label_name(ss, "if_block_end", uniqueId++)

@@ -10,7 +10,7 @@ class job_master {
 		long_term_pool = new thread_group("Long term jobs", min_priority);
 		short_term_pool = new thread_group("Short term jobs", max_priority);
 		job_queue = new channel<job>(UNLIMITED);
-		canceled_job_queue = new channel<var>(UNLIMITED);
+		canceled_job_queue = new channel<int>(UNLIMITED);
 		running_jobs = new synced_list<job>();
 	}
 
@@ -26,7 +26,7 @@ class job_master {
 	protected def create_job(name : string) := new job(name);
 
 	protected def start_job(scheduled_job : job) {
-		if(scheduled_job.delay_time)
+		if(scheduled_job.delay_time != 0)
 			scheduled_job.delay_time = scheduled_job.delay_time + time.mills_time();
 
 		if(scheduled_job.block_caller)
@@ -65,7 +65,7 @@ class job_master {
 
 	protected running_jobs : synced_list<job>;
 	protected job_queue : channel<job>;
-	protected canceled_job_queue : channel<var>;
+	protected canceled_job_queue : channel<int>;
 	protected long_term_pool : thread_group;
 	protected short_term_pool : thread_group;
 }

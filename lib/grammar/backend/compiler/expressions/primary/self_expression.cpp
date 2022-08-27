@@ -45,7 +45,7 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
         create_instance_field_access_operation(&e->scheme, closure);
     } else {
         if(ctx.isStatic) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                      "cannot access self from static context.");
         } else {
             e->scheme.schemeType = scheme_get_primary_class_instance;

@@ -58,11 +58,11 @@ void compile_static_closure_reference(sharp_field *field) {
                  create_pop_value_from_stack_operation(&scheme_0);
             )
         } else {
-            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, field->ast,
+            create_new_error(INTERNAL_ERROR, field->ast,
                        " cannot locate internal function `static_init` in platform class for closure.");
         }
     } else {
-        currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, field->ast,
+        create_new_error(INTERNAL_ERROR, field->ast,
                   " cannot locate platform class `platform` for closure.");
     }
 
@@ -116,7 +116,7 @@ void compile_field_injection_request(sharp_field *field, Ast *ast) {
     if(td) {
         field->scheme->copy(*td->scheme);
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                                                            "cannot inject field `" + field->name + ": " +
                                                            type_to_str(field->type) + "`, no type found in components.");
     }
@@ -148,7 +148,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                 convert_expression_type_to_real_type(e);
                 if(!is_implicit_type_match(
                         field->type, e.type, match_operator_overload | match_constructor)) {
-                    currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                    create_new_error(GENERIC, ast,
                                "cannot assign field `" + field->name + ": " +
                                     type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
                 }
@@ -226,7 +226,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                             convert_expression_type_to_real_type(e);
                             if(!is_implicit_type_match(
                                     xtraField->type, e.type, match_operator_overload | match_constructor)) {
-                                currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                                create_new_error(GENERIC, ast,
                                             "cannot assign field `" + xtraField->name + ": " +
                                                   type_to_str(xtraField->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
                             }

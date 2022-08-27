@@ -198,7 +198,7 @@ struct sharp_class {
     List<sharp_field*> fields;
     List<sharp_class*> genericClones;
     List<sharp_function*> functions;
-    List<sharp_function*> uncompiledLambdas; // todo: compile this list after all functions are compiled
+    List<sharp_function*> uncompiledLambdas;
     List<Ast*> mutations;
     code_info *ci;
     List<unresolved_extension_function> extensionFunctions;
@@ -213,7 +213,8 @@ void create_global_class();
 sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, bool, Ast*);
 sharp_class* create_closure_class(sharp_file*, sharp_module*, sharp_function*, Ast*);
 sharp_class* create_class(sharp_file*, sharp_class*, string, uInt, class_type, bool, Ast*);
-sharp_class* create_generic_class(sharp_class*, List<sharp_type> &genericTypes, bool&);
+sharp_class* create_generic_class(sharp_class*, List<sharp_type> &genericTypes, bool&, Ast *ast);
+impl_location* get_real_impl_location(sharp_class*);
 
 bool locate_functions_with_name(
         string name,

@@ -6,7 +6,7 @@ import (
 
 class list<t> : loopable<t> {
     private n_elements : var;
-    private data : t[];
+    private data : t[]?;
     private is_compact: var;
 
     private static const default_capacity := 10;
@@ -30,9 +30,9 @@ class list<t> : loopable<t> {
         is_compact = compact_array;
     }
 
-    def get_elements() : t[] {
+    override def get_elements() : t[]? {
         if(n_elements == 0) return null;
-        else return copy(data, 0, n_elements);
+        else return copy(data!!, 0, n_elements) as t[];
     }
 
     def operator[](index: var): t {
@@ -62,9 +62,9 @@ class list<t> : loopable<t> {
 
     private def expand() {
         if(is_compact) {
-            realloc(data, sizeof(data) + min_capacity);
+            realloc(data!!, sizeof(data) + min_capacity);
         } else
-            realloc(data, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
+            realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
     }
 
     def clear() {
@@ -73,7 +73,7 @@ class list<t> : loopable<t> {
     }
 
     def add_all(lst: list<t>) {
-        data = copy(lst.data, 0, lst.n_elements) as t[];
+        data = copy(lst.data!!, 0, lst.n_elements) as t[];
         n_elements = lst.n_elements;
     }
 
@@ -93,8 +93,8 @@ class list<t> : loopable<t> {
         data[n_elements++] = element;
     }
 
-    def indexof(element: t) : var {
-        for(i := 0; i < n_elements; i++) {
+    def indexof(element: t) : _int64 {
+        for(i : var = 0; i < n_elements; i++) {
             if(element == data[i]) {
                 return i;
             }
@@ -105,8 +105,7 @@ class list<t> : loopable<t> {
 
     def pop_back() {
         if(n_elements > 0) {
-            no_val : t;
-            data[n_elements--] = no_val;
+            n_elements--;
         }
     }
 
@@ -140,15 +139,14 @@ class list<t> : loopable<t> {
         }
     }
 
-    def find(comparer : t, find_func: (t, t)(var)) : t {
+    def find(comparer : t, find_func: (t, t)(var)) : t? {
         for(i := 0; i < n_elements; i++) {
             if(find_func(data[i], comparer)) {
                 return data[i];
             }
         }
 
-        no_val : t;
-        return no_val;
+        return null;
     }
 
     def remove(val: t) {
@@ -200,7 +198,7 @@ class list<t> : loopable<t> {
 
         num_moved := n_elements - index - 1;
         if (num_moved > 0)
-            memcopy(data, data, index, index+1, n_elements);
+            memcopy(data!!, data!!, index, index+1, n_elements);
 
         pop_back();
     }

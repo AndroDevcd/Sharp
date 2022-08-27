@@ -21,7 +21,6 @@ void post_process() {
     sharp_file *file = currThread->currTask->file;
     sharp_class *globalClass = NULL;
 
-    process_imports();
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;
@@ -35,7 +34,7 @@ void post_process() {
                 string package = "__$srt_undefined";
                 currModule = create_module(package);
 
-                currThread->currTask->file->errors->createNewError(GENERIC, trunk->line, trunk->col, "module declaration must be ""first in every file");
+                create_new_error(GENERIC, trunk->line, trunk->col, "module declaration must be ""first in every file");
             }
 
             globalClass = resolve_class(currModule, global_class_name, false, false);
@@ -44,7 +43,7 @@ void post_process() {
             continue;
         }
 
-        switch(trunk->getType()) { // todo process all functions first
+        switch(trunk->getType()) {
             case ast_interface_decl:
             case ast_class_decl:
                 process_class(globalClass, NULL, trunk);
@@ -63,7 +62,7 @@ void post_process() {
                 process_class(globalClass, NULL, trunk);
                 break;
             case ast_module_decl: /* fail-safe */
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
                 break;
             case ast_method_decl:
@@ -84,7 +83,7 @@ void post_process() {
             default:
                 stringstream err;
                 err << ": unknown ast type: " << trunk->getType();
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         INTERNAL_ERROR, trunk->line, trunk->col, err.str());
                 break;
         }
@@ -185,8 +184,11 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                     process_mutation(trunk);
                     break;
 
-                case ast_init_decl:
                 case ast_enum_decl:
+                    process_class(with_class, NULL, trunk);
+                    break;
+
+                case ast_init_decl:
                 case ast_obfuscate_decl:
                 case ast_generic_interface_decl:
                 case ast_generic_class_decl:
@@ -196,7 +198,7 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << trunk->getType();
-                    currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col,
+                    create_new_error(INTERNAL_ERROR, trunk->line, trunk->col,
                                                                        err.str());
                     break;
             }

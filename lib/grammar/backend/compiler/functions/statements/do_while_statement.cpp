@@ -30,7 +30,7 @@ void compile_do_while_statement(Ast *ast, operation_schema *scheme, bool *contro
     }
 
     if(!is_evaluable_type(cond.type)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "do while loop condition expression must evaluate to true or false");
+        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "do while loop condition of type `" + type_to_str(cond.type) + "` must evaluate to true or false");
     }
 
     create_get_value_operation(subScheme, &cond.scheme, false, false);

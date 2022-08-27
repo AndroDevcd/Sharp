@@ -1,5 +1,9 @@
 mod std.io;
 
+import (
+    std
+)
+
 interface receive_channel<t> {
     def read() : t;
 

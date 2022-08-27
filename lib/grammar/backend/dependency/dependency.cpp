@@ -520,12 +520,12 @@ sharp_field* resolve_local_function_pointer_field(
                     }
                 }
             } else {
-                currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to field of type `" +
+                create_new_error(GENERIC, resolveLocation->line, resolveLocation->col, "call to field of type `" +
                                                 type_to_str(resolvedField->type) + "` cannot be called with parameters of types `" +
                                                                                    parameters_to_str(parameters) + "`");
             }
         } else {
-            currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to field of type `" +
+            create_new_error(GENERIC, resolveLocation->line, resolveLocation->col, "call to field of type `" +
                     type_to_str(resolvedField->type) + "` is not a function pointer");
         }
     }
@@ -582,7 +582,7 @@ sharp_field* resolve_function_pointer_field(
     }
 
     if(ambiguous && resolveLocation != NULL) {
-        currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to function pointer `" + name + "` is ambiguous");
+        create_new_error(GENERIC, resolveLocation->line, resolveLocation->col, "call to function pointer `" + name + "` is ambiguous");
     } else if(!ambiguous && resolvedField != NULL) {
         for(Int i = 0; i < parameters.size(); i++) {
             if(parameters.get(i)->type == type_lambda_function
@@ -606,13 +606,18 @@ sharp_function* resolve_function(
         Ast *resolveLocation,
         bool checkBaseClass,
         bool implicitCheck) {
+    GUARD(globalLock)
     List<sharp_function*> locatedFunctions;
     List<sharp_function*> resolvedFunctions;
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
 
-    locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
-                               searchClass->type != class_interface, locatedFunctions);
+    if(functionType == constructor_function && searchClass->genericBuilder != NULL) {
+        locate_functions_with_type(searchClass, constructor_function, checkBaseClass, locatedFunctions);
+    } else {
+        locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
+                                   searchClass->type != class_interface, locatedFunctions);
+    }
 
     if(!locatedFunctions.empty()) {
         for(Int i = 0; i < locatedFunctions.size(); i++) {
@@ -646,7 +651,20 @@ sharp_function* resolve_function(
     }
 
     if(ambiguous && resolveLocation != NULL) {
-        currThread->currTask->file->errors->createNewError(GENERIC, resolveLocation->line, resolveLocation->col, "call to method `" + name + "` is ambiguous");
+        create_new_error(GENERIC, resolveLocation->line, resolveLocation->col, "call to method `" + name + "` is ambiguous");
+
+        cout << "Based on the parameters provided -  " << parameters_to_str(parameters) << endl;
+        cout << "Here are the top 5 results found: " << endl << endl;
+        for(Int i = 0; i < resolvedFunctions.size(); i++) {
+            if(i >= 5) {
+                break;
+            }
+
+            cout << "\tcandidate #" << (i+1) << ": " << resolvedFunctions.get(i)->fullName
+                << parameters_to_str(resolvedFunctions.get(i)->parameters) << endl;
+        }
+
+        cout << endl;
     } else if(!ambiguous && resolvedFunction != NULL) {
         for(Int i = 0; i < parameters.size(); i++) {
             if(parameters.get(i)->type == type_lambda_function
@@ -783,7 +801,7 @@ bool resolve_label(
 }
 
 
-bool resolve_local_alias( // todo: support tls access for all fields
+bool resolve_local_alias(
         unresolved_item &item,
         sharp_type &resultType,
         operation_schema *scheme,
@@ -805,7 +823,7 @@ bool resolve_local_alias( // todo: support tls access for all fields
     return false;
 }
 
-bool resolve_local_field( // todo: support tls access for all fields
+bool resolve_local_field(
         unresolved_item &item,
         sharp_type &resultType,
         operation_schema *scheme,
@@ -816,7 +834,10 @@ bool resolve_local_field( // todo: support tls access for all fields
         resultType.type = type_field;
         resultType.field = field;
 
-        create_local_field_access_operation(scheme, field);
+        if(field->fieldType == tls_field)
+            create_tls_field_access_operation(scheme, field);
+        else
+            create_local_field_access_operation(scheme, field);
 
         if(field->type.type == type_class)
             create_dependency(field->type._class);
@@ -831,43 +852,54 @@ bool resolve_local_field( // todo: support tls access for all fields
             if(ctx.functionCxt == contextItem->functionCxt) { // same func no closure needed
                 resultType.field = field;
 
-                create_local_field_access_operation(scheme, field);
+                if(field->fieldType == tls_field)
+                    create_tls_field_access_operation(scheme, field);
+                else
+                    create_local_field_access_operation(scheme, field);
 
                 if(field->type.type == type_class)
                     create_dependency(field->type._class);
             } else {
-                if(can_capture_closure(field)) {
-                    sharp_class *closure_class = create_closure_class(
-                            currThread->currTask->file, currModule, contextItem->functionCxt,
-                            item.ast);
-                    sharp_field *closure = create_closure_field(closure_class, item.name,
-                            field->type, item.ast);
-                    sharp_field *staticClosureRef = create_closure_field(
-                            resolve_class(currModule, global_class_name, false, false),
-                            "closure_ref_" + contextItem->functionCxt->fullName,
-                            sharp_type(closure_class),
-                            item.ast
-                    );
-
-                    staticClosureRef->staticClosure = true;
-                    staticClosureRef->flags |= flag_static;
-                    contextItem->functionCxt->closure = staticClosureRef;
-                    field->closure = closure;
-                    field->closureRef = staticClosureRef;
-                    resultType.field = closure;
-
-                    create_static_field_access_operation(scheme, staticClosureRef);
-                    create_instance_field_access_operation(scheme, closure);
-
+                if(field->fieldType == tls_field) {
+                    create_tls_field_access_operation(scheme, field);
                     if(field->type.type == type_class)
                         create_dependency(field->type._class);
-                    create_dependency(closure_class);
-                    create_dependency(closure);
-                    create_dependency(staticClosureRef);
                 } else {
-                    resultType.field = field;
-                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
-                            "cannot capture closure of local field `" + field->name + "`. Only types of (arrays, classes, & objects) are allowed.");
+                    if (can_capture_closure(field)) {
+                        sharp_class *closure_class = create_closure_class(
+                                currThread->currTask->file, currModule, contextItem->functionCxt,
+                                item.ast);
+                        sharp_field *closure = create_closure_field(closure_class, item.name,
+                                                                    field->type, item.ast);
+                        sharp_field *staticClosureRef = create_closure_field(
+                                resolve_class(currModule, global_class_name, false, false),
+                                "closure_ref_" + contextItem->functionCxt->fullName,
+                                sharp_type(closure_class),
+                                item.ast
+                        );
+
+                        staticClosureRef->staticClosure = true;
+                        staticClosureRef->flags |= flag_static;
+                        contextItem->functionCxt->closure = staticClosureRef;
+                        field->closure = closure;
+                        field->closureRef = staticClosureRef;
+                        resultType.field = closure;
+
+                        create_static_field_access_operation(scheme, staticClosureRef);
+                        create_instance_field_access_operation(scheme, closure);
+
+                        if (field->type.type == type_class)
+                            create_dependency(field->type._class);
+                        create_dependency(closure_class);
+                        create_dependency(closure);
+                        create_dependency(staticClosureRef);
+                    } else {
+                        resultType.field = field;
+                        create_new_error(GENERIC, item.ast,
+                                                                           "cannot capture closure of local field `" +
+                                                                           field->name +
+                                                                           "`. Only types of (arrays, classes, & objects) are allowed.");
+                    }
                 }
             }
 
@@ -895,7 +927,7 @@ void check_access(
 
         if (check_flag(flags, flag_local)
             && currThread->currTask->file != location.file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                                                                "cannot access local " + type + " `" + name +
                                                                "`. outside of home file: `"
                                                                + location.file->name + "`.");
@@ -903,7 +935,7 @@ void check_access(
         }
 
         if (check_flag(flags, flag_private) && !inPrimaryClass) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                                                                "cannot access private " + type + " `" + name +
                                                                "`. outside of class: `"
                                                                + owner->fullName + "`.");
@@ -912,7 +944,7 @@ void check_access(
 
         if (check_flag(flags, flag_protected) && !inPrimaryClass
             && !((primary->module == location.file->module) || is_implicit_type_match(owner, primary))) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                                                                "cannot access protected " + type + " `" + name +
                                                                "`. outside of class: `"
                                                                + owner->fullName + "`.");
@@ -939,30 +971,34 @@ bool resolve_primary_class_field(
             sharp_function *fun = get_primary_function(&ctx);
 
             if(fun != NULL && !check_flag(fun->flags, flag_static)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                      "cannot capture closure of instance field `" + field->name
                      + "` from static context. Try accessing `self` to explicitly capture class closure.");
             } else {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                          "cannot access instance field `" + field->name + "` from static context.");
             }
         } else {
 
             if(isStatic && !check_flag(field->flags, flag_static)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                          "cannot access instance field `" + field->name + "` from static context.");
             }
 
             if (field->getter != NULL) {
-                if (!isSelfInstance){
-                    if(isStatic)
-                        create_static_field_getter_operation(scheme, field);
-                    else
-                        create_instance_field_getter_operation(scheme, field);
-                }
-                else {
+                if(field->fieldType == tls_field) {
+                    create_static_field_getter_operation(scheme, field);
+                } else {
+                    if (!isSelfInstance) {
+                        if (isStatic)
+                            create_static_field_getter_operation(scheme, field);
+                        else
+                            create_instance_field_getter_operation(scheme, field);
+                    } else {
                         create_primary_instance_field_getter_operation(scheme, field);
+                    }
                 }
+
                 create_dependency(field->getter);
             } else {
                 if(field->fieldType == tls_field) {
@@ -1072,7 +1108,7 @@ bool resolve_primary_class_function_address(
         }
 
         if(!check_flag(functions.first()->flags, flag_static)) {
-            currThread->currTask->file->errors->createNewError(GENERIC,
+            create_new_error(GENERIC,
                          item.ast, " cannot get address of non-static function `" + functions.first()->fullName + "` ");
         }
 
@@ -1177,7 +1213,7 @@ bool resolve_global_class_field(
         resultType.field = field;
         if(check_flag(field->flags, flag_local)
             && field->implLocation.file != currThread->currTask->file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+            create_new_error(GENERIC, item.ast->line,item.ast->col,
                    " cannot access local field `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
         }
 
@@ -1223,7 +1259,7 @@ bool resolve_global_class_alias(
     if(alias != NULL) {
         if(check_flag(alias->flags, flag_local)
            && alias->location.file != currThread->currTask->file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+            create_new_error(GENERIC, item.ast->line,item.ast->col,
                 " cannot access local alias `" + alias->name + "` from outside file `" + alias->location.file->name + "`.");
         }
 
@@ -1269,7 +1305,7 @@ bool resolve_global_class_enum(
         resultType.field = field;
         if(check_flag(field->owner->flags, flag_local)
            && field->implLocation.file != currThread->currTask->file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                " cannot access local enum `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
         }
 
@@ -1328,12 +1364,12 @@ bool resolve_global_class_function_address(
 
         if(check_flag(functions.first()->flags, flag_local)
            && functions.first()->implLocation.file != currThread->currTask->file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+            create_new_error(GENERIC, item.ast->line,item.ast->col,
                   " cannot access local function `" + functions.first()->name + "` from outside file `" + functions.first()->implLocation.file->name + "`.");
         }
 
         if(!check_flag(functions.first()->flags, flag_static)) {
-            currThread->currTask->file->errors->createNewError(GENERIC,
+            create_new_error(GENERIC,
                                                                item.ast, " cannot get address of non-static function `" + functions.first()->fullName + "` ");
         }
 
@@ -1398,6 +1434,9 @@ void resolve_normal_item(
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
 
+    if(item.name == "feet") {
+        int r = 0;
+    }
 
     if(resultType.type == type_untyped) {
         // first item
@@ -1551,10 +1590,10 @@ void resolve_normal_item(
         resultType.type = type_undefined;
 
         if(primaryClass == NULL) {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` ");
         } else {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                        resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
         }
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
@@ -1615,7 +1654,7 @@ void resolve_normal_item(
                 if(!hardType) {
                     if(nullable) {
                         if(item.accessType == access_normal) {
-                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                       "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
@@ -1686,10 +1725,10 @@ void resolve_normal_item(
 
             resultType.type = type_undefined;
             if(primaryClass == NULL) {
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                                                    resolveLocation, " `" + item.name + "` ");
             } else {
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                                                    resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
             }
         } else if(resultType.type == type_field) {
@@ -1705,8 +1744,8 @@ void resolve_normal_item(
                     hardType = false;
                     if(nullable) {
                         if(item.accessType == access_normal) {
-                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
-                                   "accessing nullable field `" + field->name + "` without `?.` or `!!.`."); // todo: add support for null skipping in expression when calling ?.
+                            create_new_error(GENERIC, item.ast->line,item.ast->col,
+                                   "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
                     return;
@@ -1738,7 +1777,7 @@ void resolve_normal_item(
                    && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, false, context)) {
 
                     hardType = true;
-                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                    create_new_error(GENERIC, item.ast->line,item.ast->col,
                                        " cannot access inner class through field `" + field->name + "`.");
                     return;
                 }
@@ -1747,22 +1786,22 @@ void resolve_normal_item(
                    && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, true, context)) {
 
                     hardType = true;
-                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                    create_new_error(GENERIC, item.ast->line,item.ast->col,
                                        " cannot access inner class through field `" + field->name + "`.");
                     return;
                 }
 
                 resultType.type = type_undefined;
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                 resolveLocation, " `" + item.name + "` in field `" + field->fullName + "`");
             } else {
 
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                create_new_error(GENERIC, item.ast->line,item.ast->col,
                                        "field `" + field->name + "` of type `" + type_to_str(field->type) + "` must be of type class.");
             }
         }
         else {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
         }
     }
@@ -1820,7 +1859,7 @@ void resolve_operator_item(
 
         resultType.type = type_undefined;
 
-        currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+        create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
         if(hasFilter(filter, resolve_filter_function_address)
@@ -1841,10 +1880,10 @@ void resolve_operator_item(
             }
 
             resultType.type = type_undefined;
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                     resolveLocation, " `" + item.name + "` ");
         } else {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
         }
     }
@@ -1932,7 +1971,10 @@ bool resolve_local_function_pointer_field(
         resultType.copy(field->type.fun->returnType);
         process_field(field);
 
-        create_local_field_access_operation(scheme, field);
+        if(field->fieldType == tls_field)
+            create_tls_field_access_operation(scheme, field);
+        else
+            create_local_field_access_operation(scheme, field);
 
         compile_function_call(
                 scheme, params, item.operations,
@@ -1953,43 +1995,51 @@ bool resolve_local_function_pointer_field(
             if(ctx.functionCxt == contextItem->functionCxt) { // same func no closure needed
                 goto local_found;
             } else {
-                if(can_capture_closure(field)) {
-                    sharp_class *closure_class = create_closure_class(
-                            currThread->currTask->file, currModule, contextItem->functionCxt,
-                            item.ast);
-                    sharp_field *closure = create_closure_field(closure_class, item.name,
-                                                                field->type, item.ast);
-                    sharp_field *staticClosureRef = create_closure_field(
-                            resolve_class(currModule, global_class_name, false, false),
-                            "closure_ref_" + contextItem->functionCxt->fullName,
-                            sharp_type(closure_class),
-                            item.ast
-                    );
-
-                    staticClosureRef->staticClosure = true;
-                    staticClosureRef->flags |= flag_static;
-                    contextItem->functionCxt->closure = staticClosureRef;
-                    field->closure = closure;
-                    field->closureRef = staticClosureRef;
-                    resultType.copy(field->type.fun->returnType);
-
-                    create_static_field_access_operation(scheme, staticClosureRef);
-                    create_instance_field_access_operation(scheme, closure);
-
-                    compile_function_call(
-                            scheme, params, item.operations,
-                            field->type.fun, false, false, true
-                    );
-
+                if(field->fieldType == tls_field) {
+                    create_tls_field_access_operation(scheme, field);
                     if(field->type.type == type_class)
-                        create_dependency(field->type._class); // todo: look into supporting thread_local closure fields
-                    create_dependency(closure_class);
-                    create_dependency(closure);
-                    create_dependency(staticClosureRef);
+                        create_dependency(field->type._class);
                 } else {
-                    resultType.field = field;
-                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
-                                                                       "cannot capture closure of local field `" + field->name + "`. Only types of (arrays, classes, & objects) are allowed.");
+                    if (can_capture_closure(field)) {
+                        sharp_class *closure_class = create_closure_class(
+                                currThread->currTask->file, currModule, contextItem->functionCxt,
+                                item.ast);
+                        sharp_field *closure = create_closure_field(closure_class, item.name,
+                                                                    field->type, item.ast);
+                        sharp_field *staticClosureRef = create_closure_field(
+                                resolve_class(currModule, global_class_name, false, false),
+                                "closure_ref_" + contextItem->functionCxt->fullName,
+                                sharp_type(closure_class),
+                                item.ast
+                        );
+
+                        staticClosureRef->staticClosure = true;
+                        staticClosureRef->flags |= flag_static;
+                        contextItem->functionCxt->closure = staticClosureRef;
+                        field->closure = closure;
+                        field->closureRef = staticClosureRef;
+                        resultType.copy(field->type.fun->returnType);
+
+                        create_static_field_access_operation(scheme, staticClosureRef);
+                        create_instance_field_access_operation(scheme, closure);
+
+                        compile_function_call(
+                                scheme, params, item.operations,
+                                field->type.fun, false, false, true
+                        );
+
+                        if (field->type.type == type_class)
+                            create_dependency(field->type._class);
+                        create_dependency(closure_class);
+                        create_dependency(closure);
+                        create_dependency(staticClosureRef);
+                    } else {
+                        resultType.field = field;
+                        create_new_error(GENERIC, item.ast,
+                                                                           "cannot capture closure of local field `" +
+                                                                           field->name +
+                                                                           "`. Only types of (arrays, classes, & objects) are allowed.");
+                    }
                 }
             }
 
@@ -2045,30 +2095,34 @@ bool resolve_primary_class_function_pointer_field(
             sharp_function *fun = get_primary_function(&ctx);
 
             if(fun != NULL && !check_flag(fun->flags, flag_static)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                                                                    "cannot capture closure of instance field `" + field->name
                                                                    + "` from static context. Try accessing `self` to explicitly capture class closure.");
             } else {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                                                                    "cannot access instance field `" + field->name + "` from static context.");
             }
         } else {
 
             if(isStaticCall && !check_flag(field->flags, flag_static)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                                                                    "cannot access instance field `" + field->name + "` from static context.");
             }
 
             if (field->getter != NULL) {
-                if (!isPrimaryClass){
-                    if(isStaticCall)
-                        create_static_field_getter_operation(scheme, field);
-                    else
-                        create_instance_field_getter_operation(scheme, field);
+                if(field->fieldType == tls_field) {
+                    create_static_field_getter_operation(scheme, field);
+                } else {
+                    if (!isPrimaryClass) {
+                        if (isStaticCall)
+                            create_static_field_getter_operation(scheme, field);
+                        else
+                            create_instance_field_getter_operation(scheme, field);
+                    } else {
+                        create_primary_instance_field_getter_operation(scheme, field);
+                    }
                 }
-                else {
-                    create_primary_instance_field_getter_operation(scheme, field);
-                }
+
                 create_dependency(field->getter);
                 create_dependency(field);
             } else {
@@ -2145,11 +2199,11 @@ bool resolve_primary_class_function(
 
         if((isStaticCall || (isPrimaryClass && ctx.isStatic)) && !check_flag(fun->flags, flag_static)) {
             if(isPrimaryClass && ctx.isStatic) {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                           "cannot capture closure from instance function `" + fun->fullName +
                           "` from static context, `self->` is required before function call.");
             } else {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast,
+                create_new_error(GENERIC, item.ast,
                            "cannot access instance function `" + fun->fullName +
                           "` from static context.");
             }
@@ -2227,7 +2281,7 @@ bool resolve_global_class_function_pointer_field(
         resultType.copy(field->type.fun->returnType);
         if(check_flag(field->flags, flag_local)
            && field->implLocation.file != currThread->currTask->file) {
-            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                " cannot access local field `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
         }
 
@@ -2389,7 +2443,7 @@ void resolve_function_reference_item(
 
         if(context.type == block_context
            && hasFilter(filter, resolve_filter_local_field)
-           && resolve_local_function_pointer_field( // todo: make sure thread_local modifier is not allowed on local fields
+           && resolve_local_function_pointer_field(
                 item, resultType, scheme, context)) {
 
             hardType = false;
@@ -2434,7 +2488,7 @@ void resolve_function_reference_item(
         }
 
         resultType.type = type_undefined;
-        currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+        create_new_error(COULD_NOT_RESOLVE,
                                resolveLocation, " `" + unresolvedFunction + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
 
@@ -2464,7 +2518,7 @@ void resolve_function_reference_item(
                 if(!hardType) {
                     if(nullable) {
                         if(item.accessType == access_normal) {
-                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
@@ -2486,7 +2540,7 @@ void resolve_function_reference_item(
                 if(!hardType) {
                     if(nullable) {
                         if(item.accessType == access_normal) {
-                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
@@ -2503,7 +2557,7 @@ void resolve_function_reference_item(
             }
 
             resultType.type = type_undefined;
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + unresolvedFunction + "` ");
         } else if(resultType.type == type_field) {
             sharp_field *field = resultType.field;
@@ -2519,7 +2573,7 @@ void resolve_function_reference_item(
 
                     if(nullable) {
                         if(item.accessType == access_normal) {
-                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
@@ -2534,7 +2588,7 @@ void resolve_function_reference_item(
 
                     if(nullable) {
                         if(item.accessType == access_normal) {
-                            currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                            create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) resultType.nullable = false;
                     }
@@ -2542,15 +2596,15 @@ void resolve_function_reference_item(
                     return;
                 }
 
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                resolveLocation, " `" + unresolvedFunction + "` ");
             } else {
                 resultType.type = type_undefined;
-                currThread->currTask->file->errors->createNewError(GENERIC,
+                create_new_error(GENERIC,
                              resolveLocation, " illegal use of non-class field `" + resultType.field->name + "` as class type.");
             }
         } else {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + unresolvedFunction + "` after non class type `" + type_to_str(resultType) + "`.");
         }
     }
@@ -2598,23 +2652,31 @@ bool resolve_primary_class_generic(
     } else return false;
 }
 
-sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint) {
+sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint, Ast *ast) {
     bool created = false;
 
     GUARD(globalLock)
-    sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created);
+    sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created, ast);
 
     if(created && generic) {
+        auto currf = current_file;
+        current_file = generic->genericBuilder->implLocation.file;
         genericBlueprint->genericClones.add(generic); // todo: we might still have to update current file here
+
         pre_process_class(NULL, generic, generic->ast);
         process_class(NULL, generic, generic->ast);
         process_generic_extension_functions(generic, genericBlueprint);
         process_generic_mutations(generic, genericBlueprint);
         process_delegates(generic);
 
+        if(generic->name.find("list") != string::npos) {
+            int r = 0;
+        }
         if(compilation_ready(current_file->stage)) {
             compile_class(NULL, generic, generic->ast);
         }
+        current_file = currf;
+
         return generic;
     } else if(generic)
         return generic;
@@ -2634,7 +2696,7 @@ bool resolve_primary_class_inner_class_generic(
     sharp_class *sc;
     if((sc = resolve_class(primaryClass, typedClassName, false, false)) == NULL) {
         if((sc = resolve_class(primaryClass, item.name, true, false)) != NULL) {
-            sc = create_generic_class(genericTypes, sc);
+            sc = create_generic_class(genericTypes, sc, item.ast);
         }
     }
 
@@ -2667,20 +2729,20 @@ bool resolve_global_class_generic(
     if(resultType.type == type_untyped) {
         if((sc = resolve_class(currThread->currTask->file, typedClassName, false, false)) == NULL) {
             if((sc = resolve_class(currThread->currTask->file, item.name, true, false)) != NULL) {
-                sc = create_generic_class(genericTypes, sc);
+                sc = create_generic_class(genericTypes, sc, item.ast);
             }
         }
     } else {
         if(resultType.type == type_import_group) {
             if((sc = resolve_class(resultType.group, item.name, false, false)) == NULL) {
                 if((sc = resolve_class(resultType.group, item.name, true, false)) != NULL) {
-                    sc = create_generic_class(genericTypes, sc);
+                    sc = create_generic_class(genericTypes, sc, item.ast);
                 }
             }
         } else {
             if((sc = resolve_class(resultType.module, item.name, false, false)) == NULL) {
                 if((sc = resolve_class(resultType.module, item.name, true, false)) != NULL) {
-                    sc = create_generic_class(genericTypes, sc);
+                    sc = create_generic_class(genericTypes, sc, item.ast);
                 }
             }
         }
@@ -2754,10 +2816,10 @@ void resolve_generic_item(
         resultType.type = type_undefined;
 
         if(primaryClass == NULL) {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` ");
         } else {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
         }
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
@@ -2790,10 +2852,10 @@ void resolve_generic_item(
 
             resultType.type = type_undefined;
             if(primaryClass == NULL) {
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                                                    resolveLocation, " `" + item.name + "` ");
             } else {
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                                                    resolveLocation, " `" + item.name + "` did you possibly mean: `" + primaryClass->fullName + "`?");
             }
         } else if(resultType.type == type_field) {
@@ -2807,22 +2869,22 @@ void resolve_generic_item(
                         item, primaryClass, false, typedClassName,
                         resultType, resolvedTypes,
                         context)) {
-                    currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                    create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                        " cannot access inner class through field `" + field->name + "`.");
                     hardType = true;
                     return;
                 }
 
                 resultType.type = type_undefined;
-                currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+                create_new_error(COULD_NOT_RESOLVE,
                                                                    resolveLocation, " `" + item.name + "` in field `" + field->fullName + "`");
             } else {
-                currThread->currTask->file->errors->createNewError(GENERIC, item.ast->line,item.ast->col,
+                create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                    "field `" + field->name + "` of type `" + type_to_str(field->type) + "` must be of type class.");
             }
         }
         else {
-            currThread->currTask->file->errors->createNewError(COULD_NOT_RESOLVE,
+            create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` after non class type `" + type_to_str(resultType) + "`?");
         }
     }
@@ -2864,7 +2926,6 @@ void resolve(
         uInt filter,
         Ast *resolveLocation,
         operation_schema *scheme) {
-    GUARD(globalLock)
 
     if(!ignoreInitialType && unresolvedType.type != type_untyped) {
         resultType.copy(unresolvedType);
@@ -2886,7 +2947,7 @@ void resolve(
 
         if(unresolvedType.isArray) {
             if(resultType.isArray) {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, resolveLocation, "array arrays are not supported.");
             }
 
@@ -2898,7 +2959,7 @@ void resolve(
 
         if(resultType.nullable && !resultType.isArray
             && (resultType.type >= type_int8 && resultType.type <= type_var)) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, resolveLocation, "expression of type `"
                                                  + type_to_str(resultType) + "` cannot be nullable.");
         }
@@ -2925,6 +2986,7 @@ sharp_type resolve(
         sharp_class *with_class) {
     sharp_type unresolvedType, resolvedType;
 
+    GUARD(globalLock)
     if(with_class != NULL) {
         resolvedType.type = type_class;
         resolvedType._class = with_class;
@@ -2945,7 +3007,7 @@ sharp_type resolve(
 
             if(expressions.last()->scheme.schemeType == scheme_none
                 && expressions.last()->type != type_get_component_request) {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, list->getSubAst(i), "expression of type `"
                                       + type_to_str(expressions.last()->type) + "` must evaluate to a value");
             }
@@ -2964,17 +3026,17 @@ sharp_type resolve(
                 item->operations.last()->copy(expressions.get(i)->scheme);
             }
         } else if(item->type == generic_reference) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, resolveLocation, "generic functions are not supported.");
 
         } else {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, resolveLocation, "expected function call.");
         }
 
         deleteList(expressions);
     } else {
-        currThread->currTask->file->errors->createNewError(
+        create_new_error(
                 INTERNAL_ERROR, resolveLocation->line, resolveLocation->col, "expected ast of utype or type_identifier");
         return sharp_type();
     }

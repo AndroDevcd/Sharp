@@ -44,7 +44,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
         else if(arrayType.type == type_object)
             create_new_object_array_operation(&e->scheme, arraySizeScheme);
         else {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                                                                "cannot create array of type `" + type_to_str(e->type) +"`.");
         }
 
@@ -94,7 +94,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
             e->scheme.steps.add(new operation_step(operation_assign_array_value, setArrayItem));
         }
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                                                            " could not determine the type of the array, please ensure all array values are typed.");
     }
 }

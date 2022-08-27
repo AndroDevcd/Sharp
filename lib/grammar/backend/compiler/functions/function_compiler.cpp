@@ -170,7 +170,7 @@ void compile_function(
         }
 
         if(name != class_name) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                                                                "constructor `" + name + "` must match holding class name `" + class_name + "`");
         }
     } else if(ast->hasSubAst(ast_refrence_pointer))

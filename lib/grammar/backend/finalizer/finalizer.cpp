@@ -127,7 +127,7 @@ void setup_core_functions() {
                     create_static_field_access_operation(resultVariableScheme, userMain);
                     create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
                     create_pop_value_from_stack_operation(&scheme_0);
-                    create_unused_expression_data_operation(&scheme_0);
+                    create_unused_data_operation(&scheme_0);
 
                     delete resultVariableScheme;
                     delete functionAddressScheme;
@@ -147,49 +147,10 @@ void setup_core_functions() {
     }
 }
 
-void run_compile_global_mutations_tasks() {
-
-    task t;
-    for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_compile_mutations_;
-        t.file = sharpFiles.get(i);
-        submit_task(t);
-    }
-
-    wait_for_tasks();
-}
-
-void run_compile_global_members_tasks() {
-
-    task t;
-    for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_compile_global_members_;
-        t.file = sharpFiles.get(i);
-        submit_task(t);
-    }
-
-    wait_for_tasks();
-}
-
-void run_compile_classes_tasks() {
-
-    task t;
-    for(Int i = 0; i < sharpFiles.size(); i++) {
-        t.type = task_compile_classes_;
-        t.file = sharpFiles.get(i);
-        submit_task(t);
-    }
-
-    wait_for_tasks();
-}
-
 void finalize_compilation() {
-    run_compile_global_mutations_tasks();
-    run_compile_global_members_tasks();
-    run_compile_classes_tasks();
-    setup_core_functions();
-
-    // todo: add check if all files compiled successfully
-    optimize();
-    generate();
+    if(all_files_compiled_successfully())
+    {
+        optimize();
+        generate();
+    }
 }

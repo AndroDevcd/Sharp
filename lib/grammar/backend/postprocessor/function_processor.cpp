@@ -30,7 +30,7 @@ void process_function(
         }
 
         if(name != class_name) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                        "constructor `" + name + "` must match holding class name `" + class_name + "`");
         }
     } else if(ast->hasSubAst(ast_refrence_pointer))
@@ -68,7 +68,7 @@ void process_extension_class(
         } else {
             name = lastItem->name;
             if(isDelegate) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                create_new_error(GENERIC, ast,
                       "extension function `" + name + "` cannot be a delegate.");
             }
 
@@ -85,7 +85,7 @@ void process_extension_class(
                 with_class = resultType._class;
             } else {
                 with_class = NULL;
-                currThread->currTask->file->errors->createNewError(GENERIC, ast,
+                create_new_error(GENERIC, ast,
                         "extension function `" + name + "` must be extended by a class");
             }
         }
@@ -148,8 +148,8 @@ void process_function(
     if(ast->hasSubAst(ast_access_type)) {
         flags = parse_access_flags(
                 flag_public
-                | flag_private | flag_protected | flag_local
-                | flag_static | flag_native,
+                | flag_private | flag_protected | flag_override
+                | flag_local | flag_static | flag_native,
                 "function", with_class,
                 ast->getSubAst(ast_access_type)
         );
@@ -245,7 +245,7 @@ void validate_function_type(
             create_dependency(type._class);
 
         if(!hardType && scheme->steps.empty()) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign hard type as value for function `" + fun->fullName + "`");
+            create_new_error(GENERIC, ast, " cannot assign hard type as value for function `" + fun->fullName + "`");
             return;
         }
     } else if(type.type == type_integer
@@ -267,7 +267,7 @@ void validate_function_type(
         create_dependency(type.field);
 
         if(hardType) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
+            create_new_error(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
             return;
         }
 
@@ -277,7 +277,7 @@ void validate_function_type(
         create_dependency(type.fun);
 
         if(!is_fully_qualified_function(type.fun)) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, "expression being assigned to function `" + fun->fullName + "` is not a fully qualified lambda expression. Try assigning types to all of the fields in your lambda.");
         } else {
             type.type = type_function_ptr;
@@ -286,14 +286,14 @@ void validate_function_type(
         create_dependency(type.fun);
 
         if(hardType && type.fun->type != blueprint_function) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, " function `" + fun->fullName + "` cannot have a method representing the type.");
         } else if(!hardType && type.fun->type == blueprint_function) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, "expression being assigned to function `" + fun->fullName + "` must resolve to a class, object, lambda, or number value.");
         }
     } else if(type.type == type_get_component_request) {
-        currThread->currTask->file->errors->createNewError(
+        create_new_error(
                 GENERIC, ast->line, ast->col,
                 "cannot resolve type from `get()` expression.");
     } else if(type.type != type_undefined) {
@@ -301,7 +301,7 @@ void validate_function_type(
             int i = 0;
         }
 
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                  " function `" + fun->fullName + "` cannot be assigned type `" + type_to_str(type) +
                  "` due to invalid type assignment format");
     }

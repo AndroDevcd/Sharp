@@ -34,7 +34,7 @@ void process_field(sharp_field *field) {
 
         if(field->ast->hasSubAst(ast_inject_request)) {
             if(field->ast->hasSubAst(ast_expression)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                             "injected field `" + field->name +
                                   "` cannot be assigned a value");
             }
@@ -114,12 +114,12 @@ void process_setter(sharp_field *field, Ast *ast) {
         flags |= flag_protected;
 
     if(check_flag(field->flags, flag_const)) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                                "cannot apply setter to constant field `" + field->name + "`");
     }
 
     if(field->fieldType == tls_field) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                                "cannot apply setter to thread_local field `" + field->name + "`");
     }
 
@@ -169,7 +169,7 @@ void process_getter(sharp_field *field, Ast *ast) {
 
 
     if(field->fieldType == tls_field) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                                                            "cannot apply getter to thread_local field `" + field->name + "`");
     }
 
@@ -206,7 +206,7 @@ void validate_field_type(
             create_dependency(type._class);
 
         if(!hardType && scheme->steps.empty()) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign hard type as value for field `" + field->fullName + "`");
+            create_new_error(GENERIC, ast, " cannot assign hard type as value for field `" + field->fullName + "`");
             return;
         }
     } else if(type.type == type_integer
@@ -217,7 +217,7 @@ void validate_field_type(
         || type.type == type_bool) {
         field->type.type = type_int8;
         return;
-    } else if(type.type == type_string) { // todo: default it to string type
+    } else if(type.type == type_string) {
         field->type.type = type_int8;
         field->type.isArray = true;
         return;
@@ -228,11 +228,11 @@ void validate_field_type(
         create_dependency(type.field);
 
         if(hardType) {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
+            create_new_error(GENERIC, ast, " illegal use of field `" + type.field->fullName + "` as a type");
             return;
         } else {
             if(type.field == field) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast, " cannot assign field `" + field->fullName + "` to its-self");
+                create_new_error(GENERIC, ast, " cannot assign field `" + field->fullName + "` to its-self");
                 return;
             }
         }
@@ -243,7 +243,7 @@ void validate_field_type(
         create_dependency(type.fun);
 
         if(!is_fully_qualified_function(type.fun)) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, "expression being assigned to field `" + field->fullName + "` is not a fully qualified lambda expression. Try assigning types to all of the fields in your lambda.");
         } else {
             type.type = type_function_ptr;
@@ -252,18 +252,18 @@ void validate_field_type(
         create_dependency(type.fun);
 
         if(hardType && type.fun->type != blueprint_function) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, " field `" + field->fullName + "` cannot have a method representing the type.");
         } else if(!hardType && type.fun->type == blueprint_function) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->line, ast->col, "expression being assigned to field `" + field->fullName + "` must resolve to a class, object, lambda, or number value.");
         }
     } else if(type.type == type_get_component_request) {
-        currThread->currTask->file->errors->createNewError(
+        create_new_error(
                 GENERIC, ast->line, ast->col,
                 "cannot resolve type from `get()` expression.");
     } else if(type.type != type_undefined) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                  " field `" + field->fullName + "` cannot be assigned type `" + type_to_str(type) +
                  "` due to invalid type assignment format");
     }

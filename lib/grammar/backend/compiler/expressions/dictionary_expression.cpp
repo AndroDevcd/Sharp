@@ -22,7 +22,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
         for (Int i = 0; i < dictionaryItems.size(); i++) {
             if (!is_implicit_type_match(key, dictionaryItems.at(i).key->type,
                                         constructor_only)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                                                                    " expected dictionary key of type `" +
                                                                    type_to_str(key) +
                                                                    "` but found `" +
@@ -31,7 +31,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
 
             if (!is_implicit_type_match(value, dictionaryItems.at(i).value->type,
                                         constructor_only)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                                                                    " expected dictionary value of type `" +
                                                                    type_to_str(value) +
                                                                    "` but found `" +
@@ -51,12 +51,12 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
             pairTypes.__new().copy(key);
             pairTypes.__new().copy(value);
 
-            pairClass = create_generic_class(pairTypes, pairClassGeneric);
+            pairClass = create_generic_class(pairTypes, pairClassGeneric, ast);
             create_dependency(pairClass);
             create_dependency(pairClass);
 
             sharp_type pairType(pairClass, false, false);
-            dictionaryClass = create_generic_class(pairTypes, dictionaryClassGeneric);
+            dictionaryClass = create_generic_class(pairTypes, dictionaryClassGeneric, ast);
             create_dependency(dictionaryClass);
             create_dependency(dictionaryClass);
 
@@ -123,7 +123,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                                                      flag_none, NULL, params, returnType, undefined_function, true);
                         sharp_type unresolvedType(&mock_function);
 
-                        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                        create_new_error(GENERIC, ast->line, ast->col,
                                                                            "cannot find constructor for standard library class `" +
                                                                            pairClass->fullName + "`.");
                     }
@@ -177,19 +177,19 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
                                                  flag_none, NULL, params, returnType, undefined_function, true);
                     sharp_type unresolvedType(&mock_function);
 
-                    currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+                    create_new_error(GENERIC, ast->line, ast->col,
                                                                        "cannot find constructor `" +
                                                                        type_to_str(unresolvedType) + "` for class `" +
                                                                        dictionaryClass->fullName + "`.");
                 }
             } else {
-                currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+                create_new_error(INTERNAL_ERROR, ast->line, ast->col,
                                                                    " could not create generic classes `pair` and `dictionary`.");
             }
 
             freeList(pairTypes);
         } else {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                                                                " could not find standard library generic classes `pair` and `dictionary`.");
 
         }
@@ -197,7 +197,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
         e->type.type = type_class;
         e->type._class = dictionaryClass;
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                       " could not determine the type of the dictionary, please ensure all key and values are typed.");
     }
 

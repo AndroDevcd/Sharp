@@ -62,11 +62,20 @@ sharp_class* create_closure_class(
             class_normal, false, ast);
 }
 
+sharp_file* get_true_impl_file(sharp_class *sc) {
+    if(sc->genericBuilder) {
+        if(sc->genericBuilder->blueprintClass) {
+            return get_true_impl_file(sc->genericBuilder->owner);
+        }
+        else return sc->genericBuilder->implLocation.file;
+    } else return sc->implLocation.file;
+}
 
 sharp_class* create_generic_class(
         sharp_class *genericBlueprint,
         List<sharp_type> &genericTypes,
-        bool &classCreated) {
+        bool &classCreated,
+        Ast *ast) {
 
     if(genericTypes.size() == genericBlueprint->genericTypes.size()) {
         sharp_class *sc;
@@ -99,21 +108,22 @@ sharp_class* create_generic_class(
                         stringstream ss;
                         ss << "for generic class `" <<  genericBlueprint->fullName << "` type ("
                            << typeIdentifier->name << ") must contain base class `" << typeIdentifier->baseClass->fullName << "`";
-                        currThread->currTask->file->errors->createNewError(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
+                        create_new_error(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
                     }
                 }
             }
 
             classCreated = true;
             sc = create_class(
-                    genericBlueprint->implLocation.file,
+                    current_file,
                     genericBlueprint->owner,
                     typedName,
                     genericBlueprint->flags,
                     genericBlueprint->type,
                     false,
-                    genericBlueprint->ast);
+                    ast);
 
+            sc->ast = genericBlueprint->ast;
             if(check_flag(genericBlueprint->owner->flags, flag_global)) {
                 genericBlueprint->implLocation.file->classes.add(sc);
             }
@@ -127,7 +137,7 @@ sharp_class* create_generic_class(
         stringstream ss;
         ss << "generic class `" <<  genericBlueprint->fullName << "` expected ("
             << genericBlueprint->genericTypes.size() << ") types but (" << genericTypes.size() << ") was provided";
-        currThread->currTask->file->errors->createNewError(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
+        create_new_error(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
         return NULL;
     }
 }
@@ -146,6 +156,7 @@ sharp_class* create_class(
     if(ast != NULL) {
         location.line = ast->line;
         location.col = ast->col;
+
     }
 
     if((sc = resolve_class(owner, name, false, false)) != NULL

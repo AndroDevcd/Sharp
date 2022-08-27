@@ -27,6 +27,10 @@ Int get_access_flag_count(uInt allowedFlags) {
         flagCount++;
     }
 
+    if(check_flag(allowedFlags, flag_override)) {
+        flagCount++;
+    }
+
     if(check_flag(allowedFlags, flag_excuse)) {
         flagCount++;
     }
@@ -92,14 +96,14 @@ void parse_function_pointer(sharp_type &type, Ast *ast) {
 void parse_type_identifier(sharp_type &type, Ast *ast) {
     if(ast->hasSubAst(ast_native_type)) {
         if(type.nullableItems) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, "cannot specify non-nullable integer array items as nullable.");
         }
 
         type.type = str_to_native_type(ast->getSubAst(ast_native_type)->getToken(0).getValue());
     } else if(ast->hasSubAst(ast_func_ptr)) {
         if(type.nullableItems) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, "cannot specify non-nullable integer array items as nullable.");
         }
 
@@ -120,7 +124,7 @@ void parse_utype(sharp_type &type, Ast *ast) {
         type.nullableItems = true;
 
         if(!type.isArray) {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, "cannot specify nullable array items on non-array type.");
         }
     }
@@ -241,7 +245,7 @@ void parse_reference_item(unresolved_item &item, Ast *ast) {
             child = ast->getSubAst(i);
 
             if((token = child->getToken(SAFEDOT)) != NULL || (token = child->getToken(FORCEDOT)) != NULL) {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, *token, "invalid module accessor `" + token->getValue() + "` did you mean to type `.`?");
                 token->getValue() = ".";
             }
@@ -382,7 +386,7 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
     uInt maxFlags = get_access_flag_count(allowedFlags);
 
     if(ast->getTokenCount() > maxFlags) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col,
+        create_new_error(GENERIC, ast->line, ast->col,
                 "member type `" + memberType + "` only allows access "
                                                "specifiers (" + access_flags_to_str(allowedFlags) + ")");
     }
@@ -393,15 +397,15 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
         flags |= flag;
 
         if(!check_flag(allowedFlags, flag)) {
-            currThread->currTask->file->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
+            create_new_error(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
                                          " `" + ast->getToken(i).getValue() + "`");
         } else if(flag == last_flag) {
-            currThread->currTask->file->errors->createNewError(ILLEGAL_ACCESS_DECLARATION, ast->line, ast->col,
+            create_new_error(ILLEGAL_ACCESS_DECLARATION, ast->line, ast->col,
                          " duplicate access flag `" + ast->getToken(i).getValue() + "`");
         }
 
         if(flag == flag_local && !(memberOwner == NULL || check_flag(memberOwner->flags, flag_global))) {
-            currThread->currTask->file->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
+            create_new_error(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
                        " `" + ast->getToken(i).getValue() + "` can only be used at global scope");
         }
 
@@ -409,34 +413,36 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
     }
 
     if(flagOrder.size() > 1) {
-        const uInt flagCount = 11;
+        const uInt flagCount = 12;
         access_flag order[flagCount] = {
                     flag_public, flag_private, flag_protected,
-                    flag_excuse, flag_local,
-                    flag_static, flag_const,
-                    flag_stable, flag_unstable,
-                    flag_extension,
+                    flag_override,flag_excuse,
+                    flag_local,flag_static,
+                    flag_const,flag_stable,
+                    flag_unstable,flag_extension,
                     flag_native
         };
 
         if (flagOrder.get(0) <= flag_protected) {
             start = 3;
-        } else if (flagOrder.get(0) == flag_excuse) {
+        } else if (flagOrder.get(0) == flag_override) {
             start = 4;
-        } else if (flagOrder.get(0) == flag_local) {
+        }  else if (flagOrder.get(0) == flag_excuse) {
             start = 5;
-        } else if (flagOrder.get(0) == flag_static) {
+        } else if (flagOrder.get(0) == flag_local) {
             start = 6;
-        } else if (flagOrder.get(0) == flag_const) {
+        } else if (flagOrder.get(0) == flag_static) {
             start = 7;
+        } else if (flagOrder.get(0) == flag_const) {
+            start = 8;
         } else if (flagOrder.get(0) == flag_stable) {
-            start = 9;
+            start = 10;
         } else if (flagOrder.get(0) == flag_unstable) {
-            start = 9;
+            start = 10;
         } else if (flagOrder.get(0) == flag_extension) {
-            start = 10;
+            start = 11;
         } else if (flagOrder.get(0) == flag_native) {
-            start = 10;
+            start = 11;
         }
 
         if (flagOrder.size() == 2) {
@@ -501,6 +507,19 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
             } else {
                 goto error;
             }
+        } else if (flagOrder.size() == 9) {
+            errPos = 1;
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+5, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+6, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+7, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+8, flagOrder.get(errPos++))) {
+            } else {
+                goto error;
+            }
         } else {
             errPos = flagOrder.size() - 1;
             goto error;
@@ -508,7 +527,7 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
 
         if (false) {
             error:
-            currThread->currTask->file->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getToken(errPos).getLine(),
+            create_new_error(INVALID_ACCESS_SPECIFIER, ast->getToken(errPos).getLine(),
                                          ast->getToken(errPos).getColumn(),
                                          " `" + ast->getToken(errPos).getValue() + "`. Make sure the order is correct and you're using the appropriate modifiers.");
         }
@@ -530,6 +549,10 @@ access_flag str_to_access_flag(string& flag) {
         return flag_private;
     else if(flag == "protected")
         return flag_protected;
+    else if(flag == "override")
+        return flag_override;
+    else if(flag == "excuse")
+        return flag_excuse;
     else if(flag == "local")
         return flag_local;
     else if(flag == "const")

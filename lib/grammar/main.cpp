@@ -380,7 +380,51 @@ void run_post_processing_tasks() {
 
     task t;
     for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_imports;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+
+    for(Int i = 0; i < sharpFiles.size(); i++) {
         t.type = task_post_process_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_global_mutations_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_mutations_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_global_members_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_global_members_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_classes_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_classes_;
         t.file = sharpFiles.get(i);
         submit_task(t);
     }
@@ -420,18 +464,16 @@ int compile()
     start_task_delegator();
     run_pre_processing_tasks();
 
-    // todo: stop compiling if there are any errors found above
     if(all_files_parsed()) {
         run_post_processing_tasks();
         run_compilation_tasks();
+        run_compile_global_mutations_tasks();
+        run_compile_global_members_tasks();
+        run_compile_classes_tasks();
+        setup_core_functions();
         finalize_compilation();
     }
 
-
-//    stringstream ss;
-//    uInt tabCount = 0;
-//    sharpFiles.get(0)->p->exportData()->toString(ss, tabCount);
-//    File::write("test.json", ss.str());
     cout << "done" << endl;
     return 0;
 }

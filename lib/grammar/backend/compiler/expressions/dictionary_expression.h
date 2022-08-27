@@ -23,6 +23,6 @@ void compile_dict_item(
 void compile_dict_pair_item(expression *e, bool inferType, sharp_type *pairType);
 
 // we pull this function from dependency.cpp
-extern sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint);
+extern sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint, Ast *ast);
 
 #endif //SHARP_DICTIONARY_EXPRESSION_H

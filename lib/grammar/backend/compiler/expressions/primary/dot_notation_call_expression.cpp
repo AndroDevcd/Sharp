@@ -7,6 +7,7 @@
 #include "../../../dependency/dependancy.h"
 #include "../../../../taskdelegator/task_delegator.h"
 #include "post_ast_expression.h"
+#include "../../../../compiler_info.h"
 
 void compile_dot_notation_call_expression(
         expression *e,
@@ -31,7 +32,7 @@ void compile_dot_notation_call_expression(
     }
 
     if(scheme->schemeType == scheme_none) {
-        currThread->currTask->file->errors->createNewError(
+        create_new_error(
                 GENERIC, dotNotationAst, "expression of type `"
                               + type_to_str(e->type) + "` must evaluate to a value");
     }

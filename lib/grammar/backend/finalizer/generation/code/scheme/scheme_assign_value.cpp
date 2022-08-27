@@ -20,9 +20,9 @@ void process_assign_value_scheme(operation_schema *scheme) {
     machine_data asignee(cc.machineData);
 
     if((cc.machineData.type == local_field_object_data || cc.machineData.type == numeric_local_field)
-       && cc.container->locals.get(cc.machineData.dataAddress)->closure != NULL) {
-        closureRef = cc.container->locals.get(cc.machineData.dataAddress)->closureRef;
-        closure = cc.container->locals.get(cc.machineData.dataAddress)->closure;
+       && cc.machineData.field->closure != NULL) {
+        closureRef = cc.machineData.field->closureRef;
+        closure = cc.machineData.field->closure;
     }
 
     process_pop_value_from_stack(next_step);

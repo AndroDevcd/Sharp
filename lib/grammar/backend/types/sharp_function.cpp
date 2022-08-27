@@ -63,9 +63,9 @@ bool create_function(
         createdFun = sf;
         return true;
     } else {
-        if(currThread->currTask->file->errors->createNewError(
+        if(create_new_error(
                 PREVIOUSLY_DEFINED, createLocation, "function `" + name +
-                                                    "` is already defined"))
+                                                    "` is already defined") == 0)
             print_impl_location(sf->name, "function", sf->implLocation);
         return false;
     }
@@ -154,6 +154,7 @@ bool function_parameters_match(
 
 void sharp_function::free() {
     dependencies.free();
+    impls.free();
     if(!directlyCopyParams) deleteList(parameters);
     deleteList(locals);
     deleteList(aliases);

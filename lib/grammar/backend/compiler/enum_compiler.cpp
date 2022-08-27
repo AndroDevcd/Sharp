@@ -6,6 +6,7 @@
 #include "../types/types.h"
 #include "expressions/expression.h"
 
+Int lastEnumValue = 0;
 void compile_enum_field(sharp_class *with_class, Ast *ast) {
     string name = ast->getToken(0).getValue();
     sharp_field *enum_field = resolve_field(name, with_class, false);
@@ -13,15 +14,34 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
     if(enum_field->fullName == "std.io#thread_priority.min_priority") {
         int r = 0;
     }
+
     if(enum_field != NULL) {
         if(ast->hasSubAst(ast_expression)) {
             expression e;
             compile_expression(e, ast->getSubAst(ast_expression));
 
             if(!is_evaluable_type(e.type)) {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast, "expected numeric type for enum field byt type `" +
+                create_new_error(GENERIC, ast, "expected numeric type for enum field but type `" +
                         type_to_str(e.type) + "` was found.");
             } else {
+                if(e.type == type_integer) {
+                    lastEnumValue = e.type.integer;
+                    enum_field->constValue = lastEnumValue;
+                    enum_field->hasConstValue = true;
+                } else if(e.type == type_char) {
+                    lastEnumValue = e.type._char;
+                    enum_field->constValue = lastEnumValue;
+                    enum_field->hasConstValue = true;
+                } else if(e.type == type_bool) {
+                    lastEnumValue = e.type._bool;
+                    enum_field->constValue = lastEnumValue;
+                    enum_field->hasConstValue = true;
+                } else if(e.type == type_decimal) {
+                    lastEnumValue = e.type.decimal;
+                    enum_field->constValue = lastEnumValue;
+                    enum_field->hasConstValue = true;
+                }
+
                 enum_field->scheme = new operation_schema();
                 enum_field->scheme->copy(e.scheme);
             }
@@ -40,7 +60,7 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
             paramOperations.add(enum_field->scheme);
         } else {
             paramOperations.add(new operation_schema());
-            create_get_integer_constant_operation(paramOperations.last(), uniqueId++);
+            create_get_integer_constant_operation(paramOperations.last(), lastEnumValue++);
         }
 
         name = "value";
@@ -79,15 +99,15 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
                 delete enum_field->scheme;
                 enum_field->scheme = NULL;
             } else {
-                currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast,
+                create_new_error(INTERNAL_ERROR, ast,
                                "cannot locate internal function `static_init` in platform class for closure.");
             }
         } else {
-            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast,
+            create_new_error(INTERNAL_ERROR, ast,
                        "cannot locate internal constructor for `_enum_` class field initialization.");
         }
     } else {
-        currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast,
+        create_new_error(INTERNAL_ERROR, ast,
                      "cannot locate enum field `" + name + "`.");
     }
 }
@@ -97,7 +117,9 @@ void compile_enum_fields(sharp_class *with_class, Ast *ast) {
     sharp_class *enumClass = resolve_class(with_class, className, false, false);
 
     if(enumClass != NULL) {
+        lastEnumValue = uniqueId++;
         Ast* block = ast->getSubAst(ast_enum_identifier_list);
+
         for(Int i = 0; i < block->getSubAstCount(); i++) {
             Ast *trunk = block->getSubAst(i);
 
@@ -110,6 +132,6 @@ void compile_enum_fields(sharp_class *with_class, Ast *ast) {
             }
         }
     } else {
-        currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast, "could not locate enum class `" + className + "`.");
+        create_new_error(INTERNAL_ERROR, ast, "could not locate enum class `" + className + "`.");
     }
 }

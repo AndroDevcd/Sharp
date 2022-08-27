@@ -15,8 +15,7 @@ import (
  */
 stable class _object_ : printable, unique {
 
-    foo := to_string();
-    public def to_string() := new string();
+    public override def to_string() := new string();
 
     def wait() {
         asm {
@@ -54,13 +53,12 @@ stable class _object_ : printable, unique {
         }
     }
 
-    def hash() : _int64 {
+    override def hash() : _int64 {
         /* must be implemented at a higher level */
         return 0;
     }
 
-    def guid() : _int64 {
-        /* user must impl at higher level if constant guid is desired */
+    override def guid() : _int64 {
         return global_guid++;
     }
 }

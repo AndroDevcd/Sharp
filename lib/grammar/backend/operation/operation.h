@@ -188,6 +188,7 @@ enum _operation_scheme {
     scheme_binary_math,
     scheme_accelerated_binary_math,
     scheme_or,
+    scheme_and,
     scheme_null_check,
     scheme_instance_check,
     scheme_post_increment,
@@ -786,8 +787,8 @@ void create_or_operation(
 
 void create_and_and_operation(
         operation_schema *scheme,
-        Int registerLeft,
-        Int registerRight);
+        operation_schema *leftScheme,
+        operation_schema *rightScheme);
 
 void create_or_or_operation(
         operation_schema *scheme,
@@ -996,6 +997,10 @@ void create_try_catch_block_end_operation(
 void create_jump_if_false_operation(
         operation_schema *scheme,
         sharp_label* label);
+
+void create_jump_if_false_operation(
+        operation_schema *scheme,
+        Int label);
 
 void create_jump_if_true_operation(
         operation_schema *scheme,

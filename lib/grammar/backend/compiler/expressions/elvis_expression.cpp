@@ -30,7 +30,7 @@ void compile_elvis_expression(expression *e, Ast *ast) {
 
         if(!(is_implicit_type_match(objectType, nullableExpression.type, exclude_all)
             && is_implicit_type_match(objectType, fallbackExpression.type, exclude_all))) {
-            currThread->currTask->file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+            create_new_error(INTERNAL_ERROR, ast->line, ast->col,
                                   " expressions are not compatible and cannot be converted to type `object`, please check types and try again.");
         } else {
             e->type.copy(objectType.type);

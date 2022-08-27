@@ -8,7 +8,7 @@ import (
 class time {
     static infinite := -1;
 
-    static def nano_time() : var {
+    static def nano_time() : int {
         now: var;
 
         asm
@@ -22,31 +22,31 @@ class time {
     static def get_os_time(tr: time_request)
        := vm.get_os_time(tr.get_ordinal());
 
-    static def nano_to_micro(nano: var) : var {
+    static def nano_to_micro(nano: int) : int {
         return nano/1000;
     }
 
-    static def nano_to_mills(nano: var) : var {
+    static def nano_to_mills(nano: int) : int {
         return nano_to_micro(nano)/1000;
     }
 
-    public static def nano_to_secs(nano: var) : var {
+    public static def nano_to_secs(nano: int) : int {
         return nano_to_mills(nano)/1000;
     }
 
-    static def mills_time() : var {
+    static def mills_time() : int {
         return nano_to_mills(nano_time());
     }
 
-    static def micro_time() : var {
+    static def micro_time() : int {
         return nano_to_micro(nano_time());
     }
 
-    static def sleep(time: var) {
+    static def sleep(time: int) {
         sleep(time_unit.milliseconds, time);
     }
 
-    static def sleep(tm_unit: time_unit, time: var) {
+    static def sleep(tm_unit: time_unit, time: int) {
         if(time < 0)
             throw new error("cannot sleep for negative time: $time");
 
@@ -64,7 +64,7 @@ class time {
         }
     }
 
-    static def wait(tm_unit: time_unit, time: var) {
+    static def wait(tm_unit: time_unit, time: int) {
         if(time != infinite) {
             if(time < 0)
                 throw new error("cannot sleep for negative time: $time");
@@ -90,7 +90,7 @@ class time {
      * We need to adjust the time to make sure the user will not be
      * waiting for 5 seconds instead of 5ms
      */
-    private static def adjust_time(usec: var) : var {
+    private static def adjust_time(usec: int) : int {
 
         if(build.is_windows()) {
             return usec/1000;
@@ -99,7 +99,7 @@ class time {
         return usec;
     }
 
-    static def measure(tm_unit: time_unit, block: ()()) : var {
+    static def measure(tm_unit: time_unit, block: ()()) : int {
         start := nano_time(), end;
         block();
         end = nano_time();
@@ -122,7 +122,7 @@ class time {
         return end - start;
     }
 
-    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : var {
+    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : int {
         start := nano_time(), end;
         block(args);
         end = nano_time();

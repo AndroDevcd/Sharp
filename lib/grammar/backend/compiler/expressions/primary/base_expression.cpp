@@ -6,6 +6,7 @@
 #include "../../../../taskdelegator/task_delegator.h"
 #include "../../../types/sharp_class.h"
 #include "self_expression.h"
+#include "../../../../compiler_info.h"
 
 void compile_base_expression(expression *e, Ast *ast) {
     sharp_class *primary
@@ -23,18 +24,18 @@ sharp_class* compile_base_class(Ast *ast) {
             if(is_implicit_type_match(primary, baseType._class)) {
                 return baseType._class;
             } else {
-                currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col, "class `" + baseType._class->fullName
+                create_new_error(GENERIC, ast->line, ast->col, "class `" + baseType._class->fullName
                               + "` is not a base class of primary class `" + primary->fullName + "`.");
             }
         } else {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col, "unexpected type of `" + type_to_str(baseType)
+            create_new_error(GENERIC, ast->line, ast->col, "unexpected type of `" + type_to_str(baseType)
                           + "`, instead of `class` type.");
         }
     } else {
         if(primary->baseClass != NULL)
             return primary->baseClass;
         else {
-            currThread->currTask->file->errors->createNewError(GENERIC, ast->line, ast->col, "class `" + primary->fullName
+            create_new_error(GENERIC, ast->line, ast->col, "class `" + primary->fullName
                 + "` does not contain a base class.");
         }
     }

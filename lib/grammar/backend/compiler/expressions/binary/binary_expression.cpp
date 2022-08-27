@@ -35,7 +35,7 @@ void compile_binary_expression(expression *e, Ast *ast) {
 
 void expressions_array_check(sharp_type &type, Token &op, Ast *ast) {
     if(type.isArray) {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                                                            "expression of type `" + type_to_str(type) + "` must be of type `class` or numeric to use `" + op.getValue() + "` operator");
     }
 }
@@ -56,13 +56,13 @@ bool compile_expression_exceptions(
         bool allowObject = false) {
     switch(e.type.type) {
         case type_nil: {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast, "cannot use `" + operand.getValue() + "` operator on expression that returns nil");
             return true;
         }
 
         case type_untyped: {
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     INTERNAL_ERROR, ast, "cannot apply `" + operand.getValue() + "` operator to untyped expression.");
             return true;
         }
@@ -73,7 +73,7 @@ bool compile_expression_exceptions(
         case type_object: {
             if(allowObject) return false;
 
-            currThread->currTask->file->errors->createNewError(GENERIC, ast,
+            create_new_error(GENERIC, ast,
                                                                "expressions of type object must be casted before using `" + operand.getValue() + "` operator, try `(<your-expression> as Type)" + operand.getValue() + " ...` instead");
             return true;
         }
@@ -168,7 +168,7 @@ void  compile_binary_string_expression(
         paramOperations.add(new operation_schema(right.scheme));
         compile_class_function_overload(string_class, *e, params, paramOperations, operand.getValue(), ast);
     } else {
-        currThread->currTask->file->errors->createNewError(
+        create_new_error(
                 INTERNAL_ERROR, ast->getSubAst(1), "could not find support function in string class for type `" + type_to_str(left.type) + "`");
     }
 }
@@ -322,8 +322,10 @@ void compile_binary_integer_expression(
                     goto error;
                 }
             }
-            if(operand == "||") { // todo: make "&&" like "||" as well to allow "&&" shor circuting
+            if(operand == "||") {
                 create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
+            } else if(operand == "&&") {
+                create_and_and_operation(&e->scheme, &left.scheme, &right.scheme);
             } else {
                 ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
                       create_get_value_operation(&e->scheme, &right.scheme, false);
@@ -339,8 +341,6 @@ void compile_binary_integer_expression(
                           create_xor_operation(&e->scheme, register_0, register_1);
                       } else if (operand == "|") {
                           create_or_operation(&e->scheme, register_0, register_1);
-                      } else if (operand == "&&") {
-                          create_and_and_operation(&e->scheme, register_0, register_1);
                       } else if (operand == "==") {
                           create_eq_eq_operation(&e->scheme, register_0, register_1);
                       } else if (operand == "!=") {
@@ -381,7 +381,7 @@ void compile_binary_integer_expression(
 
         default: {
             error:
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->getSubAst(1), "expected numeric type, unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
             break;
         }
@@ -425,6 +425,8 @@ void compile_binary_numeric_expression(
             }
             if(operand == "||") {
                 create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
+            } else if(operand == "&&") {
+                create_and_and_operation(&e->scheme, &left.scheme, &right.scheme);
             } else {
                 if (left.scheme.schemeType == scheme_binary_math) {
                     ALLOCATE_REGISTER_1X(0, &e->scheme,
@@ -438,8 +440,6 @@ void compile_binary_numeric_expression(
                              create_xor_operation(&e->scheme, -1, register_0);
                          } else if (operand == "|") {
                              create_or_operation(&e->scheme, -1, register_0);
-                         } else if (operand == "&&") {
-                             create_and_and_operation(&e->scheme, -1, register_0);
                          } else if (operand == "==") {
                              create_eq_eq_operation(&e->scheme, -1, register_0);
                          } else if (operand == "!=") {
@@ -485,8 +485,6 @@ void compile_binary_numeric_expression(
                              create_xor_operation(&e->scheme, register_0, register_1);
                          } else if (operand == "|") {
                              create_or_operation(&e->scheme, register_0, register_1);
-                         } else if (operand == "&&") {
-                             create_and_and_operation(&e->scheme, register_0, register_1);
                          } else if (operand == "==") {
                              create_eq_eq_operation(&e->scheme, register_0, register_1);
                          } else if (operand == "!=") {
@@ -528,7 +526,7 @@ void compile_binary_numeric_expression(
 
         default: {
             error:
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->getSubAst(1), "expected numeric type, unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
             break;
         }
@@ -564,7 +562,7 @@ void compile_binary_object_expression(
         case type_class:
         case type_field: {
             if(left.type.isArray != right.type.isArray) {
-                currThread->currTask->file->errors->createNewError(
+                create_new_error(
                         GENERIC, ast->getSubAst(1), "mismatched array types, unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`.");
                 break;
             }
@@ -593,7 +591,7 @@ void compile_binary_object_expression(
 
         default: {
             error:
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->getSubAst(1), "expected object type, unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
             break;
         }
@@ -673,7 +671,7 @@ void compile_binary_expression(
                 if (result == no_match_found) {
                     goto error;
                 } else if(result == indirect_match_w_nullability_mismatch && right.type != type_null && left.type != type_null) {
-                    currThread->currTask->file->errors->createNewError(
+                    create_new_error(
                             NULLABILITY_MISMATCH, ast->getSubAst(0), ", unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
                 } else if(result == match_operator_overload) {
                     goto _overload;
@@ -707,7 +705,7 @@ void compile_binary_expression(
 
         default: {
             error:
-            currThread->currTask->file->errors->createNewError(
+            create_new_error(
                     GENERIC, ast->getSubAst(0), "unqualified use  of operator `"
                     + operand.getValue() + "` with type `" + type_to_str(left.type) + "` and `" + type_to_str(right.type) + "`");
             break;

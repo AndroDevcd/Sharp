@@ -153,7 +153,7 @@ public:
     uint64_t getUnfilteredErrorCount() { return unfilteredErrors->size(); }
     int createNewError(error_type err, Token token, string xcmts = "");
     int createNewError(error_type err, Ast* pAst, string xcmts = "");
-    void createNewError(error_type err, int line, int col, string xcmts = "");
+    Int createNewError(error_type err, int line, int col, string xcmts = "");
     void createNewWarning(error_type err, int line, int col, string xcmts);
     void createNewWarning(error_type err, Ast* pAst, string xcmts);
     bool hasErrors();

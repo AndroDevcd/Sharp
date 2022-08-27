@@ -64,7 +64,7 @@ void compile_mutation(Ast* ast) {
             compile_class(NULL, with_class, ast);
         }
     } else {
-        currThread->currTask->file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                                                            "expected mutate host to be of type `class` but was found to be of type `" + type_to_str(resolvedType) + "`");
     }
 }

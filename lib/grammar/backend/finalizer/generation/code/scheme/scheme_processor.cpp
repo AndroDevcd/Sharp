@@ -76,6 +76,7 @@
 #include "scheme_check_type.h"
 #include "scheme_lock.h"
 #include "scheme_call_getter_function.h"
+#include "scheme_and.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -212,7 +213,7 @@ void process_scheme(operation_schema *scheme) {
                 return process_throw_scheme(scheme);
             case scheme_continue:
                 return process_continue_scheme(scheme);
-            case scheme_break: // todo: finish processing the remaining schemes and steps
+            case scheme_break:
                 return process_break_scheme(scheme);
             case scheme_none:
                 generation_error("Scheme is missing type!");
@@ -225,8 +226,11 @@ void process_scheme(operation_schema *scheme) {
             case scheme_call_getter_function:
                 process_call_getter_function_scheme(scheme);
                 break;
+            case scheme_and:
+                process_and_scheme(scheme);
+                break;
             case scheme_label:
-                // todo:  not supprted as of now
+                // not supported as of now
                 break;
             default:
                 generation_error("attempt to execute unknown scheme!");
@@ -250,9 +254,6 @@ void process_scheme_steps(operation_schema *scheme) {
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container) {
     update_context(ci, container);
     generate_initial_closure_setup(container);
-    if(container->name == "foo") {
-        int r = 0;
-    }
     process_scheme(scheme);
     flush_context();
 }

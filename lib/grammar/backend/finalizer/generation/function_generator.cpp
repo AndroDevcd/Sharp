@@ -11,11 +11,15 @@
 #include "code/scheme/step_processor.h"
 
 uInt functionAddressCounter = 0;
+uInt delegateFunctionAddressCounter = 0;
 void generate_address(sharp_function *sf) {
     if(sf->ci == NULL) {
         sf->ci = new code_info();
         sf->ci->uuid = UUIDGenerator++;
-        sf->ci->address = functionAddressCounter++;
+        if(sf->type == delegate_function)
+            sf->ci->address = delegateFunctionAddressCounter++;
+        else
+            sf->ci->address = functionAddressCounter++;
         compressedCompilationFunctions.addif(sf);
     }
 }
@@ -26,15 +30,23 @@ code_info* get_or_initialize_code(sharp_function *sf) {
 }
 
 void generate(sharp_function *sf) {
-    for(Int i = 0; i < sf->locals.size(); i++) {
-        generate_address(sf->locals.get(i), i);
+    if(sf->type == delegate_function) {
+        return;
     }
+
+    for(Int i = 0; i < sf->locals.size(); i++) {
+        generate_address(sf->locals.get(i), i, check_flag(sf->flags, flag_static));
+    }
+
 
     process_scheme(sf->scheme, sf->ci, sf);
 
+    if(sf->ci->code.empty()) {
+        int r = 0;
+    }
 
     if(sf->name == "foo") {
-        cout << "code:\n\n" << code_to_string(sf->ci);
+        cout << sf->fullName << " code:\n\n" << code_to_string(sf->ci) << endl;
     }
 }
 

@@ -7,6 +7,7 @@
 #include "../operation/operation.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "sharp_function.h"
+#include "../../compiler_info.h"
 
 sharp_label* create_label(
         string name,
@@ -22,9 +23,9 @@ sharp_label* create_label(
             context->functionCxt->labels.add(label);
             return label;
         } else {
-            if(currThread->currTask->file->errors->createNewError(
+            if(create_new_error(
                     PREVIOUSLY_DEFINED, createLocation, "label `" + name +
-                                                        "` is already defined"))
+                                                        "` is already defined") == 0)
                 print_impl_location(label->name, "label", label->location);
             return label;
         }

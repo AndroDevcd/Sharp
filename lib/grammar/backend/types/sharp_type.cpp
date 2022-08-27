@@ -277,14 +277,14 @@ uInt is_implicit_type_match(
                && ((matchedFun = resolve_function(comparer._class->name, comparer._class,
                                     params, constructor_function,
                                     match_constructor | match_initializer | match_operator_overload,
-                                    NULL, true, true)) != NULL)) {
+                                    NULL, false, true)) != NULL)) {
 
                 result |= match_constructor;
             } else if(!has_match_result_flag(excludedMatches, match_initializer)
                && ((matchedFun = resolve_function("init<"+ comparer._class->name + ">", comparer._class,
                                     params, initializer_function,
                                     match_constructor | match_initializer | match_operator_overload,
-                                    NULL, true, true)) != NULL)) {
+                                    NULL, false, true)) != NULL)) {
                 result |= match_initializer;
             } else if(!has_match_result_flag(excludedMatches, match_operator_overload)
                && ((matchedFun = resolve_function("operator=", comparer._class,
@@ -304,7 +304,8 @@ uInt is_implicit_type_match(
             return with_result(comparee.type == type_class
                    || comparee.type == type_object
                    || (comparee.type > type_var && comparee.isArray)
-                   || (comparee.type <= type_var && comparee.isArray && !comparer.isArray), nullability_check(comparer, comparee, indirect_match));
+                   || (comparee.type <= type_var && comparee.isArray && !comparer.isArray),
+                   nullability_check(comparer, comparee, indirect_match));
         }
 
         case type_int8:
