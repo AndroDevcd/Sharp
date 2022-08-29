@@ -10,7 +10,7 @@
 void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     stringstream ss;
     string std = "std";
-    sharp_class *loopableClass = resolve_class(get_module(std), "loopable", true, false); // todo: fix bug later where 2 interfaces have the same function signatire and is inherited by a class and 1 function is valid for both interfaces
+    sharp_class *loopableClass = resolve_class(get_module(std), "loopable", true, false);
     sharp_field *iteratorField = NULL, *indexField = NULL, *resultField = NULL;
     sharp_function *initializer_function = NULL;
     sharp_label *beginLabel, *endLabel;
@@ -61,6 +61,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
     }
 
 
+    create_block(&current_context, normal_block);
     if(ast->getSubAst(ast_utype_arg)->hasSubAst(ast_utype)) {
         string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
         fieldType.copy(resolve(ast->getSubAst(ast_utype_arg)->getSubAst(ast_utype)));
@@ -75,7 +76,6 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         tmp.isArray = false;
         tmp.nullable = tmp.nullableItems;
 
-        // todo add explicit support from "object" to class type for object[] support
         if(tmp.type == type_object && get_class_type(fieldType)) {
             iterator_match_result = indirect_match;
         } else if((iterator_match_result = is_implicit_type_match(fieldType, tmp, match_operator_overload, initializer_function)) == no_match_found) {
@@ -88,7 +88,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
 
         fieldType.copy(get_real_type(arrayExpr.type));
         fieldType.isArray = false;
-        fieldType.nullable = false; // todo surround this with block creation
+        fieldType.nullable = false;
         iteratorField = create_local_field(current_file, &current_context, name, flags, fieldType, normal_field, ast->getSubAst(ast_utype_arg));
         iterator_match_result = direct_match;
     }
@@ -107,7 +107,10 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
          create_local_field_access_operation(indexVariableScheme, indexField);
          create_get_value_operation(&scheme_0, indexVariableScheme, false, false);
          create_pop_value_from_stack_operation(&scheme_0);
-                 create_unused_data_operation(&scheme_0);
+         create_unused_data_operation(&scheme_0);
+
+         delete indexValueScheme;
+         delete indexVariableScheme;
     )
 
     set_internal_variable_name(ss, "foreach_array_result", uniqueId++)
@@ -123,7 +126,9 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
          create_local_field_access_operation(resultVariableScheme, resultField);
          create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
          create_pop_value_from_stack_operation(&scheme_0);
-                 create_unused_data_operation(&scheme_0);
+         create_unused_data_operation(&scheme_0);
+
+         delete resultVariableScheme;
     )
 
     create_set_label_operation(subScheme, beginLabel);
@@ -194,6 +199,8 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
             create_get_value_operation(&scheme_0, iteratorVariableScheme, false, false);
             create_pop_value_from_stack_operation(&scheme_0);
             scheme_0.schemeType = scheme_assign_value;
+
+            delete iteratorVariableScheme;
         )
 
 
@@ -219,6 +226,8 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                    create_local_field_access_operation(iteratorVariableScheme, iteratorField);
                    create_get_value_operation(&scheme_6, iteratorVariableScheme, false, false);
                    create_pop_value_from_stack_operation(&scheme_6);
+
+                   delete iteratorVariableScheme;
             )
         } else if (iterator_match_result == indirect_match) {
             APPLY_TEMP_SCHEME_WITH_TYPE(6, scheme_assign_value, *subScheme,
@@ -232,15 +241,19 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
 
                    if(get_class_type(iteratorField->type) != NULL)
                        create_cast_operation(&scheme_6, &iteratorField->type);
+
+                   delete iteratorVariableScheme;
             )
         }
     }
 
     compile_block(ast->getSubAst(ast_block), subScheme, for_each_block, beginLabel, endLabel);
+    delete_block();
     current_context.blockInfo.reachable = true;
 
     create_jump_operation(subScheme, beginLabel);
     create_set_label_operation(subScheme, endLabel);
 
     add_scheme_operation(scheme, subScheme);
+    delete subScheme;
 }

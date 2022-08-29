@@ -555,7 +555,7 @@ string code_to_string(code_info *info) {
             }
             case Opcode::MOVG:
             {
-                ss<<"movg @"<< GET_Da(opcodeData);
+                ss<<"movg @" << compressedCompilationClasses.get(GET_Da(opcodeData))->fullName;
 
                 break;
             }

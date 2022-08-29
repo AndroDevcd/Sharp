@@ -259,7 +259,7 @@ void validate_function_type(
     } else if(type.type == type_null) {
         fun->returnType.type = type_object;
         return;
-    } else if(type.type == type_string) { // todo: default it to string type
+    } else if(type.type == type_string) {
         fun->returnType.type = type_int8;
         fun->returnType.isArray = true;
         return;

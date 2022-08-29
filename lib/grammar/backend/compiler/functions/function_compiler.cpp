@@ -13,6 +13,7 @@
 #include "../../../settings/settings.h"
 #include "../../postprocessor/function_processor.h"
 #include "../mutate_compiler.h"
+#include "init_compiler.h"
 
 void check_main_method_signature(sharp_function *function) {
     if(get_primary_class(&current_context) != NULL && check_flag(get_primary_class(&current_context)->flags, flag_global)
@@ -77,7 +78,10 @@ void check_main_method_signature(sharp_function *function) {
     }
 }
 
-void call_base_constructor(Ast *ast, sharp_function *function) {
+void add_base_constructor(Ast *ast, sharp_function *function) {
+    if(function->owner->fullName == "std#_object_")
+        return;
+
     if(ast->hasSubAst(ast_base_class_constructor)) {
         Ast *baseClassConstr = ast->getSubAst(ast_base_class_constructor);
 
@@ -106,8 +110,10 @@ void call_base_constructor(Ast *ast, sharp_function *function) {
                          params,constructor_function, constructor_only, baseClassConstr, false, true);
 
             if(constructor != NULL) {
-                compile_function_call(function->scheme, params, paramOperations, constructor, false, true,
-                                      false);
+                APPLY_TEMP_SCHEME(0, *function->scheme,
+                     compile_function_call(&scheme_0, params, paramOperations, constructor, false, true,
+                                           false);
+                )
             } else {
                 current_file->errors->createNewError(GENERIC, baseClassConstr->line, baseClassConstr->col,
                                        " could not resolve base class constructor in class `" +
@@ -123,11 +129,13 @@ void call_base_constructor(Ast *ast, sharp_function *function) {
             List<expression*> expressions;
             List<sharp_field*> params;
             List<operation_schema*> paramOperations;
-            sharp_function *constructor = resolve_function(function->owner->name, function->owner,
+            sharp_function *constructor = resolve_function(function->owner->baseClass->name, function->owner->baseClass,
                                                            params,constructor_function, constructor_only, function->ast, false, true);
 
             if(constructor != NULL) {
-                compile_function_call(function->scheme, params, paramOperations, constructor, false, true, false);
+                APPLY_TEMP_SCHEME(0, *function->scheme,
+                    compile_function_call(&scheme_0, params, paramOperations, constructor, false, true, false);
+                )
             } else {
                 current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
                                        " could not resolve base class constructor `" + function->owner->baseClass->name + "` in `" +
@@ -254,10 +262,6 @@ void compile_function(sharp_function *function, Ast *ast) {
     bool codePathsReturnValue;
 
     GUARD(globalLock)
-
-    if(function->name == "foo") {
-        int r = 0;
-    }
     if(function->type == initializer_function) {
         codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
     } else {
@@ -311,8 +315,10 @@ void compile_function(sharp_function *function, Ast *ast) {
         } else {
             if(function->type == constructor_function) {
                 create_block(&current_context, normal_block);
-                call_base_constructor(ast, function);
+                add_base_constructor(ast, function);
                 delete_block();
+
+                compile_initialization_paring(function);
             }
 
             codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
@@ -323,6 +329,8 @@ void compile_function(sharp_function *function, Ast *ast) {
                 )
             }
         }
+
+        function->returnProtected = true;
     }
 
 
@@ -338,13 +346,13 @@ bool compile_block(
         block_type bt,
         sharp_label *beginLabel,
         sharp_label *endLabel,
-        operation_schema *lockScheme,
+        Ast *lockExpression,
         sharp_label *finallyLabel) {
     create_block(&current_context, bt);
     current_context.blockInfo.beginLabel = beginLabel;
     current_context.blockInfo.endLabel = endLabel;
-    if(lockScheme)
-        current_context.blockInfo.lockScheme = new operation_schema(*lockScheme);
+    if(lockExpression)
+        current_context.blockInfo.lockExpression = lockExpression;
     current_context.blockInfo.finallyLabel = finallyLabel;
     operation_schema *blockScheme = new operation_schema(scheme_master);
 

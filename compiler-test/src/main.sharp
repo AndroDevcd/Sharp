@@ -23,9 +23,22 @@ const slices := 10;
 const n := 0;
 counter := new atomic<var>(0);
 
-class ff {
+interface a {
+    def poop();
+}
+
+interface b {
+    def poop();
+}
+
+
+class ff : a,b {
     x : var[];
     y : int;
+
+    override def poop() {
+
+    }
 
     static def flarky()  {
 

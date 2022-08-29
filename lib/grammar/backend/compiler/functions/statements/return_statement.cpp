@@ -14,8 +14,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     sharp_function *function = NULL;
     uInt match_result;
     expression returnVal;
-    List<operation_schema*> lockSchemes;
+    List<Ast*> lockExpressions;
     sharp_field *returnAddressField = NULL;
+    sharp_field *tempRetDataField = NULL;
     stringstream ss;
     sharp_label *returnStartLabel;
     operation_schema *subScheme = new operation_schema();
@@ -31,8 +32,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     set_internal_label_name(ss, "return_begin", uniqueId++)
     returnStartLabel = create_label(ss.str(), &current_context, ast, subScheme);
     sharp_label *finallyLabel = retrieve_next_finally_label(&current_context.blockInfo);
+    retrieve_lock_expressions(&current_context.blockInfo, lockExpressions);
 
-    if(finallyLabel != NULL) { // todo: if finally or lock get return value and push to stack first
+    if(finallyLabel != NULL) {
         uInt flags = flag_public;
         set_internal_variable_name(ss, "return_address", 0)
         if ((returnAddressField = resolve_local_field(ss.str(), &current_context)) == NULL) {
@@ -53,31 +55,58 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
                create_local_field_access_operation(addressVariableScheme, returnAddressField);
                create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
                create_pop_value_from_stack_operation(&scheme_0);
-                       create_unused_data_operation(&scheme_0);
+               create_unused_data_operation(&scheme_0);
+
+               delete addressValueScheme;
+               delete addressVariableScheme;
         )
 
         create_jump_operation(subScheme, finallyLabel);
     }
 
-
     create_set_label_operation(subScheme, returnStartLabel);
-    retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
-    for(Int i = 0; i < lockSchemes.size(); i++) { // todo look into also processing finally blocks in the same way
-        operation_schema* tmp = new operation_schema();
-        create_unlock_operation(tmp, lockSchemes.get(i));
-        add_scheme_operation(subScheme, tmp);
+    if(!lockExpressions.empty() && returnVal.type != type_nil) {
+        uInt flags = flag_public;
+        set_internal_variable_name(ss, "return_data", uniqueId++)
+        tempRetDataField = create_local_field(current_file, &current_context, ss.str(), flags, returnVal.type,
+                                              normal_field, ast);
+        create_dependency(tempRetDataField);
+
+        APPLY_TEMP_SCHEME(0, *subScheme,
+           operation_schema *fieldScheme = new operation_schema();
+           create_local_field_access_operation(fieldScheme, tempRetDataField);
+           create_value_assignment_operation(&scheme_0, fieldScheme, &returnVal.scheme);
+           create_unused_data_operation(&scheme_0);
+
+           delete fieldScheme;
+        )
+
+        returnVal.scheme.free();
+        create_local_field_access_operation(&returnVal.scheme, tempRetDataField);
     }
 
-    auto *f = current_context.functionCxt;
+    for(Int i = 0; i < lockExpressions.size(); i++) {
+        operation_schema* tmp = new operation_schema();
+        expression e;
+
+        compile_expression(e, lockExpressions.at(i));
+        create_unlock_operation(tmp, &e.scheme);
+        add_scheme_operation(subScheme, tmp);
+
+        delete tmp;
+    }
 
     match_result = is_implicit_type_match(current_context.functionCxt->returnType, returnVal.type, constructor_only, function);
     if(match_result == match_constructor) {
         operation_schema* tmp = new operation_schema();
         compile_initialization_call(ast, function, returnVal, tmp);
         create_object_return_operation(subScheme, tmp);
+
+        delete tmp;
     } else if(is_match_normal(match_result)) {
-        if(is_numeric_type(returnVal.type) && !returnVal.type.isArray)
+        if(is_numeric_type(returnVal.type) && !returnVal.type.isArray) {
             create_numeric_return_operation(subScheme, &returnVal.scheme);
+        }
         else if(returnVal.type.type == type_nil)
             create_return_operation(subScheme);
         else create_object_return_operation(subScheme, &returnVal.scheme);
@@ -96,4 +125,5 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
 
     add_scheme_operation(scheme, subScheme);
     controlPaths[MAIN_CONTROL_PATH] = true;
+    delete subScheme;
 }

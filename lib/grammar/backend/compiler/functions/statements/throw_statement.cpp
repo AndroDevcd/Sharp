@@ -30,4 +30,5 @@ void compile_throw_statement(Ast *ast, operation_schema *scheme, bool *controlPa
     }
 
     add_scheme_operation(scheme, subScheme);
+    delete subScheme;
 }

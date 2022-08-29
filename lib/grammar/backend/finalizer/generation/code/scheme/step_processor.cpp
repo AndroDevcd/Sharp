@@ -29,6 +29,8 @@ void validate_step_type(operation_step *step, operation_type type) {
 }
 
 void process_step(operation_step *step) {
+    currentStep = step;
+
     switch (step->type) {
         case operation_get_static_class_instance:
             return process_get_static_class_instance(step);
@@ -94,6 +96,10 @@ void process_step(operation_step *step) {
             return process_push_value_to_stack(step);
         case operation_pop_value_from_stack:
             return process_pop_value_from_stack(step);
+        case operation_pop_direct_numeric_value_from_stack:
+            return process_pop_direct_numeric_value_from_stack(step);
+        case operation_pop_direct_object_value_from_stack:
+            return process_pop_direct_object_value_from_stack(step);
         case operation_allocate_register:
             return process_allocate_register(step);
         case operation_discard_register:
@@ -201,6 +207,8 @@ void process_step(operation_step *step) {
             return process_exponent(step);
         case operation_check_null:
             return process_check_null(step);
+        case operation_set_current_data_as_object:
+            return process_set_current_data_as_object(step);
         case operation_instance_eq:
             return process_instance_eq(step);
         case operation_instance_not_eq:
@@ -556,8 +564,15 @@ void process_instance_not_eq(operation_step *step) {
 void process_check_null(operation_step *step) {
     validate_step_type(step, operation_check_null);
 
+    consume_machine_data();
     add_instruction(Opcode::Builder::checkNull(CMT));
     set_machine_data(get_register(CMT));
+}
+
+void process_set_current_data_as_object(operation_step *step) {
+    validate_step_type(step, operation_set_current_data_as_object);
+
+    set_machine_data(generic_object_data);
 }
 
 void process_exponent(operation_step *step) {
@@ -1051,6 +1066,24 @@ void process_push_value_to_stack(operation_step *step) {
     validate_step_type(step, operation_push_value_to_stack);
 
     push_machine_data_to_stack();
+}
+
+void process_pop_direct_numeric_value_from_stack(operation_step *step) {
+    validate_step_type(step, operation_pop_direct_numeric_value_from_stack);
+
+
+    auto reg = find_register(step->integer);
+    set_machine_data(reg);
+    pop_machine_data_from_stack();
+
+    set_machine_data(reg);
+}
+
+void process_pop_direct_object_value_from_stack(operation_step *step) {
+    validate_step_type(step, operation_pop_direct_object_value_from_stack);
+
+    add_instruction(Opcode::Builder::popObject2());
+    set_machine_data(generic_object_data);
 }
 
 void process_pop_value_from_stack(operation_step *step) {

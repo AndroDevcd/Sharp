@@ -75,7 +75,7 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
 
         if(constructor != NULL) {
             operation_schema valueScheme;
-            compile_initialization_call(ast, enumClass, constructor, params, paramOperations, &valueScheme); // todo I think we may need to create a dup opcode here becuase the function will use the newed up class in the sack and the lower scope wold be able to pop it off after
+            compile_initialization_call(ast, enumClass, constructor, params, paramOperations, &valueScheme);
 
             deleteList(params);
             sharp_function *init_function = resolve_function(

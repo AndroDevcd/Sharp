@@ -77,6 +77,7 @@
 #include "scheme_lock.h"
 #include "scheme_call_getter_function.h"
 #include "scheme_and.h"
+#include "../../../../../../util/File.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -254,6 +255,12 @@ void process_scheme_steps(operation_schema *scheme) {
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container) {
     update_context(ci, container);
     generate_initial_closure_setup(container);
+    if(container->fullName == "platform.kernel#platform.static_init")
+        generate_static_class_setup();
+
     process_scheme(scheme);
+
+    if(!container->returnProtected)
+        add_instruction(Opcode::Builder::ret(NO_ERR));
     flush_context();
 }

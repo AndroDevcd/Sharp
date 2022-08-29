@@ -41,4 +41,5 @@ void compile_while_statement(Ast *ast, operation_schema *scheme, bool *controlPa
     create_set_label_operation(subScheme, endLabel);
 
     add_scheme_operation(scheme, subScheme);
+    delete subScheme;
 }

@@ -22,7 +22,7 @@ void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPat
         || cond.type.isArray) {
         create_lock_operation(subScheme, &cond.scheme);
 
-        if(compile_block(ast->getSubAst(ast_block), subScheme, lock_block, NULL, NULL, &cond.scheme)) {
+        if(compile_block(ast->getSubAst(ast_block), subScheme, lock_block, NULL, NULL, ast->getSubAst(ast_expression))) {
             controlPaths[MAIN_CONTROL_PATH] = true;
         }
         add_scheme_operation(scheme, subScheme);
@@ -30,4 +30,5 @@ void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPat
         current_file->errors->createNewError(GENERIC, ast->line, ast->col, "attempt to lock non-lockable object of type `" +
                 type_to_str(cond.type) + "`.");
     }
+    delete subScheme;
 }

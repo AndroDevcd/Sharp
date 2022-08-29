@@ -114,6 +114,7 @@ void create_class_init_functions(sharp_class *with_class, Ast *ast) {
                 void_type, ast, function
         );
 
+        with_class->staticInit = function;
         function->scheme = new operation_schema(scheme_master);
     }
 

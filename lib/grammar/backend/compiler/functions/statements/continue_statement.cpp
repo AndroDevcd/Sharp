@@ -5,6 +5,7 @@
 #include "continue_statement.h"
 #include "../../../../compiler_info.h"
 #include "../../../types/types.h"
+#include "../../expressions/expression.h"
 
 
 stored_block_info* retrieve_loop_block() {
@@ -21,7 +22,7 @@ stored_block_info* retrieve_loop_block() {
 }
 
 void compile_continue_statement(Ast *ast, operation_schema *scheme) {
-    List<operation_schema*> lockSchemes;
+    List<Ast*> lockExpressions;
     stored_block_info* info;
     sharp_field *returnAddressField = NULL;
     stringstream ss;
@@ -59,18 +60,26 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
                create_local_field_access_operation(addressVariableScheme, returnAddressField);
                create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
                create_pop_value_from_stack_operation(&scheme_0);
-                       create_unused_data_operation(&scheme_0);
+               create_unused_data_operation(&scheme_0);
+
+               delete addressVariableScheme;
+               delete addressValueScheme;
         )
 
         create_jump_operation(subScheme, finallyLabel);
     }
 
     create_set_label_operation(subScheme, continueStartLabel);
-    retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
-    for(Int i = 0; i < lockSchemes.size(); i++) {
+    retrieve_lock_expressions(&current_context.blockInfo, lockExpressions);
+    for(Int i = 0; i < lockExpressions.size(); i++) {
         operation_schema* tmp = new operation_schema();
-        create_unlock_operation(tmp, lockSchemes.get(i));
+        expression e;
+
+        compile_expression(e, lockExpressions.at(i));
+        create_unlock_operation(tmp, &e.scheme);
         add_scheme_operation(subScheme, tmp);
+
+        delete tmp;
     }
 
     info = retrieve_loop_block();
@@ -81,4 +90,5 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
     create_jump_operation(subScheme, info->beginLabel);
     add_scheme_operation(scheme, subScheme);
     current_context.blockInfo.reachable = false;
+    delete subScheme;
 }

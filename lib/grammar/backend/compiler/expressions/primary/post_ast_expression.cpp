@@ -59,7 +59,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                 funPtr = e->type.fun;
             } else if(e->type.type == type_field
                       && e->type.field->type.type == type_function_ptr) {
-                funPtr = e->type.field->type.fun; // todo: track whether or not function pointer and perform dynamic call below
+                funPtr = e->type.field->type.fun;
             }
 
             if(funPtr != NULL) {

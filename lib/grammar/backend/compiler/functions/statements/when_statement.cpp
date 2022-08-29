@@ -45,6 +45,8 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                     compile_expression(comparer, expressionAst);
 
                     if(ast->hasSubAst(ast_expression)) {
+                        recompile_expression(cond, ast->getSubAst(ast_expression));
+
                         compile_binary_expression(&out, branch, cond, comparer, operand);
                         if(!is_evaluable_type(out.type)) {
                             current_file->errors->createNewError(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
@@ -79,6 +81,8 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                 current_context.blockInfo.reachable = true;
                 create_set_label_operation(whenClauseScheme, nextClauseLabel);
                 add_scheme_operation(subScheme, whenClauseScheme);
+
+                delete whenClauseScheme;
                 break;
             }
 
@@ -87,6 +91,8 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                 controlPaths[WHEN_ELSE_CONTROL_PATH] =
                         compile_block(branch->getSubAst(ast_block), whenElseClauseScheme, when_block);
                 add_scheme_operation(subScheme, whenElseClauseScheme);
+
+                delete whenElseClauseScheme;
                 break;
             }
 
@@ -97,4 +103,5 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
 
     create_set_label_operation(subScheme, endLabel);
     add_scheme_operation(scheme, subScheme);
+    delete subScheme;
 }

@@ -25,6 +25,7 @@ struct sharp_function {
             name(""),
             fullName(""),
             owner(NULL),
+            baseConstructor(NULL),
             implLocation(),
             dependencies(),
             flags(flag_none),
@@ -34,6 +35,7 @@ struct sharp_function {
             delegate(NULL),
             ci(NULL),
             used(false),
+            returnProtected(false),
             parameters(),
             returnType(),
             locals(),
@@ -53,6 +55,8 @@ struct sharp_function {
             dependencies(sf.dependencies),
             impls(sf.impls),
             flags(sf.flags),
+            returnProtected(sf.returnProtected),
+            baseConstructor(sf.baseConstructor),
             ast(sf.ast),
             delegate(sf.delegate),
             parameters(),
@@ -98,8 +102,10 @@ struct sharp_function {
             aliases(),
             labels(),
             used(false),
+            returnProtected(false),
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
+            baseConstructor(NULL),
             closure(NULL),
             delegate(NULL),
             ci(NULL)
@@ -134,8 +140,10 @@ struct sharp_function {
     sharp_function* delegate;
     List<sharp_function*> impls;
     sharp_type returnType;
+    sharp_function* baseConstructor;
     function_type type;
     bool used;
+    bool returnProtected;
     code_info *ci;
     uInt flags;
     Ast* ast;

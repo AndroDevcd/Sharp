@@ -41,11 +41,7 @@ void generate(sharp_function *sf) {
 
     process_scheme(sf->scheme, sf->ci, sf);
 
-    if(sf->ci->code.empty()) {
-        int r = 0;
-    }
-
-    if(sf->name == "foo") {
+    if(sf->type == constructor_function) {
         cout << sf->fullName << " code:\n\n" << code_to_string(sf->ci) << endl;
     }
 }
@@ -67,6 +63,16 @@ void generate_initial_closure_setup(sharp_function *sf) {
 
             set_machine_data(closure, false);
             pop_machine_data_from_stack();
+        }
+    }
+}
+
+void generate_static_class_setup() {
+    for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
+        sharp_class *sc = compressedCompilationClasses.get(i);
+
+        if(sc->staticInit != NULL && sc->staticInit->used) {
+            add_instruction(Opcode::Builder::call(sc->staticInit->ci->address));
         }
     }
 }

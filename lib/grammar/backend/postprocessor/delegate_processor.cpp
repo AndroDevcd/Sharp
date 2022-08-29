@@ -135,18 +135,17 @@ void process_delegates(sharp_class *with_class) {
 
                 sharp_type comparer(delegate);
                 sharp_type comparee(fun);
-                if(is_explicit_type_match(comparer, comparee)
+                if(fun->name == delegate->name && is_explicit_type_match(comparer, comparee)
                     && is_explicit_type_match(delegate->returnType, fun->returnType)) {
                     foundFunc = true;
                     fun->delegate = delegate;
                     delegate->impls.addif(fun);
-                    functions.removeAt(j);
                     break;
                 }
             }
 
             if(!foundFunc) {
-                stringstream err;  // todo: look into where delegate functions are being defined and fix the incorrect implLocation
+                stringstream err;
                 err << "delegate function `" << function_to_str(delegate) << "` must be defined in class `"
                     << with_class->fullName << "`:";
                 if(create_new_error(GENERIC, with_class->ast, err.str()) == 0)
@@ -155,10 +154,13 @@ void process_delegates(sharp_class *with_class) {
         }
 
         for(Int i = 0; i < functions.size(); i++) {
-            stringstream err;
-            err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"
-                << with_class->fullName << "`:";
-            create_new_error(GENERIC, with_class->ast, err.str());
+
+            if(functions.get(i)->delegate == NULL) {
+                stringstream err;
+                err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"
+                    << with_class->fullName << "`:";
+                create_new_error(GENERIC, with_class->ast, err.str());
+            }
         }
 
         functions.free();

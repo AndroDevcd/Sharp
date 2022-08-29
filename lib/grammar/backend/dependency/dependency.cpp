@@ -24,6 +24,7 @@
 #include "../postprocessor/mutation_processor.h"
 #include "../postprocessor/delegate_processor.h"
 #include "../compiler/compiler.h"
+#include "../compiler/expressions/primary/force_non_null_expression.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -1429,14 +1430,11 @@ void resolve_normal_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
+        Int endLabel,
         operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     context &context = currThread->currTask->file->context;
-
-    if(item.name == "feet") {
-        int r = 0;
-    }
 
     if(resultType.type == type_untyped) {
         // first item
@@ -1644,19 +1642,39 @@ void resolve_normal_item(
         }
     } else {
 
+        bool nullable;
+        if(resultType.type == type_class)
+            nullable = resultType.nullable;
+        else if(resultType.type == type_field)
+            nullable = resultType.field->type.nullable;
+        else nullable = false;
+
+        if(!hardType && scheme && endLabel) {
+            if(nullable) {
+                if(item.accessType == access_forced) {
+                    resultType.nullable = false;
+                    force_non_null_check(scheme, item.ast);
+                } else if(item.accessType == access_safe) {
+                    force_null_safety_check(scheme, endLabel, item.ast);
+                }
+            }
+        }
+
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
-            bool nullable = resultType.nullable;
 
             if(hasFilter(filter, resolve_filter_class_field)
                && resolve_primary_class_field(item, primaryClass, false, hardType, resultType, scheme, context)) {
 
+                hardType = false;
                 if(!hardType) {
                     if(nullable) {
                         if(item.accessType == access_normal) {
                             create_new_error(GENERIC, item.ast->line,item.ast->col,
-                                      "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
-                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                                             "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
+                        } else if(item.accessType == access_forced) {
+                            resultType.nullable = false;
+                        }
                     }
                 } else {
                     if (item.accessType != access_normal) {
@@ -1666,7 +1684,6 @@ void resolve_normal_item(
                     }
                 }
 
-                hardType = false;
                 return;
             }
 
@@ -1733,7 +1750,6 @@ void resolve_normal_item(
             }
         } else if(resultType.type == type_field) {
             sharp_field *field = resultType.field;
-            bool nullable = field->type.nullable;
 
             if(field->type.type == type_class) {
                 sharp_class *primaryClass = field->type._class;
@@ -1746,7 +1762,9 @@ void resolve_normal_item(
                         if(item.accessType == access_normal) {
                             create_new_error(GENERIC, item.ast->line,item.ast->col,
                                    "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
-                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                        } else if(item.accessType == access_forced) {
+                            resultType.nullable = false;
+                        }
                     }
                     return;
                 }
@@ -2407,6 +2425,7 @@ void resolve_function_reference_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
+        Int endLabel,
         operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
@@ -2507,8 +2526,25 @@ void resolve_function_reference_item(
         }
     } else {
 
+        bool nullable;
+        if(resultType.type == type_class)
+            nullable = resultType.nullable;
+        else if(resultType.type == type_field)
+            nullable = resultType.field->type.nullable;
+        else nullable = false;
+
+        if(!hardType && scheme && endLabel) {
+            if(nullable) {
+                if(item.accessType == access_forced) {
+                    resultType.nullable = false;
+                    force_non_null_check(scheme, item.ast);
+                } else if(item.accessType == access_safe) {
+                    force_null_safety_check(scheme, endLabel, item.ast);
+                }
+            }
+        }
+
         if(resultType.type == type_class) {
-            bool nullable = resultType.nullable;
             sharp_class *primaryClass = resultType._class;
             if(hasFilter(filter, resolve_filter_class_field)
                && resolve_primary_class_function_pointer_field(
@@ -2520,7 +2556,9 @@ void resolve_function_reference_item(
                         if(item.accessType == access_normal) {
                             create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
-                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                        } else if(item.accessType == access_forced) {
+                            resultType.nullable = false;
+                        }
                     }
                 } else {
                     if (item.accessType != access_normal) {
@@ -2542,7 +2580,9 @@ void resolve_function_reference_item(
                         if(item.accessType == access_normal) {
                             create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
-                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                        } else if(item.accessType == access_forced) {
+                            resultType.nullable = false;
+                        }
                     }
                 } else {
                     if (item.accessType != access_normal) {
@@ -2561,7 +2601,6 @@ void resolve_function_reference_item(
                                                                resolveLocation, " `" + unresolvedFunction + "` ");
         } else if(resultType.type == type_field) {
             sharp_field *field = resultType.field;
-            bool nullable = field->type.nullable;
 
             if(field->type.type == type_class) {
                 sharp_class *primaryClass = field->type._class;
@@ -2575,7 +2614,9 @@ void resolve_function_reference_item(
                         if(item.accessType == access_normal) {
                             create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
-                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                        } else if(item.accessType == access_forced) {
+                            resultType.nullable = false;
+                        }
                     }
                     hardType = false;
                     return;
@@ -2590,7 +2631,9 @@ void resolve_function_reference_item(
                         if(item.accessType == access_normal) {
                             create_new_error(GENERIC, item.ast->line,item.ast->col,
                                                                                "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
-                        } else if(item.accessType == access_forced) resultType.nullable = false;
+                        } else if(item.accessType == access_forced) {
+                            resultType.nullable = false;
+                        }
                     }
                     hardType = false;
                     return;
@@ -2661,7 +2704,7 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
     if(created && generic) {
         auto currf = current_file;
         current_file = generic->genericBuilder->implLocation.file;
-        genericBlueprint->genericClones.add(generic); // todo: we might still have to update current file here
+        genericBlueprint->genericClones.add(generic);
 
         pre_process_class(NULL, generic, generic->ast);
         process_class(NULL, generic, generic->ast);
@@ -2894,12 +2937,13 @@ void resolve_item(
         unresolved_item &item,
         sharp_type &resultType,
         bool &hardType,
+        Int end_label,
         operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
     switch(item.type) {
         case normal_reference:
-            resolve_normal_item(item, resultType, hardType, scheme, filter, resolveLocation);
+            resolve_normal_item(item, resultType, hardType, end_label, scheme, filter, resolveLocation);
             break;
         case module_reference:
             resolve_module_item(item, resultType, resolveLocation);
@@ -2914,7 +2958,7 @@ void resolve_item(
             resolve_function_ptr_item(item, resultType, hardType, scheme, filter, resolveLocation);
             break;
         case function_reference:
-            resolve_function_reference_item(item, resultType, hardType, scheme, filter, resolveLocation);
+            resolve_function_reference_item(item, resultType, hardType, end_label, scheme, filter, resolveLocation);
             break;
     }
 }
@@ -2926,16 +2970,21 @@ void resolve(
         uInt filter,
         Ast *resolveLocation,
         operation_schema *scheme) {
-
     if(!ignoreInitialType && unresolvedType.type != type_untyped) {
         resultType.copy(unresolvedType);
     } else {
         unresolved_type &type = unresolvedType.unresolvedType;
         bool hardType = false;
+        Int label = 0;
+        operation_schema *subScheme = new operation_schema();
+
+        if(scheme && resolveLocation) {
+            label = create_allocate_label_operation(scheme);
+        }
 
         for(Int i = 0; i < type.items.size(); i++) {
             resolve_item(*type.items.get(i), resultType, hardType,
-                    scheme, filter, resolveLocation);
+                    label, scheme != NULL ? subScheme : NULL, filter, resolveLocation);
 
             if(resultType.type == type_undefined)
                 break;
@@ -2962,6 +3011,15 @@ void resolve(
             create_new_error(
                     GENERIC, resolveLocation, "expression of type `"
                                                  + type_to_str(resultType) + "` cannot be nullable.");
+        }
+
+        if(scheme && resolveLocation) {
+            scheme->schemeType = subScheme->schemeType;
+            scheme->field = subScheme->field;
+            scheme->fun = subScheme->fun;
+            scheme->sc = subScheme->sc;
+            scheme->steps.appendAll(subScheme->steps);
+            create_set_label_operation(scheme, label);
         }
     }
 }
@@ -3067,7 +3125,7 @@ void create_dependency(sharp_file* depender, sharp_file* dependee) {
         depender->dependencies.addif(dependency(dependee));
 }
 
-void create_dependency(sharp_function* depender, sharp_function* dependee) { // todo" create better high level create dependancy function and track firld contextxs as well to be used
+void create_dependency(sharp_function* depender, sharp_function* dependee) {
     if(depender == NULL || dependee == NULL) return;
 
     if(depender != dependee)

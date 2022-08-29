@@ -4,6 +4,7 @@
 
 #include "scheme_access_local_field.h"
 #include "scheme_processor.h"
+#include "../../../../types/types.h"
 
 void process_access_local_field_scheme(operation_schema *scheme) {
     process_scheme_steps(scheme);

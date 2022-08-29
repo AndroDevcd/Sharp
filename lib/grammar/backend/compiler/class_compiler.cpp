@@ -36,7 +36,6 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     compile_class_fields(with_class, block);
     compile_class_mutations(with_class, block);
     compile_inits(with_class, block);
-    compile_initialization_paring(with_class);
     compile_class_functions(with_class, block);
     compile_class_lambdas(with_class);
 

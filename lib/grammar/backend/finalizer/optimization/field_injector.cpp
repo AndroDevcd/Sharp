@@ -39,9 +39,6 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
             }
         }
 
-        if(function->fullName == "std.io#thread_priority.static_init<thread_priority>") {
-            int r = 0;
-        }
         mark(function);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     } else if(field->scheme) {
@@ -61,24 +58,25 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
             function->scheme = new operation_schema(scheme_master);
         }
 
-        if(function->fullName == "std.io#thread_priority.static_init<thread_priority>") {
-            int r = 0;
-        }
         mark(function);
         function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
     }
 }
 
 void injectRelevantClassFields(sharp_class *with_class) {
-    for(Int i = 0; i < with_class->children.size(); i++) {
-        injectRelevantClassFields(with_class->children.get(i));
-    }
+    if(!with_class->injected) {
+        with_class->injected = true;
 
-    for(Int i = 0; i < with_class->fields.size(); i++) {
-        sharp_field *field = with_class->fields.get(i);
+        for (Int i = 0; i < with_class->children.size(); i++) {
+            injectRelevantClassFields(with_class->children.get(i));
+        }
 
-        if(field->used) {
-            inject_field_initialization(with_class, field->ast, field);
+        for (Int i = 0; i < with_class->fields.size(); i++) {
+            sharp_field *field = with_class->fields.get(i);
+
+            if (field->used) {
+                inject_field_initialization(with_class, field->ast, field);
+            }
         }
     }
 }

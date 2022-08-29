@@ -610,7 +610,7 @@ void compile_binary_expression(
 
     switch(left.type.type) {
 
-        case type_integer: // todo: support string "" + "" convert first type to std#string
+        case type_integer:
         case type_char:
         case type_bool:
         case type_decimal: {

@@ -67,10 +67,6 @@ void create_block(context *ctx, block_type type) {
         store_block(&ctx->blockInfo);
     }
 
-    if(ctx->blockInfo.lockScheme)
-        int i = 0;
-    delete ctx->blockInfo.lockScheme;
-    ctx->blockInfo.lockScheme = NULL;
     ctx->blockInfo.type = type;
     if(ctx->blockInfo.storedItems.empty())
         ctx->blockInfo.id = 0;
@@ -107,7 +103,7 @@ void delete_block(block_info *info) {
         info->id = -1;
         info->line = -1;
         info->reachable = true;
-        delete info->lockScheme; info->lockScheme = NULL;
+        info->lockExpression = NULL;
         deleteList(info->storedItems);
     } else {
         restore_block(info);
@@ -136,13 +132,13 @@ void store_context(context *ctx) {
     ctx->storedItems.add(new stored_context_item(*ctx));
 }
 
-void retrieve_lock_schemes(block_info *info, List<operation_schema*> &schemes) {
-    if(info->lockScheme != NULL)
-        schemes.add(new operation_schema(*info->lockScheme));
+void retrieve_lock_expressions(block_info *info, List<Ast*> &expressions) {
+    if(info->lockExpression != NULL)
+        expressions.add(info->lockExpression);
 
     for(Int i = 0; i < info->storedItems.size(); i++) {
-        if(info->storedItems.get(i)->lockScheme != NULL)
-            schemes.add(new operation_schema(*info->storedItems.get(i)->lockScheme));
+        if(info->storedItems.get(i)->lockExpression != NULL)
+            expressions.add(info->storedItems.get(i)->lockExpression);
     }
 }
 
@@ -261,7 +257,7 @@ void block_info::copy_all(const block_info &info)  {
 }
 
 void stored_block_info::free() {
-    delete lockScheme; lockScheme = NULL;
+
 }
 
 void stored_block_info::copy(const stored_block_info &item)  {
@@ -272,9 +268,7 @@ void stored_block_info::copy(const stored_block_info &item)  {
     endLabel = item.endLabel;
     beginLabel = item.beginLabel;
     finallyLabel = item.finallyLabel;
-    if(item.lockScheme)
-        lockScheme = new operation_schema(*item.lockScheme);
-    else lockScheme = NULL;
+    lockExpression = item.lockExpression;
 }
 
 void stored_context_item::copy(const stored_context_item &item)  {

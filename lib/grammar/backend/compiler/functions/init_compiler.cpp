@@ -117,7 +117,7 @@ void compile_inits(sharp_class* with_class, Ast *block) {
     }
 }
 
-void compile_initialization_paring(sharp_class* with_class) {
+void compile_initialization_paring(sharp_function *constructor) {
     sharp_function *function;
     List<sharp_field*> params;
     List<operation_schema*> paramOperations;
@@ -126,36 +126,32 @@ void compile_initialization_paring(sharp_class* with_class) {
 
     GUARD2(globalLock)
     function = resolve_function(
-            instance_init_name(with_class->name), with_class,
+            instance_init_name(constructor->owner->name), constructor->owner,
             params,normal_function, exclude_all,
-            with_class->ast, false, false
+            constructor->owner->ast, false, false
     );
 
     if(function == NULL) {
-        name = instance_init_name(with_class->name);
+        name = instance_init_name(constructor->owner->name);
         create_function(
-                with_class, flag_private,
+                constructor->owner, flag_private,
                 normal_function, name,
                 false, params,
-                void_type, with_class->ast, function
+                void_type, constructor->owner->ast, function
         );
     }
 
-    for(Int i = 0; i < with_class->functions.size(); i++) {
-        sharp_function *constructor = with_class->functions.get(i);
+    if(constructor->type == constructor_function) {
+        if(constructor->scheme == NULL)
+            constructor->scheme = new operation_schema(scheme_master);
 
-        if(constructor->type == constructor_function) {
-            if(constructor->scheme == NULL)
-                constructor->scheme = new operation_schema(scheme_master);
+        APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+            create_context(constructor);
+            compile_function_call(&scheme_0, params, paramOperations, function, false, true, false);
+            create_unused_data_operation(&scheme_0);
+            delete_context();
+        )
 
-            APPLY_TEMP_SCHEME(0, *constructor->scheme,
-                 create_context(constructor);
-                 compile_function_call(&scheme_0, params, paramOperations, function, false, true, false);
-                         create_unused_data_operation(&scheme_0);
-                 delete_context();
-            )
-        }
+        constructor->scheme->steps.add(new operation_step(operation_step_scheme, &scheme_0));
     }
-
-    // todo: add all the static inits and call them on the static versions of every class new class().static_init<Class>()
 }

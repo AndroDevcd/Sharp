@@ -16,7 +16,7 @@ bool compile_block(
         block_type bt = normal_block,
         sharp_label *beginLabel = NULL,
         sharp_label *endLabel = NULL,
-        operation_schema *lockScheme = NULL,
+        Ast *lockExpression = NULL,
         sharp_label *finallyLabel = NULL);
 
 void compile_function(

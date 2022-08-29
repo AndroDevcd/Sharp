@@ -15,9 +15,9 @@ struct sharp_function;
 struct operation_schema;
 
 enum reference_access_type {
-    access_normal = 0,
-    access_safe = 1,
-    access_forced = 2
+    access_normal = 1,
+    access_safe = 2,
+    access_forced = 4
 };
 
 enum reference_type {

@@ -40,6 +40,9 @@ enum operation_type {
     operation_get_sizeof,
     operation_throw_exception,
     operation_pop_value_from_stack,
+    operation_pop_direct_numeric_value_from_stack,
+    operation_pop_direct_object_value_from_stack,
+    operation_set_current_data_as_object,
     operation_unused_data,
     operation_assign_array_element_from_stack,
     operation_nullify_value,
@@ -96,7 +99,7 @@ enum operation_type {
     operation_is_uint64,
     operation_is_var,
     operation_get_array_element_at_index,
-    operation_retain_numeric_value, // will try to store in register if possible
+    operation_retain_numeric_value,
     operation_discard_register,
     operation_allocate_register,
     operation_allocate_label,
@@ -266,6 +269,7 @@ struct operation_schema {
     }
 
     void copy(const operation_schema &scheme);
+    void appendSteps(const operation_schema &scheme);
 
     void free();
 
@@ -598,6 +602,9 @@ struct operation_step {
     Int secondRegister;
     Int thirdRegister;
 };
+
+extern operation_step *currentStep;
+string operation_scheme_to_str(operation_schema *schema);
 
 void create_local_field_access_operation(
         operation_schema *scheme,
@@ -1079,6 +1086,17 @@ void create_xor_value_assignment_operation(
         Int registerRight,
         operation_schema *asigneeScheme,
         operation_schema *valueScheme);
+
+void create_pop_direct_numeric_value_from_stack_operation(
+        operation_schema *scheme,
+        Int registerId);
+
+void create_pop_direct_object_value_from_stack_operation(
+        operation_schema *scheme);
+
+// this is a really, really dangerous operation and should be limited in its usage.
+void create_set_current_data_as_object_operation(
+        operation_schema *scheme);
 
 void create_pop_value_from_stack_operation(
         operation_schema *scheme);

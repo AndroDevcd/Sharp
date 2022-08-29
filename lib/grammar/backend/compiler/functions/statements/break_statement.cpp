@@ -6,9 +6,10 @@
 #include "../../../../compiler_info.h"
 #include "../../../types/types.h"
 #include "continue_statement.h"
+#include "../../expressions/expression.h"
 
 void compile_break_statement(Ast *ast, operation_schema *scheme) {
-    List<operation_schema*> lockSchemes;
+    List<Ast*> lockExpressions;
     stored_block_info* info;
     sharp_field *returnAddressField = NULL;
     stringstream ss;
@@ -46,18 +47,26 @@ void compile_break_statement(Ast *ast, operation_schema *scheme) {
             create_local_field_access_operation(addressVariableScheme, returnAddressField);
             create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
             create_pop_value_from_stack_operation(&scheme_0);
-                    create_unused_data_operation(&scheme_0);
+            create_unused_data_operation(&scheme_0);
+
+            delete addressValueScheme;
+            delete addressVariableScheme;
         )
 
         create_jump_operation(subScheme, finallyLabel);
     }
 
     create_set_label_operation(subScheme, breakStartLabel);
-    retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
-    for(Int i = 0; i < lockSchemes.size(); i++) {
+    retrieve_lock_expressions(&current_context.blockInfo, lockExpressions);
+    for(Int i = 0; i < lockExpressions.size(); i++) {
         operation_schema* tmp = new operation_schema();
-        create_unlock_operation(tmp, lockSchemes.get(i));
+        expression e;
+
+        compile_expression(e, lockExpressions.at(i));
+        create_unlock_operation(tmp, &e.scheme);
         add_scheme_operation(subScheme, tmp);
+
+        delete tmp;
     }
 
     info = retrieve_loop_block();
@@ -68,4 +77,5 @@ void compile_break_statement(Ast *ast, operation_schema *scheme) {
     create_jump_operation(subScheme, info->endLabel);
     add_scheme_operation(scheme, subScheme);
     current_context.blockInfo.reachable = false;
+    delete subScheme;
 }

@@ -9,6 +9,8 @@
 #include <random>
 #include "code/code_info.h"
 #include "function_generator.h"
+#include "code/code_context.h"
+#include "../../../../util/File.h"
 
 Int UUIDGenerator = 0;
 const int range_from  = 0;

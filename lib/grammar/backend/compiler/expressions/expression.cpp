@@ -72,6 +72,12 @@ void convert_expression_type_to_real_type(
     }
 }
 
+void recompile_expression(expression &out, Ast *ast) {
+    out.scheme.free();
+    out.type.free();
+    compile_expression(out, ast);
+}
+
 void compile_initialization_call(
         Ast *ast,
         sharp_function *constructor,
@@ -102,7 +108,7 @@ void compile_initialization_call(
     )
 }
 
-void compile_initialization_call( // todo: we need to add duplicate object support herer for when we want to pop the class off the stack
+void compile_initialization_call(
         Ast *ast,
         sharp_class *with_class,
         sharp_function *constructor,

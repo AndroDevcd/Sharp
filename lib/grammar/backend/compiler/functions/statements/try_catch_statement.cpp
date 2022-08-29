@@ -114,7 +114,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
     create_try_catch_block_end_operation(subScheme, tc_data);
 
     if(hasCatchBlock)
-        create_jump_operation(subScheme, endLabel); // todo: optimize this out if we dont have a catch block
+        create_jump_operation(subScheme, endLabel);
 
     controlPaths[CATCH_CONTROL_PATH] = true;
     for(Int i = 1; i < ast->getSubAstCount(); i++) {
@@ -124,7 +124,10 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
         switch (branch->getType()) {
             case ast_catch_clause: {
                 operation_schema *catchScheme = new operation_schema(scheme_catch_clause);
+
+                create_block(&current_context, normal_block);
                 sharp_class *klass = compile_catch_clause(branch, catchScheme, tc_data, controlPaths);
+                delete_block();
 
                 if(klass != NULL && !catchedClasses.addif(klass)) {
                     current_file->errors->createNewError(GENERIC, ast->line, ast->col, "class `" + klass->fullName + "` has already been caught.");
@@ -162,14 +165,6 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
                     create_local_field_access_operation(finallyScheme, exceptionObject);
                     create_check_null_operation(finallyScheme);
                     create_jump_if_true_operation(finallyScheme, finallyEndLabel);
-
-
-                    retrieve_lock_schemes(&current_context.blockInfo, lockSchemes);
-                    for(Int j = 0; j < lockSchemes.size(); j++) { // todo look into also processing finally blocks in the same way
-                        operation_schema* tmp = new operation_schema();
-                        create_unlock_operation(tmp, lockSchemes.get(j));
-                        add_scheme_operation(finallyScheme, tmp);
-                    }
 
                     create_local_field_access_operation(finallyScheme, exceptionObject);
                     create_push_to_stack_operation(finallyScheme);
@@ -255,5 +250,6 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
     subScheme->schemeType = scheme_try;
     catchedClasses.free();
     lockSchemes.free();
-    add_scheme_operation(scheme, subScheme); // todo: delete all sub schemes at end of each statement this is leaking lots of data
+    add_scheme_operation(scheme, subScheme);
+    delete subScheme;
 }

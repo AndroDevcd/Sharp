@@ -45,6 +45,7 @@ struct sharp_class {
             module(NULL),
             baseClass(NULL),
             genericBuilder(NULL),
+            staticInit(NULL),
             used(false),
             functions(),
             generics(),
@@ -57,7 +58,8 @@ struct sharp_class {
             genericTypes(),
             extensionFunctions(),
             mutations(),
-            blueprintClass(false)
+            blueprintClass(false),
+            injected(false)
     {
     }
 
@@ -78,6 +80,7 @@ struct sharp_class {
             ci(NULL),
             baseClass(NULL),
             genericBuilder(NULL),
+            staticInit(NULL),
             used(false),
             dependencies(),
             owner(owner),
@@ -94,7 +97,8 @@ struct sharp_class {
             genericTypes(),
             extensionFunctions(),
             mutations(),
-            blueprintClass(false)
+            blueprintClass(false),
+            injected(false)
     {
         if(owner == NULL || check_flag(owner->flags, flag_global)) {
             fullName = module->name + "#"
@@ -126,6 +130,7 @@ struct sharp_class {
             used(false),
             ci(NULL),
             genericBuilder(NULL),
+            staticInit(NULL),
             children(),
             fullName(""),
             functions(),
@@ -139,7 +144,8 @@ struct sharp_class {
             genericTypes(),
             extensionFunctions(),
             mutations(),
-            blueprintClass(false)
+            blueprintClass(false),
+            injected(false)
     {
         fullName = module->name + "#"
                    + name;
@@ -154,10 +160,12 @@ struct sharp_class {
             genericBuilder(sc.genericBuilder),
             implLocation(sc.implLocation),
             dependencies(sc.dependencies),
+            staticInit(sc.staticInit),
             ast(sc.ast),
             used(sc.used),
             owner(sc.owner),
             ci(NULL),
+            injected(sc.injected),
             children(sc.children),
             fullName(sc.fullName),
             functions(sc.functions),
@@ -201,9 +209,11 @@ struct sharp_class {
     List<sharp_function*> uncompiledLambdas;
     List<Ast*> mutations;
     code_info *ci;
+    sharp_function *staticInit;
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
     class_type type;
+    bool injected;
     bool blueprintClass;
     bool used;
 };

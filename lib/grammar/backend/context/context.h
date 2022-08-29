@@ -61,7 +61,7 @@ struct stored_block_info {
             reachable(true),
             id(-1),
             line(-1),
-            lockScheme(NULL),
+            lockExpression(NULL),
             beginLabel(NULL),
             endLabel(NULL),
             finallyLabel(NULL)
@@ -73,7 +73,7 @@ struct stored_block_info {
             reachable(true),
             id(-1),
             line(-1),
-            lockScheme(NULL),
+            lockExpression(NULL),
             beginLabel(NULL),
             finallyLabel(NULL),
             endLabel(NULL)
@@ -96,7 +96,7 @@ struct stored_block_info {
     sharp_label *beginLabel;
     sharp_label *endLabel;
     sharp_label *finallyLabel;
-    operation_schema *lockScheme;
+    Ast *lockExpression;
 };
 
 struct block_info : public stored_block_info {
@@ -193,7 +193,7 @@ void store_block(block_info *info);
 void restore_block(block_info *info);
 
 bool inside_block(block_info *info, block_type type);
-void retrieve_lock_schemes(block_info *info, List<operation_schema*> &schemes);
+void retrieve_lock_expressions(block_info *info, List<Ast*> &expressions);
 stored_block_info* retrieve_block(block_info *info, block_type type);
 sharp_label* retrieve_next_finally_label(block_info *info);
 
