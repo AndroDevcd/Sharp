@@ -110,6 +110,7 @@ void process_set_finally_exception_field(operation_step *step);
 void process_set_finally_end(operation_step *step);
 void process_return_with_error_state(operation_step *step);
 void process_retain_label_value(operation_step *step);
+void process_machine_instruction(operation_step *step);
 void process_branch(operation_step *step);
 void process_throw_exception(operation_step *step);
 

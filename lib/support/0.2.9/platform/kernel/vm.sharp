@@ -146,7 +146,7 @@ class vm {
 
         asm {
             int 0x4c
-            movl {result}
+            movl [result]
             popObj
         }
 

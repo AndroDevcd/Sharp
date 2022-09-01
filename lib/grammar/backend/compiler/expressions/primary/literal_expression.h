@@ -15,5 +15,6 @@ void compile_integer_literal(expression *e, Token&);
 void compile_hex_literal(expression *e, Token&);
 void compile_string_literal(expression *e, Token&);
 void compile_boolean_literal(expression *e, Token&);
+string remove_underscores(string &str);
 
 #endif //SHARP_LITERAL_EXPRESSION_H

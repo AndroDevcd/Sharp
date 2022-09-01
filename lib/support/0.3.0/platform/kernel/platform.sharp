@@ -18,7 +18,7 @@ class platform
 
     static def exit(value: var) {
         asm {
-            ipushl {value}
+            ipushl [value]
             int 0x1d
         }
     }
@@ -36,7 +36,7 @@ class platform
     static def load_library(name: string) {
         lib_name : _int8[] = get_lib_path(name)!!;
         asm {
-            pushl {lib_name}
+            pushl [lib_name]
             int 0x39
         }
     }
@@ -45,9 +45,9 @@ class platform
         lib_name : _int8[] = get_lib_path(name)!!;
         result := 0;
         asm {
-            pushl {lib_name}
+            pushl [lib_name]
             int 0x3a
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         }
 
         return result;
@@ -58,10 +58,10 @@ class platform
         func_name := name.get_data();
         result := 0;
         asm {
-            pushl {func_name}
-            pushl {lib_name}
+            pushl [func_name]
+            pushl [lib_name]
             int 0x3b
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         }
 
         return result;
@@ -84,19 +84,19 @@ class platform
         thread_group.main_group.add(main_thread);
 
         asm {
-            movg {thread_group}
-            movn {thread_group.main_group}
+            movg $thread_group
+            movn $thread_group[main_group]
             pushObj
 
-            movl {main_thread}
-            movn {thread.parent_group}
+            movl [main_thread]
+            movn $thread[parent_group]
             popObj
 
-            movl {priority}
+            movl [priority]
             pushObj
 
-            movl {main_thread}
-            movn {thread.priority}
+            movl [main_thread]
+            movn $thread[priority]
             popObj
         }
 

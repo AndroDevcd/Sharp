@@ -77,9 +77,9 @@ protected class win_fs base file_system {
         * file attributes of the given abstract pathname
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x25
-            smovr2 {attrs}, ebx
+            smovr2 [attrs], ebx
         };
 
         return attrs;
@@ -105,10 +105,10 @@ protected class win_fs base file_system {
         * file access stats of the given abstract pathname
         */
         asm {
-            pushl {path}
-            loadl ebx, {access}
+            pushl [path]
+            loadl ebx, [access]
             int 0x24
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;

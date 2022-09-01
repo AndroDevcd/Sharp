@@ -9,9 +9,9 @@ def strtod(str: string) : var {
     result : var;
 
     asm {
-        pushl {data}
+        pushl [data]
         int 0x43
-        smovr2 {result}, ebx
+        smovr2 [result], ebx
     }
 
     return result;
@@ -22,10 +22,10 @@ def strtol(str: string, base_num: var) : var {
     result : var;
 
     asm {
-        pushl {data}
-        ipushl {base_num}
+        pushl [data]
+        ipushl [base_num]
         int 0x50
-        smovr2 {result}, ebx
+        smovr2 [result], ebx
     }
 
     return result;
@@ -33,9 +33,9 @@ def strtol(str: string, base_num: var) : var {
 
 def snprintf(fmt: var, num: var, precision: var) : _int8[]? {
     asm {
-        loadl egx, {fmt}
-        loadl ebx, {num}
-        loadl ecx, {precision}
+        loadl egx, [fmt]
+        loadl ebx, [num]
+        loadl ecx, [precision]
         int 0x1
         popObj2
         returnObj
@@ -48,9 +48,9 @@ def sys(str: string) : var {
     cmd := str.get_data();
     result : var;
     asm {
-        pushl {cmd}
+        pushl [cmd]
         int 0x1a
-        smovr2 {result}, cmt
+        smovr2 [result], cmt
     }
 
     return result;
@@ -197,7 +197,7 @@ def exit() {
 
 def sizeOf(data: object) : var {
     asm {
-        pushl {data}
+        pushl [data]
         int 0x33
         returnVal ebx
         ret 0
@@ -207,7 +207,7 @@ def sizeOf(data: object) : var {
 
 def sizeOf(data: object[]) : var {
     asm {
-        pushl {data}
+        pushl [data]
         int 0x33
         returnVal ebx
         ret 0
@@ -218,7 +218,7 @@ def sizeOf(data: object[]) : var {
 local def print_chars(str: _int8[]?) {
     foreach(ch in str) {
         asm {
-            loadl ebx, {ch}
+            loadl ebx, [ch]
             putc ebx
         }
     }
@@ -228,7 +228,7 @@ local def print_chars(str: _int8[]?) {
 
 local def print_num(val: var) {
     asm {
-        loadl ebx, {val}
+        loadl ebx, [val]
         put ebx
     }
 
@@ -237,7 +237,7 @@ local def print_num(val: var) {
 
 local def print_char(val: _int8) {
     asm {
-        loadl ebx, {val}
+        loadl ebx, [val]
         putc ebx
     }
 
@@ -254,7 +254,7 @@ local def print_numbers(str: var[]) {
     for(i := 0; i < sizeof(str); i++) {
         ch := str[i];
         asm {
-            loadl ebx, {ch}
+            loadl ebx, [ch]
             put ebx
         }
 
@@ -280,63 +280,63 @@ local def print_numbers(str: var[]) {
 
 local def print_numbers(str: _int16[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_numbers(str: _int32[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_numbers(str: _int64[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_numbers(str: _uint8[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_numbers(str: _uint16[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_numbers(str: _uint32[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_numbers(str: _uint64[]) {
     asm {
-        pushl {str}
-        call {print_numbers}
+        pushl [str]
+        call [print_numbers]
     }
 }
 
 local def print_chars(str: _int16[]) {
     asm {
-        pushl {str}
-        call {print_chars}
+        pushl [str]
+        call [print_chars]
     }
 }
 
 local def read_ch(hide: var) : var {
     asm {
-        loadl cmt, {hide}
+        loadl cmt, [hide]
         get ebx
         returnVal ebx
         ret 0

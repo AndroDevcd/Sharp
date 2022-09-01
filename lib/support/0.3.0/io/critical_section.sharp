@@ -4,15 +4,15 @@ private global_lock := new _object_();
 def critical_section(block : ()()) {
     try {
         asm {
-            movg {std.io#__srt_global}
-            movn {global_lock}
+            movg $std.io#__srt_global
+            movn [global_lock]
             lock
         }
         block();
     } finally {
       asm {
-        movg {std.io#__srt_global}
-        movn {global_lock}
+        movg $std.io#__srt_global
+        movn [global_lock]
         ulock
       }
     }
@@ -21,13 +21,13 @@ def critical_section(block : ()()) {
 def critical_section(block : ()(), lock_obj : object) {
     try {
         asm {
-            movl {lock_obj}
+            movl [lock_obj]
             lock
         }
         block();
     } finally {
       asm {
-        movl {lock_obj}
+        movl [lock_obj]
         ulock
       }
     }

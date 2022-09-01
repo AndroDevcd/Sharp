@@ -38,9 +38,9 @@ protected class file_system {
         * full path of the given abstract pathname
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x20
-            popl {path}
+            popl [path]
         };
 
         if(path == null) {
@@ -59,7 +59,7 @@ protected class file_system {
         */
         asm {
             int 0x4f
-            popl {path}
+            popl [path]
         };
 
         if(path == null) {
@@ -119,12 +119,12 @@ protected class file_system {
         * file attributes of the given abstract pathname
         */
         asm {
-            pushl {path}
-            loadl ebx, {access}
-            loadl egx, {enable}
-            loadl ecx, {owneronly}
+            pushl [path]
+            loadl ebx, [access]
+            loadl egx, [enable]
+            loadl ecx, [owneronly]
             int 0x2e
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;
@@ -149,10 +149,10 @@ protected class file_system {
         * file attributes of the given abstract pathname
         */
         asm {
-            pushl {path}
-            loadl ebx, {stat_id}
+            pushl [path]
+            loadl ebx, [stat_id]
             int 0x26
-            smovr2 {time}, ebx
+            smovr2 [time], ebx
         }
 
         return time;
@@ -173,9 +173,9 @@ protected class file_system {
         * file attributes of the given abstract pathname
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x27
-            smovr2 {size}, ebx
+            smovr2 [size], ebx
         };
 
         return size;
@@ -197,7 +197,7 @@ protected class file_system {
         * file to be created
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x28
         };
     }
@@ -225,9 +225,9 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x2c
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;
@@ -250,9 +250,9 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x29
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;
@@ -276,9 +276,9 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x2a
-            popl {files}
+            popl [files]
         };
 
         return files;
@@ -298,9 +298,9 @@ protected class file_system {
         * directory to be created
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x2b
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;
@@ -322,10 +322,10 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {rename}
-            pushl {path}
+            pushl [rename]
+            pushl [path]
             int 0x30
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;
@@ -341,9 +341,9 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {path}
+            pushl [path]
             int 0x2f
-            popl {data}
+            popl [data]
         };
 
         return data;
@@ -360,10 +360,10 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {raw}
-            pushl {path}
+            pushl [raw]
+            pushl [path]
             int 0x31
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         };
 
         return result;
@@ -384,10 +384,10 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            pushl {path}
-            loadl ebx, {time}
+            pushl [path]
+            loadl ebx, [time]
             int 0x2d
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         }
 
         return result;
@@ -417,9 +417,9 @@ protected class file_system {
         * file to be deleted
         */
         asm {
-            loadl ebx, {request}
+            loadl ebx, [request]
             int 0x32
-            smovr2 {result}, ebx
+            smovr2 [result], ebx
         }
 
         return result;

@@ -20,6 +20,198 @@ struct sharp_tc_data;
 struct catch_data_info;
 struct finally_data_info;
 
+enum argument_type {
+    type_non_argument,
+    type_number,
+    type_register,
+    type_field_address,
+    type_function_address,
+    type_class_address,
+    type_label_address,
+    type_string_address
+};
+
+struct machine_argument {
+    machine_argument()
+    :
+        type(type_non_argument),
+        field(NULL),
+        sc(NULL),
+        sf(NULL),
+        label(NULL),
+        str(""),
+        number(0)
+    {
+    }
+
+    machine_argument(sharp_field *field)
+            :
+            type(type_field_address),
+            field(field),
+            sc(NULL),
+            sf(NULL),
+            label(NULL),
+            str(""),
+            number(0)
+    {
+    }
+
+    machine_argument(sharp_class *sc)
+            :
+            type(type_class_address),
+            field(NULL),
+            sc(sc),
+            sf(NULL),
+            label(NULL),
+            str(""),
+            number(0)
+    {
+    }
+
+    machine_argument(sharp_function *sf)
+            :
+            type(type_function_address),
+            field(NULL),
+            sc(NULL),
+            sf(sf),
+            label(NULL),
+            str(""),
+            number(0)
+    {
+    }
+
+    machine_argument(sharp_label *l)
+            :
+            type(type_label_address),
+            field(NULL),
+            sc(NULL),
+            sf(NULL),
+            label(l),
+            str(""),
+            number(0)
+    {
+    }
+
+    machine_argument(string &s)
+            :
+            type(type_string_address),
+            field(NULL),
+            sc(NULL),
+            sf(NULL),
+            str(s),
+            label(NULL),
+            number(0)
+    {
+    }
+
+    machine_argument(argument_type type, Int value)
+            :
+            type(type),
+            field(NULL),
+            sc(NULL),
+            sf(NULL),
+            label(NULL),
+            str(""),
+            number(value)
+    {
+    }
+
+    machine_argument(const machine_argument &arg)
+            :
+            type(arg.type),
+            field(arg.field),
+            sc(arg.sc),
+            sf(arg.sf),
+            label(arg.label),
+            str(arg.str),
+            number(arg.number)
+    {
+    }
+
+
+    argument_type type;
+    sharp_field *field;
+    sharp_class *sc;
+    sharp_function *sf;
+    sharp_label *label;
+    Int number;
+    string str;
+};
+
+struct machine_instruction {
+    machine_instruction()
+    :
+        opcode(0),
+        arg1(NULL),
+        arg2(NULL),
+        arg3(NULL)
+    {
+    }
+
+    machine_instruction(int op)
+            :
+            opcode(0),
+            arg1(NULL),
+            arg2(NULL),
+            arg3(NULL)
+    {
+    }
+
+    machine_instruction(int op, machine_argument *a1)
+            :
+            opcode(0),
+            arg1(a1),
+            arg2(NULL),
+            arg3(NULL)
+    {
+    }
+
+    machine_instruction(int op, machine_argument *a1, machine_argument *a2)
+            :
+            opcode(0),
+            arg1(a1),
+            arg2(a2),
+            arg3(NULL)
+    {
+    }
+
+    machine_instruction(int op, machine_argument *a1, machine_argument *a2, machine_argument *a3)
+            :
+            opcode(0),
+            arg1(a1),
+            arg2(a2),
+            arg3(a3)
+    {
+    }
+
+    machine_instruction(const machine_instruction &mi)
+            :
+            opcode(mi.opcode),
+            arg1(NULL),
+            arg2(NULL),
+            arg3(NULL)
+    {
+        if(mi.arg1) arg1 = new machine_argument(*mi.arg1);
+        if(mi.arg2) arg2 = new machine_argument(*mi.arg2);
+        if(mi.arg3) arg3 = new machine_argument(*mi.arg3);
+    }
+
+    ~machine_instruction() {
+        free();
+    }
+
+    void free() {
+        delete arg1;
+        delete arg2;
+        delete arg3;
+    }
+
+    int opcode;
+    machine_argument *arg1;
+    machine_argument *arg2;
+    machine_argument *arg3;
+};
+
 enum operation_type {
     operation_none,
     operation_step_scheme,
@@ -153,6 +345,7 @@ enum operation_type {
     operation_set_try_catch_block_end,
     operation_check_null,
     operation_no_op,
+    operation_machine_instruction,
 };
 
 enum _operation_scheme {
@@ -229,6 +422,7 @@ enum _operation_scheme {
     scheme_call_getter_function,
     scheme_get_address,
     scheme_label,
+    scheme_asm,
 };
 
 struct operation_schema {
@@ -289,6 +483,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(0),
         integer(0),
         secondRegister(0),
@@ -306,6 +501,7 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             decimal(0),
             integer(0),
             secondRegister(0),
@@ -325,6 +521,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(0),
         integer(0),
         secondRegister(0),
@@ -342,6 +539,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(0),
         integer(0),
         secondRegister(0),
@@ -365,6 +563,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(0),
         integer(0),
         secondRegister(0),
@@ -382,6 +581,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         integer(constant),
         decimal(0),
         _char(0),
@@ -399,6 +599,7 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             integer(leftRegister),
             decimal(0),
             _char(0),
@@ -416,6 +617,7 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             integer(r1),
             decimal(0),
             _char(0),
@@ -433,6 +635,7 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             integer(0),
             decimal(0),
             secondRegister(0),
@@ -450,6 +653,7 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             integer(0),
             decimal(0),
             secondRegister(0),
@@ -467,12 +671,31 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             integer(0),
             decimal(0),
             secondRegister(0),
             thirdRegister(0),
             _char(0),
             _bool(constant),
+            _string(""),
+            nativeType(type_undefined)
+    {}
+
+    operation_step(operation_type type, machine_instruction *mi)
+            :
+            type(type),
+            field(NULL),
+            _class(NULL),
+            scheme(NULL),
+            function(NULL),
+            integer(0),
+            decimal(0),
+            secondRegister(0),
+            thirdRegister(0),
+            _char(0),
+            _bool(false),
+            instruction(mi),
             _string(""),
             nativeType(type_undefined)
     {}
@@ -484,6 +707,7 @@ struct operation_step {
             _class(NULL),
             scheme(NULL),
             function(NULL),
+            instruction(NULL),
             integer(0),
             decimal(0),
             _char(0),
@@ -501,6 +725,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(constant),
         integer(0),
         _char(0),
@@ -517,6 +742,7 @@ struct operation_step {
         field(NULL),
         _class(NULL),
         scheme(NULL),
+        instruction(NULL),
         function(fun),
         decimal(0),
         integer(0),
@@ -535,6 +761,7 @@ struct operation_step {
         _class(sc),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(0),
         integer(0),
         secondRegister(0),
@@ -552,6 +779,7 @@ struct operation_step {
         _class(NULL),
         scheme(NULL),
         function(NULL),
+        instruction(NULL),
         decimal(0),
         integer(0),
         secondRegister(0),
@@ -582,6 +810,9 @@ struct operation_step {
         secondRegister = step.secondRegister;
         thirdRegister = step.thirdRegister;
 
+        if(step.instruction != NULL)
+            instruction = new machine_instruction(*step.instruction);
+
         if(step.scheme)
             scheme = new operation_schema(*step.scheme);
     }
@@ -597,6 +828,7 @@ struct operation_step {
     char _char;
     bool _bool;
     data_type nativeType;
+    machine_instruction *instruction;
     string _string;
     operation_type type;
     Int secondRegister;
@@ -605,6 +837,10 @@ struct operation_step {
 
 extern operation_step *currentStep;
 string operation_scheme_to_str(operation_schema *schema);
+
+void create_machine_instruction_operation(
+        operation_schema *scheme,
+        machine_instruction *instruction);
 
 void create_local_field_access_operation(
         operation_schema *scheme,

@@ -34,7 +34,7 @@ stable class _object_ : printable, unique {
     def notify(mills: var) {
         asm {
             pushl 0
-            loadl ebx, {mills}
+            loadl ebx, [mills]
             int 0x3e
         }
     }

@@ -21,6 +21,7 @@
 #include "try_catch_statement.h"
 #include "break_statement.h"
 #include "when_statement.h"
+#include "asm_statement.h"
 
 
 void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
@@ -103,7 +104,7 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
             break;
         }
         case ast_assembly_statement: {
-            // todo: impl
+            compile_asm_statement(ast, scheme);
             break;
         }
         default:

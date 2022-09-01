@@ -139,7 +139,7 @@ struct sharp_field {
     bool hasConstValue;
     Int block;
     bool staticClosure;
-    bool used;
+    bool used; // todo: add bool localField;
     uInt flags;
     Ast* ast;
 };

@@ -587,10 +587,6 @@ void parser::parseAsmStatement(Ast *ast) {
 
     _current--;
     expect(branch, "asm", false);
-    if(peek(1)->getValue() == "volatile") {
-        expect(branch, "volatile");
-    }
-
     parseAsmBlock(branch);
 }
 
@@ -1075,7 +1071,6 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         expectIdentifier(branch);
         expect(branch, ":");
-        parseAssemblyInstruction(branch);
     } else {
         errors->createNewError(GENERIC, current(), "expected assembly instruction");
     }
@@ -2542,26 +2537,38 @@ bool parser::parseAsmLiteral(Ast* ast) {
             }
         }
         return true;
-    } else if(t->getType() == LEFTCURLY) { // any
-        expect(branch, "{");
-        parseUtype(branch);
+    } else if(t->getType() == LEFTBRACE) {
+        element_address:
+        Ast *memberAst = getBranch(branch, ast_asm_member_item);
+        expect(memberAst, "[");
+        expectIdentifier(memberAst);
 
         if(peek(1)->getType() == PLUS || peek(1)->getType() == MINUS) {
             advance();
-            branch->addToken(current());
+            memberAst->addToken(current());
 
             if(t->getId() == INTEGER_LITERAL
                || t->getId() == HEX_LITERAL)
             {
                 advance();
-                branch->addToken(current());
+                memberAst->addToken(current());
                 return true;
             } else {
                 errors->createNewError(GENERIC, current(), "expected literal of type (integer, hex)");
                 return false;
             }
         }
-        expect(branch, "}");
+        expect(memberAst, "]");
+        return true;
+    } else if(t->getType() == DOLLAR) {
+        expect(branch, "$");
+        Ast *classAst = getBranch(branch, ast_asm_class_item);
+        parseUtype(classAst);
+
+        if(peek(1)->getType() == LEFTBRACE) {
+            goto element_address;
+        }
+
         return true;
     }
     else {

@@ -100,26 +100,26 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
 }
 
 void compile_vector_item(Ast *ast, sharp_type *arrayType, List<expression*>& arrayItems) {
-    expression item;
+    expression *item = new expression();
 
-    compile_expression(item, ast);
-    convert_expression_type_to_real_type(item);
+    compile_expression(*item, ast);
+    convert_expression_type_to_real_type(*item);
 
-    if (!has_type(*arrayType) && has_type(item.type)) {
-        arrayType->copy(item.type);
-    } else if (has_type(item.type)) {
+    if (!has_type(*arrayType) && has_type(item->type)) {
+        arrayType->copy(item->type);
+    } else if (has_type(item->type)) {
         if (!is_implicit_type_match(
-                *arrayType, item.type,
+                *arrayType, item->type,
                 constructor_only)) {
             if (is_implicit_type_match(
-                    item.type, *arrayType,
+                    item->type, *arrayType,
                     constructor_only)) {
-                arrayType->copy(item.type);
+                arrayType->copy(item->type);
             }
         }
     }
 
-    if(item.type.nullable) {
+    if(item->type.nullable) {
         arrayType->nullableItems = true;
     }
 

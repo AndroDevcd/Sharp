@@ -31,6 +31,7 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
 
     process_step(next_step); // add, sub, mult, div, mod, etc
 
+    cc.machineData.field = asignee.field;
     cc.machineData.dataAddress = asignee.dataAddress;
     cc.machineData.type = asignee.type;
 

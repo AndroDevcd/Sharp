@@ -237,7 +237,6 @@ void consume_machine_data_from_register(internal_register *internalRegister);
 void increment_machine_data(data_type);
 void decrement_machine_data(data_type);
 void cast_machine_data(_register r, data_type type);
-bool dynamic_instruction_supported(int opcode);
 void create_dynamic_instruction(dynamic_instruction di);
 void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instruction &di);
 void resolve_dynamic_instructions();

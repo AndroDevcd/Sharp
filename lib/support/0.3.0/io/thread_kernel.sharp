@@ -12,11 +12,11 @@ def _srt_thread_start() {
         movi egx, 0
         movi adx, 0
         movl 0
-        movn {thread.exited}
+        movn $thread[exited]
         rmov adx, egx
 
         movl 0
-        movn {thread.started}
+        movn $thread[started]
         rmov adx, ebx
     }
 

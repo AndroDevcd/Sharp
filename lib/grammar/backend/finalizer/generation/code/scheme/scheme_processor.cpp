@@ -78,6 +78,7 @@
 #include "scheme_call_getter_function.h"
 #include "scheme_and.h"
 #include "../../../../../../util/File.h"
+#include "scheme_asm.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -216,19 +217,19 @@ void process_scheme(operation_schema *scheme) {
                 return process_continue_scheme(scheme);
             case scheme_break:
                 return process_break_scheme(scheme);
-            case scheme_none:
-                generation_error("Scheme is missing type!");
-                break;
             case scheme_check_type:
                 return process_check_type_scheme(scheme);
             case scheme_lock:
-                process_lock_scheme(scheme);
+                return process_lock_scheme(scheme);
                 break;
             case scheme_call_getter_function:
-                process_call_getter_function_scheme(scheme);
-                break;
+                return process_call_getter_function_scheme(scheme);
             case scheme_and:
-                process_and_scheme(scheme);
+                return process_and_scheme(scheme);
+            case scheme_asm:
+                return process_asm_scheme(scheme);
+            case scheme_none:
+                generation_error("Scheme is missing type!");
                 break;
             case scheme_label:
                 // not supported as of now

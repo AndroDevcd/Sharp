@@ -119,6 +119,8 @@ enum ast_type
     ast_literal,
     ast_access_type,
     ast_array_index_items,
+    ast_asm_member_item,
+    ast_asm_class_item,
 
     /**
      * Encapsulated ast's to make processing expressions easier

@@ -151,8 +151,8 @@ def round(num: var) : var {
 
 local def math_proc(num: var, proc: var) : var {
     asm {
-        loadl ebx, {num}
-        loadl ecx, {proc}
+        loadl ebx, [num]
+        loadl ecx, [proc]
         int 0x18
         returnVal cmt
         ret 0
@@ -163,9 +163,9 @@ local def math_proc(num: var, proc: var) : var {
 
 local def math_proc(num:var, num2: var, proc: var) : var {
     asm {
-        loadl ebx, {num}
-        loadl egx, {num2}
-        loadl ecx, {proc}
+        loadl ebx, [num]
+        loadl egx, [num2]
+        loadl ecx, [proc]
         int 0x18
         returnVal cmt
         ret 0

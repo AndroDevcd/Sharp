@@ -259,6 +259,8 @@ void process_step(operation_step *step) {
             return process_retain_label_value(step);
         case operation_throw_exception:
             return process_throw_exception(step);
+        case operation_machine_instruction:
+            return process_machine_instruction(step);
         case operation_none:
             generation_error("attempt to execute invalid operation step!");
             break;
@@ -272,6 +274,62 @@ void process_step(operation_step *step) {
             generation_error("attempt to execute unknown operation step!");
             break;
     }
+}
+
+dynamic_argument machine_argument_to_dynamic_argument(machine_argument *arg) {
+    if(arg != NULL) {
+        if(arg->type == type_field_address) {
+            return dynamic_argument(regular_argument, arg->field->ci->address);
+        } else if(arg->type == type_function_address) {
+            return dynamic_argument(regular_argument, arg->sf->ci->address);
+        } else if(arg->type == type_class_address) {
+            return dynamic_argument(regular_argument, arg->sc->ci->address);
+        } else if(arg->type == type_label_address) {
+            return dynamic_argument(label_argument, arg->label->id);
+        } else if(arg->type == type_string_address) {
+            return dynamic_argument(regular_argument, create_constant(arg->str));
+        } else return dynamic_argument(regular_argument, arg->number);
+    } else return dynamic_argument();
+}
+
+dynamic_instruction machine_instruction_to_dynamic_instruction(machine_instruction *mi) {
+    return dynamic_instruction(
+            mi->opcode, (
+                    mi->opcode == Opcode::MOVI
+                    || mi->opcode == Opcode::IADD
+                    || mi->opcode == Opcode::ISUB
+                    || mi->opcode == Opcode::IDIV
+                    || mi->opcode == Opcode::IMUL
+                    || mi->opcode == Opcode::NEWCLASS
+                    || mi->opcode == Opcode::NEWCLASSARRAY
+                    || mi->opcode == Opcode::IADDL
+                    || mi->opcode == Opcode::ISUBL
+                    || mi->opcode == Opcode::IDIVL
+                    || mi->opcode == Opcode::IMODL
+                    || mi->opcode == Opcode::IMULL
+                    || mi->opcode == Opcode::ISTORE
+                    || mi->opcode == Opcode::SMOVR_4
+                    || mi->opcode == Opcode::ISTOREL
+                    || mi->opcode == Opcode::INVOKE_DELEGATE
+                    || mi->opcode == Opcode::ISADD
+                    || mi->opcode == Opcode::CMP
+                    || mi->opcode == Opcode::IS
+                    || mi->opcode == Opcode::MOVN
+                    || mi->opcode == Opcode::IMOD) ? INSTRUCTION_BUFFER_SIZE : 1,
+            machine_argument_to_dynamic_argument(mi->arg1),
+            machine_argument_to_dynamic_argument(mi->arg2),
+            machine_argument_to_dynamic_argument(mi->arg3)
+    );
+}
+
+void process_machine_instruction(operation_step *step) {
+    validate_step_type(step, operation_machine_instruction);
+
+    machine_instruction *mi = step->instruction;
+
+    create_dynamic_instruction(
+            machine_instruction_to_dynamic_instruction(mi)
+    );
 }
 
 void process_retain_label_value(operation_step *step) {

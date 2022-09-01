@@ -17,24 +17,24 @@ class vm {
     }
 
     static def get_stack_trace(info : stack_state) : string? {
-        asm {
-            pushl {info}
-            int 0x36
-            popObj2
-            returnObj
-            ret 0
-        }
+        //asm {
+        //    pushl [info]
+        //    int 0x36
+        //    popObj2
+        //    returnObj
+        //    ret 0
+        //}
         return null;
     }
 
     static def thread_create(daemon: var) : var {
         result: var;
-        asm {
-            movi adx, {_srt_thread_start}
-            loadl ebx, {daemon}
-            int 0x10
-            smovr2 {result}, ebx
-        }
+        //asm {
+        //    movi adx, [_srt_thread_start]
+        //    loadl ebx, [daemon]
+        //    int 0x10
+        //    smovr2 [result], ebx
+        //}
 
         return result;
     }
@@ -47,15 +47,15 @@ class vm {
         if(t != null)
            threadid = t.get_native_handle();
 
-        asm {
-            pushl {args}
-            pushl {fib}
-            ipushl {threadid}
-            ipushl {main}
-            pushl {name}
-            int 0x45
-            smovr2 {result}, ebx
-        }
+       //asm {
+       //    pushl {args}
+       //    pushl {fib}
+       //    ipushl {threadid}
+       //    ipushl {main}
+       //    pushl {name}
+       //    int 0x45
+       //    smovr2 [result], ebx
+       //}
 
         return result;
     }
@@ -64,11 +64,11 @@ class vm {
         id := fib.id;
         result: var;
 
-        asm {
-            ipushl {id}
-            int 0x46
-            smovr2 {result}, ebx
-        }
+        //asm {
+        //    ipushl {id}
+        //    int 0x46
+        //    smovr2 [result], ebx
+        //}
 
         return result;
     }
@@ -77,11 +77,11 @@ class vm {
         id := fib.id;
         result: var;
 
-        asm {
-            ipushl {id}
-            int 0x47
-            smovr2 {result}, ebx
-        }
+       // asm {
+       //     ipushl {id}
+       //     int 0x47
+       //     smovr2 [result], ebx
+       // }
 
         return result;
     }
@@ -90,11 +90,11 @@ class vm {
         id := fib.id;
         result: var;
 
-        asm {
-            ipushl {id}
-            int 0x48
-            smovr2 {result}, ebx
-        }
+       // asm {
+       //     ipushl {id}
+       //     int 0x48
+       //     smovr2 [result], ebx
+       // }
 
         return result;
     }
@@ -107,12 +107,12 @@ class vm {
            threadid = t?.get_native_handle();
         result: var;
 
-        asm {
-            ipushl {threadid}
-            ipushl {id}
-            int 0x49
-            smovr2 {result}, ebx
-        }
+      //  asm {
+      //      ipushl {threadid}
+      //      ipushl {id}
+      //      int 0x49
+      //      smovr2 [result], ebx
+      //  }
 
         return result;
     }
@@ -121,11 +121,11 @@ class vm {
         threadid := t?.get_native_handle();
         result: var;
 
-        asm {
-            ipushl {threadid}
-            int 0x4a
-            smovr2 {result}, ebx
-        }
+      /// asm {
+      ///     ipushl {threadid}
+      ///     int 0x4a
+      ///     smovr2 [result], ebx
+      /// }
 
         return result;
     }
@@ -134,11 +134,11 @@ class vm {
         id := fib.id;
         result: var;
 
-        asm {
-            ipushl {id}
-            int 0x4b
-            smovr2 {result}, ebx
-        }
+     //   asm {
+     //       ipushl {id}
+     //       int 0x4b
+     //       smovr2 [result], ebx
+     //   }
 
         return result;
     }
@@ -146,11 +146,11 @@ class vm {
     static def current_fiber() : fiber {
         result: fiber;
 
-        asm {
-            int 0x4c
-            movl {result}
-            popObj
-        }
+    //   asm {
+    //       int 0x4c
+    //       movl [result]
+    //       popObj
+    //   }
 
         return result;
     }
@@ -159,11 +159,11 @@ class vm {
         id := t.get_native_handle();
         result: var;
 
-        asm {
-            loadl adx, {id}
-            int 0x12
-            smovr2 {result}, cmt
-        }
+     //   asm {
+     //       loadl adx, {id}
+     //       int 0x12
+     //       smovr2 [result], cmt
+     //   }
 
         return thread_result.at(result);
     }
@@ -172,23 +172,23 @@ class vm {
         id := t.get_native_handle();
         result: var;
 
-        asm {
-            loadl adx, {id}
-            loadl ebx, {wait}
-            int 0x13
-            smovr2 {result}, cmt
-        }
+     ///  asm {
+     ///      loadl adx, {id}
+     ///      loadl ebx, {wait}
+     ///      int 0x13
+     ///      smovr2 [result], cmt
+     ///  }
 
         return thread_result.at(result);
     }
 
     static def get_os_time(tr : var) : var {
        result: var;
-       asm {
-          loadl ebx, {tr}
-          int 0x2
-          smovr2 {result}, bmr
-       }
+     //  asm {
+     //     loadl ebx, {tr}
+     //     int 0x2
+     //     smovr2 [result], bmr
+     //  }
 
        return result;
     }
@@ -197,11 +197,11 @@ class vm {
         id := t.get_native_handle();
         result: var;
 
-        asm {
-            loadl adx, {id}
-            int 0xd
-            smovr2 {result}, cmt
-        }
+     ///  asm {
+     ///      loadl adx, {id}
+     ///      int 0xd
+     ///      smovr2 [result], cmt
+     ///  }
 
         return thread_result.at(result);
     }
@@ -210,56 +210,56 @@ class vm {
         id := t.get_native_handle();
         result: var;
 
-        asm {
-            loadl adx, {id}
-            int 0xe
-            smovr2 {result}, cmt
-        }
+     //   asm {
+     //       loadl adx, {id}
+     //       int 0xe
+     //       smovr2 [result], cmt
+     //   }
 
         exit_thread(t, 1);
         return thread_result.at(result);
     }
 
     static def current_thread() : thread? {
-        asm {
-            int 0x15
-            popObj2
-            returnObj
-            ret 0
-        }
+     //  asm {
+     //      int 0x15
+     //      popObj2
+     //      returnObj
+     //      ret 0
+     //  }
 
         return null;
     }
 
     static def exit_thread(t: thread, code: var) {
-        asm {
-            movi ebx, 1
-            movi egx, 0
-            movi ecx, -1
-            movi adx, 0
-            movl 0
-            movn {thread.exited}
-            rmov adx, ebx
-
-            movl 0
-            movn {thread.started}
-            rmov adx, egx
-
-            loadl egx, {code}
-            movl 0
-            movn {thread.exit_code}
-            rmov adx, egx
-
-            movl 0
-            movn {thread.native_handle}
-            rmov adx, ecx
-        }
+      //  asm {
+      //      movi ebx, 1
+      //      movi egx, 0
+      //      movi ecx, -1
+      //      movi adx, 0
+      //      movl 0
+      //      movn {thread.exited}
+      //      rmov adx, ebx
+//
+      //      movl 0
+      //      movn {thread.started}
+      //      rmov adx, egx
+//
+      //      loadl egx, {code}
+      //      movl 0
+      //      movn {thread.exit_code}
+      //      rmov adx, egx
+//
+      //      movl 0
+      //      movn {thread.native_handle}
+      //      rmov adx, ecx
+      //  }
     }
 
     static def thread_yield() {
-        asm {
-            int 0x1c
-        }
+    //  asm {
+    //      int 0x1c
+    //  }
     }
 
     static def thread_start(t: thread, args: object[]?) : thread_result {
@@ -267,14 +267,14 @@ class vm {
         stack_size := t.get_stack_size();
         result: var;
 
-        asm {
-            loadl ebx, {stack_size}
-            loadl adx, {id}
-            pushl {args}
-            pushl {t}
-            int 0xc
-            smovr2 {result}, cmt
-        }
+    //   asm {
+    //       loadl ebx, {stack_size}
+    //       loadl adx, {id}
+    //       pushl {args}
+    //       pushl {t}
+    //       int 0xc
+    //       smovr2 [result], cmt
+    //   }
 
         if(result == 0) {
            while(!t.is_started()) {
@@ -293,30 +293,30 @@ class vm {
         id := t.get_native_handle();
         result: var;
 
-        asm {
-            loadl adx, {id}
-            loadl egx, {priority}
-            int 0x11
-            smovr2 {result}, cmt
-        }
+      ///  asm {
+      ///      loadl adx, {id}
+      ///      loadl egx, {priority}
+      ///      int 0x11
+      ///      smovr2 [result], cmt
+      ///  }
 
         return thread_result.at(result);
     }
 
     static def set_thread(t: thread) {
-        asm {
-            pushl {t}
-            int 0x17
-        }
+     //  asm {
+     //      pushl {t}
+     //      int 0x17
+     //  }
     }
 
     static def thread_args() : object[]? {
-        asm {
-            int 0x16
-            popObj2
-            returnObj
-            ret 0
-        }
+      //  asm {
+      //      int 0x16
+      //      popObj2
+      //      returnObj
+      //      ret 0
+      //  }
 
         return null;
     }
@@ -324,10 +324,10 @@ class vm {
     static def hardware_concurrency() : var {
         result: var;
 
-        asm {
-            int 0x38
-            smovr2 {result}, ebx
-        }
+     //   asm {
+     //       int 0x38
+     //       smovr2 [result], ebx
+     //   }
 
         return result;
     }
@@ -335,10 +335,10 @@ class vm {
     static def random_int() : var {
         result: var;
 
-        asm {
-           int 0x19
-           smovr2 {result}, ebx
-        }
+    //   asm {
+    //      int 0x19
+    //      smovr2 [result], ebx
+    //   }
 
         return result;
     }
@@ -346,12 +346,12 @@ class vm {
     static def random_int(min: var, max : var) : var {
        result: var;
 
-       asm {
-          loadl ebx, {min}
-          loadl egx, {max}
-          int 0x3f
-          smovr2 {result}, ebx
-       }
+     // asm {
+     //    loadl ebx, {min}
+     //    loadl egx, {max}
+     //    int 0x3f
+     //    smovr2 [result], ebx
+     // }
 
        return result;
     }
@@ -359,10 +359,10 @@ class vm {
     static def random_double() : var {
         result: var;
 
-        asm {
-           int 0x40
-           smovr2 {result}, ebx
-        }
+     //   asm {
+     //      int 0x40
+     //      smovr2 [result], ebx
+     //   }
 
         return result;
     }
@@ -370,21 +370,21 @@ class vm {
     static def random_double(min: var, max : var) : var {
        result: var;
 
-       asm {
-          loadl ebx, {min}
-          loadl egx, {max}
-          int 0x41
-          smovr2 {result}, ebx
-       }
+     //  asm {
+     //     loadl ebx, {min}
+     //     loadl egx, {max}
+     //     int 0x41
+     //     smovr2 [result], ebx
+     //  }
 
        return result;
     }
 
     static def random_seed(seed : var) {
-       asm {
-          loadl adx, {seed}
-          int 0x42
-       }
+     //  asm {
+     //     loadl adx, {seed}
+     //     int 0x42
+     //  }
     }
 
 }

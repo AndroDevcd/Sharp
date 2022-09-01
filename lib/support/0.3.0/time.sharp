@@ -14,7 +14,7 @@ class time {
         asm
         {
             int 0xb
-            smovr2 {now}, bmr
+            smovr2 [now], bmr
         };
         return now;
     }
@@ -59,7 +59,7 @@ class time {
         }
 
         asm {
-            loadl ebx, {time}
+            loadl ebx, [time]
             sleep ebx
         }
     }
@@ -79,7 +79,7 @@ class time {
         }
 
         asm {
-            loadl adx, {time}
+            loadl adx, [time]
             int 0x14
         }
     }

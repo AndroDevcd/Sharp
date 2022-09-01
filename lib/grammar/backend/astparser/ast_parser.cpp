@@ -234,8 +234,10 @@ void parse_reference_item(unresolved_item &item, Ast *ast) {
         item.type = generic_reference;
 
         parse_utype_list(item.typeSpecifiers, ast->getSubAst(ast_utype_list));
-    } else if(ast->getSubAst(ast_module_reference)) {
-        ast = ast->getSubAst(ast_module_reference);
+    } else if(ast->getSubAst(ast_module_reference) || ast->getType() == ast_module_reference) {
+
+        if(ast->getType() != ast_module_reference)
+            ast = ast->getSubAst(ast_module_reference);
 
         stringstream module;
         Ast *child;

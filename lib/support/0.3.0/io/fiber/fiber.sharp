@@ -113,7 +113,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
 
 def delay(mills: var) {
    asm {
-      loadl ebx, {mills}
+      loadl ebx, [mills]
       int 0x44
    }
 }

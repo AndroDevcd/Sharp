@@ -795,6 +795,13 @@ void create_primary_instance_field_access_operation(
     }
 }
 
+void create_machine_instruction_operation(
+        operation_schema *scheme,
+        machine_instruction *instruction) {
+    scheme->steps.add(new operation_step(
+            operation_machine_instruction, instruction));
+}
+
 void add_scheme_operation(
         operation_schema *scheme,
         operation_schema *valueScheme) {
@@ -2232,9 +2239,11 @@ void create_function_parameter_push_operation(
 }
 
 void operation_step::freeStep()  {
-    if(scheme) {
+    if(scheme || instruction) {
         delete scheme;
         scheme = NULL;
+        delete instruction;
+        instruction = NULL;
     }
 }
 

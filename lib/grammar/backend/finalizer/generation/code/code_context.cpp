@@ -795,40 +795,553 @@ opcode_arg get_dynamic_arg_value(dynamic_argument &da) {
 }
 
 void create_dynamic_instruction(dynamic_instruction di) {
-    if(dynamic_instruction_supported(di.opcode)) {
-        di.ip = cc.instructions.size();
-        for(int i = 0; i < di.size; i++) {
-            cc.instructions.add(0);
-        }
-
-        cc.dynamicInstructions.add(new dynamic_instruction(di));
-    } else {
-        generation_error("attempting to create unsupported dynamic instruction!");
+    di.ip = cc.instructions.size();
+    for(int i = 0; i < di.size; i++) {
+        cc.instructions.add(0);
     }
+
+    cc.dynamicInstructions.add(new dynamic_instruction(di));
+}
+
+void update_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instruction &di, opcode_instr *instr) {
+    Int instrPos = 0;
+    for(Int i = 0; i < INSTRUCTION_BUFFER_SIZE; i++) {
+        instructions.get(di.ip + i) = instr[instrPos++];
+    }
+}
+
+void update_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instruction &di, opcode_instr instr) {
+    instructions.get(di.ip) = instr;
 }
 
 void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instruction &di) {
     switch(di.opcode) {
-        case Opcode::MOVI: {
-            opcode_instr *instr = Opcode::Builder::movi(
-                    get_dynamic_arg_value(di.arg1), (_register) get_dynamic_arg_value(di.arg2));
-
-            Int instrPos = 0;
-            for(Int i = 0; i < INSTRUCTION_BUFFER_SIZE; i++) {
-                instructions.get(di.ip + i) = instr[instrPos++];
-            }
+        case Opcode::NOP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::nop());
             break;
         }
-        case Opcode::JE: {
-            instructions.get(di.ip) = Opcode::Builder::je(get_dynamic_arg_value(di.arg1));
+        case Opcode::INT: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_int((interruptFlag)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::RET: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ret(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::HLT: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::hlt());
+            break;
+        }
+        case Opcode::NEWARRAY: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::newVarArray((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::CAST: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::cast(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::MOV8: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mov8((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOV16: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mov16((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOV32: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mov32((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOV64: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mov64((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOVU8: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movu8((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOVU16: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movu16((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOVU32: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movu32((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOVU64: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movu64((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::RSTORE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::rstore((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::ADD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::add(
+                        (_register)get_dynamic_arg_value(di.arg1),
+                        (_register)get_dynamic_arg_value(di.arg2),
+                        (_register)get_dynamic_arg_value(di.arg3)
+                    )
+            );
+            break;
+        }
+        case Opcode::SUB: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::sub(
+                            (_register)get_dynamic_arg_value(di.arg1),
+                            (_register)get_dynamic_arg_value(di.arg2),
+                            (_register)get_dynamic_arg_value(di.arg3)
+                    )
+            );
+            break;
+        }
+        case Opcode::MUL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mul(
+                            (_register)get_dynamic_arg_value(di.arg1),
+                            (_register)get_dynamic_arg_value(di.arg2),
+                            (_register)get_dynamic_arg_value(di.arg3)
+                    )
+            );
+            break;
+        }
+        case Opcode::DIV: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::div(
+                           (_register)get_dynamic_arg_value(di.arg1),
+                           (_register)get_dynamic_arg_value(di.arg2),
+                           (_register)get_dynamic_arg_value(di.arg3)
+                   )
+            );
+            break;
+        }
+        case Opcode::MOD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mod(
+                           (_register)get_dynamic_arg_value(di.arg1),
+                           (_register)get_dynamic_arg_value(di.arg2),
+                           (_register)get_dynamic_arg_value(di.arg3)
+                   )
+            );
+            break;
+        }
+        case Opcode::IADD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::iadd(
+                           (_register)get_dynamic_arg_value(di.arg1),
+                           get_dynamic_arg_value(di.arg2)
+                   )
+            );
+            break;
+        }
+        case Opcode::ISUB: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::isub(
+                            (_register)get_dynamic_arg_value(di.arg1),
+                            get_dynamic_arg_value(di.arg2)
+                    )
+            );
+            break;
+        }
+        case Opcode::IMUL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::imul(
+                            (_register)get_dynamic_arg_value(di.arg1),
+                            get_dynamic_arg_value(di.arg2)
+                    )
+            );
+            break;
+        }
+        case Opcode::IDIV: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::idiv(
+                            (_register)get_dynamic_arg_value(di.arg1),
+                            get_dynamic_arg_value(di.arg2)
+                    )
+            );
+            break;
+        }
+        case Opcode::IMOD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::imod(
+                            (_register)get_dynamic_arg_value(di.arg1),
+                            get_dynamic_arg_value(di.arg2)
+                    )
+            );
+            break;
+        }
+        case Opcode::POP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::pop());
+            break;
+        }
+        case Opcode::INC: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::inc((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::DEC: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::dec((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::MOVR: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movr((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::IALOAD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::iaload((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::BRH: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::brh());
+            break;
+        }
+        case Opcode::IFE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ife());
+            break;
+        }
+        case Opcode::IFNE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ifne());
+            break;
+        }
+        case Opcode::LT: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::lt((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::GT: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::gt((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::LTE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::le((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::GTE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ge((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MOVL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::MOVSL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movsl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::SIZEOF: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_sizeof((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::PUT: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::put((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::PUTC: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::putc((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::CHECKLEN: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::checklen((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::LOADPC: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::loadpc((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::PUSHOBJ: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::pushObject());
+            break;
+        }
+        case Opcode::DEL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::del());
+            break;
+        }
+        case Opcode::CALL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::call(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::NEWCLASS: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::newClass(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::MOVN: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movn(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::SLEEP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::sleep((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::TEST: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::te((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::TNE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::tne((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::LOCK: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::lock());
+            break;
+        }
+        case Opcode::ULOCK: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::unlock());
+            break;
+        }
+        case Opcode::MOVG: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movg(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::MOVND: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movnd((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::NEWOBJARRAY: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::newObjectArray((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::NOT: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_not((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::SKIP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::skip(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::LOADVAL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::loadValue((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::SHL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::shl(
+                    (_register)get_dynamic_arg_value(di.arg1),
+                    (_register)get_dynamic_arg_value(di.arg2),
+                    (_register)get_dynamic_arg_value(di.arg3)
+                  )
+            );
+            break;
+        }
+        case Opcode::SHR: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::shr(
+                    (_register)get_dynamic_arg_value(di.arg1),
+                    (_register)get_dynamic_arg_value(di.arg2),
+                    (_register)get_dynamic_arg_value(di.arg3)
+                 )
+            );
+            break;
+        }
+        case Opcode::SKPE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::skipife((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::SKNE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::skipifne((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::AND: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_and((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::UAND: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::uand((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::OR: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_or((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::XOR: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_xor((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::THROW: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_throw());
+            break;
+        }
+        case Opcode::CHECKNULL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::checkNull((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::RETURNOBJ: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::returnObject());
+            break;
+        }
+        case Opcode::NEWCLASSARRAY: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::newClassArray((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::NEWSTRING: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::newString(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::ADDL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::addl((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::SUBL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::subl((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MULL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::mull((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::DIVL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::divl((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::MODL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::modl((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::IADDL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::iaddl(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::ISUBL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::isubl(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::IMULL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::imull(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::IDIVL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::idivl(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::IMODL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::imodl(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::LOADL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::loadl((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::POPOBJ: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::popObject());
+            break;
+        }
+        case Opcode::SMOVR: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::smovr((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::ANDL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::andl((_register)get_dynamic_arg_value(di.arg1),get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::ORL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::orl((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::XORL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::xorl((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::RMOV: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::rmov((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::SMOV: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::smov((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::RETURNVAL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::returnValue((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::ISTORE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::istore(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::SMOVR_2: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::smovr2((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::SMOVR_3: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::smovr3(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::ISTOREL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::istorel(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::POPL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::popl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::PUSHNULL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::pushNull());
+            break;
+        }
+        case Opcode::IPUSHL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ipushl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::PUSHL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::pushl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::ITEST: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::itest((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::INVOKE_DELEGATE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::invokeDelegate(
+                    get_dynamic_arg_value(di.arg1),
+                    get_dynamic_arg_value(di.arg2),
+                    get_dynamic_arg_value(di.arg3)
+                 )
+            );
+            break;
+        }
+        case Opcode::GET: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::get((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::ISADD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::isadd(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::IPOPL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ipopl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::CMP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::cmp((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::CALLD: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::calld((_register)get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::VARCAST: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::varCast(get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::TLS_MOVL: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::tlsMovl(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::DUP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::dup());
+            break;
+        }
+        case Opcode::POPOBJ_2: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::popObject2());
+            break;
+        }
+        case Opcode::SWAP: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::swap());
+            break;
+        }
+        case Opcode::LDC: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::ldc((_register)get_dynamic_arg_value(di.arg1), get_dynamic_arg_value(di.arg2)));
+            break;
+        }
+        case Opcode::NEG: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::neg((_register)get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
             break;
         }
         case Opcode::JNE: {
-            instructions.get(di.ip) = Opcode::Builder::jne(get_dynamic_arg_value(di.arg1));
+            update_dynamic_instruction(instructions, di, Opcode::Builder::jne(get_dynamic_arg_value(di.arg1)));
+            break;
+        }
+        case Opcode::JE: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::je(get_dynamic_arg_value(di.arg1)));
             break;
         }
         case Opcode::JMP: {
-            instructions.get(di.ip) = Opcode::Builder::jmp(get_dynamic_arg_value(di.arg1));
+            update_dynamic_instruction(instructions, di, Opcode::Builder::jmp(get_dynamic_arg_value(di.arg1)));
             break;
         }
         default:
@@ -840,19 +1353,6 @@ void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instr
 void resolve_dynamic_instructions() {
     for(Int i = 0; i < cc.dynamicInstructions.size(); i++) {
         resolve_dynamic_instruction(cc.instructions, *cc.dynamicInstructions.get(i));
-    }
-}
-
-bool dynamic_instruction_supported(int opcode) {
-    switch(opcode) {
-        case Opcode::MOVI:
-        case Opcode::JE:
-        case Opcode::JNE:
-        case Opcode::JMP:
-            return true;
-
-        default:
-            return false;
     }
 }
 
