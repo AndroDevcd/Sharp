@@ -12,6 +12,7 @@
 #include "../dependency/dependancy.h"
 #include "../dependency/injection_request.h"
 #include "../../compiler_info.h"
+#include "../../settings/settings.h"
 
 struct sharp_class;
 struct code_info;
@@ -34,9 +35,11 @@ struct sharp_field {
             fieldType(normal_field),
             closure(NULL),
             closureRef(NULL),
+            uid(-1),
             staticClosure(false),
             used(false),
             hasConstValue(false),
+            obfuscate(options.obfuscate),
             constValue(0),
             block(invalid_block_id),
             type(),
@@ -56,7 +59,9 @@ struct sharp_field {
             dependencies(sf.dependencies),
             type(sf.type),
             flags(sf.flags),
+            obfuscate(sf.obfuscate),
             constValue(sf.constValue),
+            uid(sf.uid),
             hasConstValue(sf.hasConstValue),
             ci(NULL),
             fieldType(sf.fieldType),
@@ -97,7 +102,9 @@ struct sharp_field {
             fieldType(ft),
             closure(NULL),
             closureRef(NULL),
+            uid(-1),
             staticClosure(false),
+            obfuscate(options.obfuscate),
             used(false),
             constValue(0),
             hasConstValue(false),
@@ -139,7 +146,9 @@ struct sharp_field {
     bool hasConstValue;
     Int block;
     bool staticClosure;
-    bool used; // todo: add bool localField;
+    bool used;
+    bool obfuscate;
+    uInt uid;
     uInt flags;
     Ast* ast;
 };

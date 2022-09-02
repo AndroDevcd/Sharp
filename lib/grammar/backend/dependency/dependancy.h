@@ -299,6 +299,9 @@ enum resolve_filter {
     resolve_filter_label = 0x8000,
     resolve_filter_local_alias = 0x10000,
 
+    // special case for complete unrestricted access to everything (used for deep type resolving)
+    resolve_filter_un_restricted = 0x20000,
+
     /**
      * quick resolve flag vars
      */
@@ -333,7 +336,9 @@ enum resolve_filter {
     resolve_inner_class_type = resolve_filter_class_field
             | resolve_filter_class_enum
             | resolve_filter_class_alias
-            | resolve_filter_class_function
+            | resolve_filter_class_function,
+
+    resolve_unrestricted = resolve_filter_un_restricted
 };
 
 void resolve(

@@ -7,6 +7,7 @@
 
 #include "../../../../stdimports.h"
 #include "../../List.h"
+#include "../../settings/settings.h"
 
 struct sharp_class;
 
@@ -24,6 +25,8 @@ struct sharp_module {
     :
         name(""),
         classes(),
+        obfuscate(options.obfuscate),
+        uid(-1),
         genericClasses()
     {}
 
@@ -31,6 +34,8 @@ struct sharp_module {
             :
             name(package),
             classes(),
+            obfuscate(options.obfuscate),
+            uid(-1),
             genericClasses()
     {}
 
@@ -39,6 +44,8 @@ struct sharp_module {
             :
             name(m.name),
             classes(),
+            obfuscate(options.obfuscate),
+            uid(-1),
             genericClasses()
     {
         copy(m);
@@ -56,6 +63,8 @@ struct sharp_module {
     void copy(const sharp_module &m);
 
     string name;
+    bool obfuscate;
+    uInt uid;
     List<sharp_class*> classes;
     List<sharp_class*> genericClasses;
 };

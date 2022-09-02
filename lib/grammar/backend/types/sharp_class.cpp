@@ -176,6 +176,8 @@ sharp_class* create_class(
         if(check_flag(owner->flags, flag_global)) {
             file->classes.add(sc);
         }
+
+        sc->uid = uniqueId++;
         if(isGeneric) owner->generics.add(sc);
         else owner->children.add(sc);
         return sc;
@@ -214,6 +216,7 @@ sharp_class* create_class(
                 location, flags, ast, type
         );
 
+        sc->uid = uniqueId++;
         file->classes.add(sc);
         if(isGeneric) {
             if(owner != NULL) owner->generics.add(sc);

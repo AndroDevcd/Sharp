@@ -59,6 +59,7 @@ bool create_function(
             currThread->currTask->file->functions.add(sf);
         }
 
+        sf->uid = uniqueId++;
         sc->functions.add(sf);
         createdFun = sf;
         return true;
@@ -98,8 +99,10 @@ void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation
                                       type, constructor_function);
 
         GUARD(globalLock)
+        sf->uid = uniqueId++;
         currThread->currTask->file->functions.add(sf);
         sc->functions.add(sf);
+//        sf->used = true;
     }
 }
 

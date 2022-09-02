@@ -11,6 +11,7 @@
 #include "field_compiler.h"
 #include "functions/function_compiler.h"
 #include "functions/init_compiler.h"
+#include "obfuscate_compiler.h"
 
 
 void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) {
@@ -31,8 +32,11 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
 
         delete_context();
         return;
+    } else if(with_class->genericBuilder != NULL && with_class->genericBuilder->obfuscate) {
+        obfuscate_class(with_class, with_class->genericBuilder->obfuscate ? modifier_obfuscate_inclusive : modifier_keep_inclusive, block);
     }
 
+    compile_default_constructor(with_class);
     compile_class_fields(with_class, block);
     compile_class_mutations(with_class, block);
     compile_inits(with_class, block);
@@ -50,6 +54,9 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
                 break;
             case ast_enum_decl:
                 compile_enum_fields(with_class, trunk);
+                break;
+            case ast_obfuscate_decl:
+                compile_obfuscation_declaration(trunk);
                 break;
             default:
                 break;

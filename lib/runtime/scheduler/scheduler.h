@@ -10,9 +10,9 @@
 #include <mutex>
 
 #define TIME_UNIT_MULT 1000          /* Represents how many microseconds/millisecond */
-#define LPTSI (25 * TIME_UNIT_MULT)  /* low priority time slice interval 25ms */  // ~40 max fibers/second
-#define NPTSI (50 * TIME_UNIT_MULT)  /* norm priority time slice interval 50ms */ // ~20 max fibers/second
-#define HPTSI (85 * TIME_UNIT_MULT)  /* high priority time slice interval 85ms */ // ~11 max fibers/second
+#define LPTSI ((TIME_UNIT_MULT * 1000) / 150)  /* low priority time slice interval 150 ctx switches/sec */  // ~6.5ms
+#define NPTSI ((TIME_UNIT_MULT * 1000) / 100)  /* norm priority time slice interval 100 ctx switches/sec */ // ~10ms
+#define HPTSI ((TIME_UNIT_MULT * 1000) / 50)  /* high priority time slice interval 50 ctx switches/sec */ // ~20ms
 #define CLOCK_CYCLE 500              /* Time between clock cycle switches 500us */
 #define POST_IDLE_FREQUENCY ((TIME_UNIT_MULT / CLOCK_CYCLE) * 10)
 

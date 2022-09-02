@@ -23,6 +23,7 @@ sharp_module* create_module(string &packageName) {
     if(module != NULL) return module;
 
     module = new sharp_module(packageName);
+    module->uid = uniqueId++;
     modules.add(module);
     return module;
 }
@@ -30,6 +31,8 @@ sharp_module* create_module(string &packageName) {
 void sharp_module::copy(const sharp_module &m) {
     free();
 
+    uid = m.uid;
+    obfuscate = m.obfuscate;
     classes.addAll(m.classes);
     genericClasses.addAll(m.genericClasses);
 }

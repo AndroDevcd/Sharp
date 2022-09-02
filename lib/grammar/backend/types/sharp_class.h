@@ -14,6 +14,7 @@
 #include "sharp_module.h"
 #include "generic_type_identifier.h"
 #include "unresolved_extension_function.h"
+#include "../../settings/settings.h"
 
 struct code_info;
 
@@ -59,7 +60,9 @@ struct sharp_class {
             extensionFunctions(),
             mutations(),
             blueprintClass(false),
-            injected(false)
+            injected(false),
+            uid(-1),
+            obfuscate(options.obfuscate)
     {
     }
 
@@ -98,7 +101,9 @@ struct sharp_class {
             extensionFunctions(),
             mutations(),
             blueprintClass(false),
-            injected(false)
+            injected(false),
+            uid(-1),
+            obfuscate(options.obfuscate)
     {
         if(owner == NULL || check_flag(owner->flags, flag_global)) {
             fullName = module->name + "#"
@@ -145,7 +150,9 @@ struct sharp_class {
             extensionFunctions(),
             mutations(),
             blueprintClass(false),
-            injected(false)
+            injected(false),
+            uid(-1),
+            obfuscate(options.obfuscate)
     {
         fullName = module->name + "#"
                    + name;
@@ -171,9 +178,11 @@ struct sharp_class {
             functions(sc.functions),
             uncompiledLambdas(sc.uncompiledLambdas),
             generics(sc.generics),
+            obfuscate(sc.obfuscate),
             aliases(sc.aliases),
             fields(sc.fields),
             type(sc.type),
+            uid(sc.uid),
             interfaces(sc.interfaces),
             genericClones(sc.genericClones),
             genericTypes(sc.genericTypes),
@@ -213,6 +222,8 @@ struct sharp_class {
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
     class_type type;
+    uInt uid;
+    bool obfuscate;
     bool injected;
     bool blueprintClass;
     bool used;

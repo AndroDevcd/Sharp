@@ -12,6 +12,7 @@
 #include "../access_flag.h"
 #include "sharp_type.h"
 #include "function_type.h"
+#include "../../settings/settings.h"
 
 struct code_info;
 struct sharp_class;
@@ -34,7 +35,9 @@ struct sharp_function {
             scheme(NULL),
             delegate(NULL),
             ci(NULL),
+            uid(-1),
             used(false),
+            obfuscate(options.obfuscate),
             returnProtected(false),
             parameters(),
             returnType(),
@@ -55,10 +58,12 @@ struct sharp_function {
             dependencies(sf.dependencies),
             impls(sf.impls),
             flags(sf.flags),
+            uid(sf.uid),
             returnProtected(sf.returnProtected),
             baseConstructor(sf.baseConstructor),
             ast(sf.ast),
             delegate(sf.delegate),
+            obfuscate(sf.obfuscate),
             parameters(),
             locals(),
             aliases(),
@@ -95,6 +100,7 @@ struct sharp_function {
             parameters(),
             flags(flags),
             ast(ast),
+            uid(-1),
             returnType(),
             type(type),
             locals(),
@@ -106,6 +112,7 @@ struct sharp_function {
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
             baseConstructor(NULL),
+            obfuscate(options.obfuscate),
             closure(NULL),
             delegate(NULL),
             ci(NULL)
@@ -143,9 +150,11 @@ struct sharp_function {
     sharp_function* baseConstructor;
     function_type type;
     bool used;
+    bool obfuscate;
     bool returnProtected;
     code_info *ci;
     uInt flags;
+    uInt uid;
     Ast* ast;
     bool directlyCopyParams; // we need to do this for get() expressions to preserve the resolved type definition found
 };

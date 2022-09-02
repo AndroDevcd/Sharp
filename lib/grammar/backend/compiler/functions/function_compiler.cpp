@@ -132,6 +132,7 @@ void add_base_constructor(Ast *ast, sharp_function *function) {
             sharp_function *constructor = resolve_function(function->owner->baseClass->name, function->owner->baseClass,
                                                            params,constructor_function, constructor_only, function->ast, false, true);
 
+            create_dependency(constructor);
             if(constructor != NULL) {
                 APPLY_TEMP_SCHEME(0, *function->scheme,
                     compile_function_call(&scheme_0, params, paramOperations, constructor, false, true, false);
@@ -209,6 +210,26 @@ void compile_class_lambdas(sharp_class *with_class) {
 
     with_class->uncompiledLambdas.free();
     delete_context();
+}
+
+void compile_default_constructor(sharp_class *with_class) {
+    sharp_type type(type_nil);
+    List<sharp_field*> params;
+    sharp_function *constructor;
+    if((constructor = resolve_function(with_class->name, with_class, params, constructor_function,
+                        0, with_class->ast, false, false)) != NULL) {
+        if(constructor->scheme == NULL)
+            constructor->scheme = new operation_schema(scheme_master);
+
+        create_context(constructor);
+        create_block(&current_context, normal_block);
+        add_base_constructor(with_class->ast, constructor);
+        delete_block();
+        delete_context();
+
+        compile_initialization_paring(constructor);
+    }
+
 }
 
 void compile_class_functions(sharp_class *with_class, Ast *block) {

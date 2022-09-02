@@ -60,7 +60,7 @@ struct settings {
     bool compile = false;
 
     /*
-     * Only compile all the files
+     * Obfuscate all classes, fields, and functions
      */
     bool obfuscate = false;
 

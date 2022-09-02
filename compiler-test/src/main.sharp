@@ -9,6 +9,10 @@ def main() {
   println("hello, world! $feep");
 }
 
+obfuscate {
+    ff
+}
+
 ll: int = new int(9);
 
 import (

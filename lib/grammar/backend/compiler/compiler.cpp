@@ -13,6 +13,7 @@
 #include "mutate_compiler.h"
 #include "enum_compiler.h"
 #include "../../settings/settings.h"
+#include "obfuscate_compiler.h"
 
 void compile_static_closure_references(sharp_class *with_class) {
     for(Int i = 0; i < with_class->fields.size(); i++) {
@@ -54,6 +55,9 @@ void compile_global_members() {
                 break;
             case ast_operator_decl:
                 compile_function(globalClass, operator_function, trunk);
+                break;
+            case ast_obfuscate_decl:
+                compile_obfuscation_declaration(trunk);
                 break;
             default:
                 /* */

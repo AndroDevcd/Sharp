@@ -1720,10 +1720,6 @@ void create_instance_function_call_operation(
             ));
         }
 
-        if(fun->fullName == "std#string.init<string>") {
-            int r = 0;
-        }
-
         scheme->steps.add(new operation_step(
                 operation_call_instance_function, fun));
     }

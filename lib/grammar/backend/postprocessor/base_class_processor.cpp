@@ -48,7 +48,10 @@ void process_base_class(
                 << with_class->baseClass->fullName << "` and cannot be overridden";
             create_new_error(
                     GENERIC, ast->line, ast->col, err.str());
-        } else with_class->baseClass = base;
+        } else {
+            with_class->baseClass = base;
+            create_dependency(base);
+        }
     } else {
         if(with_class->type == class_enum) {
             inherit_enum_class(with_class, ast);
@@ -72,6 +75,7 @@ void inherit_object_class(sharp_class *with_class, Ast *ast) {
             if(sc != NULL) {
                 if(!File::endswith(string("#") + global_class_name, with_class->fullName)) {
                     with_class->baseClass = sc;
+                    create_dependency(sc);
                 }
             } else {
                 create_new_error(
@@ -94,6 +98,7 @@ void inherit_enum_class(sharp_class *with_class, Ast *ast) {
         } else {
             if(sc != NULL) {
                 with_class->baseClass = sc;
+                create_dependency(sc);
             } else {
                 create_new_error(
                         GENERIC, ast, "support class for enums not found");

@@ -959,6 +959,7 @@ bool resolve_primary_class_field(
         sharp_class *primaryClass,
         bool isSelfInstance,
         bool isStatic,
+        bool unrestricted,
         sharp_type &resultType,
         operation_schema *scheme,
         context &ctx) {
@@ -967,7 +968,7 @@ bool resolve_primary_class_field(
     if((field = resolve_field(item.name, primaryClass, true)) != NULL) {
         process_field(field);
 
-        if(ctx.isStatic && !check_flag(field->flags, flag_static)
+        if(!unrestricted && ctx.isStatic && !check_flag(field->flags, flag_static)
             && isSelfInstance) {
             sharp_function *fun = get_primary_function(&ctx);
 
@@ -981,7 +982,7 @@ bool resolve_primary_class_field(
             }
         } else {
 
-            if(isStatic && !check_flag(field->flags, flag_static)) {
+            if(!unrestricted && isStatic && !check_flag(field->flags, flag_static)) {
                 create_new_error(GENERIC, item.ast,
                          "cannot access instance field `" + field->name + "` from static context.");
             }
@@ -1003,7 +1004,7 @@ bool resolve_primary_class_field(
                 create_dependency(field->getter);
             } else {
                 if(field->fieldType == tls_field) {
-                    if(!isSelfInstance && !isStatic) {
+                    if(!unrestricted && !isSelfInstance && !isStatic) {
                         create_new_warning(GENERIC, __w_access, item.ast,
                                            "accessing static thread_local field `" + field->fullName + "` through instance.");
                     }
@@ -1024,9 +1025,11 @@ bool resolve_primary_class_field(
         }
 
         string fieldType = "field";
-        check_access(fieldType, field->fullName,
-                field->flags, ctx, get_primary_class(&current_context) == field->owner,
-                field->owner, field->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, field->fullName,
+                         field->flags, ctx, get_primary_class(&current_context) == field->owner,
+                         field->owner, field->implLocation, item.ast);
+        }
         create_dependency(field);
         return true;
     } else return false;
@@ -1066,6 +1069,7 @@ bool resolve_primary_class_enum(
         unresolved_item &item,
         sharp_class *primaryClass,
         bool isSelfInstance,
+        bool unrestricted,
         sharp_type &resultType,
         operation_schema *scheme,
         context &ctx) {
@@ -1079,9 +1083,11 @@ bool resolve_primary_class_enum(
 
 
         string fieldType = "enum";
-        check_access(fieldType, field->fullName,
-                     field->owner->flags, ctx, get_primary_class(&current_context) == field->owner,
-                     field->owner, field->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, field->fullName,
+                         field->owner->flags, ctx, get_primary_class(&current_context) == field->owner,
+                         field->owner, field->implLocation, item.ast);
+        }
 
         create_dependency(field);
         return true;
@@ -1092,6 +1098,7 @@ bool resolve_primary_class_function_address(
         unresolved_item &item,
         sharp_class *primaryClass,
         bool isSelfInstance,
+        bool unrestricted,
         sharp_type &resultType,
         operation_schema *scheme,
         context &ctx) {
@@ -1108,7 +1115,7 @@ bool resolve_primary_class_function_address(
                     " getting address from ambiguous function reference `" + item.name + "` in class " + primaryClass->fullName + "`");
         }
 
-        if(!check_flag(functions.first()->flags, flag_static)) {
+        if(!unrestricted && !check_flag(functions.first()->flags, flag_static)) {
             create_new_error(GENERIC,
                          item.ast, " cannot get address of non-static function `" + functions.first()->fullName + "` ");
         }
@@ -1121,9 +1128,11 @@ bool resolve_primary_class_function_address(
 
 
         string fieldType = "function";
-        check_access(fieldType, functions.first()->fullName,
-                     functions.first()->flags, ctx, get_primary_class(&current_context) == functions.first()->owner,
-                     functions.first()->owner, functions.first()->implLocation,item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, functions.first()->fullName,
+                         functions.first()->flags, ctx, get_primary_class(&current_context) == functions.first()->owner,
+                         functions.first()->owner, functions.first()->implLocation, item.ast);
+        }
         create_dependency(functions.first());
         return true;
     } else return false;
@@ -1133,6 +1142,7 @@ bool resolve_primary_class_inner_class(
         unresolved_item &item,
         sharp_class *primaryClass,
         bool isSelfInstance,
+        bool unrestricted,
         sharp_type &resultType,
         operation_schema *scheme,
         bool isGeneric,
@@ -1145,9 +1155,11 @@ bool resolve_primary_class_inner_class(
 
 
         string fieldType = "class";
-        check_access(fieldType, sc->fullName,
-                     sc->flags, ctx, isSelfInstance,
-                     sc->owner, sc->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, sc->fullName,
+                         sc->flags, ctx, isSelfInstance,
+                         sc->owner, sc->implLocation, item.ast);
+        }
         create_dependency(sc);
         return true;
     } else return false;
@@ -1195,6 +1207,7 @@ bool resolve_generic_type_param(
 bool resolve_global_class_field(
         unresolved_item &item,
         sharp_type &resultType,
+        bool unrestricted,
         operation_schema *scheme,
         context &ctx) {
 
@@ -1212,12 +1225,6 @@ bool resolve_global_class_field(
     if(field != NULL) {
         resultType.type = type_field;
         resultType.field = field;
-        if(check_flag(field->flags, flag_local)
-            && field->implLocation.file != currThread->currTask->file) {
-            create_new_error(GENERIC, item.ast->line,item.ast->col,
-                   " cannot access local field `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
-        }
-
         process_field(field);
 
         if(field->getter != NULL) {
@@ -1232,9 +1239,11 @@ bool resolve_global_class_field(
 
 
         string fieldType = "field";
-        check_access(fieldType, field->fullName,
-                     field->flags, ctx, false,
-                     field->owner, field->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, field->fullName,
+                         field->flags, ctx, false,
+                         field->owner, field->implLocation, item.ast);
+        }
         create_dependency(field);
         return true;
     } else return false;
@@ -1243,6 +1252,7 @@ bool resolve_global_class_field(
 bool resolve_global_class_alias(
         unresolved_item &item,
         sharp_type &resultType,
+        bool unrestricted,
         operation_schema *scheme,
         context &ctx) {
 
@@ -1258,12 +1268,6 @@ bool resolve_global_class_alias(
     }
 
     if(alias != NULL) {
-        if(check_flag(alias->flags, flag_local)
-           && alias->location.file != currThread->currTask->file) {
-            create_new_error(GENERIC, item.ast->line,item.ast->col,
-                " cannot access local alias `" + alias->name + "` from outside file `" + alias->location.file->name + "`.");
-        }
-
         process_alias(alias);
         resultType.copy(alias->type);
 
@@ -1273,9 +1277,11 @@ bool resolve_global_class_alias(
 
 
         string fieldType = "alias";
-        check_access(fieldType, alias->fullName,
-                     alias->flags, ctx, false,
-                     alias->owner, alias->location, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, alias->fullName,
+                         alias->flags, ctx, false,
+                         alias->owner, alias->location, item.ast);
+        }
         if(alias->type.type == type_field)
             create_dependency(alias->type.field);
         else if(alias->type.type == type_function)
@@ -1287,6 +1293,7 @@ bool resolve_global_class_alias(
 bool resolve_global_class_enum(
         unresolved_item &item,
         sharp_type &resultType,
+        bool unrestricted,
         operation_schema *scheme,
         context &ctx) {
 
@@ -1314,9 +1321,11 @@ bool resolve_global_class_enum(
 
 
         string fieldType = "enum";
-        check_access(fieldType, field->fullName,
-                     field->flags, ctx, false,
-                     field->owner, field->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, field->fullName,
+                         field->flags, ctx, false,
+                         field->owner, field->implLocation, item.ast);
+        }
         create_dependency(field);
         return true;
     } else return false;
@@ -1326,6 +1335,7 @@ bool resolve_global_class_enum(
 bool resolve_global_class_function_address(
         unresolved_item &item,
         sharp_type &resultType,
+        bool unrestricted,
         operation_schema *scheme,
         context &ctx) {
 
@@ -1363,13 +1373,7 @@ bool resolve_global_class_function_address(
                                " getting address from ambiguous function reference `" + item.name + "` in class " + functions.first()->owner->fullName + "`");
         }
 
-        if(check_flag(functions.first()->flags, flag_local)
-           && functions.first()->implLocation.file != currThread->currTask->file) {
-            create_new_error(GENERIC, item.ast->line,item.ast->col,
-                  " cannot access local function `" + functions.first()->name + "` from outside file `" + functions.first()->implLocation.file->name + "`.");
-        }
-
-        if(!check_flag(functions.first()->flags, flag_static)) {
+        if(!unrestricted && !check_flag(functions.first()->flags, flag_static)) {
             create_new_error(GENERIC,
                                                                item.ast, " cannot get address of non-static function `" + functions.first()->fullName + "` ");
         }
@@ -1382,9 +1386,11 @@ bool resolve_global_class_function_address(
 
 
         string fieldType = "function";
-        check_access(fieldType, functions.first()->fullName,
-                     functions.first()->flags, ctx, false,
-                     functions.first()->owner, functions.first()->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, functions.first()->fullName,
+                         functions.first()->flags, ctx, false,
+                         functions.first()->owner, functions.first()->implLocation, item.ast);
+        }
         create_dependency(functions.first());
         return true;
     } else return false;
@@ -1395,6 +1401,7 @@ bool resolve_global_class(
         sharp_class *primaryClass,
         sharp_type &resultType,
         bool isGeneric,
+        bool unrestricted,
         context &ctx) {
 
     sharp_class *sc;
@@ -1413,9 +1420,11 @@ bool resolve_global_class(
         resultType._class = sc;
 
         string fieldType = "class";
-        check_access(fieldType, sc->fullName,
-                     sc->flags, ctx, false,
-                     sc->owner, sc->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, sc->fullName,
+                         sc->flags, ctx, false,
+                         sc->owner, sc->implLocation, item.ast);
+        }
         create_dependency(sc);
         create_dependency(sc);
         return true;
@@ -1439,7 +1448,8 @@ void resolve_normal_item(
     if(resultType.type == type_untyped) {
         // first item
         if(context.type == block_context
-           && hasFilter(filter, resolve_filter_label)
+           && (hasFilter(filter, resolve_filter_label)
+           || hasFilter(filter, resolve_filter_un_restricted))
            && resolve_label(item, resultType, scheme, context)) {
 
             hardType = false;
@@ -1448,7 +1458,8 @@ void resolve_normal_item(
         }
 
         if(context.type == block_context
-            && hasFilter(filter, resolve_filter_local_alias)
+            && (hasFilter(filter, resolve_filter_local_alias)
+            || hasFilter(filter, resolve_filter_un_restricted))
             && resolve_local_alias(item, resultType, scheme, context)) {
 
             hardType = true;
@@ -1456,7 +1467,8 @@ void resolve_normal_item(
         }
 
         if(context.type == block_context
-            && hasFilter(filter, resolve_filter_local_field)
+            &&(hasFilter(filter, resolve_filter_local_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
             && resolve_local_field(item, resultType, scheme, context)) {
 
             hardType = false;
@@ -1465,56 +1477,64 @@ void resolve_normal_item(
 
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
-            if(!context.isStatic && hasFilter(filter, resolve_filter_class_field)
-               && resolve_primary_class_field(item, primaryClass, true, false, resultType, scheme, context)) {
+            if(!context.isStatic && (hasFilter(filter, resolve_filter_class_field)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_field(item, primaryClass, true, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
 
-            if(context.isStatic && hasFilter(filter, resolve_filter_class_field)
-               && resolve_primary_class_field(item, primaryClass, false, true, resultType, scheme, context)) {
+            if(context.isStatic && (hasFilter(filter, resolve_filter_class_field)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_field(item, primaryClass, false, true, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_class_alias)
+            if((hasFilter(filter, resolve_filter_class_alias)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class_alias(item, primaryClass, true, resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_class_enum)
-               && resolve_primary_class_enum(item, primaryClass, true, resultType, scheme, context)) {
+            if((hasFilter(filter, resolve_filter_class_enum)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_enum(item, primaryClass, true,  hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, true, resultType, scheme, false, context)) {
+            if((hasFilter(filter, resolve_filter_inner_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_inner_class(item, primaryClass, true,  hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, false, context)) {
 
                 hardType = false;
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_generic_inner_class)
-               && resolve_primary_class_inner_class(item, primaryClass, true, resultType, scheme, true, context)) {
+            if((hasFilter(filter, resolve_filter_generic_inner_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_inner_class(item, primaryClass, true,  hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, true, context)) {
 
                 hardType = true;
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_class)
+            if((hasFilter(filter, resolve_filter_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class(item, primaryClass, resultType, scheme, context)) {
 
                 hardType = true;
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_generic_type_param)
+            if((hasFilter(filter, resolve_filter_generic_type_param)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && !primaryClass->genericTypes.empty()
                && resolve_generic_type_param(item, primaryClass, resultType, scheme, context)) {
 
@@ -1523,61 +1543,69 @@ void resolve_normal_item(
             }
         }
 
-        if(hasFilter(filter, resolve_filter_field)
-           && resolve_global_class_field(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_field(item, resultType,  hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_alias)
-           && resolve_global_class_alias(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_alias)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_alias(item, resultType,  hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = true;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_enum)
-           && resolve_global_class_enum(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_enum)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_enum(item, resultType,  hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
         }
 
 
-        if (hasFilter(filter, resolve_filter_class)
-            && resolve_global_class(item, primaryClass, resultType, false, context)) {
+        if ((hasFilter(filter, resolve_filter_class)
+            || hasFilter(filter, resolve_filter_un_restricted))
+            && resolve_global_class(item, primaryClass, resultType, false,  hasFilter(filter, resolve_filter_un_restricted), context)) {
 
             hardType = true;
             return;
         }
 
 
-        if (hasFilter(filter, resolve_filter_generic_class)
-            && resolve_global_class(item, primaryClass, resultType, true, context)) {
+        if ((hasFilter(filter, resolve_filter_generic_class)
+            || hasFilter(filter, resolve_filter_un_restricted))
+            && resolve_global_class(item, primaryClass, resultType, true,  hasFilter(filter, resolve_filter_un_restricted), context)) {
 
             hardType = true;
             return;
         }
 
         if(primaryClass != NULL) {
-            if (!context.isStatic && hasFilter(filter, resolve_filter_function_address)
-                && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
+            if (!context.isStatic && (hasFilter(filter, resolve_filter_function_address)
+                || hasFilter(filter, resolve_filter_un_restricted))
+                && resolve_primary_class_function_address(item, primaryClass, true, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
 
-            if (context.isStatic && hasFilter(filter, resolve_filter_function_address)
-                && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
+            if (context.isStatic && (hasFilter(filter, resolve_filter_function_address)
+                || hasFilter(filter, resolve_filter_un_restricted))
+                && resolve_primary_class_function_address(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
         }
 
-        if(hasFilter(filter, resolve_filter_function_address)
-           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_function_address)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_function_address(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
@@ -1597,45 +1625,51 @@ void resolve_normal_item(
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
         sharp_class *primaryClass = get_primary_class(&context);
 
-        if(hasFilter(filter, resolve_filter_field)
-           && resolve_global_class_field(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_field(item, resultType,  hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_alias)
-           && resolve_global_class_alias(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_alias)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_alias(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = true;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_enum)
-           && resolve_global_class_enum(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_enum)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_enum(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
         }
 
         if(primaryClass) {
-            if (hasFilter(filter, resolve_filter_class)
-                && resolve_global_class(item, primaryClass, resultType, false, context)) {
+            if ((hasFilter(filter, resolve_filter_class)
+                || hasFilter(filter, resolve_filter_un_restricted))
+                && resolve_global_class(item, primaryClass, resultType, false, hasFilter(filter, resolve_filter_un_restricted), context)) {
 
                 hardType = true;
                 return;
             }
 
-            if (hasFilter(filter, resolve_filter_generic_class)
-                && resolve_global_class(item, primaryClass, resultType, true, context)) {
+            if ((hasFilter(filter, resolve_filter_generic_class)
+                || hasFilter(filter, resolve_filter_un_restricted))
+                && resolve_global_class(item, primaryClass, resultType, true, hasFilter(filter, resolve_filter_un_restricted), context)) {
 
                 hardType = true;
                 return;
             }
         }
 
-        if(hasFilter(filter, resolve_filter_function_address)
-           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_function_address)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_function_address(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
@@ -1663,8 +1697,9 @@ void resolve_normal_item(
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
 
-            if(hasFilter(filter, resolve_filter_class_field)
-               && resolve_primary_class_field(item, primaryClass, false, hardType, resultType, scheme, context)) {
+            if((hasFilter(filter, resolve_filter_class_field)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_field(item, primaryClass, false, hardType, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 if(!hardType) {
@@ -1687,7 +1722,8 @@ void resolve_normal_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_class_alias)
+            if((hasFilter(filter, resolve_filter_class_alias)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && hardType
                && resolve_primary_class_alias(item, primaryClass, false, resultType, scheme, context)) {
 
@@ -1700,8 +1736,9 @@ void resolve_normal_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_function_address)
-               && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
+            if((hasFilter(filter, resolve_filter_function_address)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_function_address(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 if(item.accessType != access_normal) {
@@ -1712,9 +1749,10 @@ void resolve_normal_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_inner_class)
+            if((hasFilter(filter, resolve_filter_inner_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && hardType
-               && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, false, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, false, context)) {
 
                 hardType = true;
                 if(item.accessType != access_normal) {
@@ -1725,9 +1763,10 @@ void resolve_normal_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_generic_inner_class)
+            if((hasFilter(filter, resolve_filter_generic_inner_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && hardType
-               && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, true, context)) {
+               && resolve_primary_class_inner_class(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, true, context)) {
 
                 hardType = true;
                 if(item.accessType != access_normal) {
@@ -1754,8 +1793,9 @@ void resolve_normal_item(
             if(field->type.type == type_class) {
                 sharp_class *primaryClass = field->type._class;
 
-                if(hasFilter(filter, resolve_filter_class_field)
-                   && resolve_primary_class_field(item, primaryClass, false, false, resultType, scheme, context)) {
+                if((hasFilter(filter, resolve_filter_class_field)
+                   || hasFilter(filter, resolve_filter_un_restricted))
+                   && resolve_primary_class_field(item, primaryClass, false, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                     hardType = false;
                     if(nullable) {
@@ -1769,7 +1809,8 @@ void resolve_normal_item(
                     return;
                 }
 
-                if(hasFilter(filter, resolve_filter_class_alias)
+                if((hasFilter(filter, resolve_filter_class_alias)
+                   || hasFilter(filter, resolve_filter_un_restricted))
                    && resolve_primary_class_alias(item, primaryClass, false, resultType, scheme, context)) {
 
                     hardType = true;
@@ -1780,8 +1821,9 @@ void resolve_normal_item(
                     return;
                 }
 
-                if(hasFilter(filter, resolve_filter_function_address)
-                   && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
+                if((hasFilter(filter, resolve_filter_function_address)
+                   || hasFilter(filter, resolve_filter_un_restricted))
+                   && resolve_primary_class_function_address(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                     hardType = false;
                     create_new_warning(GENERIC, __w_access, item.ast->line,item.ast->col,
@@ -1791,8 +1833,9 @@ void resolve_normal_item(
                     return;
                 }
 
-                if(hasFilter(filter, resolve_filter_inner_class)
-                   && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, false, context)) {
+                if((hasFilter(filter, resolve_filter_inner_class)
+                   || hasFilter(filter, resolve_filter_un_restricted))
+                   && resolve_primary_class_inner_class(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, false, context)) {
 
                     hardType = true;
                     create_new_error(GENERIC, item.ast->line,item.ast->col,
@@ -1800,8 +1843,9 @@ void resolve_normal_item(
                     return;
                 }
 
-                if(hasFilter(filter, resolve_filter_generic_inner_class)
-                   && resolve_primary_class_inner_class(item, primaryClass, false, resultType, scheme, true, context)) {
+                if((hasFilter(filter, resolve_filter_generic_inner_class)
+                   || hasFilter(filter, resolve_filter_un_restricted))
+                   && resolve_primary_class_inner_class(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, true, context)) {
 
                     hardType = true;
                     create_new_error(GENERIC, item.ast->line,item.ast->col,
@@ -1860,16 +1904,18 @@ void resolve_operator_item(
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
-            if(hasFilter(filter, resolve_filter_function_address)
-               && resolve_primary_class_function_address(item, primaryClass, true, resultType, scheme, context)) {
+            if((hasFilter(filter, resolve_filter_function_address)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_function_address(item, primaryClass, true, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
             }
         }
 
-        if(hasFilter(filter, resolve_filter_function_address)
-           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_function_address)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_function_address(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
@@ -1880,8 +1926,9 @@ void resolve_operator_item(
         create_new_error(COULD_NOT_RESOLVE,
                                                                resolveLocation, " `" + item.name + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
-        if(hasFilter(filter, resolve_filter_function_address)
-           && resolve_global_class_function_address(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_function_address)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_function_address(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
@@ -1890,8 +1937,9 @@ void resolve_operator_item(
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
 
-            if(hasFilter(filter, resolve_filter_function_address)
-               && resolve_primary_class_function_address(item, primaryClass, false, resultType, scheme, context)) {
+            if((hasFilter(filter, resolve_filter_function_address)
+               || hasFilter(filter, resolve_filter_un_restricted))
+               && resolve_primary_class_function_address(item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, context)) {
 
                 hardType = false;
                 return;
@@ -2074,6 +2122,7 @@ bool resolve_primary_class_function_pointer_field(
         sharp_class *primaryClass,
         bool isPrimaryClass,
         bool isStaticCall,
+        bool unrestricted,
         sharp_type &resultType,
         operation_schema *scheme,
         context &ctx) {
@@ -2108,21 +2157,21 @@ bool resolve_primary_class_function_pointer_field(
         resultType.copy(field->type.fun->returnType);
         process_field(field);
 
-        if(ctx.isStatic && !check_flag(field->flags, flag_static)
+        if(!unrestricted && ctx.isStatic && !check_flag(field->flags, flag_static)
            && isPrimaryClass) {
             sharp_function *fun = get_primary_function(&ctx);
 
             if(fun != NULL && !check_flag(fun->flags, flag_static)) {
                 create_new_error(GENERIC, item.ast,
-                                                                   "cannot capture closure of instance field `" + field->name
-                                                                   + "` from static context. Try accessing `self` to explicitly capture class closure.");
+                                                                   "cannot capture value of instance field `" + field->name
+                                                                   + "` from static context.");
             } else {
                 create_new_error(GENERIC, item.ast,
                                                                    "cannot access instance field `" + field->name + "` from static context.");
             }
         } else {
 
-            if(isStaticCall && !check_flag(field->flags, flag_static)) {
+            if(!unrestricted && isStaticCall && !check_flag(field->flags, flag_static)) {
                 create_new_error(GENERIC, item.ast,
                                                                    "cannot access instance field `" + field->name + "` from static context.");
             }
@@ -2169,9 +2218,11 @@ bool resolve_primary_class_function_pointer_field(
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
         string fieldType = "field";
-        check_access(fieldType, field->fullName,
-                     field->flags, ctx, get_primary_class(&current_context) == field->owner,
-                     field->owner, field->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, field->fullName,
+                         field->flags, ctx, get_primary_class(&current_context) == field->owner,
+                         field->owner, field->implLocation, item.ast);
+        }
         create_dependency(field);
         return true;
     } else return false;
@@ -2182,6 +2233,7 @@ bool resolve_primary_class_function(
         sharp_class *primaryClass,
         bool isPrimaryClass,
         bool isStaticCall,
+        bool unrestricted,
         sharp_type &resultType,
         operation_schema *scheme,
         context &ctx) {
@@ -2215,7 +2267,7 @@ bool resolve_primary_class_function(
             true)) != NULL) {
         process_function_return_type(fun);
 
-        if((isStaticCall || (isPrimaryClass && ctx.isStatic)) && !check_flag(fun->flags, flag_static)) {
+        if(!unrestricted && (isStaticCall || (isPrimaryClass && ctx.isStatic)) && !check_flag(fun->flags, flag_static)) {
             if(isPrimaryClass && ctx.isStatic) {
                 create_new_error(GENERIC, item.ast,
                           "cannot capture closure from instance function `" + fun->fullName +
@@ -2227,7 +2279,10 @@ bool resolve_primary_class_function(
             }
         }
 
-        resultType.copy(fun->returnType);
+        resultType.type = type_function;
+        resultType.fun = fun;
+        resultType.nullable = fun->returnType.nullable;
+        resultType.isArray = fun->returnType.isArray;
         if(check_flag(fun->flags, flag_static)) {
             isStaticCall = true;
         }
@@ -2245,6 +2300,7 @@ bool resolve_primary_class_function(
 bool resolve_global_class_function_pointer_field(
         unresolved_item &item,
         sharp_type &resultType,
+        bool unrestricted,
         operation_schema *scheme,
         context &ctx) {
     // we assume that the scheme is already setup before coming here with code for params
@@ -2297,11 +2353,6 @@ bool resolve_global_class_function_pointer_field(
 
     if(field != NULL) {
         resultType.copy(field->type.fun->returnType);
-        if(check_flag(field->flags, flag_local)
-           && field->implLocation.file != currThread->currTask->file) {
-            create_new_error(GENERIC, item.ast->line,item.ast->col,
-                                                               " cannot access local field `" + field->name + "` from outside file `" + field->implLocation.file->name + "`.");
-        }
 
         process_field(field);
 
@@ -2324,9 +2375,11 @@ bool resolve_global_class_function_pointer_field(
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
 
         string fieldType = "field";
-        check_access(fieldType, field->fullName,
-                     field->flags, ctx, false,
-                     field->owner, field->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, field->fullName,
+                         field->flags, ctx, false,
+                         field->owner, field->implLocation, item.ast);
+        }
         create_dependency(field);
         params.free();
         return true;
@@ -2461,7 +2514,8 @@ void resolve_function_reference_item(
         // first item
 
         if(context.type == block_context
-           && hasFilter(filter, resolve_filter_local_field)
+           && (hasFilter(filter, resolve_filter_local_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
            && resolve_local_function_pointer_field(
                 item, resultType, scheme, context)) {
 
@@ -2471,10 +2525,11 @@ void resolve_function_reference_item(
 
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass && !check_flag(primaryClass->flags, flag_global)
-           && hasFilter(filter, resolve_filter_class_field)
+           && (hasFilter(filter, resolve_filter_class_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
            && resolve_primary_class_function_pointer_field(
                 item, primaryClass, true,
-                false, resultType, scheme,
+                false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme,
                 context)) {
 
             hardType = false;
@@ -2482,24 +2537,27 @@ void resolve_function_reference_item(
         }
 
         if(primaryClass && !check_flag(primaryClass->flags, flag_global)
-            && hasFilter(filter, resolve_filter_class_function)
+            && (hasFilter(filter, resolve_filter_class_function)
+           || hasFilter(filter, resolve_filter_un_restricted))
             && resolve_primary_class_function(
                     item, primaryClass, true,
-                    false, resultType, scheme,
+                    false, hasFilter(filter, resolve_filter_un_restricted), resultType, scheme,
                     context)) {
 
             hardType = false;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_field)
-           && resolve_global_class_function_pointer_field(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_function_pointer_field(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_function)
+        if((hasFilter(filter, resolve_filter_function)
+           || hasFilter(filter, resolve_filter_un_restricted))
                 && resolve_global_class_function(item, resultType, scheme, context)) {
 
             hardType = false;
@@ -2511,14 +2569,16 @@ void resolve_function_reference_item(
                                resolveLocation, " `" + unresolvedFunction + "` ");
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
 
-        if(hasFilter(filter, resolve_filter_field)
-           && resolve_global_class_function_pointer_field(item, resultType, scheme, context)) {
+        if((hasFilter(filter, resolve_filter_field)
+           || hasFilter(filter, resolve_filter_un_restricted))
+           && resolve_global_class_function_pointer_field(item, resultType, hasFilter(filter, resolve_filter_un_restricted), scheme, context)) {
 
             hardType = false;
             return;
         }
 
-        if(hasFilter(filter, resolve_filter_function)
+        if((hasFilter(filter, resolve_filter_function)
+           || hasFilter(filter, resolve_filter_un_restricted))
                 && resolve_global_class_function(item, resultType, scheme, context)) {
 
             hardType = false;
@@ -2546,9 +2606,10 @@ void resolve_function_reference_item(
 
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
-            if(hasFilter(filter, resolve_filter_class_field)
+            if((hasFilter(filter, resolve_filter_class_field)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class_function_pointer_field(
-                    item, primaryClass, false, hardType,
+                    item, primaryClass, false,  hardType, hasFilter(filter, resolve_filter_un_restricted),
                     resultType, scheme, context)) {
 
                 if(!hardType) {
@@ -2571,9 +2632,10 @@ void resolve_function_reference_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_class_function)
+            if((hasFilter(filter, resolve_filter_class_function)
+               || hasFilter(filter, resolve_filter_un_restricted))
                     && resolve_primary_class_function(
-                        item, primaryClass, false, hardType,
+                        item, primaryClass, false,  hardType, hasFilter(filter, resolve_filter_un_restricted),
                         resultType, scheme, context)) {
                 if(!hardType) {
                     if(nullable) {
@@ -2605,9 +2667,10 @@ void resolve_function_reference_item(
             if(field->type.type == type_class) {
                 sharp_class *primaryClass = field->type._class;
 
-                if (hasFilter(filter, resolve_filter_class_field)
+                if ((hasFilter(filter, resolve_filter_class_field)
+                    || hasFilter(filter, resolve_filter_un_restricted))
                     && resolve_primary_class_function_pointer_field(
-                        item, primaryClass, false, false,
+                        item, primaryClass, false, false, hasFilter(filter, resolve_filter_un_restricted),
                         resultType, scheme, context)) {
 
                     if(nullable) {
@@ -2622,9 +2685,10 @@ void resolve_function_reference_item(
                     return;
                 }
 
-                if (hasFilter(filter, resolve_filter_class_function)
+                if ((hasFilter(filter, resolve_filter_class_function)
+                    || hasFilter(filter, resolve_filter_un_restricted))
                     && resolve_primary_class_function(
-                        item, primaryClass, false, false,
+                        item, primaryClass, false, false, hasFilter(filter, resolve_filter_un_restricted),
                         resultType, scheme, context)) {
 
                     if(nullable) {
@@ -2731,6 +2795,7 @@ bool resolve_primary_class_inner_class_generic(
         unresolved_item &item,
         sharp_class *primaryClass,
         bool isSelfInstance,
+        bool unrestricted,
         string &typedClassName,
         sharp_type &resultType,
         List<sharp_type> &genericTypes,
@@ -2748,9 +2813,11 @@ bool resolve_primary_class_inner_class_generic(
         resultType._class = sc;
 
         string fieldType = "class";
-        check_access(fieldType, sc->fullName,
-                     sc->flags, ctx, isSelfInstance,
-                     sc->owner, sc->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, sc->fullName,
+                         sc->flags, ctx, isSelfInstance,
+                         sc->owner, sc->implLocation, item.ast);
+        }
         if(ctx.type == block_context)
             create_dependency(sc);
         create_dependency(sc);
@@ -2765,6 +2832,7 @@ bool resolve_global_class_generic(
         sharp_class *primaryClass,
         string &typedClassName,
         sharp_type &resultType,
+        bool unrestricted,
         List<sharp_type> &genericTypes,
         context &ctx) {
 
@@ -2797,9 +2865,11 @@ bool resolve_global_class_generic(
 
 
         string fieldType = "class";
-        check_access(fieldType, sc->fullName,
-                     sc->flags, ctx, false,
-                     sc->owner, sc->implLocation, item.ast);
+        if(!unrestricted) {
+            check_access(fieldType, sc->fullName,
+                         sc->flags, ctx, false,
+                         sc->owner, sc->implLocation, item.ast);
+        }
         if(ctx.type == block_context)
             create_dependency(sc);
         create_dependency(sc);
@@ -2822,7 +2892,8 @@ void resolve_generic_item(
         // first item
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
-            if(hasFilter(filter, resolve_filter_class)
+            if((hasFilter(filter, resolve_filter_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class_generic(
                        item, primaryClass,
                        typedClassName, resultType,
@@ -2832,9 +2903,10 @@ void resolve_generic_item(
                 return;
             }
 
-            if(hasFilter(filter, resolve_filter_inner_class)
+            if((hasFilter(filter, resolve_filter_inner_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class_inner_class_generic(
-                       item, primaryClass, true, typedClassName,
+                       item, primaryClass, true, hasFilter(filter, resolve_filter_un_restricted), typedClassName,
                        resultType, resolvedTypes,
                        context)) {
 
@@ -2844,10 +2916,11 @@ void resolve_generic_item(
 
         }
 
-        if(hasFilter(filter, resolve_filter_class)
+        if((hasFilter(filter, resolve_filter_class)
+           || hasFilter(filter, resolve_filter_un_restricted))
            && resolve_global_class_generic(
                    item, primaryClass, typedClassName,
-                   resultType, resolvedTypes,
+                   resultType, hasFilter(filter, resolve_filter_un_restricted), resolvedTypes,
                    context)) {
 
             hardType = true;
@@ -2868,10 +2941,11 @@ void resolve_generic_item(
     } else if(resultType.type == type_module || resultType.type == type_import_group) {
         sharp_class *primaryClass = get_primary_class(&context);
 
-        if(hasFilter(filter, resolve_filter_class)
+        if((hasFilter(filter, resolve_filter_class)
+           || hasFilter(filter, resolve_filter_un_restricted))
            && resolve_global_class_generic(
                 item, primaryClass, typedClassName,
-                resultType, resolvedTypes,
+                resultType, hasFilter(filter, resolve_filter_un_restricted), resolvedTypes,
                 context)) {
 
             hardType = true;
@@ -2881,9 +2955,10 @@ void resolve_generic_item(
         if(resultType.type == type_class) {
             sharp_class *primaryClass = resultType._class;
 
-            if(hasFilter(filter, resolve_filter_inner_class)
+            if((hasFilter(filter, resolve_filter_inner_class)
+               || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class_inner_class_generic(
-                    item, primaryClass, false, typedClassName,
+                    item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), typedClassName,
                     resultType, resolvedTypes,
                     context)) {
 
@@ -2907,9 +2982,10 @@ void resolve_generic_item(
                 sharp_class *primaryClass = field->type._class;
 
 
-                if(hasFilter(filter, resolve_filter_inner_class)
+                if((hasFilter(filter, resolve_filter_inner_class)
+                   || hasFilter(filter, resolve_filter_un_restricted))
                    && resolve_primary_class_inner_class_generic(
-                        item, primaryClass, false, typedClassName,
+                        item, primaryClass, false, hasFilter(filter, resolve_filter_un_restricted), typedClassName,
                         resultType, resolvedTypes,
                         context)) {
                     create_new_error(GENERIC, item.ast->line,item.ast->col,
@@ -2990,7 +3066,7 @@ void resolve(
                 break;
         }
 
-        if(resultType.type == type_function) {
+        if(resultType.type == type_function && resolveLocation->getType() != ast_function_signature) {
             resultType = resultType.fun->returnType;
         }
 
@@ -3093,6 +3169,32 @@ sharp_type resolve(
         }
 
         deleteList(expressions);
+    } else if(resolveLocation->getType() == ast_function_signature) {
+        parse_utype(unresolvedType, resolveLocation->getSubAst(ast_utype));
+
+        unresolved_item *&item
+                = unresolvedType.unresolvedType.items.last();
+        if(item->type == normal_reference
+           || item->type == operator_reference) {
+
+            item->type = function_reference;
+            Ast *args = resolveLocation->getSubAst(ast_utype_arg_list_opt);
+
+            if(args != NULL) {
+                for (Int i = 0; i < args->getSubAstCount(); i++) {
+                    sharp_type et = resolve(args->getSubAst(i)->getSubAst(ast_utype));
+                    item->typeSpecifiers.add(new sharp_type(et));
+                    item->operations.add(new operation_schema());
+                }
+            }
+        } else if(item->type == generic_reference) {
+            create_new_error(
+                    GENERIC, resolveLocation, "generic functions are not supported.");
+
+        } else {
+            create_new_error(
+                    GENERIC, resolveLocation, "expected function call.");
+        }
     } else {
         create_new_error(
                 INTERNAL_ERROR, resolveLocation->line, resolveLocation->col, "expected ast of utype or type_identifier");

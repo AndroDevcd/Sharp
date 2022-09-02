@@ -62,6 +62,7 @@ enum ast_type
     ast_primary_expr,
     ast_dotnotation_call_expr,
     ast_obfuscate_element,
+    ast_function_signature,
     ast_base_class_constructor,
     ast_utype,
     ast_block,

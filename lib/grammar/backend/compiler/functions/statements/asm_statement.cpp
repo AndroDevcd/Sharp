@@ -702,7 +702,7 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_register(branch->getSubAst(1))
            )
         );
-    } else if(opcode == "xor") { // todo: check for instructions where the args position is swapped
+    } else if(opcode == "xor") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::XOR,

@@ -112,7 +112,9 @@ void parser::parse() {
 }
 
 bool parser::isObfuscationOption(Token &token) {
-    return token.getValue() == "keep";
+    return token.getValue() == "keep"
+           || token.getValue() == "keep_inclusive"
+           || token.getValue() == "inclusive";
 }
 
 void parser::parseObfuscateDecl(Ast *ast) {
@@ -137,8 +139,9 @@ void parser::parseObfuscateElement(Ast *ast) {
     } else {
         parseUtype(branch);
         if(peek(1)->getType() == LEFTPAREN) {
-            parseUtypeArgListOpt(branch);
-            parseMethodReturnType(branch);
+
+            Ast *child = branch->encapsulate(ast_function_signature);
+            parseUtypeArgListOpt(child);
         }
     }
 }
@@ -4007,7 +4010,7 @@ bool parser::isKeyword(string key) {
            || key == "when" || key == "local" || key == "native"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate" || key == "is"
+           || key == "as" || key == "in" || key == "override" || key == "obfuscate" || key == "is"
            || key == "inject" || key == "component" || key == "single" || key == "factory"
            || key == "excuse";
 }

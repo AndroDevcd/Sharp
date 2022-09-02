@@ -65,24 +65,32 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
     }
 
     create_set_label_operation(subScheme, returnStartLabel);
-    if(!lockExpressions.empty() && returnVal.type != type_nil) {
-        uInt flags = flag_public;
-        set_internal_variable_name(ss, "return_data", uniqueId++)
-        tempRetDataField = create_local_field(current_file, &current_context, ss.str(), flags, returnVal.type,
-                                              normal_field, ast);
-        create_dependency(tempRetDataField);
+    if(!lockExpressions.empty()) {
+        if(returnVal.type == type_nil) {
+            if(returnVal.scheme.schemeType != scheme_none) {
+                APPLY_TEMP_SCHEME(0, *subScheme,
+                    create_get_value_operation(&scheme_0, &returnVal.scheme);
+                )
+            }
+        } else {
+            uInt flags = flag_public;
+            set_internal_variable_name(ss, "return_data", uniqueId++)
+            tempRetDataField = create_local_field(current_file, &current_context, ss.str(), flags, returnVal.type,
+                                                  normal_field, ast);
+            create_dependency(tempRetDataField);
 
-        APPLY_TEMP_SCHEME(0, *subScheme,
-           operation_schema *fieldScheme = new operation_schema();
-           create_local_field_access_operation(fieldScheme, tempRetDataField);
-           create_value_assignment_operation(&scheme_0, fieldScheme, &returnVal.scheme);
-           create_unused_data_operation(&scheme_0);
+            APPLY_TEMP_SCHEME(0, *subScheme,
+                operation_schema *fieldScheme = new operation_schema();
+                create_local_field_access_operation(fieldScheme, tempRetDataField);
+                create_value_assignment_operation(&scheme_0, fieldScheme, &returnVal.scheme);
+                create_unused_data_operation(&scheme_0);
 
-           delete fieldScheme;
-        )
+                delete fieldScheme;
+            )
 
-        returnVal.scheme.free();
-        create_local_field_access_operation(&returnVal.scheme, tempRetDataField);
+            returnVal.scheme.free();
+            create_local_field_access_operation(&returnVal.scheme, tempRetDataField);
+        }
     }
 
     for(Int i = 0; i < lockExpressions.size(); i++) {
@@ -107,8 +115,17 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         if(is_numeric_type(returnVal.type) && !returnVal.type.isArray) {
             create_numeric_return_operation(subScheme, &returnVal.scheme);
         }
-        else if(returnVal.type.type == type_nil)
+        else if(returnVal.type.type == type_nil) {
+            if(lockExpressions.empty()) {
+                if(returnVal.scheme.schemeType != scheme_none) {
+                    APPLY_TEMP_SCHEME(0, *subScheme,
+                         create_get_value_operation(&scheme_0, &returnVal.scheme);
+                    )
+                }
+            }
+
             create_return_operation(subScheme);
+        }
         else create_object_return_operation(subScheme, &returnVal.scheme);
     } else if(match_result == indirect_match_w_nullability_mismatch) {
         create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
