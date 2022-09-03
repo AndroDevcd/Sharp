@@ -6,6 +6,7 @@
 #include <cmath>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <unistd.h>
 #include "frontend/tokenizer/tokenizer.h"
 #include "../util/zip/zlib.h"
 #include "../util/File.h"
@@ -458,7 +459,6 @@ int compile()
         sharpFiles.add(
                 new sharp_file(options.source_files.get(i)));
     }
-
 
     sharpFiles.linearSort(isFileLarger);
     start_task_delegator();

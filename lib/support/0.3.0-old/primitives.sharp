@@ -5,7 +5,7 @@ import (
 )
 
 public class integer<native_type> {
-    public value : native_type;
+    public value : native_type; // todo: make accessible w/ private set
 
     integer(initial_val : var) {
         value = initial_val;
@@ -39,7 +39,7 @@ public class integer<native_type> {
         return value;
     }
 
-    def operator!=(num : ulong) := (value!=num.value);
+    def operator!=(num : ulong) := (value!=num.value); // todo: make all these return bool clss
     def operator==(num : ulong) := (value==num.value);
     def operator!=(num : long) := (value!=num.value);
     def operator==(num : long) := (value==num.value);

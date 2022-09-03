@@ -1,16 +1,25 @@
 mod platform;
 
+/**
+* Created by bknun on 9/2/2022
+* 
+* @class build
+*
+* Description:
+* This file represents basic build information about the current running
+* program and os
+*/
 class build {
-    static os: string;
-    static app_name: string;
-    static platform: string;
-    static version: string;
+    os: string;
+    app_name: string;
+    platform: string;
+    version: string;
 
-    static def is_windows() : var {
+    def is_windows() : var {
         return os == "win";
     }
 
-    static def is_linux() : var {
+    def is_linux() : var {
         return os == "posix";
     }
 }

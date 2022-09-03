@@ -63,6 +63,13 @@ void process_field(sharp_field *field) {
             }
         }
 
+        /*
+         * Todo: add support for access specifier to be applied to getters and setters
+         * this will enforce fields to restrice get and set access on them
+         *
+         * getter and setter should have the same access specificatin or at the very least
+         * a getter must have the same access privileges as the field
+         */
         if(field->type.type != type_undefined) {
             if(ast->hasSubAst(ast_setter)) {
                 process_setter(field, ast->getSubAst(ast_setter));

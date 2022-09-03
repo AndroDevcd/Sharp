@@ -5,8 +5,17 @@ import (
     platform.kernel
 )
 
+/**
+* Created by bknun on 9/3/2022
+* 
+* @class time
+*
+* Description:
+* This file provides tim information in the form of
+* os time or UTC time
+*/
 class time {
-    static infinite := -1;
+    static const INFINITE := 1;
 
     static def nano_time() : int {
         now: var;
@@ -58,69 +67,36 @@ class time {
             time /= 1000;
         }
 
+        // todo: double check all asm statements
+        sleep_tm := time.value; // todo: add support for nanosecond sleeping
         asm {
-            loadl ebx, [time]
+            loadl ebx, [sleep_tm]
             sleep ebx
         }
     }
 
-    static def wait(tm_unit: time_unit, time: int) {
-        if(time != infinite) {
-            if(time < 0)
-                throw new error("cannot sleep for negative time: $time");
-
-            if(tm_unit == time_unit.seconds) {
-                time *= 1000;
-            } else if(tm_unit == time_unit.microseconds) {
-                time /= 1000;
-            } else if(tm_unit == time_unit.nanoseconds) {
-                time /= 1000000;
-            }
-        }
-
-        asm {
-            loadl adx, [time]
-            int 0x14
-        }
-    }
-
-    /**
-     * Windows only allows you to sleep for no less than 1 millisecond
-     *
-     * We need to adjust the time to make sure the user will not be
-     * waiting for 5 seconds instead of 5ms
-     */
-    private static def adjust_time(usec: int) : int {
-
-        if(build.is_windows()) {
-            return usec/1000;
-        }
-
-        return usec;
-    }
-
     static def measure(tm_unit: time_unit, block: ()()) : int {
-        start := nano_time(), end;
-        block();
-        end = nano_time();
+            start := nano_time(), end;
+            block();
+            end = nano_time();
 
-        when (tm_unit) {
-            seconds -> {
-                start = nano_to_secs(start);
-                end = nano_to_secs(end);
+            when (tm_unit) {
+                seconds -> {
+                    start = nano_to_secs(start);
+                    end = nano_to_secs(end);
+                }
+                milliseconds -> {
+                    start = nano_to_mills(start);
+                    end = nano_to_mills(end);
+                }
+                microseconds -> {
+                    start = nano_to_micro(start);
+                    end = nano_to_micro(end);
+                }
             }
-            milliseconds -> {
-                start = nano_to_mills(start);
-                end = nano_to_mills(end);
-            }
-            microseconds -> {
-                start = nano_to_micro(start);
-                end = nano_to_micro(end);
-            }
+
+            return end - start;
         }
-
-        return end - start;
-    }
 
     static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : int {
         start := nano_time(), end;
