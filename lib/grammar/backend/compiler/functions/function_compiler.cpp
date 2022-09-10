@@ -35,7 +35,7 @@ void check_main_method_signature(sharp_function *function) {
                         user_main_method = function;
                         main_method_sig = 0;
                     } else {
-                        current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
+                        create_new_error(GENERIC, function->ast, "main method with the same or different signature already exists");
                         print_impl_location(function->name, "function", function->implLocation);
                     }
 
@@ -44,7 +44,7 @@ void check_main_method_signature(sharp_function *function) {
                         user_main_method = function;
                         main_method_sig = 1;
                     } else {
-                        current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
+                        create_new_error(GENERIC, function->ast, "main method with the same or different signature already exists");
                         print_impl_location(function->name, "function", function->implLocation);
                     }
                 } else
@@ -58,7 +58,7 @@ void check_main_method_signature(sharp_function *function) {
                         user_main_method = function;
                         main_method_sig = 2;
                     } else {
-                        current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
+                        create_new_error(GENERIC, function->ast, "main method with the same or different signature already exists");
                         print_impl_location(function->name, "function", function->implLocation);
                     }
                 } else if(function->returnType == type_var) { // fn main() : var;
@@ -66,7 +66,7 @@ void check_main_method_signature(sharp_function *function) {
                         user_main_method = function;
                         main_method_sig = 3;
                     } else {
-                        current_file->errors->createNewError(GENERIC, function->ast, "main method with the same or different signature already exists");
+                        create_new_error(GENERIC, function->ast, "main method with the same or different signature already exists");
                         print_impl_location(function->name, "function", function->implLocation);
                     }
 
@@ -74,7 +74,7 @@ void check_main_method_signature(sharp_function *function) {
                     create_new_warning(GENERIC, __w_main, function->ast->line, function->ast->col, "main method might not be executed");
             }
         } else
-            current_file->errors->createNewError(GENERIC, function->ast, "class `std#string` was not found when analyzing main method");
+            create_new_error(GENERIC, function->ast, "class `std#string` was not found when analyzing main method");
     }
 }
 
@@ -115,12 +115,12 @@ void add_base_constructor(Ast *ast, sharp_function *function) {
                                            false);
                 )
             } else {
-                current_file->errors->createNewError(GENERIC, baseClassConstr->line, baseClassConstr->col,
+                create_new_error(GENERIC, baseClassConstr->line, baseClassConstr->col,
                                        " could not resolve base class constructor in class `" +
                                        function->owner->baseClass->name + "`.");
             }
         } else {
-            current_file->errors->createNewError(GENERIC, baseClassConstr->line, baseClassConstr->col,
+            create_new_error(GENERIC, baseClassConstr->line, baseClassConstr->col,
                                    " class `" +
                                    function->owner->fullName + "` does not inherit a base class.");
         }
@@ -138,7 +138,7 @@ void add_base_constructor(Ast *ast, sharp_function *function) {
                     compile_function_call(&scheme_0, params, paramOperations, constructor, false, true, false);
                 )
             } else {
-                current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+                create_new_error(INTERNAL_ERROR, ast->line, ast->col,
                                        " could not resolve base class constructor `" + function->owner->baseClass->name + "` in `" +
                                        function->owner->fullName + "`.");
             }
@@ -159,7 +159,7 @@ void compile_class_function(
     if(function != NULL) {
         compile_function(function, function->ast);
     } else {
-        current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+        create_new_error(INTERNAL_ERROR, ast->line, ast->col,
                                              " could not resolve function `" + name + "` in `" + with_class->fullName + "`.");
     }
 }
@@ -284,6 +284,14 @@ void compile_function(sharp_function *function, Ast *ast) {
 
     GUARD(globalLock)
     if(function->type == initializer_function) {
+        if(!function->parameters.empty()) {
+            create_block(&current_context, normal_block);
+            add_base_constructor(ast, function);
+            delete_block();
+
+            compile_initialization_paring(function);
+        }
+
         codePathsReturnValue = compile_block(ast->getSubAst(ast_block), function->scheme);
     } else {
         check_main_method_signature(function);
@@ -291,7 +299,7 @@ void compile_function(sharp_function *function, Ast *ast) {
         if((function->name == static_init_function_name || function->name == tls_init_function_name)
            && function->owner->fullName == platform_class_name) {
             if(ast->hasSubAst(ast_expression) || ast->getSubAst(ast_block)->sub_asts.size() > 0) {
-                current_file->errors->createNewError(GENERIC, ast, "platform level function `" +
+                create_new_error(GENERIC, ast, "platform level function `" +
                         function_to_str(function) + "` does not allow statements or expressions inside.");
             }
 
@@ -312,7 +320,7 @@ void compile_function(sharp_function *function, Ast *ast) {
             compile_expression(e, ast->getSubAst(ast_expression));
 
             if(function->returnType != type_untyped && (match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor)) == no_match_found) {
-                current_file->errors->createNewError(GENERIC, ast->line, ast->col, "return value of type `" +
+                create_new_error(GENERIC, ast->line, ast->col, "return value of type `" +
                         type_to_str(e.type) + "` is not compatible with that of type `" + type_to_str(function->returnType) + "`");
             }
 
@@ -356,7 +364,7 @@ void compile_function(sharp_function *function, Ast *ast) {
 
 
     if(!codePathsReturnValue && function->returnType.type != type_nil) {
-        current_file->errors->createNewError(GENERIC, ast->getSubAst(ast_block), "not all code paths return a value");
+        create_new_error(GENERIC, ast->getSubAst(ast_block), "not all code paths return a value");
     }
     delete_context();
 }

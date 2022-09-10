@@ -1,0 +1,17 @@
+mod std;
+
+import (
+    std.io
+)
+
+/**
+ * Created by braxtonn on 11/19/2019.
+ *
+ *
+ */
+stable class _nil_ {
+    static instance : _nil_ = new _nil_();
+        private set value -> { } // prevent the user from setting a new value
+
+    public override def to_string() : string? = new string("nil");
+}

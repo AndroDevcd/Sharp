@@ -1023,7 +1023,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
     }
 }
 
-bool VirtualMachine::catchException() {
+bool VirtualMachine::catchException() { // todo: check if function has thread_self flag if so then release instance if non null and there is no catch
     Thread *thread = thread_self;
     Int pc = PC(thread);
     TryCatchData *tbl=NULL;

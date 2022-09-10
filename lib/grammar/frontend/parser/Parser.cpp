@@ -1662,6 +1662,10 @@ void parser::parseInitDecl(Ast *ast) {
     if(peek(1)->getType() == LEFTPAREN) {
         parseUtypeArgList(branch); // must only be 1 param size
         branch->setAstType(ast_init_func_decl);
+
+        if(peek(1)->getType() == PTR) {
+            parseBaseClassConstructor(branch);
+        }
     }
     parseBlock(branch);
 }
@@ -1808,26 +1812,23 @@ bool parser::parseUtypeNaked(Ast* ast) {
 }
 
 void parser::parseGetter(Ast* ast) {
-    if(*peek(1) == "get") {
-        Ast *branch = getBranch(ast, ast_getter);
-        expect(branch, "get");
-        RETAIN_RECURSION(0);
-        parseBlock(branch);
-        RESTORE_RECURSION();
-    }
+    Ast *branch = getBranch(ast, ast_getter);
+    addAccessTypes(branch);
+
+    RETAIN_RECURSION(0);
+    parseBlock(branch);
+    RESTORE_RECURSION();
 }
 
 void parser::parseSetter(Ast* ast) {
-    if(*peek(1) == "set") {
-        Ast *branch = getBranch(ast, ast_setter);
-        expect(branch, "set");
+    Ast *branch = getBranch(ast, ast_setter);
+    addAccessTypes(branch);
 
-        expectIdentifier(branch);
-        expect(branch, "->");
-        RETAIN_RECURSION(0);
-        parseBlock(branch);
-        RESTORE_RECURSION();
-    }
+    expectIdentifier(branch);
+    expect(branch, "->");
+    RETAIN_RECURSION(0);
+    parseBlock(branch);
+    RESTORE_RECURSION();
 }
 
 void parser::parseInjectRequest(Ast* ast) {
@@ -1837,6 +1838,16 @@ void parser::parseInjectRequest(Ast* ast) {
     expect(branch, "(", false);
     expectIdentifier(branch);
     expect(branch, ")", false);
+}
+
+void parser::parseGetterSetterAccessTypes() {
+    if(isAccessDecl(*peek(1)))
+    {
+        advance();
+    }
+
+    parseAccessTypes();
+    if(access_types.empty()) advance()
 }
 
 void parser::parseVariableDecl(Ast* ast) {
@@ -1858,6 +1869,7 @@ void parser::parseVariableDecl(Ast* ast) {
     }
 
     expectIdentifier(branch);
+
     if(recursion == 1) {
         if(*peek(1) == ":") {
             expect(branch, ":");
@@ -1886,21 +1898,41 @@ void parser::parseVariableDecl(Ast* ast) {
         expect(branch, ",");
 
         parseVariableDecl(recursion <= 1 ? branch : ast);
+    }
 
-        if(recursion == 1)
-            expect(branch, ";");
-    } else {
-        if(recursion == 1)
-            expect(branch, ";");
+    if(recursion == 1) {
+        expect(branch, ";");
 
-        if (*peek(1) == "get" || *peek(1) == "set") {
-            if (*peek(1) == "get") {
+        Token *old = _current;
+        parseGetterSetterAccessTypes();
+        if (current() == "get" || current() == "set") {
+
+            if (current() == "get") {
                 parseGetter(branch);
-                parseSetter(branch);
+
+                old = _current;
+                parseGetterSetterAccessTypes();
+                if (current() == "set") {
+                    parseSetter(branch);
+                } else {
+                    _current = old;
+                    access_types.free();
+                }
             } else {
                 parseSetter(branch);
-                parseGetter(branch);
+
+                old = _current;
+                parseGetterSetterAccessTypes();
+                if (current() == "get") {
+                    parseGetter(branch);
+                } else {
+                    _current = old;
+                    access_types.free();
+                }
             }
+        } else {
+            _current = old;
+            access_types.free();
         }
     }
 
@@ -1999,6 +2031,7 @@ bool parser::isOverrideOperator(string token) {
            token == "+" || token == "==" ||
            token == ">>" || token == "<<"||
            token == "<" || token == ">"||
+           token == "&&" || token == "||"||
            token == "<=" || token == ">="||
            token == "!=" || token == "!"||
            token == "[" || token == "**"||
@@ -2959,8 +2992,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
 
         branch->encapsulate(ast_self_e);
 
-        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is"
-                   && peek(1)->getValue() != "!!")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -2990,8 +3022,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
 
         branch->encapsulate(ast_base_e);
 
-        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is"
-                   && peek(1)->getValue() != "!!")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3083,8 +3114,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
         dotNotBranch->addAst(branchToStore);
         branch->sub_asts.removeAt(branch->sub_asts.size() - 2);
 
-        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is"
-                   && peek(1)->getValue() != "!!")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3127,8 +3157,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
 
         branch->encapsulate(ast_new_e);
 
-        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is"
-                && peek(1)->getValue() != "!!")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3243,8 +3272,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
         parseExpression(parenBranch);
 
         expect(parenBranch, ")");
-        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is"
-                   && peek(1)->getValue() != "!!")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = parenBranch;
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3297,8 +3325,7 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             }
             else {
                 errors->fail();
-                if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is"
-                             && peek(1)->getValue() != "!!")
+                if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
                     branch = branch->getLastSubAst();
 
                 if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3393,6 +3420,10 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
     doubleBang:
     if(peek(1)->getType() == DOUBLEBANG)
     {
+        if(_current->getLine() >= 25 && toks->file == "D:\\bknun\\Documents\\OneDrive\\Documents\\Clion\\Sharp\\lib\\support\\0.3.0\\platform\\kernel\\vm.sharp") {
+            int r = 0;
+        }
+        branch->encapsulate(branch->getType());
         branch->encapsulate(ast_primary_expr);
         branch->encapsulate(ast_expression);
         branch->encapsulate(ast_force_non_null_e);
@@ -3735,6 +3766,7 @@ bool parser::isAccessDecl(Token &token) {
             (token.getValue() == "stable") ||
             (token.getValue() == "native") ||
             (token.getValue() == "excuse") ||
+            (token.getValue() == "thread_safe") ||
             (token.getValue() == "override") ||
             (token.getValue() == "public"));
 }
@@ -4012,7 +4044,7 @@ bool parser::isKeyword(string key) {
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as" || key == "in" || key == "override" || key == "obfuscate" || key == "is"
            || key == "inject" || key == "component" || key == "single" || key == "factory"
-           || key == "excuse";
+           || key == "excuse" || key == "thread_safe";
 }
 
 void parser::parseAccessTypes() {

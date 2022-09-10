@@ -30,7 +30,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
 
     if(!get_real_type(arrayExpr.type).isArray
         && !(get_class_type(arrayExpr.type) != NULL && inherits_generic_class(get_class_type(arrayExpr.type), loopableClass))) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                                " foreach expression`" + type_to_str(arrayExpr.type) + "` must be an array type.");
     }
 
@@ -42,12 +42,12 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
 
         if(get_elements != NULL) {
             if(check_flag(get_elements->flags, flag_static)) {
-                current_file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                      " could not call static function `" + function_to_str(get_elements) + "` in foreach on expression `" + type_to_str(arrayExpr.type) + "` via `loopable<>` interface.");
             }
 
             if(!get_elements->returnType.isArray) {
-                current_file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                                        " support function `" + function_to_str(get_elements) + "` must return an array.");
             }
 
@@ -55,7 +55,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                                   false);
             arrayExpr.type.copy(get_elements->returnType);
         } else {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                    " could not locate support function `get_elements()` inherited from expression`" + type_to_str(arrayExpr.type) + "` via the `loopable<>` interface.");
         }
     }
@@ -67,7 +67,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         fieldType.copy(resolve(ast->getSubAst(ast_utype_arg)->getSubAst(ast_utype)));
 
         if(fieldType.isArray) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` cannot evaluate to an array");
+            create_new_error(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` cannot evaluate to an array");
         }
 
         iteratorField = create_local_field(current_file, &current_context, name, flags, fieldType, normal_field, ast->getSubAst(ast_utype_arg));
@@ -79,7 +79,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         if(tmp.type == type_object && get_class_type(fieldType)) {
             iterator_match_result = indirect_match;
         } else if((iterator_match_result = is_implicit_type_match(fieldType, tmp, match_operator_overload, initializer_function)) == no_match_found) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col,
+            create_new_error(GENERIC, ast->line, ast->col,
                                    " incompatible types, cannot convert `" + type_to_str(tmp) + "` to `" +
                                            type_to_str(fieldType) + "`.");
         }

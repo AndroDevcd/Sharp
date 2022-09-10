@@ -213,16 +213,23 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                     e->scheme.free();
                     e->scheme.copy(*schema);
                 } else if(field->type.type == type_class) {
-                    List<sharp_field*> emptyParams;
-                    List<operation_schema*> noOperations;
-
-                    auto fun = compile_class_function_overload(
-                            field->type._class, *e, emptyParams, noOperations, op, ast);
-                    create_dependency(fun);
+                    goto _class;
                 } else {
                     create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");
                 }
+                break;
+            }
+
+            case type_class: {
+                _class:
+                List<sharp_field*> emptyParams;
+                List<operation_schema*> noOperations;
+                sharp_class *sc = get_class_type(e->type);
+
+                auto fun = compile_class_function_overload(
+                        sc, *e, emptyParams, noOperations, op, ast);
+                create_dependency(fun);
                 break;
             }
 
@@ -365,25 +372,33 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                     e->scheme.schemeType = scheme_post_increment;
                     e->type.type = field->type.type;
                 } else if(field->type.type == type_class) {
-                    List<sharp_field*> params;
-                    List<operation_schema*> operations;
-                    operations.add(new operation_schema());
-                    create_get_integer_constant_operation(
-                            operations.last(), 1);
-
-                    string name;
-                    sharp_type type(type_var);
-                    impl_location location(current_file, ast);
-                    params.add(new sharp_field(name, get_primary_class(&current_file->context),
-                            location, type, flag_public, normal_field, ast));
-
-                    auto fun = compile_class_function_overload(
-                            field->type._class, *e, params, operations, op, ast);
-                    create_dependency(fun);
+                    goto _class;
                 } else {
                     create_new_error(
                             GENERIC, ast, "unqualified use  of operator `" + op + "` with field of type `" + type_to_str(field->type) + "`");
                 }
+                break;
+            }
+
+            case type_class: {
+                _class:
+                List<sharp_field*> params;
+                List<operation_schema*> operations;
+                sharp_class *sc = get_class_type(e->type);
+
+                operations.add(new operation_schema());
+                create_get_integer_constant_operation(
+                        operations.last(), 1);
+
+                string name;
+                sharp_type type(type_var);
+                impl_location location(current_file, ast);
+                params.add(new sharp_field(name, get_primary_class(&current_file->context),
+                                           location, type, flag_public, normal_field, ast));
+
+                auto fun = compile_class_function_overload(
+                        sc, *e, params, operations, op, ast);
+                create_dependency(fun);
                 break;
             }
 

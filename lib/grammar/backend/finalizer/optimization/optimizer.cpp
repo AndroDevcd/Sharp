@@ -19,7 +19,7 @@ void optimize() {
 
         // todo optimize code later
     } else {
-        current_file->errors->createNewError(INTERNAL_ERROR, sharpFiles.get(0)->p->astAt(0),
+        create_new_error(INTERNAL_ERROR, sharpFiles.get(0)->p->astAt(0),
                                              "could not locate genesis/main method!");
     }
 }

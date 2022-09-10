@@ -16,9 +16,9 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
     operation_schema *subScheme = new operation_schema();
     subScheme->schemeType = scheme_if_single;
 
-    compile_expression(cond, ast->getSubAst(ast_expression));
+    compile_cond_expression(cond, ast->getSubAst(ast_expression));
     if(!is_evaluable_type(cond.type)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "if statement of type `" + type_to_str(cond.type) + "` condition expression must evaluate to true or false");
+        create_new_error(GENERIC, ast->line, ast->col, "if statement of type `" + type_to_str(cond.type) + "` condition expression must evaluate to true or false");
     }
 
     set_internal_label_name(ss, "if_end", uniqueId++)
@@ -45,9 +45,9 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                 case ast_elseif_statement: {
                     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_elseif, *subScheme,
                         expression elseIfCond;
-                        compile_expression(elseIfCond, branch->getSubAst(ast_expression));
+                        compile_cond_expression(elseIfCond, branch->getSubAst(ast_expression));
                         if(!is_evaluable_type(elseIfCond.type)) {
-                            current_file->errors->createNewError(GENERIC, branch->line, branch->col, "else if statement of type `" + type_to_str(elseIfCond.type) + "` condition expression must evaluate to true or false");
+                            create_new_error(GENERIC, branch->line, branch->col, "else if statement of type `" + type_to_str(elseIfCond.type) + "` condition expression must evaluate to true or false");
                         }
 
                         set_internal_label_name(ss, "if_block_end", uniqueId++)
@@ -75,7 +75,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                     break;
                 }
                 default: {
-                    current_file->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, "unexpected AST in if statement");
+                    create_new_error(INTERNAL_ERROR, ast->line, ast->col, "unexpected AST in if statement");
                     break;
                 }
             }

@@ -22,7 +22,7 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
 
     controlPaths[WHEN_CONTROL_PATH] = true;
     if(ast->hasSubAst(ast_expression))
-        compile_expression(cond, ast->getSubAst(ast_expression));
+        compile_cond_expression(cond, ast->getSubAst(ast_expression));
 
     set_internal_label_name(ss, "when_end", uniqueId++)
     endLabel = create_label(ss.str(), &current_context, ast, subScheme);
@@ -42,20 +42,20 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                     Ast *expressionAst = branch->getSubAst(j);
                     expression comparer, out;
 
-                    compile_expression(comparer, expressionAst);
+                    compile_cond_expression(comparer, expressionAst);
 
                     if(ast->hasSubAst(ast_expression)) {
-                        recompile_expression(cond, ast->getSubAst(ast_expression));
+                        recompile_cond_expression(cond, ast->getSubAst(ast_expression));
 
                         compile_binary_expression(&out, branch, cond, comparer, operand);
                         if(!is_evaluable_type(out.type)) {
-                            current_file->errors->createNewError(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
+                            create_new_error(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
                         }
 
                         create_get_value_operation(whenClauseScheme, &out.scheme, false, false);
                     } else {
                         if(!is_evaluable_type(comparer.type)) {
-                            current_file->errors->createNewError(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
+                            create_new_error(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
                         }
 
                         create_get_value_operation(whenClauseScheme, &comparer.scheme, false, false);

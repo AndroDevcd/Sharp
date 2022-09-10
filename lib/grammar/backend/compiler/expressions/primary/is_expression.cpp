@@ -21,7 +21,7 @@ void compile_is_expression(expression *e, Ast *ast) {
         create_get_bool_constant_operation(&e->scheme, e->type._bool);
     } else {
         if(is_implicit_type_match(e->type, castType, exclude_all)) {
-            e->type.type = type_int64;
+            e->type.type = type_int8;
             create_is_operation(&e->scheme, &castType);
         } else {
             e->type.type = type_bool;

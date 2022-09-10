@@ -1,5 +1,9 @@
 mod std;
 
+import (
+    std.io
+)
+
 /**
 * Created by bknun on 9/3/2022
 * 
@@ -39,9 +43,9 @@ class synced_list<T base _object_> : loopable<T> {
 
     def operator[](index: int): T {
         lock(self) {
-            if(index.value >= n_elements || index.value < 0) // todo: if end type is bool class for if, for, while, do-while etc pull value fields out
+            if(index.value >= n_elements || index.value < 0)
                 throw new bounds_except(out_of_bounds_msg(index));
-            return data[index];
+            return data[index.value];
         }
     }
 
@@ -49,7 +53,7 @@ class synced_list<T base _object_> : loopable<T> {
         lock(self) {
             if(index.value >= n_elements || index.value < 0)
                 throw new bounds_except(out_of_bounds_msg(index));
-            return data[index];
+            return data[index.value];
         }
     }
 
@@ -99,15 +103,15 @@ class synced_list<T base _object_> : loopable<T> {
                 remove_at(0);
                 return item;
             } else {
-                throw new bounds_except(out_of_bounds_msg(index)); // todo: ensure that this sets code path returns a value for compiler
+                throw new bounds_except(out_of_bounds_msg(0));
             }
         }
     }
 
     def add_all(lst: list<T>) {
         lock(self) {
-            data = copy(lst.get_elements()!!, 0, lst.size()) as T[];
-            n_elements = lst.size();
+            data = copy(lst.get_elements()!!, 0, lst.size().value) as T[];
+            n_elements = lst.size().value;
         }
     }
 
@@ -119,9 +123,9 @@ class synced_list<T base _object_> : loopable<T> {
         }
     }
 
-    def indexof(element: T) : var {
+    def indexof(element: T) : int {
         lock(self) {
-            for(i := 0; i < n_elements; i++) {
+            for(i : var = 0; i < n_elements; i++) {
                 if(element == data[i]) {
                     return i;
                 }
@@ -163,7 +167,7 @@ class synced_list<T base _object_> : loopable<T> {
                if(n_elements >= sizeof(data))
                    expand();
                n_elements++;
-                for(i := n_elements - 1; i > index.value; i--)
+                for(i : var = n_elements - 1; i > index.value; i--)
                    data[i] = data[i-1];
                 data[index.value] = element;
             }
@@ -173,7 +177,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     def remove(val: T) {
         lock(self) {
-            for(i := 0; i < n_elements; i++) {
+            for(i : var = 0; i < n_elements; i++) {
                 if(val == data[i]) {
                     remove_at(i);
                     return;
@@ -200,13 +204,13 @@ class synced_list<T base _object_> : loopable<T> {
 
             num_moved := n_elements - index.value - 1;
             if (num_moved > 0)
-                memcopy(data!!, data!!, index, index.value+1, n_elements);
+                memcopy(data!!, data!!, index.value, index.value+1, n_elements);
 
             pop_back();
         }
     }
 
-    def indexof(comparer: T, find_func: (T, T)(bool)) : var {
+    def indexof(comparer: T, find_func: (T, T)(bool)) : int {
         lock(self) {
             for(i : var = 0; i < n_elements; i++) {
                 if(find_func(data[i], comparer)) {
@@ -248,7 +252,7 @@ class synced_list<T base _object_> : loopable<T> {
         }
     }
 
-    def replace(val: T, compare_fun: (T, T)(var)) : var {
+    def replace(val: T, compare_fun: (T, T)(var)) : bool {
         lock(self) {
             for(i : var = 0; i < n_elements; i++) {
                 if(compare_fun(val, data[i])) {
@@ -261,7 +265,7 @@ class synced_list<T base _object_> : loopable<T> {
         }
     }
 
-    def to_string() : string {
+    override def to_string() : string? {
         lock(self) {
             str := new string_builder();
 
@@ -276,6 +280,22 @@ class synced_list<T base _object_> : loopable<T> {
 
             str += " ]";
             return str.to_string();
+        }
+    }
+
+    override def hash() : int {
+        lock(self) {
+            i : var = 0;
+            hash_value := 0;
+            multiplier := 0;
+            const m := 1e9 + 9;
+
+            foreach(item in data) {
+                hash_value = (hash_value + item.hash().value + multiplier) % m;
+                multiplier = i * (i % 10);
+            }
+
+            return hash_value;
         }
     }
 

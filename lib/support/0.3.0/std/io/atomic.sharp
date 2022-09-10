@@ -1,0 +1,615 @@
+mod std.io;
+
+thread_safe class atomic<t base base_number<t> > {
+     private value : t;
+
+     atomic(initial_val : t) {
+        value = initial_val;
+     }
+
+     def read() := value.value;
+
+     override def to_string() : string? {
+        return "$value";
+     }
+
+     def operator!=(num : atomic<t>) : bool   = (value.value!=num.value.value);
+     def operator!=(num : ulong) : bool       = (value.value!=num.value);
+     def operator!=(num : long) : bool        = (value.value!=num.value);
+     def operator!=(num : uint) : bool        = (value.value!=num.value);
+     def operator!=(num : int) : bool         = (value.value!=num.value);
+     def operator!=(num : ushort) : bool      = (value.value!=num.value);
+     def operator!=(num : short) : bool       = (value.value!=num.value);
+     def operator!=(num : byte) : bool        = (value.value!=num.value);
+     def operator!=(num : uchar) : bool       = (value.value!=num.value);
+     def operator!=(num : char) : bool        = (value.value!=num.value);
+     def operator!=(num : bool) : bool        = (value.value!=num.value);
+     def operator!=(num : double) : bool      = (value.value!=num.value);
+     def operator!=(num : _uint8) : bool      = (value.value!=num);
+     def operator!=(num : _uint16) : bool     = (value.value!=num);
+     def operator!=(num : _uint32) : bool     = (value.value!=num);
+     def operator!=(num : _uint64) : bool     = (value.value!=num);
+     def operator!=(num : _int8) : bool       = (value.value!=num);
+     def operator!=(num : _int16) : bool      = (value.value!=num);
+     def operator!=(num : _int32) : bool      = (value.value!=num);
+     def operator!=(num : _int64) : bool      = (value.value!=num);
+     def operator!=(num : var) : bool         = (value.value!=num);
+
+     def operator==(num : atomic<t>) : bool   = (value.value==num.value.value);
+     def operator==(num : ulong) : bool       = (value.value==num.value);
+     def operator==(num : long) : bool        = (value.value==num.value);
+     def operator==(num : uint) : bool        = (value.value==num.value);
+     def operator==(num : int) : bool         = (value.value==num.value);
+     def operator==(num : ushort) : bool      = (value.value==num.value);
+     def operator==(num : short) : bool       = (value.value==num.value);
+     def operator==(num : byte) : bool        = (value.value==num.value);
+     def operator==(num : uchar) : bool       = (value.value==num.value);
+     def operator==(num : char) : bool        = (value.value==num.value);
+     def operator==(num : bool) : bool        = (value.value==num.value);
+     def operator==(num : double) : bool      = (value.value==num.value);
+     def operator==(num : _uint8) : bool      = (value.value==num);
+     def operator==(num : _uint16) : bool     = (value.value==num);
+     def operator==(num : _uint32) : bool     = (value.value==num);
+     def operator==(num : _uint64) : bool     = (value.value==num);
+     def operator==(num : _int8) : bool       = (value.value==num);
+     def operator==(num : _int16) : bool      = (value.value==num);
+     def operator==(num : _int32) : bool      = (value.value==num);
+     def operator==(num : _int64) : bool      = (value.value==num);
+     def operator==(num : var) : bool         = (value.value==num);
+
+     def operator&&(num : atomic<t>) : bool   = (value.value&&num.value.value);
+     def operator&&(num : ulong) : bool       = (value.value&&num.value);
+     def operator&&(num : long) : bool        = (value.value&&num.value);
+     def operator&&(num : uint) : bool        = (value.value&&num.value);
+     def operator&&(num : int) : bool         = (value.value&&num.value);
+     def operator&&(num : ushort) : bool      = (value.value&&num.value);
+     def operator&&(num : short) : bool       = (value.value&&num.value);
+     def operator&&(num : byte) : bool        = (value.value&&num.value);
+     def operator&&(num : uchar) : bool       = (value.value&&num.value);
+     def operator&&(num : char) : bool        = (value.value&&num.value);
+     def operator&&(num : bool) : bool        = (value.value&&num.value);
+     def operator&&(num : double) : bool      = (value.value&&num.value);
+     def operator&&(num : _uint8) : bool      = (value.value&&num);
+     def operator&&(num : _uint16) : bool     = (value.value&&num);
+     def operator&&(num : _uint32) : bool     = (value.value&&num);
+     def operator&&(num : _uint64) : bool     = (value.value&&num);
+     def operator&&(num : _int8) : bool       = (value.value&&num);
+     def operator&&(num : _int16) : bool      = (value.value&&num);
+     def operator&&(num : _int32) : bool      = (value.value&&num);
+     def operator&&(num : _int64) : bool      = (value.value&&num);
+     def operator&&(num : var) : bool         = (value.value&&num);
+
+     def operator||(num : atomic<t>) : bool   = (value.value||num.value.value);
+     def operator||(num : ulong) : bool       = (value.value||num.value);
+     def operator||(num : long) : bool        = (value.value||num.value);
+     def operator||(num : uint) : bool        = (value.value||num.value);
+     def operator||(num : int) : bool         = (value.value||num.value);
+     def operator||(num : ushort) : bool      = (value.value||num.value);
+     def operator||(num : short) : bool       = (value.value||num.value);
+     def operator||(num : byte) : bool        = (value.value||num.value);
+     def operator||(num : uchar) : bool       = (value.value||num.value);
+     def operator||(num : char) : bool        = (value.value||num.value);
+     def operator||(num : bool) : bool        = (value.value||num.value);
+     def operator||(num : double) : bool      = (value.value||num.value);
+     def operator||(num : _uint8) : bool      = (value.value||num);
+     def operator||(num : _uint16) : bool     = (value.value||num);
+     def operator||(num : _uint32) : bool     = (value.value||num);
+     def operator||(num : _uint64) : bool     = (value.value||num);
+     def operator||(num : _int8) : bool       = (value.value||num);
+     def operator||(num : _int16) : bool      = (value.value||num);
+     def operator||(num : _int32) : bool      = (value.value||num);
+     def operator||(num : _int64) : bool      = (value.value||num);
+     def operator||(num : var) : bool         = (value.value||num);
+
+     def operator<(num : atomic<t>) : bool   = (value.value<num.value.value);
+     def operator<(num : ulong) : bool       = (value.value<num.value);
+     def operator<(num : long) : bool        = (value.value<num.value);
+     def operator<(num : uint) : bool        = (value.value<num.value);
+     def operator<(num : int) : bool         = (value.value<num.value);
+     def operator<(num : ushort) : bool      = (value.value<num.value);
+     def operator<(num : short) : bool       = (value.value<num.value);
+     def operator<(num : byte) : bool        = (value.value<num.value);
+     def operator<(num : uchar) : bool       = (value.value<num.value);
+     def operator<(num : char) : bool        = (value.value<num.value);
+     def operator<(num : bool) : bool        = (value.value<num.value);
+     def operator<(num : double) : bool      = (value.value<num.value);
+     def operator<(num : _uint8) : bool      = (value.value<num);
+     def operator<(num : _uint16) : bool     = (value.value<num);
+     def operator<(num : _uint32) : bool     = (value.value<num);
+     def operator<(num : _uint64) : bool     = (value.value<num);
+     def operator<(num : _int8) : bool       = (value.value<num);
+     def operator<(num : _int16) : bool      = (value.value<num);
+     def operator<(num : _int32) : bool      = (value.value<num);
+     def operator<(num : _int64) : bool      = (value.value<num);
+     def operator<(num : var) : bool         = (value.value<num);
+
+     def operator>(num : atomic<t>) : bool   = (value.value>num.value.value);
+     def operator>(num : ulong) : bool       = (value.value>num.value);
+     def operator>(num : long) : bool        = (value.value>num.value);
+     def operator>(num : uint) : bool        = (value.value>num.value);
+     def operator>(num : int) : bool         = (value.value>num.value);
+     def operator>(num : ushort) : bool      = (value.value>num.value);
+     def operator>(num : short) : bool       = (value.value>num.value);
+     def operator>(num : byte) : bool        = (value.value>num.value);
+     def operator>(num : uchar) : bool       = (value.value>num.value);
+     def operator>(num : char) : bool        = (value.value>num.value);
+     def operator>(num : bool) : bool        = (value.value>num.value);
+     def operator>(num : double) : bool      = (value.value>num.value);
+     def operator>(num : _uint8) : bool      = (value.value>num);
+     def operator>(num : _uint16) : bool     = (value.value>num);
+     def operator>(num : _uint32) : bool     = (value.value>num);
+     def operator>(num : _uint64) : bool     = (value.value>num);
+     def operator>(num : _int8) : bool       = (value.value>num);
+     def operator>(num : _int16) : bool      = (value.value>num);
+     def operator>(num : _int32) : bool      = (value.value>num);
+     def operator>(num : _int64) : bool      = (value.value>num);
+     def operator>(num : var) : bool         = (value.value>num);
+
+     def operator<=(num : atomic<t>) : bool   = (value.value>=num.value.value);
+     def operator<=(num : ulong) : bool       = (value.value>=num.value);
+     def operator<=(num : long) : bool        = (value.value>=num.value);
+     def operator<=(num : uint) : bool        = (value.value>=num.value);
+     def operator<=(num : int) : bool         = (value.value>=num.value);
+     def operator<=(num : ushort) : bool      = (value.value>=num.value);
+     def operator<=(num : short) : bool       = (value.value>=num.value);
+     def operator<=(num : byte) : bool        = (value.value>=num.value);
+     def operator<=(num : uchar) : bool       = (value.value>=num.value);
+     def operator<=(num : char) : bool        = (value.value>=num.value);
+     def operator<=(num : bool) : bool        = (value.value>=num.value);
+     def operator<=(num : double) : bool      = (value.value>=num.value);
+     def operator<=(num : _uint8) : bool      = (value.value>=num);
+     def operator<=(num : _uint16) : bool     = (value.value>=num);
+     def operator<=(num : _uint32) : bool     = (value.value>=num);
+     def operator<=(num : _uint64) : bool     = (value.value>=num);
+     def operator<=(num : _int8) : bool       = (value.value>=num);
+     def operator<=(num : _int16) : bool      = (value.value>=num);
+     def operator<=(num : _int32) : bool      = (value.value>=num);
+     def operator<=(num : _int64) : bool      = (value.value>=num);
+     def operator<=(num : var) : bool         = (value.value>=num);
+
+     def operator+(num : atomic<t>) : t   = (value.value+num.value.value);
+     def operator+(num : ulong) : t       = (value.value+num.value);
+     def operator+(num : long) : t        = (value.value+num.value);
+     def operator+(num : uint) : t        = (value.value+num.value);
+     def operator+(num : int) : t         = (value.value+num.value);
+     def operator+(num : ushort) : t      = (value.value+num.value);
+     def operator+(num : short) : t       = (value.value+num.value);
+     def operator+(num : byte) : t        = (value.value+num.value);
+     def operator+(num : uchar) : t       = (value.value+num.value);
+     def operator+(num : char) : t        = (value.value+num.value);
+     def operator+(num : bool) : t        = (value.value+num.value);
+     def operator+(num : double) : t      = (value.value+num.value);
+     def operator+(num : _uint8) : t      = (value.value+num);
+     def operator+(num : _uint16) : t     = (value.value+num);
+     def operator+(num : _uint32) : t     = (value.value+num);
+     def operator+(num : _uint64) : t     = (value.value+num);
+     def operator+(num : _int8) : t       = (value.value+num);
+     def operator+(num : _int16) : t      = (value.value+num);
+     def operator+(num : _int32) : t      = (value.value+num);
+     def operator+(num : _int64) : t      = (value.value+num);
+     def operator+(num : var) : t         = (value.value+num);
+
+     def operator-(num : atomic<t>) : t   = (value.value-num.value.value);
+     def operator-(num : ulong) : t       = (value.value-num.value);
+     def operator-(num : long) : t        = (value.value-num.value);
+     def operator-(num : uint) : t        = (value.value-num.value);
+     def operator-(num : int) : t         = (value.value-num.value);
+     def operator-(num : ushort) : t      = (value.value-num.value);
+     def operator-(num : short) : t       = (value.value-num.value);
+     def operator-(num : byte) : t        = (value.value-num.value);
+     def operator-(num : uchar) : t       = (value.value-num.value);
+     def operator-(num : char) : t        = (value.value-num.value);
+     def operator-(num : bool) : t        = (value.value-num.value);
+     def operator-(num : double) : t      = (value.value-num.value);
+     def operator-(num : _uint8) : t      = (value.value-num);
+     def operator-(num : _uint16) : t     = (value.value-num);
+     def operator-(num : _uint32) : t     = (value.value-num);
+     def operator-(num : _uint64) : t     = (value.value-num);
+     def operator-(num : _int8) : t       = (value.value-num);
+     def operator-(num : _int16) : t      = (value.value-num);
+     def operator-(num : _int32) : t      = (value.value-num);
+     def operator-(num : _int64) : t      = (value.value-num);
+     def operator-(num : var) : t         = (value.value-num);
+
+     def operator*(num : atomic<t>) : t   = (value.value*num.value.value);
+     def operator*(num : ulong) : t       = (value.value*num.value);
+     def operator*(num : long) : t        = (value.value*num.value);
+     def operator*(num : uint) : t        = (value.value*num.value);
+     def operator*(num : int) : t         = (value.value*num.value);
+     def operator*(num : ushort) : t      = (value.value*num.value);
+     def operator*(num : short) : t       = (value.value*num.value);
+     def operator*(num : byte) : t        = (value.value*num.value);
+     def operator*(num : uchar) : t       = (value.value*num.value);
+     def operator*(num : char) : t        = (value.value*num.value);
+     def operator*(num : bool) : t        = (value.value*num.value);
+     def operator*(num : double) : t      = (value.value*num.value);
+     def operator*(num : _uint8) : t      = (value.value*num);
+     def operator*(num : _uint16) : t     = (value.value*num);
+     def operator*(num : _uint32) : t     = (value.value*num);
+     def operator*(num : _uint64) : t     = (value.value*num);
+     def operator*(num : _int8) : t       = (value.value*num);
+     def operator*(num : _int16) : t      = (value.value*num);
+     def operator*(num : _int32) : t      = (value.value*num);
+     def operator*(num : _int64) : t      = (value.value*num);
+     def operator*(num : var) : t         = (value.value*num);
+
+     def operator/(num : atomic<t>) : t   = (value.value/num.value.value);
+     def operator/(num : ulong) : t       = (value.value/num.value);
+     def operator/(num : long) : t        = (value.value/num.value);
+     def operator/(num : uint) : t        = (value.value/num.value);
+     def operator/(num : int) : t         = (value.value/num.value);
+     def operator/(num : ushort) : t      = (value.value/num.value);
+     def operator/(num : short) : t       = (value.value/num.value);
+     def operator/(num : byte) : t        = (value.value/num.value);
+     def operator/(num : uchar) : t       = (value.value/num.value);
+     def operator/(num : char) : t        = (value.value/num.value);
+     def operator/(num : bool) : t        = (value.value/num.value);
+     def operator/(num : double) : t      = (value.value/num.value);
+     def operator/(num : _uint8) : t      = (value.value/num);
+     def operator/(num : _uint16) : t     = (value.value/num);
+     def operator/(num : _uint32) : t     = (value.value/num);
+     def operator/(num : _uint64) : t     = (value.value/num);
+     def operator/(num : _int8) : t       = (value.value/num);
+     def operator/(num : _int16) : t      = (value.value/num);
+     def operator/(num : _int32) : t      = (value.value/num);
+     def operator/(num : _int64) : t      = (value.value/num);
+     def operator/(num : var) : t         = (value.value/num);
+
+     def operator%(num : atomic<t>) : t   = (value.value%num.value.value);
+     def operator%(num : ulong) : t       = (value.value%num.value);
+     def operator%(num : long) : t        = (value.value%num.value);
+     def operator%(num : uint) : t        = (value.value%num.value);
+     def operator%(num : int) : t         = (value.value%num.value);
+     def operator%(num : ushort) : t      = (value.value%num.value);
+     def operator%(num : short) : t       = (value.value%num.value);
+     def operator%(num : byte) : t        = (value.value%num.value);
+     def operator%(num : uchar) : t       = (value.value%num.value);
+     def operator%(num : char) : t        = (value.value%num.value);
+     def operator%(num : bool) : t        = (value.value%num.value);
+     def operator%(num : double) : t      = (value.value%num.value);
+     def operator%(num : _uint8) : t      = (value.value%num);
+     def operator%(num : _uint16) : t     = (value.value%num);
+     def operator%(num : _uint32) : t     = (value.value%num);
+     def operator%(num : _uint64) : t     = (value.value%num);
+     def operator%(num : _int8) : t       = (value.value%num);
+     def operator%(num : _int16) : t      = (value.value%num);
+     def operator%(num : _int32) : t      = (value.value%num);
+     def operator%(num : _int64) : t      = (value.value%num);
+     def operator%(num : var) : t         = (value.value%num);
+
+     def operator**(num : atomic<t>) : t   = (value.value**num.value.value);
+     def operator**(num : ulong) : t       = (value.value**num.value);
+     def operator**(num : long) : t        = (value.value**num.value);
+     def operator**(num : uint) : t        = (value.value**num.value);
+     def operator**(num : int) : t         = (value.value**num.value);
+     def operator**(num : ushort) : t      = (value.value**num.value);
+     def operator**(num : short) : t       = (value.value**num.value);
+     def operator**(num : byte) : t        = (value.value**num.value);
+     def operator**(num : uchar) : t       = (value.value**num.value);
+     def operator**(num : char) : t        = (value.value**num.value);
+     def operator**(num : bool) : t        = (value.value**num.value);
+     def operator**(num : double) : t      = (value.value**num.value);
+     def operator**(num : _uint8) : t      = (value.value**num);
+     def operator**(num : _uint16) : t     = (value.value**num);
+     def operator**(num : _uint32) : t     = (value.value**num);
+     def operator**(num : _uint64) : t     = (value.value**num);
+     def operator**(num : _int8) : t       = (value.value**num);
+     def operator**(num : _int16) : t      = (value.value**num);
+     def operator**(num : _int32) : t      = (value.value**num);
+     def operator**(num : _int64) : t      = (value.value**num);
+     def operator**(num : var) : t         = (value.value**num);
+
+     def operator<<(num : atomic<t>) : t   = (value.value<<num.value.value);
+     def operator<<(num : ulong) : t       = (value.value<<num.value);
+     def operator<<(num : long) : t        = (value.value<<num.value);
+     def operator<<(num : uint) : t        = (value.value<<num.value);
+     def operator<<(num : int) : t         = (value.value<<num.value);
+     def operator<<(num : ushort) : t      = (value.value<<num.value);
+     def operator<<(num : short) : t       = (value.value<<num.value);
+     def operator<<(num : byte) : t        = (value.value<<num.value);
+     def operator<<(num : uchar) : t       = (value.value<<num.value);
+     def operator<<(num : char) : t        = (value.value<<num.value);
+     def operator<<(num : bool) : t        = (value.value<<num.value);
+     def operator<<(num : double) : t      = (value.value<<num.value);
+     def operator<<(num : _uint8) : t      = (value.value<<num);
+     def operator<<(num : _uint16) : t     = (value.value<<num);
+     def operator<<(num : _uint32) : t     = (value.value<<num);
+     def operator<<(num : _uint64) : t     = (value.value<<num);
+     def operator<<(num : _int8) : t       = (value.value<<num);
+     def operator<<(num : _int16) : t      = (value.value<<num);
+     def operator<<(num : _int32) : t      = (value.value<<num);
+     def operator<<(num : _int64) : t      = (value.value<<num);
+     def operator<<(num : var) : t         = (value.value<<num);
+
+     def operator>>(num : atomic<t>) : t   = (value.value>>num.value.value);
+     def operator>>(num : ulong) : t       = (value.value>>num.value);
+     def operator>>(num : long) : t        = (value.value>>num.value);
+     def operator>>(num : uint) : t        = (value.value>>num.value);
+     def operator>>(num : int) : t         = (value.value>>num.value);
+     def operator>>(num : ushort) : t      = (value.value>>num.value);
+     def operator>>(num : short) : t       = (value.value>>num.value);
+     def operator>>(num : byte) : t        = (value.value>>num.value);
+     def operator>>(num : uchar) : t       = (value.value>>num.value);
+     def operator>>(num : char) : t        = (value.value>>num.value);
+     def operator>>(num : bool) : t        = (value.value>>num.value);
+     def operator>>(num : double) : t      = (value.value>>num.value);
+     def operator>>(num : _uint8) : t      = (value.value>>num);
+     def operator>>(num : _uint16) : t     = (value.value>>num);
+     def operator>>(num : _uint32) : t     = (value.value>>num);
+     def operator>>(num : _uint64) : t     = (value.value>>num);
+     def operator>>(num : _int8) : t       = (value.value>>num);
+     def operator>>(num : _int16) : t      = (value.value>>num);
+     def operator>>(num : _int32) : t      = (value.value>>num);
+     def operator>>(num : _int64) : t      = (value.value>>num);
+     def operator>>(num : var) : t         = (value.value>>num);
+
+     def operator^(num : atomic<t>) : t   = (value.value^num.value.value);
+     def operator^(num : ulong) : t       = (value.value^num.value);
+     def operator^(num : long) : t        = (value.value^num.value);
+     def operator^(num : uint) : t        = (value.value^num.value);
+     def operator^(num : int) : t         = (value.value^num.value);
+     def operator^(num : ushort) : t      = (value.value^num.value);
+     def operator^(num : short) : t       = (value.value^num.value);
+     def operator^(num : byte) : t        = (value.value^num.value);
+     def operator^(num : uchar) : t       = (value.value^num.value);
+     def operator^(num : char) : t        = (value.value^num.value);
+     def operator^(num : bool) : t        = (value.value^num.value);
+     def operator^(num : double) : t      = (value.value^num.value);
+     def operator^(num : _uint8) : t      = (value.value^num);
+     def operator^(num : _uint16) : t     = (value.value^num);
+     def operator^(num : _uint32) : t     = (value.value^num);
+     def operator^(num : _uint64) : t     = (value.value^num);
+     def operator^(num : _int8) : t       = (value.value^num);
+     def operator^(num : _int16) : t      = (value.value^num);
+     def operator^(num : _int32) : t      = (value.value^num);
+     def operator^(num : _int64) : t      = (value.value^num);
+     def operator^(num : var) : t         = (value.value^num);
+
+     def operator&(num : atomic<t>) : t   = (value.value&num.value.value);
+     def operator&(num : ulong) : t       = (value.value&num.value);
+     def operator&(num : long) : t        = (value.value&num.value);
+     def operator&(num : uint) : t        = (value.value&num.value);
+     def operator&(num : int) : t         = (value.value&num.value);
+     def operator&(num : ushort) : t      = (value.value&num.value);
+     def operator&(num : short) : t       = (value.value&num.value);
+     def operator&(num : byte) : t        = (value.value&num.value);
+     def operator&(num : uchar) : t       = (value.value&num.value);
+     def operator&(num : char) : t        = (value.value&num.value);
+     def operator&(num : bool) : t        = (value.value&num.value);
+     def operator&(num : double) : t      = (value.value&num.value);
+     def operator&(num : _uint8) : t      = (value.value&num);
+     def operator&(num : _uint16) : t     = (value.value&num);
+     def operator&(num : _uint32) : t     = (value.value&num);
+     def operator&(num : _uint64) : t     = (value.value&num);
+     def operator&(num : _int8) : t       = (value.value&num);
+     def operator&(num : _int16) : t      = (value.value&num);
+     def operator&(num : _int32) : t      = (value.value&num);
+     def operator&(num : _int64) : t      = (value.value&num);
+     def operator&(num : var) : t         = (value.value&num);
+
+     def operator|(num : atomic<t>) : t   = (value.value|num.value.value);
+     def operator|(num : ulong) : t       = (value.value|num.value);
+     def operator|(num : long) : t        = (value.value|num.value);
+     def operator|(num : uint) : t        = (value.value|num.value);
+     def operator|(num : int) : t         = (value.value|num.value);
+     def operator|(num : ushort) : t      = (value.value|num.value);
+     def operator|(num : short) : t       = (value.value|num.value);
+     def operator|(num : byte) : t        = (value.value|num.value);
+     def operator|(num : uchar) : t       = (value.value|num.value);
+     def operator|(num : char) : t        = (value.value|num.value);
+     def operator|(num : bool) : t        = (value.value|num.value);
+     def operator|(num : double) : t      = (value.value|num.value);
+     def operator|(num : _uint8) : t      = (value.value|num);
+     def operator|(num : _uint16) : t     = (value.value|num);
+     def operator|(num : _uint32) : t     = (value.value|num);
+     def operator|(num : _uint64) : t     = (value.value|num);
+     def operator|(num : _int8) : t       = (value.value|num);
+     def operator|(num : _int16) : t      = (value.value|num);
+     def operator|(num : _int32) : t      = (value.value|num);
+     def operator|(num : _int64) : t      = (value.value|num);
+     def operator|(num : var) : t         = (value.value|num);
+
+     def operator=(num : atomic<t>) : atomic<t> { value.value=num.value.value; return self; }
+     def operator=(num : ulong) : atomic<t>     { value.value=num.value; return self; }
+     def operator=(num : long) : atomic<t>      { value.value=num.value; return self; }
+     def operator=(num : uint) : atomic<t>      { value.value=num.value; return self; }
+     def operator=(num : int) : atomic<t>       { value.value=num.value; return self; }
+     def operator=(num : ushort) : atomic<t>    { value.value=num.value; return self; }
+     def operator=(num : short) : atomic<t>     { value.value=num.value; return self; }
+     def operator=(num : byte) : atomic<t>      { value.value=num.value; return self; }
+     def operator=(num : uchar) : atomic<t>     { value.value=num.value; return self; }
+     def operator=(num : char) : atomic<t>      { value.value=num.value; return self; }
+     def operator=(num : bool) : atomic<t>      { value.value=num.value; return self; }
+     def operator=(num : double) : atomic<t>    { value.value=num.value; return self; }
+     def operator=(num : _uint8) : atomic<t>    { value.value=num; return self; }
+     def operator=(num : _uint16) : atomic<t>   { value.value=num; return self; }
+     def operator=(num : _uint32) : atomic<t>   { value.value=num; return self; }
+     def operator=(num : _uint64) : atomic<t>   { value.value=num; return self; }
+     def operator=(num : _int8) : atomic<t>     { value.value=num; return self; }
+     def operator=(num : _int16) : atomic<t>    { value.value=num; return self; }
+     def operator=(num : _int32) : atomic<t>    { value.value=num; return self; }
+     def operator=(num : _int64) : atomic<t>    { value.value=num; return self; }
+     def operator=(num : var) : atomic<t>       { value.value=num; return self; }
+
+     def operator+=(num : atomic<t>) : atomic<t> { value.value+=num.value.value; return self; }
+     def operator+=(num : ulong) : atomic<t>     { value.value+=num.value; return self; }
+     def operator+=(num : long) : atomic<t>      { value.value+=num.value; return self; }
+     def operator+=(num : uint) : atomic<t>      { value.value+=num.value; return self; }
+     def operator+=(num : int) : atomic<t>       { value.value+=num.value; return self; }
+     def operator+=(num : ushort) : atomic<t>    { value.value+=num.value; return self; }
+     def operator+=(num : short) : atomic<t>     { value.value+=num.value; return self; }
+     def operator+=(num : byte) : atomic<t>      { value.value+=num.value; return self; }
+     def operator+=(num : uchar) : atomic<t>     { value.value+=num.value; return self; }
+     def operator+=(num : char) : atomic<t>      { value.value+=num.value; return self; }
+     def operator+=(num : bool) : atomic<t>      { value.value+=num.value; return self; }
+     def operator+=(num : double) : atomic<t>    { value.value+=num.value; return self; }
+     def operator+=(num : _uint8) : atomic<t>    { value.value+=num; return self; }
+     def operator+=(num : _uint16) : atomic<t>   { value.value+=num; return self; }
+     def operator+=(num : _uint32) : atomic<t>   { value.value+=num; return self; }
+     def operator+=(num : _uint64) : atomic<t>   { value.value+=num; return self; }
+     def operator+=(num : _int8) : atomic<t>     { value.value+=num; return self; }
+     def operator+=(num : _int16) : atomic<t>    { value.value+=num; return self; }
+     def operator+=(num : _int32) : atomic<t>    { value.value+=num; return self; }
+     def operator+=(num : _int64) : atomic<t>    { value.value+=num; return self; }
+     def operator+=(num : var) : atomic<t>       { value.value+=num; return self; }
+
+     def operator-=(num : atomic<t>) : atomic<t> { value.value-=num.value.value; return self; }
+     def operator-=(num : ulong) : atomic<t>     { value.value-=num.value; return self; }
+     def operator-=(num : long) : atomic<t>      { value.value-=num.value; return self; }
+     def operator-=(num : uint) : atomic<t>      { value.value-=num.value; return self; }
+     def operator-=(num : int) : atomic<t>       { value.value-=num.value; return self; }
+     def operator-=(num : ushort) : atomic<t>    { value.value-=num.value; return self; }
+     def operator-=(num : short) : atomic<t>     { value.value-=num.value; return self; }
+     def operator-=(num : byte) : atomic<t>      { value.value-=num.value; return self; }
+     def operator-=(num : uchar) : atomic<t>     { value.value-=num.value; return self; }
+     def operator-=(num : char) : atomic<t>      { value.value-=num.value; return self; }
+     def operator-=(num : bool) : atomic<t>      { value.value-=num.value; return self; }
+     def operator-=(num : double) : atomic<t>    { value.value-=num.value; return self; }
+     def operator-=(num : _uint8) : atomic<t>    { value.value-=num; return self; }
+     def operator-=(num : _uint16) : atomic<t>   { value.value-=num; return self; }
+     def operator-=(num : _uint32) : atomic<t>   { value.value-=num; return self; }
+     def operator-=(num : _uint64) : atomic<t>   { value.value-=num; return self; }
+     def operator-=(num : _int8) : atomic<t>     { value.value-=num; return self; }
+     def operator-=(num : _int16) : atomic<t>    { value.value-=num; return self; }
+     def operator-=(num : _int32) : atomic<t>    { value.value-=num; return self; }
+     def operator-=(num : _int64) : atomic<t>    { value.value-=num; return self; }
+     def operator-=(num : var) : atomic<t>       { value.value-=num; return self; }
+
+     def operator*=(num : atomic<t>) : atomic<t> { value.value*=num.value.value; return self; }
+     def operator*=(num : ulong) : atomic<t>     { value.value*=num.value; return self; }
+     def operator*=(num : long) : atomic<t>      { value.value*=num.value; return self; }
+     def operator*=(num : uint) : atomic<t>      { value.value*=num.value; return self; }
+     def operator*=(num : int) : atomic<t>       { value.value*=num.value; return self; }
+     def operator*=(num : ushort) : atomic<t>    { value.value*=num.value; return self; }
+     def operator*=(num : short) : atomic<t>     { value.value*=num.value; return self; }
+     def operator*=(num : byte) : atomic<t>      { value.value*=num.value; return self; }
+     def operator*=(num : uchar) : atomic<t>     { value.value*=num.value; return self; }
+     def operator*=(num : char) : atomic<t>      { value.value*=num.value; return self; }
+     def operator*=(num : bool) : atomic<t>      { value.value*=num.value; return self; }
+     def operator*=(num : double) : atomic<t>    { value.value*=num.value; return self; }
+     def operator*=(num : _uint8) : atomic<t>    { value.value*=num; return self; }
+     def operator*=(num : _uint16) : atomic<t>   { value.value*=num; return self; }
+     def operator*=(num : _uint32) : atomic<t>   { value.value*=num; return self; }
+     def operator*=(num : _uint64) : atomic<t>   { value.value*=num; return self; }
+     def operator*=(num : _int8) : atomic<t>     { value.value*=num; return self; }
+     def operator*=(num : _int16) : atomic<t>    { value.value*=num; return self; }
+     def operator*=(num : _int32) : atomic<t>    { value.value*=num; return self; }
+     def operator*=(num : _int64) : atomic<t>    { value.value*=num; return self; }
+     def operator*=(num : var) : atomic<t>       { value.value*=num; return self; }
+
+     def operator/=(num : atomic<t>) : atomic<t> { value.value/=num.value.value; return self; }
+     def operator/=(num : ulong) : atomic<t>     { value.value/=num.value; return self; }
+     def operator/=(num : long) : atomic<t>      { value.value/=num.value; return self; }
+     def operator/=(num : uint) : atomic<t>      { value.value/=num.value; return self; }
+     def operator/=(num : int) : atomic<t>       { value.value/=num.value; return self; }
+     def operator/=(num : ushort) : atomic<t>    { value.value/=num.value; return self; }
+     def operator/=(num : short) : atomic<t>     { value.value/=num.value; return self; }
+     def operator/=(num : byte) : atomic<t>      { value.value/=num.value; return self; }
+     def operator/=(num : uchar) : atomic<t>     { value.value/=num.value; return self; }
+     def operator/=(num : char) : atomic<t>      { value.value/=num.value; return self; }
+     def operator/=(num : bool) : atomic<t>      { value.value/=num.value; return self; }
+     def operator/=(num : double) : atomic<t>    { value.value/=num.value; return self; }
+     def operator/=(num : _uint8) : atomic<t>    { value.value/=num; return self; }
+     def operator/=(num : _uint16) : atomic<t>   { value.value/=num; return self; }
+     def operator/=(num : _uint32) : atomic<t>   { value.value/=num; return self; }
+     def operator/=(num : _uint64) : atomic<t>   { value.value/=num; return self; }
+     def operator/=(num : _int8) : atomic<t>     { value.value/=num; return self; }
+     def operator/=(num : _int16) : atomic<t>    { value.value/=num; return self; }
+     def operator/=(num : _int32) : atomic<t>    { value.value/=num; return self; }
+     def operator/=(num : _int64) : atomic<t>    { value.value/=num; return self; }
+     def operator/=(num : var) : atomic<t>       { value.value/=num; return self; }
+
+     def operator%=(num : atomic<t>) : atomic<t> { value.value%=num.value.value; return self; }
+     def operator%=(num : ulong) : atomic<t>     { value.value%=num.value; return self; }
+     def operator%=(num : long) : atomic<t>      { value.value%=num.value; return self; }
+     def operator%=(num : uint) : atomic<t>      { value.value%=num.value; return self; }
+     def operator%=(num : int) : atomic<t>       { value.value%=num.value; return self; }
+     def operator%=(num : ushort) : atomic<t>    { value.value%=num.value; return self; }
+     def operator%=(num : short) : atomic<t>     { value.value%=num.value; return self; }
+     def operator%=(num : byte) : atomic<t>      { value.value%=num.value; return self; }
+     def operator%=(num : uchar) : atomic<t>     { value.value%=num.value; return self; }
+     def operator%=(num : char) : atomic<t>      { value.value%=num.value; return self; }
+     def operator%=(num : bool) : atomic<t>      { value.value%=num.value; return self; }
+     def operator%=(num : double) : atomic<t>    { value.value%=num.value; return self; }
+     def operator%=(num : _uint8) : atomic<t>    { value.value%=num; return self; }
+     def operator%=(num : _uint16) : atomic<t>   { value.value%=num; return self; }
+     def operator%=(num : _uint32) : atomic<t>   { value.value%=num; return self; }
+     def operator%=(num : _uint64) : atomic<t>   { value.value%=num; return self; }
+     def operator%=(num : _int8) : atomic<t>     { value.value%=num; return self; }
+     def operator%=(num : _int16) : atomic<t>    { value.value%=num; return self; }
+     def operator%=(num : _int32) : atomic<t>    { value.value%=num; return self; }
+     def operator%=(num : _int64) : atomic<t>    { value.value%=num; return self; }
+     def operator%=(num : var) : atomic<t>       { value.value%=num; return self; }
+
+     def operator&=(num : atomic<t>) : atomic<t> { value.value&=num.value.value; return self; }
+     def operator&=(num : ulong) : atomic<t>     { value.value&=num.value; return self; }
+     def operator&=(num : long) : atomic<t>      { value.value&=num.value; return self; }
+     def operator&=(num : uint) : atomic<t>      { value.value&=num.value; return self; }
+     def operator&=(num : int) : atomic<t>       { value.value&=num.value; return self; }
+     def operator&=(num : ushort) : atomic<t>    { value.value&=num.value; return self; }
+     def operator&=(num : short) : atomic<t>     { value.value&=num.value; return self; }
+     def operator&=(num : byte) : atomic<t>      { value.value&=num.value; return self; }
+     def operator&=(num : uchar) : atomic<t>     { value.value&=num.value; return self; }
+     def operator&=(num : char) : atomic<t>      { value.value&=num.value; return self; }
+     def operator&=(num : bool) : atomic<t>      { value.value&=num.value; return self; }
+     def operator&=(num : double) : atomic<t>    { value.value&=num.value; return self; }
+     def operator&=(num : _uint8) : atomic<t>    { value.value&=num; return self; }
+     def operator&=(num : _uint16) : atomic<t>   { value.value&=num; return self; }
+     def operator&=(num : _uint32) : atomic<t>   { value.value&=num; return self; }
+     def operator&=(num : _uint64) : atomic<t>   { value.value&=num; return self; }
+     def operator&=(num : _int8) : atomic<t>     { value.value&=num; return self; }
+     def operator&=(num : _int16) : atomic<t>    { value.value&=num; return self; }
+     def operator&=(num : _int32) : atomic<t>    { value.value&=num; return self; }
+     def operator&=(num : _int64) : atomic<t>    { value.value&=num; return self; }
+     def operator&=(num : var) : atomic<t>       { value.value&=num; return self; }
+
+     def operator|=(num : atomic<t>) : atomic<t> { value.value|=num.value.value; return self; }
+     def operator|=(num : ulong) : atomic<t>     { value.value|=num.value; return self; }
+     def operator|=(num : long) : atomic<t>      { value.value|=num.value; return self; }
+     def operator|=(num : uint) : atomic<t>      { value.value|=num.value; return self; }
+     def operator|=(num : int) : atomic<t>       { value.value|=num.value; return self; }
+     def operator|=(num : ushort) : atomic<t>    { value.value|=num.value; return self; }
+     def operator|=(num : short) : atomic<t>     { value.value|=num.value; return self; }
+     def operator|=(num : byte) : atomic<t>      { value.value|=num.value; return self; }
+     def operator|=(num : uchar) : atomic<t>     { value.value|=num.value; return self; }
+     def operator|=(num : char) : atomic<t>      { value.value|=num.value; return self; }
+     def operator|=(num : bool) : atomic<t>      { value.value|=num.value; return self; }
+     def operator|=(num : double) : atomic<t>    { value.value|=num.value; return self; }
+     def operator|=(num : _uint8) : atomic<t>    { value.value|=num; return self; }
+     def operator|=(num : _uint16) : atomic<t>   { value.value|=num; return self; }
+     def operator|=(num : _uint32) : atomic<t>   { value.value|=num; return self; }
+     def operator|=(num : _uint64) : atomic<t>   { value.value|=num; return self; }
+     def operator|=(num : _int8) : atomic<t>     { value.value|=num; return self; }
+     def operator|=(num : _int16) : atomic<t>    { value.value|=num; return self; }
+     def operator|=(num : _int32) : atomic<t>    { value.value|=num; return self; }
+     def operator|=(num : _int64) : atomic<t>    { value.value|=num; return self; }
+     def operator|=(num : var) : atomic<t>       { value.value|=num; return self; }
+
+     def operator^=(num : atomic<t>) : atomic<t> { value.value^=num.value.value; return self; }
+     def operator^=(num : ulong) : atomic<t>     { value.value^=num.value; return self; }
+     def operator^=(num : long) : atomic<t>      { value.value^=num.value; return self; }
+     def operator^=(num : uint) : atomic<t>      { value.value^=num.value; return self; }
+     def operator^=(num : int) : atomic<t>       { value.value^=num.value; return self; }
+     def operator^=(num : ushort) : atomic<t>    { value.value^=num.value; return self; }
+     def operator^=(num : short) : atomic<t>     { value.value^=num.value; return self; }
+     def operator^=(num : byte) : atomic<t>      { value.value^=num.value; return self; }
+     def operator^=(num : uchar) : atomic<t>     { value.value^=num.value; return self; }
+     def operator^=(num : char) : atomic<t>      { value.value^=num.value; return self; }
+     def operator^=(num : bool) : atomic<t>      { value.value^=num.value; return self; }
+     def operator^=(num : double) : atomic<t>    { value.value^=num.value; return self; }
+     def operator^=(num : _uint8) : atomic<t>    { value.value^=num; return self; }
+     def operator^=(num : _uint16) : atomic<t>   { value.value^=num; return self; }
+     def operator^=(num : _uint32) : atomic<t>   { value.value^=num; return self; }
+     def operator^=(num : _uint64) : atomic<t>   { value.value^=num; return self; }
+     def operator^=(num : _int8) : atomic<t>     { value.value^=num; return self; }
+     def operator^=(num : _int16) : atomic<t>    { value.value^=num; return self; }
+     def operator^=(num : _int32) : atomic<t>    { value.value^=num; return self; }
+     def operator^=(num : _int64) : atomic<t>    { value.value^=num; return self; }
+     def operator^=(num : var) : atomic<t>       { value.value^=num; return self; }
+
+    def operator!() : bool = (!value.value);
+    def operator++() := new t(++value.value);
+    def operator++(num : var) := new t(value.value++);
+    def operator--() := new t(--value.value);
+    def operator--(num : var) := new t(value.value--);
+}

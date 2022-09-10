@@ -115,6 +115,13 @@ void post_process_() {
     file->stage = classes_post_processed;
 }
 
+void process_generics_() {
+    sharp_file *file = currThread->currTask->file;
+
+    process_generics();
+    file->stage = generics_processed;
+}
+
 void process_delegates_() {
     sharp_file *file = currThread->currTask->file;
 
@@ -175,6 +182,10 @@ void execute_task() {
         }
         case task_post_process_: {
             post_process_();
+            break;
+        }
+        case task_process_generics_: {
+            process_generics_();
             break;
         }
         case task_compile_components_: {

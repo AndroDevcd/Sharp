@@ -25,7 +25,7 @@ chan := new channel<int>(UNLIMITED);
 const loop_count := 10000;
 const slices := 10;
 const n := 0;
-counter := new atomic<var>(0);
+counter := new atomic<int>(0);
 
 interface a {
     def poop();

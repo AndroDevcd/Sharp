@@ -1,0 +1,321 @@
+mod std;
+
+/**
+* Created by bknun on 9/3/2022
+* 
+* @class string_builder
+*
+* Description:
+* This class allows you to build a string in a buffered list.
+* Which allows for better performance when building large dynamic
+* strings.
+*/
+class string_builder : loopable<_int8> {
+    data : _int8[]?;
+        private set value -> { data = value; }
+
+    private static const default_capacity : var = 255;
+    private min_resize_capacity : var = 128;
+    private cursor : var = 0;
+
+    init {
+      data = new _int8[default_capacity];
+    }
+
+    string_builder(str : _int8[]) { // todo: test for ambiguous call errors (with operator functions)
+        append(str);
+    }
+
+    string_builder(ch: char) {
+        append(ch);
+    }
+
+    string_builder(str : char[]) {
+        data = new _int8[sizeof(str)];
+        foreach(ch in str) {
+            data[cursor++] = ch.value;
+        }
+    }
+
+    string_builder(str: string) {
+        append(str);
+    }
+
+    string_builder(str: string_builder) {
+        if(str.data != null) {
+            append(str.data!!);
+        }
+    }
+
+    string_builder(str : _int8[], offset: int) {
+        data = new _int8[sizeof(str) - offset.value];
+        memcopy(str, data!!, cursor, offset.value, sizeof(str));
+        cursor += sizeof(str) - offset.value;
+    }
+
+    def space_available(space_required : var) : var {
+        return ((cursor + 1) + space_required) < sizeof(data);
+    }
+
+    def expand(space_required : var) {
+        new_size := ((cursor + 1) + space_required) + ((sizeof(data) << 4) + min_resize_capacity);
+        realloc(data!!, new_size);
+    }
+
+    def replace(pos : var, ch: _int8) : string_builder {
+        if(pos >= sizeof(data)) {
+            throw bounds_error(pos);
+        }
+
+        data[pos] = ch;
+        return self;
+    }
+
+    def append(ch: _int8) : string_builder
+    {
+        if(data == null)
+            data = new _int8[default_capacity];
+        else if((cursor + 1) >= sizeof(data))
+            expand(0);
+
+        data[cursor++] = ch;
+        return self;
+    }
+
+    override def get_elements() := to_string()?.get_elements();
+
+    def append(c: char) := append(c.value);
+
+    def append(s: string) : string_builder {
+        return append(s.data!!);
+    }
+
+    def append(immstr: _int8[]?) : string_builder
+    {
+        if(immstr == null) return self;
+
+        if(data == null)
+            data = new _int8[sizeof(immstr) + default_capacity];
+        else if(!space_available(sizeof(immstr)))
+            expand(sizeof(immstr));
+
+        memcopy(immstr!!, data!!, cursor, 0, sizeof(immstr));
+        cursor += sizeof(immstr);
+        return self;
+    }
+
+    def append(immstr: _int8[], len: int) : string_builder
+    {
+        if(immstr == null) return self;
+        if(len.value < 0)
+            throw new error("length cannot be less than zero");
+
+        if(len.value > sizeof(immstr))
+            throw new error("length of: $len is greater than the string: ${sizeof(immstr)}");
+
+        if(data == null)
+            data = new _int8[len.value + default_capacity];
+        else if(!space_available(sizeof(immstr)))
+            expand(sizeof(immstr));
+
+        memcopy(immstr, data!!, cursor, 0, len.value);
+        cursor += len.value;
+        return self;
+    }
+
+    def operator+(immstr : _int8[]?) : string_builder {
+        s := new string_builder(data);
+        return s.append(immstr ?: "null");
+    }
+
+    def operator+(obj : printable?) : string_builder {
+        s := new string_builder(data);
+        return s.append(obj?.to_string()?.data!! ?: "null");
+    }
+
+    override def to_string() : string? = new string(data!!, 0, cursor + 1);
+
+    def operator==(str : _int8[]) : var {
+        if((cursor + 1) != sizeof(str))
+            return false;
+
+        iter := 0;
+        foreach(ch in str) {
+            if(ch != data[iter++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    def operator==(str : string) : var {
+        if((cursor + 1) != sizeof(str.data))
+            return false;
+
+        iter := 0;
+        foreach(ch in str.data) {
+            if(ch != data[iter++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    def operator!=(str : _int8[]) := !operator==(str);
+
+    def operator!=(str : string) := !operator==(str);
+
+    def operator=( immstr: _int8[]? )
+    {
+        if (immstr == null) {
+            data = null;
+            cursor = -1;
+        }
+        else {
+            data = new _int8[sizeof(immstr) + default_capacity];
+            cursor = sizeof(immstr);
+            memcopy(immstr!!, data!!, 0, 0, sizeof(immstr));
+        }
+    }
+
+    def at(pos : int) : _int8 {
+        if(pos.val > cursor)
+            throw bounds_error(pos);
+        return data[pos.val];
+    }
+
+    def operator[](pos: int) : var {
+        return at(pos);
+    }
+
+    def to_array() : _int8[]?
+    {
+        if(data == null || cursor == -1) return null;
+        return copy(data!!, 0, cursor+1);
+    }
+
+    def starts_with(prefix: string) : bool {
+        if (prefix == null || (prefix.size() > (cursor + 1))) {
+            return false;
+        }
+
+        for(i : var = 0; i < prefix.size(); i++)
+        {
+            if(data[i] != prefix[i])
+                return false;
+        }
+        return true;
+    }
+
+    def find(str: string) : bool {
+        if(str.size() > (cursor + 1)) {
+            return false;
+        }
+
+        end := 0;
+        for(i : var = 0; i < (cursor + 1); i++) {
+            if((i + str.size()) < (cursor + 1)) {
+                for(j : var = 0; j < str.size(); j++) {
+                    if(str[j] != data[j])
+                        break;
+                }
+
+                return true;
+            } else return false;
+        }
+
+        return false;
+    }
+
+    def find(str: string_builder) : bool {
+        if(sizeof(str.data) > (cursor + 1)) {
+            return false;
+        }
+
+        end := 0;
+        for(i : var = 0; i < (cursor + 1); i++) {
+            if((i + sizeof(str.data)) < (cursor + 1)) {
+                for(j : var = 0; j < sizeof(str.data); j++) {
+                    if(str[j] != data[j])
+                        break;
+                }
+
+                return true;
+            } else return false;
+        }
+
+        return false;
+    }
+
+    def ends_with(postfix: string) : bool {
+        if(postfix.size() >= (cursor + 1))
+            return false;
+
+        for(i : var = (cursor + 1) - postfix.size(); i < (cursor + 1); i++){
+            if(data[i] != postfix[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    def size() : int {
+        return cursor + 1;
+    }
+
+    def operator+=( c: _int8 ) : string_builder
+    {
+        return append(c);
+    }
+
+    def operator+=( obj: printable? ) : string_builder
+    {
+        return append(obj?.to_string()?.data ?: "null");
+    }
+
+    def operator+=( str: string ) : string_builder
+    {
+        return append(str.data!!);
+    }
+
+    def operator+=( str: string_builder ) : string_builder
+    {
+        return append(str.data!!);
+    }
+
+    def operator+=( str: _int8[] ) : string_builder
+    {
+        return append(str);
+    }
+
+    public def substring(startPos: int, endPos: int) : string_builder {
+        if((startPos.value >= (cursor + 1)) || (startPos.value < 0))
+            throw bounds_error(startPos);
+        if(endPos.value < startPos.value)
+            throw new ill_arg_except(
+                "endPos: $endPos cannot be less than the startPos: $startPos");
+
+
+        str := new string_builder();
+        str.data = copy(data!!, startPos.value, endPos.value);
+        return str;
+    }
+
+    private def bounds_error(pos : int) : bounds_except {
+        return new bounds_except("Index out of bounds exception at: $pos with size of: ${cursor + 1}");
+    }
+
+    override def hash() : int {
+        const p := 31;
+        const m := 1e9 + 9;
+        hash_value := 0;
+        p_pow : var = 1;
+        foreach(c in data) {
+            hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
+            p_pow = (p_pow * p) % m;
+        }
+
+        return hash_value;
+    }
+}

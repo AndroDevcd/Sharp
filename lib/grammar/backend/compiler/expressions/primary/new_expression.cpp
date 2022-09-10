@@ -127,7 +127,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 
         if(expr->type.type == type_integer
            || expr->type.type == type_decimal) {
-            expr->type.type = expr->type.type == type_decimal ? type_var : type_int64;
+            expr->type.type = expr->type.type == type_decimal ? type_var : type_int32;
         } else if(expr->type.type == type_char
                   || expr->type.type == type_bool) {
             expr->type.type = type_int8;

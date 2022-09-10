@@ -132,12 +132,12 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
                                                            " expressions are not compatible, assigning nullable type of `" +
                                                                    type_to_str(returnVal.type) + "` to non nullable type of `" + type_to_str(current_context.functionCxt->returnType) + "`.");
     } else {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
+        create_new_error(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
                       + type_to_str(current_context.functionCxt->returnType) + "`.");
     }
 
     if(inside_block(&current_context.blockInfo, finally_block)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
+        create_new_error(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
     }
 
     add_scheme_operation(scheme, subScheme);

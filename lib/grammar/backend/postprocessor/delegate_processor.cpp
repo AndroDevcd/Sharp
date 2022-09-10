@@ -154,12 +154,19 @@ void process_delegates(sharp_class *with_class) {
         }
 
         for(Int i = 0; i < functions.size(); i++) {
-
             if(functions.get(i)->delegate == NULL) {
-                stringstream err;
-                err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"
-                    << with_class->fullName << "`:";
-                create_new_error(GENERIC, with_class->ast, err.str());
+                sharp_function *fun = functions.get(i);
+                sharp_function *basefun = resolve_function(fun->name, fun->owner, fun->parameters,
+                                                           delegate_function, exclude_all, fun->ast, true, false);
+
+                if(basefun != NULL) {
+                    fun->delegate = basefun;
+                } else {
+                    stringstream err;
+                    err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"
+                        << with_class->fullName << "`:";
+                    create_new_error(GENERIC, functions.get(i)->ast, err.str());
+                }
             }
         }
 

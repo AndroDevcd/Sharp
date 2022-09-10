@@ -5,11 +5,8 @@
 #include "sharp_class.h"
 #include "../dependency/dependancy.h"
 #include "../../compiler_info.h"
-#include "sharp_module.h"
 #include "../../taskdelegator/task_delegator.h"
-#include "sharp_function.h"
-#include "sharp_alias.h"
-#include "sharp_field.h"
+#include "types.h"
 #include "../finalizer/generation/code/code_info.h"
 
 
@@ -96,21 +93,12 @@ sharp_class* create_generic_class(
         if((sc = resolve_class(genericBlueprint->owner, typedName, false, false)) != NULL) {
             return sc;
         } else {
+
             List<generic_type_identifier> genericIdentifiers;
             for(Int i = 0; i < genericTypes.size(); i++) {
                 generic_type_identifier *typeIdentifier = &genericBlueprint->genericTypes.get(i);
                 sharp_type *type = &genericTypes.get(i);
-                genericIdentifiers.add(generic_type_identifier(typeIdentifier->name, *type, NULL));
-
-                if(typeIdentifier->baseClass) {
-                    if(!(type->type == type_class
-                        && is_implicit_type_match(typeIdentifier->baseClass, type->_class))) {
-                        stringstream ss;
-                        ss << "for generic class `" <<  genericBlueprint->fullName << "` type ("
-                           << typeIdentifier->name << ") must contain base class `" << typeIdentifier->baseClass->fullName << "`";
-                        create_new_error(GENERIC, genericBlueprint->ast->line, genericBlueprint->ast->col, ss.str());
-                    }
-                }
+                genericIdentifiers.add(generic_type_identifier(typeIdentifier->name, *type, sharp_type()));
             }
 
             classCreated = true;
@@ -162,7 +150,7 @@ sharp_class* create_class(
     if((sc = resolve_class(owner, name, false, false)) != NULL
        || (sc = resolve_class(owner, name, true, false)) != NULL) {
         GUARD(globalLock)
-        if(file->errors->createNewError(PREVIOUSLY_DEFINED, ast, "child class `" + name +
+        if(create_new_error(PREVIOUSLY_DEFINED, ast, "child class `" + name +
                                     "` is already defined in class {" + sc->fullName + "}"))
             print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
@@ -203,7 +191,7 @@ sharp_class* create_class(
     if((sc = resolve_class(module, name, false, false)) != NULL
         || (sc = resolve_class(module, name, true, false)) != NULL) {
         GUARD(globalLock)
-        if(file->errors->createNewError(PREVIOUSLY_DEFINED, ast, "class `" + name +
+        if(create_new_error(PREVIOUSLY_DEFINED, ast, "class `" + name +
                                   "` is already defined in module {" + module->name + "}"))
             print_impl_location(sc->name, "class", sc->implLocation);
         return sc;
@@ -245,6 +233,16 @@ void sharp_class::free() {
     deleteList(generics);
     deleteList(aliases);
     deleteList(fields);
+}
+
+sharp_class* get_top_level_class(sharp_class *sc) {
+    if(sc == NULL) return NULL;
+
+    while(sc->baseClass != NULL) {
+        sc = sc->baseClass;
+    }
+
+    return sc;
 }
 
 bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {

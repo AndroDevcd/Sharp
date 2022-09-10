@@ -38,14 +38,14 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
             e->scheme.schemeType = scheme_inline_if;
             e->scheme.type = get_real_type(trueExpr.type);
         } else if(match_result == indirect_match_w_nullability_mismatch) {
-            current_file->errors->createNewError(NULLABILITY_MISMATCH, ast->line, ast->col, " expression of type `" + type_to_str(falseExpr.type) + "` is not equal to that of type `"
+            create_new_error(NULLABILITY_MISMATCH, ast->line, ast->col, " expression of type `" + type_to_str(falseExpr.type) + "` is not equal to that of type `"
                                                                                + type_to_str(trueExpr.type) + "`.");
         } else {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, " expression of type `" + type_to_str(falseExpr.type) + "` is not equal to that of type `"
+            create_new_error(GENERIC, ast->line, ast->col, " expression of type `" + type_to_str(falseExpr.type) + "` is not equal to that of type `"
                                                                  + type_to_str(trueExpr.type) + "`, are you possibly missing a cast?");
         }
     } else {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, " condition expression of type `" +
+        create_new_error(GENERIC, ast->line, ast->col, " condition expression of type `" +
                     type_to_str(condExpr.type) + "` must evaluate to true or false");
     }
 }

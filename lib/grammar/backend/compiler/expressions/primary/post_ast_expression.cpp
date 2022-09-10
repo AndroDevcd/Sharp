@@ -38,7 +38,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                 else access = &dotNotationCallExpr->getSubAst(0)->getToken(0);
                 if(access->getType() == DOT
                     && e->type.nullable) {
-                    current_file->errors->createNewError(GENERIC, ast, "Unsafe use of nullable type `"
+                    create_new_error(GENERIC, ast, "Unsafe use of nullable type `"
                                   + type_to_str(e->type) + "` without `?.` or `!!.`.");
                 } else if(access->getType() != DOT
                           && !e->type.nullable) {
@@ -50,7 +50,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                     create_post_access_operation(&e->scheme);
                 compile_dot_notation_call_expression(e, with_class, false, dotNotationCallExpr);
             } else {
-                current_file->errors->createNewError(GENERIC, ast, "expected `class` type but type `"
+                create_new_error(GENERIC, ast, "expected `class` type but type `"
                     + type_to_str(e->type) + "` was found.");
             }
         } else if(ast->getSubAst(i)->getType() == ast_dot_fn_e) {
@@ -102,7 +102,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                                                                       constructor_only);
                             if(!is_match(match_result)) {
                                 parametersMatch = false;
-                                current_file->errors->createNewError(GENERIC, list->getSubAst(j), "Parameter type mismatch parameter of type `"
+                                create_new_error(GENERIC, list->getSubAst(j), "Parameter type mismatch parameter of type `"
                                            + type_to_str(mock.type) + "` was found but `" + type_to_str(funPtr->parameters.get(j)->type) + "` was expected.");
                             }
                         }
@@ -128,10 +128,10 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                         stringstream ss;
                         ss << "Too many parameters for function call, expected `" << funPtr->parameters.size() << "` but `"
                             << expressions.size() << "` were found.";
-                        current_file->errors->createNewError(GENERIC, ast, ss.str());
+                        create_new_error(GENERIC, ast, ss.str());
                     }
                 } else {
-                    current_file->errors->createNewError(GENERIC, ast, "cannot call non-fully qualified function `"
+                    create_new_error(GENERIC, ast, "cannot call non-fully qualified function `"
                                   + type_to_str(e->type) + "`.");
                 }
 
@@ -139,7 +139,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
                 deleteList(expressions);
                 deleteList(paramOperations);
             } else {
-                current_file->errors->createNewError(GENERIC, ast, "expected `function pointer` type but type `"
+                create_new_error(GENERIC, ast, "expected `function pointer` type but type `"
                               + type_to_str(e->type) + "` was found.");
             }
         } else if(ast->getSubAst(i)->getType() == ast_arry_e) {

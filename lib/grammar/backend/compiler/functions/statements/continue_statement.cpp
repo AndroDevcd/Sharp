@@ -31,7 +31,7 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
     subScheme->schemeType = scheme_continue;
 
     if(inside_block(&current_context.blockInfo, finally_block)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
+        create_new_error(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
     }
 
 
@@ -84,7 +84,7 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
 
     info = retrieve_loop_block();
     if(info->beginLabel == NULL) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "attempt to call `continue` outside of an enclosing loop");
+        create_new_error(GENERIC, ast->line, ast->col, "attempt to call `continue` outside of an enclosing loop");
     }
 
     create_jump_operation(subScheme, info->beginLabel);

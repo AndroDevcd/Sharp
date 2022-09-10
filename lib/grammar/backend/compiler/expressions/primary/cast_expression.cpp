@@ -34,13 +34,13 @@ void compile_cast_expression(expression *e, Ast *ast) {
                 }
 
             } else {
-                current_file->errors->createNewError(GENERIC, ast, "cannot cast `" + type_to_str(e->type)
+                create_new_error(GENERIC, ast, "cannot cast `" + type_to_str(e->type)
                                                                    + "` to `" + type_to_str(castType) + "`");
             }
         }
 
         e->type.copy(castType);
     }  else {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "cast expression of type `" + type_to_str(castType) + "` not allowed, must be of type `class`, `object`, or native type");
+        create_new_error(GENERIC, ast->line, ast->col, "cast expression of type `" + type_to_str(castType) + "` not allowed, must be of type `class`, `object`, or native type");
     }
 }

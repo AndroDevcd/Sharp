@@ -1,7 +1,9 @@
 mod platform.kernel;
 
 import (
-    std.io
+    std.io,
+    platform,
+    std.io.coroutines
 )
 
 class platform
@@ -15,7 +17,7 @@ class platform
     private static def static_init() {}
 
     static build_info := new build();
-        private set info -> build_info = info;
+        private set info -> { build_info = info; }
 
     private static def srt_init(args: object[]) : var {
         build_info.app_name = "${args[0] as _int8[]}";
@@ -32,6 +34,8 @@ class platform
 
         priority := max_priority;
         thread_group.main_group.add(main_thread);
+
+        set_seed(utc_mills() >> 4);
 
         asm {
             movg $thread_group

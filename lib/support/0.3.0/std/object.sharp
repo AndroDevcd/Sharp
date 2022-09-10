@@ -1,0 +1,67 @@
+mod std;
+
+import (
+    std.io
+)
+
+/**
+* Created by bknun on 9/4/2022
+* 
+* @class object
+*
+* Description:
+*
+*/
+stable class _object_ : printable, unique {
+
+    public override def to_string() : string? = null;
+
+    def wait() {
+        asm {
+            pushl 0
+            int 0x3c
+        }
+    }
+
+    def notify() {
+        asm {
+            pushl 0
+            int 0x3d
+        }
+    }
+
+    def notify(mills: var) {
+        asm {
+            pushl 0
+            loadl ebx, [mills]
+            int 0x3e
+        }
+    }
+
+    def _lock() {
+        asm {
+            movl 0
+            lock
+        }
+    }
+
+    def _unlock() {
+        asm {
+            movl 0
+            ulock
+        }
+    }
+
+    override def hash() : int {
+        /* must be implemented at a higher level */
+        return 1;
+    }
+
+    override def guid() : int {
+        return global_guid++;
+    }
+}
+
+// we dont want to bloat up our objects so we put this variable outside the object class
+local global_guid := new atomic<int>(0);
+

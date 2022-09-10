@@ -19,6 +19,7 @@ enum compilation_stage {
     classes_preprocessed,
     imports_processed,
     classes_post_processed, // ready to compile after this stage
+    generics_processed,
     components_processed,
     class_delegates_processed,
     mutations_compiled,

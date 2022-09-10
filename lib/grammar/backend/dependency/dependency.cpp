@@ -25,6 +25,7 @@
 #include "../postprocessor/delegate_processor.h"
 #include "../compiler/compiler.h"
 #include "../compiler/expressions/primary/force_non_null_expression.h"
+#include "../postprocessor/base_class_processor.h"
 
 sharp_class* resolve_class(
         sharp_module* module,
@@ -617,7 +618,7 @@ sharp_function* resolve_function(
         locate_functions_with_type(searchClass, constructor_function, checkBaseClass, locatedFunctions);
     } else {
         locate_functions_with_name(name, searchClass, functionType, checkBaseClass,
-                                   searchClass->type != class_interface, locatedFunctions);
+                                   functionType != delegate_function, locatedFunctions);
     }
 
     if(!locatedFunctions.empty()) {
@@ -635,17 +636,14 @@ sharp_function* resolve_function(
             for(Int i = 0; i < locatedFunctions.size(); i++) {
                 sharp_function *func = locatedFunctions.get(i);
 
-                if(!resolvedFunctions.find(func)) {
+                if (function_parameters_match(
+                        func->parameters,
+                        parameters,
+                        false,
+                        excludedMatches)) {
                     resolvedFunctions.add(func);
-
-                    if (function_parameters_match(
-                            func->parameters,
-                            parameters,
-                            false,
-                            excludedMatches)) {
-                        if (resolvedFunction == NULL) resolvedFunction = func;
-                        else ambiguous = true;
-                    }
+                    if (resolvedFunction == NULL) resolvedFunction = func;
+                    else ambiguous = true;
                 }
             }
         }
@@ -655,7 +653,7 @@ sharp_function* resolve_function(
         create_new_error(GENERIC, resolveLocation->line, resolveLocation->col, "call to method `" + name + "` is ambiguous");
 
         cout << "Based on the parameters provided -  " << parameters_to_str(parameters) << endl;
-        cout << "Here are the top 5 results found: " << endl << endl;
+        cout << "Here are the top " << (resolvedFunctions.size() >= 5 ? 5 : resolvedFunctions.size()) << " results found: " << endl << endl;
         for(Int i = 0; i < resolvedFunctions.size(); i++) {
             if(i >= 5) {
                 break;
@@ -1687,7 +1685,6 @@ void resolve_normal_item(
             if(nullable) {
                 if(item.accessType == access_forced) {
                     resultType.nullable = false;
-                    force_non_null_check(scheme, item.ast);
                 } else if(item.accessType == access_safe) {
                     force_null_safety_check(scheme, endLabel, item.ast);
                 }
@@ -2597,7 +2594,6 @@ void resolve_function_reference_item(
             if(nullable) {
                 if(item.accessType == access_forced) {
                     resultType.nullable = false;
-                    force_non_null_check(scheme, item.ast);
                 } else if(item.accessType == access_safe) {
                     force_null_safety_check(scheme, endLabel, item.ast);
                 }
@@ -2766,23 +2762,29 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
     sharp_class *generic = create_generic_class(genericBlueprint, genericTypes, created, ast);
 
     if(created && generic) {
-        auto currf = current_file;
-        current_file = generic->genericBuilder->implLocation.file;
         genericBlueprint->genericClones.add(generic);
 
-        pre_process_class(NULL, generic, generic->ast);
-        process_class(NULL, generic, generic->ast);
-        process_generic_extension_functions(generic, genericBlueprint);
-        process_generic_mutations(generic, genericBlueprint);
-        process_delegates(generic);
+        int currStage = current_file->stage;
+        if(currStage >= classes_post_processed) {
+            auto currf = current_file;
+            current_file = generic->genericBuilder->implLocation.file;
 
-        if(generic->name.find("list") != string::npos) {
-            int r = 0;
+            if(!generic->genericProcessed) {
+                generic->genericProcessed = true;
+
+                pre_process_class(NULL, generic, generic->ast);
+                process_class(NULL, generic, generic->ast);
+                process_generic_extension_functions(generic, genericBlueprint);
+                process_generic_mutations(generic, genericBlueprint);
+//                process_delegates(generic);
+            }
+
+            if (compilation_ready(currStage)) {
+                compile_class(NULL, generic, generic->ast);
+            }
+
+            current_file = currf;
         }
-        if(compilation_ready(current_file->stage)) {
-            compile_class(NULL, generic, generic->ast);
-        }
-        current_file = currf;
 
         return generic;
     } else if(generic)
@@ -3067,6 +3069,12 @@ void resolve(
         }
 
         if(resultType.type == type_function && resolveLocation->getType() != ast_function_signature) {
+            if(resultType.fun->type == constructor_function) {
+                create_new_error(
+                        GENERIC, resolveLocation, "cannot explicitly call constructor `"
+                            + type_to_str(resultType) + "`");
+            }
+
             resultType = resultType.fun->returnType;
         }
 
@@ -3094,16 +3102,18 @@ void resolve(
             scheme->field = subScheme->field;
             scheme->fun = subScheme->fun;
             scheme->sc = subScheme->sc;
-            scheme->steps.appendAll(subScheme->steps);
+            scheme->appendSteps(*subScheme);
             create_set_label_operation(scheme, label);
         }
+
+        delete subScheme;
     }
 }
 
 sharp_type expression_type_to_normal_type(expression *e) {
     if(e->type.type == type_integer
         || e->type.type == type_decimal) {
-        return sharp_type(e->type.type == type_decimal ? type_var : type_int64);
+        return sharp_type(e->type.type == type_decimal ? type_var : type_int32);
     } else if(e->type.type == type_bool || e->type.type == type_char) {
         return sharp_type(type_int8);
     } else if(e->type.type == type_string) {

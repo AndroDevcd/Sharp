@@ -46,6 +46,9 @@ void compile_expression(expression &e, Ast *ast) {
         || ast->getType() == ast_mult_e
         || ast->getType() == ast_exponent_e)
         compile_binary_expression(&e, ast);
+    else {
+        int r = 0;
+    }
 }
 
 void compile_expression_for_type(sharp_type &type, Ast *ast) {
@@ -59,7 +62,7 @@ void convert_expression_type_to_real_type(
         expression &typeDefinition) {
     if(typeDefinition.type == type_integer
        || typeDefinition.type == type_decimal) {
-        typeDefinition.type = typeDefinition.type == type_decimal ? type_var : type_int64;
+        typeDefinition.type = typeDefinition.type == type_decimal ? type_var : type_int32;
     } else if(typeDefinition.type == type_char
               || typeDefinition.type == type_bool) {
         typeDefinition.type = type_int8;
@@ -72,10 +75,36 @@ void convert_expression_type_to_real_type(
     }
 }
 
-void recompile_expression(expression &out, Ast *ast) {
+void recompile_cond_expression(expression &out, Ast *ast) {
     out.scheme.free();
     out.type.free();
-    compile_expression(out, ast);
+    compile_cond_expression(out, ast);
+}
+
+void convert_bool_expression(expression &e, Ast *ast) {
+    sharp_class *sc = get_class_type(e.type);
+
+    if(sc != NULL && sc->fullName == "std#bool") {
+        sharp_field *field = resolve_field("value", sc, true);
+
+        if(field != NULL) {
+            APPLY_TEMP_SCHEME(1, e.scheme,
+                              create_get_value_operation(&scheme_1, &e.scheme);
+                                      create_instance_field_access_operation(&scheme_1, field);
+                                      e.scheme.free();
+            )
+
+            e.type.copy(field->type);
+        } else {
+            create_new_error(COULD_NOT_RESOLVE, ast,
+                             " field `std#bool.value`  was not found.");
+        }
+    }
+}
+
+void compile_cond_expression(expression &e, Ast *ast) {
+    compile_expression(e, ast);
+    convert_bool_expression(e, ast);
 }
 
 void compile_initialization_call(

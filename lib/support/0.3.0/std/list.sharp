@@ -1,0 +1,257 @@
+mod std;
+
+import (
+    std.io
+)
+
+/**
+* Created by bknun on 9/3/2022
+* 
+* @class list
+*
+* Description:
+* This class allows you to build la list of items
+*/
+class list<T base _object_> : loopable<T> {
+    private n_elements : var;
+    private data : T[]?;
+    private is_compact: var;
+
+    private static const default_capacity := 10;
+    private static const min_capacity := 128;
+
+    list() {
+        data = new T[default_capacity];
+    }
+
+    list(starting_capacity: int) {
+        data = new T[starting_capacity.value];
+    }
+
+    def set_compact(compact_array: int) {
+        is_compact = compact_array.value;
+    }
+
+    override def get_elements() : T[]? {
+        if(n_elements == 0) return null;
+        else return copy(data!!, 0, n_elements) as T[];
+    }
+
+    def operator[](index: int): T {
+        if(index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+        return data[index.value];
+    }
+
+    def at(index: int): T {
+        if(index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+        return data[index.value];
+    }
+
+    def last(): T {
+        return at(n_elements - 1);
+    }
+
+    def put(index: int, element: T) : T {
+        if (index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        old_val := data[index.value];
+        data[index.value] = element;
+        return old_val;
+    }
+
+    private def expand() {
+        if(is_compact) {
+            realloc(data!!, sizeof(data) + min_capacity);
+        } else
+            realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
+    }
+
+    def clear() {
+       if(n_elements > 0) {
+           data = new T[default_capacity];
+           n_elements = 0;
+       }
+    }
+
+    def pop_last() : T {
+       item := last();
+       pop_back();
+       return item;
+    }
+
+    def pop_first() : T {
+       if(n_elements > 0) {
+           item := data[0];
+           remove_at(0);
+           return item;
+       } else {
+           throw new bounds_except(out_of_bounds_msg(0)); // todo: ensure that this sets code path returns a value for compiler
+       }
+    }
+
+    def add_all(lst: list<T>) {
+       data = copy(lst.get_elements()!!, 0, lst.size().value) as T[];
+       n_elements = lst.size().value;
+    }
+
+    def add(element: T) {
+       if(n_elements >= sizeof(data))
+           expand();
+       data[n_elements++] = element;
+    }
+
+    def indexof(element: T) : int {
+       for(i : var = 0; i < n_elements; i++) {
+           if(element == data[i]) {
+               return i;
+           }
+       }
+
+       return -1;
+    }
+
+    def pop_back() {
+       if(n_elements > 0) {
+           excuse no_val : T;
+           data[--n_elements] = no_val;
+       }
+    }
+
+    def size() : int {
+       return n_elements;
+    }
+
+    def empty() : bool {
+       return n_elements==0;
+    }
+
+    def insert(index: int, element: T) {
+       if(index.value > n_elements || index.value < 0)
+          throw new bounds_except(out_of_bounds_msg(index));
+
+       if(n_elements == 0) {
+           add(element);
+       } else {
+          if(n_elements >= sizeof(data))
+              expand();
+          n_elements++;
+           for(i : var = n_elements - 1; i > index.value; i--)
+              data[i] = data[i-1];
+           data[index.value] = element;
+       }
+    }
+
+
+    def remove(val: T) {
+       for(i : var = 0; i < n_elements; i++) {
+           if(val == data[i]) {
+               remove_at(i);
+               return;
+           }
+       }
+    }
+
+    def remove(val: T, compare_fun: (T, T)(bool)) {
+       for(i : var = 0; i < n_elements; i++) {
+           if(compare_fun(val, data[i])) {
+               remove_at(i);
+               return;
+           }
+       }
+    }
+
+    def remove_at(index: int) {
+       if(index.value >= n_elements || index.value < 0)
+          throw new bounds_except(out_of_bounds_msg(index));
+
+       num_moved := n_elements - index.value - 1;
+       if (num_moved > 0)
+           memcopy(data!!, data!!, index.value, index.value+1, n_elements);
+
+       pop_back();
+    }
+
+    def indexof(comparer: T, find_func: (T, T)(bool)) : int {
+       for(i : var = 0; i < n_elements; i++) {
+           if(find_func(data[i], comparer)) {
+               return i;
+           }
+       }
+
+       return -1;
+    }
+
+    def linear_sort(swap: (T, T)(bool)) {
+       for(i : var = 0; i < n_elements; i++) {
+
+           for (j : var = 0; j < n_elements; j++) {
+               if((j + 1) < n_elements) {
+
+                   if (swap(data[j], data[j+1])) {
+                       tmp := data[j];
+                       data[j] = data[j+1];
+                       data[j+1] = tmp;
+                   }
+               }
+           }
+       }
+    }
+
+    def find(comparer : T, find_func: (T, T)(bool)) : T? {
+       for(i : var = 0; i < n_elements; i++) {
+           if(find_func(data[i], comparer)) {
+               return data[i];
+           }
+       }
+
+       return null;
+    }
+
+    def replace(val: T, compare_fun: (T, T)(var)) : bool {
+       for(i : var = 0; i < n_elements; i++) {
+           if(compare_fun(val, data[i])) {
+               data[i] = val;
+               return true;
+           }
+       }
+
+       return false;
+    }
+
+    override def to_string() : string? {
+       str := new string_builder();
+
+       str += "[ ";
+       for(i : var = 0; i < n_elements; i++) {
+           str += data[i];
+
+           if((i + 1) < n_elements) {
+               str += ", ";
+           }
+       }
+
+       str += " ]";
+       return str.to_string();
+    }
+
+    override def hash() : int {
+       i : var = 0;
+       hash_value := 0;
+       multiplier : var = 0;
+       const m := 1e9 + 9;
+
+       foreach(item in data) {
+           hash_value = (hash_value + item.hash().value + multiplier) % m;
+           multiplier = i * (i % 10);
+       }
+
+       return hash_value;
+    }
+
+    private def out_of_bounds_msg(index: int) : string {
+        return "Index: $index, size: $n_elements";
+    }
+}

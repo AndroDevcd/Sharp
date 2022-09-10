@@ -395,6 +395,14 @@ void run_post_processing_tasks() {
     }
 
     wait_for_tasks();
+
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_generics_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
 }
 
 void run_compile_global_mutations_tasks() {

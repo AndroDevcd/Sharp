@@ -54,7 +54,7 @@ void compile_for_statement(Ast *ast, operation_schema *scheme, bool *controlPath
 
         if(ast->hasSubAst(ast_for_expresion_cond)) {
             expression cond;
-            compile_expression(cond, ast->getSubAst(ast_for_expresion_cond)->getSubAst(ast_expression));
+            compile_cond_expression(cond, ast->getSubAst(ast_for_expresion_cond)->getSubAst(ast_expression));
 
             if(is_evaluable_type(cond.type)) {
                 operation_schema *condScheme = new operation_schema(scheme_for_cond);
@@ -64,7 +64,7 @@ void compile_for_statement(Ast *ast, operation_schema *scheme, bool *controlPath
 
                 delete condScheme;
             } else {
-                current_file->errors->createNewError(GENERIC, ast->line, ast->col, "for loop condition expression must be an evaluable type.");
+                create_new_error(GENERIC, ast->line, ast->col, "for loop condition expression must be an evaluable type.");
             }
         }
 

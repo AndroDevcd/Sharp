@@ -31,6 +31,10 @@ Int get_access_flag_count(uInt allowedFlags) {
         flagCount++;
     }
 
+    if(check_flag(allowedFlags, flag_thread_safe)) {
+        flagCount++;
+    }
+
     if(check_flag(allowedFlags, flag_excuse)) {
         flagCount++;
     }
@@ -307,6 +311,20 @@ string access_flags_to_str(uInt accessFlags) {
         ss << "protected";
     }
 
+    if(check_flag(accessFlags, flag_override)) {
+        if(!firstFlag) ss << ", ";
+        else firstFlag = false;
+
+        ss << "override";
+    }
+
+    if(check_flag(accessFlags, flag_thread_safe)) {
+        if(!firstFlag) ss << ", ";
+        else firstFlag = false;
+
+        ss << "thread_safe";
+    }
+
     if(check_flag(accessFlags, flag_excuse)) {
         if(!firstFlag) ss << ", ";
         else firstFlag = false;
@@ -415,10 +433,10 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
     }
 
     if(flagOrder.size() > 1) {
-        const uInt flagCount = 12;
+        const uInt flagCount = 13;
         access_flag order[flagCount] = {
                     flag_public, flag_private, flag_protected,
-                    flag_override,flag_excuse,
+                    flag_override,flag_thread_safe, flag_excuse,
                     flag_local,flag_static,
                     flag_const,flag_stable,
                     flag_unstable,flag_extension,
@@ -429,22 +447,24 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
             start = 3;
         } else if (flagOrder.get(0) == flag_override) {
             start = 4;
-        }  else if (flagOrder.get(0) == flag_excuse) {
+        } else if (flagOrder.get(0) == flag_thread_safe) {
             start = 5;
-        } else if (flagOrder.get(0) == flag_local) {
+        }  else if (flagOrder.get(0) == flag_excuse) {
             start = 6;
-        } else if (flagOrder.get(0) == flag_static) {
+        } else if (flagOrder.get(0) == flag_local) {
             start = 7;
-        } else if (flagOrder.get(0) == flag_const) {
+        } else if (flagOrder.get(0) == flag_static) {
             start = 8;
+        } else if (flagOrder.get(0) == flag_const) {
+            start = 9;
         } else if (flagOrder.get(0) == flag_stable) {
-            start = 10;
+            start = 11;
         } else if (flagOrder.get(0) == flag_unstable) {
-            start = 10;
+            start = 11;
         } else if (flagOrder.get(0) == flag_extension) {
-            start = 11;
+            start = 12;
         } else if (flagOrder.get(0) == flag_native) {
-            start = 11;
+            start = 12;
         }
 
         if (flagOrder.size() == 2) {
@@ -522,6 +542,20 @@ uInt parse_access_flags(uInt allowedFlags, string memberType, sharp_class *membe
             } else {
                 goto error;
             }
+        } else if (flagOrder.size() == 10) {
+            errPos = 1;
+            if(matches_flag(order, flagCount, start, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+1, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+2, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+3, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+5, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+6, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+7, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+8, flagOrder.get(errPos++))
+               && matches_flag(order, flagCount, start+9, flagOrder.get(errPos++))) {
+            } else {
+                goto error;
+            }
         } else {
             errPos = flagOrder.size() - 1;
             goto error;
@@ -553,6 +587,8 @@ access_flag str_to_access_flag(string& flag) {
         return flag_protected;
     else if(flag == "override")
         return flag_override;
+    else if(flag == "thread_safe")
+        return flag_thread_safe;
     else if(flag == "excuse")
         return flag_excuse;
     else if(flag == "local")

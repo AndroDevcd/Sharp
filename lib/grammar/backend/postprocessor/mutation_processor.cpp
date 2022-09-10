@@ -59,7 +59,7 @@ void process_generic_mutations(
 void process_mutation(sharp_class *with_class, Ast *ast) {
     if(!with_class->mutations.find(ast)) {
         with_class->mutations.add(ast);
-        pre_process_class(NULL, with_class, ast);
+        pre_process_class(NULL, with_class, ast); // todo: for mutations se all current present functions value to thread_safe if needed
         process_class(NULL, with_class, ast);
     }
 }

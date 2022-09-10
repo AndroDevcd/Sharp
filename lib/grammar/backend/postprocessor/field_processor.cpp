@@ -12,6 +12,7 @@
 #include "../types/sharp_function.h"
 #include "../compiler/field_compiler.h"
 #include "../../compiler_info.h"
+#include "../astparser/ast_parser.h"
 
 void process_field(sharp_class *with_class, Ast *ast) {
     string name;
@@ -63,13 +64,6 @@ void process_field(sharp_field *field) {
             }
         }
 
-        /*
-         * Todo: add support for access specifier to be applied to getters and setters
-         * this will enforce fields to restrice get and set access on them
-         *
-         * getter and setter should have the same access specificatin or at the very least
-         * a getter must have the same access privileges as the field
-         */
         if(field->type.type != type_undefined) {
             if(ast->hasSubAst(ast_setter)) {
                 process_setter(field, ast->getSubAst(ast_setter));
@@ -108,17 +102,23 @@ void process_field(sharp_field *field) {
 }
 
 void process_setter(sharp_field *field, Ast *ast) {
-    uInt flags = flag_none;
+    uInt flags;
+    if(ast->hasSubAst(ast_access_type)) {
+        flags = parse_access_flags(
+                flag_public
+                | flag_private | flag_protected
+                | flag_thread_safe | flag_local | flag_static,
+                "setter function", field->owner,
+                ast->getSubAst(ast_access_type)
+        );
 
-    if(check_flag(field->flags, flag_local))
-        flags |= flag_local;
+        if(!check_flag(flags, flag_public) && !check_flag(flags, flag_private)
+           && !check_flag(flags, flag_protected))
+            flags |= flag_public;
 
-    if(check_flag(field->flags, flag_public))
-        flags |= flag_public;
-    else if(check_flag(field->flags, flag_private))
-        flags |= flag_private;
-    else if(check_flag(field->flags, flag_protected))
-        flags |= flag_protected;
+        if(!check_flag(flags, flag_public))
+            flags |= flag_public;
+    } else flags = field->flags;
 
     if(check_flag(field->flags, flag_const)) {
         create_new_error(GENERIC, ast->line, ast->col,
@@ -133,7 +133,7 @@ void process_setter(sharp_field *field, Ast *ast) {
     List<sharp_field*> fields;
     impl_location location(currThread->currTask->file, ast);
     fields.add(new sharp_field(
-            ast->getToken(1).getValue(),
+            ast->getToken(0).getValue(),
             field->owner,
             location,
             field->type,
@@ -145,6 +145,7 @@ void process_setter(sharp_field *field, Ast *ast) {
     string name = "set_" + field->name;
 
     GUARD(globalLock)
+    sharp_function *fun = NULL;
     if(!create_function(
             field->owner,
             flags,
@@ -153,28 +154,46 @@ void process_setter(sharp_field *field, Ast *ast) {
             false,
             fields,
             returnType,
-            ast
-            )) {
+            ast,
+            fun)) {
         deleteList(fields);
+    } else {
+        field->setter = fun;
     }
-
-    field->setter = field->owner->functions.last();
 }
 
 void process_getter(sharp_field *field, Ast *ast) {
-    uInt flags = flag_none;
+    uInt flags;
 
-    if(check_flag(field->flags, flag_local))
-        flags |= flag_local;
+    bool threadSafe = false;
+    if(ast->hasSubAst(ast_access_type)) {
+        flags = parse_access_flags(
+                flag_public
+                | flag_private | flag_protected
+                | flag_thread_safe | flag_local | flag_static,
+                "getter function", field->owner,
+                ast->getSubAst(ast_access_type)
+        );
 
-    if(check_flag(field->flags, flag_public))
-        flags |= flag_public;
-    else if(check_flag(field->flags, flag_private))
-        flags |= flag_private;
-    else if(check_flag(field->flags, flag_protected))
-        flags |= flag_protected;
+        if(!check_flag(flags, flag_public) && !check_flag(flags, flag_private)
+           && !check_flag(flags, flag_protected))
+            flags |= flag_public;
 
+        if(!check_flag(flags, flag_public))
+            flags |= flag_public;
 
+        if(check_flag(flags, flag_thread_safe)) {
+            threadSafe = true;
+            set_flag(flags, flag_thread_safe, false);
+        }
+    } else flags = field->flags;
+
+    if(flags != field->flags) {
+        create_new_error(GENERIC, ast->line, ast->col,
+                         "getter for field `" + field->name + "`, cannot have differing access types from the field itself.");
+    }
+
+    set_flag(flags, flag_thread_safe, threadSafe);
     if(field->fieldType == tls_field) {
         create_new_error(GENERIC, ast->line, ast->col,
                                                            "cannot apply getter to thread_local field `" + field->name + "`");
@@ -218,7 +237,7 @@ void validate_field_type(
         }
     } else if(type.type == type_integer
         || type.type == type_decimal) {
-        field->type.type = type.type == type_decimal ? type_var : type_int64;
+        field->type.type = type.type == type_decimal ? type_var : type_int32;
         return;
     } else if(type.type == type_char
         || type.type == type_bool) {

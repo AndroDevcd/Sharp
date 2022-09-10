@@ -16,9 +16,9 @@ void compile_sizeof_expression(expression *e, Ast *ast) {
         || type.type == type_class
         || type.isArray) {
         create_sizeof_operation(&e->scheme, &valueExpr.scheme);
-        e->type.type = type_int64;
+        e->type.type = type_int32;
     } else {
-        current_file->errors->createNewError(GENERIC, ast,
+        create_new_error(GENERIC, ast,
                 "cannot get sizeof from expression of type `" + type_to_str(valueExpr.type) + "`");
     }
 

@@ -23,11 +23,11 @@ sharp_class* compile_catch_clause(
         string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
 
         if(handlingClass.isArray) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` cannot evaluate to an array");
+            create_new_error(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` cannot evaluate to an array");
         }
 
         if(get_class_type(handlingClass) == NULL) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class: `" +
+            create_new_error(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class: `" +
                     type_to_str(handlingClass) + "`");
         } else {
             create_dependency(get_class_type(handlingClass));
@@ -39,11 +39,11 @@ sharp_class* compile_catch_clause(
     } else {
 
         if(handlingClass.isArray) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "handling class  `" +  type_to_str(handlingClass) + "` cannot evaluate to an array");
+            create_new_error(GENERIC, ast->line, ast->col, "handling class  `" +  type_to_str(handlingClass) + "` cannot evaluate to an array");
         }
 
         if(get_class_type(handlingClass) == NULL) {
-            current_file->errors->createNewError(GENERIC, ast->line, ast->col, "type `" +  type_to_str(handlingClass) + "` must be of type class");
+            create_new_error(GENERIC, ast->line, ast->col, "type `" +  type_to_str(handlingClass) + "` must be of type class");
         } else {
             create_set_catch_class_operation(catchData, get_class_type(handlingClass), scheme);
         }
@@ -130,11 +130,11 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
                 delete_block();
 
                 if(klass != NULL && !catchedClasses.addif(klass)) {
-                    current_file->errors->createNewError(GENERIC, ast->line, ast->col, "class `" + klass->fullName + "` has already been caught.");
+                    create_new_error(GENERIC, ast->line, ast->col, "class `" + klass->fullName + "` has already been caught.");
                 }
 
                 if(klass != NULL && !is_class_related_to(klass, throwable)) {
-                    current_file->errors->createNewError(GENERIC, ast->line, ast->col, "handling class `" + klass->fullName + "` must inherit base level exception class `std#throwable`");
+                    create_new_error(GENERIC, ast->line, ast->col, "handling class `" + klass->fullName + "` must inherit base level exception class `std#throwable`");
                 }
 
 

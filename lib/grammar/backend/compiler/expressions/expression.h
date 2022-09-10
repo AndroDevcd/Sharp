@@ -41,8 +41,10 @@ struct expression {
 };
 
 void compile_expression(expression &, Ast*);
+void compile_cond_expression(expression &, Ast*);
 void compile_expression_for_type(expression &, Ast*);
-void recompile_expression(expression &out, Ast *ast);
+void convert_bool_expression(expression &e, Ast *ast);
+void recompile_cond_expression(expression &out, Ast *ast);
 
 void convert_expression_type_to_real_type(
         expression &typeDefinition);

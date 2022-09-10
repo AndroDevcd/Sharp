@@ -24,13 +24,13 @@ void compile_do_while_statement(Ast *ast, operation_schema *scheme, bool *contro
     current_context.blockInfo.reachable = !current_context.blockInfo.reachable;
 
     expression cond;
-    compile_expression(cond, ast->getSubAst(ast_expression));
+    compile_cond_expression(cond, ast->getSubAst(ast_expression));
     if(!current_context.blockInfo.reachable && (cond.type != type_bool && !cond.type._bool) && (cond.type != type_integer && !cond.type.integer)) {
         current_context.blockInfo.reachable = true;
     }
 
     if(!is_evaluable_type(cond.type)) {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "do while loop condition of type `" + type_to_str(cond.type) + "` must evaluate to true or false");
+        create_new_error(GENERIC, ast->line, ast->col, "do while loop condition of type `" + type_to_str(cond.type) + "` must evaluate to true or false");
     }
 
     create_get_value_operation(subScheme, &cond.scheme, false, false);

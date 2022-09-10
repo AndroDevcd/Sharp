@@ -27,7 +27,7 @@ void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPat
         }
         add_scheme_operation(scheme, subScheme);
     } else {
-        current_file->errors->createNewError(GENERIC, ast->line, ast->col, "attempt to lock non-lockable object of type `" +
+        create_new_error(GENERIC, ast->line, ast->col, "attempt to lock non-lockable object of type `" +
                 type_to_str(cond.type) + "`.");
     }
     delete subScheme;

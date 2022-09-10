@@ -20,7 +20,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
         for (Int i = 0; i < arrayItems.size(); i++) {
             if (!is_implicit_type_match(arrayType, arrayItems.at(i)->type,
                                         constructor_only)) {
-                current_file->errors->createNewError(GENERIC, ast->line, ast->col,
+                create_new_error(GENERIC, ast->line, ast->col,
                                                      " expected array item of type `" + type_to_str(arrayType) +
                                                      "` but found `" + type_to_str(arrayItems.at(i)->type) + "`.");
             }

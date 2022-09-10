@@ -115,6 +115,7 @@ private:
     void parseInterfaceBlock(Ast*);
     void parseVariableDecl(Ast*);
     void parseInjectRequest(Ast*);
+    void parseGetterSetterAccessTypes();
     void parseGetter(Ast *ast);
     void parseSetter(Ast *ast);
     bool parseTypeIdentifier(Ast*);

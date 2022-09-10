@@ -20,6 +20,12 @@ void process_function(
 
     if(type == initializer_function) {
         name = instance_init_name(with_class->name);
+
+        if(ast->getSubAst(ast_utype_arg_list)->getSubAstCount() != 1) {
+            create_new_error(GENERIC, ast,
+                             "invalid amount of parameters found on initializer function `" + name + "`. Initializers must have 1 parameter.");
+            return;
+        }
     } else if(type == constructor_function) {
         name = ast->getToken(0).getValue();
 
@@ -149,7 +155,8 @@ void process_function(
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected | flag_override
-                | flag_local | flag_static | flag_native,
+                | flag_thread_safe | flag_local | flag_static
+                | flag_native,
                 "function", with_class,
                 ast->getSubAst(ast_access_type)
         );
@@ -250,7 +257,7 @@ void validate_function_type(
         }
     } else if(type.type == type_integer
               || type.type == type_decimal) {
-        fun->returnType.type = type.type == type_decimal ? type_var : type_int64;
+        fun->returnType.type = type.type == type_decimal ? type_var : type_int32;
         return;
     } else if(type.type == type_char
               || type.type == type_bool) {

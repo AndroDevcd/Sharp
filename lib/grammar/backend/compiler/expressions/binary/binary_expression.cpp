@@ -316,12 +316,15 @@ void compile_binary_integer_expression(
         case type_uint64:
         case type_function_ptr:
         case type_var:
+        case type_class:
         case type_field: {
-            if(right.type == type_field) {
+            if(right.type.type == type_field || right.type.type == type_class) {
+                convert_bool_expression(right, ast);
                 if(!is_implicit_type_match(left.type, right.type, match_constructor)) {
                     goto error;
                 }
             }
+
             if(operand == "||") {
                 create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
             } else if(operand == "&&") {
@@ -375,7 +378,7 @@ void compile_binary_integer_expression(
                 )
             }
 
-            e->type.type = type_int64;
+            e->type.type = type_int32;
             break;
         }
 
@@ -416,9 +419,12 @@ void compile_binary_numeric_expression(
         case type_uint64:
         case type_function_ptr:
         case type_var:
+        case type_class:
         case type_field: {
 
-            if(right.type == type_field) {
+            if(right.type.type == type_field || right.type.type == type_class) {
+                convert_bool_expression(right, ast);
+
                 if(!is_implicit_type_match(left.type, right.type, exclude_none)) {
                     goto error;
                 }
@@ -520,7 +526,7 @@ void compile_binary_numeric_expression(
                 }
             }
 
-            e->type.type = type_int64;
+            e->type.type = type_int32;
             break;
         }
 
@@ -585,7 +591,7 @@ void compile_binary_object_expression(
             }
 
             e->scheme.schemeType = scheme_instance_check;
-            e->type.type = type_int64;
+            e->type.type = type_int8;
             break;
         }
 

@@ -48,6 +48,7 @@ struct sharp_class {
             genericBuilder(NULL),
             staticInit(NULL),
             used(false),
+            genericProcessed(false),
             functions(),
             generics(),
             aliases(),
@@ -61,6 +62,7 @@ struct sharp_class {
             mutations(),
             blueprintClass(false),
             injected(false),
+            typesProcessed(false),
             uid(-1),
             obfuscate(options.obfuscate)
     {
@@ -85,6 +87,8 @@ struct sharp_class {
             genericBuilder(NULL),
             staticInit(NULL),
             used(false),
+            genericProcessed(false),
+            typesProcessed(false),
             dependencies(),
             owner(owner),
             children(),
@@ -133,6 +137,8 @@ struct sharp_class {
             dependencies(),
             owner(owner),
             used(false),
+            genericProcessed(false),
+            typesProcessed(false),
             ci(NULL),
             genericBuilder(NULL),
             staticInit(NULL),
@@ -171,6 +177,7 @@ struct sharp_class {
             ast(sc.ast),
             used(sc.used),
             owner(sc.owner),
+            genericProcessed(sc.genericProcessed),
             ci(NULL),
             injected(sc.injected),
             children(sc.children),
@@ -180,6 +187,7 @@ struct sharp_class {
             generics(sc.generics),
             obfuscate(sc.obfuscate),
             aliases(sc.aliases),
+            typesProcessed(sc.typesProcessed),
             fields(sc.fields),
             type(sc.type),
             uid(sc.uid),
@@ -226,9 +234,12 @@ struct sharp_class {
     bool obfuscate;
     bool injected;
     bool blueprintClass;
+    bool typesProcessed;
+    bool genericProcessed;
     bool used;
 };
 
+sharp_class* get_top_level_class(sharp_class *sc);
 string get_simple_name(sharp_class *);
 void create_global_class();
 sharp_class* create_class(sharp_file*, sharp_module*, string, uInt, class_type, bool, Ast*);
