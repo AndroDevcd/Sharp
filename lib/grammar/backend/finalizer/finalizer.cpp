@@ -137,6 +137,8 @@ void setup_core_functions() {
 
             create_return_operation(StaticInit->scheme);
             create_return_operation(TlsSetup->scheme);
+            StaticInit->returnProtected = true;
+            TlsSetup->returnProtected = true;
 
             genesis_method = init_function; // reset main method to __srt_init()
         }

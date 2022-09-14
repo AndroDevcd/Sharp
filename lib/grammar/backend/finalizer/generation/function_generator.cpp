@@ -40,10 +40,7 @@ void generate(sharp_function *sf) {
 
 
     process_scheme(sf->scheme, sf->ci, sf);
-
-    if(sf->type == constructor_function) {
-        cout << sf->fullName << " code:\n\n" << code_to_string(sf->ci) << endl;
-    }
+    cout << sf->fullName << " code:\n\n" << code_to_string(sf->ci) << endl;
 }
 
 void generate_initial_closure_setup(sharp_function *sf) {
