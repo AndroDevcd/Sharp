@@ -22,7 +22,7 @@ void force_null_safety_check(operation_schema *outScheme, Int endLabel, Ast *ast
 }
 
 void compile_force_non_null_expression(expression *e, Ast *ast) {
-    compile_expression(*e, ast->getSubAst(ast_expression));
+    compile_expression(*e, ast->getSubAst(0));
 
     sharp_type actualType = get_real_type(e->type);
     if(actualType.nullable) {

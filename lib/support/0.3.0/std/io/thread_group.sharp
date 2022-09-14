@@ -48,7 +48,7 @@ public class thread_group : loopable<thread> {
 
     def find(find_func: (thread)(var)) : thread? {
 	    lock (self) {
-           for(i := 0; i < handles.size(); i++) {
+           for(i := 0; i < handles.size().value; i++) {
                _thread := handles.at(i);
                if(_thread != null && find_func(_thread)) {
                    return _thread;
@@ -61,7 +61,7 @@ public class thread_group : loopable<thread> {
 
     def find(id: var) : thread? {
 	    lock (self) {
-           for(i := 0; i < handles.size(); i++) {
+           for(i := 0; i < handles.size().value; i++) {
                if(handles[i].get_id() == id) {
                    return handles[i];
                }

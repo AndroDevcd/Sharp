@@ -1,5 +1,7 @@
 mod std;
 
+import ( platform.* )
+
 /**
 * Created by bknun on 9/4/2022
 * 
@@ -727,7 +729,7 @@ class ulong base number<_uint64, ulong> {
     init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string? {
-        return snprintf('L', number, 0);
+        return snprintf('L', value, 0);
     }
 }
 class long base number<_int64, long> {
@@ -994,17 +996,17 @@ class uchar base number<_uint8, uchar> {
     }
 
     static def is_digit(ch: char) : bool {
-        return ch >= '0' && ch <= '9';
+        return ch.value >= '0' && ch.value <= '9';
     }
 
     static def is_newline(ch: char) : bool {
-        if(build.is_windows()) return ch == '\n' || ch == '\r';
+        if(platform.build_info.is_windows()) return ch.value == '\n' || ch.value == '\r';
         else  return ch == '\n';
     }
 
     static def is_alpha(ch: char) : bool {
-        return (ch >= 'A' && ch <= 'Z')
-            || (ch >= 'a' && ch <= 'z');
+        return (ch.value >= 'A' && ch.value <= 'Z')
+            || (ch.value >= 'a' && ch.value <= 'z');
     }
 
     static def is_alpha_num(ch: char) : bool {
@@ -1073,17 +1075,17 @@ class char base number<_int8, char> {
     }
 
     static def is_digit(ch: char) : bool {
-        return ch >= '0' && ch <= '9';
+        return ch.value >= '0' && ch.value <= '9';
     }
 
     static def is_newline(ch: char) : bool {
-        if(build.is_windows()) return ch == '\n' || ch == '\r';
+        if(platform.build_info.is_windows()) return ch == '\n' || ch == '\r';
         else  return ch == '\n';
     }
 
     static def is_alpha(ch: char) : bool {
-        return (ch >= 'A' && ch <= 'Z')
-            || (ch >= 'a' && ch <= 'z');
+        return (ch.value >= 'A' && ch.value <= 'Z')
+            || (ch.value >= 'a' && ch.value <= 'z');
     }
 
     static def is_alpha_num(ch: char) : bool {
@@ -1091,15 +1093,15 @@ class char base number<_int8, char> {
     }
 
     static def to_lower(ch: char) : bool {
-        if('A' <= ch && ch <= 'Z')
-            return 'a' + (ch - 'A');
+        if('A' <= ch.value && ch.value <= 'Z')
+            return 'a' + (ch.value - 'A');
         else
             return ch;
     }
 
     static def to_upper(ch: char) : bool {
-        if('a' <= ch && ch <= 'z')
-            return 'A' + (ch - 'a');
+        if('a' <= ch.value && ch.value <= 'z')
+            return 'A' + (ch.value - 'a');
         else
             return ch;
     }
@@ -1239,6 +1241,6 @@ class double base number<var, double> {
     init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string? {
-        return snprintf('f', number, 16);
+        return snprintf('f', value, 16);
     }
 }

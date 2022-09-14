@@ -258,7 +258,6 @@ void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *con
     generate_initial_closure_setup(container);
     if(container->fullName == "platform.kernel#platform.static_init")
         generate_static_class_setup();
-
     process_scheme(scheme);
 
     if(!container->returnProtected)

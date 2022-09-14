@@ -15,11 +15,11 @@ class build {
     platform: string;
     version: string;
 
-    def is_windows() : var {
+    def is_windows() : bool {
         return os == "win";
     }
 
-    def is_linux() : var {
+    def is_linux() : bool {
         return os == "posix";
     }
 }

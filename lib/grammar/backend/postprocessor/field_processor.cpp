@@ -159,6 +159,7 @@ void process_setter(sharp_field *field, Ast *ast) {
         deleteList(fields);
     } else {
         field->setter = fun;
+        fun->locals.addAll(fun->parameters);
     }
 }
 

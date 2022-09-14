@@ -59,7 +59,7 @@ class vm {
         return result;
     }
 
-    static def get_frame_info() : stack_state {
+    static def get_frame_info() : stack_state? {
         /*asm {
             int 0x35
             popObj2
@@ -69,7 +69,7 @@ class vm {
         return null;
     }
 
-    static def get_stack_trace(info : stack_state) : string {
+    static def get_stack_trace(info : stack_state) : string? {
         /*asm {
             pushl {info}
             int 0x36
@@ -92,7 +92,7 @@ class vm {
         return result;
     }
 
-    static def start_fiber(fib: fiber, t: thread, args: object[], main: (object[])(var)) : var {
+    static def start_fiber(fib: fiber, t: thread, args: object[]?, main: (object[]?)(var)) : var {
         result: var;
         name := fib.name.data;
         threadid := -1; // -1 to unbind from thread
@@ -152,12 +152,12 @@ class vm {
         return result;
     }
 
-    static def bind_fiber(fib: fiber, t: thread) : var {
+    static def bind_fiber(fib: fiber, t: thread?) : var {
         id := fib.id;
         threadid := -1; // -1 to unbind from thread
 
         if(t != null)
-           threadid = t.get_native_handle();
+           threadid = t!!.get_native_handle();
         result: var;
 
         /*asm {
@@ -170,8 +170,8 @@ class vm {
         return result;
     }
 
-    static def get_bound_fibers(t: thread) : var {
-        threadid := t.get_native_handle();
+    static def get_bound_fibers(t: thread?) : var {
+        threadid := t?.get_native_handle();
         result: var;
 
         /*asm {
@@ -281,7 +281,8 @@ class vm {
             ret 0
         }*/
 
-        return null;
+        excuse no_val: thread;
+        return no_val;
     }
 
     static def exit_thread(t: thread, code: var) {
@@ -371,7 +372,8 @@ class vm {
             ret 0
         }*/
 
-        return null;
+        excuse no_val: object[];
+        return no_val;
     }
 
     static def hardware_concurrency() : var {

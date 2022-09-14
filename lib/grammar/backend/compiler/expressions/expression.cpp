@@ -18,6 +18,7 @@
 #include "../../postprocessor/function_processor.h"
 #include "../../../compiler_info.h"
 #include "inline_if_expression.h"
+#include "primary/force_non_null_expression.h"
 
 void compile_expression(expression &e, Ast *ast) {
     if(ast->getType() == ast_expression)
@@ -32,6 +33,8 @@ void compile_expression(expression &e, Ast *ast) {
         compile_dictionary_expression(&e, ast);
     else if(ast->getType() == ast_vect_e)
         compile_vector_array_expression(&e, ast->getSubAst(ast_vector_array));
+    else if(ast->getType() == ast_force_non_null_e)
+        compile_force_non_null_expression(&e, ast);
     else if(ast->getType() == ast_elvis_e)
         compile_elvis_expression(&e, ast);
     else if(ast->getType() == ast_ques_e)

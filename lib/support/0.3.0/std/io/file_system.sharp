@@ -1,7 +1,8 @@
 mod std.io;
 
 import (
-    platform
+    platform,
+    platform.kernel
 )
 
 /**
@@ -111,7 +112,7 @@ protected class file_system {
         path := f.get_absolute_path().data;
         result := 0;
 
-        if(build.is_windows() && access == access_execute)
+        if(platform.build_info.is_windows() && access == access_execute)
             return -1;
 
         /*

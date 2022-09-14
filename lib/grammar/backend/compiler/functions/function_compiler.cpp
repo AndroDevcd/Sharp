@@ -319,16 +319,19 @@ void compile_function(sharp_function *function, Ast *ast) {
             expression e;
             compile_expression(e, ast->getSubAst(ast_expression));
 
-            if(function->returnType != type_untyped && (match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor)) == no_match_found) {
+            match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor);
+            if(function->returnType != type_untyped && !is_match(match_result)) {
                 create_new_error(GENERIC, ast->line, ast->col, "return value of type `" +
                         type_to_str(e.type) + "` is not compatible with that of type `" + type_to_str(function->returnType) + "`");
             }
 
             if(match_result == match_constructor) {
-                APPLY_TEMP_SCHEME(0, e.scheme,
-                     compile_initialization_call(ast, constructor, e, &scheme_0);
-                     e.scheme.free();
-                )
+                operation_schema* tmp = new operation_schema();
+                compile_initialization_call(ast, constructor, e, tmp);
+                e.scheme.free();
+                e.scheme.copy(*tmp);
+                e.type.copy(constructor->returnType);
+                delete tmp;
             }
 
             if(function->returnType.type == type_nil) {

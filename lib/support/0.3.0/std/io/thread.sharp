@@ -144,7 +144,7 @@ public class thread {
     }
 
     public static def exit(code : var) {
-        vm.exit_thread(current()!!, code);
+        vm.exit_thread(current(), code);
         asm { hlt }
     }
 

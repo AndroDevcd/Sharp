@@ -11,7 +11,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
 
    name : string = "";
    id := -1;
-   main : (object[])(var);
+   main : (object[]?)(var);
    exit_val : var;
    bound_thread : thread;
 
@@ -95,7 +95,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
       return vm.get_bound_fibers(t);
    }
 
-   private static def fiber_main(args : object[]) {
+   private static def fiber_main(args : object[]?) {
       platform.tls_init();
       fib := current();
 

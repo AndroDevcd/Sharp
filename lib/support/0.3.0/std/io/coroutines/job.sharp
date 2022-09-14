@@ -171,7 +171,7 @@ public class job {
 
     protected def reschedule() {
 
-        delay := (start_time + sched_time) - time.mills_time().get_value();
+        delay := (start_time + sched_time) - time.mills_time().value;
         jb := coroutine.builder()
             .with_name(name!!)
             .recurring(sched_time, milliseconds);

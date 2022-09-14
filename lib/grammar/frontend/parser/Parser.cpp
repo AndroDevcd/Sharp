@@ -2020,6 +2020,7 @@ bool parser::isExprSymbol(string token) {
            token == "&&" || token == "||"||
            token == "^" || token == "?" ||
            token == "**" || token == "?:"||
+           token == "!!"||
             isAssignExprSymbol(token);
 }
 
@@ -2190,6 +2191,14 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary, bool ignoreInlineLambd
 
         _current=old;
         branch->freeLastSub();
+    }
+
+    if(peek(1)->getType() == DOUBLEBANG)
+    {
+        advance();
+        branch->encapsulate(ast_force_non_null_e);
+        if(!isExprSymbol(peek(1)->getValue()))
+            return true;
     }
 
     if(peek(1)->getType() == LEFTCURLY)
@@ -2967,8 +2976,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-        else if(peek(1)->getType() == DOUBLEBANG)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
         else if(peek(1)->getValue() == "as")
             goto asExpr;
         else if(peek(1)->getValue() == "is")
@@ -2999,8 +3006,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto checkInc;
         else if(peek(1)->getType() == DOT)
             goto dotNot;
-        else if(peek(1)->getType() == DOUBLEBANG)
-            goto doubleBang;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
@@ -3031,8 +3036,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto dotNot;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
-        else if(peek(1)->getType() == DOUBLEBANG)
-            goto doubleBang;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
         else if(peek(1)->getValue() == "is")
@@ -3121,8 +3124,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto checkInc;
         else if(peek(1)->getType() == DOT)
             goto dotNot;
-        else if(peek(1)->getType() == DOUBLEBANG)
-            goto doubleBang;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
@@ -3164,8 +3165,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto checkInc;
         else if(peek(1)->getType() == DOT)
             goto dotNot;
-        else if(peek(1)->getType() == DOUBLEBANG)
-            goto doubleBang;
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
         else if(peek(1)->getValue() == "as")
@@ -3202,8 +3201,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
                 errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
             else if(peek(1)->getValue() == "as")
                 errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
-            else if(peek(1)->getType() == DOUBLEBANG)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
             return true;
         } else {
             newAst = getBranch(branch, ast_lambda_function);
@@ -3225,8 +3222,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
                     errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
                 else if(peek(1)->getValue() == "as")
                     errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
-                else if(peek(1)->getType() == DOUBLEBANG)
-                    errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
                 return true;
             } else {
                 branch->freeLastSub();
@@ -3254,8 +3249,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-        else if(peek(1)->getType() == DOUBLEBANG)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
         else if(peek(1)->getValue() == "as")
             goto asExpr;
         else if(peek(1)->getValue() == "is")
@@ -3281,8 +3274,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto dotNot;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
-        else if(peek(1)->getType() == DOUBLEBANG)
-            goto doubleBang;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
         else if(peek(1)->getValue() == "is")
@@ -3302,8 +3293,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-        else if(peek(1)->getType() == DOUBLEBANG)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
         return true;
     }
 
@@ -3334,8 +3323,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
                     goto dotNot;
                 else if(peek(1)->getType() == LEFTBRACE)
                     goto arrayExpr;
-                else if(peek(1)->getType() == DOUBLEBANG)
-                    goto doubleBang;
                 else if(peek(1)->getValue() == "as")
                     goto asExpr;
                 else if(peek(1)->getValue() == "is")
@@ -3368,8 +3355,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-        else if(peek(1)->getType() == DOUBLEBANG)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
         return true;
     }
 
@@ -3389,8 +3374,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-        else if(peek(1)->getType() == DOUBLEBANG)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
         return true;
     }
 
@@ -3408,34 +3391,6 @@ bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
             goto dotNot;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
-        else if(peek(1)->getType() == DOUBLEBANG)
-            goto doubleBang;
-        else if(peek(1)->getValue() == "as")
-            goto asExpr;
-        else if(peek(1)->getValue() == "is")
-            goto isExpr;
-        return true;
-    }
-
-    doubleBang:
-    if(peek(1)->getType() == DOUBLEBANG)
-    {
-        if(_current->getLine() >= 25 && toks->file == "D:\\bknun\\Documents\\OneDrive\\Documents\\Clion\\Sharp\\lib\\support\\0.3.0\\platform\\kernel\\vm.sharp") {
-            int r = 0;
-        }
-        branch->encapsulate(branch->getType());
-        branch->encapsulate(ast_primary_expr);
-        branch->encapsulate(ast_expression);
-        branch->encapsulate(ast_force_non_null_e);
-        branch = branch->getSubAst(ast_force_non_null_e);
-        expect(branch, "!!");
-
-        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
-        else if(peek(1)->getType() == DOT)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
-        else if(peek(1)->getType() == LEFTBRACE)
-            errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
         else if(peek(1)->getValue() == "as")
             goto asExpr;
         else if(peek(1)->getValue() == "is")

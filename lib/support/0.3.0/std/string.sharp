@@ -163,11 +163,11 @@ class string : loopable<_int8> {
     }
 
     def operator==(str : string?) : bool {
-        if(str == null || sizeof(data) != sizeof(str.data))
+        if(str == null || sizeof(data) != sizeof(str?.data))
             return false;
 
         iter := 0;
-        foreach(ch in str.data) {
+        foreach(ch in str?.data) {
             if(ch != data[iter++]) {
                 return false;
             }
@@ -188,9 +188,9 @@ class string : loopable<_int8> {
     }
 
     def at(pos : int) : _int8 {
-        if(pos >= sizeof(data))
-            throw bounds_error(pos);
-        return data[pos];
+        if(pos.value >= sizeof(data))
+            throw bounds_error(pos.value);
+        return data[pos.value];
     }
 
     def operator[](pos: int) := at(pos);

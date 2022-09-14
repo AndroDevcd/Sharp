@@ -1,5 +1,9 @@
 mod std;
 
+import(
+    std.io
+)
+
 /**
 * Created by bknun on 9/3/2022
 * 
@@ -14,9 +18,9 @@ class string_builder : loopable<_int8> {
     data : _int8[]?;
         private set value -> { data = value; }
 
-    private static const default_capacity : var = 255;
-    private min_resize_capacity : var = 128;
-    private cursor : var = 0;
+    private static const default_capacity := 255;
+    private min_resize_capacity := 128;
+    private cursor := 0;
 
     init {
       data = new _int8[default_capacity];
@@ -130,7 +134,7 @@ class string_builder : loopable<_int8> {
 
     def operator+(obj : printable?) : string_builder {
         s := new string_builder(data);
-        return s.append(obj?.to_string()?.data!! ?: "null");
+        return s.append(obj?.to_string()?.data ?: "null");
     }
 
     override def to_string() : string? = new string(data!!, 0, cursor + 1);
@@ -180,9 +184,9 @@ class string_builder : loopable<_int8> {
     }
 
     def at(pos : int) : _int8 {
-        if(pos.val > cursor)
+        if(pos.value > cursor)
             throw bounds_error(pos);
-        return data[pos.val];
+        return data[pos.value];
     }
 
     def operator[](pos: int) : var {
@@ -269,7 +273,7 @@ class string_builder : loopable<_int8> {
         return append(c);
     }
 
-    def operator+=( obj: printable? ) : string_builder
+    def operator+=( obj: _object_? ) : string_builder
     {
         return append(obj?.to_string()?.data ?: "null");
     }

@@ -24,6 +24,11 @@ class list<T base _object_> : loopable<T> {
         data = new T[default_capacity];
     }
 
+    list(data: T[]) {
+        self->data = data;
+        n_elements = sizeof(data);
+    }
+
     list(starting_capacity: int) {
         data = new T[starting_capacity.value];
     }

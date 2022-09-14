@@ -65,7 +65,7 @@ protected class unix_fs base file_system {
       * other I/O error occurs.
       */
      override def get_attributes(f: file) : var {
-        path := f.path.get_data();
+        path := f.path.data;
         attrs := 0;
 
         /*
@@ -89,7 +89,7 @@ protected class unix_fs base file_system {
       * Return false if access is denied or an I/O error occurs
       */
      override def check_access(f: file, access: var) : var {
-        path := f.path.get_data();
+        path := f.path.data;
         result := 0;
 
         /*

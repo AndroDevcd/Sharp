@@ -1,7 +1,7 @@
 mod std.io;
 
 
-def realloc(data: object[], size: _int64) {
+def realloc(data: object[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -9,7 +9,7 @@ def realloc(data: object[], size: _int64) {
     }
 }
 
-def realloc(data: var[], size: _int64) {
+def realloc(data: var[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -17,7 +17,7 @@ def realloc(data: var[], size: _int64) {
     }
 }
 
-def realloc(data: _int8[], size: _int64) {
+def realloc(data: _int8[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -25,7 +25,7 @@ def realloc(data: _int8[], size: _int64) {
     }
 }
 
-def realloc(data: _int16[], size: _int64) {
+def realloc(data: _int16[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -33,7 +33,7 @@ def realloc(data: _int16[], size: _int64) {
     }
 }
 
-def realloc(data: _int32[], size: _int64) {
+def realloc(data: _int32[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -41,7 +41,7 @@ def realloc(data: _int32[], size: _int64) {
     }
 }
 
-def realloc(data: _int64[], size: _int64) {
+def realloc(data: _int64[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -49,7 +49,7 @@ def realloc(data: _int64[], size: _int64) {
     }
 }
 
-def realloc(data: _uint8[], size: _int64) {
+def realloc(data: _uint8[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -57,7 +57,7 @@ def realloc(data: _uint8[], size: _int64) {
     }
 }
 
-def realloc(data: _uint16[], size: _int64) {
+def realloc(data: _uint16[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -65,7 +65,7 @@ def realloc(data: _uint16[], size: _int64) {
     }
 }
 
-def realloc(data: _uint32[], size: _int64) {
+def realloc(data: _uint32[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]
@@ -73,7 +73,7 @@ def realloc(data: _uint32[], size: _int64) {
     }
 }
 
-def realloc(data: _uint64[], size: _int64) {
+def realloc(data: _uint64[], size: _int32) {
     asm {
         pushl [data]
         ipushl [size]

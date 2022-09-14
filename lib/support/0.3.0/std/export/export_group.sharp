@@ -5,7 +5,7 @@ import (
 )
 
 class export_group {
-   private data := new list<object>();
+   private data := new list<_object_>();
    private name : string = "anonymous_group";
    
    export_group(name: string) {
@@ -60,9 +60,9 @@ class export_group {
       data.add(val);
    }
 
-   def write_object(val: object) {
-      data.add(val);
-   }
+//   def write_object(val: object) {
+//      data.add(val);
+//   }
    
    def empty_group() {
       throw new ill_state_except("there is no data left in the exported group");
@@ -71,7 +71,7 @@ class export_group {
    def read_var() : var {
       if(data.empty())
          empty_group();
-      return (data.pop_first() as double).get_value();
+      return (data.pop_first() as double).value;
    }
    
    def read_double() : double {
@@ -140,11 +140,11 @@ class export_group {
       return data.pop_first() as uchar;
    }
    
-   def read_object() : object {
-      if(data.empty())
-         empty_group();
-      return data.pop_first();
-   }
+//   def read_object() : object {
+//      if(data.empty())
+//         empty_group();
+//      return data.pop_first();
+//   }
 
    def export() : _int8[] {
       return _export(self);
