@@ -262,5 +262,9 @@ void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *con
 
     if(!container->returnProtected)
         add_instruction(Opcode::Builder::ret(NO_ERR));
+
+    if(container->fullName == "std#__srt_global.flush") {
+        int r = 0;
+    }
     flush_context();
 }

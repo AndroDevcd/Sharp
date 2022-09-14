@@ -150,7 +150,7 @@ struct machine_instruction {
 
     machine_instruction(int op)
             :
-            opcode(0),
+            opcode(op),
             arg1(NULL),
             arg2(NULL),
             arg3(NULL)
@@ -159,7 +159,7 @@ struct machine_instruction {
 
     machine_instruction(int op, machine_argument *a1)
             :
-            opcode(0),
+            opcode(op),
             arg1(a1),
             arg2(NULL),
             arg3(NULL)
@@ -168,7 +168,7 @@ struct machine_instruction {
 
     machine_instruction(int op, machine_argument *a1, machine_argument *a2)
             :
-            opcode(0),
+            opcode(op),
             arg1(a1),
             arg2(a2),
             arg3(NULL)
@@ -177,7 +177,7 @@ struct machine_instruction {
 
     machine_instruction(int op, machine_argument *a1, machine_argument *a2, machine_argument *a3)
             :
-            opcode(0),
+            opcode(op),
             arg1(a1),
             arg2(a2),
             arg3(a3)
@@ -204,6 +204,9 @@ struct machine_instruction {
         delete arg1;
         delete arg2;
         delete arg3;
+        arg1 = NULL;
+        arg2 = NULL;
+        arg3 = NULL;
     }
 
     int opcode;
@@ -549,10 +552,6 @@ struct operation_step {
         _string(""),
         nativeType(type_undefined)
     {
-        if(type == operation_push_parameter_to_stack
-            && scheme->schemeType == scheme_none) {
-            int r = 0;
-        }
         this->scheme = new operation_schema(*scheme);
     }
 

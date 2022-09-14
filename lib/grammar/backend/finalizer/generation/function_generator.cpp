@@ -24,11 +24,6 @@ void generate_address(sharp_function *sf) {
     }
 }
 
-code_info* get_or_initialize_code(sharp_function *sf) {
-    generate_address(sf);
-    return sf->ci;
-}
-
 void generate(sharp_function *sf) {
     if(sf->type == delegate_function) {
         return;
@@ -37,7 +32,6 @@ void generate(sharp_function *sf) {
     for(Int i = 0; i < sf->locals.size(); i++) {
         generate_address(sf->locals.get(i), i, check_flag(sf->flags, flag_static));
     }
-
 
     process_scheme(sf->scheme, sf->ci, sf);
     cout << sf->fullName << " code:\n\n" << code_to_string(sf->ci) << endl;

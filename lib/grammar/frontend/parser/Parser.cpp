@@ -2585,7 +2585,7 @@ bool parser::parseAsmLiteral(Ast* ast) {
     } else if(t->getType() == LEFTBRACE) {
         element_address:
         Ast *memberAst = getBranch(branch, ast_asm_member_item);
-        expect(memberAst, "[");
+        expect(branch, "[");
         expectIdentifier(memberAst);
 
         if(peek(1)->getType() == PLUS || peek(1)->getType() == MINUS) {
@@ -2603,7 +2603,7 @@ bool parser::parseAsmLiteral(Ast* ast) {
                 return false;
             }
         }
-        expect(memberAst, "]");
+        expect(memberAst, "]", false);
         return true;
     } else if(t->getType() == DOLLAR) {
         expect(branch, "$");

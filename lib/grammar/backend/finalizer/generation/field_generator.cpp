@@ -38,7 +38,6 @@ void generate_address(sharp_field *field) {
 
 void generate_address(sharp_field *field, Int localFieldIndex, bool staticFunction) {
     if (field->ci == NULL && field->used) {
-        bool isStatic = check_flag(field->flags, flag_static);
         bool threadLocal = field->fieldType == tls_field;
 
         field->ci = new code_info();

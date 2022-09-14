@@ -289,7 +289,9 @@ dynamic_argument machine_argument_to_dynamic_argument(machine_argument *arg) {
         } else if(arg->type == type_string_address) {
             return dynamic_argument(regular_argument, create_constant(arg->str));
         } else return dynamic_argument(regular_argument, arg->number);
-    } else return dynamic_argument();
+    } else {
+        return dynamic_argument();
+    }
 }
 
 dynamic_instruction machine_instruction_to_dynamic_instruction(machine_instruction *mi) {

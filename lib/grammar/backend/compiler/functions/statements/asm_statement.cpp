@@ -73,9 +73,13 @@ machine_argument* compile_asm_register(Ast *ast) {
 }
 
 machine_argument* compile_asm_member_address(sharp_class *with_class, Ast *ast) {
-    string memberName = ast->getToken(1).getValue();
+    string memberName = ast->getToken(0).getValue();
     opcode_arg offset = get_asm_offset(ast);
     sharp_field *field;
+
+    if(memberName == "exited") {
+        int r = 0;
+    }
 
     if(with_class == NULL) {
         field = resolve_local_field(memberName, &current_context);
@@ -166,8 +170,6 @@ machine_argument* compile_asm_literal(Ast *ast, operation_schema *scheme) {
 
         arg = new machine_argument(label);
         arg->number = offset;
-    } else if(ast->hasToken("[")) {
-        arg = compile_asm_member_address(NULL, ast->getSubAst(ast_asm_member_item));
     } else if(ast->hasToken("$")) {
         Ast *classAst = ast->getSubAst(ast_asm_class_item);
         sharp_type type = resolve(classAst->getSubAst(ast_utype));
@@ -183,8 +185,14 @@ machine_argument* compile_asm_literal(Ast *ast, operation_schema *scheme) {
             err << "invalid asm type: " << type_to_str(type) << ", expected class.";
             create_new_error(GENERIC, ast->line, ast->col, err.str());
         }
+    } else if(ast->hasToken("[")) {
+        arg = compile_asm_member_address(NULL, ast->getSubAst(ast_asm_member_item));
     }
 
+
+    if(arg == NULL) {
+        int r =0;
+    }
     return arg;
 }
 
