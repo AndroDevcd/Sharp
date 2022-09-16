@@ -77,10 +77,6 @@ machine_argument* compile_asm_member_address(sharp_class *with_class, Ast *ast) 
     opcode_arg offset = get_asm_offset(ast);
     sharp_field *field;
 
-    if(memberName == "exited") {
-        int r = 0;
-    }
-
     if(with_class == NULL) {
         field = resolve_local_field(memberName, &current_context);
         if (field != NULL) {
@@ -187,12 +183,10 @@ machine_argument* compile_asm_literal(Ast *ast, operation_schema *scheme) {
         }
     } else if(ast->hasToken("[")) {
         arg = compile_asm_member_address(NULL, ast->getSubAst(ast_asm_member_item));
+    } else {
+        create_new_error(GENERIC, ast->line, ast->col, "expected asm literal");
     }
 
-
-    if(arg == NULL) {
-        int r =0;
-    }
     return arg;
 }
 

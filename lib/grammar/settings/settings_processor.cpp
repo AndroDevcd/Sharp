@@ -79,7 +79,7 @@ void process_settings() {
                 enable_show_all_errors(member->getValue()->getBoolValue());
             }
 
-            if((member = jo["output_file"]) != NULL) {
+            if((member = jo["output"]) != NULL) {
                 require_type(member, jtype_string);
                 set_output_file(member->getValue()->getStringValue());
             }

@@ -1994,6 +1994,7 @@ void resolve_function_ptr_item(
             flags, resolveLocation, params,
             returnType, blueprint_function);
 
+    create_dependency(fptr, primaryClass);
     resultType.type = type_function_ptr;
     resultType.fun = fptr;
 }

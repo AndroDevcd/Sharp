@@ -9,7 +9,7 @@
 #include "generator.h"
 
 uInt classAddressCounter = 0;
-void generate_address(sharp_class *sc) {
+void generate_address(sharp_class *sc) { // todo: ensure classes and all address dont go over the address limit for the vm
     if(sc->ci == NULL) {
         sc->ci = new code_info();
         sc->ci->uuid = UUIDGenerator++;
@@ -50,4 +50,48 @@ void generate_class_addresses(sharp_class *sc) {
             generate_class_addresses(child);
         }
     }
+}
+
+int get_static_field_count(sharp_class *sc) {
+    int count = 0;
+    for(Int i = 0; i < sc->fields.size(); i++) {
+        sharp_field *sf = sc->fields.get(i);
+        if(sf->used && check_flag(sf->flags, flag_static))
+            count++;
+    }
+
+    return count;
+}
+
+int get_instance_field_count(sharp_class *sc) {
+    int count = 0;
+    for(Int i = 0; i < sc->fields.size(); i++) {
+        sharp_field *sf = sc->fields.get(i);
+        if(sf->used && !check_flag(sf->flags, flag_static))
+            count++;
+    }
+
+    return count;
+}
+
+int get_function_count(sharp_class *sc) {
+    int count = 0;
+    for(Int i = 0; i < sc->functions.size(); i++) {
+        sharp_function *sf = sc->functions.get(i);
+        if(sf->used)
+            count++;
+    }
+
+    return count;
+}
+
+int get_interface_count(sharp_class *sc) {
+    int count = 0;
+    for(Int i = 0; i < sc->interfaces.size(); i++) {
+        sharp_class *intf = sc->interfaces.get(i);
+        if(intf->used)
+            count++;
+    }
+
+    return count;
 }

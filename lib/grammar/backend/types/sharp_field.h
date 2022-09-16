@@ -117,6 +117,8 @@ struct sharp_field {
     {
         set_full_name();
         this->type.copy(type);
+
+        create_dependency(this, owner);
     }
 
     ~sharp_field() {

@@ -16,6 +16,9 @@ void code_info::copy(const code_info &ci) {
     address = ci.address;
     uuid = ci.uuid;
     stackSize = ci.stackSize;
+    fpOffset = ci.fpOffset;
+    spOffset = ci.spOffset;
+    frameStackOffset = ci.frameStackOffset;
     code.addAll(ci.code);
 
     for(Int i = 0; i < ci.lineTable.size(); i++) {

@@ -8,5 +8,6 @@
 #include "../../../sharp_file.h"
 
 void generate_addresses(sharp_file *file);
+void generate_exe();
 
 #endif //SHARP_FILE_GENERATOR_H

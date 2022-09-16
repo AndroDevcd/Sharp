@@ -255,6 +255,7 @@ void process_scheme_steps(operation_schema *scheme) {
 
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container) {
     update_context(ci, container);
+    // todo add thread_safe code for before and end of function and at all return instructions
     generate_initial_closure_setup(container);
     if(container->fullName == "platform.kernel#platform.static_init")
         generate_static_class_setup();
@@ -263,8 +264,5 @@ void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *con
     if(!container->returnProtected)
         add_instruction(Opcode::Builder::ret(NO_ERR));
 
-    if(container->fullName == "std#__srt_global.flush") {
-        int r = 0;
-    }
     flush_context();
 }

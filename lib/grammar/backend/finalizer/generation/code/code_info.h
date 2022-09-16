@@ -176,6 +176,9 @@ struct code_info {
             address(-1),
             uuid(-1),
             stackSize(-1),
+            fpOffset(-1),
+            spOffset(-1),
+            frameStackOffset(-1),
             code(),
             lineTable()
     {}
@@ -185,6 +188,9 @@ struct code_info {
             address(-1),
             uuid(-1),
             stackSize(-1),
+            fpOffset(-1),
+            spOffset(-1),
+            frameStackOffset(-1),
             code(),
             lineTable()
     {
@@ -200,6 +206,9 @@ struct code_info {
     void copy(const code_info &ci);
 
     int stackSize;
+    int fpOffset;
+    int spOffset;
+    int frameStackOffset;
     List<line_info*> lineTable;
     List<try_catch_data*> tryCatchTable;
     List<opcode_instr> code;

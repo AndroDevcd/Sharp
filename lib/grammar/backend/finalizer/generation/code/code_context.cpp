@@ -27,6 +27,59 @@ void update_context(code_info* ci, sharp_function *container) {
     setup_register_alloc();
 }
 
+void set_fp_offset() {
+    bool staticFunc = check_flag(cc.container->flags, flag_static);
+    Int paramSize = cc.container->parameters.size();
+    if(cc.container->returnType == type_nil) {
+        cc.ci->fpOffset = paramSize + (!staticFunc ? 0 : -1);
+    } else {
+        if(staticFunc) {
+            if(paramSize == 0) {
+                cc.ci->fpOffset =  -1;
+            } else {
+                cc.ci->fpOffset =  cc.container->parameters.size() - 1;
+            }
+        } else {
+            if(paramSize == 0) {
+                cc.ci->fpOffset =  0;
+            } else {
+                cc.ci->fpOffset = cc.container->parameters.size();
+            }
+        }
+    }
+}
+
+void set_sp_offset() {
+    bool staticFunc = check_flag(cc.container->flags, flag_static);
+    Int paramSize = cc.container->parameters.size();
+    if(cc.container->returnType == type_nil) {
+        cc.ci->spOffset = paramSize + (!staticFunc ? 1 : 0);
+    } else {
+        if(staticFunc) {
+            if(paramSize == 0) {
+                cc.ci->spOffset = -1;
+            } else {
+                cc.ci->spOffset = cc.container->parameters.size() - 1;
+            }
+        } else {
+            if(paramSize == 0) {
+                cc.ci->spOffset = 0;
+            } else {
+                cc.ci->spOffset = cc.container->parameters.size();
+            }
+        }
+    }
+}
+
+void set_frame_stack_offset() {
+    bool staticFunc = check_flag(cc.container->flags, flag_static);
+    Int paramSize = cc.container->parameters.size();
+    Int exclusiveStackSize = cc.ci->stackSize;
+    if(!staticFunc) exclusiveStackSize--;
+    Int additionalStackPaceRequires = exclusiveStackSize - paramSize;
+    cc.ci->frameStackOffset = additionalStackPaceRequires > 0 ? additionalStackPaceRequires : 0;
+}
+
 void flush_context() {
     for(Int i = 0; i < cc.lineTable.size(); i++) {
         cc.ci->lineTable.add(new line_info(*cc.lineTable.get(i)));
@@ -39,6 +92,9 @@ void flush_context() {
     resolve_dynamic_instructions();
     cc.ci->stackSize = (check_flag(cc.container->flags, flag_static) ? 0 : 1) +
             cc.container->locals.size() + (cc.registers.size() - MIN_REGISTERS);
+    set_fp_offset();
+    set_sp_offset();
+    set_frame_stack_offset();
     cc.ci->code.appendAll(cc.instructions);
     cc.free();
 }

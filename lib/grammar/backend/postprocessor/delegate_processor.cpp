@@ -139,6 +139,7 @@ void process_delegates(sharp_class *with_class) {
                     && is_explicit_type_match(delegate->returnType, fun->returnType)) {
                     foundFunc = true;
                     fun->delegate = delegate;
+                    create_dependency(fun, delegate);
                     delegate->impls.addif(fun);
                     break;
                 }
@@ -161,6 +162,7 @@ void process_delegates(sharp_class *with_class) {
 
                 if(basefun != NULL) {
                     fun->delegate = basefun;
+                    create_dependency(fun, basefun);
                 } else {
                     stringstream err;
                     err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"

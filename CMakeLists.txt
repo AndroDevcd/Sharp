@@ -87,6 +87,7 @@ if (SHARPC)
             "lib/grammar/backend/finalizer/generation/code/scheme/*.h"
             "lib/grammar/backend/finalizer/generation/code/scheme/*.cpp"
             "lib/util/*.cpp"
+            "lib/util/zip/*.cpp"
     )
 
 

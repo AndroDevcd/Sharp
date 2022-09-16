@@ -116,6 +116,8 @@ struct sharp_class {
             fullName = owner->fullName + "."
                         + name;
         }
+
+        create_dependency(this, owner);
     }
 
     sharp_class(
@@ -162,6 +164,8 @@ struct sharp_class {
     {
         fullName = module->name + "#"
                    + name;
+
+        create_dependency(this, owner);
     }
 
     sharp_class(const sharp_class &sc)

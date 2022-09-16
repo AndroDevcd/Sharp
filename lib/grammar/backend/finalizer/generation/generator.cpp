@@ -45,12 +45,15 @@ void generate() {
         generate_addresses(compressedCompilationFiles.get(i));
     }
 
-    compressedCompilationFunctions.linearSort(is_greater_than);
-    compressedCompilationClasses.linearSort(is_greater_than);
-
     for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
         generate(compressedCompilationFunctions.get(i));
     }
+
+    remove_delegate_functions();
+    compressedCompilationFunctions.linearSort(is_greater_than);
+    compressedCompilationClasses.linearSort(is_greater_than);
+
+    generate_exe();
 }
 
 void generation_error(string message) {
