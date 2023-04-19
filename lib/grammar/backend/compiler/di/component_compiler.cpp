@@ -194,6 +194,7 @@ void compile_type_definition(
                             ast
                     );
 
+                    // todo: investigate whether this static field is being initialized in static init
                     single_field->scheme = new operation_schema(typeDefinition.scheme);
                     subComponent->scheme = new operation_schema();
 

@@ -4,7 +4,7 @@
 
 #include "asm_statement.h"
 #include "../../../types/types.h"
-#include "../../../../../runtime/Opcode.h"
+#include "../../../../../core/opcode/opcode.h"
 #include "../../expressions/expression.h"
 #include "../../expressions/primary/literal_expression.h"
 #include "../../../dependency/dependancy.h"

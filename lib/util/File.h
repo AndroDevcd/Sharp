@@ -127,6 +127,8 @@ public:
 
     static void read_alltext(const char *file, buffer& out);
 
+    static void read_alltext(const char *file, string& out);
+
     static int write(const char *file, buffer& data);
 
     static uInt length(const char *file);

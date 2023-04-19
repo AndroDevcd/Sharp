@@ -1,0 +1,24 @@
+//
+// Created by bknun on 9/18/2022.
+//
+
+#include "sharp_class.h"
+
+
+void init_struct(sharp_class *sc) {
+    sc->address = 0;
+    sc->guid = 0;
+    new (&sc->name) string();
+    new (&sc->fullName) string();
+    sc->owner = nullptr;
+    sc->flags = 0; // todo: look into adding in classType for lower level inspecting
+    sc->fields = nullptr;
+    sc->methods = nullptr;
+    sc->base = nullptr;
+    sc->interfaces = nullptr;
+    sc->staticFields = 0;
+    sc->instanceFields = 0;
+    sc->totalFieldCount = 0;
+    sc->methodCount = 0;
+    sc->interfaceCount = 0;
+}

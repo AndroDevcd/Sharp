@@ -6,7 +6,7 @@
 #define SHARP_STEP_PROCESSOR_H
 
 #include "../../../../operation/operation.h"
-#include "../../../../../../runtime/Opcode.h"
+#include "../../../../../../core/opcode/opcode.h"
 
 struct internal_register;
 

@@ -7,7 +7,7 @@
 
 #include "../../../../../../stdimports.h"
 #include "../../../../compiler_info.h"
-#include "../../../../../runtime/Opcode.h"
+#include "../../../../../core/opcode/opcode.h"
 
 struct line_info {
     line_info()

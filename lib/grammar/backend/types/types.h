@@ -11,7 +11,7 @@
 #include "sharp_alias.h"
 #include "sharp_type.h"
 #include "sharp_module.h"
-#include "function_type.h"
+#include "../../../core/function_type.h"
 #include "unresolved_type.h"
 #include "unresolved_extension_function.h"
 #include "sharp_label.h"

@@ -79,6 +79,7 @@
 #include "scheme_and.h"
 #include "../../../../../../util/File.h"
 #include "scheme_asm.h"
+#include "../../../../../../core/opcode/opcode_macros.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {

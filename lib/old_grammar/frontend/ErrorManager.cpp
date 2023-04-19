@@ -60,7 +60,7 @@ void initalizeErrors()
     err.set(REDUNDANT_TOKEN, "redundant token");
     predefinedErrors.push_back(err);
 
-    err.set(INTERNAL_ERROR, "internal runtime error");
+    err.set(INTERNAL_ERROR, "internal runtime_old error");
     predefinedErrors.push_back(err);
 
     err.set(COULD_NOT_RESOLVE, "could not resolve symbol");

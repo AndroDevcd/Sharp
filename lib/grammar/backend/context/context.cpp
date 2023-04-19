@@ -3,7 +3,7 @@
 //
 
 #include "context.h"
-#include "../access_flag.h"
+#include "../../../core/access_flag.h"
 #include "../types/sharp_class.h"
 #include "../../sharp_file.h"
 #include "../../taskdelegator/task_delegator.h"

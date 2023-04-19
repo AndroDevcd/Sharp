@@ -1,0 +1,17 @@
+//
+// Created by bknun on 9/18/2022.
+//
+
+#include "sharp_field.h"
+
+void init_struct(sharp_field *sf) {
+    sf->address = 0;
+    sf->guid = 0;
+    new (&sf->name) string();
+    new (&sf->fullName) string();
+    sf->owner = nullptr;
+    sf->flags = 0;
+    sf->type = nullptr;
+    sf->isArray = false;
+    sf->threadLocal = false;
+}

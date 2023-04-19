@@ -4,7 +4,7 @@
 
 #include "local_alias_statement.h"
 #include "../../../../../../stdimports.h"
-#include "../../../access_flag.h"
+#include "../../../../../core/access_flag.h"
 #include "../../../../compiler_info.h"
 #include "../../../types/types.h"
 #include "../../../astparser/ast_parser.h"

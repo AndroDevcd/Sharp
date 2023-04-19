@@ -44,7 +44,7 @@ void setup_core_functions() {
 
             StaticInit = resolve_function(static_init_function_name, StarterClass, params, normal_function, exclude_all, StarterClass->ast, false, false);
             if(StaticInit == NULL) {
-                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "could not locate runtime environment setup method '" static_init_function_name "()' in starter class");
+                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "could not locate runtime_old environment setup method '" static_init_function_name "()' in starter class");
                 return;
             }
 
@@ -57,21 +57,21 @@ void setup_core_functions() {
             create_line_record_operation(StaticInit->scheme, StaticInit->ast->line);
             create_line_record_operation(TlsSetup->scheme, TlsSetup->ast->line);
             if(!check_flag(StaticInit->flags, flag_static)) {
-                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime environment setup method '" static_init_function_name "()' must be static");
+                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime_old environment setup method '" static_init_function_name "()' must be static");
             }
             if(!check_flag(TlsSetup->flags, flag_static)) {
                 init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "thread local storage init method '" tls_init_function_name "()' must be static");
             }
 
             if(StaticInit->returnType != type_nil) {
-                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime environment setup method '" static_init_function_name "()' must return `nil`");
+                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime_old environment setup method '" static_init_function_name "()' must return `nil`");
             }
             if(TlsSetup->returnType != type_nil) {
                 init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "thread local storage init method '" tls_init_function_name "()' must return `nil`");
             }
 
             if(!check_flag(StaticInit->flags, flag_private)) {
-                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime environment setup method '" static_init_function_name "()' must be private");
+                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime_old environment setup method '" static_init_function_name "()' must be private");
             }
 
             if(!check_flag(StaticInit->flags, flag_private)) {

@@ -7,7 +7,7 @@
 
 #include "../../../../stdimports.h"
 #include "../../frontend/parser/Ast.h"
-#include "../types/function_type.h"
+#include "../../../core/function_type.h"
 
 struct unresolved_extension_function {
     unresolved_extension_function()

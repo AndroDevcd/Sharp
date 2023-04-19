@@ -9,6 +9,7 @@
 #include "../../field_generator.h"
 #include "scheme_processor.h"
 #include "../code_info.h"
+#include "../../../../../../core/opcode/opcode_macros.h"
 
 void add_instruction(opcode_instr instr) {
     cc.instructions.add(instr);

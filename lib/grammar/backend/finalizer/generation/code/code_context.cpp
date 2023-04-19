@@ -877,7 +877,7 @@ void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instr
             break;
         }
         case Opcode::INT: {
-            update_dynamic_instruction(instructions, di, Opcode::Builder::_int((interruptFlag)get_dynamic_arg_value(di.arg1)));
+            update_dynamic_instruction(instructions, di, Opcode::Builder::_int((interrupt_flag)get_dynamic_arg_value(di.arg1)));
             break;
         }
         case Opcode::RET: {

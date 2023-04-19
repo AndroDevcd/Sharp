@@ -65,6 +65,10 @@ int get_static_field_count(sharp_class *sc) {
 
 int get_instance_field_count(sharp_class *sc) {
     int count = 0;
+
+    if(sc->baseClass != NULL)
+        count += get_instance_field_count(sc->baseClass);
+
     for(Int i = 0; i < sc->fields.size(); i++) {
         sharp_field *sf = sc->fields.get(i);
         if(sf->used && !check_flag(sf->flags, flag_static))
@@ -76,6 +80,10 @@ int get_instance_field_count(sharp_class *sc) {
 
 int get_function_count(sharp_class *sc) {
     int count = 0;
+
+    if(sc->baseClass != NULL)
+        count += get_function_count(sc->baseClass);
+
     for(Int i = 0; i < sc->functions.size(); i++) {
         sharp_function *sf = sc->functions.get(i);
         if(sf->used)
@@ -87,6 +95,10 @@ int get_function_count(sharp_class *sc) {
 
 int get_interface_count(sharp_class *sc) {
     int count = 0;
+
+    if(sc->baseClass != NULL)
+        count += get_interface_count(sc->baseClass);
+
     for(Int i = 0; i < sc->interfaces.size(); i++) {
         sharp_class *intf = sc->interfaces.get(i);
         if(intf->used)

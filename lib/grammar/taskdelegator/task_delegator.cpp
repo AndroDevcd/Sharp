@@ -4,7 +4,7 @@
 
 #include "task_delegator.h"
 #include "../settings/settings.h"
-#include "../../runtime/ThreadStates.h"
+#include "../../core/thread_state.h"
 
 Int maxWorkers = 0;
 List<worker_thread*> workers;

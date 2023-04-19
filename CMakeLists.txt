@@ -88,10 +88,14 @@ if (SHARPC)
             "lib/grammar/backend/finalizer/generation/code/scheme/*.cpp"
             "lib/util/*.cpp"
             "lib/util/zip/*.cpp"
+            "lib/core/*.cpp"
+            "lib/core/*.h"
+            "lib/core/opcode/*.cpp"
+            "lib/core/opcode/*.h"
     )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/runtime/Opcode.h lib/runtime/Opcode.cpp lib/runtime/ThreadStates.h)
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
 
     add_executable(Sharpc ${SOURCE_FILES})
 elseif(LEGACY)
@@ -123,8 +127,10 @@ elseif(LEGACY)
             "lib/util/*.h"
             "lib/util/zip/*.cpp"
             "lib/util/zip/*.h"
-            "lib/runtime/Opcode.h"
-            "lib/runtime/Opcode.cpp"
+            "lib/core/*.cpp"
+            "lib/core/*.h"
+            "lib/core/opcode/*.cpp"
+            "lib/core/opcode/*.h"
             )
 
 

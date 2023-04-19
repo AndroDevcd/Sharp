@@ -7,7 +7,7 @@
 #include "../../../../frontend/ErrorManager.h"
 #include "../../../../compiler_info.h"
 #include "../../../../settings/settings.h"
-#include "../../../types/function_type.h"
+#include "../../../../../core/function_type.h"
 
 void force_null_safety_check(operation_schema *outScheme, Int endLabel, Ast *ast) {
     APPLY_TEMP_SCHEME(1, *outScheme,

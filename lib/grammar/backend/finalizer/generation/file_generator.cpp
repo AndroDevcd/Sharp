@@ -8,11 +8,11 @@
 #include "class_generator.h"
 #include "function_generator.h"
 #include "../../types/types.h"
-#include "../../../../runtime/Exe.h"
 #include "generator.h"
 #include "../optimization/optimizer.h"
 #include "../../../../util/zip/zlib.h"
 #include "../../../../util/File.h"
+#include "../../../../core/exe_macros.h"
 
  stringstream exeBuf;
 stringstream dataSec;
@@ -163,7 +163,11 @@ void build_field_data(sharp_field *field) {
     exeBuf << ((char)nil) << ((char)nil);
 }
 
-void build_field_data(sharp_class *sc) {
+void build_field_data(sharp_class *sc, bool instanceFieldOnly = false) {
+    if(sc->baseClass != NULL) {
+        build_field_data(sc->baseClass, true);
+    }
+
     for (Int i = 0; i < sc->fields.size(); i++) {
         sharp_field *field = sc->fields.get(i);
 
@@ -171,11 +175,13 @@ void build_field_data(sharp_class *sc) {
             build_field_data(field);
     }
 
-    for (Int i = 0; i < sc->fields.size(); i++) {
-        sharp_field *field = sc->fields.get(i);
+    if(!instanceFieldOnly) {
+        for (Int i = 0; i < sc->fields.size(); i++) {
+            sharp_field *field = sc->fields.get(i);
 
-        if(field->used && check_flag(field->flags, flag_static))
-            build_field_data(field);
+            if (field->used && check_flag(field->flags, flag_static))
+                build_field_data(field);
+        }
     }
 }
 

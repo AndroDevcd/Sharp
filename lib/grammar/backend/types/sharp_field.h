@@ -7,7 +7,7 @@
 
 #include "../../../../stdimports.h"
 #include "../meta_data.h"
-#include "../access_flag.h"
+#include "../../../core/access_flag.h"
 #include "sharp_type.h"
 #include "../dependency/dependancy.h"
 #include "../dependency/injection_request.h"

@@ -154,6 +154,46 @@ void File::read_alltext(const char *f, buffer& _out)
     }
 }
 
+void File::read_alltext(const char *f, string& _out)
+{
+    if(!exists(f))
+        return;
+
+    try {
+
+        FILE* fp=NULL;
+        int64_t len;
+
+        fp = fopen(f,"rb");
+        if(fp == nullptr)
+            return;  // could not open file
+
+
+        stringstream ss;
+        len = file_size(fp);
+        if(len == -1) 1;
+        char c;
+
+        do {
+            c = getc(fp);
+            if(len > 0) {
+                ss << c;
+            } else {
+                break;
+            }
+        }while(len--);
+        fclose(fp);
+
+        _out = ss.str();
+    }
+    catch(std::bad_alloc& ba){
+        return;
+    }
+    catch(std::exception& e){
+        return;
+    }
+}
+
 void File::currentDirectory(string &dir) {
     char buff[FILENAME_MAX]; //create string buffer to hold path
     char *res = GetCurrentDir( buff, FILENAME_MAX );

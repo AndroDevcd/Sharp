@@ -7,7 +7,7 @@
 
 #include "../../../../../../stdimports.h"
 #include "../../../../compiler_info.h"
-#include "../../../../../runtime/Opcode.h"
+#include "../../../../../core/opcode/opcode.h"
 #include "register_allocator.h"
 
 struct code_info;

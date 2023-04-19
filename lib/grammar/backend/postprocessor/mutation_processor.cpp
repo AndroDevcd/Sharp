@@ -5,7 +5,7 @@
 #include "mutation_processor.h"
 #include "../dependency/dependancy.h"
 #include "../../taskdelegator/task_delegator.h"
-#include "../access_flag.h"
+#include "../../../core/access_flag.h"
 #include "../types/sharp_class.h"
 #include "../preprocessor/class_preprocessor.h"
 #include "class_processor.h"

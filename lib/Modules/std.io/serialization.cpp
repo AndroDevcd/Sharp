@@ -34,7 +34,7 @@ string export_obj(SharpObject* obj) {
         if(TYPE(obj->info) == _stype_var) {
             dataStream << (char)obj->ntype;
             dataStream << (char)EXPORT_DATA;
-            if(obj->ntype == _INT8) {
+            if(obj->ntype == type_int8) {
                 dataStream << vm.stringValue(obj) << (char) DATA_END;
             } else {
                 for (uInt i = 0; i < obj->size; i++) {
@@ -212,7 +212,7 @@ SharpObject* load_obj(SharpObject* obj) {
             importStreamInfo.put(refrenceId, object);
 
             INC_REF(object)
-            if(ntype == _INT8) {
+            if(ntype == type_int8) {
                 string str = readString(data);
                 for (Int i = 0; i < size; i++) {
                     object->HEAD[i]
@@ -255,7 +255,7 @@ SharpObject* load_obj(SharpObject* obj) {
                     INC_REF(object)
                     for(Int i = 0; i < size; i++) {
                         expectChar(data, EXPORT_FIELD);
-                        DataType fieldType = (DataType)readInt(data);
+                        data_type fieldType = (data_type)readInt(data);
                         string fieldName = readString(data);
 
                         Field* field = klass->getfield(fieldName);

@@ -8,7 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../dependency/dependancy.h"
 #include "../../List.h"
-#include "../access_flag.h"
+#include "../../../core/access_flag.h"
 #include "../../frontend/parser/Ast.h"
 #include "../meta_data.h"
 #include "sharp_module.h"

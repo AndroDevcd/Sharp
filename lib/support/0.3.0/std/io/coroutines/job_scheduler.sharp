@@ -27,8 +27,7 @@ public def start_scheduler() {
 
 private def calculate_max_threads() {
     n_cores := vm.hardware_concurrency();
-//    n_cores *= 2;
-    n_cores -= 3;
+    n_cores -= 2;
 
     if(n_cores <= 1) {
         //we should only supply short term thread support

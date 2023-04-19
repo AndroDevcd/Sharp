@@ -3,7 +3,7 @@
 //
 
 #include "local_variable_decl.h"
-#include "../../../access_flag.h"
+#include "../../../../../core/access_flag.h"
 #include "../../../../frontend/parser/Ast.h"
 #include "../../../astparser/ast_parser.h"
 #include "../../../../compiler_info.h"

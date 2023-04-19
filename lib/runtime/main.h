@@ -1,5 +1,5 @@
 //
-// Created by BraxtonN on 2/15/2018.
+// Created by bknun on 9/16/2022.
 //
 
 #ifndef SHARP_MAIN_H
@@ -7,32 +7,20 @@
 
 #include "../../stdimports.h"
 
-int runtimeStart(int argc, const char* argv[]);
+int str_start(int argc, const char* argv[]);
 
 void error(string message);
 
 #define progname "sharp"
-#define rev "r8"
+#define rev "r9"
 #define progvers "3.0.0" rev
 
-#ifdef SHARP_PROF_
-enum profilerSort {
-    tm,
-    avgt,
-    calls,
-    ir
-};
-#endif
-
 struct options {
-
     bool debugMode = false;
-
-#ifdef SHARP_PROF_
-    int sortBy = profilerSort::tm;
-#endif
 };
 
 extern options c_options;
+extern string executable;
+extern std::list<string> exeArgs;
 
 #endif //SHARP_MAIN_H

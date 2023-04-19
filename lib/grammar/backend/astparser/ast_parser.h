@@ -6,7 +6,7 @@
 #define SHARP_AST_PARSER_H
 
 #include "../../frontend/parser/Ast.h"
-#include "../access_flag.h"
+#include "../../../core/access_flag.h"
 #include "../types/unresolved_type.h"
 
 struct sharp_class;

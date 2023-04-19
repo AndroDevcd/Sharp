@@ -4,6 +4,7 @@
 
 #include "code_info.h"
 #include "../generator.h"
+#include "../../../../../core/opcode/opcode_macros.h"
 
 void line_info::copy(const line_info &li) {
     start_pc = li.start_pc;

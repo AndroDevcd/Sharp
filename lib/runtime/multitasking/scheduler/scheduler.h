@@ -1,0 +1,67 @@
+//
+// Created by bknun on 9/19/2022.
+//
+
+#ifndef SHARP_SCHEDULER_H
+#define SHARP_SCHEDULER_H
+
+#include "../../../../stdimports.h"
+
+#define TIME_UNIT_MULT 1000          /* Represents how many microseconds/millisecond */
+#define LPTSI ((TIME_UNIT_MULT * 1000) / 150)  /* low priority time slice interval 150 ctx switches/sec */  // ~6.5ms
+#define NPTSI ((TIME_UNIT_MULT * 1000) / 100)  /* norm priority time slice interval 100 ctx switches/sec */ // ~10ms
+#define HPTSI ((TIME_UNIT_MULT * 1000) / 50)  /* high priority time slice interval 50 ctx switches/sec */ // ~20ms
+#define CLOCK_CYCLE 1500                     /* Time between clock cycle switches 1.5ms */
+
+#define CLOCKS_SINCE ((NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime) / CLOCK_CYCLE)
+#define TIME_SINCE (NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime)
+
+struct fiber;
+struct sched_task {
+    fiber *task;
+    sched_task *next, *prev;
+};
+
+struct sharp_thread;
+struct _sched_thread {
+    sharp_thread *thread;
+    _sched_thread *next, *prev;
+};
+
+struct unsched_task {
+    fiber *task;
+    unsched_task *next;
+};
+
+struct _unsched_thread {
+    sharp_thread *thread;
+    _unsched_thread *next;
+};
+
+extern recursive_mutex task_mutex;
+extern recursive_mutex thread_mutex;
+extern uInt clocks;
+extern sched_task *sched_tasks;
+extern _sched_thread *sched_threads;
+extern _sched_thread *last_thread;
+extern unsched_task *unsched_tasks;
+extern _unsched_thread *unsched_threads;
+extern uInt schedTime;
+extern uInt threadCount;
+
+void run_scheduler();
+bool is_thread_ready(sharp_thread *thread);
+void __usleep(unsigned int usec);
+void sched(sharp_thread * thread);
+bool can_sched(fiber*, sharp_thread*);
+bool can_dispose(sched_task*);
+void clear_tasks();
+void dispose(sched_task*);
+void post(sharp_thread*);
+void post(fiber*);
+void sched_unsched_items();
+bool queue_task(fiber*);
+bool queue_thread(sharp_thread*);
+void setupSleepFunction();
+
+#endif //SHARP_SCHEDULER_H

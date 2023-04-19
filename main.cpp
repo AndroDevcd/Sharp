@@ -4,13 +4,10 @@
 
 #ifdef MAKE_COMPILER
     #include "lib/grammar/main.h"
-#include "lib/old_grammar/options.h"
-
+    #include "lib/old_grammar/options.h"
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/main.h"
-#include "lib/runtime/VirtualMachine.h"
-
 #endif
 
 int main(int argc, const char* argv[]) {
@@ -21,7 +18,7 @@ int main(int argc, const char* argv[]) {
     _bootstrap( argc, argv );
 #endif
 #ifndef MAKE_COMPILER
-    result = runtimeStart( argc, argv );
+    result = str_start( argc, argv );
 #endif
 
     now= Clock::realTimeInNSecs();

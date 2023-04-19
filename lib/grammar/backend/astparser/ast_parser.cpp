@@ -3,7 +3,7 @@
 //
 
 #include "ast_parser.h"
-#include "../access_flag.h"
+#include "../../../core/access_flag.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/sharp_class.h"
 #include "../types/sharp_function.h"
