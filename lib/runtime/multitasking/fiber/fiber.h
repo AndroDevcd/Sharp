@@ -6,6 +6,8 @@
 #define SHARP_FIBER_H
 
 #include "../../../../stdimports.h"
+#include "../../memory/sharp_object.h"
+#include "../../memory/vm_stack.h"
 
 class sharp_thread;
 enum fiber_state {
@@ -20,6 +22,11 @@ enum fiber_state {
 
 #define INITIAL_STACK_SIZE 200 // ~3.2kb
 #define STACK_GROW_SIZE 512 // ~8kb
+
+struct fib_mutex {
+    Int id;
+    sharp_object *o;
+};
 
 // cost per fiber: 4.4kb
 // cost per 100k fibers: 440Mb
@@ -40,19 +47,19 @@ public:
     uInt id;
     std::string name;
     Int stackLimit;
-    Cache cache, pc;
+    opcode_instr *rom, *pc;
     fiber_state state;
     int exitVal;
-    Object exceptionObject;
+    object exceptionObject;
     Object fiberObject;
     Method *main;
     Int calls;
     recursive_mutex mut;
     sharp_thread* attachedThread;
     sharp_thread* boundThread;
-    StackElement* dataStack, *sp, *fp;
+    stack_item* stack, *sp, *fp;
     Method *current;
-    Frame *callStack;
+    frame *frames;
     uInt frameLimit;
     uInt frameSize;
     uInt stackSize;
@@ -61,7 +68,7 @@ public:
     Int delayTime;
     bool wakeable;
     bool finished;
-    mutex_t *acquiringMut;
+    fib_mutex *f_lock;
 };
 
 #endif //SHARP_FIBER_H

@@ -6,7 +6,11 @@
 #define SHARP_GARBAGE_COLLECTOR_H
 
 #include "../../../stdimports.h"
+#include "../../util/linked_list.h"
+#include "sharp_object.h"
 #include <atomic>
+
+struct fib_mutex;
 
 enum collection_generation
 {
@@ -52,15 +56,21 @@ struct garbage_collector {
     sharp_object *yMemHead;
     sharp_object *aMemHead;
     sharp_object *oMemHead;
+    linkedlist<fib_mutex*> f_locks;
     std::list<collection_policy> message_queue;
 };
 
 extern garbage_collector gc;
 
-void reserve_bytes(size_t bytes);
+void reserve_bytes(size_t bytes, bool unsafe);
+void release_bytes(size_t bytes);
+void set_memory_limit(Int limit);
+void set_memory_threshold(Int threshold);
+void push_object(sharp_object*);
 void gc_collect(collection_policy);
+fib_mutex* create_mutex(sharp_object*);
 void gc_startup();
-void sedate_self();
+void sleep_gc();
 void kill_gc();
 
 #define GC_COLLECT_MEM() ( gc.managedBytes >= gc.memoryThreshold )
@@ -78,6 +88,12 @@ void kill_gc();
 #define SET_GENERATION(inf, gen) (inf = (uint32_t)(CLASS(inf) | (gen << 28) | (MARKED(inf) << 30) | (HAS_LOCK(inf) << 31)))
 #define SET_INFO(inf, k, gen) (inf = (uint32_t)(k |  (gen << 28)))
 
+#define CHECK_STATE \
+    if(hasSignal(thread_self->signal, tsig_suspend)) \
+        suspend_self(); \
+    if(thread_self->state == THREAD_KILLED || hasSignal(thread_self->signal, tsig_kill)) { \
+        return; \
+    }
 /**
  * Bytes are used via the JEDEC Standard 100B.01
  */
@@ -85,7 +101,10 @@ void kill_gc();
 #define MB_TO_BYTES(bytes) (((uInt)bytes)*1048576)
 #define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
 
+#define DEFAULT_HEAP_SIZE (MB_TO_BYTES(250))
+#define DEFAULT_HEAP_THRESHOLD (MB_TO_BYTES(128))
+
 #define guard_mutex(mut) \
-    std::lock_guard<recursive_mutex> guard(mut);
+    std::lock_guard<recursive_mutex> guard((mut));
 
 #endif //SHARP_GARBAGE_COLLECTOR_H

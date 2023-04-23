@@ -14,7 +14,7 @@
 #define CLOCK_CYCLE 1500                     /* Time between clock cycle switches 1.5ms */
 
 #define CLOCKS_SINCE ((NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime) / CLOCK_CYCLE)
-#define TIME_SINCE (NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime)
+#define TIME_SINCE(tm) (NANO_TOMICRO(Clock::realTimeInNSecs()) - (tm))
 
 struct fiber;
 struct sched_task {
@@ -41,23 +41,20 @@ struct _unsched_thread {
 extern recursive_mutex task_mutex;
 extern recursive_mutex thread_mutex;
 extern uInt clocks;
-extern sched_task *sched_tasks;
-extern _sched_thread *sched_threads;
-extern _sched_thread *last_thread;
 extern unsched_task *unsched_tasks;
 extern _unsched_thread *unsched_threads;
 extern uInt schedTime;
-extern uInt threadCount;
+extern uInt taskCount;
 
 void run_scheduler();
 bool is_thread_ready(sharp_thread *thread);
 void __usleep(unsigned int usec);
-void sched(sharp_thread * thread);
-bool can_sched(fiber*, sharp_thread*);
 bool can_dispose(sched_task*);
 void clear_tasks();
 void dispose(sched_task*);
+void remove_task(sched_task *task);
 void post(sharp_thread*);
+bool is_runnable(fiber *task, sharp_thread *thread);
 void post(fiber*);
 void sched_unsched_items();
 bool queue_task(fiber*);

@@ -9,13 +9,9 @@ enum thread_state {
     THREAD_CREATED      =0x000,
     THREAD_STARTED      =0x001,
     THREAD_RUNNING      =0x002,
-    THREAD_SUSPENDED    =0x003,
-    THREAD_KILLED       =0x004
-};
-
-enum thread_context_state {
-    THREAD_ACCEPTING_TASKS =0x000,
-    THREAD_RUNNING_TASK    =0x001
+    THREAD_SCHED        =0x003,
+    THREAD_SUSPENDED    =0x004,
+    THREAD_KILLED       =0x005
 };
 
 enum thread_priority {

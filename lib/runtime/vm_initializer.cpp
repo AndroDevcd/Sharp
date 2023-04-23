@@ -6,6 +6,9 @@
 #include "exe/exe_processor.h"
 #include "multitasking/thread/stack_limits.h"
 #include "virtual_machine.h"
+#include "multitasking/thread/thread_controller.h"
+#include "reflect/reflect_helpers.h"
+#include "multitasking/scheduler/idle_scheduler.h"
 
 int initialize_virtual_machine()
 {
@@ -21,7 +24,8 @@ int initialize_virtual_machine()
 
 
     create_main_thread();
-    // todo: startup garbage collector
+    gc_startup();
+    idle_handler_startup();
 
     /**
      * Resolve Frequently Used classes
@@ -44,7 +48,7 @@ int initialize_virtual_machine()
     vm.thread_class = locate_class("std.io#thread");
     vm.exception_class = locate_class("std#exception");
     vm.error_class = locate_class("std#error");
-    vm.fiber_class = locate_class("std.io.fiber#fiber");
+    vm.fiber_class = locate_class("std.io.fiber#fiber"); // todo: check if any of these classes are null
     cout.precision(16);
 
     new_class(&vm.memoryExcept, vm.out_of_memory_except);

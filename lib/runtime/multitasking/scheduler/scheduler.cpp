@@ -6,13 +6,22 @@
 #include "../../../util/time.h"
 #include "../../memory/garbage_collector.h"
 #include "../../../core/thread_state.h"
+#include "../../multitasking/thread/sharp_thread.h"
+#include "../../virtual_machine.h"
+#include "../thread/thread_controller.h"
+#include "../../multitasking/fiber/fiber.h"
+#include "idle_scheduler.h"
 
-uInt schedTime = 0, clocks = 0, threadCount = 0; // todo: populate this value later as a read only outside of main thread
-sched_task *sched_tasks = nullptr, *next_task = nullptr, *last_task = nullptr;
-_sched_thread *sched_threads = nullptr, *last_thread = nullptr;
+uInt schedTime = 0, clocks = 0;
+uInt taskCount = 0; /* Read-Only */
+
+// internal
+sched_task *sched_tasks = nullptr;
+_sched_thread *sched_threads = nullptr;
+
+// external
 unsched_task *unsched_tasks = nullptr;
 _unsched_thread *unsched_threads = nullptr;
-bool postIdleTasks = false;
 
 recursive_mutex task_mutex;
 recursive_mutex thread_mutex;
@@ -21,14 +30,15 @@ void __usleep(unsigned int usec)
 {
 #ifdef COROUTINE_DEBUGGING
     if(thread_self)
-        thread_self->sleepTime += usec;
+        thread_self->timeSleeping += usec;
 #endif
 
     std::this_thread::sleep_for(std::chrono::microseconds(usec));
 }
 
 void run_scheduler() {
-    _sched_thread *scht;
+    _sched_thread *schth;
+    sched_task *scht;
     uInt sleepTm = 0;
 
 #ifdef WIN32_
@@ -50,29 +60,66 @@ void run_scheduler() {
         clocks++;
         schedTime = NANO_TOMICRO(Clock::realTimeInNSecs());
         sched_unsched_items();
-        scht = sched_threads;
+        schth = sched_threads;
 
-        if(next_task != nullptr) {
+        if(scht == nullptr) {
+            scht = sched_tasks;
+        }
+
+        // prepare threads for context switch
+        while (scht != nullptr) {
+            if (schth->thread->id == gc_threadid || schth->thread->id == idle_threadid) {
+                scht = scht->next;
+                continue;
+            }
+
+            if (vm.state >= VM_SHUTTING_DOWN) {
+                break;
+            }
+
+            auto next = schth->next;
+            thread_sched_prepare(schth);
+            schth = next;
+        }
+
+        __usleep(0); // yield to give threads some time to go into sched mode
+        schth = sched_threads;
+        while (schth != nullptr) {
+            if(!can_sched_thread(schth->thread)) {
+                continue;
+            }
+
+            if(scht == nullptr) {
+                scht = sched_tasks;
+            }
+
+            bool taskWrap = false;
             while (scht != nullptr) {
-                if (scht->thread->id == gc_threadid) {
-                    scht = scht->next;
-                    continue;
-                }
-
                 if (vm.state >= VM_SHUTTING_DOWN) {
                     break;
                 }
 
+                if(is_task_idle(scht)) {
+                    auto next = scht->next;
+                    post_idle_task(scht);
+                    remove_task(scht);
+                    scht = next;
+                    goto wrap;
+                }
+                else if(is_runnable(scht->task, schth->thread)) {
+                    queue_task(schth->thread, scht);
+                    break;
+                }
 
-                scht = sched_thread(scht);
+                scht = scht->next;
+
+                wrap:
+                if(scht == NULL && !taskWrap) {
+                    taskWrap = true;
+                    scht = sched_tasks;
+                }
             }
         }
-
-        if(next_task != nullptr)
-        {
-            if (next_task->next == nullptr) next_task = sched_tasks;
-            else next_task = next_task->next;
-        } else next_task = sched_tasks;
 
         if(vm.state >= VM_SHUTTING_DOWN) {
             while(vm.state != VM_TERMINATED) {
@@ -85,8 +132,9 @@ void run_scheduler() {
             return;
         }
 
-        sleepTm = CLOCK_CYCLE - TIME_SINCE;
+        sleepTm = CLOCK_CYCLE - TIME_SINCE(schedTime);
         if(sleepTm > 0) __usleep(sleepTm);
+        else __usleep(0);
     } while(true);
 }
 
@@ -151,17 +199,11 @@ bool is_thread_ready(sharp_thread *thread) {
 }
 
 bool is_runnable(fiber *task, sharp_thread *thread) {
-    if(task->state == FIB_SUSPENDED && task->wakeable) {
+    if(task->attachedThread == NULL && task->state == FIB_SUSPENDED && task->wakeable) {
         return (task->boundThread == thread || task->boundThread == NULL);
     }
 
     return false;
-}
-
-bool can_sched(fiber *task, sharp_thread *thread) {
-    return is_runnable(task, thread)
-           && (task->acquiringMut == NULL || task->acquiringMut->fiberid == -1)
-           &&   (task->delayTime <= 0 || (schedTime /1000L) > task->delayTime);
 }
 
 void post(sharp_thread* thread) {
@@ -205,16 +247,19 @@ bool queue_task(fiber *fib) {
 
     if(task)
     {
+        task->prev = NULL;
+        task->task = fib;
+
         if(sched_tasks == NULL) {
             sched_tasks = task;
+            task->next = NULL;
         } else {
-            last_task->next = task;
+            sched_tasks->prev = task;
+            task->next = sched_tasks;
+            sched_tasks = task;
         }
 
-        task->prev = last_task;
-        task->next = NULL;
-        task->task = fib;
-        last_task = task;
+        taskCount++;
         return true;
     }
 
@@ -226,58 +271,51 @@ bool queue_thread(sharp_thread* thread) {
 
     if(t)
     {
+        t->prev = NULL;
+        t->thread = thread;
+
         if(sched_threads == NULL) {
             sched_threads = t;
+            t->next = NULL;
         } else {
-            last_thread->next = t;
+            sched_threads->prev = t;
+            t->next = sched_threads;
+            sched_threads = t;
         }
 
-        t->prev = last_thread;
-        t->next = NULL;
-        t->thread = thread;
-        last_thread = t;
         return true;
     }
 
     return false;
 }
 
-void dispose(sched_task *task) {
+void remove_task(sched_task *task) {
     guard_mutex(task_mutex)
-    free_struct(task->task);
 
-    if(task == last_task)
-        last_task = task->prev;
-    if(task == sched_tasks)
-        sched_tasks = task->next;
-    if(task->prev != NULL)
+    if(task->next == NULL) {
+        if(task->prev != NULL) {
+            task->prev->next = NULL;
+        } else {
+            sched_tasks = NULL;
+        }
+    } else if(task->prev == NULL) {
+        if(task->next != NULL) {
+            task->next->prev = NULL;
+        } else {
+            sched_tasks = NULL;
+        }
+    } else {
         task->prev->next = task->next;
-    if(task->next != NULL)
         task->next->prev = task->prev;
+    }
 
-    std::free(task->task);
+    taskCount--;
     std::free(task);
 }
 
-void sched(sharp_thread *thread) {
-    sched_task *starting_task = next_task;
-    sched_task *end_task = NULL, *task = starting_task;
-    bool wrapped = false;
-
-    while(task != end_task) {
-        if (vm.state >= VM_SHUTTING_DOWN) {
-            break;
-        }
-
-        if(can_sched(task->task, thread)) {
-            return post_task(thread, task->task);
-        }
-
-        task = task->next;
-        if(task == NULL && !wrapped) {
-            wrapped = true;
-            end_task = starting_task->next;
-            task = sched_tasks;
-        }
-    }
+void dispose(sched_task *task) {
+    guard_mutex(task_mutex)
+    task->task->free();
+    std::free(task->task);
+    remove_task(task);
 }

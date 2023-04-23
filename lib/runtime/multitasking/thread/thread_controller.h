@@ -10,9 +10,12 @@
 
 bool can_dispose(_sched_thread*);
 void dispose(_sched_thread*);
-_sched_thread* sched_thread(_sched_thread*);
+void thread_sched_prepare(_sched_thread*);
+bool can_sched_thread(sharp_thread *thread);
+void queue_task(sharp_thread *thread, sched_task *);
 void create_main_thread();
 sharp_thread* create_gc_thread();
+sharp_thread* create_idle_handler_thread();
 sharp_thread* get_main_thread();
 sharp_function* get_main_method();
 uInt new_thread_id();
@@ -63,8 +66,8 @@ void*
 
 // context switching
 void enable_context_switch(sharp_thread*, bool);
-void wait_for_posted_task(sharp_thread*);
-void post_task(sharp_thread*, sched_task*);
+void observe_queue(sharp_thread*);
+bool queue_filled();
 
 // priority setting
 int set_thread_priority(sharp_thread*, int);

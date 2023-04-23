@@ -8,21 +8,87 @@
 #include "../multitasking/thread/thread_controller.h"
 #include "../multitasking/thread/sharp_thread.h"
 #include "../../core/thread_state.h"
+#include "../error/vm_exception.h"
+#include "../multitasking/fiber/fiber.h"
+#include "sharp_object.h"
 
 garbage_collector gc;
 recursive_mutex gc_lock;
 
-void reserve_bytes(size_t bytes) {
+void reserve_bytes(size_t bytes, bool unsafe = false) {
     guard_mutex(gc_lock)
 
-    if((bytes + gc.managedBytes) >= gc.memoryLimit) {
-        gc_collect();
-    }
-
-    if((bytes + gc.managedBytes) < gc.memoryLimit) {
+    if(unsafe) {
         gc.managedBytes += bytes;
     } else {
-        throw vm_exception(vm.out_of_memory_exception, "out of memory");
+        if ((bytes + gc.managedBytes) >= gc.memoryLimit) {
+            gc_collect(policy_full_sweep);
+        }
+
+        if ((bytes + gc.managedBytes) < gc.memoryLimit) {
+            gc.managedBytes += bytes;
+        } else {
+            throw vm_exception(vm.out_of_memory_except, "out of memory");
+        }
+    }
+}
+
+void set_memory_limit(Int limit) {
+    gc.memoryLimit = limit;
+}
+
+void set_memory_threshold(Int threshold) {
+    gc.memoryThreshold = threshold;
+}
+
+void release_bytes(size_t bytes) {
+    guard_mutex(gc_lock)
+
+    if(gc.managedBytes - bytes >= 0) {
+        gc.managedBytes -= bytes;
+    } else {
+        gc.managedBytes = 0;
+    }
+}
+
+void push_object(sharp_object *o) {
+    guard_mutex(gc_lock)
+    auto old = gc.yMemHead;
+    o->next = old;
+    gc.yMemHead = o;
+}
+
+bool isMutex(void *o, node<fib_mutex*> *node) {
+    return (sharp_object*)o == node->data->o;
+}
+
+fib_mutex* get_mutex(sharp_object *o) {
+    auto node = gc.f_locks.node_at(o, isMutex);
+    return node ? node->data : nullptr;
+}
+
+void remove_mutex(sharp_object *o) {
+    guard_mutex(gc_lock)
+    auto mut = get_mutex(o);
+
+    if(mut) {
+        gc.f_locks.delete_at(o, isMutex);
+        delete mut;
+    }
+}
+
+fib_mutex* create_mutex(sharp_object *o) {
+    guard_mutex(gc_lock)
+    auto mut = get_mutex(o);
+
+    if(mut) return mut;
+    else {
+        mut = new fib_mutex();
+        mut->id = -1;
+        mut->o = o;
+        SET_LOCK(o->info, 1);
+        gc.f_locks.createnode(mut);
+        return mut;
     }
 }
 
@@ -30,28 +96,26 @@ void age_mem(sharp_object *prev, sharp_object *ager, sharp_object *newHeap)
 {
     if(prev != nullptr && ager != nullptr) {
         prev->next = ager->next;
-        if(newHeap->next == nullptr) {
-            newHeap->next = ager;
-            ager->next = nullptr;
-        } else {
-            auto tmp = newHeap->next;
-            newHeap->next = ager;
-            ager->next = tmp;
-        }
+        ager->next = newHeap;
+        newHeap = ager;
     }
 }
 
 void mark_memory(sharp_object *heap) {
-    sharp_object *pev = nullptr;
+    sharp_object *prev = nullptr;
+    if(heap != nullptr) {
+        guard_mutex(gc_lock)
+        heap = heap->next;
+    }
 
     while(heap != nullptr)
     {
-        // todo: check thread state
+        CHECK_STATE
 
         if(GENERATION(heap->info) <= gc_old) {
             if(heap->refCount == 0) {
                 MARK(heap->info, 1);
-            } else {
+            } else if(heap->refCount != invalid_references) {
 
                 auto next = heap->next;
                 switch (GENERATION(heap->info)) {
@@ -92,32 +156,36 @@ void sweep(sharp_object *prev, sharp_object *obj) {
 
                 if(child != nullptr) {
                     dec_ref(child)
-
                     if(child->refCount == 0) MARK(child->info, 1);
                 }
             }
 
-            gc.managedBytes -= sizeof(object) * obj->size;
+            release_bytes(sizeof(object) * obj->size);
             std::free(obj->node);
         }
 
-        managedBytes -= sizeof(sharp_object);
+        release_bytes(sizeof(sharp_object));
         prev->next = obj->next;
 
-        // todo: possibly need lock dropping here
+        if(HAS_LOCK(obj->info))
+            remove_mutex(obj);
         std::free(obj);
     }
 }
 
 void sweep_memory(sharp_object *heap) {
     sharp_object *prev = nullptr;
+    if(heap != nullptr) {
+        guard_mutex(gc_lock)
+        heap = heap->next;
+    }
 
     while(heap != nullptr)
     {
-        // todo: check thread state
+        CHECK_STATE
 
         if(MARKED(heap->info)) {
-            if(heap->refCount > 0) {
+            if(heap->refCount > 0 || heap->refCount == invalid_references) {
                 MARK(heap->info, 0);
             } else {
 
@@ -155,7 +223,7 @@ void mark_and_sweep(sharp_object *heap) {
  * @return Returns the gc heap generation
  */
 sharp_object* select_heap_collection() {
-    auto currentTime = NANO_TOMILLS(Clock::realTimeInNSecs());
+    auto currentTime = NANO_TOMILL(Clock::realTimeInNSecs());
 
     if(COLLECTION_WINDOW_YOUNG(currentTime)) {
         return gc.yMemHead;
@@ -181,18 +249,16 @@ void update_threshold() {
 
         avg = total / MEMORY_POOL_SAMPLE_SIZE;
         samplesReceived = 0;
-        if((avg + (0.15 * avg)) < memoryLimit)
-            memoryThreshold = avg + (0.15 * avg);
-        else memoryThreshold = avg;
+        if((avg + (0.15 * avg)) < gc.memoryLimit)
+            gc.memoryThreshold = avg + (0.15 * avg);
+        else gc.memoryThreshold = avg;
     } else {
-        memoryPoolResults[samplesReceived++] = managedBytes;
+        memoryPoolResults[samplesReceived++] = gc.managedBytes;
     }
 }
 
 void gc_collect(collection_policy policy) {
-    guard_mutex(gc_lock) // todo: we might be able to omit the mutex lock (protect update_threshold) and start the heap search on the first item only for partial sweep
-
-    if(collection_allowed())
+    if(collection_allowed()) // todo: also collect fib_mutex that have 0 references
     {
         switch(policy) {
 
@@ -204,7 +270,7 @@ void gc_collect(collection_policy policy) {
             }
 
             case policy_full_sweep: {
-                // todo: stop the world
+                suspend_all_threads(true);
                 mark_and_sweep(
                    gc.yMemHead
                 );
@@ -214,6 +280,7 @@ void gc_collect(collection_policy policy) {
                 mark_and_sweep(
                    gc.oMemHead
                 );
+                resume_all_threads(true);
                 break;
             }
         }
@@ -226,18 +293,17 @@ void gc_main_loop()
 {
     for(;;) {
         check_state:
-        if(hasSignal(tself->signal, tsig_suspend))
-            suspend_self();
-        if(tself->state == THREAD_KILLED || hasSignal(tself->signal, tsig_kill)) {
-            return;
-        }
+        CHECK_STATE
 
         message:
         while (!gc.message_queue.empty()) {
-            guard_mutex(gc_lock)
             collection_policy policy;
-            policy = *gc.message_queue.end();
-            gc.message_queue.pop_back()
+
+            {
+                guard_mutex(gc_lock)
+                policy = *gc.message_queue.end();
+                gc.message_queue.pop_back();
+            }
 
             gc_collect(policy);
         }
@@ -245,7 +311,7 @@ void gc_main_loop()
         do {
             __usleep(GC_CLOCK_CYCLE);
 
-            if(state == SLEEPING) sedate_self();
+            if(gc.state == SLEEPING) sleep_gc();
             if(!gc.message_queue.empty()) goto message;
 
             if(GC_COLLECT_MEM()) {
@@ -277,7 +343,7 @@ gc_main(void *pVoid) {
 
     try {
         gc_main_loop();
-    } catch(Exception &e){
+    } catch(vm_exception &e){
         /* Should never happen */
         sendSignal(thread_self->signal, tsig_except, 1);
     }
@@ -302,8 +368,8 @@ void gc_startup() {
 }
 
 
-void sedate_self() {
-    Thread* self = thread_self;
+void sleep_gc() {
+    sharp_thread* self = thread_self;
     gc.state = SLEEPING;
     self->state = THREAD_SUSPENDED;
 

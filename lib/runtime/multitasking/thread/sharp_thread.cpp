@@ -4,9 +4,12 @@
 
 #include "sharp_thread.h"
 #include "../../../core/thread_state.h"
+#include "thread_controller.h"
+
+
+bool foo() {}
 
 void init_struct(sharp_thread *thread) {
-    init_struct(&thread->hs);
     thread->scht = nullptr;
     new(&thread->boundFibers) atomic<Int>();
     new (&thread->mut) recursive_mutex();
@@ -27,8 +30,9 @@ void init_struct(sharp_thread *thread) {
     init_struct(&thread->args);
     thread->mainMethod = nullptr;
     thread->lastRanMicros = 0;
-    thread->execution_state = THREAD_ACCEPTING_TASKS;
     thread->thread = nullptr;
+    init_struct(&thread->queueNotification);
+    thread->queueNotification.cond = queue_filled;
 #ifdef COROUTINE_DEBUGGING
     thread->timeSleeping = 0;
     thread->switched = 0;

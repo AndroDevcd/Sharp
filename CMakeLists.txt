@@ -22,7 +22,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -mno-red-zone -Werror -lstdc++  -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
-set(SHARPC "build")
+#set(SHARPC "build")
 #set(LEGACY "build")
 
 # compiler
@@ -141,10 +141,30 @@ else()
     #virtual machine
     add_definitions(-DDEBUGGING)
 
-    #            "lib/runtime/jit.cpp.old"
-    #            "lib/runtime/jit.h.old"
-    set(SOURCE_FILES main.cpp lib/runtime/scheduler/scheduler.cpp lib/runtime/main.cpp lib/runtime/architecture.h lib/runtime/List.h lib/runtime/memory/GarbageCollector.cpp lib/runtime/memory/GarbageCollector.h lib/runtime/symbols/Object.h lib/runtime/symbols/Exception.cpp lib/runtime/symbols/Exception.h lib/runtime/symbols/Field.h lib/runtime/symbols/ClassObject.cpp lib/runtime/symbols/ClassObject.h lib/runtime/register.h lib/runtime/fiber.h lib/runtime/fiber.cpp lib/runtime/symbols/Method.h lib/util/fmt/include/core.h lib/util/fmt/include/format.h lib/util/fmt/include/format-inl.h lib/util/fmt/include/ostream.h lib/util/fmt/include/posix.h lib/util/fmt/include/printf.h lib/util/fmt/include/ranges.h lib/util/fmt/include/time.h lib/util/fmt/src/format.cc lib/util/fmt/src/posix.cc lib/runtime/Thread.cpp lib/runtime/Thread.h lib/runtime/symbols/Object.cpp lib/runtime/Manifest.h lib/runtime/Manifest.cpp lib/runtime/Exe.h lib/runtime/Exe.cpp lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/util/zip/zlib.cpp lib/util/zip/zlib.h lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/runtime/VirtualMachine.cpp lib/runtime/VirtualMachine.h lib/runtime/main.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h stdimports.h lib/runtime/Opcode.h lib/Modules/std.io/fileio.cpp lib/Modules/std.io/fileio.h lib/runtime/profiler.h lib/runtime/profiler.cpp lib/runtime/SignalHandler.cpp lib/runtime/termios.cpp lib/runtime/termios.h lib/Modules/math/cmath.cpp lib/Modules/math/cmath.h lib/Modules/std/Random.cpp lib/Modules/std/Random.h lib/Modules/std.os.gui/win/Gui.cpp lib/Modules/std.os.gui/win/Gui.h lib/runtime/Opcode.cpp lib/util/HashMap.h lib/runtime/symbols/symbol.h lib/runtime/symbols/symbol.cpp lib/runtime/symbols/param.h lib/Modules/std.io/memory.cpp lib/Modules/std.io/memory.h lib/runtime/snb/snb.cpp lib/runtime/snb/snb.h lib/runtime/Library.h lib/runtime/snb/util.h lib/runtime/scheduler/scheduler.h lib/runtime/linked_list.h lib/Modules/std.io/serialization.h lib/Modules/std.io/serialization.cpp lib/runtime/architecture.h lib/runtime/OpcodeInjection.h
-             lib/runtime/scheduler/thread_controller.cpp lib/runtime/scheduler/thread_controller.h lib/runtime/scheduler/task_controller.cpp lib/runtime/scheduler/task_controller.h lib/runtime/scheduler/thread_exception_controller.cpp lib/runtime/scheduler/thread_exception_controller.h lib/runtime/scheduler/idle_scheduler.cpp lib/runtime/scheduler/idle_scheduler.h lib/grammar/backend/access_flag.h lib/grammar/backend/access_flag.cpp)
+    file(GLOB runtime_SRC
+            "lib/runtime/error/*.h"
+            "lib/runtime/error/*.cpp"
+            "lib/runtime/exe/*.h"
+            "lib/runtime/exe/*.cpp"
+            "lib/runtime/memory/*.h"
+            "lib/runtime/memory/*.cpp"
+            "lib/runtime/reflect/*.h"
+            "lib/runtime/reflect/*.cpp"
+            "lib/runtime/multitasking/*/*.h"
+            "lib/runtime/multitasking/*/*.cpp"
+            "lib/runtime/types/*.h"
+            "lib/runtime/types/*.cpp"
+            "lib/runtime/*.h"
+            "lib/runtime/*.cpp"
+            "lib/core/*.cpp"
+            "lib/core/*.h"
+            "lib/core/opcode/*.cpp"
+            "lib/core/opcode/*.h"
+            "lib/util/*.cpp"
+            "lib/util/*.h"
+            )
+
+    set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC})
     if (POSIX)
         set(LRT_LIB -lrt -ldl)
     endif ()

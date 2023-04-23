@@ -69,6 +69,22 @@ sharp_thread* create_gc_thread() {
     return gc_thread;
 }
 
+sharp_thread* create_idle_handler_thread() {
+    sharp_thread* idle_thread = (sharp_thread*)malloc(
+            sizeof(sharp_thread));
+
+    string threadName = "Idle Handler";
+    uInt threadId = new_thread_id();
+    if(threadId == ILL_THREAD_ID)
+        return NULL; // unlikely
+
+    setup_thread(idle_thread, threadName, threadId, true, nullptr, false);
+    idle_thread->priority = THREAD_PRIORITY_LOW;
+
+    post(idle_thread);
+    return idle_thread;
+}
+
 /**
  * We must use sendSignal() synanomyously with interrupt and other calls
  * that may kill a thread because this bit flag is used by the JIT Runtime
@@ -259,51 +275,22 @@ int set_thread_priority(sharp_thread* thread, int priority) {
     return RESULT_ILL_PRIORITY_SET;
 }
 
-void post_task(sharp_thread* thread, sched_task *newTask) {
-    try_handshake(&thread->hs, newTask, HANDSHAKE_NEW_TASK, CLOCK_CYCLE / threadCount);
-}
-
-void wait_for_posted_task(sharp_thread* thread) {
-    fiber *this_fiber = thread->scht->task;
-#ifdef COROUTINE_DEBUGGING
-    thread->switched++;
-    Int start = NANO_TOMICRO(Clock::realTimeInNSecs());
-#endif
-
-    if(this_fiber->finished) {
-        if(thread->boundFibers > 1 || this_fiber->boundThread != thread) {
-            dispose(thread->scht);
-        }
-        else {
-#ifdef COROUTINE_DEBUGGING
-            thread->switched++;
-            thread->contextSwitchTime += NANO_TOMICRO(Clock::realTimeInNSecs()) - start;
-#endif
-            return;
-        }
-    } else {
-        set_attached_thread(this_fiber, NULL);
-
-        if(this_fiber->state == FIB_RUNNING) {
-            set_task_state(thread, this_fiber, FIB_SUSPENDED, NO_DELAY);
-        }
-    }
-
-    while (true) {
-        auto data = listen(&thread->hs);
-
-        if(data.key == HANDSHAKE_NEW_TASK) {
-            thread->scht = (sched_task*) data.value;
-            set_task_state(thread, thread->scht->task, FIB_RUNNING, NO_DELAY);
-            break;
-        }
-    }
-}
-
 void enable_context_switch(sharp_thread* thread, bool enable) {
-    guard_mutex(mutex);
+    guard_mutex(thread->mut);
     sendSignal(thread->signal, tsig_context_switch, (enable ? 1 : 0));
 }
+
+void observe_queue(sharp_thread *thread) {
+    thread->state = THREAD_SCHED;
+    wait_for_notification(&thread->queueNotification);
+    thread->state = THREAD_RUNNING;
+    enable_context_switch(thread, false);
+}
+
+bool queue_filled() {
+    return thread_self->queue != nullptr;
+}
+
 
 uInt start_thread(sharp_thread* thread, size_t stackSize) {
     if (thread_self != NULL && (thread == NULL || thread->state == THREAD_STARTED))
@@ -395,7 +382,6 @@ void setup_thread(sharp_thread* thread) {
     if(thread->id != main_threadid){
         auto task = create_task(thread->name, thread->mainMethod);
         bind_task(task, thread);
-        set_context_state(thread, THREAD_ACCEPTING_TASKS);
 
         if(thread->currentThread.o != nullptr
            && IS_CLASS(thread->currentThread.o->info)) {
@@ -684,9 +670,9 @@ void resume_all_threads(bool withMarking) {
 }
 
 void suspend_all_threads(bool withMarking) {
-    GUARD(thread_mutex)
+    GUARD(thread_mutex);
     _sched_thread *scht = sched_threads;
-    Thread *thread;
+    sharp_thread *thread;
 
     while(scht != NULL)
     {
@@ -849,21 +835,26 @@ void dispose(_sched_thread *scht) {
  * @return The next thread to be
  * .
  */
-_sched_thread* sched_thread(_sched_thread *scht) {
-    _sched_thread *next_thread = scht->next;
+void thread_sched_prepare(_sched_thread *scht) {
     if (can_dispose(scht)) {
         dispose(scht);
-        return next_thread;
+        return;
     } else if(scht->thread->state != THREAD_RUNNING)
-        return next_thread;
+        return;
 
     if (is_thread_ready(scht->thread)) {
         enable_context_switch(scht->thread, true);
-        _usleep(1)
     }
+}
 
-    if(scht->thread->waiting)
-        sched(scht->thread);
+bool can_sched_thread(sharp_thread *thread) {
+    return hasSignal(thread->signal, tsig_context_switch) && thread->state == THREAD_SCHED;
+}
 
-    return next_thread;
+void queue_task(sharp_thread *thread, sched_task *task) {
+    if(thread->queue == NULL) {
+        set_attached_thread(task->task, thread);
+        thread->queue = task;
+        send_notification()
+    }
 }

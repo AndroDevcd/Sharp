@@ -6,23 +6,25 @@
 #include "../../../stdimports.h"
 #include "garbage_collector.h"
 #include "../virtual_machine.h"
+#include "../error/vm_exception.h"
 
-void* _malloc(uInt bytes)
+template<class T>
+T* malloc_mem(uInt bytes, bool unsafe)
 {
-    void* ptr =nullptr;
-    reserve_bytes(bytes);
+    T* ptr =nullptr;
+    reserve_bytes(bytes, unsafe);
 
-    ptr=malloc(bytes);
+    ptr=(T*)malloc(bytes);
     if(ptr == nullptr) {
-        throw vm_exception(vm.out_of_memory_exception, "out of memory");
+        throw vm_exception(vm.out_of_memory_except, "out of memory");
     }
 
     return ptr;
 }
 
 template<class T>
-T* malloc_struct(uInt bytes, uInt size) {
-    T* data = (T*)_malloc(bytes);
+T* malloc_struct(uInt bytes, uInt size, bool unsafe) {
+    T* data = malloc_mem<T>(bytes, unsafe);
 
     for(uInt i = 0; i < size; i++)
         init_struct(&data[i]);

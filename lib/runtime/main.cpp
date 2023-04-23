@@ -10,6 +10,7 @@
 #include "../util/File.h"
 #include "vm_initializer.h"
 #include "virtual_machine.h"
+#include "multitasking/scheduler/scheduler.h"
 
 string executable;
 
@@ -85,11 +86,12 @@ int run_app() {
         unsigned int oldSize = (virtualStackSize * sizeof(stack_item)) / KB_TO_BYTES(1);
         virtualStackSize = vm.manifest.threadLocals + (KB_TO_BYTES(64) / sizeof(stack_item));
         unsigned int updatedBytes = (virtualStackSize * sizeof(stack_item)) / KB_TO_BYTES(1);
-        if(internalStackUpdated) {
-            fprintf(stdout, "Virtual stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
-                    oldSize, vm.manifest.application.c_str(), updatedBytes);
-        }
+        fprintf(stdout, "Virtual stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
+                oldSize, vm.manifest.application.c_str(), updatedBytes);
     }
+
+    // todo: start main thread
+    run_scheduler();
 
     bail:
     shutdown();
@@ -103,7 +105,8 @@ int  str_start(int argc, const char* argv[]) {
         return 1;
     }
 
-    // todo initialize garbage collector here
+    set_memory_limit(DEFAULT_HEAP_SIZE);
+    set_memory_threshold(DEFAULT_HEAP_THRESHOLD);
 
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){

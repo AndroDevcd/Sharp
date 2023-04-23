@@ -1,4 +1,4 @@
-//
+`i//
 // Created by bnunnally on 8/17/21.
 //
 
@@ -79,7 +79,7 @@ Int bind_task(fiber* task, sharp_thread* thread) {
     guard_mutex(task->mut)
 
     if(thread != nullptr) {
-        if(thread->state != THREAD_KILLED || !hasSignal(thread->signal, tsig_kill)) {
+        if(thread->state != THREAD_KILLED && !hasSignal(thread->signal, tsig_kill)) {
             task->boundThread = thread;
             thread->boundFibers++;
             return 0;

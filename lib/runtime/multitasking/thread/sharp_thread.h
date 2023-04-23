@@ -5,10 +5,10 @@
 #ifndef SHARP_SHARP_THREAD_H
 #define SHARP_SHARP_THREAD_H
 
-#include "handshake.h"
 #include "../scheduler/scheduler.h"
 #include "../../memory/sharp_object.h"
 #include "../../../grammar/backend/types/sharp_function.h"
+#include "notification_helper.h"
 
 #define ILL_THREAD_ID -1
 #define THREAD_MAP_SIZE 0x2000
@@ -16,6 +16,7 @@
 
 #define main_threadid 0x0
 #define gc_threadid 0x1
+#define idle_threadid 0x2
 
 /**
  * Send a signal to shutdown and or sleep a thread and more
@@ -27,7 +28,8 @@
 extern thread_local sharp_thread* thread_self;
 
 struct sharp_thread {
-    handshake hs;
+    atomic<sched_task*> queue;
+    notification queueNotification;
     sched_task *scht;
     atomic<Int> boundFibers;
     recursive_mutex mut;
@@ -47,7 +49,6 @@ struct sharp_thread {
     object currentThread, args;
     sharp_function* mainMethod;
     uInt lastRanMicros;
-    int execution_state;
 #ifdef COROUTINE_DEBUGGING
     Int timeSleeping, switched, skipped,
             actualSleepTime, contextSwitchTime, timeLocking;

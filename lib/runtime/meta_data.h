@@ -28,5 +28,7 @@ struct meta_data {
 };
 
 void init_struct(file_data *fd);
+string get_info(file_data *file, Int line);
+string get_line_info(file_data *file, Int line);
 
 #endif //SHARP_META_DATA_H
