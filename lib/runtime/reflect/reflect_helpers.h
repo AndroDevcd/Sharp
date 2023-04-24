@@ -16,8 +16,8 @@ sharp_class* locate_class(const char *);
 
 
 // Member assignment
-void assign_number_field(sharp_object* o, double value);
-
+void assign_numeric_field(sharp_object* o, uInt index, double value);
+void assign_string_field(sharp_object* o, string &value);
 bool is_static_class(object*);
 
 #endif //SHARP_REFLECT_HELPERS_H

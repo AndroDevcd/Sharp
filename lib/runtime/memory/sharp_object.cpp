@@ -68,6 +68,25 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
     return o;
 }
 
+sharp_object* create_object(Int size, bool unsafe) {
+    if(size > 0)
+    {
+        auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+
+        init_struct(o);
+        o->size = size;
+        o->refCount = invalid_references;
+        o->type = type_object;
+        SET_GENERATION(o->info, gc_young);
+        push_object(o);
+
+        o->node = malloc_struct<object>(sizeof(object) * size, unsafe);
+        return o;
+    }
+
+    return nullptr;
+}
+
 sharp_object* create_object(Int size, data_type type, bool unsafe) {
     if(size > 0)
     {
@@ -89,7 +108,7 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
 
 void unlock_object(sharp_object *o) {
     auto mut = create_mutex(o);
-    auto task = thread_self->scht->task;
+    auto task = thread_self->task;
 
     if(mut->id == task->id) {
         mut->id = -1;
@@ -98,7 +117,7 @@ void unlock_object(sharp_object *o) {
 
 void lock_object(sharp_object *o) {
     auto mut = create_mutex(o);
-    auto task = thread_self->scht->task;
+    auto task = thread_self->task;
     auto thread = thread_self;
 
     if(mut->id == task->id) {

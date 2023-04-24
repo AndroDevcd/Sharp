@@ -58,6 +58,7 @@ CXX11_INLINE void copy_object(object *to, object *from);
 CXX11_INLINE void copy_object(object *to, sharp_object *from);
 sharp_object* create_object(sharp_class* sc, bool unsafe = false);
 sharp_object* create_object(Int size, data_type type, bool unsafe = false);
+sharp_object* create_object(Int size, bool unsafe = false);
 void lock_object(sharp_object *o);
 void unlock_object(sharp_object *o);
 

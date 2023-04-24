@@ -11,6 +11,7 @@
 #include "../thread/thread_controller.h"
 #include "../../multitasking/fiber/fiber.h"
 #include "idle_scheduler.h"
+#include "../fiber/task_controller.h"
 
 uInt schedTime = 0, clocks = 0;
 uInt taskCount = 0; /* Read-Only */
@@ -82,7 +83,7 @@ void run_scheduler() {
             schth = next;
         }
 
-        __usleep(0); // yield to give threads some time to go into sched mode
+        std::this_thread::yield(); // yield to give threads some time to go into sched mode
         schth = sched_threads;
         while (schth != nullptr) {
             if(!can_sched_thread(schth->thread)) {
@@ -99,7 +100,12 @@ void run_scheduler() {
                     break;
                 }
 
-                if(is_task_idle(scht)) {
+                if(can_purge(scht->task)) {
+                    auto next = scht->next;
+                    dispose(scht);
+                    scht = next;
+                    goto wrap;
+                } else if(is_task_idle(scht)) {
                     auto next = scht->next;
                     post_idle_task(scht);
                     remove_task(scht);
@@ -132,9 +138,10 @@ void run_scheduler() {
             return;
         }
 
-        sleepTm = CLOCK_CYCLE - TIME_SINCE(schedTime);
-        if(sleepTm > 0) __usleep(sleepTm);
-        else __usleep(0);
+        std::this_thread::yield();
+//        sleepTm = CLOCK_CYCLE - TIME_SINCE(schedTime);
+//        if(sleepTm > 0) __usleep(sleepTm);
+//        else __usleep(0);
     } while(true);
 }
 
@@ -204,6 +211,10 @@ bool is_runnable(fiber *task, sharp_thread *thread) {
     }
 
     return false;
+}
+
+bool can_purge(fiber *task) {
+    return task->state == FIB_KILLED && task->attachedThread == nullptr;
 }
 
 void post(sharp_thread* thread) {
@@ -292,6 +303,9 @@ bool queue_thread(sharp_thread* thread) {
 void remove_task(sched_task *task) {
     guard_mutex(task_mutex)
 
+    if(task == sched_tasks)
+        sched_tasks = task->next;
+
     if(task->next == NULL) {
         if(task->prev != NULL) {
             task->prev->next = NULL;
@@ -319,3 +333,65 @@ void dispose(sched_task *task) {
     std::free(task->task);
     remove_task(task);
 }
+
+
+fiber *locate_task(uInt taskId) {
+    guard_mutex(task_mutex)
+    sched_task *task = sched_tasks;
+
+    while(task != NULL) {
+        if(task->task->id == taskId)
+            return task->task;
+
+        task = task->next;
+    }
+
+    return nullptr;
+}
+
+void kill_bound_tasks(sharp_thread* thread) {
+    guard_mutex(task_mutex)
+    sched_task *task = sched_tasks, *next;
+
+    while (task != NULL) {
+        next = task->next;
+
+        if (is_bound(task->task, thread)) {
+            set_task_state(NULL, task->task, FIB_KILLED, NO_DELAY);
+        }
+
+        task = next;
+    }
+}
+
+void dispose(_sched_thread *scht) {
+    guard_mutex(thread_mutex)
+    sharp_thread *thread = scht->thread;
+    if (thread->state == THREAD_KILLED || thread->terminated)
+    {
+        if(scht == sched_threads)
+            sched_threads = scht->next;
+
+        if(scht->next == NULL) {
+            if(scht->prev != NULL) {
+                scht->prev->next = NULL;
+            } else {
+                sched_threads = NULL;
+            }
+        } else if(scht->prev == NULL) {
+            if(scht->next != NULL) {
+                scht->next->prev = NULL;
+            } else {
+                sched_threads = NULL;
+            }
+        } else {
+            scht->prev->next = scht->next;
+            scht->next->prev = scht->prev;
+        }
+
+        free_struct(thread);
+        std::free (thread);
+        std::free (scht);
+    }
+}
+

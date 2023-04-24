@@ -28,15 +28,13 @@
 extern thread_local sharp_thread* thread_self;
 
 struct sharp_thread {
-    atomic<sched_task*> queue;
+    atomic<fiber*> queue;
     notification queueNotification;
-    sched_task *scht;
+    fiber *task;
     atomic<Int> boundFibers;
     recursive_mutex mut;
     Int id;
     Int stackSize;
-    Int stbase;
-    Int stfloor;
     Int signal;
     int priority;
     bool daemon;
@@ -62,6 +60,7 @@ struct sharp_thread {
 };
 
 void init_struct(sharp_thread *thread);
+bool free_struct(sharp_thread *thread)
 
 
 #endif //SHARP_SHARP_THREAD_H

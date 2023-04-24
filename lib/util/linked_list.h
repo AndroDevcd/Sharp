@@ -48,15 +48,29 @@ public:
         if(head != NULL) {
             auto *cur = head;
             for (;;) {
-                cur = cur->next;
                 if (cur == NULL)
                     return NULL;
                 else if(isNode(data, cur))
                     return cur;
+                cur = cur->next;
             }
         }
 
         return NULL;
+    }
+
+    void foreach(void *data, void (*item)(void*, node<T> *)) {
+        if(head != NULL) {
+            auto *cur = head;
+            for (;;) {
+                if (cur == NULL)
+                    return;
+                else {
+                    item(data, cur);
+                    cur = cur->next;
+                }
+            }
+        }
     }
 
     void delete_at(void *data, bool (*isNode)(void *, node<T> *)) {

@@ -9,7 +9,6 @@
 #include "../../types/sharp_function.h"
 
 bool can_dispose(_sched_thread*);
-void dispose(_sched_thread*);
 void thread_sched_prepare(_sched_thread*);
 bool can_sched_thread(sharp_thread *thread);
 void queue_task(sharp_thread *thread, sched_task *);
@@ -66,7 +65,10 @@ void*
 
 // context switching
 void enable_context_switch(sharp_thread*, bool);
+void enable_exception_flag(sharp_thread* thread, bool);
 void observe_queue(sharp_thread*);
+void pop_queue(sharp_thread *thread);
+void invalidate_queue(sharp_thread *thread);
 bool queue_filled();
 
 // priority setting
@@ -80,7 +82,6 @@ uInt wait_for_thread_start(sharp_thread*);
 void wait_for_thread_exit(sharp_thread*);
 void kill_all_threads();
 void shutdown_thread(sharp_thread*);
-void release_resources(sharp_thread*);
 void __os_sleep(uInt);
 void setup_thread(sharp_thread*);
 

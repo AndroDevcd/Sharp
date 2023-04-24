@@ -11,6 +11,7 @@
 #include <atomic>
 
 struct fib_mutex;
+struct fiber;
 
 enum collection_generation
 {
@@ -69,6 +70,7 @@ void set_memory_threshold(Int threshold);
 void push_object(sharp_object*);
 void gc_collect(collection_policy);
 fib_mutex* create_mutex(sharp_object*);
+void release_all_mutexes(fiber *task);
 void gc_startup();
 void sleep_gc();
 void kill_gc();

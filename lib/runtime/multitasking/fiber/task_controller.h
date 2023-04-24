@@ -13,10 +13,8 @@
 class sharp_function;
 
 bool is_bound(fiber*, sharp_thread*);
-void kill_bound_fibers(sharp_thread*);
 int kill_task(fiber*);
 int kill_task(uInt);
-fiber *locate_task(uInt);
 Int suspend_task(uInt);
 Int unsuspend_task(uInt);
 void set_task_wakeable(fiber*, bool);
@@ -26,8 +24,7 @@ Int get_state(fiber*);
 sharp_thread* get_attached_thread(fiber*);
 sharp_thread* get_bound_thread(fiber*);
 void set_attached_thread(fiber*, sharp_thread*);
-void delay_task(uInt, bool);
-bool start_task(sharp_thread*, fiber*);
+void delay_task(uInt);
 
 fiber* create_task(string&, sharp_function*);
 

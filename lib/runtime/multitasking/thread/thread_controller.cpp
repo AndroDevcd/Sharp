@@ -13,6 +13,9 @@
 #include "../fiber/task_controller.h"
 #include "../../../util/time.h"
 #include "../../sig_handler.h"
+#include "../../error/vm_exception.h"
+#include "../../reflect/reflect_helpers.h"
+#include "../scheduler/idle_scheduler.h"
 
 uInt lastThreadId = -1;
 sharp_thread *mainThread = NULL;
@@ -42,6 +45,11 @@ sharp_function* get_main_method() {
     return vm.methods + vm.manifest.entryMethod;
 }
 
+bool all_tasks_finished(sharp_thread *thread) {
+    return thread->boundFibers == 0
+       || (thread->boundFibers == 1 && thread->task && thread->task->finished && thread->task->boundThread == thread);
+}
+
 #ifdef WIN32_
 DWORD WINAPI
 #endif
@@ -50,7 +58,128 @@ void*
 #endif
 vm_thread_entry(void *arg)
 {
+    bool unboundException = false;
+    sharp_thread *thread = (sharp_thread*)arg;
+    thread_self = thread;
 
+    set_thread_priority(thread, thread->priority);
+
+    start:
+    try
+    {
+        if(unboundException)
+            goto _unboundExceptionThrown;
+
+        setup_thread(thread);
+        pop_queue(thread);
+
+        do {
+            registers = thread->task->registers;
+            if(thread->task->calls == -1) {
+                prepare_method(thread->task->main->address, thread);
+            }
+
+            main_vm_loop();
+
+            _unboundExceptionThrown:
+            if(thread->task->boundThread != thread
+               && hasSignal(thread->signal, tsig_except)) {
+
+                /**
+                 * Unbound fibers are more forgiving than bound fibers are.
+                 * We only crash a thread when a bound fiber throws an exception.
+                 */
+                print_thrown_exception();
+                kill_task(thread->task);
+                set_attached_thread(thread->task, nullptr);
+                thread->task = nullptr;
+
+                enable_context_switch(thread, true);
+                enable_exception_flag(thread, false);
+            }
+
+            if(all_tasks_finished(thread)) {
+                enable_context_switch(thread, false);
+                goto end;
+            }
+
+            if(hasSignal(thread->signal, tsig_context_switch)
+                && thread->state != THREAD_KILLED
+                && !hasSignal(thread->signal, tsig_except)) {
+                observe_queue(thread);
+
+                if(thread->state == THREAD_KILLED
+                    || hasSignal(thread->signal, tsig_kill)) {
+                    thread->state = THREAD_KILLED;
+                    if(thread->queue != nullptr) {
+                        invalidate_queue(thread);
+                    }
+
+                    goto end;
+                }
+            }
+
+        } while (thread->state == THREAD_RUNNING);
+    } catch(vm_exception &err) {
+        if(thread->state == THREAD_STARTED && thread->currentThread.o != nullptr) {
+            assign_numeric_field(resolve_field("exited", thread->currentThread.o)->o, 0, 0);
+            assign_numeric_field(resolve_field("exited", thread->currentThread.o)->o, 0, -1);
+        }
+
+        if(err.getErr().handlingClass == vm.out_of_memory_except && thread->state == THREAD_CREATED) {
+            guard_mutex(thread->mut)
+            sendSignal(thread->signal, tsig_kill, 1);
+        }
+
+        enable_exception_flag(thread, true);
+        if(thread->task && thread->task->boundThread != thread) {
+            unboundException = true;
+            goto start;
+        }
+    }
+
+    end:
+#ifdef SHARP_PROF_
+    if(vm.state != VM_TERMINATED)
+        thread_self->tprof->dump();
+#endif
+
+//    if(irCount != 0)
+//        cout << "instructions executed " << irCount << " overflowed " << overflow << endl;
+
+    /*
+     * Check for uncaught exception in thread before exit
+     */
+    if(vm.state != VM_TERMINATED) {
+        shutdown_thread(thread);
+
+        if (thread->id == main_threadid) {
+            /*
+            * Shutdown all running threads
+            * and de-allocate all allocated
+            * memory. If we do not call join()
+            * to wait for all other threads
+            * regardless of what they are doing, we
+            * stop them.
+            */
+            shutdown();
+        }
+
+#ifdef WIN32_
+        return 0;
+#endif
+#ifdef POSIX_
+        return NULL;
+#endif
+    }
+    else {
+#ifdef WIN32_
+        return 0;
+#endif
+#ifdef POSIX_
+        return NULL;
+#endif
+    }
 }
 
 sharp_thread* create_gc_thread() {
@@ -275,20 +404,45 @@ int set_thread_priority(sharp_thread* thread, int priority) {
     return RESULT_ILL_PRIORITY_SET;
 }
 
+void pop_queue(sharp_thread *thread) {
+    thread->state = THREAD_RUNNING;
+    thread->task = thread->queue;
+    thread->queue = nullptr;
+
+    enable_context_switch(thread, false);
+    set_task_state(thread, thread->task, FIB_RUNNING, NO_DELAY);
+}
+
+void invalidate_queue(sharp_thread *thread) {
+    enable_context_switch(thread, false);
+    set_attached_thread(thread->queue, NULL);
+    set_task_state(NULL, thread->queue, FIB_SUSPENDED, NO_DELAY);
+    thread->queue = nullptr;
+}
+
 void enable_context_switch(sharp_thread* thread, bool enable) {
     guard_mutex(thread->mut);
     sendSignal(thread->signal, tsig_context_switch, (enable ? 1 : 0));
 }
 
+void enable_exception_flag(sharp_thread* thread, bool enable) {
+    guard_mutex(thread->mut);
+    sendSignal(thread->signal, tsig_except, (enable ? 1 : 0));
+}
+
 void observe_queue(sharp_thread *thread) {
+    set_attached_thread(thread->task, nullptr);
+    thread->task = nullptr;
     thread->state = THREAD_SCHED;
     wait_for_notification(&thread->queueNotification);
-    thread->state = THREAD_RUNNING;
-    enable_context_switch(thread, false);
+
+    if(thread->queue)
+        pop_queue(thread);
 }
 
 bool queue_filled() {
-    return thread_self->queue != nullptr;
+    auto thread = thread_self;
+    return thread->queue != nullptr || (thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill));
 }
 
 
@@ -311,11 +465,11 @@ uInt start_thread(sharp_thread* thread, size_t stackSize) {
     thread->state = THREAD_STARTED;
 #ifdef WIN32_
     thread->thread = CreateThread(
-            NULL,                     // default security attributes
-            (thread->stackSize),                      // use default stack size
-            vm_thread_entry,  // thread function caller
-            thread,                                   // thread self when thread is created
-            0,                         // use default creation flags
+            NULL,            // default security attributes
+            (thread->stackSize), // use default stack size
+            vm_thread_entry,   // thread function caller
+            thread,             // thread self when thread is created
+            0,               // use default creation flags
             NULL);
     if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
     else return wait_for_thread_start(thread);
@@ -384,9 +538,19 @@ void setup_thread(sharp_thread* thread) {
         bind_task(task, thread);
 
         if(thread->currentThread.o != nullptr
-           && IS_CLASS(thread->currentThread.o->info)) {
-            gc.createStringArray(vm.resolveField("data",
-                                                 vm.resolveField("name", thread->currentThread.object)->object), thread->name);
+           && IS_CLASS(thread->currentThread.o)) {
+            auto threadName = create_object(thread->name.size(), type_int8);
+            copy_object(
+                    resolve_field(
+                        "data",
+                        resolve_field("name", thread->currentThread.o)->o
+                    ),
+                    threadName
+            );
+
+            for(Int i = 0; i < thread->name.size(); i++) {
+                threadName->HEAD[i] = thread->name[i];
+            }
         }
     } else {
         vm.state = VM_RUNNING;
@@ -404,28 +568,24 @@ void setup_thread(sharp_thread* thread) {
     }
 #endif
 
-    if(thread->currentThread.object != nullptr
-       && CLASS(thread->currentThread.object->info) == vm.ThreadClass->address) {
-        vm.initializeField("fib", thread->currentThread.object, vm.FiberClass);
-        Object *fibField = vm.resolveField("fib", thread->currentThread.object);
-        Object *threadMainField = vm.resolveField("main", thread->currentThread.object);
-        Object *threadNameField = vm.resolveField("name", thread->currentThread.object);
+    if(thread->currentThread.o != nullptr
+       && CLASS(thread->currentThread.o->info) == vm.thread_class->address) {
+        auto fib = resolve_field("fib", thread->currentThread.o);
+        auto main = resolve_field("main", thread->currentThread.o);
+        auto name = resolve_field("name", thread->currentThread.o);
 
-        if(fibField && threadMainField && threadNameField) {
-            if(thread->id == main_threadid) {
-                thread->this_fiber->fiberObject = fibField;
-            }
 
-            Object *nameField = vm.resolveField("name", fibField->object);
-            vm.setFieldVar("main", fibField->object, 0, vm.numberValue(0, threadMainField->object));
-            vm.setFieldVar("id", fibField->object, 0, thread->this_fiber->id);
+        if(fib && main && name) {
+            copy_object(
+                    fib,
+                    create_object(vm.fiber_class)
+            );
 
-            if(nameField) {
-                *nameField = threadNameField;
-            }
-
-            if(thread->this_fiber->fiberObject.object == NULL)
-                thread->this_fiber->fiberObject = fibField;
+            copy_object(&thread->task->fiberObject, fib);
+            auto fiberName = resolve_field("name", fib->o);
+            copy_object(fiberName, name);
+            assign_numeric_field(resolve_field("main", fib->o)->o, 0, main->o->HEAD[0]);
+            assign_numeric_field(resolve_field("id", fib->o)->o, 0, thread->task->id);
         }
     }
 }
@@ -440,33 +600,31 @@ void __os_sleep(uInt time) {
 #endif
 }
 
-void release_resources(sharp_thread* thread) {
-    gc.reconcileLocks(thread);
-}
-
 void shutdown_thread(sharp_thread* thread) {
-    GUARD(mutex);
+    guard_mutex(thread->mut);
     if(thread->id == main_threadid) {
-        if (thread->this_fiber && thread->this_fiber->dataStack != NULL)
-            thread->this_fiber->exitVal = (int) thread->this_fiber->dataStack[vm.manifest.threadLocals].var;
+        if (thread->task && thread->task->stack != NULL)
+            thread->task->exitVal = (int) thread->task->stack[vm.manifest.threadLocals].var;
     }
 
-    print_exception(thread);
-    release_resources(thread);
-    if(thread->id != main_threadid && thread->this_fiber) {
-        set_task_state(NULL, thread->this_fiber, FIB_KILLED, NO_DELAY);
-    }
+    kill_task(thread->task);
+    if(thread->task) set_attached_thread(thread->task, nullptr);
+    print_thrown_exception();
 
+    kill_bound_tasks(thread);
+    kill_bound_idle_tasks(thread);
+
+    thread->task = nullptr;
     thread->signal = tsig_empty;
     thread->exited = true;
     thread->state = THREAD_KILLED;
 }
 
 void kill_all_threads() {
-    GUARD(thread_mutex);
+    guard_mutex(thread_mutex);
     suspend_all_threads(false);
-    _sched_thread *scht = sched_threads;
-    Thread *thread;
+    _sched_thread *scht = get_sched_threads();
+    sharp_thread *thread;
 
     while(scht != NULL)
     {
@@ -474,7 +632,7 @@ void kill_all_threads() {
 
 #ifdef COROUTINE_DEBUGGING
         cout << "Thread " << thread->name << " slept: " << thread->timeSleeping << " switched: " << thread->switched
-             << " bound: " << bound_task_count(thread) << " skipped " << thread->skipped << " actual sleep time: " << (thread->actualSleepTime / 1000)
+             << " bound: " << thread->boundFibers << " skipped " << thread->skipped << " actual sleep time: " << (thread->actualSleepTime / 1000)
              << " context switch time (ms) " << (thread->contextSwitchTime / 1000) << endl << " time spent locking: " << thread->timeLocking << endl;
 #endif
         if(thread->id != thread_self->id
@@ -583,7 +741,7 @@ void unsuspend_and_wait(sharp_thread* thread, bool sendSignal) {
 
     int spinCount = 0;
     int retryCount = 0;
-    Thread *current = thread_self;
+    sharp_thread *current = thread_self;
 
     if(sendSignal) send_unsuspend_signal(thread);
     while (thread->state != THREAD_RUNNING)
@@ -641,16 +799,16 @@ void wait_for_unsuspend_release(sharp_thread* thread) {
     }
 
     {
-        GUARD(mutex);
+        guard_mutex(thread->mut);
         thread->state = THREAD_RUNNING;
         sendSignal(thread->signal, tsig_suspend, 0);
     }
 }
 
 void resume_all_threads(bool withMarking) {
-    GUARD(thread_mutex)
-    _sched_thread *scht = sched_threads;
-    Thread *thread;
+    guard_mutex(thread_mutex)
+    _sched_thread *scht = get_sched_threads();
+    sharp_thread *thread;
 
     while(scht != NULL)
     {
@@ -670,8 +828,8 @@ void resume_all_threads(bool withMarking) {
 }
 
 void suspend_all_threads(bool withMarking) {
-    GUARD(thread_mutex);
-    _sched_thread *scht = sched_threads;
+    guard_mutex(thread_mutex);
+    _sched_thread *scht = get_sched_threads();
     sharp_thread *thread;
 
     while(scht != NULL)
@@ -693,13 +851,13 @@ void suspend_all_threads(bool withMarking) {
 }
 
 void suspend_self() {
-    Thread *thread = thread_self;
+    sharp_thread *thread = thread_self;
 
     if(thread)
     {
         thread->suspended = true;
         {
-            GUARD(thread->mutex);
+            guard_mutex(thread->mut);
             sendSignal(thread->signal, tsig_suspend, 0);
         }
 
@@ -717,8 +875,8 @@ sharp_thread* get_thread(uInt id) {
         return NULL;
     }
 
-    GUARD(thread_mutex)
-    _sched_thread *thread = sched_threads;
+    guard_mutex(thread_mutex)
+    _sched_thread *thread = get_sched_threads();
 
     while(thread != NULL)
     {
@@ -738,7 +896,7 @@ sharp_thread* get_thread(uInt id) {
 }
 
 uInt create_thread(uInt methodAddr, bool daemon) {
-    int32_t threadId = generate_thread_id();
+    int32_t threadId = new_thread_id();
     registers[CMT] = false;
     if(methodAddr < 0 || methodAddr >= vm.manifest.methods)
         return RESULT_THREAD_CREATE_FAILED;
@@ -746,11 +904,11 @@ uInt create_thread(uInt methodAddr, bool daemon) {
     if(threadId == ILL_THREAD_ID)
         return RESULT_NO_THREAD_ID;
 
-    Method* method = &vm.methods[methodAddr];
-    if(method->paramSize!=0 || method->fnType == fn_ptr)
+    sharp_function* method = &vm.methods[methodAddr];
+    if(method->paramSize!=0 || method->fnType != normal_function)
         return RESULT_THREAD_CREATE_FAILED;
 
-    sharp_thread* thread = (sharp_thread*)__malloc(sizeof(Thread));
+    sharp_thread* thread = malloc_mem<sharp_thread>(sizeof(sharp_thread));
 
     stringstream ss;
     ss << "Thread@" << threadId;
@@ -769,60 +927,18 @@ void setup_thread(sharp_thread *thread, string &name, uInt id, bool daemon, shar
     thread->mainMethod=main;
     if(initializeStack) {
         auto task = create_task(thread->name, main);
+        set_attached_thread(task, thread);
         bind_task(task, thread);
-        set_context_state(thread, THREAD_ACCEPTING_TASKS);
+        thread->queue = task;
     }
 }
 
-bool is_thread_id_available(uInt threadId) {
-    GUARD(thread_mutex)
-    _sched_thread *thread = sched_threads;
-
-    while(thread != NULL)
-    {
-        if(thread->thread->id == threadId) return false;
-        thread = thread->next;
-    }
-
-    return true;
-}
-
-uInt generate_thread_id() {
-    bool wrapped = false;
-
-    while(!is_thread_id_available(++lastThreadId)) {
-        if(lastThreadId == ((uInt)-1)) {
-            if(wrapped)
-                return ILL_THREAD_ID;
-            else { wrapped = true; lastThreadId = idle_sched_threadid; }
-        }
-    }
-
-    return lastThreadId;
+uInt new_thread_id() {
+    return ++lastThreadId;
 }
 
 bool can_dispose(_sched_thread *scht) {
     return vm.state != VM_SHUTTING_DOWN && scht->thread->state == THREAD_KILLED;
-}
-
-void dispose(_sched_thread *scht) {
-    kill_bound_fibers(scht->thread);
-
-    GUARD(thread_mutex)
-    Thread *thread = scht->thread;
-    if (thread->state == THREAD_KILLED || thread->terminated)
-    {
-        if(scht == last_thread)
-            last_thread = scht->prev;
-        if(scht->prev != NULL)
-            scht->prev->next = scht->next;
-        if(scht->next != NULL)
-            scht->next->prev = scht->prev;
-
-        thread->free();
-        std::free (thread);
-        std::free (scht);
-    }
 }
 
 /**
@@ -854,7 +970,7 @@ bool can_sched_thread(sharp_thread *thread) {
 void queue_task(sharp_thread *thread, sched_task *task) {
     if(thread->queue == NULL) {
         set_attached_thread(task->task, thread);
-        thread->queue = task;
-        send_notification()
+        thread->queue = task->task;
+        send_notification(&thread->queueNotification);
     }
 }

@@ -7,6 +7,7 @@
 #include "../types/sharp_field.h"
 #include "../memory/garbage_collector.h"
 #include "../../runtime_old/symbols/Field.h"
+#include "../error/vm_exception.h"
 
 bool is_static_class(sharp_object *object) {
     return object != NULL && GENERATION(object->info) == gc_perm;
@@ -41,4 +42,18 @@ sharp_class* locate_class(const char *name) {
     }
 
     return nullptr;
+}
+
+void assign_numeric_field(sharp_object* o, uInt index, double value) {
+    o->HEAD[index] = value;
+}
+
+void assign_string_field(sharp_object* o, string &value) {
+    if(o->size == value.size()) {
+        for(Int i = 0; i < value.size(); i++) {
+            o->HEAD[i] = value[i];
+        }
+    } else {
+        throw vm_exception("string.size != field's size");
+    }
 }

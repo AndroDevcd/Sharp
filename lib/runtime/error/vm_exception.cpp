@@ -72,16 +72,16 @@ void vm_exception::push_exception() {
 
         if(err.handlingClass == vm.out_of_memory_except) {
 
-            if(thread->scht != NULL && thread->scht->task != NULL) {
+            if(thread->task != NULL && thread->task != NULL) {
                 /*
                  * If there is no memory we exit
                  */
                 guard_mutex(thread->mut);
-                copy_object(&thread->scht->task->exceptionObject, &vm.memoryExcept);
+                copy_object(&thread->task->exceptionObject, &vm.memoryExcept);
 
                 string str;
                 fill_stacktrace(str);
-                object *field = resolve_field("stack_trace", thread->scht->task->exceptionObject.o);
+                object *field = resolve_field("stack_trace", thread->task->exceptionObject.o);
 
                 if (field) {
                     copy_object(field, create_object(vm.string_class, true));
@@ -101,16 +101,16 @@ void vm_exception::push_exception() {
             return;
         }
 
-        copy_object(&thread->scht->task->exceptionObject, create_object(err.handlingClass));
-        object *msg = resolve_field("message", thread->scht->task->exceptionObject.o);
-        object *info = resolve_field("frameInfo", thread->scht->task->exceptionObject.o);
+        copy_object(&thread->task->exceptionObject, create_object(err.handlingClass));
+        object *msg = resolve_field("message", thread->task->exceptionObject.o);
+        object *info = resolve_field("frameInfo", thread->task->exceptionObject.o);
         copy_object(msg, create_object(err.message.size(), type_int8));
 
         for (Int i = 0; i < err.message.size(); i++) {
             msg->o->HEAD[i] = err.message[i];
         }
 
-        auto frameInfo = get_frame_info(thread->scht->task);
+        auto frameInfo = get_frame_info(thread->task);
         copy_object(info, create_object(vm.stack_sate));
 
         object *pc = resolve_field("pc", info->o);
@@ -128,3 +128,6 @@ void vm_exception::push_exception() {
     }
 }
 
+void print_thrown_exception() {
+    // todo: impl
+}

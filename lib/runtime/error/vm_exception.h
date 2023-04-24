@@ -80,6 +80,7 @@ private:
 };
 
 void fill_stack_trace(string &str);
+void print_thrown_exception();
 
 #define EXCEPTION_PRINT_MAX 20
 

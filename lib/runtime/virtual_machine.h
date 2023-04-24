@@ -70,5 +70,6 @@ struct virtual_machine {
 extern virtual_machine vm;
 
 void main_vm_loop();
+void shutdown();
 
 #endif //SHARP_VIRTUAL_MACHINE_H

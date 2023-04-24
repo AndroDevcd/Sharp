@@ -51,7 +51,7 @@ public:
     fiber_state state;
     int exitVal;
     object exceptionObject;
-    Object fiberObject;
+    object fiberObject;
     Method *main;
     Int calls;
     recursive_mutex mut;

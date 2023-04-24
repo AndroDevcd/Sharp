@@ -7,16 +7,17 @@
 #include "thread_controller.h"
 
 
-bool foo() {}
+bool free_struct(sharp_thread *thread) {
+
+}
 
 void init_struct(sharp_thread *thread) {
-    thread->scht = nullptr;
+    thread->task = nullptr;
     new(&thread->boundFibers) atomic<Int>();
+    new(&thread->queue) atomic<sched_task*>();
     new (&thread->mut) recursive_mutex();
     thread->id = 0;
     thread->stackSize = 0;
-    thread->stbase = 0;
-    thread->stfloor = 0;
     thread->priority = THREAD_PRIORITY_NORM;
     thread->daemon = false;
     thread->terminated = false;

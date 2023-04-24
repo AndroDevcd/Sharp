@@ -11,6 +11,7 @@
 #include "vm_initializer.h"
 #include "virtual_machine.h"
 #include "multitasking/scheduler/scheduler.h"
+#include "multitasking/thread/thread_controller.h"
 
 string executable;
 
@@ -90,7 +91,8 @@ int run_app() {
                 oldSize, vm.manifest.application.c_str(), updatedBytes);
     }
 
-    // todo: start main thread
+    initialize_main_thread_stack(exeArgs);
+    start_thread(get_main_thread(), 0);
     run_scheduler();
 
     bail:

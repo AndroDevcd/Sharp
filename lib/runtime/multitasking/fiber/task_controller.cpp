@@ -1,4 +1,4 @@
-`i//
+//
 // Created by bnunnally on 8/17/21.
 //
 
@@ -9,6 +9,9 @@
 #include "../../error/vm_exception.h"
 #include "../../memory/garbage_collector.h"
 #include "../../../core/thread_state.h"
+#include "../thread/sharp_thread.h"
+#include "../thread/thread_controller.h"
+#include "../../../util/time.h"
 
 fiber* create_task(string &name, sharp_function *main) {
     fiber *fib = nullptr;
@@ -29,24 +32,14 @@ fiber* create_task(string &name, sharp_function *main) {
     return fib;
 }
 
-bool start_task(sharp_thread* thread, fiber* task) {
-    guard_mutex(task->mut)
-    if(task->state == FIB_SUSPENDED && task->attachedThread == NULL
-        && (task->boundThread == NULL || task->boundThread == thread)) {
-        task->attachedThread = (thread);
-        set_task_state(thread, task, FIB_RUNNING, NO_DELAY);
-        return true;
-    } else return false;
-}
-
-void delay_task(uInt time, bool incPc) {
-    if(time < 0)
+void delay_task(uInt time) {
+    if(time <= 0)
         time = NO_DELAY;
 
-    fiber *fib = thread_self->this_fiber;
     sharp_thread *thread = thread_self;
+    fiber *fib = thread->task;
     set_task_state(thread, fib, FIB_SUSPENDED, time);
-    set_context_state(thread, THREAD_ACCEPTING_TASKS);
+    enable_context_switch(thread, true);
 }
 
 void set_attached_thread(fiber* task, sharp_thread* thread) {
@@ -66,9 +59,7 @@ sharp_thread* get_attached_thread(fiber* task) {
 
 Int get_state(fiber* task) {
     guard_mutex(task->mut)
-    auto result = (Int)task->state;
-
-    return result;
+    return (Int)task->state;
 }
 
 bool is_bound(fiber *fib, sharp_thread *thread) {
@@ -105,12 +96,12 @@ void set_task_state(sharp_thread* thread, fiber* task, fiber_state newState, uIn
             task->delayTime = -1;
             break;
         case FIB_RUNNING:
-            thread->lastRanMicros = NANO_TOMICRO(Clock::realTimeInNSecs());
+            if(thread) thread->lastRanMicros = NANO_TOMICRO(Clock::realTimeInNSecs());
             task->state = newState;
             task->delayTime = -1;
             break;
         case FIB_SUSPENDED: {
-
+            if(task->state == FIB_KILLED) return;
             if(delay > 0) {
                 task->delayTime = NANO_TOMILL(Clock::realTimeInNSecs()) + delay;
             } else task->delayTime = -1;
@@ -139,6 +130,7 @@ Int unsuspend_task(uInt id) {
         guard_mutex(fib->mut)
         if(fib->state == FIB_SUSPENDED) {
             fib->delayTime = -1;
+            set_task_wakeable(fib, true);
         } else {
             result = 1;
         }
@@ -156,8 +148,15 @@ Int suspend_task(uInt id) {
         guard_mutex(fib->mut)
         if(fib->state == FIB_RUNNING) {
             if(fib->attachedThread) {
-                set_task_state(fib->attachedThread, fib, FIB_KILLED, NO_DELAY);
-                set_context_state(thread, THREAD_ACCEPTING_TASKS);
+                set_task_wakeable(fib, false);
+                set_task_state(fib->attachedThread, fib, FIB_SUSPENDED, NO_DELAY);
+                enable_context_switch(fib->attachedThread, true);
+            } else {
+                result = 2;
+            }
+        } else if(fib->state == FIB_SUSPENDED) {
+            if(fib->attachedThread == nullptr) {
+                set_task_wakeable(fib, false);
             } else {
                 result = 2;
             }
@@ -170,20 +169,6 @@ Int suspend_task(uInt id) {
     return result;
 }
 
-fiber *locate_task(uInt taskId) {
-    guard_mutex(task_mutex)
-    sched_task *task = sched_tasks;
-
-    while(task != NULL) {
-        if(task->task->id == taskId)
-            return task->task;
-
-        task = task->next;
-    }
-
-    return nullptr;
-}
-
 int kill_task(uInt taskId) {
     fiber *task = locate_task(taskId);
     if(task != NULL) return kill_task(task);
@@ -191,7 +176,7 @@ int kill_task(uInt taskId) {
 }
 
 int kill_task(fiber *fib) {
-    int result = 1;
+    int result = 0;
 
     if(fib) {
         if(fib->state == FIB_SUSPENDED) {
@@ -199,9 +184,9 @@ int kill_task(fiber *fib) {
         } else if(fib->state == FIB_RUNNING) {
             if(fib->attachedThread) {
                 set_task_state(NULL, fib, FIB_KILLED, NO_DELAY);
-                set_context_state(thread, THREAD_ACCEPTING_TASKS);
+                enable_context_switch(fib->attachedThread, true);
             } else {
-                result = 0;
+                result = 1;
             }
         } else {
             set_task_state(NULL, fib, FIB_KILLED, NO_DELAY);
@@ -212,17 +197,3 @@ int kill_task(fiber *fib) {
     return result;
 }
 
-void kill_bound_fibers(sharp_thread* thread) {
-    guard_mutex(task_mutex)
-    sched_task *task = sched_tasks, *next;
-
-    while (task != NULL) {
-        next = task->next;
-
-        if (is_bound(task->task, thread)) {
-            dispose(task);
-        }
-
-        task = next;
-    }
-}

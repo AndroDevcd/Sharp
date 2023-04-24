@@ -16,36 +16,14 @@ stable class _object_ : printable, unique {
 
     public override def to_string() : string? = null;
 
-    def wait() {
-        asm {
-            pushl 0
-            int 0x3c
-        }
-    }
-
-    def notify() {
-        asm {
-            pushl 0
-            int 0x3d
-        }
-    }
-
-    def notify(mills: var) {
-        asm {
-            pushl 0
-            loadl ebx, [mills]
-            int 0x3e
-        }
-    }
-
-    def _lock() {
+    def lock_object() {
         asm {
             movl 0
             lock
         }
     }
 
-    def _unlock() {
+    def unlock_object() {
         asm {
             movl 0
             ulock

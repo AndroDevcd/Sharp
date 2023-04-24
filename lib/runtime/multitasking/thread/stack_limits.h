@@ -8,7 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../../memory/garbage_collector.h"
 
-#define INTERNAL_STACK_SIZE (KB_TO_BYTES(64) / sizeof(StackElement))
+#define INTERNAL_STACK_SIZE (KB_TO_BYTES(64) / sizeof(stack_item))
 #define INTERNAL_STACK_MIN KB_TO_BYTES(4)
 #define STACK_SIZE MB_TO_BYTES(1)
 #define STACK_MIN KB_TO_BYTES(50)

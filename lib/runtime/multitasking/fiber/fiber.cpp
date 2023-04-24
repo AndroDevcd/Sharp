@@ -2,38 +2,42 @@
 // Created by BNunnally on 9/5/2020.
 //
 #include "fiber.h"
+#include "../../memory/garbage_collector.h"
+#include "task_controller.h"
+#include "../../memory/sharp_object.h"
+#include "../thread/sharp_thread.h"
+#include "../../memory/memory_helpers.h"
 
 void fiber::free() {
-    gc.reconcileLocks(this);
+    release_all_mutexes(this);
 
-    bind_task(this, NULL);
-    if(dataStack != NULL) {
-        gc.freeMemory(sizeof(StackElement) * stackSize);
-        StackElement *p = dataStack;
+    if(stack != NULL) {
+        release_bytes(sizeof(stack_item) * stackSize);
+        stack_item *p = stack;
         for(size_t i = 0; i < stackSize; i++)
         {
-            if(p->object.object) {
-                DEC_REF(p->object.object);
-                p->object.object=NULL;
+            if(p->obj.o) {
+                dec_ref(p->obj.o);
+                p->obj.o=NULL;
             }
             p++;
         }
 
-        std::free(this->dataStack); dataStack = NULL;
+        std::free(this->stack); stack = NULL;
     }
 
     if(registers != NULL) {
-        gc.freeMemory(sizeof(double) * REGISTER_SIZE);
+        release_bytes(sizeof(double) * REGISTER_SIZE);
         std::free(registers); registers = NULL;
     }
 
-    if(callStack != NULL) {
-        gc.freeMemory(sizeof(Frame) * frameSize);
-        std::free(callStack); callStack = NULL;
+    if(frames != NULL) {
+        release_bytes(sizeof(frame) * frameSize);
+        std::free(frames); frames = NULL;
     }
 
-    fiberObject=(SharpObject*)NULL;
-    exceptionObject=(SharpObject*)NULL;
+    copy_object(&fiberObject, (sharp_object*)nullptr);
+    copy_object(&exceptionObject, (sharp_object*)nullptr);
     fp = NULL;
     sp = NULL;
     name.clear();
@@ -44,14 +48,19 @@ void fiber::growFrame() {
     GUARD(mut)
 
     if(frameSize + FRAME_GROW_SIZE < frameLimit) {
-        callStack = (Frame *) __realloc(callStack, sizeof(Frame) * (frameSize + FRAME_GROW_SIZE),
-                                        sizeof(Frame) * frameSize);
+        frames = realloc_mem<frame>(
+                frames, sizeof(frame) * (frameSize + FRAME_GROW_SIZE),
+                sizeof(frame) * frameSize
+        );
+
         frameSize += FRAME_GROW_SIZE;
-        gc.addMemory(sizeof(Frame) * FRAME_GROW_SIZE);
     }
     else if(frameSize != frameLimit) {
-        callStack = (Frame *) __realloc(callStack, sizeof(Frame) * (frameLimit), sizeof(Frame) * frameSize);
-        gc.addMemory(sizeof(Frame) * (frameLimit - frameSize));
+        frames = realloc_mem<frame>(
+                frames, sizeof(frame) * (frameLimit),
+                sizeof(frame) * frameSize
+        );
+
         frameSize = frameLimit;
     }
     
@@ -64,10 +73,10 @@ void fiber::growStack(Int requiredSize) {
     else requiredSize += STACK_GROW_SIZE;
 
     if(stackSize + requiredSize < stackLimit) {
-        Int spIdx = sp-dataStack, fpIdx = fp-dataStack, ptrIdx = -1;
+        Int spIdx = sp-stack, fpIdx = fp-stack, ptrIdx = -1;
         if(ptr) {
             for(Int i = 0; i < stackSize; i++) {
-                if(ptr == &dataStack[i].object)
+                if(ptr == &stack[i].obj)
                 {
                     ptrIdx = i;
                     break;
@@ -75,27 +84,28 @@ void fiber::growStack(Int requiredSize) {
             }
         }
 
-        dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackSize + requiredSize),
-                                        sizeof(StackElement) * stackSize);
+        stack = realloc_mem<stack_item>(
+                frames, sizeof(stack_item) * (stackSize + requiredSize),
+                sizeof(stack_item) * stackSize
+        );
 
-        StackElement *stackItem = dataStack+stackSize;
+        stack_item *stackItem = stack+stackSize;
         for(Int i = stackSize; i < stackSize+requiredSize; i++) {
-            stackItem->object.object = NULL;
+            stackItem->obj.o = NULL;
             stackItem->var=0;
             stackItem++;
         }
 
-        if(ptrIdx >= 0) ptr = &dataStack[ptrIdx].object;
-        sp = dataStack+spIdx;
-        fp = dataStack+fpIdx;
+        if(ptrIdx >= 0) ptr = &stack[ptrIdx].obj;
+        sp = stack+spIdx;
+        fp = stack+fpIdx;
         stackSize += requiredSize;
-        gc.addMemory(sizeof(StackElement) * requiredSize);
     }
     else if(stackSize != stackLimit) {
-        Int spIdx = sp-dataStack, fpIdx = fp-dataStack, ptrIdx = -1;
+        Int spIdx = sp-stack, fpIdx = fp-stack, ptrIdx = -1;
         if(ptr) {
             for(Int i = 0; i < stackSize; i++) {
-                if(ptr == &dataStack[i].object)
+                if(ptr == &stack[i].obj)
                 {
                     ptrIdx = i;
                     break;
@@ -103,19 +113,21 @@ void fiber::growStack(Int requiredSize) {
             }
         }
 
-        dataStack = (StackElement *) __realloc(dataStack, sizeof(StackElement) * (stackLimit), sizeof(StackElement) * stackSize);
-        gc.addMemory(sizeof(Frame) * (stackLimit - stackSize));
+        stack = realloc_mem<stack_item>(
+                frames, sizeof(stack_item) * (stackLimit),
+                sizeof(stack_item) * stackSize
+        );
 
-        StackElement *stackItem = dataStack+stackSize;
+        stack_item *stackItem = stack+stackSize;
         for(Int i = stackSize; i < stackLimit; i++) {
-            stackItem->object.object = NULL;
+            stackItem->obj.o = NULL;
             stackItem->var=0;
             stackItem++;
         }
 
-        if(ptrIdx >= 0) ptr = &dataStack[ptrIdx].object;
-        sp = dataStack+spIdx;
-        fp = dataStack+fpIdx;
+        if(ptrIdx >= 0) ptr = &stack[ptrIdx].o;
+        sp = stack+spIdx;
+        fp = stack+fpIdx;
         stackSize = stackLimit;
     }
 

@@ -7,13 +7,13 @@
 
 #include "../../core/opcode/opcode.h"
 #include "../../util/KeyPair.h"
+#include "sharp_object.h"
 
-struct sharp_object;
 struct fiber;
 
 struct stack_item {
     double var;
-    sharp_object *obj;
+    object obj;
 };
 
 struct frame {

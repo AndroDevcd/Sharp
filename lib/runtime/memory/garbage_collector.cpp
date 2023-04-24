@@ -92,12 +92,23 @@ fib_mutex* create_mutex(sharp_object *o) {
     }
 }
 
-void age_mem(sharp_object *prev, sharp_object *ager, sharp_object *newHeap)
+void release_all_mutexes(fiber *task) {
+    guard_mutex(gc_lock)
+    gc.f_locks.foreach(task, [](void *data, node<fib_mutex*> *item) {
+        auto task = (fiber *)data;
+
+        if(item->data->id == task->id) {
+            item->data->id = -1;
+        }
+    });
+}
+
+void age_mem(sharp_object *prev, sharp_object *ager, sharp_object **newHeap)
 {
     if(prev != nullptr && ager != nullptr) {
         prev->next = ager->next;
-        ager->next = newHeap;
-        newHeap = ager;
+        ager->next = *newHeap;
+        *newHeap = ager;
     }
 }
 
@@ -105,6 +116,7 @@ void mark_memory(sharp_object *heap) {
     sharp_object *prev = nullptr;
     if(heap != nullptr) {
         guard_mutex(gc_lock)
+        prev = heap;
         heap = heap->next;
     }
 
@@ -121,12 +133,12 @@ void mark_memory(sharp_object *heap) {
                 switch (GENERATION(heap->info)) {
 
                     case gc_young: {
-                        age_mem(prev, heap, gc.aMemHead);
+                        age_mem(prev, heap, &gc.aMemHead);
                         break;
                     }
 
                     case gc_adult: {
-                        age_mem(prev, heap, gc.oMemHead);
+                        age_mem(prev, heap, &gc.oMemHead);
                         break;
                     }
 
@@ -258,7 +270,7 @@ void update_threshold() {
 }
 
 void gc_collect(collection_policy policy) {
-    if(collection_allowed()) // todo: also collect fib_mutex that have 0 references
+    if(collection_allowed())
     {
         switch(policy) {
 
@@ -345,7 +357,7 @@ gc_main(void *pVoid) {
         gc_main_loop();
     } catch(vm_exception &e){
         /* Should never happen */
-        sendSignal(thread_self->signal, tsig_except, 1);
+        enable_exception_flag(thread_self, true);
     }
 
     /*

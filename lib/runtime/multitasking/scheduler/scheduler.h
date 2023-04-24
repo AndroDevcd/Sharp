@@ -54,11 +54,16 @@ void clear_tasks();
 void dispose(sched_task*);
 void remove_task(sched_task *task);
 void post(sharp_thread*);
+fiber *locate_task(uInt taskId);
+void dispose(_sched_thread*);
+void kill_bound_tasks(sharp_thread* thread);
 bool is_runnable(fiber *task, sharp_thread *thread);
+bool can_purge(fiber *task);
 void post(fiber*);
 void sched_unsched_items();
 bool queue_task(fiber*);
 bool queue_thread(sharp_thread*);
 void setupSleepFunction();
+_sched_thread* get_sched_threads();
 
 #endif //SHARP_SCHEDULER_H

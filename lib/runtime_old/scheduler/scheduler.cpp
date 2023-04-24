@@ -26,6 +26,10 @@ void __usleep(unsigned int usec)
 #endif
 }
 
+_sched_thread* get_sched_threads() {
+    return sched_threads;
+}
+
 void setupSleepFunction() {
 }
 

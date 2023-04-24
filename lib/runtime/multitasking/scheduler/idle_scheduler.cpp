@@ -10,6 +10,7 @@
 #include "../../memory/garbage_collector.h"
 #include "../../../util/time.h"
 #include "../fiber/fiber.h"
+#include "../fiber/task_controller.h"
 
 unsched_task *idle_pool = nullptr;
 std::recursive_mutex idle_mutex;
@@ -23,7 +24,7 @@ bool should_post_task(unsched_task *task) {
 }
 
 bool is_task_idle(sched_task *task) {
-    return task->task->state == FIB_SUSPENDED &&
+    return task->task->state == FIB_SUSPENDED && task->task->attachedThread == nullptr &&
             (
                 !task->task->wakeable
                 || (NANO_TOMILL(Clock::realTimeInNSecs()) - task->task->delayTime) < 0
@@ -31,6 +32,20 @@ bool is_task_idle(sched_task *task) {
             );
 }
 
+void kill_bound_idle_tasks(sharp_thread* thread) {
+    guard_mutex(task_mutex)
+    unsched_task *task = idle_pool, *next;
+
+    while (task != NULL) {
+        next = task->next;
+
+        if (is_bound(task->task, thread)) {
+            set_task_state(NULL, task->task, FIB_KILLED, NO_DELAY);
+        }
+
+        task = next;
+    }
+}
 
 void post_idle_task(sched_task *task) {
     guard_mutex(idle_mutex);
@@ -62,10 +77,22 @@ void idle_main_loop() {
 
             while(idleTask != nullptr) {
                 if((index % 1000) == 0 && TIME_SINCE(idleTime) > (CLOCK_CYCLE * 2)) { // sleep every clock cycle
-                    __usleep(CLOCK_CYCLE * 2);
-                }
+//                    __usleep(CLOCK_CYCLE * 2);
 
-                if(should_post_task(idleTask)) {
+                    std::this_thread::yield();
+                }
+                if(can_purge(idleTask->task)) {
+                    idleTask->task->free();
+                    auto nextTask = idleTask->next;
+                    if(idleTask == idle_pool)
+                        idle_pool = idleTask->next;
+                    else if(prevTask != nullptr)
+                        prevTask->next = idleTask->next;
+
+                    std::free(idleTask->task);
+                    std::free(idleTask);
+                    idleTask = nextTask;
+                } else if(should_post_task(idleTask)) {
                     guard_mutex(idle_mutex);
                     auto task = idleTask->task;
                     auto nextTask = idleTask->next;
@@ -87,7 +114,7 @@ void idle_main_loop() {
 
             if(thread_self->signal)
                 goto check_state;
-            __usleep(0);
+            std::this_thread::yield();
         }  while(true);
     }
 }
@@ -107,7 +134,7 @@ idle_main(void *pVoid) {
         idle_main_loop();
     } catch(vm_exception &e){
         /* Should never happen */
-        sendSignal(thread_self->signal, tsig_except, 1);
+        enable_exception_flag(thread_self, true);
     }
 
     /*
