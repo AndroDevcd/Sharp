@@ -8,10 +8,10 @@
 #include "oo/ClassObject.h"
 #include "ReferencePointer.h"
 #include "data/Utype.h"
-#include "../../runtime/register.h"
+#include "../../runtime_old/register.h"
 #include "Expression.h"
 #include "data/Literal.h"
-#include "../../runtime/symbols/Method.h"
+#include "../../runtime_old/symbols/Method.h"
 #include "oo/Method.h"
 
 
@@ -1965,7 +1965,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
     if(opcode == "nop") {
         code.addIr(OpBuilder::nop());
     } else if(opcode == "int") {
-        code.addIr(OpBuilder::_int((interruptFlag) compileAsmLiteral(branch->getSubAst(ast_literal))));
+        code.addIr(OpBuilder::_int((interrupt_flag) compileAsmLiteral(branch->getSubAst(ast_literal))));
     } else if(opcode == "movi") {
         code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_assembly_literal)),
                                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));

@@ -19,7 +19,7 @@ int initialize_virtual_machine()
         return result.key;
     }
 
-    if((internalStackSize - vm.manifest.threadLocals) <= 1)
+    if((virtualStackSize - vm.manifest.threadLocals) <= 1)
         return 2;
 
 
@@ -51,15 +51,18 @@ int initialize_virtual_machine()
     vm.fiber_class = locate_class("std.io.fiber#fiber"); // todo: check if any of these classes are null
     cout.precision(16);
 
-    new_class(&vm.memoryExcept, vm.out_of_memory_except);
-    new_string_array(resolve_field("message",  vm.memoryExcept.o), "out of memory");
+    copy_object(&vm.memoryExcept, create_object(vm.out_of_memory_except));
+
+    string outOfMemoryMsg = "out of memory";
+    copy_object(resolve_field("message",  vm.memoryExcept.o), create_object(outOfMemoryMsg.size(), type_int8));
+    assign_string_field(resolve_field("message",  vm.memoryExcept.o)->o, outOfMemoryMsg);
 
     /**
      * Initialize all classes to be used for static access
      */
     for(unsigned long i = 0; i < vm.manifest.classes; i++) {
-        new_class(vm.staticHeap + i, vm.classes + i, true);
-        SET_GENERATION(vm.staticHeap[i].object->info, gc_perm);
+        copy_object(vm.staticHeap + i, create_static_object(vm.classes + i));
+        SET_GENERATION(vm.staticHeap[i].o->info, gc_perm);
     }
 
     return 0;

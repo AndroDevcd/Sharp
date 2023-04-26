@@ -13,6 +13,7 @@
 #include "../multitasking/thread/sharp_thread.h"
 #include "../multitasking/thread/thread_controller.h"
 #include "../../core/thread_state.h"
+#include "../../core/access_flag.h"
 
 std::recursive_mutex copy_mut;
 std::recursive_mutex lock_mut;
@@ -33,7 +34,7 @@ void init_struct(sharp_object *o) {
 CXX11_INLINE void copy_object(object *to, object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
-    to->o = from->o;
+    to->o = from ? from->o : nullptr;
     if(to->o) inc_ref(to->o)
 }
 
@@ -42,6 +43,30 @@ CXX11_INLINE void copy_object(object *to, sharp_object *from) {
     if(to->o) dec_ref(to->o)
     to->o = from;
     if(to->o) inc_ref(to->o)
+}
+
+sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
+    auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+
+    init_struct(o);
+    o->size = sc->staticFields;
+    o->refCount = invalid_references;
+    o->type = type_class;
+    SET_INFO(o->info, sc->address, gc_young);
+    push_object(o);
+
+    if(o->size > 0)
+    {
+        o->node = malloc_struct<object>(sizeof(object),  o->size, unsafe);
+        for(Int i = 0; i < o->size; i++) {
+            sharp_field *field = sc->fields + (sc->staticFields + i);
+            if(field->type->type <= type_var && !field->isArray && checkFlag(field->flags, flag_static)) {
+                copy_object(o->node + i, create_object(1, field->type->type));
+            }
+        }
+    }
+
+    return o;
 }
 
 sharp_object* create_object(sharp_class* sc, bool unsafe) {
@@ -66,6 +91,25 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
     }
 
     return o;
+}
+
+sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
+    if(size > 0)
+    {
+        auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+
+        init_struct(o);
+        o->size = size;
+        o->refCount = invalid_references;
+        o->type = type_class;
+        SET_INFO(o->info, sc->address, gc_young);
+        push_object(o);
+
+        o->node = malloc_struct<object>(sizeof(object) * size, unsafe);
+        return o;
+    }
+
+    return nullptr;
 }
 
 sharp_object* create_object(Int size, bool unsafe) {
@@ -104,6 +148,10 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
     }
 
     return nullptr;
+}
+
+void cast_object(object *from, Int toClass) {
+
 }
 
 void unlock_object(sharp_object *o) {

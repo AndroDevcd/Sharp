@@ -6,9 +6,9 @@
 #define SHARP_OPCODE_H
 
 #include "../../stdimports.h"
-#include "InterruptFlag.h"
 #include "register.h"
 #include "ThreadStates.h"
+#include "../core/vm_interrupt_flag.h"
 
 /**
  * 32-Bit layout
@@ -404,7 +404,7 @@ public:
     public:
         static opcode_instr ill(); // TODO: describe all the instructions
         static opcode_instr nop();
-        static opcode_instr _int(interruptFlag flag);
+        static opcode_instr _int(interrupt_flag flag);
         static opcode_instr* movi(opcode_arg value, _register outRegister); // TODO: flatten this to 1 instruse ldc instead if addr > DA_MAX
         static opcode_instr ret(opcode_arg errState);
         static opcode_instr hlt();

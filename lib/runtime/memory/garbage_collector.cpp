@@ -58,23 +58,27 @@ void push_object(sharp_object *o) {
     gc.yMemHead = o;
 }
 
-bool isMutex(void *o, node<fib_mutex*> *node) {
+bool is_mutex(void *o, node<fib_mutex*> *node) {
     return (sharp_object*)o == node->data->o;
 }
 
+bool mutex_deleted(void *o, node<fib_mutex*> *node) {
+    if(is_mutex(o, node)) {
+        delete node->data;
+        return true;
+    }
+
+    return false;
+}
+
 fib_mutex* get_mutex(sharp_object *o) {
-    auto node = gc.f_locks.node_at(o, isMutex);
+    auto node = gc.f_locks.node_at(o, is_mutex);
     return node ? node->data : nullptr;
 }
 
 void remove_mutex(sharp_object *o) {
     guard_mutex(gc_lock)
-    auto mut = get_mutex(o);
-
-    if(mut) {
-        gc.f_locks.delete_at(o, isMutex);
-        delete mut;
-    }
+    gc.f_locks.delete_at(o, mutex_deleted);
 }
 
 fib_mutex* create_mutex(sharp_object *o) {
@@ -196,7 +200,7 @@ void sweep_memory(sharp_object *heap) {
     {
         CHECK_STATE
 
-        if(MARKED(heap->info)) {
+        if(MARKED(heap->info) && GENERATION(heap->info) != gc_perm) {
             if(heap->refCount > 0 || heap->refCount == invalid_references) {
                 MARK(heap->info, 0);
             } else {

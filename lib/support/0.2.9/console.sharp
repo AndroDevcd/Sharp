@@ -7,7 +7,7 @@ def strtod(str: string) : var {
     result : var;
 
     asm {
-        pushl [data]
+        pushl {data}
         int 0x43
         smovr2 {result}, ebx
     }
@@ -20,7 +20,7 @@ def strtol(str: string, base_num: var) : var {
     result : var;
 
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {base_num}
         int 0x50
         smovr2 {result}, ebx
@@ -195,7 +195,7 @@ def exit() {
 
 def sizeOf(data: object) : var {
     asm {
-        pushl [data]
+        pushl {data}
         int 0x33
         returnVal ebx
         ret 0
@@ -205,7 +205,7 @@ def sizeOf(data: object) : var {
 
 def sizeOf(data: object[]) : var {
     asm {
-        pushl [data]
+        pushl {data}
         int 0x33
         returnVal ebx
         ret 0

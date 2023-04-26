@@ -183,7 +183,7 @@ void process_getter(sharp_field *field, Ast *ast) {
         if(!check_flag(flags, flag_public))
             flags |= flag_public;
 
-        if(check_flag(flags, flag_thread_safe)) {
+        if(check_flag(flags, flag_thread_safe)) { // todo: add deadlock protection call in sharp api
             threadSafe = true;
             set_flag(flags, flag_thread_safe, false);
         }

@@ -7,7 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "../frontend/parser/Parser.h"
-#include "../../runtime/Opcode.h"
+#include "../../runtime_old/Opcode.h"
 #include "Scope.h"
 #include "ReferencePointer.h"
 #include "data/Utype.h"

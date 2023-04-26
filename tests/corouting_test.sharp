@@ -44,6 +44,8 @@ def modnum(num: var) {
 }
 
 def main(args: string[]) {
+    for(i := 0; i < 10; i++) {
+   }
 //    println("took: ${time.measure(milliseconds, { ->
 //        for(i := 0; i < 100; i++) {
 //            delay(10);
@@ -75,9 +77,9 @@ def main(args: string[]) {
 //       chan.send(i);
 //    }
 
-   past := time.mills_time();
-   foo();
-   delay(1000);
-   println(time.mills_time()-past);
-   println(" counter + " + counter++);
+//   past := time.mills_time();
+//   foo();
+//   delay(1000);
+//   println(time.mills_time()-past);
+//   println(" counter + " + counter++);
 }

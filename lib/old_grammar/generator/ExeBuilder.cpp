@@ -5,7 +5,7 @@
 #include <iomanip>
 #include "../backend/Compiler.h"
 #include "ExeBuilder.h"
-#include "../../runtime/Exe.h"
+#include "../../runtime_old/Exe.h"
 #include "../../util/zip/zlib.h"
 #include "../main.h"
 #include "../optimizer/Optimizer.h"

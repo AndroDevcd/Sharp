@@ -793,6 +793,7 @@ void wait_for_unsuspend_release(sharp_thread* thread) {
             return;
         } else if(vm.state == VM_SHUTTING_DOWN) {
             thread->suspended = false;
+            guard_mutex(thread->mut)
             sendSignal(thread->signal, tsig_kill, 1);
             return;
         }

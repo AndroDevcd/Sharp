@@ -134,7 +134,7 @@ elseif(LEGACY)
             )
 
 
-    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC} lib/grammar/backend/compiler/functions/statements/statement_compiler.cpp lib/grammar/backend/compiler/functions/statements/statement_compiler.h)
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
 
     add_executable(LegacySharpc ${SOURCE_FILES})
 else()

@@ -7,6 +7,8 @@
 #include "../../memory/sharp_object.h"
 #include "../thread/sharp_thread.h"
 #include "../../memory/memory_helpers.h"
+#include "../thread/stack_limits.h"
+#include "../../virtual_machine.h"
 
 void fiber::free() {
     release_all_mutexes(this);
@@ -64,6 +66,62 @@ void fiber::growFrame() {
         frameSize = frameLimit;
     }
     
+}
+
+void init_struct(fiber *fib) {
+    fib = new (fib)fiber();
+    fib->main = nullptr;
+    fib->pc = 0;
+    fib->rom = 0;
+    fib->state = FIB_CREATED;
+    fib->exitVal = 0;
+    fib->delayTime = -1;
+    fib->wakeable = true;
+    fib->finished = false;
+    fib->attachedThread = NULL;
+    fib->boundThread = NULL;
+    fib->exceptionObject.o = NULL;
+    fib->fiberObject.o = NULL;
+    fib->stack = NULL;
+    fib->registers = NULL;
+    fib->frames = NULL;
+    fib->f_lock = NULL;
+    fib->calls = -1;
+    fib->current = NULL;
+    fib->ptr = NULL;
+    fib->stackLimit = virtualStackSize;
+    fib->registers = malloc_mem<double>(REGISTER_SIZE * sizeof(double));
+    new (&fib->mut) std::recursive_mutex();
+
+    if(virtualStackSize < INITIAL_STACK_SIZE) {
+        fib->stackSize = virtualStackSize;
+    }
+    else if((vm.manifest.threadLocals + 50) < INITIAL_STACK_SIZE) {
+        fib->stackSize = INITIAL_STACK_SIZE;
+    }
+    else {
+        fib->stackSize = vm.manifest.threadLocals + INITIAL_STACK_SIZE;
+    }
+
+    fib->stack = malloc_struct<stack_item>(fib->stackSize * sizeof(stack_item), fib->stackSize);
+    stack_item *ptr = fib->stack;
+    for(Int i = 0; i < fib->stackSize; i++) {
+        ptr->obj.o = NULL;
+        ptr->var=0;
+        ptr++;
+    }
+
+    if(virtualStackSize - vm.manifest.threadLocals < INITIAL_FRAME_SIZE) {
+        fib->frameSize = virtualStackSize - vm.manifest.threadLocals;
+    }
+    else {
+        fib->frameSize = INITIAL_FRAME_SIZE;
+    }
+
+    fib->frames = malloc_mem<frame>(fib->frameSize * sizeof(frame));
+    fib->frameLimit = virtualStackSize - vm.manifest.threadLocals;
+    fib->fp = &fib->stack[vm.manifest.threadLocals];
+    fib->sp = (&fib->stack[vm.manifest.threadLocals]) - 1;
 }
 
 void fiber::growStack(Int requiredSize) {
@@ -125,7 +183,7 @@ void fiber::growStack(Int requiredSize) {
             stackItem++;
         }
 
-        if(ptrIdx >= 0) ptr = &stack[ptrIdx].o;
+        if(ptrIdx >= 0) ptr = &stack[ptrIdx].obj;
         sp = stack+spIdx;
         fp = stack+fpIdx;
         stackSize = stackLimit;

@@ -7,7 +7,7 @@ def _export(obj: object) : _int8[] {
     asm {
        pushl {obj}
        int 0x4d
-       movl [result]
+       movl {result}
        popObj
     }
 
@@ -19,9 +19,9 @@ def _import(bytes: string) : object {
     data := bytes.get_data();
 
     asm {
-       pushl [data]
+       pushl {data}
        int 0x4e
-       movl [result]
+       movl {result}
        popObj
     }
 

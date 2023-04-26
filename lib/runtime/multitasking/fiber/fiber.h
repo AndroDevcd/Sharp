@@ -10,6 +10,7 @@
 #include "../../memory/vm_stack.h"
 
 class sharp_thread;
+class sharp_function;
 enum fiber_state {
     FIB_CREATED=0,
     FIB_RUNNING=1,
@@ -52,23 +53,25 @@ public:
     int exitVal;
     object exceptionObject;
     object fiberObject;
-    Method *main;
+    sharp_function *main;
     Int calls;
     recursive_mutex mut;
     sharp_thread* attachedThread;
     sharp_thread* boundThread;
     stack_item* stack, *sp, *fp;
-    Method *current;
+    sharp_function *current;
     frame *frames;
     uInt frameLimit;
     uInt frameSize;
     uInt stackSize;
     double *registers;
-    Object *ptr;
+    object *ptr;
     Int delayTime;
     bool wakeable;
     bool finished;
     fib_mutex *f_lock;
 };
+
+void init_struct(fiber*);
 
 #endif //SHARP_FIBER_H

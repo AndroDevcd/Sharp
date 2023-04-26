@@ -12,7 +12,7 @@ T* malloc_struct(uInt bytes, uInt size, bool unsafe = false);
 template<class T>
 T* malloc_mem(uInt bytes, bool unsafe = false);
 template<class T>
-T* realloc_mem(void *ptr, uInt bytes, uInt prevSize, bool unsafe = false)
+T* realloc_mem(void *ptr, uInt bytes, uInt prevSize, bool unsafe = false);
 
 
 #endif //SHARP_MEMORY_HELPERS_H

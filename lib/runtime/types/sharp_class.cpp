@@ -22,3 +22,12 @@ void init_struct(sharp_class *sc) {
     sc->methodCount = 0;
     sc->interfaceCount = 0;
 }
+
+bool are_classes_related(sharp_class *base, sharp_class *reference) {
+    if(base == NULL || reference == NULL)
+        return false;
+    if(base->guid == reference->guid)
+        return true;
+
+    return base->base != NULL && are_classes_related(base->base, reference);
+}

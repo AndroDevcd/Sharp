@@ -56,4 +56,184 @@
 #define GET_Bb(i) (int32_t)(((i >> 9u) & POSITIVE) ? (i >> 18u & BA_MAX) : (-1 * (i >> 18u & BA_MAX)))
 #define GET_Bc(i) (int32_t)(((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
 
+#define DISPATCH() goto *opcode_table[GET_OP(*task->pc)];
+#define branch  task->pc++; DISPATCH()
+#define branch_for(x)  task->pc+=x; DISPATCH()
+
+#define single_arg GET_Da(*task->pc)
+#define dual_arg1 GET_Ca(*task->pc)
+#define dual_arg2 GET_Cb(*task->pc)
+#define triple_arg1 GET_Ba(*task->pc)
+#define triple_arg2 GET_Bb(*task->pc)
+#define triple_arg3 GET_Bc(*task->pc)
+#define raw_arg2 (int32_t)*(task->pc+1)
+#define dual_raw_arg1 GET_Ca(*(task->pc+1))
+#define dual_raw_arg2 GET_Cb(*(task->pc+2))
+
+#define pop_stack_object (task->sp--)->obj
+#define push_stack_object (++task->sp)->obj
+#define push_stack_number (++task->sp)->var
+#define pop_stack_number (task->sp--)->var
+#define grow_stack \
+     if(((task->sp-task->stack)+1) >= task->stackSize) task->growStack();
+#define stack_overflow_check  \
+    if(((task->sp-task->stack)+1) >= task->stackLimit) throw vm_exception(vm.stack_overflow_except, "");
+
+#define check_state(x) \
+    task->pc += (x); \
+    goto state_check;
+
+#define require_object(code) \
+    if(task->ptr==NULL) { \
+        vm_exception err(vm.nullptr_except, ""); \
+        enable_exception_flag(thread, true); \
+        goto catch_exception;   \
+    } else { code }
+
+#define require_object_with_value(code) \
+    if(task->ptr==NULL || task->ptr->o == NULL) { \
+        vm_exception err(vm.nullptr_except, ""); \
+        enable_exception_flag(thread, true); \
+        goto catch_exception;   \
+    } else { code }
+
+#define require_numeric_object_with_value(code) \
+    if(task->ptr==NULL || task->ptr->o == NULL || task->ptr->o->type > type_var) { \
+        vm_exception err(vm.nullptr_except, ""); \
+        enable_exception_flag(thread, true); \
+        goto catch_exception;   \
+    } else { code }
+
+#define current_pc \
+    (task->pc-task->rom)
+
+#define setupOpcodeTable \
+        static void* opcode_table[] = { \
+            &&_NOP,            \
+            &&_INT,              \
+            &&_MOVI,              \
+            &&RET,              \
+            &&HLT,              \
+            &&NEWARRAY,         \
+            &&CAST,              \
+            &&MOV8,              \
+            &&MOV16,              \
+            &&MOV32,              \
+            &&MOV64,              \
+            &&MOVU8,              \
+            &&MOVU16,              \
+            &&MOVU32,              \
+            &&MOVU64,              \
+            &&RSTORE,               \
+            &&ADD,                  \
+            &&SUB,                   \
+            &&MUL,                   \
+            &&DIV,                   \
+            &&MOD,                   \
+            &&IADD,                   \
+            &&ISUB,                   \
+            &&IMUL,                   \
+            &&IDIV,                   \
+            &&IMOD,                   \
+            &&POP,                   \
+            &&INC,                   \
+            &&DEC,                   \
+            &&MOVR,                   \
+            &&BRH,                   \
+            &&IFE,                   \
+            &&IFNE,                   \
+            &&LT,                   \
+            &&GT,                   \
+            &&LTE,                   \
+            &&GTE,                   \
+            &&MOVL,                   \
+            &&MOVSL,                   \
+            &&SIZEOF,                   \
+            &&PUT,                   \
+            &&PUTC,                   \
+            &&CHECKLEN,                   \
+            &&JMP,                     \
+            &&LOADPC,                   \
+            &&PUSHOBJ,                   \
+            &&DEL,                   \
+            &&CALL,                   \
+            &&NEWCLASS,                   \
+            &&MOVN,                   \
+            &&SLEEP,                   \
+            &&TEST,                   \
+            &&TNE,                   \
+            &&LOCK,                   \
+            &&ULOCK,                   \
+            &&MOVG,                   \
+            &&MOVND,                   \
+            &&NEWOBJARRAY,                      \
+            &&NOT,                      \
+            &&SKIP,                      \
+            &&LOADVAL,                      \
+            &&SHL,                      \
+            &&SHR,                      \
+            &&SKPE,                      \
+            &&SKNE,                      \
+            &&AND,                      \
+            &&UAND,                      \
+            &&OR,                      \
+            &&XOR,                      \
+            &&THROW,                      \
+            &&CHECKNULL,                      \
+            &&RETURNOBJ,                      \
+            &&NEWCLASSARRAY,                      \
+            &&NEWSTRING,                      \
+            &&ADDL,                      \
+            &&SUBL,                      \
+            &&MULL,                      \
+            &&DIVL,                      \
+            &&MODL,                      \
+            &&IADDL,                      \
+            &&ISUBL,                      \
+            &&IMULL,                      \
+            &&IDIVL,                      \
+            &&IMODL,                      \
+            &&LOADL,                      \
+            &&IALOAD,                     \
+            &&POPOBJ,                       \
+            &&SMOVR,                        \
+            &&ANDL,                        \
+            &&ORL,                        \
+            &&XORL,                        \
+            &&RMOV,                          \
+            &&SMOV,                          \
+            &&RETURNVAL,                     \
+            &&ISTORE,                        \
+            &&SMOVR_2,                        \
+            &&ISTOREL,                        \
+            &&POPL,                           \
+            &&PUSHNULL,                           \
+            &&IPUSHL,                           \
+            &&PUSHL,                           \
+            &&ITEST,                           \
+            &&INVOKE_DELEGATE,                  \
+            &&GET,                                 \
+            &&ISADD,                                 \
+            &&JE,                                 \
+            &&JNE,                                 \
+            &&IPOPL,                                 \
+            &&CMP,                                 \
+            &&CALLD,                                 \
+            &&VARCAST,                                 \
+            &&TLS_MOVL,                                 \
+            &&DUP,                                      \
+            &&POPOBJ_2,                                  \
+            &&SWAP,                                     \
+            &&LDC,                                     \
+            &&SMOVR_3,                        \
+            &&NEG,                             \
+            &&EXP,                               \
+            &&IS,                                   \
+            &&MOV_ABS,                                   \
+            &&LOAD_ABS,                                   \
+            &&ILOAD,                                   \
+            &&SMOVR_4,                                   \
+            &&IMOV                                   \
+        };
+
 #endif //SHARP_OPCODE_MACROS_H

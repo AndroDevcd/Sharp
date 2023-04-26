@@ -13,7 +13,6 @@ struct catch_data {
     catch_data()
             :
             handlerPc(-1),
-            id(-1),
             exceptionFieldAddress(-1),
             exception(nullptr)
     {
@@ -22,7 +21,6 @@ struct catch_data {
     catch_data(Int id)
             :
             handlerPc(-1),
-            id(id),
             exceptionFieldAddress(-1),
             exception(nullptr)
     {
@@ -31,7 +29,6 @@ struct catch_data {
     catch_data(const catch_data &cd)
             :
             handlerPc(cd.handlerPc),
-            id(cd.id),
             exceptionFieldAddress(cd.exceptionFieldAddress),
             exception(cd.exception)
     {
@@ -41,7 +38,6 @@ struct catch_data {
     {
     }
 
-    int id;
     Int handlerPc;
     Int exceptionFieldAddress;
     sharp_class* exception;
@@ -52,7 +48,6 @@ struct finally_data {
             :
             startPc(-1),
             endPc(-1),
-            id(-1),
             exceptionFieldAddress(-1)
     {
     }
@@ -61,7 +56,6 @@ struct finally_data {
             :
             startPc(-1),
             endPc(-1),
-            id(id),
             exceptionFieldAddress(-1)
     {
     }
@@ -70,7 +64,6 @@ struct finally_data {
             :
             startPc(fd.startPc),
             endPc(fd.endPc),
-            id(fd.id),
             exceptionFieldAddress(fd.exceptionFieldAddress)
     {
     }
@@ -79,7 +72,6 @@ struct finally_data {
     {
     }
 
-    Int id;
     uInt exceptionFieldAddress;
     uInt startPc, endPc;
 };
@@ -89,7 +81,6 @@ struct try_catch_data {
             :
             tryStartPc(-1),
             tryEndPc(-1),
-            id(-1),
             blockStartPc(-1),
             blockEndPc(-1),
             finallyData(NULL),
@@ -101,7 +92,6 @@ struct try_catch_data {
             :
             tryStartPc(-1),
             tryEndPc(-1),
-            id(id),
             blockStartPc(-1),
             blockEndPc(-1),
             finallyData(NULL),
@@ -113,7 +103,6 @@ struct try_catch_data {
             :
             tryStartPc(tcd.tryStartPc),
             tryEndPc(tcd.tryEndPc),
-            id(tcd.id),
             blockStartPc(tcd.blockStartPc),
             blockEndPc(tcd.blockEndPc),
             finallyData(NULL),
@@ -129,7 +118,6 @@ struct try_catch_data {
         }
     }
 
-    Int id;
     Int tryStartPc, tryEndPc;
     Int blockStartPc, blockEndPc;
     list<catch_data> catchTable;

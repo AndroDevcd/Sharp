@@ -3,7 +3,7 @@ mod std.io;
 
 def realloc(data: object[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -11,7 +11,7 @@ def realloc(data: object[], size: var) {
 
 def realloc(data: var[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -19,7 +19,7 @@ def realloc(data: var[], size: var) {
 
 def realloc(data: _int8[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -27,7 +27,7 @@ def realloc(data: _int8[], size: var) {
 
 def realloc(data: _int16[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -35,7 +35,7 @@ def realloc(data: _int16[], size: var) {
 
 def realloc(data: _int32[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -43,7 +43,7 @@ def realloc(data: _int32[], size: var) {
 
 def realloc(data: _int64[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -51,7 +51,7 @@ def realloc(data: _int64[], size: var) {
 
 def realloc(data: _uint8[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -59,7 +59,7 @@ def realloc(data: _uint8[], size: var) {
 
 def realloc(data: _uint16[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -67,7 +67,7 @@ def realloc(data: _uint16[], size: var) {
 
 def realloc(data: _uint32[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }
@@ -75,7 +75,7 @@ def realloc(data: _uint32[], size: var) {
 
 def realloc(data: _uint64[], size: var) {
     asm {
-        pushl [data]
+        pushl {data}
         ipushl {size}
         int 0x23       // call realloc
     }

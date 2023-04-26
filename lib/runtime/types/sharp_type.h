@@ -10,6 +10,8 @@
 #include "sharp_class.h"
 #include "sharp_function.h"
 
+struct object;
+
 struct sharp_type {
     sharp_function *fun;
     sharp_class *sc;
@@ -17,6 +19,6 @@ struct sharp_type {
 };
 
 void init_struct(sharp_type *st);
-
+bool is_type(object*, Int type);
 
 #endif //SHARP_SHARP_TYPE_H

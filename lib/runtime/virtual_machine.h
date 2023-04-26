@@ -70,6 +70,10 @@ struct virtual_machine {
 extern virtual_machine vm;
 
 void main_vm_loop();
-void shutdown();
+void exec_interrupt(Int interrupt);
+void prepare_method(Int address);
+void invoke_delegate(Int address, Int argSize, bool staticCall);
+bool catch_exception();
+bool return_method();
 
 #endif //SHARP_VIRTUAL_MACHINE_H

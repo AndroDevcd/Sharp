@@ -30,5 +30,6 @@ struct sharp_class {
 };
 
 void init_struct(sharp_class *sc);
+bool are_classes_related(sharp_class*, sharp_class*);
 
 #endif //SHARP_SHARP_CLASS_H

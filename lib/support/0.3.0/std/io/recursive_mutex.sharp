@@ -1,5 +1,9 @@
 mod std.io;
 
+import (
+    std.io.fiber
+)
+
 /**
 * Created by bknun on 4/23/2023
 * 
