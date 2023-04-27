@@ -18,7 +18,7 @@ struct sharp_type {
     data_type type;
 };
 
-void init_struct(sharp_type *st);
+CXX11_INLINE void init_struct(sharp_type *st);
 bool is_type(object*, Int type);
 
 #endif //SHARP_SHARP_TYPE_H

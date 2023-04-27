@@ -29,7 +29,7 @@ struct sharp_class {
     Int interfaceCount;
 };
 
-void init_struct(sharp_class *sc);
+CXX11_INLINE void init_struct(sharp_class *sc);
 bool are_classes_related(sharp_class*, sharp_class*);
 
 #endif //SHARP_SHARP_CLASS_H

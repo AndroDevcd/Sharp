@@ -7,7 +7,7 @@
 #include "../memory/garbage_collector.h"
 #include "../virtual_machine.h"
 
-void init_struct(sharp_type *st) {
+CXX11_INLINE void init_struct(sharp_type *st) {
     st->type = type_undefined;
     st->fun = nullptr;
     st->sc = nullptr;

@@ -29,11 +29,8 @@ enum collection_generation
 
 enum gc_state
 {
-    NOT_INITIALIZED,
-    CREATED,
     RUNNING,
     SLEEPING,
-    KILLED,
     SHUTDOWN
 };
 
@@ -69,10 +66,13 @@ void set_memory_limit(Int limit);
 void set_memory_threshold(Int threshold);
 void push_object(sharp_object*);
 void gc_collect(collection_policy);
+void send_message(collection_policy policy);
 fib_mutex* create_mutex(sharp_object*);
 void release_all_mutexes(fiber *task);
 void gc_startup();
 void sleep_gc();
+void sedate_gc();
+void wake_gc();
 void kill_gc();
 
 #define GC_COLLECT_MEM() ( gc.managedBytes >= gc.memoryThreshold )

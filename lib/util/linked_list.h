@@ -29,6 +29,22 @@ public:
         tail=NULL;
     }
 
+    void delete_all(void (*onDelete)(node<T> *)) {
+        if(head != NULL) {
+            auto cur = head;
+            while(cur != nullptr) {
+                auto next = cur->next;
+                if(onDelete != nullptr)
+                    onDelete(cur);
+                delete cur;
+                cur = next;
+            }
+        }
+
+        head = nullptr;
+        tail = nullptr;
+    }
+
     node<T>* node_at(uInt pos) {
         if(head != NULL) {
             auto *cur = head;

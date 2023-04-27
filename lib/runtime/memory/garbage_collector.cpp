@@ -305,6 +305,44 @@ void gc_collect(collection_policy policy) {
     }
 }
 
+void send_message(collection_policy policy) {
+    guard_mutex(gc_lock)
+    gc.message_queue.push_back(policy);
+}
+
+void sedate_gc() {
+    guard_mutex(gc_lock)
+    auto gcThread = get_thread(gc_threadid);
+
+    if(gc.state != SLEEPING && gcThread && gcThread->state == THREAD_RUNNING) {
+        gc.state = SLEEPING;
+        suspend_and_wait(gcThread, true);
+    }
+}
+
+void wake_gc() {
+    guard_mutex(gc_lock)
+    auto gcThread = get_thread(gc_threadid);
+
+    if(gc.state == SLEEPING && gcThread) {
+        gc.state = RUNNING;
+        suspend_and_wait(gcThread, true);
+    }
+}
+
+void kill_gc() {
+    auto gcThread = get_thread(gc_threadid);
+
+    {
+        guard_mutex(gc_lock)
+        if(gcThread->state == THREAD_RUNNING) {
+            send_interrupt_signal(gcThread);
+        }
+    }
+
+    wait_for_thread_exit(gcThread);
+}
+
 void gc_main_loop()
 {
     for(;;) {
@@ -368,6 +406,7 @@ gc_main(void *pVoid) {
      * Check for uncaught exception in thread before exit
      */
     shutdown_thread(thread_self);
+    gc.state = SHUTDOWN;
 #ifdef WIN32_
     return 0;
 #endif

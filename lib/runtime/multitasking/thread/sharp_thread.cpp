@@ -11,7 +11,7 @@ bool free_struct(sharp_thread *thread) {
 
 }
 
-void init_struct(sharp_thread *thread) {
+CXX11_INLINE void init_struct(sharp_thread *thread) {
     thread->task = nullptr;
     new(&thread->boundFibers) atomic<Int>();
     new(&thread->queue) atomic<sched_task*>();

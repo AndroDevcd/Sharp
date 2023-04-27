@@ -68,7 +68,7 @@ void run_scheduler() {
         }
 
         // prepare threads for context switch
-        while (scht != nullptr) {
+        while (schth != nullptr) {
             if (schth->thread->id == gc_threadid || schth->thread->id == idle_threadid) {
                 scht = scht->next;
                 continue;
@@ -125,6 +125,8 @@ void run_scheduler() {
                     scht = sched_tasks;
                 }
             }
+
+            schth = schth->next;
         }
 
         if(vm.state >= VM_SHUTTING_DOWN) {

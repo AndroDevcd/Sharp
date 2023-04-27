@@ -2,8 +2,6 @@
 // Created by BNunnally on 5/27/2020.
 //
 #include "memory.h"
-#include "../../runtime/Thread.h"
-#include "../../runtime/VirtualMachine.h"
 
 void copy() {
     Int end = (thread_self->this_fiber->sp--)->var;

@@ -14,7 +14,7 @@ struct notification {
     bool (*cond)();
 };
 
-void init_struct(notification *n);
+CXX11_INLINE void init_struct(notification *n);
 
 void wait_for_notification(notification *n);
 void send_notification(notification *n);

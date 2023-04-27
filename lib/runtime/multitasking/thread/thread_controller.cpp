@@ -76,7 +76,7 @@ vm_thread_entry(void *arg)
         do {
             registers = thread->task->registers;
             if(thread->task->calls == -1) {
-                prepare_method(thread->task->main->address, thread);
+                prepare_method(thread->task->main->address);
             }
 
             main_vm_loop();
@@ -431,6 +431,7 @@ void enable_exception_flag(sharp_thread* thread, bool enable) {
 }
 
 void observe_queue(sharp_thread *thread) {
+    observe:
     set_attached_thread(thread->task, nullptr);
     thread->task = nullptr;
     thread->state = THREAD_SCHED;
@@ -438,6 +439,7 @@ void observe_queue(sharp_thread *thread) {
 
     if(thread->queue)
         pop_queue(thread);
+    else goto observe;
 }
 
 bool queue_filled() {

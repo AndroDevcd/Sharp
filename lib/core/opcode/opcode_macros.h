@@ -74,10 +74,14 @@
 #define push_stack_object (++task->sp)->obj
 #define push_stack_number (++task->sp)->var
 #define pop_stack_number (task->sp--)->var
+#define grow_stack_for(n) \
+     if(((task->sp-task->stack)+(n)) >= task->stackSize) task->growStack((n));
 #define grow_stack \
-     if(((task->sp-task->stack)+1) >= task->stackSize) task->growStack();
+     grow_stack_for(1)
+#define stack_overflow_check_for(n)  \
+    if(((task->sp-task->stack)+(n)) >= task->stackLimit) throw vm_exception(vm.stack_overflow_except, "");
 #define stack_overflow_check  \
-    if(((task->sp-task->stack)+1) >= task->stackLimit) throw vm_exception(vm.stack_overflow_except, "");
+    stack_overflow_check_for(1)
 
 #define check_state(x) \
     task->pc += (x); \

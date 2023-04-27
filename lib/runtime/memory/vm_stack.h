@@ -19,16 +19,17 @@ struct stack_item {
 struct frame {
     int32_t returnAddress;
     opcode_instr *pc;
-    int32_t sp;
-    int32_t fp;
+    stack_item* sp;
+    stack_item* fp;
 };
 
-void init_struct(
+CXX11_INLINE void init_struct(stack_item *item);
+CXX11_INLINE void init_struct(
         frame *f,
         int32_t raddr,
         opcode_instr *ip,
-        int32_t sp,
-        int32_t fp
+        stack_item* sp,
+        stack_item* fp
 );
 
 std::list<KeyPair<Int, Int>> get_frame_info(fiber *task);

@@ -59,7 +59,7 @@ struct sharp_thread {
 #endif
 };
 
-void init_struct(sharp_thread *thread);
+CXX11_INLINE void init_struct(sharp_thread *thread);
 bool free_struct(sharp_thread *thread)
 
 

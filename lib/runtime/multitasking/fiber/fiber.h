@@ -64,7 +64,7 @@ public:
     uInt frameLimit;
     uInt frameSize;
     uInt stackSize;
-    double *registers;
+    long double *registers;
     object *ptr;
     Int delayTime;
     bool wakeable;
@@ -72,6 +72,6 @@ public:
     fib_mutex *f_lock;
 };
 
-void init_struct(fiber*);
+CXX11_INLINE void init_struct(fiber*);
 
 #endif //SHARP_FIBER_H

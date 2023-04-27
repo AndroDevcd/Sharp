@@ -18,11 +18,11 @@
 std::recursive_mutex copy_mut;
 std::recursive_mutex lock_mut;
 
-void init_struct(object *o) {
+CXX11_INLINE void init_struct(object *o) {
     o->o = nullptr;
 }
 
-void init_struct(sharp_object *o) {
+CXX11_INLINE void init_struct(sharp_object *o) {
     o->next = nullptr;
     o->type = 0;
     o->size = 0;
@@ -203,4 +203,9 @@ void lock_object(sharp_object *o) {
         lock_mut.unlock();
         goto acquire_lock;
     }
+}
+
+extern void populate_string(string &s, sharp_object *o) {
+    for(Int i = 0; i < o->size; i++)
+        s += (unsigned char)o->HEAD[i];
 }

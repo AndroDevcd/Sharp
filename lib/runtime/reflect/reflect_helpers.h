@@ -20,4 +20,8 @@ void assign_numeric_field(sharp_object* o, uInt index, double value);
 void assign_string_field(sharp_object* o, string &value);
 bool is_static_class(object*);
 
+// Member reading
+double read_numeric_value(sharp_object *o, Int index);
+string read_string_value(sharp_object *o);
+
 #endif //SHARP_REFLECT_HELPERS_H

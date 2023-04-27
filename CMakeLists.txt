@@ -162,6 +162,12 @@ else()
             "lib/core/opcode/*.h"
             "lib/util/*.cpp"
             "lib/util/*.h"
+            "lib/Modules/math/*.h"
+            "lib/Modules/math/*.cpp"
+            "lib/Modules/std/*.h"
+            "lib/Modules/std/*.cpp"
+            "lib/Modules/std.io/*.h"
+            "lib/Modules/std.io/*.cpp"
             )
 
     set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC})

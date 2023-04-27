@@ -24,6 +24,6 @@ struct sharp_field {
     bool threadLocal;
 };
 
-void init_struct(sharp_field *sf);
+CXX11_INLINE void init_struct(sharp_field *sf);
 
 #endif //SHARP_SHARP_FIELD_H

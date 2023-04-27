@@ -68,7 +68,7 @@ void fiber::growFrame() {
     
 }
 
-void init_struct(fiber *fib) {
+CXX11_INLINE void init_struct(fiber *fib) {
     fib = new (fib)fiber();
     fib->main = nullptr;
     fib->pc = 0;
@@ -90,7 +90,7 @@ void init_struct(fiber *fib) {
     fib->current = NULL;
     fib->ptr = NULL;
     fib->stackLimit = virtualStackSize;
-    fib->registers = malloc_mem<double>(REGISTER_SIZE * sizeof(double));
+    fib->registers = malloc_mem<long double>(REGISTER_SIZE * sizeof(long double));
     new (&fib->mut) std::recursive_mutex();
 
     if(virtualStackSize < INITIAL_STACK_SIZE) {
@@ -104,13 +104,6 @@ void init_struct(fiber *fib) {
     }
 
     fib->stack = malloc_struct<stack_item>(fib->stackSize * sizeof(stack_item), fib->stackSize);
-    stack_item *ptr = fib->stack;
-    for(Int i = 0; i < fib->stackSize; i++) {
-        ptr->obj.o = NULL;
-        ptr->var=0;
-        ptr++;
-    }
-
     if(virtualStackSize - vm.manifest.threadLocals < INITIAL_FRAME_SIZE) {
         fib->frameSize = virtualStackSize - vm.manifest.threadLocals;
     }

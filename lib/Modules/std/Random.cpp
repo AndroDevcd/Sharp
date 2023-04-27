@@ -3,7 +3,8 @@
 //
 
 #include "Random.h"
-#include "../../runtime/Thread.h"
+#include "../../runtime/memory/garbage_collector.h"
+
 #if _ARCH_BITS == 64
 #include <random>
 #endif
@@ -24,7 +25,7 @@ double fRand(double fMin, double fMax)
 #endif
 
 void setSeed(unsigned int seed) {
-    GUARD(rand_mut);
+    guard_mutex(rand_mut);
 #if _ARCH_BITS == 64
     generator.seed(seed);
 #else
@@ -33,7 +34,7 @@ void setSeed(unsigned int seed) {
 }
 
 Int randInt() {
-    GUARD(rand_mut);
+    guard_mutex(rand_mut);
 #if _ARCH_BITS == 64
     return int_dist(generator);
 #else
@@ -42,7 +43,7 @@ Int randInt() {
 }
 
 Int randInt(Int min, Int max) {
-    GUARD(rand_mut);
+    guard_mutex(rand_mut);
 
 #if _ARCH_BITS == 64
     std::uniform_int_distribution<Int> ranged_int_dist(min, max);
@@ -53,7 +54,7 @@ Int randInt(Int min, Int max) {
 }
 
 double randDouble() {
-    GUARD(rand_mut);
+    guard_mutex(rand_mut);
 
 #if _ARCH_BITS == 64
     return double_dist(generator);
@@ -63,7 +64,7 @@ double randDouble() {
 }
 
 double randDouble(double min, double max) {
-    GUARD(rand_mut);
+    guard_mutex(rand_mut);
 
 #if _ARCH_BITS == 64
     std::uniform_real_distribution<double> ranged_double_dist(min, max);

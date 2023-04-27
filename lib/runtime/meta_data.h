@@ -27,7 +27,7 @@ struct meta_data {
     list<file_data*> files;
 };
 
-void init_struct(file_data *fd);
+CXX11_INLINE void init_struct(file_data *fd);
 string get_info(file_data *file, Int line);
 string get_line_info(file_data *file, Int line);
 

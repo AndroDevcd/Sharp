@@ -5,7 +5,12 @@
 #include "../multitasking/fiber/fiber.h"
 #include "../error/vm_exception.h"
 
-void init_struct(frame *f, int32_t raddr, opcode_instr *ip, int32_t sp, int32_t fp) {
+CXX11_INLINE void init_struct(stack_item *item) {
+    item->obj.o = NULL;
+    item->var=0;
+}
+
+CXX11_INLINE void init_struct(frame *f, int32_t raddr, opcode_instr *ip, stack_item* sp, stack_item* fp) {
     f->returnAddress=raddr;
     f->pc=ip;
     f->sp=sp;

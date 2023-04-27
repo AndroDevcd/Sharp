@@ -5,7 +5,7 @@
 #ifndef SHARP_FILEIO_H
 #define SHARP_FILEIO_H
 
-#include "../../runtime/List.h"
+#include "../../../stdimports.h"
 
 int check_access(string& path, int access_flag);
 
@@ -19,7 +19,7 @@ void create_file(string &path);
 
 long delete_file(string &path);
 
-void get_file_list(string &path, _List<string> &list);
+void get_file_list(string &path, std::list<string> &list);
 
 long delete_dir(string &path);
 

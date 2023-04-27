@@ -5,7 +5,7 @@
 #include "sharp_class.h"
 
 
-void init_struct(sharp_class *sc) {
+CXX11_INLINE void init_struct(sharp_class *sc) {
     sc->address = 0;
     sc->guid = 0;
     new (&sc->name) string();

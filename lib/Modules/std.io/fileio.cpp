@@ -3,10 +3,8 @@
 //
 
 #include "../../../stdimports.h"
-#include "../../runtime/List.h"
-#include "../../runtime/memory/GarbageCollector.h"
-#include "../../runtime/VirtualMachine.h"
 #include "../../util/File.h"
+#include "../../runtime/memory/garbage_collector.h"
 
 #ifdef WIN32_
 #include  <io.h>
@@ -35,7 +33,7 @@
 recursive_mutex fileMutex;
 thread_local struct stat result;
 uInt get_file_attrs(string& path) {
-    GUARD(fileMutex);
+    guard_mutex(fileMutex);
 
     if(stat(path.c_str(), &result)==0)
     {
@@ -102,7 +100,7 @@ int check_access(string& path, int access_flg) {
 }
 
 Int last_update(string& path, int tm_request) {
-    GUARD(fileMutex);
+    guard_mutex(fileMutex);
 
     if(stat(path.c_str(), &result)==0)
     {
@@ -121,7 +119,7 @@ Int last_update(string& path, int tm_request) {
 
 Int file_size(string &path)
 {
-    GUARD(fileMutex);
+    guard_mutex(fileMutex);
 
     int rc = stat(path.c_str(), &result);
     return rc == 0 ? result.st_size : -1;
@@ -144,8 +142,8 @@ long delete_file(string &path)
     return remove(path.c_str());
 }
 
-void get_file_list(string &path, _List<string> &files) {
-    GUARD(fileMutex);
+void get_file_list(string &path, std::list<string> &files) {
+    guard_mutex(fileMutex);
 
     DIR *dir;
     struct dirent *ent;
@@ -172,9 +170,7 @@ void get_file_list(string &path, _List<string> &files) {
                 continue;
             }
 
-            files.__new();
-            files.last();
-            files.last() = file;
+            files.push_back(file);
         }
         closedir (dir);
     } else {
@@ -200,7 +196,7 @@ long rename_file(string &path, string &newName)
 
 time_t update_time(string &path, time_t time)
 {
-    GUARD(fileMutex);
+    guard_mutex(fileMutex);
 
     struct utimbuf new_times;
 
@@ -219,7 +215,7 @@ static const mode_t MS_MODE_MASK = 0x0000ffff;           ///< low word
 
 int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly)
 {
-    GUARD(fileMutex);
+    guard_mutex(fileMutex);
 
     if(stat(path.c_str(), &result)==0) {
         Int mode = result.st_mode;
@@ -356,7 +352,7 @@ Int disk_space(long request) {
 }
 
 void read_file(string &path, string &outStr) {
-    GUARD(fileMutex);
+    guard_mutex(fileMutex);
     File::buffer buf;
     File::read_alltext(path.c_str(), buf);
 

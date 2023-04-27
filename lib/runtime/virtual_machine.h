@@ -10,7 +10,7 @@
 #include "memory/sharp_object.h"
 #include "meta_data.h"
 
-extern thread_local double *registers;
+extern thread_local long double *registers;
 
 enum vm_state {
     VM_CREATED = 0,

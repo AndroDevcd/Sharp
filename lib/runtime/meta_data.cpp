@@ -5,7 +5,7 @@
 #include "meta_data.h"
 #include "../util/list_helper.h"
 
-void init_struct(file_data *fd) {
+CXX11_INLINE void init_struct(file_data *fd) {
     new (&fd->name) string();
     new (&fd->lines) list<string>();
 }

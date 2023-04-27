@@ -52,8 +52,8 @@ struct sharp_object {
     sharp_object *next; /* linked list pointers */
 };
 
-void init_struct(object *);
-void init_struct(sharp_object *);
+CXX11_INLINE void init_struct(object *);
+CXX11_INLINE void init_struct(sharp_object *);
 CXX11_INLINE void copy_object(object *to, object *from);
 CXX11_INLINE void copy_object(object *to, sharp_object *from);
 sharp_object* create_object(sharp_class* sc, bool unsafe = false);
@@ -64,6 +64,7 @@ sharp_object* create_object(Int size, bool unsafe = false);
 void cast_object(object *from, Int toClass);
 void lock_object(sharp_object *o);
 void unlock_object(sharp_object *o);
+void populate_string(string &s, sharp_object *o);
 
 #define inc_ref(x) (x)->refCount++;
 #define dec_ref(x) (x)->refCount--;

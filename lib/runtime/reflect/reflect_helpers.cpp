@@ -57,3 +57,35 @@ void assign_string_field(sharp_object* o, string &value) {
         throw vm_exception("string.size != field's size");
     }
 }
+
+double read_numeric_value(sharp_object *o, Int index) {
+    if(o) {
+        if(o->type <= type_var) {
+            if(index < o->size)
+                return o->HEAD[index];
+            else {
+                stringstream ss;
+                ss << "access to field at index: " << index << " with size of: " << o->size;
+                throw vm_exception(vm.bounds_except, ss.str());
+            }
+        } else {
+            stringstream ss;
+            ss << "access to non-numeric field";
+            throw vm_exception(vm.invalid_operation_except, ss.str());
+        }
+    }
+
+    return 0;
+}
+
+string read_string_value(sharp_object *o) {
+    string s;
+    if(o != NULL) {
+        if (o->type <= type_var) {
+            for(Int i = 0; i < o->size; i++) {
+                s += (char)o->HEAD[i];
+            }
+        }
+    }
+    return s;
+}

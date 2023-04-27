@@ -4,7 +4,7 @@
 
 #include "sharp_field.h"
 
-void init_struct(sharp_field *sf) {
+CXX11_INLINE void init_struct(sharp_field *sf) {
     sf->address = 0;
     sf->guid = 0;
     new (&sf->name) string();

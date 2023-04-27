@@ -3,366 +3,217 @@
 //
 #include <iomanip>
 #include "serialization.h"
-#include "../../runtime/VirtualMachine.h"
+#include "../../util/linked_list.h"
+#include "../../runtime/memory/memory_helpers.h"
+#include "../../runtime/memory/garbage_collector.h"
+#include "../../core/exe_macros.h"
+#include "../../runtime/virtual_machine.h"
+#include "../../util/KeyPair.h"
+#include "../../runtime/error/vm_exception.h"
+#include "../../runtime/reflect/reflect_helpers.h"
 
-HashMap<Int, Int> exportStreamInfo(0x1024, false);
-HashMap<Int, SharpObject*> importStreamInfo(0x1024, false);
-Int recursion = 0, refId;
+thread_local linkedlist<KeyPair<Int, sharp_object*>> processedObjects;
+thread_local char *serializeBuffer = nullptr;
+thread_local long double *deserializeBuffer = nullptr;
+thread_local Int bufferSize = 0;
+thread_local Int bufferPos = -1;
+thread_local Int guid = OBJECT_ID_START;
 
-recursive_mutex exportMutex;
-stringstream dataStream;
-void cleanup() {
-    dataStream.str("");
-    exportStreamInfo.free();
-    importStreamInfo.free();
+CXX11_INLINE void alloc_buffer() {
+    if(serializeBuffer == nullptr) {
+        serializeBuffer = malloc_mem<char>(sizeof(char) * BUFFER_ALLOC_CHUNK_SIZE);
+        bufferSize = BUFFER_ALLOC_CHUNK_SIZE;
+    } else {
+        serializeBuffer = realloc_mem<char>(serializeBuffer,
+             sizeof(char) * (bufferSize + BUFFER_ALLOC_CHUNK_SIZE),
+             sizeof(char) * bufferSize);
+        bufferSize += BUFFER_ALLOC_CHUNK_SIZE;
+    }
 }
 
-string export_obj(SharpObject* obj) {
-    recursion++;
-    if(recursion == 1) {
-        refId=0;
-    }
+void serialize_object(sharp_object *o) {
+    if(o != nullptr) {
+        auto processedObj = processedObjects.node_at(o, [](void *obj, node<KeyPair<Int, sharp_object *>> *n) {
+            return n->data.value == obj;
+        });
 
-    Int refResult;
-    if(obj && obj->size > 0) {
-        dataStream << (char)EXPORT_SECRET;
-        dataStream << (char)TYPE(obj->info);
-        dataStream << obj->size << (char)DATA_END;;
-        dataStream << refId++ << (char)DATA_END;; // reference id
-        exportStreamInfo.put((Int)obj, refId - 1);
+        if (processedObj == nullptr) {
+            Int id = ++guid;
+            push_data(BEGIN_OBJECT)
+            push_int32(id)
+            push_int32(o->size)
+            push_int32(o->type)
 
-        if(TYPE(obj->info) == _stype_var) {
-            dataStream << (char)obj->ntype;
-            dataStream << (char)EXPORT_DATA;
-            if(obj->ntype == type_int8) {
-                dataStream << vm.stringValue(obj) << (char) DATA_END;
-            } else {
-                for (uInt i = 0; i < obj->size; i++) {
-                    dataStream << std::setprecision(16) << obj->HEAD[i] << (char) DATA_END;
-                }
-            }
-            dataStream << (char)EXPORT_END;
-            recursion--;
-            return recursion == 0 ? dataStream.str() : "";
-        } else if(IS_CLASS(obj->info)) {
-            ClassObject &klass = vm.classes[CLASS(obj->info)];
-            dataStream << (char)EXPORT_CLASS;
-            uInt fieldAddress =  GENERATION(obj->info) == gc_perm ? klass.instanceFields : 0;
-            uInt fieldSize = GENERATION(obj->info) == gc_perm ? klass.staticFields : klass.instanceFields;
+            processedObjects.insert_start(KeyPair<Int, sharp_object *>(id, o));
+            if (o->type == type_class) {
+                push_data(CLASS_NAME_BEGIN)
 
-            dataStream << klass.fullName << (char)DATA_END;
-            dataStream << (char)EXPORT_DATA;
-            dataStream << (GENERATION(obj->info) == gc_perm ? 1 : 0);
-            dataStream << (obj->array ? 1 : 0);
-
-            if(obj->array) {
-                for(uInt i = 0; i < obj->size; i++) {
-                    SharpObject *objField = obj->node[i].object;
-                    if(objField != NULL) {
-                        if (!exportStreamInfo.get((Int)objField, refResult)) {
-                            export_obj(objField);
-                        } else {
-                            dataStream << (char)EXPORT_REFERENCE;
-                            dataStream << refResult << (char) DATA_END;
-                        }
-                    }
-                    else
-                        dataStream << (char)EXPORT_EMPTY;
-
-                }
-            } else {
-                if(fieldSize != obj->size) {
-                    recursion=0;
-                    exportStreamInfo.free();
-                    throw Exception(vm.IncompatibleClassExcept, "class: " + klass.name + " size does not match field count");
+                auto classType = vm.classes + CLASS(o->info);
+                for (char c: classType->name) {
+                    push_data(c)
                 }
 
-                for(Int i = 0; i < fieldSize; i++) {
-                    Field &field = klass.fields[fieldAddress++];
-
-                    dataStream << (char)EXPORT_FIELD;
-                    dataStream << field.type << (char)DATA_END;
-                    dataStream << field.name << (char)DATA_END;
-                    if (obj->node[i].object == NULL) {
-                        dataStream << (char)EXPORT_EMPTY;
-                    } else {
-                        if (!exportStreamInfo.get((Int)obj->node[i].object, refResult)) {
-                            export_obj(obj->node[i].object);
-                        } else {
-                            dataStream << (char)EXPORT_REFERENCE;
-                            dataStream << refResult << (char) DATA_END;
-                        }
-                    }
-                }
+                push_data(CLASS_NAME_END)
             }
 
-            dataStream << (char)EXPORT_END;
-
-            recursion--;
-            return recursion == 0 ? dataStream.str() : "";
+            push_data(DATA_BEGIN)
+            if (o->type <= type_var) {
+                for (Int i = 0; i < o->size; i++) {
+                    string value = to_string(o->HEAD[i]);
+                    push_data(ITEM_START)
+                    for (char c: value) {
+                        push_data(c)
+                    }
+                    push_data(ITEM_END)
+                }
+            } else {
+                for (Int i = 0; i < o->size; i++) {
+                    push_data(ITEM_START)
+                    serialize_object(o->node[i].o);
+                    push_data(ITEM_END)
+                }
+            }
+            push_data(DATA_END)
         } else {
-            dataStream << (char)EXPORT_DATA;
-            for(uInt i = 0; i < obj->size; i++) {
-                if(obj->node[i].object != NULL) {
-                    if (!exportStreamInfo.get((Int)obj->node[i].object, refResult)) {
-                        export_obj(obj->node[i].object);
-                    } else {
-                        dataStream << (char)EXPORT_REFERENCE;
-                        dataStream << refResult << (char) DATA_END;
-                    }
-                }
-                else
-                    dataStream << (char)EXPORT_EMPTY;
-            }
-            dataStream << (char)EXPORT_END;
-
-            recursion--;
-            return recursion == 0 ? dataStream.str() : "";
+            push_data(BEGIN_OBJECT)
+            push_data(REFERENCE_OBJECT)
+            push_int32(processedObj->data.key)
         }
     } else {
-        recursion=0;
-        exportStreamInfo.free();
-        throw Exception(vm.NullptrExcept, "");
+        push_data(BEGIN_OBJECT)
+        push_data(NULL_OBJECT)
     }
-
-    recursion--;
-    return "";
 }
 
-Int pos, streamSize;
-char nextChar(long double* data) {
-    if(pos < streamSize) {
-        return (char)data[++pos];
-    } else
-        throw Exception(vm.IndexOutOfBoundsExcept, "not enough data to process object stream, Is the data possibly corrupt?");
-}
+void serialize(object *from, object *to) {
+    try {
+        processedObjects.delete_all(nullptr); // just in case
+        bufferPos = -1;
+        bufferSize = 0;
+        guid = OBJECT_ID_START;
 
-char peekChar(long double* data) {
-    if((pos+1) < streamSize) {
-        return (char)data[pos+1];
-    } else
-        return 0;
-}
+        push_data(SERIALIZE_START)
+        serialize_object(from->o);
 
-Int readInt(long double *data) {
-    stringstream ss;
+        auto serializedData = create_object(bufferSize, type_int8);
+        copy_object(to, serializedData);
 
-    for(;;) {
-        char ch = nextChar(data);
-        if(ch == DATA_END) {
-            break;
+        for(Int i = 0; i < (bufferPos + 1); i++) {
+            serializedData->HEAD[i] = serializeBuffer[i];
         }
+        push_data(SERIALIZE_END)
+    } catch(runtime_error &err) {}
 
-        ss << ch;
-    }
-
-    return strtoll(ss.str().c_str(), NULL, 0);
+    processedObjects.delete_all(nullptr);
+    std::free(serializeBuffer);
+    release_bytes(sizeof(char) * bufferSize);
 }
 
-string readString(long double *data) {
-    stringstream ss;
+void deserialize_object(object *to) {
+    expect_data(BEGIN_OBJECT)
 
-    for(;;) {
-        char ch = nextChar(data);
-        if(ch == DATA_END) {
-            break;
-        }
+    Int typeOrId, size, type;
+    read_int32(typeOrId)
+    read_int32(size)
+    read_int32(type)
 
-        ss << ch;
-    }
+    if(typeOrId == NULL_OBJECT) {
+        copy_object(to, (sharp_object*) nullptr);
+    } else if(typeOrId == REFERENCE_OBJECT) {
+        auto processedObj = processedObjects.node_at((void*)typeOrId, [](void *id, node<KeyPair<Int, sharp_object *>> *n) {
+            return (Int)id == n->data.key;
+        });
 
-    return ss.str();
-}
-
-Int readDouble(long double *data) {
-    stringstream ss;
-
-    for(;;) {
-        char ch = nextChar(data);
-        if(ch == DATA_END) {
-            break;
-        }
-
-        ss << ch;
-    }
-
-    return strtod(ss.str().c_str(), NULL);
-}
-
-void expectChar(long double *data, char ch) {
-    if(data[++pos] != ch) {
-        stringstream ss;
-        ss << "expected char: " << (Int)ch << " during object import";
-        throw Exception(vm.IllStateExcept, ss.str());
-    }
-}
-
-SharpObject* load_obj(SharpObject* obj) {
-    long double *data = obj->HEAD;
-    if(data[++pos] == EXPORT_SECRET) {
-        sharp_type type = (sharp_type)(Int)data[++pos];
-        Int size = readInt(data);
-        Int refrenceId = readInt(data);
-        SharpObject *objPtr = NULL;
-
-        if(type == _stype_var) {
-            int ntype = (int)data[++pos];
-            expectChar(data, EXPORT_DATA);
-            SharpObject *object = gc.newObject(size, ntype);
-            importStreamInfo.put(refrenceId, object);
-
-            INC_REF(object)
-            if(ntype == type_int8) {
-                string str = readString(data);
-                for (Int i = 0; i < size; i++) {
-                    object->HEAD[i]
-                            = str[i];
-                }
-            } else {
-                for (Int i = 0; i < size; i++) {
-                    object->HEAD[i]
-                            = readDouble(data);
-                }
-            }
-
-            expectChar(data, EXPORT_END);
-            DEC_REF(object)
-            return object;
-        } else if(peekChar(data) == EXPORT_CLASS) {
-            pos++;
-            string className = readString(data);
-            ClassObject *klass = vm.resolveClass(className);
-            if(klass != NULL) {
-                expectChar(data, EXPORT_DATA);
-                bool staticInit = (char)data[++pos] == '1';
-                bool isArray = (char)data[++pos] == '1';
-                uInt realSize = staticInit ? klass->staticFields : klass->instanceFields;
-
-
-                SharpObject *object;
-
-                if(!isArray) {
-                    if(size > realSize) {
-                        stringstream ss;
-                        ss << "class: " << className << " requires(" << size
-                           << ") fields when the class was found to only have(" << realSize << ") fields";
-                        throw Exception(vm.IllStateExcept, ss.str());
-                    }
-
-                    object = gc.newObject(klass, staticInit, false);
-                    importStreamInfo.put(refrenceId, object);
-
-                    INC_REF(object)
-                    for(Int i = 0; i < size; i++) {
-                        expectChar(data, EXPORT_FIELD);
-                        data_type fieldType = (data_type)readInt(data);
-                        string fieldName = readString(data);
-
-                        Field* field = klass->getfield(fieldName);
-                        if(field != NULL) {
-                            if(field->type == fieldType) {
-                                Object *fieldObj = vm.resolveField(fieldName, object);
-                                if(peekChar(data) == EXPORT_EMPTY) {
-                                    pos++;
-                                    *fieldObj = (SharpObject*)NULL;
-                                } else {
-                                    if(peekChar(data) == EXPORT_REFERENCE) {
-                                        pos++;
-                                        Int refPtr = readInt(data);
-                                        if(importStreamInfo.get(refPtr, objPtr)) {
-                                            *fieldObj = objPtr;
-                                        } else {
-                                            stringstream ss;
-                                            ss << "could not locate object with reference id of: " << refrenceId << " in the object stream";
-                                            throw Exception(vm.IllStateExcept, ss.str());
-                                        }
-                                    } else {
-                                        *fieldObj = load_obj(obj);
-                                    }
-                                }
-                            } else {
-                                stringstream ss;
-                                ss << "field: " << fieldName << " does not match type: " << dataTypeToString(fieldType, field->isArray) << " found in the object stream";
-                                throw Exception(vm.IllStateExcept, ss.str());
-                            }
-                        } else {
-                            stringstream ss;
-                            ss << "field: " << fieldName << " was not found in class: " << className << " in the object stream";
-                            throw Exception(vm.IllStateExcept, ss.str());
-                        }
-                    }
-                } else {
-                    object = gc.newObjectArray(size, klass);
-                    importStreamInfo.put(refrenceId, object);
-
-                    INC_REF(object)
-                    for(Int i = 0; i < size; i++) {
-                        if(peekChar(data) == EXPORT_EMPTY)
-                            pos++;
-                        else if(peekChar(data) == EXPORT_REFERENCE) {
-                            pos++;
-                            Int refPtr = readInt(data);
-
-                            if(importStreamInfo.get(refPtr, objPtr)) {
-                                object->node[i] = objPtr;
-                            } else {
-                                stringstream ss;
-                                ss << "could not locate object with reference id of: " << refrenceId << " in the object stream";
-                                throw Exception(vm.IllStateExcept, ss.str());
-                            }
-                        } else {
-                            object->node[i] = load_obj(obj);
-                        }
-                    }
-                }
-
-                expectChar(data, EXPORT_END);
-                DEC_REF(object)
-                return object;
-            } else {
-                stringstream ss;
-                ss << "class: " << className << " could not be found in the object stream";
-                throw Exception(vm.IllStateExcept, ss.str());
-            }
+        if(processedObj != nullptr) {
+            copy_object(to, processedObj->data.value);
         } else {
-            expectChar(data, EXPORT_DATA);
-            SharpObject *object = gc.newObjectArray(size);
-            importStreamInfo.put(refrenceId, object);
-
-            INC_REF(object)
-            for(Int i = 0; i < size; i++) {
-                if(peekChar(data) == EXPORT_EMPTY)
-                    pos++;
-                else if(peekChar(data) == EXPORT_REFERENCE) {
-                    pos++;
-                    Int refPtr = readInt(data);
-                    if(importStreamInfo.get(refPtr, objPtr)) {
-                        object->node[i] = objPtr;
-                    } else {
-                        stringstream ss;
-                        ss << "could not locate object with reference id of: " << refrenceId << " in the object stream";
-                        throw Exception(vm.IllStateExcept, ss.str());
-                    }
-                } else {
-                    object->node[i] = load_obj(obj);
-                }
-            }
-            expectChar(data, EXPORT_END);
-            DEC_REF(object)
-            return object;
+            throw vm_exception("invalid object reference found in deserialization buffer");
         }
     } else {
-        throw Exception(vm.ObjectImportError, "export secret not found");
+        sharp_class *serializedClass = nullptr;
+        sharp_object *deserializedObject;
+
+        if (type == type_class) {
+            expect_data(CLASS_NAME_BEGIN)
+            string className;
+
+            for(;;) {
+                if((bufferPos + 1) >= bufferSize) {
+                    throw vm_exception("invalid format: unexpected end of deserialization buffer");
+                }
+
+                auto data = read_data;
+
+                if(data == CLASS_NAME_END)
+                    break;
+                else {
+                    className += data;
+                }
+            }
+
+            serializedClass = locate_class(className.c_str());
+            if(serializedClass == nullptr) {
+                throw vm_exception("failed to load class `" + className + "` from deserialization buffer");
+            }
+
+            if(size == 1) {
+                deserializedObject = create_object(serializedClass);
+            } else {
+                deserializedObject = create_object(serializedClass, size);
+            }
+        } else if(type <= type_var) {
+            deserializedObject = create_object(size, (data_type)type);
+        } else {
+            deserializedObject = create_object(size);
+        }
+
+        processedObjects.insert_start(KeyPair<Int, sharp_object *>(typeOrId, deserializedObject));
+        copy_object(to, deserializedObject);
+        expect_data(DATA_BEGIN)
+
+        for(Int i = 0; i < size; i++) {
+            expect_data(ITEM_START)
+            if(type <= type_var) {
+                string number;
+                for(;;) {
+                    if((bufferPos + 1) >= bufferSize) {
+                        throw vm_exception("invalid format: unexpected end of deserialization buffer");
+                    }
+
+                    auto data = read_data;
+
+                    if(data == ITEM_END)
+                        break;
+                    else {
+                        number += data;
+                    }
+                }
+
+                deserializedObject->HEAD[i] = strtod(number.c_str(), nullptr);
+            } else {
+                deserialize_object(deserializedObject->node + i);
+                expect_data(ITEM_END)
+            }
+        }
     }
 }
 
-void import_obj(SharpObject* obj) {
-    if(obj && TYPE(obj->info) == _stype_var && obj->size > 0) {
-        pos=-1; streamSize=obj->size;
-        (++thread_self->this_fiber->sp)->object
-           = load_obj(obj);
-    } else {
-        throw Exception(vm.NullptrExcept, "");
+void deserialize(object *from, object *to) {
+    try {
+        if(from->o) {
+            bufferSize = from->o->size;
+            bufferPos = -1;
+            deserializeBuffer = from->o->HEAD;
+
+            expect_data(SERIALIZE_START)
+            deserialize_object(to);
+            expect_data(SERIALIZE_END)
+        } else {
+            copy_object(to, (sharp_object*) nullptr);
+        }
+    } catch(runtime_error &err) {
+        processedObjects.delete_all(nullptr);
+        copy_object(to, (sharp_object*) nullptr);
     }
 }
 
