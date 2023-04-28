@@ -63,7 +63,6 @@ void post(fiber*);
 void sched_unsched_items();
 bool queue_task(fiber*);
 bool queue_thread(sharp_thread*);
-void setupSleepFunction();
 _sched_thread* get_sched_threads();
 
 #endif //SHARP_SCHEDULER_H

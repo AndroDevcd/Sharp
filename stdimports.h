@@ -17,6 +17,8 @@
 #include <limits>
 #include <cmath>
 #include <mutex>
+#include <atomic>
+#include <memory>
 #include "lib/core/architecture.h"
 #include "lib/grammar/platform.h"
 

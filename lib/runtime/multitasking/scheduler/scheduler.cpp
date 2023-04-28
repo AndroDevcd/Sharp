@@ -279,6 +279,10 @@ bool queue_task(fiber *fib) {
     return false;
 }
 
+_sched_thread* get_sched_threads() {
+    return sched_threads;
+}
+
 bool queue_thread(sharp_thread* thread) {
     _sched_thread *t = (_sched_thread*)malloc(sizeof(_sched_thread));
 

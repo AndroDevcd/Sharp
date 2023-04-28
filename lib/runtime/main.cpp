@@ -13,7 +13,9 @@
 #include "multitasking/scheduler/scheduler.h"
 #include "multitasking/thread/thread_controller.h"
 
+options c_options;
 string executable;
+std::list<string> exeArgs;
 
 void help() {
 #ifndef SHARP_PROF_

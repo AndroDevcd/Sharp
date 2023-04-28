@@ -162,6 +162,8 @@ else()
             "lib/core/opcode/*.h"
             "lib/util/*.cpp"
             "lib/util/*.h"
+            "lib/util/zip/*.cpp"
+            "lib/util/zip/*.h"
             "lib/Modules/math/*.h"
             "lib/Modules/math/*.cpp"
             "lib/Modules/std/*.h"

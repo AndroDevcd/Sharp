@@ -5,10 +5,10 @@
 #ifndef SHARP_VIRTUAL_MACHINE_H
 #define SHARP_VIRTUAL_MACHINE_H
 
+#include "meta_data.h"
 #include "exe/manifest.h"
 #include "types/sharp_type.h"
 #include "memory/sharp_object.h"
-#include "meta_data.h"
 
 extern thread_local long double *registers;
 
@@ -28,7 +28,7 @@ struct virtual_machine {
         strings(nullptr),
         constants(nullptr),
         staticHeap(nullptr),
-        md(),
+        mdata(),
         nativeTypes(nullptr)
     {}
 
@@ -39,7 +39,7 @@ struct virtual_machine {
     double *constants;
     object *staticHeap;
     object memoryExcept;
-    meta_data md;
+    meta_data mdata;
     sharp_type *nativeTypes;
     vm_state state;
 

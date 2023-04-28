@@ -43,12 +43,12 @@ vm_exception::vm_exception(vm_err &err)
     this->err = err;
 }
 
-void fill_stacktrace(string &output) {
+void fill_stack_trace(string &output) {
     sharp_thread *thread = thread_self;
-    if(thread->scht->task->frames)
+    if(thread->task->frames)
     {
         uInt functions = 0;
-        fiber *task = thread->scht->task;
+        fiber *task = thread->task;
         frame *frames = task->frames;
 
         if(task->calls + 1 < EXCEPTION_PRINT_MAX)
@@ -80,7 +80,7 @@ void vm_exception::push_exception() {
                 copy_object(&thread->task->exceptionObject, &vm.memoryExcept);
 
                 string str;
-                fill_stacktrace(str);
+                fill_stack_trace(str);
                 object *field = resolve_field("stack_trace", thread->task->exceptionObject.o);
 
                 if (field) {

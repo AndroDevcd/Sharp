@@ -23,8 +23,8 @@ struct frame {
     stack_item* fp;
 };
 
-CXX11_INLINE void init_struct(stack_item *item);
-CXX11_INLINE void init_struct(
+void init_struct(stack_item *item);
+void init_struct(
         frame *f,
         int32_t raddr,
         opcode_instr *ip,

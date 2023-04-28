@@ -7,8 +7,8 @@
 #include "thread_controller.h"
 
 
-bool free_struct(sharp_thread *thread) {
-
+void free_struct(sharp_thread *thread) {
+    // do nothing
 }
 
 CXX11_INLINE void init_struct(sharp_thread *thread) {

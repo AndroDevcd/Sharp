@@ -20,14 +20,19 @@ thread_local Int bufferPos = -1;
 thread_local Int guid = OBJECT_ID_START;
 
 CXX11_INLINE void alloc_buffer() {
+    Int allocSize;
+    if(bufferSize < MB_TO_BYTES(1)) // increase allocation size for large objects
+        allocSize = BUFFER_ALLOC_CHUNK_SIZE_STANDARD;
+    else allocSize = BUFFER_ALLOC_CHUNK_SIZE_LARGE;
+
     if(serializeBuffer == nullptr) {
-        serializeBuffer = malloc_mem<char>(sizeof(char) * BUFFER_ALLOC_CHUNK_SIZE);
-        bufferSize = BUFFER_ALLOC_CHUNK_SIZE;
+        serializeBuffer = malloc_mem<char>(sizeof(char) * allocSize);
+        bufferSize = allocSize;
     } else {
         serializeBuffer = realloc_mem<char>(serializeBuffer,
-             sizeof(char) * (bufferSize + BUFFER_ALLOC_CHUNK_SIZE),
+             sizeof(char) * (bufferSize + allocSize),
              sizeof(char) * bufferSize);
-        bufferSize += BUFFER_ALLOC_CHUNK_SIZE;
+        bufferSize += allocSize;
     }
 }
 
@@ -200,16 +205,20 @@ void deserialize_object(object *to) {
 
 void deserialize(object *from, object *to) {
     try {
-        if(from->o) {
+        if(from->o && from->o->type <= type_var) {
             bufferSize = from->o->size;
             bufferPos = -1;
             deserializeBuffer = from->o->HEAD;
+            guid = OBJECT_ID_START;
 
             expect_data(SERIALIZE_START)
             deserialize_object(to);
             expect_data(SERIALIZE_END)
+
+            deserializeBuffer = nullptr;
+            processedObjects.delete_all(nullptr);
         } else {
-            copy_object(to, (sharp_object*) nullptr);
+            throw vm_exception("attempting to deserialize null or non-string object");
         }
     } catch(runtime_error &err) {
         processedObjects.delete_all(nullptr);

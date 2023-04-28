@@ -31,14 +31,14 @@ CXX11_INLINE void init_struct(sharp_object *o) {
     o->HEAD = nullptr;
 }
 
-CXX11_INLINE void copy_object(object *to, object *from) {
+void copy_object(object *to, object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from ? from->o : nullptr;
     if(to->o) inc_ref(to->o)
 }
 
-CXX11_INLINE void copy_object(object *to, sharp_object *from) {
+void copy_object(object *to, sharp_object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from;
@@ -60,7 +60,7 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
         o->node = malloc_struct<object>(sizeof(object),  o->size, unsafe);
         for(Int i = 0; i < o->size; i++) {
             sharp_field *field = sc->fields + (sc->staticFields + i);
-            if(field->type->type <= type_var && !field->isArray && checkFlag(field->flags, flag_static)) {
+            if(field->type->type <= type_var && !field->isArray && check_flag(field->flags, flag_static)) {
                 copy_object(o->node + i, create_object(1, field->type->type));
             }
         }
@@ -110,6 +110,66 @@ sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
     }
 
     return nullptr;
+}
+
+void realloc_object(sharp_object *o, Int size, bool unsafe) {
+    if(o) {
+        if(size <= 0) {
+            throw vm_exception("call to realloc() with size <= 0");
+        }
+
+        guard_mutex(copy_mut)
+        if(o->type <= type_var) {
+            o->HEAD = realloc_mem<long double>(o->HEAD, sizeof(long double) * size, o->size, unsafe);
+
+            if(size > o->size) {
+                for(Int i = o->size; i < size; i++) {
+                    o->HEAD[i] = 0;
+                }
+            }
+
+        } else {
+            if(size < o->size) {
+                for(size_t i = size; i < o->size; i++) {
+                    if(o->node[i].o != nullptr) {
+                        dec_ref(o->node[i].o)
+                    }
+                }
+            }
+
+            o->node = realloc_mem<object>(o->node, sizeof(object) * size, o->size, unsafe);
+
+            if(size > o->size) {
+                for(Int i = o->size; i < size; i++) {
+                    o->node[i].o = NULL;
+                }
+            }
+        }
+
+        o->size = size;
+    }
+}
+
+Int sizeof_object(sharp_object *o) {
+    double size =0;
+    if(o != nullptr) {
+
+        if(o->type <= type_var) {
+            size += sizeof(double) * o->size;
+        } else {
+            for(uInt i = 0; i < o->size; i++) {
+                if(o->node[i].o != nullptr) {
+                    size += sizeof_object(o->node[i].o);
+                }
+            }
+
+            size += sizeof(object) * o->size;
+        }
+
+        size += sizeof(sharp_object);
+    }
+
+    return size;
 }
 
 sharp_object* create_object(Int size, bool unsafe) {

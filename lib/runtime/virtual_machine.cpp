@@ -20,8 +20,11 @@
 #include "vm_initializer.h"
 #include "../util/File.h"
 #include "../Modules/std.io/memory.h"
+#include "../Modules/std.io/fileio.h"
+#include "../Modules/std.io/serialization.h"
 
 virtual_machine vm;
+thread_local long double *registers;
 
 void main_vm_loop()
 {
@@ -803,7 +806,7 @@ void exec_interrupt(Int interrupt)
         case OP_FIBER_BOUND_COUNT: {
             Int threadId = pop_stack_number;
             auto thread = get_thread(threadId);
-            registers[EBX] = thread ? thread->boundFibers : 0;
+            registers[EBX] = thread ? thread->boundFibers.load() : 0;
             return;
         }
         case OP_FIBER_STATE: {
@@ -971,6 +974,189 @@ void exec_interrupt(Int interrupt)
         case OP_INVERT: {
             invert();
             return;
+        }
+        case OP_REALLOC: {
+            size_t len = pop_stack_number;
+            auto array = task->sp->obj.o;
+
+            if(array != NULL) {
+                realloc_object(array, len);
+            } else
+                throw vm_exception(vm.nullptr_except, "");
+            return;
+        }
+        case OP_CURRENT_DIRECTORY: {
+            string path;
+            current_directory(path);
+            auto strObject = create_object(path.size(), type_int8);
+
+            copy_object(&push_stack_object, strObject);
+            assign_string_field(strObject, path);
+            return;
+        }
+        case OP_FILE_ACCESS:
+        case OP_FILE_ATTRS:
+        case OP_FILE_UPDATE_TM:
+        case OP_FILE_SIZE:
+        case OP_FILE_CREATE:
+        case OP_FILE_DELETE:
+        case OP_GET_FILES:
+        case OP_CREATE_DIR:
+        case OP_DELETE_DIR:
+        case OP_UPDATE_FILE_TM:
+        case OP_CHMOD:
+        case OP_READ_FILE: {
+            auto arry = &pop_stack_object;
+            if(arry->o != NULL && arry->o->size > 0 && arry->o->type <= type_var) {
+                string path;
+                populate_string(path, arry->o);
+
+                if(interrupt==OP_FILE_ACCESS)
+                    registers[EBX] = check_access(path, (int)registers[EBX]);
+                else if(interrupt==OP_FILE_ATTRS)
+                    registers[EBX] = get_file_attrs(path);
+                else if(interrupt==OP_FILE_UPDATE_TM)
+                    registers[EBX] = last_update(path, (int)registers[EBX]);
+                else if(interrupt==OP_FILE_SIZE)
+                    registers[EBX] = file_size(path);
+                else if(interrupt==OP_FILE_CREATE)
+                    create_file(path);
+                else if(interrupt==OP_FILE_DELETE)
+                    registers[EBX] = delete_file(path);
+                else if(interrupt==OP_GET_FILES) {
+                    std::list<string> files;
+                    get_file_list(path, files);
+                    arry = &push_stack_object;
+
+                    if(files.size()>0) {
+                        copy_object(arry, create_object(vm.string_class, (Int)files.size()));
+
+                        Int iter = 0;
+                        for(string fileName : files) {
+                            copy_object(arry->o->node + (iter), create_object(vm.string_class));
+                            auto dataField = resolve_field("data", arry->o->node[iter].o);
+                            auto strObject = create_object(fileName.size(), type_int8);
+
+                            copy_object(dataField, strObject);
+                            assign_string_field(strObject, fileName);
+                            iter++;
+                        }
+                    } else {
+                        copy_object(arry, (sharp_object*) nullptr);
+                    }
+                }
+                else if(interrupt==OP_CREATE_DIR)
+                    registers[EBX] = File::makeDir(path);
+                else if(interrupt==OP_DELETE_DIR)
+                    registers[EBX] = delete_dir(path);
+                else if(interrupt==OP_UPDATE_FILE_TM)
+                    registers[EBX] = update_time(path, (time_t)registers[EBX]);
+                else if(interrupt==OP_CHMOD)
+                    registers[EBX] = __chmod(path, (mode_t)registers[EBX], (bool)registers[EGX], (bool)registers[ECX]);
+                else if(interrupt==OP_READ_FILE) {
+                    arry = &push_stack_object;
+                    string str;
+                    read_file(path, str);
+
+                    if(str.size() > 0) {
+                        copy_object(arry, create_object(vm.string_class));
+                        auto dataField = resolve_field("data", arry->o);
+                        auto strObject = create_object(str.size(), type_int8);
+
+                        copy_object(dataField, strObject);
+                        assign_string_field(strObject, str);
+                    } else {
+                        copy_object(arry, (sharp_object*) nullptr);
+                    }
+                }
+            } else
+                throw vm_exception(vm.nullptr_except, "");
+            return;
+        }
+        case OP_RENAME_FILE:
+        case OP_WRITE_FILE:  {
+            auto pathObj = pop_stack_object.o;
+            auto newNameObj = pop_stack_object.o;
+
+            if (pathObj != NULL && pathObj->type <= type_var && newNameObj != NULL
+                && newNameObj->type <= type_var) {
+                string path, rename;
+
+                populate_string(path, pathObj);
+                populate_string(rename, newNameObj);
+
+                if(interrupt==OP_RENAME_FILE)
+                    registers[EBX] = rename_file(path, rename);
+                else if(interrupt==OP_WRITE_FILE) {
+                    File::buffer buf;
+                    buf.operator<<(rename); // rename will contain our actual unicode data
+                    registers[EBX] = File::write(path.c_str(), buf);
+                    buf.end();
+                }
+            } else {
+                throw vm_exception(vm.nullptr_except, "");
+            }
+
+            return;
+        }
+        case OP_DISK_SPACE:
+            registers[EBX]=disk_space((int32_t )registers[EBX]);
+            return;
+        case OP_SIZEOF:
+            registers[EBX] = sizeof_object(pop_stack_object.o);
+            return;
+        case OP_FLUSH:
+            cout << std::flush;
+            break;
+        case OP_GET_FRAME_INFO: {
+            grow_stack
+            stack_overflow_check
+            auto info = get_frame_info(task);
+            auto stackState = create_object(vm.stack_sate);
+            auto methodsField = resolve_field("methods", stackState);
+            auto pcField = resolve_field("pc", stackState);
+            Int iter = 0;
+
+            copy_object(methodsField, create_object(info.size(), type_int64));
+            copy_object(pcField, create_object(info.size(), type_int64));
+            for(KeyPair<Int, Int> &frameInfo : info) {
+                methodsField->o->HEAD[iter] = frameInfo.key;
+                pcField->o->HEAD[iter++] = frameInfo.value;
+            }
+
+            copy_object(&push_stack_object, stackState);
+            break;
+        }
+        case OP_GET_STACK_TRACE: {
+            string str;
+            fill_stack_trace(str);
+            auto stacktrace = &push_stack_object;
+
+            copy_object(stacktrace, create_object(vm.string_class));
+            auto dataField = resolve_field("data", stacktrace->o);
+            auto strObject = create_object(str.size(), type_int8);
+
+            copy_object(dataField, strObject);
+            assign_string_field(strObject, str);
+            break;
+        }
+        case OP_COPY: {
+            copy();
+            return;
+        }
+        case OP_CORES: {
+            registers[EBX]=std::thread::hardware_concurrency();
+            return;
+        }
+        case OP_SERIALIZE: {
+            serialize(&task->sp->obj, &task->sp->obj);
+            return;
+        }
+        case OP_DESERIALIZE: {
+            deserialize(&task->sp->obj, &(task->sp+1)->obj);
+            copy_object(&task->sp->obj, &(task->sp+1)->obj);
+            return;
+        }
         default: {
             stringstream ss;
             ss << "invalid system interrupt signal: " << interrupt;

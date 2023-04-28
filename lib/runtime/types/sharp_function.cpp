@@ -37,7 +37,7 @@ string get_info(sharp_function *sf, Int pc) {
     stringstream ss;
     ss << "\tSource ";
     if(sf->sourceFile != -1 && sf->sourceFile < vm.manifest.sourceFiles) {
-        ss << "\""; ss << get_item_at(vm.md.files, sf->sourceFile)->name << "\"";
+        ss << "\""; ss << get_item_at(vm.mdata.files, sf->sourceFile)->name << "\"";
     }
     else
         ss << "\"Unknown File\"";
@@ -71,7 +71,9 @@ string get_info(sharp_function *sf, Int pc) {
         ss << " " << (sf->nativeFunc ? "(jit)" : "");
     }
 
-    if(line != -1 && vm.md.files.size() > 0) {
-        ss << get_info(get_item_at(vm.md.files, sf->sourceFile), line);
+    if(line != -1 && vm.mdata.files.size() > 0) {
+        ss << get_info(get_item_at(vm.mdata.files, sf->sourceFile), line);
     }
+
+    return ss.str();
 }

@@ -47,7 +47,7 @@ void fiber::free() {
 }
 
 void fiber::growFrame() {
-    GUARD(mut)
+    guard_mutex(mut)
 
     if(frameSize + FRAME_GROW_SIZE < frameLimit) {
         frames = realloc_mem<frame>(
@@ -68,7 +68,7 @@ void fiber::growFrame() {
     
 }
 
-CXX11_INLINE void init_struct(fiber *fib) {
+void init_struct(fiber *fib) {
     fib = new (fib)fiber();
     fib->main = nullptr;
     fib->pc = 0;
@@ -118,7 +118,7 @@ CXX11_INLINE void init_struct(fiber *fib) {
 }
 
 void fiber::growStack(Int requiredSize) {
-    GUARD(mut)
+    guard_mutex(mut)
     if(requiredSize < STACK_GROW_SIZE)
       requiredSize = STACK_GROW_SIZE;
     else requiredSize += STACK_GROW_SIZE;

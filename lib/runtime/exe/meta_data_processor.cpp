@@ -33,8 +33,8 @@ void process_meta_data(KeyPair<int, string> &result) {
     PROCESS_SECTION(eos,
 
        case data_file: {
-           vm.md.files.emplace_back(new file_data());
-           file_data *sourceFile = *vm.md.files.end();
+           vm.mdata.files.emplace_back(new file_data());
+           file_data *sourceFile = *vm.mdata.files.end();
            sourceFile->name = next_string();
 
            if(vm.manifest.debug) {

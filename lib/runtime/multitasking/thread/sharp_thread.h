@@ -5,10 +5,11 @@
 #ifndef SHARP_SHARP_THREAD_H
 #define SHARP_SHARP_THREAD_H
 
+#include "../../../../stdimports.h"
 #include "../scheduler/scheduler.h"
 #include "../../memory/sharp_object.h"
-#include "../../../grammar/backend/types/sharp_function.h"
 #include "notification_helper.h"
+#include "../fiber/fiber.h"
 
 #define ILL_THREAD_ID -1
 #define THREAD_MAP_SIZE 0x2000
@@ -60,7 +61,7 @@ struct sharp_thread {
 };
 
 CXX11_INLINE void init_struct(sharp_thread *thread);
-bool free_struct(sharp_thread *thread)
+void free_struct(sharp_thread *thread);
 
 
 #endif //SHARP_SHARP_THREAD_H

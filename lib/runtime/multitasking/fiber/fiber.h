@@ -72,6 +72,6 @@ public:
     fib_mutex *f_lock;
 };
 
-CXX11_INLINE void init_struct(fiber*);
+void init_struct(fiber*);
 
 #endif //SHARP_FIBER_H

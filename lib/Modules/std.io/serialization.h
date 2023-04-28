@@ -7,7 +7,8 @@
 
 #include "../../runtime/memory/sharp_object.h"
 
-#define BUFFER_ALLOC_CHUNK_SIZE (512 * 512)
+#define BUFFER_ALLOC_CHUNK_SIZE_STANDARD (128 * 128)
+#define BUFFER_ALLOC_CHUNK_SIZE_LARGE (512 * 512)
 #define SERIALIZE_START (0x3b)
 #define SERIALIZE_END (0x3d)
 #define BEGIN_OBJECT (0x3a)
@@ -16,9 +17,9 @@
 #define REFERENCE_OBJECT (0xf)
 #define DATA_BEGIN (0xe)
 #define DATA_END (0x2e)
-#define ITEM_START (0xd)
+#define ITEM_START (0x002)
 #define ITEM_END (0x1c)
-#define NULL_OBJECT (0x4d)
+#define NULL_OBJECT (0x008)
 #define OBJECT_ID_START (0x7F)
 
 #define push_data(data) \
