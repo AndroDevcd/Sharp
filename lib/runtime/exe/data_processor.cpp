@@ -22,11 +22,12 @@ void process_function_data(KeyPair<int, string> &result) {
             }
 
             sharp_function* sf = &vm.methods[itemsProcessed++];
+            init_struct(sf);
 
             sf->address = next_int32();
             sf->guid = next_int32();
-            sf->name = next_string();
-            sf->fullName = next_string();
+            next_string(sf->name);
+            next_string(sf->fullName);
             sf->sourceFile = next_int32();
             sf->owner = &vm.classes[next_int32()];
             sf->fnType = (function_type)next_int32();
@@ -66,8 +67,7 @@ void process_function_data(KeyPair<int, string> &result) {
 
             len = next_int32();
             for(Int i = 0; i < len; i++) {
-                sf->tryCatchTable.emplace_back(try_catch_data());
-                try_catch_data &tryCatchData = *sf->tryCatchTable.end();
+                try_catch_data tryCatchData;
 
                 tryCatchData.tryStartPc= next_int32();
                 tryCatchData.tryEndPc= next_int32();
@@ -76,19 +76,21 @@ void process_function_data(KeyPair<int, string> &result) {
 
                 Int caughtExceptions = next_int32();
                 for(Int j =0; j < caughtExceptions; j++) {
-                    tryCatchData.catchTable.emplace_back(catch_data());
-                    catch_data &catchData = *tryCatchData.catchTable.end();
+                    catch_data catchData;
                     catchData.handlerPc = next_int32();
                     catchData.exceptionFieldAddress = next_int32();
                     catchData.exception = &vm.classes[next_int32()];
+                    tryCatchData.catchTable.push_back(catchData);
                 }
 
-                if(next_int32() == 1) {
+                if(next_char() == 1) {
                     tryCatchData.finallyData = (finally_data*)malloc(sizeof(finally_data));
                     tryCatchData.finallyData->startPc = next_int32();
                     tryCatchData.finallyData->endPc = next_int32();
                     tryCatchData.finallyData->exceptionFieldAddress = next_int32();
                 }
+
+                sf->tryCatchTable.push_back(tryCatchData);
             }
             break;
         }, // on section_end

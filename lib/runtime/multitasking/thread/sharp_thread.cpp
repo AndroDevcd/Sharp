@@ -5,13 +5,17 @@
 #include "sharp_thread.h"
 #include "../../../core/thread_state.h"
 #include "thread_controller.h"
+#include "../../memory/garbage_collector.h"
 
 
 void free_struct(sharp_thread *thread) {
     // do nothing
+    release_bytes(sizeof(sharp_thread));
+    copy_object(&thread->currentThread, (sharp_object*) nullptr);
+    copy_object(&thread->args, (sharp_object*) nullptr);
 }
 
-CXX11_INLINE void init_struct(sharp_thread *thread) {
+void init_struct(sharp_thread *thread) {
     thread->task = nullptr;
     new(&thread->boundFibers) atomic<Int>();
     new(&thread->queue) atomic<sched_task*>();

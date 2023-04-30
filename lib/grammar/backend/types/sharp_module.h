@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../../List.h"
 #include "../../settings/settings.h"
+#include "../compiler/obfuscate_compiler.h"
 
 struct sharp_class;
 
@@ -23,18 +24,18 @@ struct sharp_class;
 struct sharp_module {
     sharp_module()
     :
-        name(""),
-        classes(),
-        obfuscate(options.obfuscate),
-        uid(-1),
-        genericClasses()
+            name(""),
+            classes(),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
+            uid(-1),
+            genericClasses()
     {}
 
     sharp_module(string &package)
             :
             name(package),
             classes(),
-            obfuscate(options.obfuscate),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             uid(-1),
             genericClasses()
     {}
@@ -44,7 +45,7 @@ struct sharp_module {
             :
             name(m.name),
             classes(),
-            obfuscate(options.obfuscate),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             uid(-1),
             genericClasses()
     {
@@ -63,7 +64,7 @@ struct sharp_module {
     void copy(const sharp_module &m);
 
     string name;
-    bool obfuscate;
+    obfuscation_modifier obfuscateModifier;
     uInt uid;
     List<sharp_class*> classes;
     List<sharp_class*> genericClasses;

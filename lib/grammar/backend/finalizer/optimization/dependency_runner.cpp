@@ -9,11 +9,6 @@
 
 void run_and_mark_tree(List<dependency> &dependencies);
 
-void mark(sharp_field *sf);
-void mark(sharp_function *fun);
-void mark(sharp_class *sc);
-void mark(sharp_file *sf);
-
 void mark(sharp_field *sf) {
     if(!sf->used) {
         sf->used = true;

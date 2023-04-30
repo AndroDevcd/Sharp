@@ -47,7 +47,14 @@
 #define UNSUPPORTED_BUILD_VERSION 0x007
 #define OUT_OF_MEMORY 0x008
 
-#define data_compress_threshold 0xFFFF
+/**
+ * Bytes are used via the JEDEC Standard 100B.01
+ */
+#define KB_TO_BYTES(bytes) (((uInt)bytes)*1024)
+#define MB_TO_BYTES(bytes) (((uInt)bytes)*1048576)
+#define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
+
+#define data_compress_threshold MB_TO_BYTES(1)
 
 #define GET_i32w(i) ((uint8_t)(i >> 24))
 #define GET_i32x(i) ((uint8_t)((i >> 16) & 0xff))

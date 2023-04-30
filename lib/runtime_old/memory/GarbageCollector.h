@@ -319,13 +319,6 @@ private:
     tail = object; \
 }
 
-/**
- * Bytes are used via the JEDEC Standard 100B.01
- */
-#define KB_TO_BYTES(bytes) (((uInt)bytes)*1024)
-#define MB_TO_BYTES(bytes) (((uInt)bytes)*1048576)
-#define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
-
 #define GUARD(mut) \
     std::lock_guard<recursive_mutex> guard(mut);
 

@@ -22,28 +22,27 @@ obfuscation_modifier process_modifier(Ast *ast) {
     return modifier_obfuscate;
 }
 
-void set_obfuscation_flag(bool &obfuscate, obfuscation_modifier modifier) {
-    obfuscate = (modifier == modifier_obfuscate || modifier == modifier_obfuscate_inclusive);
+void set_obfuscation_flag(obfuscation_modifier &obfuscate, obfuscation_modifier modifier) {
+    obfuscate = modifier;
 }
 
-void obfuscate_class(sharp_class *sc, obfuscation_modifier modifier, Ast *ast) {
-    set_obfuscation_flag(sc->obfuscate, modifier);
+void obfuscate_class(sharp_class *sc, obfuscation_modifier modifier, Ast *ast) { // todo: if modifier is present for any type complain about overriding it
+    set_obfuscation_flag(sc->obfuscateModifier, modifier);
 
     if(modifier == modifier_keep_inclusive || modifier == modifier_obfuscate_inclusive) {
         if(sc->blueprintClass) {
             GUARD(globalLock)
-            sc->obfuscate = true;
 
             for(Int i = 0; i < sc->genericClones.size(); i++) {
                 obfuscate_class(sc->genericClones.get(i), modifier, ast);
             }
         } else {
             for (Int i = 0; i < sc->fields.size(); i++) {
-                set_obfuscation_flag(sc->fields.get(i)->obfuscate, modifier);
+                set_obfuscation_flag(sc->fields.get(i)->obfuscateModifier, modifier);
             }
 
             for (Int i = 0; i < sc->functions.size(); i++) {
-                set_obfuscation_flag(sc->functions.get(i)->obfuscate, modifier);
+                set_obfuscation_flag(sc->functions.get(i)->obfuscateModifier, modifier);
             }
         }
     } else {
@@ -60,7 +59,7 @@ void compile_obfuscation_element(obfuscation_modifier modifier, Ast *ast) {
         sharp_module *module = get_module(ast->getToken(0).getValue());
 
         if(module != NULL) {
-            set_obfuscation_flag(module->obfuscate, modifier);
+            set_obfuscation_flag(module->obfuscateModifier, modifier);
         } else {
             create_new_error(GENERIC, ast,
                              " cannot locate module `" + ast->getToken(0).getValue() + "` in obfuscation block.");
@@ -75,10 +74,10 @@ void compile_obfuscation_element(obfuscation_modifier modifier, Ast *ast) {
 
         if(type == type_field) {
             sharp_field *field = type.field;
-            set_obfuscation_flag(field->obfuscate, modifier);
+            set_obfuscation_flag(field->obfuscateModifier, modifier);
         } else if(type == type_function) {
             sharp_function *fun = type.fun;
-            set_obfuscation_flag(fun->obfuscate, modifier);
+            set_obfuscation_flag(fun->obfuscateModifier, modifier);
         } else if(type == type_class) {
             sharp_class *sc = type._class;
             obfuscate_class(sc, modifier, ast);

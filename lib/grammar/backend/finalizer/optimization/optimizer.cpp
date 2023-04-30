@@ -7,6 +7,7 @@
 #include "../../../compiler_info.h"
 #include "dependency_runner.h"
 #include "field_injector.h"
+#include "obfuscator.h"
 
 // this field represents a compressed list of all source files to only include the source files that the user
 // code depends on
@@ -16,6 +17,7 @@ void optimize() {
     if(genesis_method != NULL && user_main_method != NULL) {
         markRelevantDependencyMembers();
         injectAllRelevantFields();
+        markExplicitObfuscatedItems();
 
         // todo optimize code later
     } else {

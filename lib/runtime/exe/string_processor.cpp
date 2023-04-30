@@ -21,8 +21,8 @@ void process_strings(KeyPair<int, string> &result) {
                throw runtime_error("");
            }
 
-           vm.strings[itemsProcessed++] = next_chars(next_int32());
-           break;
+           next_chars(vm.strings[itemsProcessed++], next_int32());
+           continue;
        }, // on section_end
 
        if (itemsProcessed != vm.manifest.strings) {

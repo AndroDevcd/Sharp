@@ -8,6 +8,10 @@
 #include "../../dependency/dependancy.h"
 
 void markRelevantDependencyMembers();
+
+void mark(sharp_field *sf);
 void mark(sharp_function *fun);
+void mark(sharp_class *sc);
+void mark(sharp_file *sf);
 
 #endif //SHARP_DEPENDENCY_RUNNER_H

@@ -80,8 +80,8 @@ void process_symbols(KeyPair<int, string> &result) {
             if(address != -1) sc->base = &vm.classes[address];
 
             sc->guid = next_int32();
-            sc->name = next_string();
-            sc->fullName = next_string();
+            next_string(sc->name);
+            next_string(sc->fullName);
             sc->staticFields = next_int32();
             sc->instanceFields = next_int32();
             sc->totalFieldCount = sc->staticFields + sc->instanceFields;
@@ -108,14 +108,14 @@ void process_symbols(KeyPair<int, string> &result) {
 
                         sharp_field *field = &sc->fields[itemsProcessed++];
 
-                        field->name = next_string();
-                        field->fullName = next_string();
+                        next_string(field->name);
+                        next_string(field->fullName);
                         field->address = next_int32();
-                        field->type = next_type();
                         field->guid = next_int32();
                         field->flags = next_int32();
                         field->isArray = next_char() == '1';
                         field->threadLocal = next_char() == '1';
+                        field->type = next_type();
                         field->owner = &vm.classes[next_int32()];
 
                     } else if(current_char() == 0x0 || current_char() == 0x0a || current_char() == 0x0d){ /* ignore */ }
@@ -172,7 +172,7 @@ void process_symbols(KeyPair<int, string> &result) {
                     throw invalid_argument("Failed to process all interfaces in executable.");
                 }
             }
-            break;
+            continue;
         },// on section_end
         break;
     )

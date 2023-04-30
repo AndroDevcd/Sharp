@@ -13,13 +13,15 @@
 void process_compressed_data(KeyPair<int, string> &result) {
     if(next_char() == data_compress) {
         stringstream buf, __outbuf__;
-        for(uInt i = cursor; i < exeData.size(); i++) {
+        for(uInt i = cursor + 1; i < exeData.size(); i++) {
             __outbuf__ << exeData[i];
         }
 
+        auto datas = __outbuf__.str();
         Zlib zlib;
         Zlib::AUTO_CLEAN=(true);
         zlib.Decompress_Buffer2Buffer(__outbuf__.str(), buf);
+
 
         exeData = buf.str();
         cursor = -1;

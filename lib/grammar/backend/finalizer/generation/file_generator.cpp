@@ -152,8 +152,6 @@ void build_field_data(sharp_field *field) {
     exeBuf << field->name << ((char)nil);
     exeBuf << field->fullName << ((char)nil);
     exeBuf << putInt32(field->ci->address);
-
-    exeBuf << putInt32(field->type.type);
     exeBuf << putInt32(field->uid);
     exeBuf << putInt32(field->flags);
     exeBuf << (field->type.isArray ? 1 : 0);
@@ -231,6 +229,10 @@ void build_symbol_section() {
         exeBuf << putInt32(get_instance_field_count(sc));
         exeBuf << putInt32(get_function_count(sc));
         exeBuf << putInt32(get_interface_count(sc));
+
+        if(sc->name == "out_of_memory_exception") {
+            int fi = 0;
+        }
 
         build_field_data(sc);
         build_method_data(sc);

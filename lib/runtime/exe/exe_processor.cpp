@@ -21,13 +21,18 @@ string exeData;
 int cursor = -1;
 
 void validate_authenticity() {
-    if(next_char() == file_sig && next_chars(3) == "SEF") {
-        cursor += zoffset;
+    string marker;
+    if(next_char() == file_sig) {
+        next_chars(marker, 3);
 
-        /* Check file's digital signature */
-        if(next_char() == digi_sig1 && next_char() == digi_sig2
-           && next_char() == digi_sig3) {
-            return;
+        if(marker == "SEF") {
+            cursor += zoffset;
+
+            /* Check file's digital signature */
+            if(next_char() == digi_sig1 && next_char() == digi_sig2
+               && next_char() == digi_sig3) {
+                return;
+            }
         }
     }
 
@@ -64,7 +69,7 @@ KeyPair<int, string> process_exe() {
     } catch(underflow_error &e) {
         return result.with(CORRUPT_FILE, e.what());
     } catch(runtime_error &e) {
-        return result;
+        return result.with(CORRUPT_FILE, e.what());
     }
 
     return result;
@@ -94,27 +99,22 @@ char current_char() {
 }
 
 
-string next_chars(size_t len) {
-    string s;
+void next_chars(string &str, size_t len) {
     while(len > 0) {
-        s += next_char();
+        str += next_char();
         len--;
     }
-
-    return s;
 }
 
-string next_string() {
-    string s;
+void next_string(string &str) {
     while(next_char() != nil) {
-        s += current_char();
+        str += current_char();
     }
-
-    return s;
 }
 
 int32_t next_int32() {
-    string num = next_chars(4);
+    string num;
+    next_chars(num, 4);
     return SET_i32(num[0], num[1], num[2], num[3]);
 }
 
@@ -122,7 +122,9 @@ Int parse_int() {
 #if _ARCH_BITS == 32
     return strtol(next_string().c_str(), NULL, 0);
 #else
-    return strtoll(next_string().c_str(), NULL, 0);
+    string s;
+    next_string(s);
+    return strtoll(s.c_str(), NULL, 0);
 #endif
 }
 

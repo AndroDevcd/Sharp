@@ -13,6 +13,7 @@
 #include "../dependency/injection_request.h"
 #include "../../compiler_info.h"
 #include "../../settings/settings.h"
+#include "../compiler/obfuscate_compiler.h"
 
 struct sharp_class;
 struct code_info;
@@ -39,7 +40,7 @@ struct sharp_field {
             staticClosure(false),
             used(false),
             hasConstValue(false),
-            obfuscate(options.obfuscate),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             constValue(0),
             block(invalid_block_id),
             type(),
@@ -59,7 +60,7 @@ struct sharp_field {
             dependencies(sf.dependencies),
             type(sf.type),
             flags(sf.flags),
-            obfuscate(sf.obfuscate),
+            obfuscateModifier(sf.obfuscateModifier),
             constValue(sf.constValue),
             uid(sf.uid),
             hasConstValue(sf.hasConstValue),
@@ -104,7 +105,7 @@ struct sharp_field {
             closureRef(NULL),
             uid(-1),
             staticClosure(false),
-            obfuscate(options.obfuscate),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             used(false),
             constValue(0),
             hasConstValue(false),
@@ -149,7 +150,7 @@ struct sharp_field {
     Int block;
     bool staticClosure;
     bool used;
-    bool obfuscate;
+    obfuscation_modifier obfuscateModifier;
     uInt uid;
     uInt flags;
     Ast* ast;

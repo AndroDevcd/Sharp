@@ -386,9 +386,7 @@ void process_set_finally_end(operation_step *step) {
             get_finally_data(step->secondRegister, find_try_catch_data(step->integer));
 
     if(fd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        fd->endPc = label;
+        fd->endPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown catch data!");
     }
@@ -401,9 +399,7 @@ void process_set_finally_start(operation_step *step) {
             get_finally_data(step->secondRegister, find_try_catch_data(step->integer));
 
     if(fd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        fd->startPc = label;
+        fd->startPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown catch data!");
     }
@@ -416,9 +412,7 @@ void process_set_catch_start(operation_step *step) {
             find_catch_data(step->secondRegister, find_try_catch_data(step->integer));
 
     if(cd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        cd->handlerPc = label;
+        cd->handlerPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown catch data!");
     }
@@ -466,9 +460,7 @@ void process_set_try_catch_end(operation_step *step) {
             find_try_catch_data(step->integer);
 
     if(tcd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        tcd->tryEndPc = label;
+        tcd->tryEndPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown try catch data!");
     }
@@ -481,9 +473,7 @@ void process_set_try_catch_block_end(operation_step *step) {
             find_try_catch_data(step->integer);
 
     if(tcd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        tcd->blockEndPc = label;
+        tcd->blockEndPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown try catch data!");
     }
@@ -496,9 +486,7 @@ void process_set_try_catch_block_start(operation_step *step) {
             find_try_catch_data(step->integer);
 
     if(tcd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        tcd->blockStartPc = label;
+        tcd->blockStartPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown try catch data!");
     }
@@ -511,9 +499,7 @@ void process_set_try_catch_start(operation_step *step) {
             find_try_catch_data(step->integer);
 
     if(tcd != NULL) {
-        Int label = create_label();
-        set_label(find_label(label));
-        tcd->tryStartPc = label;
+        tcd->tryStartPc = cc.instructions.size();
     } else {
         generation_error("attempt to set unknown try catch data!");
     }

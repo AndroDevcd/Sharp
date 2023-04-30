@@ -7,7 +7,7 @@
 #include "../../util/list_helper.h"
 #include "../main.h"
 
-CXX11_INLINE void init_struct(sharp_function *sf) {
+void init_struct(sharp_function *sf) {
     sf->address = 0;
     sf->guid = 0;
     new (&sf->name) string();

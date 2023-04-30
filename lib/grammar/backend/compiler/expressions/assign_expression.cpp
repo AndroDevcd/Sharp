@@ -73,26 +73,32 @@ void compile_assign_expression(expression *e, Ast *ast) {
             && left.type.field->getter != NULL) {
 
             operation_schema scheme;
-            if(left.scheme.steps.size() >= 3
-                && left.scheme.steps.last()->type == operation_call_instance_function
-                && left.scheme.steps.last(1)->type == operation_push_value_to_stack
-                && left.scheme.steps.last(2)->type == operation_get_static_class_instance) {
-                left.scheme.steps.drop(3);
+            if(left.scheme.steps.size() >= 4
+                && left.scheme.steps.last(1)->type == operation_call_instance_function
+                && left.scheme.steps.last(2)->type == operation_push_value_to_stack
+                && left.scheme.steps.last(3)->type == operation_get_static_class_instance) {
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
                 create_static_field_access_operation(&scheme, left.type.field);
-            } else if(left.scheme.steps.size() >= 3
-                && left.scheme.steps.last()->type == operation_call_instance_function
-                && left.scheme.steps.last(1)->type == operation_push_value_to_stack
-                && left.scheme.steps.last(2)->type == operation_get_primary_class_instance) {
-                left.scheme.steps.drop(3);
-                create_primary_instance_field_access_operation(&scheme, left.type.field);
-            } else if(left.scheme.steps.size() >= 1
-                && left.scheme.steps.last()->type == operation_call_instance_function
-                && left.scheme.steps.last()->function == left.type.field->getter) {
-                left.scheme.steps.drop(1);
+                left.scheme.schemeType = scheme.schemeType;
+            } else if(left.scheme.steps.size() >= 4
+                && left.scheme.steps.last(1)->type == operation_call_instance_function
+                && left.scheme.steps.last(2)->type == operation_push_value_to_stack
+                && left.scheme.steps.last(3)->type == operation_get_primary_class_instance) {
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
+                create_primary_instance_field_access_operation(&scheme, left.type.field); // todo: inject these instructions instead
+                left.scheme.schemeType = scheme.schemeType;
+            } else if(left.scheme.steps.size() >= 2
+                && left.scheme.steps.last(1)->type == operation_call_instance_function
+                && left.scheme.steps.last(1)->function == left.type.field->getter) {
+                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
                 create_instance_field_access_operation(&scheme, left.type.field);
+                left.scheme.schemeType = scheme.schemeType;
             }
 
-            left.scheme.schemeType = scheme.schemeType;
             for(Int i = 0; i < scheme.steps.size(); i++) {
                 left.scheme.steps.add(new operation_step(*scheme.steps.get(i)));
             }

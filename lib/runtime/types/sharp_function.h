@@ -48,7 +48,7 @@ struct sharp_function {
     list<try_catch_data> tryCatchTable;
 };
 
-CXX11_INLINE void init_struct(sharp_function *sf);
+void init_struct(sharp_function *sf);
 string get_info(sharp_function *sf, Int pc);
 
 #endif //SHARP_SHARP_FUNCTION_H

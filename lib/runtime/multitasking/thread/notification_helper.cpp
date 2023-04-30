@@ -14,7 +14,7 @@ void send_notification(notification *n) {
     n->cv.notify_one();
 }
 
-CXX11_INLINE void init_struct(notification *n) {
+void init_struct(notification *n) {
     new (&n->cv) std::condition_variable();
     new (&n->cv_m) std::mutex();
     n->cond = nullptr;

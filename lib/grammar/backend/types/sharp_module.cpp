@@ -32,7 +32,7 @@ void sharp_module::copy(const sharp_module &m) {
     free();
 
     uid = m.uid;
-    obfuscate = m.obfuscate;
+    obfuscateModifier = m.obfuscateModifier;
     classes.addAll(m.classes);
     genericClasses.addAll(m.genericClasses);
 }

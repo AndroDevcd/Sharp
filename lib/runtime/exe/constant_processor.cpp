@@ -21,8 +21,10 @@ void process_constants(KeyPair<int, string> &result) {
                 throw runtime_error("");
             }
 
-            vm.constants[itemsProcessed++] = std::strtod(next_string().c_str(), NULL);
-            break;
+            string constNum;
+            next_string(constNum);
+            vm.constants[itemsProcessed++] = std::strtod(constNum.c_str(), NULL);
+            continue;
         }, // on section_end
 
         if (itemsProcessed != vm.manifest.constants) {

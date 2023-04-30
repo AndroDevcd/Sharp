@@ -10,7 +10,7 @@
 struct file_data {
     file_data()
     :
-        name(""),
+        name(),
         lines()
     {}
 

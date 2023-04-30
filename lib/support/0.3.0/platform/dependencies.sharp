@@ -23,7 +23,7 @@ obfuscate -keep {
 /*
 * Required classes
 */
-obfuscate -keep {
+obfuscate -keep_inclusive {
     throwable,
     exception,
     error,

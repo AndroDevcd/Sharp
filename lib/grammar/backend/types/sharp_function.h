@@ -13,6 +13,7 @@
 #include "sharp_type.h"
 #include "../../../core/function_type.h"
 #include "../../settings/settings.h"
+#include "../compiler/obfuscate_compiler.h"
 
 struct code_info;
 struct sharp_class;
@@ -37,7 +38,7 @@ struct sharp_function {
             ci(NULL),
             uid(-1),
             used(false),
-            obfuscate(options.obfuscate),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             returnProtected(false),
             parameters(),
             returnType(),
@@ -63,7 +64,7 @@ struct sharp_function {
             baseConstructor(sf.baseConstructor),
             ast(sf.ast),
             delegate(sf.delegate),
-            obfuscate(sf.obfuscate),
+            obfuscateModifier(sf.obfuscateModifier),
             parameters(),
             locals(),
             aliases(),
@@ -112,7 +113,7 @@ struct sharp_function {
             directlyCopyParams(directlyCopyParams),
             scheme(NULL),
             baseConstructor(NULL),
-            obfuscate(options.obfuscate),
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             closure(NULL),
             delegate(NULL),
             ci(NULL)
@@ -150,7 +151,7 @@ struct sharp_function {
     sharp_function* baseConstructor;
     function_type type;
     bool used;
-    bool obfuscate;
+    obfuscation_modifier obfuscateModifier;
     bool returnProtected;
     code_info *ci;
     uInt flags;

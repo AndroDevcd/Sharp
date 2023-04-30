@@ -309,6 +309,10 @@ void compile_function(sharp_function *function, Ast *ast) {
         if(ast->hasSubAst(ast_expression)) {
             codePathsReturnValue = true;
             create_block(&current_context, normal_block);
+
+            if(ast->line == 180 && current_file->name.find("string.sharp") != string::npos) {
+                int i = 0;
+            }
             current_context.blockInfo.line = ast->line;
             APPLY_TEMP_SCHEME(1, *current_context.functionCxt->scheme,
                   create_line_record_operation(&scheme_1, ast->line);
@@ -319,19 +323,25 @@ void compile_function(sharp_function *function, Ast *ast) {
             expression e;
             compile_expression(e, ast->getSubAst(ast_expression));
 
-            match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor);
-            if(function->returnType != type_untyped && !is_match(match_result)) {
-                create_new_error(GENERIC, ast->line, ast->col, "return value of type `" +
-                        type_to_str(e.type) + "` is not compatible with that of type `" + type_to_str(function->returnType) + "`");
-            }
+            if(function->returnType.type == type_untyped) {
+                validate_function_type(false, function, e.type, &e.scheme, function->ast);
+            } else {
+                match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor);
+                if (function->returnType != type_untyped && !is_match(match_result)) {
+                    create_new_error(GENERIC, ast->line, ast->col, "return value of type `" +
+                                                                   type_to_str(e.type) +
+                                                                   "` is not compatible with that of type `" +
+                                                                   type_to_str(function->returnType) + "`");
+                }
 
-            if(match_result == match_constructor) {
-                operation_schema* tmp = new operation_schema();
-                compile_initialization_call(ast, constructor, e, tmp);
-                e.scheme.free();
-                e.scheme.copy(*tmp);
-                e.type.copy(constructor->returnType);
-                delete tmp;
+                if (match_result == match_constructor) {
+                    operation_schema *tmp = new operation_schema();
+                    compile_initialization_call(ast, constructor, e, tmp);
+                    e.scheme.free();
+                    e.scheme.copy(*tmp);
+                    e.type.copy(constructor->returnType);
+                    delete tmp;
+                }
             }
 
             if(function->returnType.type == type_nil) {

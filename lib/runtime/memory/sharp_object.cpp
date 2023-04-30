@@ -59,7 +59,7 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
     {
         o->node = malloc_struct<object>(sizeof(object),  o->size, unsafe);
         for(Int i = 0; i < o->size; i++) {
-            sharp_field *field = sc->fields + (sc->staticFields + i);
+            sharp_field *field = sc->fields + (sc->instanceFields + i);
             if(field->type->type <= type_var && !field->isArray && check_flag(field->flags, flag_static)) {
                 copy_object(o->node + i, create_object(1, field->type->type));
             }
@@ -82,8 +82,8 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
     if(o->size > 0)
     {
         o->node = malloc_struct<object>(sizeof(object),  o->size, unsafe);
-        for(Int i = 0; i < o->size; i++) {
-            sharp_field *field = sc->fields + (sc->instanceFields + i);
+        for(Int i = 0; i < sc->instanceFields; i++) {
+            sharp_field *field = sc->fields + i;
             if(field->type->type <= type_var && !field->isArray) {
                 copy_object(o->node + i, create_object(1, field->type->type));
             }

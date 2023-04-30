@@ -15,50 +15,64 @@ void process_manifest(KeyPair<int, string> &result) {
     PROCESS_SECTION(eoh,
 
          case 0x2:
-            vm.manifest.application = next_string();
-            break;
+            next_string(vm.manifest.application);
+            processedFlags++;
+            continue;
          case 0x4:
-             vm.manifest.version = next_string();
-            break;
+             next_string(vm.manifest.version);
+             processedFlags++;
+             continue;
          case 0x5:
              vm.manifest.debug = next_char() == '1';
-            break;
+             processedFlags++;
+             continue;
          case 0x6:
              vm.manifest.entryMethod = next_int32();
-            break;
+             processedFlags++;
+             continue;
          case 0x7:
              vm.manifest.methods = next_int32();
-            break;
+             processedFlags++;
+             continue;
          case 0x8:
              vm.manifest.classes = next_int32();
-            break;
+             processedFlags++;
+             continue;
          case 0x9:
              vm.manifest.fvers = parse_int();
-            break;
+             processedFlags++;
+             continue;
          case 0x0c:
              vm.manifest.strings = next_int32();
-            break;
+             processedFlags++;
+             continue;
          case 0x0e:
              vm.manifest.target = parse_int();
-            break;
+             processedFlags++;
+             continue;
          case 0x0f:
              vm.manifest.sourceFiles = next_int32();
-            break;
+             processedFlags++;
+             continue;
          case 0x1b:
              vm.manifest.threadLocals = next_int32();
-             break;
+             processedFlags++;
+             continue;
          case 0x1c:
              vm.manifest.constants = next_int32();
-            break;
+             processedFlags++;
+             continue;
          , // on section_end
 
          if(processedFlags != HEADER_SIZE) {
              result.key = CORRUPT_MANIFEST;
-             throw runtime_error("");
+             stringstream ss;
+             ss << processedFlags << " header size";
+             throw runtime_error(ss.str());
          }
          else if(vm.manifest.target > BUILD_VERS) {
              result.key = UNSUPPORTED_BUILD_VERSION;
-             throw runtime_error("");
+             throw runtime_error("build vers");
          }
 
          if(!(vm.manifest.fvers >= min_file_vers && vm.manifest.fvers <= file_vers)) {
@@ -67,7 +81,7 @@ void process_manifest(KeyPair<int, string> &result) {
                  << min_file_vers << "-" << file_vers << "` that can be processed. Are you possibly targeting the incorrect virtual machine?";
 
              result.with(UNSUPPORTED_FILE_VERS,  err.str());
-             throw runtime_error("");
+             throw runtime_error("unsupported");
          }
 
          break;

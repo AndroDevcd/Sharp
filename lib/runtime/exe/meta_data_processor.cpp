@@ -15,15 +15,14 @@ void parseSourceFile(file_data &sourceFile, string &data) {
     for(unsigned int i = 0; i < data.size(); i++) {
         if(data[i] == '\n')
         {
-            sourceFile.lines.emplace_back("");
-            *sourceFile.lines.end() = line;
+            sourceFile.lines.push_back(line);
+            line = "";
         } else {
             line += data[i];
         }
     }
 
-    sourceFile.lines.emplace_back("");
-    *sourceFile.lines.end() = line;
+    sourceFile.lines.push_back(line);
 }
 
 void process_meta_data(KeyPair<int, string> &result) {
@@ -33,15 +32,17 @@ void process_meta_data(KeyPair<int, string> &result) {
     PROCESS_SECTION(eos,
 
        case data_file: {
-           vm.mdata.files.emplace_back(new file_data());
-           file_data *sourceFile = *vm.mdata.files.end();
-           sourceFile->name = next_string();
+           auto fileData = new file_data();
+           next_string(fileData->name);
 
            if(vm.manifest.debug) {
-               string sourceFileData(next_chars(next_int32()));
-               parseSourceFile(*sourceFile, sourceFileData);
+               string sourceFileData;
+               next_chars(sourceFileData, next_int32());
+               parseSourceFile(*fileData, sourceFileData);
            }
-           break;
+
+           vm.mdata.files.push_back(fileData);
+           continue;
        }, // on section_end
            break;
     )

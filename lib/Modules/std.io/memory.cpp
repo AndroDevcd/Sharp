@@ -1,11 +1,9 @@
 //
 // Created by BNunnally on 5/27/2020.
 //
-#include "../../runtime/meta_data.h"
 #include "memory.h"
 #include "../../core/opcode/opcode_macros.h"
 #include "../../runtime/multitasking/thread/sharp_thread.h"
-#include "../../runtime/multitasking/fiber/fiber.h"
 #include "../../runtime/types/sharp_class.h"
 #include "../../runtime/virtual_machine.h"
 #include "../../runtime/error/vm_exception.h"

@@ -40,6 +40,7 @@ void fiber::free() {
 
     copy_object(&fiberObject, (sharp_object*)nullptr);
     copy_object(&exceptionObject, (sharp_object*)nullptr);
+    release_bytes(sizeof(fiber));
     fp = NULL;
     sp = NULL;
     name.clear();

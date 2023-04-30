@@ -25,6 +25,7 @@ void create_main_thread() {
     sharp_thread* main = (sharp_thread*)malloc(
             sizeof(sharp_thread));
 
+    init_struct(main);
     mainThread = main;
     string threadName = "Main";
     uInt threadId = new_thread_id();
@@ -191,6 +192,7 @@ sharp_thread* create_gc_thread() {
     if(threadId == ILL_THREAD_ID)
         return NULL; // unlikely
 
+    init_struct(gc_thread);
     setup_thread(gc_thread, threadName, threadId, true, nullptr, false);
     gc_thread->priority = THREAD_PRIORITY_LOW;
 
@@ -207,6 +209,7 @@ sharp_thread* create_idle_handler_thread() {
     if(threadId == ILL_THREAD_ID)
         return NULL; // unlikely
 
+    init_struct(idle_thread);
     setup_thread(idle_thread, threadName, threadId, true, nullptr, false);
     idle_thread->priority = THREAD_PRIORITY_LOW;
 
@@ -911,7 +914,7 @@ uInt create_thread(uInt methodAddr, bool daemon) {
     if(method->paramSize!=0 || method->fnType != normal_function)
         return RESULT_THREAD_CREATE_FAILED;
 
-    sharp_thread* thread = malloc_mem<sharp_thread>(sizeof(sharp_thread));
+    sharp_thread* thread = malloc_struct<sharp_thread>(sizeof(sharp_thread), 1);
 
     stringstream ss;
     ss << "Thread@" << threadId;

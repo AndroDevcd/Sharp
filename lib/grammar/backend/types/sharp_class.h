@@ -64,7 +64,7 @@ struct sharp_class {
             injected(false),
             typesProcessed(false),
             uid(-1),
-            obfuscate(options.obfuscate)
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none)
     {
     }
 
@@ -107,7 +107,7 @@ struct sharp_class {
             blueprintClass(false),
             injected(false),
             uid(-1),
-            obfuscate(options.obfuscate)
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none)
     {
         if(owner == NULL || check_flag(owner->flags, flag_global)) {
             fullName = module->name + "#"
@@ -160,7 +160,7 @@ struct sharp_class {
             blueprintClass(false),
             injected(false),
             uid(-1),
-            obfuscate(options.obfuscate)
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none)
     {
         fullName = module->name + "#"
                    + name;
@@ -189,7 +189,7 @@ struct sharp_class {
             functions(sc.functions),
             uncompiledLambdas(sc.uncompiledLambdas),
             generics(sc.generics),
-            obfuscate(sc.obfuscate),
+            obfuscateModifier(sc.obfuscateModifier),
             aliases(sc.aliases),
             typesProcessed(sc.typesProcessed),
             fields(sc.fields),
@@ -235,7 +235,7 @@ struct sharp_class {
     List<generic_type_identifier> genericTypes;
     class_type type;
     uInt uid;
-    bool obfuscate;
+    obfuscation_modifier obfuscateModifier;
     bool injected;
     bool blueprintClass;
     bool typesProcessed;
