@@ -966,6 +966,8 @@ bool resolve_primary_class_field(
     if((field = resolve_field(item.name, primaryClass, true)) != NULL) {
         process_field(field);
 
+        bool reset = false;
+        operation_schema *getValueScheme = new operation_schema();
         if(!unrestricted && ctx.isStatic && !check_flag(field->flags, flag_static)
             && isSelfInstance) {
             sharp_function *fun = get_primary_function(&ctx);
@@ -985,17 +987,22 @@ bool resolve_primary_class_field(
                          "cannot access instance field `" + field->name + "` from static context.");
             }
 
-            if (field->getter != NULL) {
+            auto primaryFunction = get_primary_function(&current_context);
+            if (field->getter != NULL && field->getter != primaryFunction && field->setter != primaryFunction) {
                 if(field->fieldType == tls_field) {
-                    create_static_field_getter_operation(scheme, field);
+                    reset = true;
+                    create_static_field_getter_operation(getValueScheme, field);
                 } else {
                     if (!isSelfInstance) {
-                        if (isStatic)
-                            create_static_field_getter_operation(scheme, field);
+                        if (isStatic) {
+                            reset = true;
+                            create_static_field_getter_operation(getValueScheme, field);
+                        }
                         else
-                            create_instance_field_getter_operation(scheme, field);
+                            create_instance_field_getter_operation(getValueScheme, field);
                     } else {
-                        create_primary_instance_field_getter_operation(scheme, field);
+                        reset = true;
+                        create_primary_instance_field_getter_operation(getValueScheme, field);
                     }
                 }
 
@@ -1007,14 +1014,19 @@ bool resolve_primary_class_field(
                                            "accessing static thread_local field `" + field->fullName + "` through instance.");
                     }
 
-                    create_tls_field_access_operation(scheme, field, false);
+                    create_tls_field_access_operation(getValueScheme, field, false);
                 } else {
                     if (!isSelfInstance) {
-                        if (isStatic)
-                            create_static_field_access_operation(scheme, field);
+                        if (isStatic) {
+                            reset = true;
+                            create_static_field_access_operation(getValueScheme, field);
+                        }
                         else
-                            create_instance_field_access_operation(scheme, field);
-                    } else create_primary_instance_field_access_operation(scheme, field);
+                            create_instance_field_access_operation(getValueScheme, field);
+                    } else {
+                        reset = true;
+                        create_primary_instance_field_access_operation(getValueScheme, field);
+                    }
                 }
             }
 
@@ -1022,6 +1034,8 @@ bool resolve_primary_class_field(
             resultType.field = field;
         }
 
+        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        delete getValueScheme;
         string fieldType = "field";
         if(!unrestricted) {
             check_access(fieldType, field->fullName,
@@ -1225,17 +1239,25 @@ bool resolve_global_class_field(
         resultType.field = field;
         process_field(field);
 
-        if(field->getter != NULL) {
-            create_static_field_getter_operation(scheme, field);
+        bool reset = false;
+        operation_schema *getValueScheme = new operation_schema();
+        auto primaryFunction = get_primary_function(&current_context);
+        if (field->getter != NULL && field->getter != primaryFunction && field->setter != primaryFunction) {
+            reset = true;
+            create_static_field_getter_operation(getValueScheme, field);
             create_dependency(field->getter);
         } else {
             if(field->fieldType == tls_field) {
-                create_tls_field_access_operation(scheme, field, false);
-            } else
-                create_static_field_access_operation(scheme, field);
+                create_tls_field_access_operation(getValueScheme, field, false);
+            } else {
+                reset = true;
+                create_static_field_access_operation(getValueScheme, field);
+            }
         }
 
 
+        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        delete getValueScheme;
         string fieldType = "field";
         if(!unrestricted) {
             check_access(fieldType, field->fullName,
@@ -2155,6 +2177,8 @@ bool resolve_primary_class_function_pointer_field(
         resultType.copy(field->type.fun->returnType);
         process_field(field);
 
+        bool reset = false;
+        operation_schema *getValueScheme = new operation_schema();
         if(!unrestricted && ctx.isStatic && !check_flag(field->flags, flag_static)
            && isPrimaryClass) {
             sharp_function *fun = get_primary_function(&ctx);
@@ -2174,17 +2198,22 @@ bool resolve_primary_class_function_pointer_field(
                                                                    "cannot access instance field `" + field->name + "` from static context.");
             }
 
-            if (field->getter != NULL) {
+            auto primaryFunction = get_primary_function(&current_context);
+            if (field->getter != NULL && field->getter != primaryFunction && field->setter != primaryFunction) {
                 if(field->fieldType == tls_field) {
-                    create_static_field_getter_operation(scheme, field);
+                    reset = true;
+                    create_static_field_getter_operation(getValueScheme, field);
                 } else {
                     if (!isPrimaryClass) {
-                        if (isStaticCall)
-                            create_static_field_getter_operation(scheme, field);
+                        if (isStaticCall) {
+                            reset = true;
+                            create_static_field_getter_operation(getValueScheme, field);
+                        }
                         else
-                            create_instance_field_getter_operation(scheme, field);
+                            create_instance_field_getter_operation(getValueScheme, field);
                     } else {
-                        create_primary_instance_field_getter_operation(scheme, field);
+                        reset = true;
+                        create_primary_instance_field_getter_operation(getValueScheme, field);
                     }
                 }
 
@@ -2197,23 +2226,30 @@ bool resolve_primary_class_function_pointer_field(
                                            "accessing static thread_local field `" + field->fullName + "` through instance.");
                     }
 
-                    create_tls_field_access_operation(scheme, field, false);
+                    create_tls_field_access_operation(getValueScheme, field, false);
                 } else {
                     if (!isPrimaryClass) {
-                        if (isStaticCall)
-                            create_static_field_access_operation(scheme, field);
+                        if (isStaticCall) {
+                            reset = true;
+                            create_static_field_access_operation(getValueScheme, field);
+                        }
                         else
-                            create_instance_field_access_operation(scheme, field);
-                    } else create_primary_instance_field_access_operation(scheme, field);
+                            create_instance_field_access_operation(getValueScheme, field);
+                    } else {
+                        reset = true;
+                        create_primary_instance_field_access_operation(getValueScheme, field);
+                    }
                 }
             }
         }
 
         compile_function_call(
-                scheme, params, item.operations,
+                getValueScheme, params, item.operations,
                 field->type.fun, true, false, true
         );
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
+        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        delete getValueScheme;
 
         string fieldType = "field";
         if(!unrestricted) {
@@ -2354,23 +2390,30 @@ bool resolve_global_class_function_pointer_field(
 
         process_field(field);
 
-        if(field->getter != NULL) {
-            create_static_field_getter_operation(scheme, field);
+        bool reset = false;
+        operation_schema *getValueScheme = new operation_schema();
+        auto primaryFunction = get_primary_function(&current_context);
+        if (field->getter != NULL && field->getter != primaryFunction && field->setter != primaryFunction) {
+            reset = true;
+            create_static_field_getter_operation(getValueScheme, field);
             create_dependency(field->getter);
         } else {
             if(field->fieldType == tls_field) {
-                create_tls_field_access_operation(scheme, field, false);
+                create_tls_field_access_operation(getValueScheme, field, false);
             } else {
-                create_static_field_access_operation(scheme, field);
+                reset = true;
+                create_static_field_access_operation(getValueScheme, field);
             }
         }
 
         compile_function_call(
-                scheme, params, item.operations,
+                getValueScheme, params, item.operations,
                 field->type.fun, false, false, true
         );
 
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
+        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        delete getValueScheme;
 
         string fieldType = "field";
         if(!unrestricted) {

@@ -64,7 +64,7 @@ struct sharp_class {
             injected(false),
             typesProcessed(false),
             uid(-1),
-            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none)
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate_inclusive : modifier_none)
     {
     }
 
@@ -107,7 +107,7 @@ struct sharp_class {
             blueprintClass(false),
             injected(false),
             uid(-1),
-            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none)
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate_inclusive : modifier_none)
     {
         if(owner == NULL || check_flag(owner->flags, flag_global)) {
             fullName = module->name + "#"
@@ -160,7 +160,7 @@ struct sharp_class {
             blueprintClass(false),
             injected(false),
             uid(-1),
-            obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none)
+            obfuscateModifier(options.obfuscate ? modifier_obfuscate_inclusive : modifier_none)
     {
         fullName = module->name + "#"
                    + name;

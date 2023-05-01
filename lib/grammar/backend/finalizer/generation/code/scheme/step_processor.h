@@ -19,6 +19,7 @@ void process_get_local_field_value(operation_step *step);
 void process_get_primary_class_instance(operation_step *step);
 void process_get_tls_field_value(operation_step *step);
 void process_scheme(operation_step *step);
+void process_get_field_value_scheme(operation_step *step);
 void process_record_line_info(operation_step *step);
 void process_return_number(operation_step *step);
 void process_return_object(operation_step *step);

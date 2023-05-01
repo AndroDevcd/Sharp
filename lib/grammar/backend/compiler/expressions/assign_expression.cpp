@@ -14,17 +14,50 @@ void compile_assign_expression(expression *e, Ast *ast) {
     compile_expression(left, ast->getSubAst(0));
     compile_expression(right, ast->getSubAst(1));
 
-    sharp_field *assignedField = NULL;
     sharp_function *matchedFun = NULL;
     uInt match_result = is_explicit_type_match(left.type, right.type);
 
-    if(left.type == type_field)
-        assignedField = left.type.field;
-
     if(operand == "=") {
+        auto primaryFunction = get_primary_function(&current_context);
 
         if (left.type == type_field
-            && left.type.field->setter != NULL) {
+            && left.type.field->getter != NULL && left.type.field->getter != primaryFunction
+            && left.type.field->setter != primaryFunction) {
+
+
+            Int lastPos = -1;
+            for(Int i = 0; i < left.scheme.steps.size(); i++) {
+                if(left.scheme.steps.get(i)->type == operation_get_field_value) {
+                    lastPos = i;
+                }
+            }
+
+            if(lastPos != -1) {
+                auto getGetterStep = left.scheme.steps.get(lastPos);
+                if(getGetterStep->scheme->schemeType == scheme_call_getter_function) {
+                    if(getGetterStep->scheme->steps.size() == 3
+                       && getGetterStep->scheme->steps.last(0)->type == operation_call_instance_function
+                       && getGetterStep->scheme->steps.last(1)->type == operation_push_value_to_stack
+                       && getGetterStep->scheme->steps.last(2)->type == operation_get_static_class_instance) {
+                        create_static_field_access_operation(getGetterStep->scheme, left.type.field);
+                    } else if(getGetterStep->scheme->steps.size() == 3
+                              && getGetterStep->scheme->steps.last(0)->type == operation_call_instance_function
+                              && getGetterStep->scheme->steps.last(1)->type == operation_push_value_to_stack
+                              && getGetterStep->scheme->steps.last(2)->type == operation_get_primary_class_instance) {
+                        create_primary_instance_field_access_operation(getGetterStep->scheme, left.type.field); // todo: inject these instructions instead
+                    } else if(getGetterStep->scheme->steps.size() == 1
+                              && left.scheme.steps.last(0)->type == operation_call_instance_function
+                              && left.scheme.steps.last(0)->function == left.type.field->getter) {
+                        getGetterStep->scheme->steps.free();
+                        create_instance_field_access_operation(getGetterStep->scheme, left.type.field);
+                    }
+                }
+            }
+        }
+
+        if (left.type == type_field
+            && left.type.field->setter != NULL && left.type.field->setter != primaryFunction
+            && left.type.field->getter != primaryFunction) {
 
             sharp_field *field = left.type.field;
             if (match_result == no_match_found) {
@@ -39,9 +72,9 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     match_constructor | match_initializer,
                     matchedFun) != no_match_found)) {
                 create_new_error(GENERIC, ast->line, ast->col,
-                                                                   "Conflicting assignment on field `" + field->name +
-                                                                   "` of type `" + type_to_str(field->type) +
-                                                                   "`. Cannot assign value via setter when `operator=` function is required.");
+                                 "Conflicting assignment on field `" + field->name +
+                                 "` of type `" + type_to_str(field->type) +
+                                 "`. Cannot assign value via setter when `operator=` function is required.");
             }
 
             string name = "";
@@ -58,6 +91,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 ));
                 paramOperations.add(new operation_schema(right.scheme));
 
+                e->scheme.copy(left.scheme);
                 compile_function_call(
                         &e->scheme, params,
                         paramOperations, field->setter,
@@ -66,42 +100,11 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         false);
             } else {
                 create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                         "cannot assign field `" + field->fullName + "` of type `" + type_to_str(field->type)
-                         + "` to expression of type `" + type_to_str(right.type) + "`.");
-            }
-        } else if (left.type == type_field
-            && left.type.field->getter != NULL) {
-
-            operation_schema scheme;
-            if(left.scheme.steps.size() >= 4
-                && left.scheme.steps.last(1)->type == operation_call_instance_function
-                && left.scheme.steps.last(2)->type == operation_push_value_to_stack
-                && left.scheme.steps.last(3)->type == operation_get_static_class_instance) {
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                create_static_field_access_operation(&scheme, left.type.field);
-                left.scheme.schemeType = scheme.schemeType;
-            } else if(left.scheme.steps.size() >= 4
-                && left.scheme.steps.last(1)->type == operation_call_instance_function
-                && left.scheme.steps.last(2)->type == operation_push_value_to_stack
-                && left.scheme.steps.last(3)->type == operation_get_primary_class_instance) {
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                create_primary_instance_field_access_operation(&scheme, left.type.field); // todo: inject these instructions instead
-                left.scheme.schemeType = scheme.schemeType;
-            } else if(left.scheme.steps.size() >= 2
-                && left.scheme.steps.last(1)->type == operation_call_instance_function
-                && left.scheme.steps.last(1)->function == left.type.field->getter) {
-                left.scheme.steps.removeAt(left.scheme.steps.size() - 2);
-                create_instance_field_access_operation(&scheme, left.type.field);
-                left.scheme.schemeType = scheme.schemeType;
+                                 "cannot assign field `" + field->fullName + "` of type `" + type_to_str(field->type)
+                                 + "` to expression of type `" + type_to_str(right.type) + "`.");
             }
 
-            for(Int i = 0; i < scheme.steps.size(); i++) {
-                left.scheme.steps.add(new operation_step(*scheme.steps.get(i)));
-            }
+            return;
         }
 
         if (get_class_type(left.type) != NULL || is_object_type(left.type)) {

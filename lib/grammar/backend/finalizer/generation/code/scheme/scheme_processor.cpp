@@ -80,6 +80,7 @@
 #include "../../../../../../util/File.h"
 #include "scheme_asm.h"
 #include "../../../../../../core/opcode/opcode_macros.h"
+#include "scheme_get_field_value.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -229,6 +230,8 @@ void process_scheme(operation_schema *scheme) {
                 return process_and_scheme(scheme);
             case scheme_asm:
                 return process_asm_scheme(scheme);
+            case scheme_get_field_value:
+                return process_get_field_value_scheme(scheme);
             case scheme_none:
                 generation_error("Scheme is missing type!");
                 break;

@@ -21,6 +21,9 @@ class throwable {
 
         return stack_trace;
       }
+      set data -> {
+          stack_trace = null;
+      }
 
     private frame_info : stack_state?;
 

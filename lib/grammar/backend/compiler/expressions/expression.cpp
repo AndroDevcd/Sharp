@@ -49,9 +49,6 @@ void compile_expression(expression &e, Ast *ast) {
         || ast->getType() == ast_mult_e
         || ast->getType() == ast_exponent_e)
         compile_binary_expression(&e, ast);
-    else {
-        int r = 0;
-    }
 }
 
 void compile_expression_for_type(sharp_type &type, Ast *ast) {

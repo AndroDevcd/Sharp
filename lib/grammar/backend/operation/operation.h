@@ -218,6 +218,7 @@ struct machine_instruction {
 enum operation_type {
     operation_none,
     operation_step_scheme,
+    operation_get_field_value,
     operation_get_local_field_value,
     operation_get_instance_field_value,
     operation_get_static_class_instance,
@@ -425,6 +426,7 @@ enum _operation_scheme {
     scheme_call_getter_function,
     scheme_get_address,
     scheme_label,
+    scheme_get_field_value,
     scheme_asm,
 };
 
@@ -862,6 +864,11 @@ void create_tls_field_access_operation(
 void add_scheme_operation(
         operation_schema *scheme,
         operation_schema *valueScheme);
+
+void add_get_field_value_scheme_operation(
+        operation_schema *scheme,
+        operation_schema *valueScheme,
+        bool resetState);
 
 void create_primary_instance_field_getter_operation(
         operation_schema *scheme,

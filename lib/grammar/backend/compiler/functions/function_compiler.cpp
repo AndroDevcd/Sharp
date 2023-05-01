@@ -309,10 +309,6 @@ void compile_function(sharp_function *function, Ast *ast) {
         if(ast->hasSubAst(ast_expression)) {
             codePathsReturnValue = true;
             create_block(&current_context, normal_block);
-
-            if(ast->line == 180 && current_file->name.find("string.sharp") != string::npos) {
-                int i = 0;
-            }
             current_context.blockInfo.line = ast->line;
             APPLY_TEMP_SCHEME(1, *current_context.functionCxt->scheme,
                   create_line_record_operation(&scheme_1, ast->line);

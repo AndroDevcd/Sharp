@@ -808,6 +808,15 @@ void add_scheme_operation(
     scheme->steps.add(new operation_step(valueScheme));
 }
 
+void add_get_field_value_scheme_operation(
+        operation_schema *scheme,
+        operation_schema *valueScheme,
+        bool resetState) {
+    if(resetState) scheme->free();
+    scheme->schemeType = scheme_get_field_value;
+    scheme->steps.add(new operation_step(valueScheme, operation_get_field_value));
+}
+
 void create_primary_instance_field_getter_operation(
         operation_schema *scheme,
         sharp_field *instanceField) {

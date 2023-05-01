@@ -45,6 +45,8 @@ void process_step(operation_step *step) {
             return process_get_tls_field_value(step);
         case operation_step_scheme:
             return process_scheme(step);
+        case operation_get_field_value:
+            return process_get_field_value_scheme(step);
         case operation_record_line:
             return process_record_line_info(step);
         case operation_return_number:
@@ -1343,6 +1345,12 @@ void process_record_line_info(operation_step *step) {
 
 void process_scheme(operation_step *step) {
     validate_step_type(step, operation_step_scheme);
+
+    process_scheme(step->scheme);
+}
+
+void process_get_field_value_scheme(operation_step *step) {
+    validate_step_type(step, operation_get_field_value);
 
     process_scheme(step->scheme);
 }
