@@ -27,7 +27,7 @@ T* malloc_mem(uInt bytes, bool unsafe = true)
 
 template<class T>
 T* malloc_struct(uInt bytes, uInt size, bool unsafe = true) {
-    T* data = malloc_mem<T>(bytes, unsafe);
+    T* data = malloc_mem<T>(bytes * size, unsafe);
 
     for(uInt i = 0; i < size; i++)
         init_struct(&data[i]);

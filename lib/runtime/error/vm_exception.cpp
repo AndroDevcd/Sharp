@@ -51,18 +51,28 @@ void fill_stack_trace(string &output) {
         fiber *task = thread->task;
         frame *frames = task->frames;
 
-        if(task->calls + 1 < EXCEPTION_PRINT_MAX)
+        if(task->callFramePtr + 1 < EXCEPTION_PRINT_MAX)
         {
-            for(Int i = 0; i < task->calls; i++) {
+            for(Int i = 0; i < task->callFramePtr; i++) {
                 if(functions++ >= EXCEPTION_PRINT_MAX) break;
                 output += get_info(&vm.methods[frames[i].returnAddress], frames[i].pc-task->rom) + "\n";
             }
         } else {
-            for(Int i = (task->calls + 1) - EXCEPTION_PRINT_MAX; i < task->calls + 1; i++) {
+            for(Int i = (task->callFramePtr + 1) - EXCEPTION_PRINT_MAX; i < task->callFramePtr + 1; i++) {
                 if(functions++ >= EXCEPTION_PRINT_MAX) break;
                 output += get_info(&vm.methods[frames[i].returnAddress], frames[i].pc-task->rom) + "\n";
             }
         }
+    }
+}
+
+void fill_stack_trace(string &output, std::list<KeyPair<Int, Int>> frameInfo) {
+    sharp_thread *thread = thread_self;
+    fiber *task = thread->task;
+    frame *frames = task->frames;
+
+    for(KeyPair<Int, Int> &info : frameInfo) {
+        output += get_info(&vm.methods[info.key], frames[info.value].pc-task->rom) + "\n";
     }
 }
 

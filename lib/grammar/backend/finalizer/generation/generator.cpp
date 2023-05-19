@@ -57,6 +57,8 @@ void generate() {
 }
 
 void generation_error(string message) {
+
     cout << PROG_NAME << ": <code-generator> fatal error: " << message << endl;
+    cout << "note: in function: " << function_to_str(cc.container) << endl;
     exit(1);
 }

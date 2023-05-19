@@ -73,6 +73,7 @@ void init_struct(fiber *fib) {
     fib = new (fib)fiber();
     fib->main = nullptr;
     fib->pc = 0;
+    fib->id = -1;
     fib->rom = 0;
     fib->state = FIB_CREATED;
     fib->exitVal = 0;
@@ -87,7 +88,8 @@ void init_struct(fiber *fib) {
     fib->registers = NULL;
     fib->frames = NULL;
     fib->f_lock = NULL;
-    fib->calls = -1;
+    fib->calls = 0;
+    fib->callFramePtr = -1;
     fib->current = NULL;
     fib->ptr = NULL;
     fib->stackLimit = virtualStackSize;
@@ -104,7 +106,7 @@ void init_struct(fiber *fib) {
         fib->stackSize = vm.manifest.threadLocals + INITIAL_STACK_SIZE;
     }
 
-    fib->stack = malloc_struct<stack_item>(fib->stackSize * sizeof(stack_item), fib->stackSize);
+    fib->stack = malloc_struct<stack_item>(sizeof(stack_item), fib->stackSize);
     if(virtualStackSize - vm.manifest.threadLocals < INITIAL_FRAME_SIZE) {
         fib->frameSize = virtualStackSize - vm.manifest.threadLocals;
     }

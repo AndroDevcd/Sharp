@@ -70,7 +70,7 @@ sharp_alias* create_local_alias(
             context->functionCxt->aliases.add(alias);
             return alias;
         } else {
-            file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "alias `" + name +
+            create_new_error(PREVIOUSLY_DEFINED, ast->line, ast->col, "alias `" + name +
                                                                                   "` is already defined in function: " + alias->name);
             print_impl_location(alias->name, "alias", alias->location);
             return alias;
@@ -95,7 +95,7 @@ sharp_alias* create_alias(
         location.col = ast->col;
     }
     if((sa = resolve_alias(name, module)) != NULL) {
-        file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "class `" + name +
+        create_new_error(PREVIOUSLY_DEFINED, ast->line, ast->col, "class `" + name +
                                                                               "` is already defined in module {" + sa->owner->module->name + "}");
         print_impl_location(sa->name, "alias", sa->location);
         return sa;

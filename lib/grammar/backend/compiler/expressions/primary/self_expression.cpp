@@ -57,10 +57,10 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
     e->type._class = instanceClass;
 
     if(ast->hasToken(PTR)) {
-        create_context(instanceClass, false);
+//        create_context(instanceClass, false);
         compile_dot_notation_call_expression(
                 e, NULL, true, ast->getSubAst(ast_dotnotation_call_expr));
-        delete_context();
+//        delete_context();
     } else {
         compile_post_ast_expression(e, ast);
     }

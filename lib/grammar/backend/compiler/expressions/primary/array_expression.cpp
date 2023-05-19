@@ -39,22 +39,15 @@ void compile_array_expression(expression *e, Ast *ast) {
     if(e->type.isArray || (e->type.type == type_field && e->type.field->type.isArray)) {
         if(expressions.singular()) {
             expression &arrayExpression = *expressions.last();
-            if ((arrayExpression.type.type >= type_int8 && arrayExpression.type.type <= type_uint64)
-                || arrayExpression.type.type == type_var) {
-                if(e->type.type == type_field) {
-                    e->type.copy(e->type.field->type);
-                }
-
-                e->type.isArray = false;
-                e->type.nullable = e->type.nullableItems;
-                e->type.nullableItems = false;
-                e->type.arrayElement = true;
-                create_access_array_element_operation(&e->scheme, e->type, &arrayExpression.scheme);
-            } else {
-                create_new_error(
-                        GENERIC, ast, "array index expression must be numeric but was found to be of type `"
-                                      + type_to_str(arrayExpression.type) + "`.");
+            if(e->type.type == type_field) {
+                e->type.copy(e->type.field->type);
             }
+            e->type.isArray = false;
+            e->type.nullable = e->type.nullableItems;
+            e->type.nullableItems = false;
+            e->type.arrayElement = true;
+            extract_value_field_from_expression(arrayExpression, "", ast, true);
+            create_access_array_element_operation(&e->scheme, e->type, &arrayExpression.scheme);
         } else {
             create_new_error(
                     GENERIC, ast, "Multi-dimensional arrays are not supported.");

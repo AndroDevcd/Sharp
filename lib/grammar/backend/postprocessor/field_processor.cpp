@@ -49,9 +49,6 @@ void process_field(sharp_field *field) {
             }
         }
 
-        if(field->name == "feep") {
-            int r = 0;
-        }
         if(field->ast->hasToken(COLON)) {
             sharp_type type = resolve(field->ast->getSubAst(ast_utype));
             validate_field_type(true, field, type, NULL, field->ast);
@@ -236,17 +233,123 @@ void validate_field_type(
             create_new_error(GENERIC, ast, " cannot assign hard type as value for field `" + field->fullName + "`");
             return;
         }
+        /*else if (!hardType) { // todo: i dont think this is needed but keeping just in case
+            string module = "std";
+            string className = "";
+
+            if(!type.isArray) {
+                switch (type.type) {
+                    case type_int8:
+                        className = "char";
+                        break;
+                    case type_int16:
+                        className = "short";
+                        break;
+                    case type_int32:
+                        className = "int";
+                        break;
+                    case type_int64:
+                        className = "long";
+                        break;
+                    case type_uint8:
+                        className = "uchar";
+                        break;
+                    case type_uint16:
+                        className = "ushort";
+                        break;
+                    case type_uint32:
+                        className = "uint";
+                        break;
+                    case type_uint64:
+                        className = "ulong";
+                        break;
+                    case type_var:
+                        className = "double";
+                        break;
+                    case type_function_ptr:
+                    case type_object:
+                        // do notjing
+                        break;
+                    default: {
+                        create_new_error(GENERIC, ast,
+                                         " failed to assign wrapper class for field `" + field->fullName +
+                                         "`, where type `" + type_to_str(type) + "` was found instead.");
+                        break;
+                    }
+                }
+            }
+
+            if(className != "") {
+                auto wrapperClass = sharp_type(resolve_class(get_module(module), className, false, false));
+                if (wrapperClass._class != NULL) {
+                    create_dependency(wrapperClass._class);
+                    field->type.copy(wrapperClass);
+                    return;
+                } else {
+                    create_new_error(GENERIC, ast,
+                                     " failed to assign wrapper class `" + className + "` type for field `" + field->fullName +
+                                     "`");
+                }
+            }
+        }*/
     } else if(type.type == type_integer
         || type.type == type_decimal) {
-        field->type.type = type.type == type_decimal ? type_var : type_int32;
+        string module = "std";
+        string className = "";
+        if(type.type == type_integer) {
+            className = "int";
+        } else {
+            className = "double";
+        }
+
+        auto wrapperClass = sharp_type(resolve_class(get_module(module), className, false, false));
+        if (wrapperClass._class != NULL) {
+            create_dependency(wrapperClass._class);
+            field->type.copy(wrapperClass);
+            return;
+        } else {
+            create_new_error(GENERIC, ast,
+                             " failed to assign wrapper class `" + className + "` type for field `" + field->fullName +
+                             "`");
+        }
+        field->type.type = type_undefined;
         return;
     } else if(type.type == type_char
         || type.type == type_bool) {
-        field->type.type = type_int8;
+        string module = "std";
+        string className = "";
+        if(type.type == type_char) {
+            className = "char";
+        } else {
+            className = "bool";
+        }
+
+        auto wrapperClass = sharp_type(resolve_class(get_module(module), className, false, false));
+        if (wrapperClass._class != NULL) {
+            create_dependency(wrapperClass._class);
+            field->type.copy(wrapperClass);
+            return;
+        } else {
+            create_new_error(GENERIC, ast,
+                             " failed to assign wrapper class `" + className + "` type for field `" + field->fullName +
+                             "`");
+        }
+        field->type.type = type_undefined;
         return;
     } else if(type.type == type_string) {
-        field->type.type = type_int8;
-        field->type.isArray = true;
+        string module = "std";
+        string className = "string";
+        auto wrapperClass = sharp_type(resolve_class(get_module(module), className, false, false));
+        if (wrapperClass._class != NULL) {
+            create_dependency(wrapperClass._class);
+            field->type.copy(wrapperClass);
+            return;
+        } else {
+            create_new_error(GENERIC, ast,
+                             " failed to assign wrapper class `" + className + "` type for field `" + field->fullName +
+                             "`");
+        }
+        field->type.type = type_undefined;
         return;
     } else if(type.type == type_null) {
         field->type.type = type_object;

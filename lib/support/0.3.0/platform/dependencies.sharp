@@ -45,5 +45,8 @@ obfuscate -keep_inclusive {
     stack_state,
     thread,
     string,
+    char_array,
+    int,
+    number<_int32, int>, // int base class
     fiber
 }

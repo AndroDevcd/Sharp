@@ -21,7 +21,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
     protected filters : list<filter<t> >;
     protected buff_type : buffer_type;
-    protected capacity : var;
+    protected capacity := 0;
     protected state := channel_state.OPEN;
 
     static const default_capacity := 10;
@@ -90,10 +90,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
     def get_capacity() := capacity;
     def get_buffer_type() := buff_type;
-    def is_closed() : bool {
-       lock(self) {
-          return state == channel_state.CLOSED;
-       }
+    thread_safe def is_closed() : bool {
+       return state == channel_state.CLOSED;
     }
 
     override def send(data : t) {
@@ -120,16 +118,12 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        return filters[filter].read(self);
     }
 
-    override def close() {
-       lock(self) {
-          state = channel_state.CLOSED;
-       }
+    override thread_safe def close() {
+       state = channel_state.CLOSED;
     }
 
-    override def open() {
-       lock(self) {
-          state = channel_state.OPEN;
-       }
+    override thread_safe def open() {
+       state = channel_state.OPEN;
     }
 
     override def read_next(filter: int, count: int) : list<t> {
@@ -249,11 +243,11 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        }
 
        private def wait_for_data() {
-          while(buff_size == 0) {}
+          while(buff_size == 0) { delay(0); }
        }
 
        private def wait_for_consume() {
-          while(buff_size != 0) {}
+          while(buff_size != 0) { delay(0); }
        }
 
        def wait_for_data_or_close(chan: channel<t>) {
@@ -262,7 +256,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 if(chan.get_state() == channel<t>.channel_state.CLOSED)
                    break;
 
-                delay(1); // yield thread
+                delay(0); // yield task
              }
           }
        }
@@ -276,11 +270,13 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
              EXCLUSIVE -> {
                 wait_for_data();
 
-                data := head?.data;
-                tail = null;
-                head = null;
-                buff_size = 0;
-                return data;
+                lock(self) {
+                    data := head?.data;
+                    tail = null;
+                    head = null;
+                    buff_size = 0;
+                    return data;
+                }
              }
              SINGLE -> {
                 wait_for_data();
@@ -302,15 +298,9 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 wait_for_data();
 
                 lock(self) {
-                    if(buff_size < chan.capacity) {
-                       buff_size--;
-                       data := filo();
-                       return data;
-                    } else {
-                       buff_size--;
-                       data := filo();
-                       return data;
-                    }
+                    buff_size--;
+                    data := filo();
+                    return data;
                 }
              }
              else -> {
@@ -356,7 +346,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                    }
                 }
                 BUFFERED -> {
-                    while(buff_size == chan.capacity) {}
+                    while(buff_size == chan.capacity) { delay(0); }
 
                     lock(self) {
                         if(head == null) {
@@ -369,20 +359,20 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                            buff_size++;
                         }
                     }
+                }
              }
           }
        }
-    }
 
-    class channel_data<t> {
-        channel_data(data: t) {
-            self->data = data;
+        class channel_data<t> {
+            channel_data(data: t) {
+                self->data = data;
+            }
+
+            data : t;
+            next : channel_data<t>;
         }
-
-        data : t;
-        next : channel_data<t>;
     }
-}
 }
 
 

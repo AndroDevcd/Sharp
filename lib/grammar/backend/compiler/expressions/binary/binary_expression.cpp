@@ -319,7 +319,7 @@ void compile_binary_integer_expression(
         case type_class:
         case type_field: {
             if(right.type.type == type_field || right.type.type == type_class) {
-                convert_bool_expression(right, ast);
+                extract_value_field_from_expression(right, "", ast);
                 if(!is_implicit_type_match(left.type, right.type, match_constructor)) {
                     goto error;
                 }
@@ -423,7 +423,7 @@ void compile_binary_numeric_expression(
         case type_field: {
 
             if(right.type.type == type_field || right.type.type == type_class) {
-                convert_bool_expression(right, ast);
+                extract_value_field_from_expression(right, "", ast);
 
                 if(!is_implicit_type_match(left.type, right.type, exclude_none)) {
                     goto error;
@@ -675,7 +675,7 @@ void compile_binary_expression(
                 uInt result =
                         is_implicit_type_match(left.type, right.type, overload_only);
                 if (result == no_match_found) {
-                    goto error;
+                    goto _overload;
                 } else if(result == indirect_match_w_nullability_mismatch && right.type != type_null && left.type != type_null) {
                     create_new_error(
                             NULLABILITY_MISMATCH, ast->getSubAst(0), ", unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");

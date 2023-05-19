@@ -4,7 +4,7 @@ import (
     platform.kernel
 )
 
-def strtod(str: string) : var {
+def strtod(str: string) : char {
     data := str.data;
     result : var;
 
@@ -17,13 +17,13 @@ def strtod(str: string) : var {
     return result;
 }
 
-def strtol(str: string, base_num: var) : var {
+def strtol(str: string, base_num: int) : char {
     data := str.data;
-    result : var;
+    result := base_num.value;
 
     asm {
         pushl [data]
-        ipushl [base_num]
+        ipushl [result]
         int 0x50
         smovr2 [result], ebx
     }
@@ -31,20 +31,23 @@ def strtol(str: string, base_num: var) : var {
     return result;
 }
 
-def snprintf(fmt: var, num: var, precision: var) : _int8[]? {
+def snprintf(fmt: int, num: double, precision: int) : string {
+    result : _int8[]? = null;
+    _fmt := fmt.value;
+    _num := num.value;
+    _precision := precision.value;
     asm {
-        loadl egx, [fmt]
-        loadl ebx, [num]
-        loadl ecx, [precision]
+        loadl egx, [_fmt]
+        loadl ebx, [_num]
+        loadl ecx, [_precision]
         int 0x1
-        popObj2
-        returnObj
-        ret 0
+        movl [result]
+        popObj
     }
-    return null;
+    return new string(result);
 }
 
-def sys(str: string) : var {
+def sys(str: string) : int {
     cmd := str.data;
     result : var;
     asm {
@@ -119,12 +122,12 @@ def println() {
 }
 
 def println(e: _enum_) {
-    print_chars(e.get_name());
+    print_chars(e.name);
     print_char('\n');
 }
 
 def read_line() : string {
-    ch : _int8;
+    ch : char;
     message : string = "";
 
     ch = read_char();
@@ -137,7 +140,7 @@ def read_line() : string {
 }
 
 def read_passwd() : string {
-    ch : _int8;
+    ch : char;
     message : string = "";
 
     ch = read_raw_char();
@@ -149,11 +152,11 @@ def read_passwd() : string {
     return message;
 }
 
-def read_char() : var {
+def read_char() : char {
     return read_ch(false);
 }
 
-def read_raw_char() : var {
+def read_raw_char() : char {
     return read_ch(true);
 }
 
@@ -171,7 +174,7 @@ def print(o: printable) {
     print_chars(o.to_string()?.data);
 }
 
-def print(data: var) {
+def print(data: double) {
     print_num(data);
 }
 
@@ -187,35 +190,38 @@ def nano_time() : int {
     return time.nano_time();
 }
 
-def exit(val : var) {
-    vm.exit(val);
+def exit(val : int) {
+    vm.exit(val.value);
 }
 
 def exit() {
     vm.exit(0);
 }
 
-def sizeOf(data: object) : var {
+def sizeOf(data: object) : long {
+    result := 0;
+
     asm {
         pushl [data]
         int 0x33
-        returnVal ebx
-        ret 0
+        smovr2 [result], ebx
     }
-    return 0;
+    return result;
 }
 
-def sizeOf(data: object[]) : var {
+def sizeOf(data: object[]) : long {
+    result := 0;
+
     asm {
         pushl [data]
         int 0x33
-        returnVal ebx
-        ret 0
+        smovr2 [result], ebx
     }
-    return 0;
+
+    return result;
 }
 
-local def print_chars(str: _int8[]?) {
+local def print_chars(str: char_array) {
     foreach(ch in str) {
         asm {
             loadl ebx, [ch]
@@ -226,33 +232,37 @@ local def print_chars(str: _int8[]?) {
     flush();
 }
 
-local def print_num(val: var) {
+local def print_num(val: double) {
+    _val := val.value;
+
     asm {
-        loadl ebx, [val]
+        loadl ebx, [_val]
         put ebx
     }
 
     flush();
 }
 
-local def print_char(val: _int8) {
+local def print_char(val: char) {
+    _val := val.value;
+
     asm {
-        loadl ebx, [val]
+        loadl ebx, [_val]
         putc ebx
     }
 
     flush();
 }
 
-local def print_numbers(str: var[]) {
+local def print_numbers(str: char_array) {
     asm {
         movi ebx, '['
-        movi ecx, ' '
+        movi egx, ' '
         putc ebx
-        putc ecx
+        putc egx
     }
     for(i := 0; i < sizeof(str); i++) {
-        ch := str[i];
+        ch := str.data[i];
         asm {
             loadl ebx, [ch]
             put ebx
@@ -261,18 +271,18 @@ local def print_numbers(str: var[]) {
         if((i + 1) < sizeof(str)) {
             asm {
                 movi ebx, ','
-                movi ecx, ' '
+                movi egx, ' '
                 putc ebx
-                putc ecx
+                putc egx
             }
         }
     }
 
     asm {
         movi ebx, ' '
-        movi ecx, ']'
+        movi egx, ']'
         putc ebx
-        putc ecx
+        putc egx
     }
 
     flush();
@@ -334,13 +344,15 @@ local def print_chars(str: _int16[]) {
     }
 }
 
-local def read_ch(hide: var) : var {
+local def read_ch(hide: var) : char {
+    result  := 0;
+
     asm {
         loadl cmt, [hide]
         get ebx
-        returnVal ebx
-        ret 0
+        smovr2 [result], ebx
     }
-    return 0;
+
+    return result;
 }
 

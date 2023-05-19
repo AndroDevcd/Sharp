@@ -81,30 +81,47 @@ void recompile_cond_expression(expression &out, Ast *ast) {
     compile_cond_expression(out, ast);
 }
 
-void convert_bool_expression(expression &e, Ast *ast) {
+void extract_value_field_from_expression(expression &e, string className, Ast *ast, bool forceError) {
     sharp_class *sc = get_class_type(e.type);
 
-    if(sc != NULL && sc->fullName == "std#bool") {
+    if(sc != NULL && !e.type.nullable && !e.type.isArray &&
+        (
+            (!className.empty() && sc->fullName == className)
+            || (className.empty() && sc->fullName == "std#bool")
+            || (className.empty() && sc->fullName == "std#byte")
+            || (className.empty() && sc->fullName == "std#short")
+            || (className.empty() && sc->fullName == "std#char")
+            || (className.empty() && sc->fullName == "std#int")
+            || (className.empty() && sc->fullName == "std#long")
+            || (className.empty() && sc->fullName == "std#ushort")
+            || (className.empty() && sc->fullName == "std#uchar")
+            || (className.empty() && sc->fullName == "std#uint")
+            || (className.empty() && sc->fullName == "std#ulong")
+            || (className.empty() && sc->fullName == "std#double")
+        )
+    ) {
         sharp_field *field = resolve_field("value", sc, true);
 
         if(field != NULL) {
             APPLY_TEMP_SCHEME(1, e.scheme,
-                              create_get_value_operation(&scheme_1, &e.scheme);
-                                      create_instance_field_access_operation(&scheme_1, field);
-                                      e.scheme.free();
+                 create_get_value_operation(&scheme_1, &e.scheme);
+                 create_instance_field_access_operation(&scheme_1, field);
+                 e.scheme.free();
             )
 
             e.type.copy(field->type);
         } else {
             create_new_error(COULD_NOT_RESOLVE, ast,
-                             " field `std#bool.value`  was not found.");
+                             " field `" + className + ".value`  was not found.");
         }
+    } else if(forceError && !is_evaluable_type(e.type)) {
+        create_new_error(GENERIC,  ast, "expression must evaluate to a numeric value, true, or false. But type `" + type_to_str(e.type) + "` was found.");
     }
 }
 
 void compile_cond_expression(expression &e, Ast *ast) {
     compile_expression(e, ast);
-    convert_bool_expression(e, ast);
+    extract_value_field_from_expression(e, "std#bool", ast);
 }
 
 void compile_initialization_call(

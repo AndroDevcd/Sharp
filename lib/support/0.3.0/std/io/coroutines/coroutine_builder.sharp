@@ -17,7 +17,7 @@ public class coroutine_builder {
 	    self->scheduled_job.args = job_args;
 	}
 
-	def with_timeout(mills_time : int) : coroutine_builder {
+	def with_timeout(mills_time : long) : coroutine_builder {
 	    if(scheduled_job.block_caller) {
 	        throw new ill_state_except("cannot set a timeout on a job that's blocking the calling thread");
 	    }
@@ -27,7 +27,7 @@ public class coroutine_builder {
 		return self;
 	}
 
-	def schedule(future : int) : coroutine_builder {
+	def schedule(future : long) : coroutine_builder {
 		scheduled_job.delay_time = future;
 		return self;
 	}
@@ -50,7 +50,7 @@ public class coroutine_builder {
 		return self;
 	}
 
-	def recurring(tm : int, interval: time_unit) : coroutine_builder {
+	def recurring(tm : long, interval: time_unit) : coroutine_builder {
 	    if(scheduled_job.block_caller) {
 	        throw new ill_state_except("cannot set a job recurring that's blocking the calling thread");
 	    }

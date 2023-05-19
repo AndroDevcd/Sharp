@@ -72,20 +72,36 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
     } else {
         if(ast->hasSubAst(ast_expression)) {
             expression e;
+            sharp_function *initializer_function = nullptr;
+            uInt field_match_result = 0;
             compile_expression(e, ast->getSubAst(ast_expression));
 
             if(field->type == type_untyped) {
                 validate_field_type(false, field, e.type, &e.scheme,
                                     ast->getSubAst(ast_expression));
-            } else {
-                convert_expression_type_to_real_type(e);
+            }
 
-                if(!is_match(is_implicit_type_match(
-                        field->type, e.type, match_operator_overload | match_constructor))) {
-                    create_new_error(GENERIC, ast,
-                                                                       "cannot assign field `" + field->name + ": " +
-                                                                       type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
-                }
+            convert_expression_type_to_real_type(e);
+            field_match_result = is_implicit_type_match(
+                    field->type, e.type, match_operator_overload | match_constructor, initializer_function);
+
+            if(field_match_result == no_match_found) {
+                create_new_error(GENERIC, ast,
+                                 "cannot assign field `" + field->name + ": " +
+                                 type_to_str(field->type) + "` type `" + type_to_str(e.type) + "`, as types do not match.");
+            } else if(field_match_result == indirect_match_w_nullability_mismatch) {
+                create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
+                                 " expressions are not compatible, assigning nullable type of `" +
+                                 type_to_str(field->type) + "` to non nullable type of `" + type_to_str(e.type) + "`.");
+            }
+
+            if(field_match_result == match_initializer) {
+                APPLY_TEMP_SCHEME_WITHOUT_INJECT(5,
+                    compile_initialization_call(ast, initializer_function, e, &scheme_5);
+                )
+
+                e.scheme.free();
+                e.scheme.copy(scheme_5);
             }
 
             field->scheme->copy(e.scheme);

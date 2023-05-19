@@ -48,16 +48,10 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                         recompile_cond_expression(cond, ast->getSubAst(ast_expression));
 
                         compile_binary_expression(&out, branch, cond, comparer, operand);
-                        if(!is_evaluable_type(out.type)) {
-                            create_new_error(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
-                        }
-
+                        extract_value_field_from_expression(out, "std#bool", expressionAst, true);
                         create_get_value_operation(whenClauseScheme, &out.scheme, false, false);
                     } else {
-                        if(!is_evaluable_type(comparer.type)) {
-                            create_new_error(GENERIC,  branch->line, branch->col, "when condition expression must evaluate to true or false");
-                        }
-
+                        extract_value_field_from_expression(comparer, "std#bool", expressionAst, true);
                         create_get_value_operation(whenClauseScheme, &comparer.scheme, false, false);
                     }
 

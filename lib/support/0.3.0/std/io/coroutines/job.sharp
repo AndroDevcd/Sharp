@@ -13,7 +13,7 @@ public class job {
 		self->name = name;
 	}
 
-	protected def execute_async() : var {
+	protected def execute_async() : int {
 		if(state == created) {
             if(!host?.is_active()) {
                 if(host?.start() != result_ok)
@@ -26,7 +26,7 @@ public class job {
                 running_host : thread?;
                 if(!unconfined) running_host = host;
 
-                slice({ args: object[] -> (var)
+                slice({ args: object[] -> (int)
                    schdj := args[0] as job;
                    schdj.execute();
                    return 0;
@@ -102,8 +102,8 @@ public class job {
 		main3 = block;
 	}
 
-	protected static def job_main(args : object[]) : var {
-        for(;;) {
+	protected static def job_main(args : object[]) : int {
+        for(;;) { // instead add a "perma lock" here with a mutex to be more efficent
             delay(10000);
         }
         return 0;
@@ -142,11 +142,11 @@ public class job {
     def is_finished() := state == completed || state == cancelled;
     def is_active() := state == active;
 
-    public def update_timeout(tm: int) {
+    public def update_timeout(tm: long) {
         timeout = tm;
     }
 
-    public def update_interval(tm: int, interval: time_unit) {
+    public def update_interval(tm: long, interval: time_unit) {
         if(!recurring)
 	        throw new ill_state_except("cannot set update restart interval on non-recurring job");
 
@@ -212,10 +212,10 @@ public class job {
 	protected args : object[]?;
 	protected deferred_obj : object?;
 	protected has_timeout := false;
-	protected timeout : int = 0;
-	protected start_time : int = 0;
-	protected sched_time : int = 0;
-	protected delay_time : int = 0;
+	protected timeout : long = 0;
+	protected start_time : long = 0;
+	protected sched_time : long = 0;
+	protected delay_time : long = 0;
 	protected next_task : job?;
 	protected recurring := false;
 	protected tag : int = 0;

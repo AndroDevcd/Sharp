@@ -639,7 +639,7 @@ public class number<T, NT> base base_number<NT> {
         } else { //  integer type
             i := 0;
             negative := false;
-            len := s.size();
+            len := s.size().value;
 
             if(s.at(0) == '-' ){
                 negative = true;
@@ -653,7 +653,7 @@ public class number<T, NT> base base_number<NT> {
                 }
 
                 number *= 10;
-                number += ( s.at(i++) - '0' );
+                number += ( s.at(i++) - '0' ).value;
             }
             if( negative )
                 number = -number;
@@ -1149,6 +1149,7 @@ class byte base uchar {
     init(initial_val : uchar)    -> base(initial_val) { }
     init(initial_val : double)   -> base(initial_val) { }
 }
+
 class bool base number<_int8, bool> {
     bool(i : long) -> base(i.value) {}
     bool(i : int) -> base(i.value) {}
@@ -1244,3 +1245,5 @@ class double base number<var, double> {
         return snprintf('f', value, 16);
     }
 }
+
+alias double as _var_;

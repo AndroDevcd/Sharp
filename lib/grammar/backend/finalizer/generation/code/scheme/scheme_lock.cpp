@@ -12,4 +12,5 @@ void process_lock_scheme(operation_schema *scheme) {
 
     process_lock(next_step);
     process_master_scheme(next_step->scheme);
+    process_unlock(next_step);
 }

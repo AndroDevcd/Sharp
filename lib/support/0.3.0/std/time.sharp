@@ -17,45 +17,38 @@ import (
 class time {
     static const INFINITE := 1;
 
-    static def nano_time() : int {
-        now: var;
-
-        asm
-        {
-            int 0xb
-            smovr2 [now], bmr
-        };
-        return now;
+    static def nano_time() : long {
+        return vm.time_in_nanoseconds();
     }
 
     static def get_os_time(tr: time_request)
-       := vm.get_os_time(tr.get_ordinal());
+       := vm.get_os_time(tr.ordinal);
 
-    static def nano_to_micro(nano: int) : int {
+    static def nano_to_micro(nano: long) : long {
         return nano/1000;
     }
 
-    static def nano_to_mills(nano: int) : int {
+    static def nano_to_mills(nano: long) : long {
         return nano_to_micro(nano)/1000;
     }
 
-    public static def nano_to_secs(nano: int) : int {
+    public static def nano_to_secs(nano: long) : long {
         return nano_to_mills(nano)/1000;
     }
 
-    static def mills_time() : int {
+    static def mills_time() : long {
         return nano_to_mills(nano_time());
     }
 
-    static def micro_time() : int {
+    static def micro_time() : long {
         return nano_to_micro(nano_time());
     }
 
-    static def sleep(time: int) {
+    static def sleep(time: long) {
         sleep(time_unit.milliseconds, time);
     }
 
-    static def sleep(tm_unit: time_unit, time: int) {
+    static def sleep(tm_unit: time_unit, time: long) {
         if(time < 0)
             throw new error("cannot sleep for negative time: $time");
 
@@ -75,7 +68,7 @@ class time {
         }
     }
 
-    static def measure(tm_unit: time_unit, block: ()()) : int {
+    static def measure(tm_unit: time_unit, block: ()()) : long {
         start := nano_time(), end;
         block();
         end = nano_time();
@@ -98,7 +91,7 @@ class time {
         return end - start;
     }
 
-    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : int {
+    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : long {
         start := nano_time(), end;
         block(args);
         end = nano_time();
@@ -122,7 +115,7 @@ class time {
     }
 
 
-    static def wait(tm_unit: time_unit, time: int) {
+    static def wait(tm_unit: time_unit, time: long) {
         if(time != INFINITE) {
             if(time < 0)
                 throw new error("cannot sleep for negative time: $time");

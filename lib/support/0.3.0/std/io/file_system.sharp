@@ -18,7 +18,7 @@ protected class file_system {
     * linux /
     * windows \
     */
-    def path_separator() : var;
+    def path_separator() : char;
 
     /**
     * Make sure we know that our path has the correct
@@ -86,7 +86,7 @@ protected class file_system {
       * by the given abstract pathname, or zero if it does not exist or some
       * other I/O error occurs.
       */
-     def get_attributes(f: file) : var;
+     def get_attributes(f: file) : int;
 
      /* Constants for file access flags */
      static const access_read    := 0x04;
@@ -100,16 +100,19 @@ protected class file_system {
       * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
       * Return false if access is denied or an I/O error occurs
       */
-     def check_access(f: file, access: var) : var;
+     def check_access(f: file, access: int) : int;
 
      /**
       * Set on or off the access permission (to owner only or to all) to the file
       * or directory denoted by the given abstract pathname, based on the parameters
       * enable, access and oweronly.
       */
-     def set_permission(f: file, access: var, enable: var, owneronly: var) : var {
+     def set_permission(f: file, access: int, enable: bool, owneronly: bool) : int {
         // native code here
         path := f.get_absolute_path().data;
+        _access := access.value;
+        _enable := enable.value;
+        _owneronly := owneronly.value;
         result := 0;
 
         if(platform.build_info.is_windows() && access == access_execute)
@@ -121,9 +124,9 @@ protected class file_system {
         */
         asm {
             pushl [path]
-            loadl ebx, [access]
-            loadl egx, [enable]
-            loadl ecx, [owneronly]
+            loadl ebx, [_access]
+            loadl egx, [_enable]
+            loadl ecx, [_owneronly]
             int 0x2e
             smovr2 [result], ebx
         };
@@ -140,10 +143,11 @@ protected class file_system {
       * abstract pathname was last modified, or zero if it does not exist or
       * some other I/O error occurs.
       */
-     def last_modified_time(f: file, stat_id: var) : var {
+     def last_modified_time(f: file, stat_id: int) : long {
         // native code
         path := f.get_absolute_path().data;
-        time := 0;
+        _stat_id : var = stat_id.value;
+        time : var = 0;
 
         /*
         * This will perform the os call to request the
@@ -151,7 +155,7 @@ protected class file_system {
         */
         asm {
             pushl [path]
-            loadl ebx, [stat_id]
+            loadl ebx, [_stat_id]
             int 0x26
             smovr2 [time], ebx
         }
@@ -164,10 +168,10 @@ protected class file_system {
       * pathname, or zero if it does not exist, is a directory, or some other
       * I/O error occurs.
       */
-     def get_length(f: file) : var {
+     def get_length(f: file) : int {
         // native code here
         path := f.get_absolute_path().data;
-        size := 0;
+        size : var = 0;
 
         /*
         * This will perform the os call to request the
@@ -207,7 +211,7 @@ protected class file_system {
      * Delete the file or directory denoted by the given abstract pathname,
      * returning true if and only if the operation succeeds.
      */
-    private def delete_directory(f: file) : var {
+    private def delete_directory(f: file) : int {
         // native code here
         path := f.get_absolute_path().data;
 
@@ -238,10 +242,10 @@ protected class file_system {
      * Delete the file or directory denoted by the given abstract pathname,
      * returning true if and only if the operation succeeds.
      */
-    def delete(f: file) : var {
+    def delete(f: file) : int {
         // native code here
         path := f.get_absolute_path().data;
-        result := 0;
+        result : var = 0;
 
         if(f.is_directory())
             return delete_directory(f);
@@ -289,7 +293,7 @@ protected class file_system {
      * Create a new directory denoted by the given abstract pathname,
      * returning true if and only if the operation succeeds.
      */
-    def create_directory(f: file) : var {
+    def create_directory(f: file) : int {
         // native code here
         path := f.get_path().data;
         result: var;
@@ -312,11 +316,11 @@ protected class file_system {
      * the second abstract pathname, returning true if and only if
      * the operation succeeds.
      */
-    def rename(f1: file, f2: file) : var {
+    def rename(f1: file, f2: file) : int {
         // native code here
         path := f1.get_absolute_path().data;
         rename := f2.get_path().data;
-        result := 0;
+        result : var = 0;
 
         /*
         * This will perform the os call to request the
@@ -335,7 +339,6 @@ protected class file_system {
     static def read(f: file) : string {
         path := f.get_absolute_path().data;
         data : string;
-        result := 0;
 
         /*
         * This will perform the os call to request the
@@ -351,10 +354,10 @@ protected class file_system {
     }
 
 
-    static def write(f: file, data: string) : var {
+    static def write(f: file, data: string) : int {
         path := f.get_absolute_path().data;
         raw := data.data;
-        result := 0;
+        result : var = 0;
 
         /*
         * This will perform the os call to request the
@@ -375,10 +378,11 @@ protected class file_system {
      * given abstract pathname, returning true if and only if the
      * operation succeeds.
      */
-    public def set_last_modified_time(f: file, time: var) : var {
+    public def set_last_modified_time(f: file, time: long) : int {
         // native code here
         path := f.get_absolute_path().data;
-        result := 0;
+        _time := time.value;
+        result : var = 0;
 
         /*
         * This will perform the os call to request the
@@ -386,7 +390,7 @@ protected class file_system {
         */
         asm {
             pushl [path]
-            loadl ebx, [time]
+            loadl ebx, [_time]
             int 0x2d
             smovr2 [result], ebx
         }
@@ -399,7 +403,7 @@ protected class file_system {
      * read-only, returning true if and only if the operation
      * succeeds.
      */
-    public def set_read_only(f: file) : var {
+    public def set_read_only(f: file) : int {
         set_permission(f, access_write, false, true);
         return set_permission(f, access_read, true, true);
     }
@@ -409,9 +413,9 @@ protected class file_system {
     static const space_free   := 1;
     static const space_usable := 2;
 
-    static def get_space_available(request: var) : var {
+    static def get_space_available(request: int) : long {
         // native code here
-        result := 0;
+        result : var = 0;
 
         /*
         * This will perform the os call to request the

@@ -1728,7 +1728,8 @@ void resolve_normal_item(
                                              "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) {
                             resultType.nullable = false;
-                        }
+                        } else
+                            resultType.nullable = true;
                     }
                 } else {
                     if (item.accessType != access_normal) {
@@ -1823,7 +1824,8 @@ void resolve_normal_item(
                                    "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) {
                             resultType.nullable = false;
-                        }
+                        } else
+                            resultType.nullable = true;
                     }
                     return;
                 }
@@ -2659,7 +2661,8 @@ void resolve_function_reference_item(
                                                                                "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) {
                             resultType.nullable = false;
-                        }
+                        } else
+                            resultType.nullable = true;
                     }
                 } else {
                     if (item.accessType != access_normal) {
@@ -2684,7 +2687,8 @@ void resolve_function_reference_item(
                                                                                "accessing class `" + primaryClass->name + "` from nullable without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) {
                             resultType.nullable = false;
-                        }
+                        } else
+                            resultType.nullable = true;
                     }
                 } else {
                     if (item.accessType != access_normal) {
@@ -2719,7 +2723,8 @@ void resolve_function_reference_item(
                                                                                "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) {
                             resultType.nullable = false;
-                        }
+                        } else
+                            resultType.nullable = true;
                     }
                     hardType = false;
                     return;
@@ -2737,7 +2742,8 @@ void resolve_function_reference_item(
                                                                                "accessing nullable field `" + field->name + "` without `?.` or `!!.`.");
                         } else if(item.accessType == access_forced) {
                             resultType.nullable = false;
-                        }
+                        } else
+                            resultType.nullable = true;
                     }
                     hardType = false;
                     return;
@@ -3119,7 +3125,9 @@ void resolve(
                             + type_to_str(resultType) + "`");
             }
 
+            auto nullable = resultType.nullable;
             resultType = resultType.fun->returnType;
+            resultType.nullable = nullable;
         }
 
         if(unresolvedType.isArray) {

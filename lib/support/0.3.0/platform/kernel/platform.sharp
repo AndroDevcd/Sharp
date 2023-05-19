@@ -8,10 +8,10 @@ import (
 
 class platform
 {
-    private static main : (string[])(var);
+    private static main : (string[])(int);
     private static main2 : (string[])();
     private static main3 : ()();
-    private static main4 : ()(var);
+    private static main4 : ()(int);
 
     static def tls_init() {}
     private static def static_init() {}
@@ -19,7 +19,7 @@ class platform
     static build_info := new build();
         private set info -> { build_info = info; }
 
-    private static def srt_init(args: object[]) : var {
+    private static def srt_init(args: object[]) : int {
         build_info.app_name = "${args[0] as _int8[]}";
         build_info.version = "${args[1] as _int8[]}";
         build_info.platform = "${args[2] as _int8[]}";

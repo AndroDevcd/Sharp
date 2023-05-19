@@ -12,19 +12,17 @@ public class observable<t> {
 
 	public def post(data : t) {
 		self->data = data;
-		changed = true;
 		notify_all();
 	}
 
 	public def observe(on_update: (observable<t>)()) {
-	    update_fun = on_update;
-	    observers.add(self);
+	    observers.add(update_fun);
 	}
 
 	private def notify_all() {
         foreach(obs in observers) {
             try {
-                obs.update_fun(self);
+                obs(self);
             } catch(cancellation_exception) {
                 observers.remove(obs, {it, it2 -> return it == it2; });
             } catch(e: error) {
@@ -40,9 +38,7 @@ public class observable<t> {
 
 	public def get_data() : t = data;
 
-    protected changed : var;
 	protected data : t;
-	private update_fun: (observable<t>)();
-	protected observers := new synced_list<observable<t> >();
+	protected observers := new synced_list<(observable<t>)()>();
 }
 

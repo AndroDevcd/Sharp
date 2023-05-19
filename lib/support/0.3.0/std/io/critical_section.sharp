@@ -1,35 +1,23 @@
 mod std.io;
 
+import ( platform.kernel )
+
 private global_lock := new _object_();
 def critical_section(block : ()()) {
     try {
-        asm {
-            movg $std.io#__srt_global
-            movn [global_lock]
-            lock
-        }
+        global_lock.lock_object();
         block();
     } finally {
-      asm {
-        movg $std.io#__srt_global
-        movn [global_lock]
-        ulock
-      }
+        global_lock.unlock_object();
     }
 }
 
-def critical_section(block : ()(), lock_obj : object) {
+def critical_section(block : ()(), lobj : object) {
     try {
-        asm {
-            movl [lock_obj]
-            lock
-        }
+        vm.lock_object(lobj);
         block();
     } finally {
-      asm {
-        movl [lock_obj]
-        ulock
-      }
+        vm.unlock_object(lobj);
     }
 }
 

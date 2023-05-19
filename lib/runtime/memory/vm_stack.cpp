@@ -20,15 +20,15 @@ void init_struct(frame *f, int32_t raddr, opcode_instr *ip, stack_item* sp, stac
 std::list<KeyPair<Int, Int>> get_frame_info(fiber *task) {
     std::list<KeyPair<Int, Int>> info;
 
-    if((task->calls + 1) < EXCEPTION_PRINT_MAX) {
-        for (Int i = 1; i <= task->calls; i++) {
+    if((task->callFramePtr + 1) < EXCEPTION_PRINT_MAX) {
+        for (Int i = 1; i <= task->callFramePtr; i++) {
             if(i >= EXCEPTION_PRINT_MAX) break;
 
             info.emplace_back(task->frames[i].returnAddress, task->frames[i].pc - task->rom);
         }
     } else {
 
-        for (Int i = (task->calls + 1) - EXCEPTION_PRINT_MAX; i <= task->calls; i++) {
+        for (Int i = (task->callFramePtr + 1) - EXCEPTION_PRINT_MAX; i <= task->callFramePtr; i++) {
             if(i >= EXCEPTION_PRINT_MAX) break;
             else if(i == 0) continue;
 

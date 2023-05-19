@@ -50,7 +50,7 @@ class job_master {
 		running_jobs.remove(scheduled_job);
 	}
 
-	protected def cancel_jobs_by_tag(tag_id: var) {
+	protected def cancel_jobs_by_tag(tag_id: int) {
 	   canceled_job_queue.send(tag_id);
 
 	   lock(running_jobs) {

@@ -13,6 +13,7 @@
 #include "../thread/thread_controller.h"
 #include "../../../util/time.h"
 
+atomic<uInt> taskIds = { 0 };
 fiber* create_task(string &name, sharp_function *main) {
     fiber *fib = nullptr;
 
@@ -20,6 +21,7 @@ fiber* create_task(string &name, sharp_function *main) {
         fib = malloc_struct<fiber>(sizeof(fiber), 1);
         fib->name = name;
         fib->main = main;
+        fib->id = taskIds++;
         post(fib);
     } catch(vm_exception &e) {
         if(fib) {

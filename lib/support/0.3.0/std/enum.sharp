@@ -14,8 +14,10 @@ import (
  * enums.
  */
 stable ext class _enum_ {
-    private name : _int8[]?;
-    private ordinal : var; // TODO: add <, > and other math operators for enums and vars
+    public name : _int8[]?;
+        private set value -> { name = value; }
+    public ordinal : var;
+        private set value -> { ordinal = value; }
 
     _enum_(n: _int8[], ord : var) {
         ordinal = ord;
@@ -27,31 +29,24 @@ stable ext class _enum_ {
         name = copy(e.name!!, 0, sizeof(e.name));
     }
 
-    def operator!=(e : _enum_) : var {
+    // TODO: add <, > and other math operators for enums and vars
+    def operator!=(e : _enum_) : bool {
         return ordinal!=e.ordinal;
     }
 
-    def operator!=(num : var) : var {
-        return ordinal!=num;
+    def operator!=(num : int) : bool {
+        return ordinal!=num.value;
     }
 
-    def operator==(e : _enum_) : var {
+    def operator==(e : _enum_) : bool {
         return ordinal==e.ordinal;
     }
 
-    def operator==(num : var) : var {
-        return ordinal==num;
+    def operator==(num : int) : bool {
+        return ordinal==num.value;
     }
 
-    def get_name() : _int8[]? {
-         return name;
-    }
-
-    def get_ordinal() : _int64 {
-         return ordinal;
-    }
-
-    def to_string() : string {
+    override def to_string() : string {
         return name;
     }
 }

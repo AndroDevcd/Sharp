@@ -11,16 +11,16 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
 
    name : string = "";
    id := -1;
-   main : (object[]?)(var);
-   exit_val : var;
+   main : (object[]?)(int);
+   exit_val : int;
    bound_thread : thread;
 
-   fiber(name : string, main : (object[])(var)) {
+   fiber(name : string, main : (object[])(int)) {
       self->name = name;
       self->main = main;
    }
 
-   fiber(name : string, t: thread, main : (object[])(var)) {
+   fiber(name : string, t: thread, main : (object[])(int)) {
       self->name = name;
       self->main = main;
       self->bound_thread = t;
@@ -31,22 +31,22 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
          id = vm.start_fiber(self, bound_thread, args, fiber_main);
    }
 
-   def suspend() : var {
+   def suspend() : int {
       return vm.suspend_fiber(self);
    }
 
-   def unsuspend() : var {
+   def unsuspend() : int {
       return vm.unsuspend_fiber(self);
    }
 
-   def kill() : var {
+   def kill() : int {
       result := vm.kill_fiber(self);
       if(result == 0)
          id = -1;
       return result;
    }
 
-   def bind(t: thread) : var {
+   def bind(t: thread) : int {
       result := vm.bind_fiber(self, t);
       if(result == 0)
          bound_thread = t;
@@ -61,7 +61,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
       }
    }
 
-   def unbind() : var {
+   def unbind() : int {
       return vm.bind_fiber(self, null);
    }
 
@@ -91,7 +91,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
       return vm.current_fiber();
    }
 
-   static def poll(t: thread?) : var {
+   static def poll(t: thread?) : int {
       return vm.get_bound_fibers(t);
    }
 
@@ -111,11 +111,6 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
    }
 }
 
-def delay(tm: int) {
-   mills := tm.value;
-
-   asm {
-      loadl ebx, [mills]
-      int 0x44
-   }
+def delay(tm: long) {
+   vm.delay(tm);
 }

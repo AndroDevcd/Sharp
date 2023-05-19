@@ -11,7 +11,7 @@ mod std.io;
 protected class win_fs base file_system {
     private slash := '\\';
 
-    override def path_separator() : var {
+    override def path_separator() : char {
         return slash;
     }
 
@@ -21,7 +21,7 @@ protected class win_fs base file_system {
     */
     override def normalize(pathname: string) : string {
         lock(self) {
-           buffer := new _int8[512];
+           buffer := new char[512];
            n := pathname.size();
            buf_index := 0;
            for (i := 0; i < n; i++) {
@@ -68,7 +68,7 @@ protected class win_fs base file_system {
       * by the given abstract pathname, or zero if it does not exist or some
       * other I/O error occurs.
       */
-     override def get_attributes(f: file) : var {
+     override def get_attributes(f: file) : int {
         path := f.path.data;
         attrs := 0;
 
@@ -92,7 +92,7 @@ protected class win_fs base file_system {
       * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
       * Return false if access is denied or an I/O error occurs
       */
-     override def check_access(f: file, access: var) : var {
+     override def check_access(f: file, access: int) : int {
         path := f.path.data;
         result := 0;
 

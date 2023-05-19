@@ -7,13 +7,13 @@ def finish() {
 }
 
 class coroutine {
-    static def with_timeout(mills_time : var) : coroutine_builder {
+    static def with_timeout(mills_time : long) : coroutine_builder {
         scheduled_job := launcher.create_job();
         builder := new coroutine_builder(scheduled_job, launcher);
         return builder.with_timeout(mills_time);
     }
 
-    static def schedule(future : var) : coroutine_builder {
+    static def schedule(future : long) : coroutine_builder {
         scheduled_job := launcher.create_job();
         builder := new coroutine_builder(scheduled_job, launcher);
         return builder.schedule(future);
@@ -25,7 +25,7 @@ class coroutine {
         return builder.with_name(job_name);
     }
 
-    static def with_tag(tag_id : var) : coroutine_builder {
+    static def with_tag(tag_id : int) : coroutine_builder {
         scheduled_job := launcher.create_job();
         builder := new coroutine_builder(scheduled_job, launcher);
         return builder.with_tag(tag_id);
@@ -37,7 +37,7 @@ class coroutine {
         return builder.with_args(args);
     }
 
-	def recurring(tm : var, interval: time_unit) : coroutine_builder {
+	def recurring(tm : long, interval: time_unit) : coroutine_builder {
         scheduled_job := launcher.create_job();
         builder := new coroutine_builder(scheduled_job, launcher);
         return builder.recurring(tm, interval);
@@ -61,7 +61,7 @@ class coroutine {
         return builder;
     }
 
-	public static def cancel_all_jobs_by_name(tag_id: var) {
+	public static def cancel_all_jobs_by_name(tag_id: int) {
 	   launcher.cancel_jobs_by_tag(tag_id);
 	}
 }

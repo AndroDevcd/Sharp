@@ -105,7 +105,7 @@ sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
         SET_INFO(o->info, sc->address, gc_young);
         push_object(o);
 
-        o->node = malloc_struct<object>(sizeof(object) * size, unsafe);
+        o->node = malloc_struct<object>(sizeof(object), size, unsafe);
         return o;
     }
 
@@ -184,7 +184,7 @@ sharp_object* create_object(Int size, bool unsafe) {
         SET_GENERATION(o->info, gc_young);
         push_object(o);
 
-        o->node = malloc_struct<object>(sizeof(object) * size, unsafe);
+        o->node = malloc_struct<object>(sizeof(object), size, unsafe);
         return o;
     }
 

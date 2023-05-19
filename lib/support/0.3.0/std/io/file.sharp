@@ -95,7 +95,7 @@ public class file {
      * abstract pathname.
      *
      */
-    def is_readable() : var {
+    def is_readable() : bool {
         return fs.check_access(self, file_system.access_read)==0;
     }
 
@@ -104,7 +104,7 @@ public class file {
      * abstract pathname.
      *
      */
-    def is_writeable() : var {
+    def is_writeable() : bool {
         return fs.check_access(self, file_system.access_write)==0;
     }
 
@@ -113,7 +113,7 @@ public class file {
      * exists.
      *
      */
-    def exists() : var {
+    def exists() : bool {
         return fs.check_access(self, file_system.access_ok)==0;
     }
 
@@ -122,7 +122,7 @@ public class file {
      * directory.
      *
      */
-    def is_directory() : var {
+    def is_directory() : bool {
         return ((fs.get_attributes(self) & file_system.file_directory)!= 0);
     }
 
@@ -132,7 +132,7 @@ public class file {
      * addition, satisfies other system-dependent criteria.
      *
      */
-    def is_file() : var {
+    def is_file() : bool {
         return ((fs.get_attributes(self) & file_system.file_regular) != 0);
     }
 
@@ -144,7 +144,7 @@ public class file {
      * considered to be hidden if it has been marked as such in the filesystem.
      *
      */
-    def is_hidden() : var {
+    def is_hidden() : bool {
         return ((fs.get_attributes(self) & file_system.file_hidden) != 0);
     }
 
@@ -153,15 +153,15 @@ public class file {
      * last modified.
      *
      */
-    def last_modified() : var {
+    def last_modified() : int {
         return fs.last_modified_time(self, file_system.last_modification);
     }
 
-    def last_status_changed() : var {
+    def last_status_changed() : int {
         return fs.last_modified_time(self, file_system.last_status_change);
     }
 
-    def last_accessed() : var {
+    def last_accessed() : int {
         return fs.last_modified_time(self, file_system.last_access);
     }
 
@@ -170,11 +170,11 @@ public class file {
      * The return value is unspecified if this pathname denotes a directory.
      *
      */
-    def length() : var {
+    def length() : int {
         return fs.get_length(self);
     }
 
-    def is_empty() : var {
+    def is_empty() : bool {
        return length() == 0;
     }
 
@@ -199,7 +199,7 @@ public class file {
      * order to be deleted.
      *
      */
-    def delete() : var {
+    def delete() : int {
         return fs.delete(self);
     }
 
@@ -223,7 +223,7 @@ public class file {
      * Creates the directory named by this abstract pathname.
      *
      */
-    def mkdir() : var {
+    def mkdir() : int {
         return fs.create_directory(self);
     }
 
@@ -242,7 +242,7 @@ public class file {
      * The return value should always be checked to make sure
      * that the rename operation was successful.
      */
-    def rename(dest: file) : var {
+    def rename(dest: file) : int {
         if (dest == null) {
             throw new null_except();
         }
@@ -269,7 +269,7 @@ public class file {
      * truncated) time argument that was passed to this method.
      *
      */
-    def set_last_modified(time: var) : var {
+    def set_last_modified(time: var) : int {
         if ((time as _int32) < 0) throw new ill_arg_except("Negative time");
         return fs.set_last_modified_time(self, time);
     }
@@ -282,7 +282,7 @@ public class file {
      * directory may be deleted depends upon the underlying system.
      *
      */
-    def set_read_only() : var {
+    def set_read_only() : int {
        return fs.set_read_only(self);
     }
 
@@ -291,7 +291,7 @@ public class file {
      * pathname.
      *
      */
-    def set_writable(writable: var, owner_only: var) : var {
+    def set_writable(writable: var, owner_only: var) : int {
         return fs.set_permission(self, file_system.access_write, writable, owner_only);
     }
 
@@ -300,7 +300,7 @@ public class file {
      * pathname.
      *
      */
-    def set_writable(writable: var) : var {
+    def set_writable(writable: var) : int {
         return set_writable(writable, true);
     }
 
@@ -309,7 +309,7 @@ public class file {
      * pathname.
      *
      */
-    def set_readable(readable: var, owner_only: var) : var {
+    def set_readable(readable: var, owner_only: var) : int {
         return fs.set_permission(self, file_system.access_read, readable, owner_only);
     }
 
@@ -318,7 +318,7 @@ public class file {
      * pathname.
      *
      */
-    def set_readable(readable: var) : var {
+    def set_readable(readable: var) : int {
         return set_readable(readable, true);
     }
 
@@ -327,7 +327,7 @@ public class file {
      * pathname.
      *
      */
-    def set_executable(executable: var, owner_only: var) : var {
+    def set_executable(executable: var, owner_only: var) : int {
         return fs.set_permission(self, file_system.access_execute, executable, owner_only);
     }
 
@@ -336,7 +336,7 @@ public class file {
      * pathname.
      *
      */
-    def set_executable(executable: var) : var {
+    def set_executable(executable: var) : int {
         return set_executable(executable, true);
     }
 
@@ -345,7 +345,7 @@ public class file {
      * abstract pathname.
      *
      */
-    def is_executable() : var {
+    def is_executable() : bool {
         return fs.check_access(self, file_system.access_execute)==0;
     }
 
@@ -357,7 +357,7 @@ public class file {
      *
      * @since  1.6
      */
-    def get_total_space() : var {
+    def get_total_space() : long {
         return fs.get_space_available(file_system.space_total);
     }
 
@@ -366,7 +366,7 @@ public class file {
      * named by this abstract path name.
      *
      */
-    def get_free_space() : var {
+    def get_free_space() : long {
         return fs.get_space_available(file_system.space_free);
     }
 
@@ -389,7 +389,7 @@ public class file {
      *
      * @since  1.6
      */
-    def get_usable_space() : var {
+    def get_usable_space() : long {
         return fs.get_space_available(file_system.space_usable);
     }
 

@@ -12,7 +12,7 @@ public class thread_group : loopable<thread> {
 		self->default_priority = priority;
 	}
 	
-	def at(id : var) := handles.at(id);
+	def at(id : int) := handles.at(id);
 	
 	def add(t : thread) {
 	    lock(self) {
@@ -29,7 +29,7 @@ public class thread_group : loopable<thread> {
 	def size() := n_threads;
 	def get_name() := name;
 	def get_priority() := default_priority;
-	def remove(id : var) : var {
+	def remove(id : int) : bool {
 	    lock (self) {
 	        _thread := find(id);
             if(_thread != null) {
@@ -46,7 +46,7 @@ public class thread_group : loopable<thread> {
         return handles.get_elements()!!;
     }
 
-    def find(find_func: (thread)(var)) : thread? {
+    def find(find_func: (thread)(bool)) : thread? {
 	    lock (self) {
            for(i := 0; i < handles.size().value; i++) {
                _thread := handles.at(i);
@@ -59,7 +59,7 @@ public class thread_group : loopable<thread> {
         }
     }
 
-    def find(id: var) : thread? {
+    def find(id: int) : thread? {
 	    lock (self) {
            for(i := 0; i < handles.size().value; i++) {
                if(handles[i].get_id() == id) {

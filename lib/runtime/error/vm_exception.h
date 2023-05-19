@@ -6,6 +6,7 @@
 #define SHARP_VM_EXCEPTION_H
 
 #include "../../../stdimports.h"
+#include "../../util/KeyPair.h"
 
 struct sharp_class;
 
@@ -80,6 +81,7 @@ private:
 };
 
 void fill_stack_trace(string &str);
+void fill_stack_trace(string &output, std::list<KeyPair<Int, Int>> frameInfo);
 void print_thrown_exception();
 
 #define EXCEPTION_PRINT_MAX 20

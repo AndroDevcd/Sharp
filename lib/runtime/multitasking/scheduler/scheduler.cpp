@@ -70,7 +70,7 @@ void run_scheduler() {
         // prepare threads for context switch
         while (schth != nullptr) {
             if (schth->thread->id == gc_threadid || schth->thread->id == idle_threadid) {
-                scht = scht->next;
+                schth = schth->next;
                 continue;
             }
 

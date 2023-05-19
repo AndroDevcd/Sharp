@@ -79,7 +79,7 @@ void kill_gc();
 
 // object info macros
 #define GENERATION_MASK 0x3
-#define CLASS_MASK 0xffffff7
+#define CLASS_MASK 0xfffffff
 #define GENERATION(inf) ((inf >> 28) & GENERATION_MASK)
 #define CLASS(inf) (inf & CLASS_MASK)
 #define MARKED(inf) ((inf >> 30) & 1UL)

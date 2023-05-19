@@ -1,7 +1,8 @@
 mod main;
 
 def main() {
-    for(i :var = 0; i < 10; i++) {
-   }
+   print("hello, world");
 }
+
+// todo fix crash from _stat_id := = 8; should just error out
 

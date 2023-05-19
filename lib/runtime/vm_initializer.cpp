@@ -44,10 +44,12 @@ int initialize_virtual_machine()
     vm.incompatible_class_except = locate_class("std#incompatible_class_exception");
     vm.object_import_error = locate_class("std#object_import_error");
     vm.string_class = locate_class("std#string");
+    vm.int_class = locate_class("std#int");
     vm.stack_sate = locate_class("platform.kernel#stack_state");
     vm.thread_class = locate_class("std.io#thread");
     vm.exception_class = locate_class("std#exception");
     vm.error_class = locate_class("std#error");
+    vm.char_array_class = locate_class("std#char_array");
     vm.fiber_class = locate_class("std.io.fiber#fiber"); // todo: check if any of these classes are null
     cout.precision(16);
 

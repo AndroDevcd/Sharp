@@ -13,7 +13,6 @@ void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPat
     List<operation_schema*> lockSchemes;
     stored_block_info* info;
     operation_schema *subScheme = new operation_schema();
-    subScheme->schemeType = scheme_lock;
 
     expression cond;
     compile_expression(cond, ast->getSubAst(ast_expression));
@@ -25,6 +24,10 @@ void compile_lock_statement(Ast *ast, operation_schema *scheme, bool *controlPat
         if(compile_block(ast->getSubAst(ast_block), subScheme, lock_block, NULL, NULL, ast->getSubAst(ast_expression))) {
             controlPaths[MAIN_CONTROL_PATH] = true;
         }
+
+        recompile_cond_expression(cond, ast->getSubAst(ast_expression));
+        create_unlock_operation(subScheme, &cond.scheme);
+        subScheme->schemeType = scheme_lock;
         add_scheme_operation(scheme, subScheme);
     } else {
         create_new_error(GENERIC, ast->line, ast->col, "attempt to lock non-lockable object of type `" +

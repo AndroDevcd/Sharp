@@ -16,6 +16,7 @@
 #include "../../error/vm_exception.h"
 #include "../../reflect/reflect_helpers.h"
 #include "../scheduler/idle_scheduler.h"
+#include "../../main.h"
 
 uInt lastThreadId = -1;
 sharp_thread *mainThread = NULL;
@@ -71,12 +72,12 @@ vm_thread_entry(void *arg)
         if(unboundException)
             goto _unboundExceptionThrown;
 
-        setup_thread(thread);
         pop_queue(thread);
+        setup_thread(thread);
 
         do {
             registers = thread->task->registers;
-            if(thread->task->calls == -1) {
+            if(thread->task->calls == 0) {
                 prepare_method(thread->task->main->address);
             }
 
@@ -559,6 +560,7 @@ void setup_thread(sharp_thread* thread) {
         }
     } else {
         vm.state = VM_RUNNING;
+        initialize_main_thread_stack(exeArgs);
         setup_sig_handler();
     }
 
@@ -607,9 +609,12 @@ void __os_sleep(uInt time) {
 
 void shutdown_thread(sharp_thread* thread) {
     guard_mutex(thread->mut);
-    if(thread->id == main_threadid) {
-        if (thread->task && thread->task->stack != NULL)
-            thread->task->exitVal = (int) thread->task->stack[vm.manifest.threadLocals].var;
+    if (thread->id == main_threadid && thread->task && thread->task->stack != NULL
+        && thread->task->stack[vm.manifest.threadLocals].obj.o != NULL
+        && thread->task->stack[vm.manifest.threadLocals].obj.o->type == type_class
+        && CLASS(thread->task->stack[vm.manifest.threadLocals].obj.o->info) == vm.int_class->address) {
+        auto valueField = resolve_field("value", thread->task->stack[vm.manifest.threadLocals].obj.o);
+        thread->task->exitVal = read_numeric_value(valueField->o, 0);
     }
 
     kill_task(thread->task);

@@ -55,6 +55,7 @@ public:
     object fiberObject;
     sharp_function *main;
     Int calls;
+    Int callFramePtr;
     recursive_mutex mut;
     sharp_thread* attachedThread;
     sharp_thread* boundThread;

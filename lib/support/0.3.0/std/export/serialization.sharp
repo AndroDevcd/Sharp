@@ -4,7 +4,7 @@ import (
     std.io
 )
 
-def _export(obj: object) : _int8[] {
+def serialize(obj: object) : char_array {
     result : _int8[];
     asm {
        pushl [obj]
@@ -13,10 +13,10 @@ def _export(obj: object) : _int8[] {
        popObj
     }
 
-    return result;
+    return new char_array(result);
 }
 
-def _import(bytes: string) : object {
+def deserialize(bytes: string) : object {
     result : object;
     data := bytes.data;
 
@@ -28,19 +28,4 @@ def _import(bytes: string) : object {
     }
 
     return result;
-}
-
-def _export(obj: object, filename: string) : file {
-    f := new file(filename);
-
-    if(!f.exists())
-       f.create();
-    f.write(_export(obj));
-    return f;
-}
-
-
-def _import_from(filename: string) : object {
-   f := new file(filename);
-   return _import(f.read());
 }

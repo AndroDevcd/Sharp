@@ -29,6 +29,7 @@ struct virtual_machine {
         constants(nullptr),
         staticHeap(nullptr),
         mdata(),
+        state(VM_CREATED),
         nativeTypes(nullptr)
     {}
 
@@ -60,10 +61,12 @@ struct virtual_machine {
     sharp_class *object_import_error;
     sharp_class *ill_state_except;
     sharp_class *string_class;
+    sharp_class *int_class;
     sharp_class *stack_sate;
     sharp_class *thread_class;
     sharp_class *exception_class;
     sharp_class *error_class;
+    sharp_class *char_array_class;
     sharp_class *fiber_class;
 };
 

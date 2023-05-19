@@ -250,6 +250,54 @@ void validate_function_type(
        || (type.type >= type_int8 && type.type <= type_object)) {
         if(type.type == type_class)
             create_dependency(type._class);
+        else if(type.type >= type_int8 && type.type <= type_int64 || type.type == type_var) {
+            if(type.nullable && !type.isArray) {
+                create_new_error(GENERIC, ast, " cannot assign 'nullable' to non nullable type `"
+                           + type_to_str(type) + "` as return value to function `" + fun->fullName + "`");
+            } else if(hardType && !type.isArray) {
+                create_new_error(GENERIC, ast, " cannot assign non nullable type `"
+                    + type_to_str(type) + "` as return value to function `" + fun->fullName + "`");
+            } else if(!type.isArray) {
+                sharp_class *numberClass = nullptr;
+                string stdModule = "std";
+                switch(type.type) {
+                    case type_int8:
+                        numberClass = resolve_class(get_module(stdModule), "char", false, false);
+                        break;
+                    case type_int16:
+                        numberClass = resolve_class(get_module(stdModule), "short", false, false);
+                        break;
+                    case type_int32:
+                        numberClass = resolve_class(get_module(stdModule), "int", false, false);
+                        break;
+                    case type_int64:
+                        numberClass = resolve_class(get_module(stdModule), "long", false, false);
+                        break;
+                    case type_uint8:
+                        numberClass = resolve_class(get_module(stdModule), "uchar", false, false);
+                        break;
+                    case type_uint16:
+                        numberClass = resolve_class(get_module(stdModule), "ushort", false, false);
+                        break;
+                    case type_uint32:
+                        numberClass = resolve_class(get_module(stdModule), "uint", false, false);
+                        break;
+                    case type_uint64:
+                        numberClass = resolve_class(get_module(stdModule), "ulong", false, false);
+                        break;
+                    default:
+                        numberClass = resolve_class(get_module(stdModule), "double", false, false);
+                        break;
+                }
+
+                if(numberClass != nullptr) {
+                    sharp_type classType(numberClass);
+                    fun->returnType.copy(classType);
+                    create_dependency(numberClass);
+                    return;
+                }
+            }
+        }
 
         if(!hardType && scheme->steps.empty()) {
             create_new_error(GENERIC, ast, " cannot assign hard type as value for function `" + fun->fullName + "`");

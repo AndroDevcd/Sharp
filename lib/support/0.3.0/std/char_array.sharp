@@ -1,0 +1,52 @@
+mod std;
+
+class char_array : loopable<_int8> {
+    data: _int8[]? = null;
+        private set value -> {
+            data = value;
+        }
+
+    char_array(data: _int8[]?) {
+        self->data = data;
+    }
+
+    char_array(data: var[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i];
+        }
+    }
+
+    char_array(data: _int16[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i];
+        }
+    }
+
+    char_array(data: char[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i].value;
+        }
+    }
+
+    char_array(data: uchar[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i].value;
+        }
+    }
+
+    char_array(array: char_array?) {
+        self->data = array?.data;
+    }
+
+    char_array(str: string?) {
+        self->data = str?.get_elements();
+    }
+
+    override def get_elements() := data;
+
+    override def to_string() := new string(data);
+}

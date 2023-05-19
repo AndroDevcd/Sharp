@@ -214,6 +214,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) {
     expression arraySize;
     compile_expression(arraySize, ast->getSubAst(ast_expression));
+    extract_value_field_from_expression(arraySize, "", ast, true);
     operation_schema *arraySieScheme = new operation_schema(arraySize.scheme);
 
     e->type.copy(*newType);

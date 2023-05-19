@@ -358,15 +358,17 @@ void main_vm_loop()
             NEWSTRING:
                 grow_stack
                 stack_overflow_check
+                data = single_arg;
                 copy_object(
                     &push_stack_object,
                     create_object(
-                       vm.strings[single_arg].size(),
+                       vm.strings[data].size(),
                         type_int8
                     )
                 );
 
-                assign_string_field(task->sp->obj.o, vm.strings[single_arg]);
+                if(vm.strings[data].size() > 0)
+                    assign_string_field(task->sp->obj.o, vm.strings[data]);
                 branch
             ADDL:
                 (task->fp + dual_arg2)->var += regs[dual_arg1];
@@ -666,11 +668,14 @@ void prepare_method(Int address) {
     grow_stack_for(function->stackSize)
     stack_overflow_check_for(function->stackSize)
 
-    if((task->calls + 1) >= task->frameSize)
+    if((task->callFramePtr + 1) >= task->frameSize)
         task->growFrame();
 
-    init_struct(task->frames + ++task->calls, task->current->address,
-                task->pc, task->sp - function->spOffset, task->fp);
+    task->calls++;
+    if(task->calls > 1) {
+        init_struct(task->frames + ++task->callFramePtr, task->current->address,
+                    task->pc, task->sp - function->spOffset, task->fp);
+    }
 
     task->current = function;
     task->fp = task->sp - function->spOffset;
@@ -682,18 +687,19 @@ void prepare_method(Int address) {
 bool return_method() {
     auto task = thread_self->task;
 
+    task->calls--;
     if(task->calls == 0) {
         task->finished = true;
         return true;
     }
 
-    auto frame = task->frames + task->calls;
+    task->callFramePtr--;
+    auto frame = task->frames + task->callFramePtr;
     task->current = vm.methods + frame->returnAddress;
     task->rom = task->current->bytecode;
     task->pc = frame->pc;
     task->sp = frame->sp;
     task->fp = frame->fp;
-    task->calls--;
     return false;
 }
 
@@ -812,11 +818,7 @@ void exec_interrupt(Int interrupt)
         case OP_FIBER_STATE: {
             Int fiberId = pop_stack_number;
             fiber *fib = locate_task(fiberId);
-            registers[EBX] = -1;
-
-            if(fib) {
-                registers[EBX] = get_state(fib);
-            }
+            registers[EBX] = fib ? get_state(fib) : -1;
             return;
         }
         case OP_FIBER_CURRENT: {
@@ -1128,16 +1130,31 @@ void exec_interrupt(Int interrupt)
             break;
         }
         case OP_GET_STACK_TRACE: {
-            string str;
-            fill_stack_trace(str);
-            auto stacktrace = &push_stack_object;
+            auto stackState = pop_stack_object.o;
+            auto methodsField = resolve_field("methods", stackState);
+            auto pcField = resolve_field("pc", stackState);
 
-            copy_object(stacktrace, create_object(vm.string_class));
-            auto dataField = resolve_field("data", stacktrace->o);
-            auto strObject = create_object(str.size(), type_int8);
+            if(methodsField->o && pcField->o) {
+                std::list<KeyPair<Int, Int>> frameInfo;
+                for (Int i = 0; i < methodsField->o->size; i++) {
+                    frameInfo.push_back(KeyPair<Int, Int>(methodsField->o->HEAD[i], pcField->o->HEAD[i]));
+                }
 
-            copy_object(dataField, strObject);
-            assign_string_field(strObject, str);
+                string str;
+                fill_stack_trace(str, frameInfo);
+                auto stacktrace = &push_stack_object;
+
+                copy_object(stacktrace, create_object(vm.string_class));
+                auto dataField = resolve_field("data", stacktrace->o);
+                auto strObject = create_object(str.size(), type_int8);
+
+                copy_object(dataField, strObject);
+
+                if (str.size() > 0)
+                    assign_string_field(strObject, str);
+            } else {
+                copy_object(&push_stack_object, (sharp_object*) nullptr);
+            }
             break;
         }
         case OP_COPY: {

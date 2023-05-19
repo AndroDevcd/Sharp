@@ -4,7 +4,7 @@ import (
     std.io
 )
 
-class deferred<t> base observable<t> {
+class deferred<t> base observable<t> { // todo: remove observable and force a mutex call to wait for task to finish
 
     response : t;
         get {

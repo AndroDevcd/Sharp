@@ -880,6 +880,10 @@ void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instr
             update_dynamic_instruction(instructions, di, Opcode::Builder::_int((interrupt_flag)get_dynamic_arg_value(di.arg1)));
             break;
         }
+        case Opcode::MOVI: {
+            update_dynamic_instruction(instructions, di, Opcode::Builder::movi(get_dynamic_arg_value(di.arg1), (_register)get_dynamic_arg_value(di.arg2)));
+            break;
+        }
         case Opcode::RET: {
             update_dynamic_instruction(instructions, di, Opcode::Builder::ret(get_dynamic_arg_value(di.arg1)));
             break;

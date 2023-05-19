@@ -36,8 +36,8 @@ void setup_core_functions() {
                 init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "main method '" + starterMethod + "(object[])' must be private");
             }
 
-            if(init_function->returnType != type_var) {
-                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "main method '" + starterMethod + "(object[])' must  return a var");
+            if(!(init_function->returnType == type_class && init_function->returnType._class->fullName == "std#int")) {
+                init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "main method '" + starterMethod + "(object[])' must  return `int`");
             }
 
             deleteList(params);

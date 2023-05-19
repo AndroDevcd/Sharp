@@ -41,6 +41,11 @@ enum block_type {
     when_block
 };
 
+struct block_scope {
+    Int level;
+    Int id;
+};
+
 /**
  * @struct stored_block_info
  * This struct represents a way for u to store block-specific info when compiling functions

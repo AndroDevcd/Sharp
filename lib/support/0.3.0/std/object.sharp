@@ -1,7 +1,8 @@
 mod std;
 
 import (
-    std.io
+    std.io,
+    platform.kernel
 )
 
 /**
@@ -17,17 +18,11 @@ stable class _object_ : printable, unique {
     public override def to_string() : string? = null;
 
     def lock_object() {
-        asm {
-            movl 0
-            lock
-        }
+        vm.lock_object(self);
     }
 
     def unlock_object() {
-        asm {
-            movl 0
-            ulock
-        }
+        vm.unlock_object(self);
     }
 
     override def hash() : int {

@@ -93,7 +93,6 @@ int run_app() {
                 oldSize, vm.manifest.application.c_str(), updatedBytes);
     }
 
-    initialize_main_thread_stack(exeArgs);
     start_thread(get_main_thread(), 0);
     run_scheduler();
 

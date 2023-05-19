@@ -52,6 +52,14 @@ class string : loopable<_int8> {
        data = copy(str, offset.value, sizeof(str));
     }
 
+    string(str : char[], start: int, end: int) {
+        if((end.value - start.value) > 0) {
+            data = new _int8[end.value - start.value];
+            array := new char_array(str).get_elements();
+            memcopy(array!!, data!!, 0, start.value, end.value);
+        }
+    }
+
     string(str : _int8[], start: int, end: int) {
         if((end.value - start.value) > 0) {
             data = new _int8[end.value - start.value];
@@ -187,7 +195,7 @@ class string : loopable<_int8> {
             data = copy(immstr!!, 0, sizeof(immstr));
     }
 
-    def at(pos : int) : _int8 {
+    def at(pos : int) : char {
         if(pos.value >= sizeof(data))
             throw bounds_error(pos.value);
         return data[pos.value];
@@ -195,12 +203,12 @@ class string : loopable<_int8> {
 
     def operator[](pos: int) := at(pos);
 
-    override def get_elements() := data!!;
+    override def get_elements() := data;
 
-    def to_array() : _int8[]?
+    def to_array() : char_array?
     {
         if(data == null) return null;
-        return copy(data!!, 0, sizeof(data));
+        return new char_array(copy(data!!, 0, sizeof(data)));
     }
 
 

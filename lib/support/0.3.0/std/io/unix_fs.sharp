@@ -7,9 +7,9 @@ mod std.io;
  */
 protected class unix_fs base file_system {
     private slash := '/';
-    private buffer := new _int8[512];
+    private buffer := new char[512];
 
-    override def path_separator() : var {
+    override def path_separator() : char {
         return slash;
     }
 
@@ -64,7 +64,7 @@ protected class unix_fs base file_system {
       * by the given abstract pathname, or zero if it does not exist or some
       * other I/O error occurs.
       */
-     override def get_attributes(f: file) : var {
+     override def get_attributes(f: file) : int {
         path := f.path.data;
         attrs := 0;
 
@@ -88,8 +88,9 @@ protected class unix_fs base file_system {
       * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
       * Return false if access is denied or an I/O error occurs
       */
-     override def check_access(f: file, access: var) : var {
+     override def check_access(f: file, access: int) : int {
         path := f.path.data;
+        _access := access.value;
         result := 0;
 
         /*
@@ -98,7 +99,7 @@ protected class unix_fs base file_system {
         */
         asm {
             pushl [path]
-            loadl ebx, [access]
+            loadl ebx, [_access]
             int 0x24
             smovr2 [result], ebx
         };

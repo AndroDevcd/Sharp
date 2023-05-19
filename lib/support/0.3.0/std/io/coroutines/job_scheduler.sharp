@@ -45,7 +45,7 @@ private def calculate_max_threads() {
     max_threads = short_term_threads + long_term_threads.read();
 }
 
-def set_thread_max(max: var) {
+def set_thread_max(max: int) {
     lock(launcher) {
         if(scheduler != null) {
             throw new ill_arg_except("cannot modify max thread count after task library has started, " +
@@ -152,17 +152,17 @@ def run_scheduler() {
 }
 
 total := 0, started = 0;
-public def scheduler_main(args : object[]) : var
+public def scheduler_main(args : object[]) : int
 {
     run_scheduler();
 	return 0;
 }
 
-thread_local avail_threads : var;
+thread_local avail_threads : int;
 thread_local fiber_count := 1e+100;
 thread_local host : thread?;
 thread_local pool : thread_group;
-private def get_host(long_running : var) : thread? {
+private def get_host(long_running : bool) : thread? {
 	if(long_running) {
 		pool = launcher.long_term_pool;
 	} else
@@ -269,7 +269,7 @@ protected def execute_synchronous(scheduled_job : job) {
 	scheduled_job.execute();
 }
 
-protected def execute_job(scheduled_job : job) : var {
+protected def execute_job(scheduled_job : job) : bool {
     fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
            	    : scheduled_job.host;
 

@@ -90,7 +90,7 @@ sharp_field* create_local_field(
             context->functionCxt->locals.add(field);
             return field;
         } else {
-            file->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "local field `" + name +
+            create_new_error(PREVIOUSLY_DEFINED, ast->line, ast->col, "local field `" + name +
                                                                                   "` is already defined in function: " + context->functionCxt->name);
             print_impl_location(field->name, "field", field->implLocation);
             return field;

@@ -94,8 +94,10 @@ void delete_block(block_info *info) {
     for(Int i = current_context.functionCxt->parameters.size(); i < current_context.localFields.size(); i++) {
         sharp_field *field = current_context.localFields.get(i);
 
-        if(field->block == info->id)
+        if(field->block == info->id) {
             current_context.localFields.remove(field);
+            i--;
+        }
     }
 
     if(info->storedItems.empty()) {

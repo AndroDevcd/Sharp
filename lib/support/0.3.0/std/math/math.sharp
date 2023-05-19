@@ -41,7 +41,7 @@ public const NaN := 0.0 / 0.0;
  * @return  {@code true} if the argument is NaN;
  *          {@code false} otherwise.
  */
-public def is_nan(v: var): var {
+public def is_nan(v: double): bool {
     return (v != v);
 }
 
@@ -53,123 +53,148 @@ public def is_nan(v: var): var {
  * @return  {@code true} if the argument is positive infinity or
  *          negative infinity; {@code false} otherwise.
  */
-public def is_infinite(v: var): var {
+public def is_infinite(v: double): bool {
     return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
 }
 
-def sin(num: var) : var {
+def sin(num: double) : double {
     return math_proc(num, 0x0);
 }
 
-def cos(num: var) : var {
+def cos(num: double) : double {
     return math_proc(num, 0x1);
 }
 
-def tan(num: var) : var {
+def tan(num: double) : double {
     return math_proc(num, 0x2);
 }
 
-def sinh(num: var) : var {
+def sinh(num: double) : double {
     return math_proc(num, 0x3);
 }
 
-def cosh(num: var) : var {
+def cosh(num: double) : double {
     return math_proc(num, 0x4);
 }
 
-def tanh(num: var) : var {
+def tanh(num: double) : double {
     return math_proc(num, 0x5);
 }
 
-def asin(num: var) : var {
+def asin(num: double) : double {
     return math_proc(num, 0x6);
 }
 
-def acos(num: var) : var {
+def acos(num: double) : double {
     return math_proc(num, 0x7);
 }
 
-def atan(num: var) : var {
+def atan(num: double) : double {
     return math_proc(num, 0x8);
 }
 
-def atan(num1: var, num2: var) : var {
+def atan(num1: double, num2: double) : double {
     return math_proc(num1, num2, 0x9);
 }
 
-def exp(num: var) : var {
+def exp(num: double) : double {
     return math_proc(num, 0xa);
 }
 
-def log(num: var) : var {
+def log(num: double) : double {
     return math_proc(num, 0xb);
 }
 
-def log10(num: var) : var {
+def log10(num: double) : double {
     return math_proc(num, 0xc);
 }
 
-def pow(num: var, exp: var) : var {
+def pow(num: double, exp: double) : double {
     return math_proc(num, exp, 0xd);
 }
 
-def sqrt(num: var) : var {
+def sqrt(num: double) : double {
     return math_proc(num, 0xe);
 }
 
-def ceil(num: var) : var {
+def ceil(num: double) : double {
     return math_proc(num, 0xf);
 }
 
-def floor(num: var) : var {
+def floor(num: double) : double {
     return math_proc(num, 0x10);
 }
 
-def abs(num: var) : var {
+def abs(num: double) : double {
     return fabs(num);
 }
 
-local def fabs(num: var) : var {
+def abs(num: int) : int {
+    return fabs(num).to_int();
+}
+
+def abs(num: long) : long {
+    return fabs(num).to_long();
+}
+
+def abs(num: short) : short {
+    return fabs(num).to_short();
+}
+
+def abs(num: char) : char {
+    return fabs(num).to_char();
+}
+
+def abs(num: byte) : byte {
+    return fabs(num).to_byte();
+}
+
+local def fabs(num: double) : double {
     return math_proc(num, 0x11);
 }
 
-def ldexp(num: var, num2: var) : var {
+def ldexp(num: double, num2: double) : double {
     return math_proc(num, num2, 0x12);
 }
 
-def fmod(num: var, num2: var) : var {
+def fmod(num: double, num2: double) : double {
     return math_proc(num, num2, 0x13);
 }
 
-def round(num: var) : var {
-    int_val := num as _int64;
+def round(num: double) : double {
+    int_val := num.to_long();
     num -= int_val;
 
     if(num >= 0.5) return int_val + 1;
     else return int_val;
 }
 
-local def math_proc(num: var, proc: var) : var {
+local def math_proc(num: double, proc: double) : double {
+    _num := num.value;
+    _proc := proc.value;
+    result : var = 0;
     asm {
-        loadl ebx, [num]
-        loadl ecx, [proc]
+        loadl ebx, [_num]
+        loadl ecx, [_proc]
         int 0x18
-        returnVal cmt
-        ret 0
+        smovr2 [result], cmt
     }
 
-    return 0;
+    return result;
 }
 
-local def math_proc(num:var, num2: var, proc: var) : var {
+local def math_proc(num: double, num2: double, proc: double) : double {
+    _num := num.value;
+    _num2 := num2.value;
+    _proc := proc.value;
+    result : var = 0;
     asm {
-        loadl ebx, [num]
-        loadl egx, [num2]
-        loadl ecx, [proc]
+        loadl ebx, [_num]
+        loadl egx, [_num2]
+        loadl ecx, [_proc]
         int 0x18
-        returnVal cmt
-        ret 0
+        smovr2 [result], cmt
     }
 
-    return 0;
+    return result;
 }
