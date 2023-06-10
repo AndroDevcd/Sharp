@@ -19,8 +19,8 @@ struct stack_item {
 struct frame {
     int32_t returnAddress;
     opcode_instr *pc;
-    stack_item* sp;
-    stack_item* fp;
+    Int sp;
+    Int fp;
 };
 
 void init_struct(stack_item *item);
@@ -28,8 +28,8 @@ void init_struct(
         frame *f,
         int32_t raddr,
         opcode_instr *ip,
-        stack_item* sp,
-        stack_item* fp
+        Int sp,
+        Int fp
 );
 
 std::list<KeyPair<Int, Int>> get_frame_info(fiber *task);

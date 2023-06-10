@@ -41,6 +41,39 @@ public class number<T, NT> base base_number<NT> {
     number(initial_val : _uint64) {
         value = initial_val;
     }
+    number(initial_val : short) {
+        value = initial_val.value;
+    }
+    number(initial_val : bool) {
+        value = initial_val.value;
+    }
+    number(initial_val : ushort) {
+        value = initial_val.value;
+    }
+    number(initial_val : char) {
+        value = initial_val.value;
+    }
+    number(initial_val : byte) {
+        value = initial_val.value;
+    }
+    number(initial_val : uchar) {
+        value = initial_val.value;
+    }
+    number(initial_val : int) {
+        value = initial_val.value;
+    }
+    number(initial_val : uint) {
+        value = initial_val.value;
+    }
+    number(initial_val : long) {
+        value = initial_val.value;
+    }
+    number(initial_val : ulong) {
+        value = initial_val.value;
+    }
+    number(initial_val : double) {
+        value = initial_val.value;
+    }
 
     override def hash() : int {
         return value;
@@ -1000,7 +1033,7 @@ class uchar base number<_uint8, uchar> {
     }
 
     static def is_newline(ch: char) : bool {
-        if(platform.build_info.is_windows()) return ch.value == '\n' || ch.value == '\r';
+        if(build.is_windows()) return ch.value == '\n' || ch.value == '\r';
         else  return ch == '\n';
     }
 
@@ -1079,7 +1112,7 @@ class char base number<_int8, char> {
     }
 
     static def is_newline(ch: char) : bool {
-        if(platform.build_info.is_windows()) return ch == '\n' || ch == '\r';
+        if(build.is_windows()) return ch == '\n' || ch == '\r';
         else  return ch == '\n';
     }
 

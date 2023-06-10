@@ -8,6 +8,12 @@
 #include "../../../stdimports.h"
 
 struct line_data {
+    line_data()
+    :
+        pc(0),
+        line_number(0)
+    {}
+
     line_data(Int pc, Int line)
     :
         pc(pc),

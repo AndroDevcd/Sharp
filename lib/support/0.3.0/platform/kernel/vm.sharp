@@ -16,7 +16,7 @@ class vm {
     }
 
     private static def get_lib_path(name: string) : _int8[] {
-        if(platform.build_info.is_windows()) {
+        if(build.is_windows()) {
             name += ".dll";
         } else {
             name += ".so";
@@ -83,7 +83,7 @@ class vm {
     static def thread_create(daemon: var) : int {
         result: var;
         asm {
-            movi adx, [_srt_thread_start]
+            movi adx, $std.io#__srt_global[_srt_thread_start]
             loadl ebx, [daemon]
             int 0x10
             smovr2 [result], ebx

@@ -15,14 +15,14 @@ void parseSourceFile(file_data &sourceFile, string &data) {
     for(unsigned int i = 0; i < data.size(); i++) {
         if(data[i] == '\n')
         {
-            sourceFile.lines.push_back(line);
+            sourceFile.lines.createnode(line);
             line = "";
         } else {
             line += data[i];
         }
     }
 
-    sourceFile.lines.push_back(line);
+    sourceFile.lines.createnode(line);
 }
 
 void process_meta_data(KeyPair<int, string> &result) {
@@ -41,7 +41,7 @@ void process_meta_data(KeyPair<int, string> &result) {
                parseSourceFile(*fileData, sourceFileData);
            }
 
-           vm.mdata.files.push_back(fileData);
+           vm.mdata.files.createnode(fileData);
            continue;
        }, // on section_end
            break;

@@ -63,6 +63,11 @@ void run_scheduler() {
         sched_unsched_items();
         schth = sched_threads;
 
+        if(taskCount == 1) {
+            this_thread::yield();
+            goto check_state;
+        }
+
         if(scht == nullptr) {
             scht = sched_tasks;
         }
@@ -87,6 +92,7 @@ void run_scheduler() {
         schth = sched_threads;
         while (schth != nullptr) {
             if(!can_sched_thread(schth->thread)) {
+                schth = schth->next;
                 continue;
             }
 
@@ -129,6 +135,7 @@ void run_scheduler() {
             schth = schth->next;
         }
 
+        check_state:
         if(vm.state >= VM_SHUTTING_DOWN) {
             while(vm.state != VM_TERMINATED) {
                 __usleep(1000);

@@ -9,6 +9,7 @@
 #include "../multitasking/fiber/fiber.h"
 #include "../reflect/reflect_helpers.h"
 #include "../../core/thread_state.h"
+#include "../../core/opcode/opcode_macros.h"
 
 
 vm_exception::vm_exception(const char *msg, bool native)
@@ -55,14 +56,45 @@ void fill_stack_trace(string &output) {
         {
             for(Int i = 0; i < task->callFramePtr; i++) {
                 if(functions++ >= EXCEPTION_PRINT_MAX) break;
-                output += get_info(&vm.methods[frames[i].returnAddress], frames[i].pc-task->rom) + "\n";
+                output += get_info(&vm.methods[frames[i].returnAddress], frames[i].pc-vm.methods[frames[i].returnAddress].bytecode) + "\n";
             }
         } else {
             for(Int i = (task->callFramePtr + 1) - EXCEPTION_PRINT_MAX; i < task->callFramePtr + 1; i++) {
                 if(functions++ >= EXCEPTION_PRINT_MAX) break;
-                output += get_info(&vm.methods[frames[i].returnAddress], frames[i].pc-task->rom) + "\n";
+                output += get_info(&vm.methods[frames[i].returnAddress], frames[i].pc-vm.methods[frames[i].returnAddress].bytecode) + "\n";
             }
         }
+
+        output += get_info(&vm.methods[task->current->address], current_pc) + "\n";
+    }
+}
+
+void fill_stack_trace_from_frame_info() {
+    auto task = thread_self->task;
+    auto stackState = pop_stack_object.o;
+    auto methodsField = resolve_field("methods", stackState);
+    auto pcField = resolve_field("pc", stackState);
+
+    if(methodsField->o && pcField->o) {
+        std::list<KeyPair<Int, Int>> frameInfo;
+        for (Int i = 0; i < methodsField->o->size; i++) {
+            frameInfo.push_back(KeyPair<Int, Int>(methodsField->o->HEAD[i], pcField->o->HEAD[i]));
+        }
+
+        string str;
+        fill_stack_trace(str, frameInfo);
+        auto stacktrace = &push_stack_object;
+
+        copy_object(stacktrace, create_object(vm.string_class));
+        auto dataField = resolve_field("data", stacktrace->o);
+        auto strObject = create_object(str.size(), type_int8);
+
+        copy_object(dataField, strObject);
+
+        if (str.size() > 0)
+            assign_string_field(strObject, str);
+    } else {
+        copy_object(&push_stack_object, (sharp_object*) nullptr);
     }
 }
 
@@ -72,7 +104,7 @@ void fill_stack_trace(string &output, std::list<KeyPair<Int, Int>> frameInfo) {
     frame *frames = task->frames;
 
     for(KeyPair<Int, Int> &info : frameInfo) {
-        output += get_info(&vm.methods[info.key], frames[info.value].pc-task->rom) + "\n";
+        output += get_info(&vm.methods[info.key], info.value) + "\n";
     }
 }
 
@@ -113,7 +145,7 @@ void vm_exception::push_exception() {
 
         copy_object(&thread->task->exceptionObject, create_object(err.handlingClass));
         object *msg = resolve_field("message", thread->task->exceptionObject.o);
-        object *info = resolve_field("frameInfo", thread->task->exceptionObject.o);
+        object *info = resolve_field("frame_info", thread->task->exceptionObject.o);
         copy_object(msg, create_object(err.message.size(), type_int8));
 
         for (Int i = 0; i < err.message.size(); i++) {
@@ -138,6 +170,45 @@ void vm_exception::push_exception() {
     }
 }
 
+recursive_mutex exceptionMut;
 void print_thrown_exception() {
-    // todo: impl
+    guard_mutex(exceptionMut)
+    auto thread = thread_self;
+    fiber *task = thread_self->task;
+
+    if(hasSignal(thread->signal, tsig_except) && thread->task) {
+        auto frameInfo = resolve_field("frame_info", task->exceptionObject.o);
+        auto message = resolve_field("message", task->exceptionObject.o);
+        auto stackTrace = resolve_field("stack_trace", task->exceptionObject.o);
+        sharp_class *exceptionClass = NULL;
+        if(task->exceptionObject.o != NULL)
+            exceptionClass = &vm.classes[CLASS(task->exceptionObject.o->info)];
+
+
+        cout << "Unhandled exception on thread " << thread->name << " (most recent call last):\n";
+        if(stackTrace != NULL && stackTrace->o != NULL){
+            auto data = resolve_field("data", stackTrace->o);
+
+            if(data != NULL) {
+                cout << read_string_value(data->o);
+            }
+        } else if(frameInfo && frameInfo->o) {
+            if(((task->sp - task->stack) + 1) >= task->stackLimit) {
+                task->sp = task->stack - 1;
+            }
+
+            if(exceptionClass != NULL && exceptionClass->guid != vm.out_of_memory_except->guid) {
+                copy_object(&(++task->sp)->obj, frameInfo);
+                fill_stack_trace_from_frame_info();
+
+                auto exceptionString = pop_stack_object.o;
+                auto data = resolve_field("data", exceptionString);
+                if(data) cout << read_string_value(data->o);
+            }
+        }
+
+        sendSignal(thread->signal, tsig_except, 0);
+        cout << endl << (exceptionClass != NULL ? exceptionClass->name : "") << " ("
+             << (message != NULL ? read_string_value(message->o) : "") << ")\n";
+    }
 }

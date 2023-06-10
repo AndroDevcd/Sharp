@@ -95,6 +95,7 @@ int run_app() {
 
     start_thread(get_main_thread(), 0);
     run_scheduler();
+    result = vm.exitVal;
 
     bail:
     shutdown();

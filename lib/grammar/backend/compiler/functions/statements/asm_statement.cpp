@@ -84,6 +84,8 @@ machine_argument* compile_asm_member_address(sharp_class *with_class, Ast *ast) 
                 create_new_error(GENERIC, ast->line, ast->col,
                                  "offsets are not allowed with field members.");
             }
+
+            create_dependency(field);
             return new machine_argument(field);
         }
 
@@ -127,7 +129,35 @@ machine_argument* compile_asm_literal(Ast *ast, operation_schema *scheme) {
     machine_argument *arg = NULL;
     Int multiplier = ast->hasSubAst(ast_pre_inc_e) ? -1 : 1;
 
-    if(ast->getType() == ast_literal || ast->getTokenCount() == 1) {
+    if(ast->hasToken("@")) {
+        opcode_arg offset = get_asm_offset(ast);
+        string labelName = ast->getToken(1).getValue();
+        sharp_label *label = resolve_label(labelName, &current_context);
+
+        if(label ==NULL) {
+            label = create_label(labelName, &current_context, ast, scheme);
+        }
+
+        arg = new machine_argument(label);
+        arg->number = offset;
+    } else if(ast->hasToken("$")) {
+        Ast *classAst = ast->getSubAst(ast_asm_class_item);
+        sharp_type type = resolve(classAst->getSubAst(ast_utype));
+
+        if(type.type == type_class) {
+            if(ast->hasSubAst(ast_asm_member_item)) {
+                arg = compile_asm_member_address(get_class_type(type), ast->getSubAst(ast_asm_member_item));
+            } else {
+                arg = new machine_argument(get_class_type(type));
+            }
+        } else {
+            stringstream err;
+            err << "invalid asm type: " << type_to_str(type) << ", expected class.";
+            create_new_error(GENERIC, ast->line, ast->col, err.str());
+        }
+    } else if(ast->hasToken("[") && ast->hasSubAst(ast_asm_member_item)) {
+        arg = compile_asm_member_address(NULL, ast->getSubAst(ast_asm_member_item));
+    } else if(ast->getType() == ast_literal || ast->getTokenCount() == 1) {
         expression tmp;
         compile_literal_expression(&tmp, ast);
 
@@ -155,34 +185,6 @@ machine_argument* compile_asm_literal(Ast *ast, operation_schema *scheme) {
                 break;
             }
         }
-    } else if(ast->hasToken("@")) {
-        opcode_arg offset = get_asm_offset(ast);
-        string labelName = ast->getToken(1).getValue();
-        sharp_label *label = resolve_label(labelName, &current_context);
-
-        if(label ==NULL) {
-            label = create_label(labelName, &current_context, ast, scheme);
-        }
-
-        arg = new machine_argument(label);
-        arg->number = offset;
-    } else if(ast->hasToken("$")) {
-        Ast *classAst = ast->getSubAst(ast_asm_class_item);
-        sharp_type type = resolve(classAst->getSubAst(ast_utype));
-
-        if(type.type == type_class) {
-            if(ast->hasSubAst(ast_asm_member_item)) {
-                arg = compile_asm_member_address(get_class_type(type), ast->getSubAst(ast_asm_member_item));
-            } else {
-                arg = new machine_argument(get_class_type(type));
-            }
-        } else {
-            stringstream err;
-            err << "invalid asm type: " << type_to_str(type) << ", expected class.";
-            create_new_error(GENERIC, ast->line, ast->col, err.str());
-        }
-    } else if(ast->hasToken("[")) {
-        arg = compile_asm_member_address(NULL, ast->getSubAst(ast_asm_member_item));
     } else {
         create_new_error(GENERIC, ast->line, ast->col, "expected asm literal");
     }

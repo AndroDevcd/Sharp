@@ -256,7 +256,7 @@ void parse_reference_item(unresolved_item &item, Ast *ast) {
                 token->getValue() = ".";
             }
 
-            for(Int j = 0; j < child->getSubAstCount(); j++)
+            for(Int j = 0; j < child->getTokenCount(); j++)
                 module << child->getToken(j).getValue();
         }
 

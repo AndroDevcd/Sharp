@@ -1815,8 +1815,9 @@ void create_get_string_constant_operation(
 void create_value_assignment_operation(
         operation_schema *scheme,
         operation_schema *asigneeScheme,
-        operation_schema *valueScheme) {
-    scheme->free();
+        operation_schema *valueScheme,
+        bool resetState) {
+    if(resetState) scheme->free();
     scheme->schemeType = scheme_assign_value;
 
     scheme->steps.add(new operation_step(
@@ -2154,11 +2155,12 @@ void create_decrement_operation(
 void create_static_function_call_operation(
         operation_schema *scheme,
         List<operation_schema*> &paramScheme,
-        sharp_function *fun) {
+        sharp_function *fun,
+        bool resetState) {
     if(scheme) {
         scheme->schemeType = scheme_call_static_function;
         scheme->fun = fun;
-        scheme->free();
+        if(resetState) scheme->free();
 
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(

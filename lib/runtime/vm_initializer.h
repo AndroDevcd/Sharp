@@ -7,5 +7,6 @@
 
 int initialize_virtual_machine();
 void shutdown();
+void destroy();
 
 #endif //SHARP_VM_INITIALIZER_H

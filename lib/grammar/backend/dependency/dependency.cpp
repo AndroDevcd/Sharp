@@ -993,8 +993,8 @@ bool resolve_primary_class_field(
                     reset = true;
                     create_static_field_getter_operation(getValueScheme, field);
                 } else {
-                    if (!isSelfInstance) {
-                        if (isStatic) {
+                    if (!isSelfInstance || check_flag(field->flags, flag_static)) {
+                        if (isStatic || check_flag(field->flags, flag_static)) {
                             reset = true;
                             create_static_field_getter_operation(getValueScheme, field);
                         }
@@ -1016,8 +1016,8 @@ bool resolve_primary_class_field(
 
                     create_tls_field_access_operation(getValueScheme, field, false);
                 } else {
-                    if (!isSelfInstance) {
-                        if (isStatic) {
+                    if (!isSelfInstance || check_flag(field->flags, flag_static)) {
+                        if (isStatic || check_flag(field->flags, flag_static)) {
                             reset = true;
                             create_static_field_access_operation(getValueScheme, field);
                         }
@@ -2206,8 +2206,8 @@ bool resolve_primary_class_function_pointer_field(
                     reset = true;
                     create_static_field_getter_operation(getValueScheme, field);
                 } else {
-                    if (!isPrimaryClass) {
-                        if (isStaticCall) {
+                    if (!isPrimaryClass || check_flag(field->flags, flag_static)) {
+                        if (isStaticCall || check_flag(field->flags, flag_static)) {
                             reset = true;
                             create_static_field_getter_operation(getValueScheme, field);
                         }
@@ -2230,8 +2230,8 @@ bool resolve_primary_class_function_pointer_field(
 
                     create_tls_field_access_operation(getValueScheme, field, false);
                 } else {
-                    if (!isPrimaryClass) {
-                        if (isStaticCall) {
+                    if (!isPrimaryClass || check_flag(field->flags, flag_static)) {
+                        if (isStaticCall || check_flag(field->flags, flag_static)) {
                             reset = true;
                             create_static_field_access_operation(getValueScheme, field);
                         }

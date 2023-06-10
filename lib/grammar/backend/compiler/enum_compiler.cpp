@@ -90,9 +90,10 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
                 if(init_function->scheme == NULL)
                     init_function->scheme = new operation_schema(scheme_master);
 
+                create_dependency(init_function, enum_field);
                 APPLY_TEMP_SCHEME(0, (*init_function->scheme),
                      create_get_value_operation(&scheme_0, &valueScheme);
-                     create_static_field_access_operation(&scheme_0, enum_field);
+                     create_static_field_access_operation(&scheme_0, enum_field, false);
                      create_pop_value_from_stack_operation(&scheme_0);
                 )
 
@@ -119,6 +120,7 @@ void compile_enum_fields(sharp_class *with_class, Ast *ast) {
     if(enumClass != NULL) {
         lastEnumValue = uniqueId++;
         Ast* block = ast->getSubAst(ast_enum_identifier_list);
+        create_context(enumClass, true);
 
         for(Int i = 0; i < block->getSubAstCount(); i++) {
             Ast *trunk = block->getSubAst(i);
@@ -131,6 +133,8 @@ void compile_enum_fields(sharp_class *with_class, Ast *ast) {
                     break;
             }
         }
+
+        delete_context();
     } else {
         create_new_error(INTERNAL_ERROR, ast, "could not locate enum class `" + className + "`.");
     }

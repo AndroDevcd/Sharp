@@ -106,7 +106,7 @@ void add_base_constructor(Ast *ast, sharp_function *function) {
                 paramOperations.add(new operation_schema(expressions.last()->scheme));
             }
 
-            sharp_function *constructor = resolve_function(function->owner->name, function->owner,
+            sharp_function *constructor = resolve_function(function->owner->baseClass->name, function->owner->baseClass,
                          params,constructor_function, constructor_only, baseClassConstr, false, true);
 
             if(constructor != NULL) {
@@ -122,7 +122,7 @@ void add_base_constructor(Ast *ast, sharp_function *function) {
         } else {
             create_new_error(GENERIC, baseClassConstr->line, baseClassConstr->col,
                                    " class `" +
-                                   function->owner->fullName + "` does not inherit a base class.");
+                                   function->owner->baseClass->fullName + "` does not inherit a base class.");
         }
     } else {
         if(function->owner->baseClass != NULL) {
@@ -221,13 +221,16 @@ void compile_default_constructor(sharp_class *with_class) {
         if(constructor->scheme == NULL)
             constructor->scheme = new operation_schema(scheme_master);
 
-        create_context(constructor);
-        create_block(&current_context, normal_block);
-        add_base_constructor(with_class->ast, constructor);
-        delete_block();
-        delete_context();
+        if(constructor->scheme->steps.empty()) {
+            create_context(constructor);
+            create_block(&current_context, normal_block);
+            add_base_constructor(with_class->ast, constructor);
+            compile_static_initialization_requirement(constructor);
+            delete_block();
+            delete_context();
 
-        compile_initialization_paring(constructor);
+            compile_initialization_paring(constructor);
+        }
     }
 
 }
@@ -356,6 +359,7 @@ void compile_function(sharp_function *function, Ast *ast) {
                 add_base_constructor(ast, function);
                 delete_block();
 
+                compile_static_initialization_requirement(function);
                 compile_initialization_paring(function);
             }
 

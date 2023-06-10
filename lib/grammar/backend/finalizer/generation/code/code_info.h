@@ -17,7 +17,7 @@ struct line_info {
     {
     }
 
-    line_info(uInt startPc, Int line)
+    line_info(Int startPc, Int line)
             :
             start_pc(startPc),
             line(line)
@@ -34,7 +34,7 @@ struct line_info {
 
     void copy(const line_info &li);
 
-    uInt start_pc;
+    Int start_pc;
     Int line;
 };
 

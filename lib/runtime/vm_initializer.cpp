@@ -9,6 +9,7 @@
 #include "multitasking/thread/thread_controller.h"
 #include "reflect/reflect_helpers.h"
 #include "multitasking/scheduler/idle_scheduler.h"
+#include "multitasking/thread/sharp_thread.h"
 
 int initialize_virtual_machine()
 {
@@ -70,6 +71,33 @@ int initialize_virtual_machine()
     return 0;
 }
 
+recursive_mutex shutdownMut;
 void shutdown() {
+    bool destroySystem = false;
+    {
+        guard_mutex(shutdownMut) // prevent multiple threads from shutting down the vm
 
+        if (vm.state == VM_RUNNING) {
+            vm.state = VM_SHUTTING_DOWN;
+            destroySystem = true;
+        }
+    }
+
+    if(destroySystem) {
+        destroy();
+        vm.state = VM_TERMINATED;
+    }
+}
+
+void destroy() {
+    if(vm.state == VM_CREATED)
+        return;
+
+    if(thread_self != NULL) {
+        vm.exitVal = thread_self->task->exitVal;
+    } else
+        vm.exitVal = 1;
+
+    if(thread_self) shutdown_thread(thread_self);
+    kill_all_threads();
 }

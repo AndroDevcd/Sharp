@@ -13,6 +13,7 @@ void mark(sharp_field *sf) {
     if(!sf->used) {
         sf->used = true;
         run_and_mark_tree(sf->dependencies);
+        mark(sf->implLocation.file);
     }
 }
 
@@ -32,13 +33,25 @@ void mark(sharp_function *fun) {
         }
 
         run_and_mark_tree(fun->dependencies);
+        mark(fun->implLocation.file);
     }
 }
 
 void mark(sharp_class *sc) {
     if(!sc->used) {
         sc->used = true;
+        if(sc->type == class_enum) {
+            for(Int i = 0; i < sc->fields.size(); i++) {
+                mark(sc->fields.get(i));
+            }
+
+            for(Int i = 0; i < sc->functions.size(); i++) {
+                mark(sc->functions.get(i));
+            }
+        }
+
         run_and_mark_tree(sc->dependencies);
+        mark(sc->implLocation.file);
     }
 }
 
@@ -81,8 +94,7 @@ void run_and_mark_tree(List<dependency> &dependencies) {
 
 void markRelevantDependencyMembers() {
     mark(genesis_method);
-    mark(genesis_method->implLocation.file);
     mark(user_main_method);
-    mark(user_main_method->implLocation.file);
+    mark(static_init_method);
 }
 

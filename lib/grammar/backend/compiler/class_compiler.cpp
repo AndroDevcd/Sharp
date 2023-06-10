@@ -36,12 +36,12 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
         obfuscate_class(with_class, with_class->genericBuilder->obfuscateModifier ? modifier_obfuscate_inclusive : modifier_keep_inclusive, block);
     }
 
-    compile_default_constructor(with_class);
     compile_class_fields(with_class, block);
     compile_class_mutations(with_class, block);
     compile_inits(with_class, block);
     compile_class_functions(with_class, block);
     compile_class_lambdas(with_class);
+    compile_default_constructor(with_class);
 
 
     for(Int i = 0; i < block->getSubAstCount(); i++) {

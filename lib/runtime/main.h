@@ -16,7 +16,7 @@ void error(string message);
 #define progvers "3.0.0" rev
 
 struct options {
-    bool debugMode = false;
+    bool debugMode = true;
 };
 
 extern options c_options;

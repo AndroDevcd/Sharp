@@ -48,6 +48,11 @@ void assign_numeric_field(sharp_object* o, uInt index, double value) {
     o->HEAD[index] = value;
 }
 
+void assign_numeric_class_field(sharp_object* o, double value) {
+    auto field = resolve_field("value", o);
+    if(field) assign_numeric_field(field->o, 0, value);
+}
+
 void assign_string_field(sharp_object* o, string &value) {
     if(o->size == value.size()) {
         for(Int i = 0; i < value.size(); i++) {

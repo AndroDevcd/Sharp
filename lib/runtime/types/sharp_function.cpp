@@ -12,8 +12,8 @@ void init_struct(sharp_function *sf) {
     sf->guid = 0;
     new (&sf->name) string();
     new (&sf->fullName)  string();
-    new (&sf->lineTable)  list<line_data>();
-    new (&sf->tryCatchTable)  list<try_catch_data>();
+    new (&sf->lineTable)  linkedlist<line_data>();
+    new (&sf->tryCatchTable)  linkedlist<try_catch_data>();
     sf->owner = nullptr;
     sf->flags = 0;
     sf->bytecode = nullptr;
@@ -37,29 +37,30 @@ string get_info(sharp_function *sf, Int pc) {
     stringstream ss;
     ss << "\tSource ";
     if(sf->sourceFile != -1 && sf->sourceFile < vm.manifest.sourceFiles) {
-        ss << "\""; ss << get_item_at(vm.mdata.files, sf->sourceFile)->name << "\"";
+        ss << "\""; ss << vm.mdata.files.node_at(sf->sourceFile)->data->name << "\"";
     }
     else
         ss << "\"Unknown File\"";
 
-    Int x, line=-1, ptr=-1;
-    for(x = 0; x < sf->lineTable.size(); x++)
-    {
-        if(get_item_at(sf->lineTable, x).pc >= pc) {
+    Int x=0, line=-1, linePos=-1;
+    for(Int i = 0; i < sf->lineTable.size; i++) {
+        auto info = sf->lineTable.node_at(i)->data;
+        if(info.pc >= pc) {
             if(x > 0)
-                ptr = x-1;
+                linePos = x - 1;
             else
-                ptr = x;
+                linePos = x;
             break;
         }
 
-        if(!((x+1) < sf->lineTable.size())) {
-            ptr = x;
+        if(!((x+1) < sf->lineTable.size)) {
+            linePos = x;
         }
+        x++;
     }
 
-    if(ptr != -1) {
-        ss << ", line " << (line = get_item_at(sf->lineTable, ptr).line_number);
+    if(linePos != -1) {
+        ss << ", line " << (line = sf->lineTable.node_at(linePos)->data.line_number);
     } else
         ss << ", line ?";
 
@@ -71,8 +72,9 @@ string get_info(sharp_function *sf, Int pc) {
         ss << " " << (sf->nativeFunc ? "(jit)" : "");
     }
 
-    if(line != -1 && vm.mdata.files.size() > 0) {
-        ss << get_info(get_item_at(vm.mdata.files, sf->sourceFile), line);
+    if(sf->sourceFile != -1 && line != -1 && vm.mdata.files.size > 0) {
+        auto info = get_info(vm.mdata.files.node_at(sf->sourceFile)->data, line);
+        if(!info.empty()) ss << info;
     }
 
     return ss.str();

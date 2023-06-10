@@ -106,7 +106,6 @@ vm_thread_entry(void *arg)
             }
 
             if(hasSignal(thread->signal, tsig_context_switch)
-                && thread->state != THREAD_KILLED
                 && !hasSignal(thread->signal, tsig_except)) {
                 observe_queue(thread);
 
@@ -153,8 +152,6 @@ vm_thread_entry(void *arg)
      * Check for uncaught exception in thread before exit
      */
     if(vm.state != VM_TERMINATED) {
-        shutdown_thread(thread);
-
         if (thread->id == main_threadid) {
             /*
             * Shutdown all running threads
@@ -165,6 +162,8 @@ vm_thread_entry(void *arg)
             * stop them.
             */
             shutdown();
+        } else {
+            shutdown_thread(thread);
         }
 
 #ifdef WIN32_
@@ -435,20 +434,37 @@ void enable_exception_flag(sharp_thread* thread, bool enable) {
 }
 
 void observe_queue(sharp_thread *thread) {
-    observe:
     set_attached_thread(thread->task, nullptr);
+    set_task_state(thread, thread->task, FIB_SUSPENDED, 0);
     thread->task = nullptr;
+
+    observe:
     thread->state = THREAD_SCHED;
+#ifdef COROUTINE_DEBUGGING
+    Int start = Clock::realTimeInNSecs();
+#endif
     wait_for_notification(&thread->queueNotification);
 
-    if(thread->queue)
+    if(hasSignal(thread->signal, tsig_suspend))
+        suspend_self();
+
+    if(thread->queue) {
+#ifdef COROUTINE_DEBUGGING
+        thread->switched++;
+        Int time = Clock::realTimeInNSecs() - start;
+        thread->contextSwitchTime += time;
+#endif
         pop_queue(thread);
+    } else if(hasSignal(thread->signal, tsig_kill)) {
+        return;
+    }
     else goto observe;
 }
 
 bool queue_filled() {
     auto thread = thread_self;
-    return thread->queue != nullptr || (thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill));
+    return thread->queue != nullptr || thread->state == THREAD_KILLED
+        || hasSignal(thread->signal, tsig_kill) || hasSignal(thread->signal, tsig_suspend);
 }
 
 
@@ -592,7 +608,7 @@ void setup_thread(sharp_thread* thread) {
             auto fiberName = resolve_field("name", fib->o);
             copy_object(fiberName, name);
             assign_numeric_field(resolve_field("main", fib->o)->o, 0, main->o->HEAD[0]);
-            assign_numeric_field(resolve_field("id", fib->o)->o, 0, thread->task->id);
+            assign_numeric_class_field(resolve_field("id", fib->o)->o, thread->task->id);
         }
     }
 }
@@ -643,7 +659,7 @@ void kill_all_threads() {
 #ifdef COROUTINE_DEBUGGING
         cout << "Thread " << thread->name << " slept: " << thread->timeSleeping << " switched: " << thread->switched
              << " bound: " << thread->boundFibers << " skipped " << thread->skipped << " actual sleep time: " << (thread->actualSleepTime / 1000)
-             << " context switch time (ms) " << (thread->contextSwitchTime / 1000) << endl << " time spent locking: " << thread->timeLocking << endl;
+             << " context switch time (ms) " << NANO_TOMILL(thread->contextSwitchTime) << endl << " time spent locking: " << thread->timeLocking << endl;
 #endif
         if(thread->id != thread_self->id
            && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
@@ -665,6 +681,11 @@ void wait_for_thread_exit(sharp_thread* thread) {
             retryCount = 0;
             if(thread->exited)
                 return;
+            else if(thread->state == THREAD_SCHED) {
+                send_notification(&thread->queueNotification);
+            } else {
+                send_interrupt_signal(thread);
+            }
 #ifdef WIN32_
             Sleep(1);
 #endif
@@ -734,6 +755,9 @@ void suspend_and_wait(sharp_thread* thread, bool sendSignal) {
             retryCount = 0;
             if(thread->state >= THREAD_SUSPENDED)
                 return;
+            else if(thread->state == THREAD_SCHED) {
+                send_notification(&thread->queueNotification);
+            }
 
 #ifdef WIN32_
             Sleep(1);

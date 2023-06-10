@@ -557,12 +557,12 @@ void process_get_array_element_at_index(operation_step *step) {
 
     add_instruction(Opcode::Builder::popObject2());
     add_instruction(Opcode::Builder::checklen(ADX));
-    add_instruction(Opcode::Builder::movnd(ADX));
 
     if(step->nativeType <= type_var) {
-        add_instruction(Opcode::Builder::iload(EBX));
+        add_instruction(Opcode::Builder::iaload(EBX, ADX));
         set_machine_data(get_register(EBX));
     } else {
+        add_instruction(Opcode::Builder::movnd(ADX));
         set_machine_data(generic_object_data);
     }
 }
@@ -1374,12 +1374,20 @@ void process_get_instance_field_value(operation_step *step) {
     validate_step_type(step, operation_get_instance_field_value);
 
     sharp_field *staticField = step->field;
+    consume_machine_data();
     add_instruction(Opcode::Builder::movn(get_or_initialize_code(staticField)->address));
     set_machine_data(staticField, false, true);
 }
 
 void process_get_local_field_value(operation_step *step) {
     validate_step_type(step, operation_get_local_field_value);
+
+    sharp_field *localField = step->field;
+    set_machine_data(localField, true, false);
+}
+
+void process_get_local_field_instance(operation_step *step) {
+    validate_step_type(step, operation_get_local_field_instance);
 
     sharp_field *localField = step->field;
     set_machine_data(localField, true, false);

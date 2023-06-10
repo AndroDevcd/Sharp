@@ -221,6 +221,7 @@ enum operation_type {
     operation_get_field_value,
     operation_get_local_field_value,
     operation_get_instance_field_value,
+    operation_get_local_field_instance,
     operation_get_static_class_instance,
     operation_get_primary_class_instance,
     operation_get_tls_field_value,
@@ -900,7 +901,8 @@ void create_primary_class_function_call_operation(
 void create_static_function_call_operation(
         operation_schema *scheme,
         List<operation_schema*> &paramScheme,
-        sharp_function *fun);
+        sharp_function *fun,
+        bool resetState = true);
 
 void create_dynamic_function_call_operation(
         operation_schema *scheme,
@@ -947,7 +949,8 @@ void create_get_string_constant_operation(
 void create_value_assignment_operation(
         operation_schema *scheme,
         operation_schema *asigneeScheme,
-        operation_schema *valueScheme);
+        operation_schema *valueScheme,
+        bool resetState = true);
 
 void create_line_record_operation(
         operation_schema *scheme,

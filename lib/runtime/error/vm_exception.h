@@ -81,6 +81,7 @@ private:
 };
 
 void fill_stack_trace(string &str);
+void fill_stack_trace_from_frame_info();
 void fill_stack_trace(string &output, std::list<KeyPair<Int, Int>> frameInfo);
 void print_thrown_exception();
 

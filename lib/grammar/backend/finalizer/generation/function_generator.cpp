@@ -34,13 +34,6 @@ void generate(sharp_function *sf) {
     }
 
     process_scheme(sf->scheme, sf->ci, sf);
-    cout << function_to_str(sf) << endl;
-    cout << "address: " << sf->ci->address << endl;
-    cout << "frameStackOffset: " << sf->ci->frameStackOffset << endl;
-    cout << "fpOffset: " << sf->ci->fpOffset << endl;
-    cout << "spOffset: " << sf->ci->spOffset << endl;
-    cout << "stackSize: " << sf->ci->stackSize;
-    cout << "\ncode:\n\n" << code_to_string(sf->ci) << endl;
 }
 
 void generate_initial_closure_setup(sharp_function *sf) {

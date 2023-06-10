@@ -22,6 +22,7 @@
 #include "../Modules/std.io/memory.h"
 #include "../Modules/std.io/fileio.h"
 #include "../Modules/std.io/serialization.h"
+#include "../core/access_flag.h"
 
 virtual_machine vm;
 thread_local long double *registers;
@@ -86,7 +87,7 @@ void main_vm_loop()
                 stack_overflow_check
                 copy_object(
                     &push_stack_object,
-                    create_object(regs[dual_arg1], (data_type)regs[dual_arg2])
+                    create_object(regs[dual_arg1], (data_type)dual_arg2)
                 );
                 branch
             CAST:
@@ -262,6 +263,14 @@ void main_vm_loop()
                 branch_for(2)
             MOVN:
                 require_object_with_value(
+                        #ifdef SAFE_EXECUTION
+                        if(task->ptr->o->type <= type_var) {
+                            vm_exception err(vm.ill_state_except, "movn on number");
+                            enable_exception_flag(thread, true);
+                            goto catch_exception;
+                        }
+                        #endif
+
                         task->ptr = task->ptr->o->node + raw_arg2;
                 )
                 branch_for(2)
@@ -289,6 +298,14 @@ void main_vm_loop()
                 branch
             MOVND:
                 require_object_with_value(
+                    #ifdef SAFE_EXECUTION
+                     if(task->ptr->o->type <= type_var) {
+                         vm_exception err(vm.ill_state_except, "movn on number");
+                         enable_exception_flag(thread, true);
+                         goto catch_exception;
+                     }
+                    #endif
+
                     task->ptr = task->ptr->o->node + (Int)regs[single_arg];
                 )
                 branch
@@ -405,12 +422,28 @@ void main_vm_loop()
                 branch
             IALOAD:
                 require_numeric_object_with_value(
+                    #ifdef SAFE_EXECUTION
+                    if(task->ptr->o->type > type_var) {
+                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
+                        enable_exception_flag(thread, true);
+                        goto catch_exception;
+                    }
+                    #endif
+
                     regs[dual_arg1] = task->ptr->o->HEAD[(Int)regs[dual_arg2]];
                 )
                 branch
             ILOAD:
                 require_numeric_object_with_value(
-                        regs[single_arg] = task->ptr->o->HEAD[0];
+                    #ifdef SAFE_EXECUTION
+                    if(task->ptr->o->type > type_var) {
+                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
+                        enable_exception_flag(thread, true);
+                        goto catch_exception;
+                    }
+                    #endif
+
+                    regs[single_arg] = task->ptr->o->HEAD[0];
                 )
                 branch
             POPOBJ:
@@ -441,12 +474,28 @@ void main_vm_loop()
                 branch
             RMOV:
                 require_numeric_object_with_value(
+                    #ifdef SAFE_EXECUTION
+                    if(task->ptr->o->type > type_var) {
+                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
+                        enable_exception_flag(thread, true);
+                        goto catch_exception;
+                    }
+                    #endif
+
                     task->ptr->o->HEAD[(Int)regs[dual_arg1]] =
                             regs[dual_arg2];
                 )
                 branch
             IMOV:
                 require_numeric_object_with_value(
+                    #ifdef SAFE_EXECUTION
+                    if(task->ptr->o->type > type_var) {
+                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
+                        enable_exception_flag(thread, true);
+                        goto catch_exception;
+                    }
+                    #endif
+
                     task->ptr->o->HEAD[0] =
                             regs[single_arg];
                 )
@@ -514,7 +563,7 @@ void main_vm_loop()
                 branch
             DUP:
                 data = (Int)&task->sp->obj;
-                copy_object(&push_stack_object, (sharp_object*)data);
+                copy_object(&push_stack_object, (object*)data);
                 branch
             POPOBJ_2:
                 task->ptr = &pop_stack_object;
@@ -567,7 +616,7 @@ void main_vm_loop()
             return;
         }
 
-        if(catch_exception()) {
+        if(!catch_exception()) {
             if(return_method())
                 return;
             task->pc++;
@@ -589,9 +638,10 @@ bool catch_exception() {
      *
      * Here we look for a possible caught exception of a given class
      */
-    for(try_catch_data &table : task->current->tryCatchTable) {
-        if(pc >= table.blockStartPc && pc <= table.blockEndPc) {
-            for(catch_data &caughtException : table.catchTable) {
+    for(Int i = 0; i < task->current->tryCatchTable.size; i++) {
+        try_catch_data *table = &task->current->tryCatchTable.node_at(i)->data;
+        if(pc >= table->blockStartPc && pc <= table->blockEndPc) {
+            for(catch_data &caughtException : table->catchTable) {
                 if(
                         handlingClass->guid == caughtException.exception->guid
                             || caughtException.exception == vm.exception_class
@@ -613,11 +663,12 @@ bool catch_exception() {
     }
 
     // Since we couldn't catch it we must jump to the first finally block (if applicable)
-    for(try_catch_data &table : task->current->tryCatchTable) {
-        if(table.tryStartPc <= pc && table.tryEndPc >= pc && table.finallyData)
+    for(Int i = 0; i < task->current->tryCatchTable.size; i++) {
+        try_catch_data *table = &task->current->tryCatchTable.node_at(i)->data;
+        if(table->tryStartPc <= pc && table->tryEndPc >= pc && table->finallyData)
         {
-            task->pc = task->rom + table.finallyData->startPc;
-            copy_object(&(task->fp + table.finallyData->exceptionFieldAddress)->obj,
+            task->pc = task->rom + table->finallyData->startPc;
+            copy_object(&(task->fp + table->finallyData->exceptionFieldAddress)->obj,
                         task->exceptionObject.o);
             copy_object(&task->exceptionObject, (sharp_object*) nullptr);
             enable_exception_flag(thread, false);
@@ -657,7 +708,7 @@ void invoke_delegate(Int address, Int argSize, bool staticCall) {
 }
 
 void prepare_method(Int address) {
-    if(address >= vm.manifest.methods || address <= 0) {
+    if(address >= vm.manifest.methods || address < 0) {
         stringstream ss;
         ss << "invalid call to method with address of " << address;
         throw vm_exception(ss.str());
@@ -665,6 +716,12 @@ void prepare_method(Int address) {
 
     auto task = thread_self->task;
     auto function = vm.methods + address;
+//    cout << "call: " << function->fullName << "(" << function->address << ")";
+//    if(task->current) {
+//        cout << " current: " << task->current->fullName << "(" << task->current->address << ")"
+//         << " pc: " << current_pc;
+//    }
+//    cout << endl;
     grow_stack_for(function->stackSize)
     stack_overflow_check_for(function->stackSize)
 
@@ -674,14 +731,43 @@ void prepare_method(Int address) {
     task->calls++;
     if(task->calls > 1) {
         init_struct(task->frames + ++task->callFramePtr, task->current->address,
-                    task->pc, task->sp - function->spOffset, task->fp);
+                    task->pc, (task->sp - function->spOffset) - task->stack, task->fp - task->stack);
     }
 
     task->current = function;
-    task->fp = task->sp - function->spOffset;
+    task->fp = task->sp - function->fpOffset;
     task->sp += function->frameStackOffset;
     task->rom = function->bytecode;
     task->pc = function->bytecode;
+
+    if(function->name == "print_chars") {
+        int i = 0;
+    }
+
+    #ifdef SAFE_EXECUTION
+    if(!check_flag(function->flags, flag_static)) {
+        auto instance = task->fp->obj.o;
+
+        if(instance) {
+            if(instance->type == type_class) {
+                auto instanceClass = &vm.classes[CLASS(instance->info)];
+                if(!are_classes_related(instanceClass, function->owner)) {
+                    stringstream ss;
+                    ss << "invalid call to method " << function->fullName << ": current instance (" << instanceClass->fullName << ") does not match function class (" << function->owner->fullName << ")";
+                    throw vm_exception(vm.ill_state_except, ss.str());
+                }
+            } else {
+                stringstream ss;
+                ss << "invalid call to method " << function->fullName << ": current instance is not a class type";
+                throw vm_exception(vm.ill_state_except, ss.str());
+            }
+        } else {
+            stringstream ss;
+            ss << "invalid call to method " << function->fullName << ": current instance is null";
+            throw vm_exception(vm.nullptr_except, ss.str());
+        }
+    }
+    #endif
 }
 
 bool return_method() {
@@ -693,13 +779,19 @@ bool return_method() {
         return true;
     }
 
-    task->callFramePtr--;
-    auto frame = task->frames + task->callFramePtr;
+    auto frame = task->frames + task->callFramePtr--;
+//    cout << "return from : " << task->current->fullName << "(" << task->current->address << ")";
+//    cout << " to: " << (vm.methods + frame->returnAddress)->fullName
+//         << "(" << (vm.methods + frame->returnAddress)->address << ")"
+//         << " pc: " << current_pc;
     task->current = vm.methods + frame->returnAddress;
     task->rom = task->current->bytecode;
     task->pc = frame->pc;
-    task->sp = frame->sp;
-    task->fp = frame->fp;
+    task->sp = task->stack + frame->sp;
+    task->fp = task->stack + frame->fp;
+
+//    cout << " pc now: " << current_pc;
+//    cout << endl;
     return false;
 }
 
@@ -1130,31 +1222,7 @@ void exec_interrupt(Int interrupt)
             break;
         }
         case OP_GET_STACK_TRACE: {
-            auto stackState = pop_stack_object.o;
-            auto methodsField = resolve_field("methods", stackState);
-            auto pcField = resolve_field("pc", stackState);
-
-            if(methodsField->o && pcField->o) {
-                std::list<KeyPair<Int, Int>> frameInfo;
-                for (Int i = 0; i < methodsField->o->size; i++) {
-                    frameInfo.push_back(KeyPair<Int, Int>(methodsField->o->HEAD[i], pcField->o->HEAD[i]));
-                }
-
-                string str;
-                fill_stack_trace(str, frameInfo);
-                auto stacktrace = &push_stack_object;
-
-                copy_object(stacktrace, create_object(vm.string_class));
-                auto dataField = resolve_field("data", stacktrace->o);
-                auto strObject = create_object(str.size(), type_int8);
-
-                copy_object(dataField, strObject);
-
-                if (str.size() > 0)
-                    assign_string_field(strObject, str);
-            } else {
-                copy_object(&push_stack_object, (sharp_object*) nullptr);
-            }
+            fill_stack_trace_from_frame_info();
             break;
         }
         case OP_COPY: {

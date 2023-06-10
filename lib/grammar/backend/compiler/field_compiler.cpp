@@ -49,9 +49,11 @@ void compile_static_closure_reference(sharp_field *field) {
         );
 
         if (function != NULL) {
+            GUARD(globalLock)
             if(function->scheme == NULL)
                 function->scheme = new operation_schema(scheme_master);
 
+            create_dependency(function, field);
             APPLY_TEMP_SCHEME(0, (*function->scheme),
                  create_new_class_operation(&scheme_0, field->type._class);
                  create_static_field_access_operation(&scheme_0, field, false);
@@ -76,7 +78,6 @@ void compile_field(sharp_class *with_class, Ast *ast) {
     } else name = ast->getToken(0).getValue();
 
     sharp_field *field = resolve_field(name, with_class);
-
     compile_field(field, ast);
 
     if(field->getter) {
@@ -186,7 +187,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                           create_tls_field_access_operation(resultVariableScheme, field);
                       }
                   } else {
-                      create_instance_field_access_operation(resultVariableScheme, field);
+                      create_primary_instance_field_access_operation(resultVariableScheme, field);
                   }
                   create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
                   create_pop_value_from_stack_operation(&scheme_0);
@@ -281,7 +282,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                                      create_tls_field_access_operation(resultVariableScheme, xtraField);
                                  }
                              } else {
-                                 create_instance_field_access_operation(resultVariableScheme, xtraField);
+                                 create_primary_instance_field_access_operation(resultVariableScheme, xtraField);
                              }
                              create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
                              create_pop_value_from_stack_operation(&scheme_0);

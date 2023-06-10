@@ -289,59 +289,35 @@ local def print_numbers(str: char_array) {
 }
 
 local def print_numbers(str: _int16[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_numbers(str: _int32[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_numbers(str: _int64[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_numbers(str: _uint8[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_numbers(str: _uint16[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_numbers(str: _uint32[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_numbers(str: _uint64[]) {
-    asm {
-        pushl [str]
-        call [print_numbers]
-    }
+    print_numbers(str);
 }
 
 local def print_chars(str: _int16[]) {
-    asm {
-        pushl [str]
-        call [print_chars]
-    }
+    print_chars(str);
 }
 
 local def read_ch(hide: var) : char {

@@ -52,7 +52,7 @@ T* realloc_mem(void *ptr, uInt bytes, uInt prevSize, bool unsafe = true)
         throw vm_exception(vm.out_of_memory_except, "out of memory");
     }
 
-    return (T*)ptr;
+    return (T*)rmap;
 }
 
 

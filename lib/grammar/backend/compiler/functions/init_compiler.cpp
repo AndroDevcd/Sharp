@@ -72,6 +72,8 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
                         false, params,
                         void_type, ast, function
                 );
+
+                compile_static_initialization_check(function);
             }
         } else {
             function = resolve_function(
@@ -153,5 +155,96 @@ void compile_initialization_paring(sharp_function *constructor) {
         )
 
         constructor->scheme->steps.add(new operation_step(operation_step_scheme, &scheme_0));
+    }
+}
+
+void compile_static_initialization_requirement(sharp_function *constructor) {
+    sharp_function *function;
+    List<sharp_field*> params;
+    sharp_type void_type(type_nil);
+    string name = "";
+
+    GUARD2(globalLock)
+    function = resolve_function(
+            static_init_name(constructor->owner->name), constructor->owner,
+            params,normal_function, exclude_all,
+            constructor->owner->ast, false, false
+    );
+
+    if(function == NULL) {
+        name = static_init_name(constructor->owner->name);
+        create_function(
+                constructor->owner, flag_private | flag_static,
+                normal_function, name,
+                false, params,
+                void_type, constructor->owner->ast, function
+        );
+
+        compile_static_initialization_check(function);
+    }
+
+    if(constructor->type == constructor_function) {
+        if(constructor->scheme == NULL)
+            constructor->scheme = new operation_schema(scheme_master);
+
+        APPLY_TEMP_SCHEME_WITHOUT_INJECT(1,
+            APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+                auto *staticInitFlag = resolve_field(static_init_flag_name, constructor->owner, false);
+                create_static_field_access_operation(&scheme_0, staticInitFlag);
+                create_dependency(constructor, staticInitFlag);
+                create_dependency(function);
+            )
+
+            stringstream ss;
+            List<operation_schema*> emptyParams;
+            set_internal_label_name(ss, "if_end", uniqueId++)
+            auto endLabel = create_label(ss.str(), &current_context, constructor->ast, &scheme_1);
+            create_get_value_operation(&scheme_1, &scheme_0, false);
+            create_jump_if_true_operation(&scheme_1, endLabel);
+            create_static_function_call_operation(&scheme_1, emptyParams, function, false);
+            create_set_label_operation(&scheme_1, endLabel);
+        )
+
+        constructor->scheme->steps.add(new operation_step(operation_step_scheme, &scheme_1));
+    }
+}
+
+void compile_static_initialization_check(sharp_function *initFunc) {
+    auto *staticInitFlag = resolve_field(static_init_flag_name, initFunc->owner, false);
+
+    if(staticInitFlag != NULL) {
+        if (initFunc->scheme == NULL)
+            initFunc->scheme = new operation_schema(scheme_master);
+
+        create_context(initFunc);
+        APPLY_TEMP_SCHEME_WITHOUT_INJECT(1,
+            APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+               create_static_field_access_operation(&scheme_0, staticInitFlag);
+               create_dependency(initFunc, staticInitFlag);
+            )
+
+            stringstream ss;
+            List<operation_schema*> emptyParams;
+            set_internal_label_name(ss, "if_end", uniqueId++)
+            auto endLabel = create_label(ss.str(), &current_context, initFunc->ast, &scheme_1);
+            create_get_value_operation(&scheme_1, &scheme_0, false);
+            create_jump_if_false_operation(&scheme_1, endLabel);
+            create_return_operation(&scheme_1);
+            create_set_label_operation(&scheme_1, endLabel);
+
+            APPLY_TEMP_SCHEME_WITHOUT_INJECT(4,
+                APPLY_TEMP_SCHEME_WITHOUT_INJECT(2,
+                    create_get_integer_constant_operation(&scheme_2, 1);
+                )
+                create_value_assignment_operation(&scheme_4, &scheme_0, &scheme_2);
+            )
+
+            add_scheme_operation(&scheme_1, &scheme_4);
+            create_unused_data_operation(&scheme_1);
+        )
+
+        delete_context();
+
+        initFunc->scheme->steps.add(new operation_step(operation_step_scheme, &scheme_1));
     }
 }

@@ -4,6 +4,8 @@
 
 #include <csignal>
 #include "sig_handler.h"
+#include "multitasking/thread/sharp_thread.h"
+#include "error/vm_exception.h"
 
 string signalToString(int signal) {
     switch(signal) {
@@ -23,6 +25,12 @@ string signalToString(int signal) {
 
 void os_signal(int signal) {
     if(signal != SIGINT) {
+        if(thread_self != NULL) {
+            string st;
+            fill_stack_trace(st);
+            cerr << st << endl;
+        }
+
         cerr << "(" << signalToString(signal) << ") found, please contact the language developer with the call stack below" << endl;
     } else {
 #ifdef POSIX_

@@ -139,7 +139,7 @@ void fiber::growStack(Int requiredSize) {
         }
 
         stack = realloc_mem<stack_item>(
-                frames, sizeof(stack_item) * (stackSize + requiredSize),
+                stack, sizeof(stack_item) * (stackSize + requiredSize),
                 sizeof(stack_item) * stackSize
         );
 
@@ -168,7 +168,7 @@ void fiber::growStack(Int requiredSize) {
         }
 
         stack = realloc_mem<stack_item>(
-                frames, sizeof(stack_item) * (stackLimit),
+                stack, sizeof(stack_item) * (stackLimit),
                 sizeof(stack_item) * stackSize
         );
 

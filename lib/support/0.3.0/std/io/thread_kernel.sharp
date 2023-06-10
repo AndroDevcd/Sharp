@@ -28,7 +28,7 @@ mutate thread_result {
     static enums: thread_result[];
 
     static init {
-        iter := 0;
+        iter : var = 0;
         enums = new thread_result[17];
         enums[iter++] = result_ok                      ;
         enums[iter++] = result_ill_thread_start        ;

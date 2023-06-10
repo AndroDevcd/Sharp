@@ -10,7 +10,6 @@
 
 
 void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field *field) {
-    string name;
     if(field->fieldType == normal_field && field->scheme) {
         sharp_function *function;
         List<sharp_field*> params;

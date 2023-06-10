@@ -58,11 +58,12 @@ using namespace std;
 #endif
 
 //#define GOD_MODE
+#define SAFE_EXECUTION
 
 #ifdef GOD_MODE
 #define SHARP_PROF_
 #endif
-#define COROUTINE_DEBUGGING
+//#define COROUTINE_DEBUGGING
 
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"

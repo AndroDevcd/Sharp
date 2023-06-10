@@ -27,7 +27,7 @@
 void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     if(current_context.blockInfo.line == -1 || current_context.blockInfo.line < ast->line) {
         current_context.blockInfo.line = ast->line;
-        APPLY_TEMP_SCHEME(1, *current_context.functionCxt->scheme,
+        APPLY_TEMP_SCHEME(1, *scheme,
               create_line_record_operation(&scheme_1, ast->line);
         )
     }
@@ -115,6 +115,6 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
     }
 
     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_unused_data, *scheme,
-                                create_unused_data_operation(&scheme_0);
+        create_unused_data_operation(&scheme_0);
     )
 }

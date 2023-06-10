@@ -54,8 +54,14 @@ void setup_core_functions() {
                 return;
             }
 
-            create_line_record_operation(StaticInit->scheme, StaticInit->ast->line);
-            create_line_record_operation(TlsSetup->scheme, TlsSetup->ast->line);
+
+            APPLY_TEMP_SCHEME(0, (*StaticInit->scheme),
+                create_line_record_operation(&scheme_0, StaticInit->ast->line);
+            )
+
+            APPLY_TEMP_SCHEME(1, (*TlsSetup->scheme),
+                create_line_record_operation(&scheme_1, TlsSetup->ast->line);
+            )
             if(!check_flag(StaticInit->flags, flag_static)) {
                 init_function->implLocation.file->errors->createNewError(GENERIC, init_function->ast, "runtime_old environment setup method '" static_init_function_name "()' must be static");
             }
@@ -114,20 +120,20 @@ void setup_core_functions() {
 
 
 
-                APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_assign_value, (*StaticInit->scheme),
+                APPLY_TEMP_SCHEME_WITH_TYPE(2, scheme_assign_value, (*StaticInit->scheme),
                     operation_schema *resultVariableScheme = new operation_schema();
                     operation_schema *functionAddressScheme = new operation_schema();
 
                     ALLOCATE_REGISTER_1X(0, functionAddressScheme,
                         create_get_static_function_address_operation(functionAddressScheme, user_main_method, false);
                     )
-                    create_get_value_operation(&scheme_0, functionAddressScheme, false, false);
-                    create_push_to_stack_operation(&scheme_0);
+                    create_get_value_operation(&scheme_2, functionAddressScheme, false, false);
+                    create_push_to_stack_operation(&scheme_2);
 
                     create_static_field_access_operation(resultVariableScheme, userMain);
-                    create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
-                    create_pop_value_from_stack_operation(&scheme_0);
-                    create_unused_data_operation(&scheme_0);
+                    create_get_value_operation(&scheme_2, resultVariableScheme, false, false);
+                    create_pop_value_from_stack_operation(&scheme_2);
+                    create_unused_data_operation(&scheme_2);
 
                     delete resultVariableScheme;
                     delete functionAddressScheme;
@@ -135,11 +141,7 @@ void setup_core_functions() {
             } else
                 init_function->implLocation.file->errors->createNewError(INTERNAL_ERROR,  init_function->ast, "user main method function pointer was not found");
 
-            create_return_operation(StaticInit->scheme);
-            create_return_operation(TlsSetup->scheme);
-            StaticInit->returnProtected = true;
-            TlsSetup->returnProtected = true;
-
+            static_init_method = StaticInit;
             genesis_method = init_function; // reset main method to __srt_init()
         }
     } else if(StarterClass == NULL) {

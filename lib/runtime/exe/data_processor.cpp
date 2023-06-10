@@ -61,7 +61,7 @@ void process_function_data(KeyPair<int, string> &result) {
                 Int pc = next_int32();
                 Int line = next_int32();
                 sf->lineTable
-                        .emplace_back(line_data(pc, line));
+                        .createnode(line_data(pc, line));
             }
 
 
@@ -90,7 +90,7 @@ void process_function_data(KeyPair<int, string> &result) {
                     tryCatchData.finallyData->exceptionFieldAddress = next_int32();
                 }
 
-                sf->tryCatchTable.push_back(tryCatchData);
+                sf->tryCatchTable.createnode(tryCatchData);
             }
             break;
         }, // on section_end

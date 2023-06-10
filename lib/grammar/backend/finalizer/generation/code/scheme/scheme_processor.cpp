@@ -261,10 +261,11 @@ void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *con
     update_context(ci, container);
     // todo add thread_safe code for before and end of function and at all return instructions
     generate_initial_closure_setup(container);
-    if(container->fullName == "platform.kernel#platform.static_init")
-        generate_static_class_setup();
+
     process_scheme(scheme);
 
+    if(container->fullName == "platform.kernel#platform.static_init")
+        generate_static_class_setup();
     if(!container->returnProtected)
         add_instruction(Opcode::Builder::ret(NO_ERR));
 

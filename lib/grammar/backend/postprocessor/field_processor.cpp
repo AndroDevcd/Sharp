@@ -13,6 +13,7 @@
 #include "../compiler/field_compiler.h"
 #include "../../compiler_info.h"
 #include "../astparser/ast_parser.h"
+#include "../preprocessor/class_preprocessor.h"
 
 void process_field(sharp_class *with_class, Ast *ast) {
     string name;
@@ -217,6 +218,20 @@ void process_getter(sharp_field *field, Ast *ast) {
     field->getter = field->owner->functions.last();
 }
 
+void create_static_init_flag_field(sharp_class *owner, Ast *ast) {
+    string name = static_init_flag_name;
+    field_type ft = normal_field;
+    uInt flags = flag_private | flag_static;
+
+    if(resolve_field(name, owner, false) == NULL) {
+        check_decl_conflicts(ast, owner, "field", name);
+        create_field(
+                currThread->currTask->file,
+                owner, name, flags, sharp_type(type_var),
+                ft, ast
+        );
+    }
+}
 
 void validate_field_type(
         bool hardType,

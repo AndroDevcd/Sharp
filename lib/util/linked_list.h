@@ -10,6 +10,18 @@
 template<class T>
 struct node
 {
+    node()
+    :
+        data(),
+        next(nullptr)
+    {}
+
+    node(const node<T> &n)
+    :
+        data(n.data),
+        next(n.next)
+    {}
+
     T data;
     node *next;
 };

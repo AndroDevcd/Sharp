@@ -53,6 +53,17 @@ void generate() {
     compressedCompilationFunctions.linearSort(is_greater_than);
     compressedCompilationClasses.linearSort(is_greater_than);
 
+    for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
+        auto sf = compressedCompilationFunctions.get(i);
+        cout << function_to_str(sf) << endl;
+        cout << "address: " << sf->ci->address << endl;
+        cout << "file: " << sf->implLocation.file->name << endl;
+        cout << "frameStackOffset: " << sf->ci->frameStackOffset << endl;
+        cout << "fpOffset: " << sf->ci->fpOffset << endl;
+        cout << "spOffset: " << sf->ci->spOffset << endl;
+        cout << "stackSize: " << sf->ci->stackSize;
+        cout << "\ncode:\n\n" << code_to_string(sf->ci) << endl;
+    }
     generate_exe();
 }
 

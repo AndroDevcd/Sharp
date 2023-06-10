@@ -10,6 +10,7 @@
 #include "../../core/function_type.h"
 #include "line_data.h"
 #include "try_catch_data.h"
+#include "../../util/linked_list.h"
 
 struct sharp_class;
 struct sharp_type;
@@ -44,8 +45,8 @@ struct sharp_function {
     uint32_t linkAddr;
     bridge_fun bridge;
     function_param *params;
-    list<line_data> lineTable;
-    list<try_catch_data> tryCatchTable;
+    linkedlist<line_data> lineTable;
+    linkedlist<try_catch_data> tryCatchTable;
 };
 
 void init_struct(sharp_function *sf);

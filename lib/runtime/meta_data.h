@@ -6,6 +6,7 @@
 #define SHARP_META_DATA_H
 
 #include "../../stdimports.h"
+#include "../util/linked_list.h"
 
 struct file_data {
     file_data()
@@ -15,7 +16,7 @@ struct file_data {
     {}
 
     string name;
-    list<string> lines;
+   linkedlist<string> lines;
 };
 
 struct meta_data {
@@ -24,7 +25,7 @@ struct meta_data {
         files()
     {}
 
-    list<file_data*> files;
+    linkedlist<file_data*> files;
 };
 
 void init_struct(file_data *fd);

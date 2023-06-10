@@ -24,7 +24,6 @@ void compile_assign_expression(expression *e, Ast *ast) {
             && left.type.field->getter != NULL && left.type.field->getter != primaryFunction
             && left.type.field->setter != primaryFunction) {
 
-
             Int lastPos = -1;
             for(Int i = 0; i < left.scheme.steps.size(); i++) {
                 if(left.scheme.steps.get(i)->type == operation_get_field_value) {
@@ -49,7 +48,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                               && left.scheme.steps.last(0)->type == operation_call_instance_function
                               && left.scheme.steps.last(0)->function == left.type.field->getter) {
                         getGetterStep->scheme->steps.free();
-                        create_instance_field_access_operation(getGetterStep->scheme, left.type.field);
+                        create_primary_instance_field_access_operation(getGetterStep->scheme, left.type.field);
                     }
                 }
             }
@@ -58,6 +57,23 @@ void compile_assign_expression(expression *e, Ast *ast) {
         if (left.type == type_field
             && left.type.field->setter != NULL && left.type.field->setter != primaryFunction
             && left.type.field->getter != primaryFunction) {
+
+            Int lastPos = -1;
+            for(Int i = 0; i < left.scheme.steps.size(); i++) {
+                if(left.scheme.steps.get(i)->type == operation_get_field_value) {
+                    lastPos = i;
+                }
+            }
+
+            if(lastPos != -1) {
+                auto getValueStep = left.scheme.steps.get(lastPos);
+                if(getValueStep->scheme->steps.last()->type == operation_get_instance_field_value) {
+                    getValueStep->scheme->steps.pop_back();
+                    getValueStep->type = operation_get_value;
+                } else if(getValueStep->scheme->steps.last()->type == operation_get_tls_field_value) {
+                    left.scheme.steps.removeAt(lastPos);
+                }
+            }
 
             sharp_field *field = left.type.field;
             if (match_result == no_match_found) {

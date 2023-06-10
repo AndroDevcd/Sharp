@@ -28,12 +28,14 @@ struct virtual_machine {
         strings(nullptr),
         constants(nullptr),
         staticHeap(nullptr),
+        exitVal(0),
         mdata(),
         state(VM_CREATED),
         nativeTypes(nullptr)
     {}
 
     manifest manifest;
+    int exitVal;
     sharp_class *classes;
     sharp_function *methods;
     string *strings;

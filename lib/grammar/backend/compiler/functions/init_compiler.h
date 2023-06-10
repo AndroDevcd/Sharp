@@ -12,5 +12,7 @@ class Ast;
 void compile_inits();
 void compile_inits(sharp_class* with_class, Ast *block);
 void compile_initialization_paring(sharp_function *constructor);
+void compile_static_initialization_requirement(sharp_function *constructor);
+void compile_static_initialization_check(sharp_function *initFunc);
 
 #endif //SHARP_INIT_COMPILER_H

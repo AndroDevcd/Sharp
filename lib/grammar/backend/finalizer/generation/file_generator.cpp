@@ -270,7 +270,11 @@ void build_constant_section() {
 }
 
  void build_method_data(sharp_function *fun) { // todo: decide at the last minute to provide regular name or obfuscated name for all types
-     dataSec << (char)data_method;
+    if(compressedCompilationFiles.indexof(fun->implLocation.file) == -1) {
+        cout << "fun: " << fun->owner->fullName << "." << function_to_str(fun) << " no file added " << endl;
+    }
+
+    dataSec << (char)data_method;
      dataSec << putInt32(fun->ci->address);
      dataSec << putInt32(fun->uid);
      dataSec << fun->name << ((char)nil);

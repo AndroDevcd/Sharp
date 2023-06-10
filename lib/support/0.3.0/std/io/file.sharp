@@ -466,7 +466,7 @@ public class file {
     def write(data: string) := fs.write(self, data);
 
     private static def get_file_system() : file_system {
-        if(platform.build_info.is_windows()) {
+        if(build.is_windows()) {
             return new win_fs();
         } else {
             return new unix_fs();

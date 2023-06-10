@@ -18,11 +18,11 @@
 std::recursive_mutex copy_mut;
 std::recursive_mutex lock_mut;
 
-CXX11_INLINE void init_struct(object *o) {
+void init_struct(object *o) {
     o->o = nullptr;
 }
 
-CXX11_INLINE void init_struct(sharp_object *o) {
+void init_struct(sharp_object *o) {
     o->next = nullptr;
     o->type = 0;
     o->size = 0;
@@ -35,14 +35,20 @@ void copy_object(object *to, object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from ? from->o : nullptr;
-    if(to->o) inc_ref(to->o)
+    if(to->o) {
+        if(to->o->refCount == invalid_references) to->o->refCount = 1;
+        else inc_ref(to->o)
+    }
 }
 
 void copy_object(object *to, sharp_object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from;
-    if(to->o) inc_ref(to->o)
+    if(to->o) {
+        if(to->o->refCount == invalid_references) to->o->refCount = 1;
+        else inc_ref(to->o)
+    }
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
@@ -204,6 +210,9 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
         push_object(o);
 
         o->HEAD = malloc_mem<long double>(sizeof(long double) * size, unsafe);
+        for(Int i = 0; i < size; i++) {
+            o->HEAD[i] = 0;
+        }
         return o;
     }
 

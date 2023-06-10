@@ -17,6 +17,7 @@
 #include "delegate_processor.h"
 #include "mutation_processor.h"
 #include "../preprocessor/class_preprocessor.h"
+#include "../compiler/functions/init_compiler.h"
 
 void post_process() {
     sharp_file *file = currThread->currTask->file;
@@ -176,6 +177,7 @@ void create_class_init_functions(sharp_class *with_class, Ast *ast) {
 
         with_class->staticInit = function;
         function->scheme = new operation_schema(scheme_master);
+        compile_static_initialization_check(function);
     }
 
 
@@ -268,6 +270,7 @@ void process_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     }
 
 
+    create_static_init_flag_field(with_class, ast);
     process_base_class(with_class, ast);
     process_interfaces(with_class, ast);
     create_class_init_functions(with_class, ast);
