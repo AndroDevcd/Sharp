@@ -9,9 +9,9 @@ import (
  *
  *
  */
-stable class _nil_ {
-    static instance : _nil_ = new _nil_();
-        private set value -> { } // prevent the user from setting a new value
-
+stable class _nil {
     public override def to_string() : string? = new string("nil");
 }
+
+nothing := new _nil();
+   private set value -> { } // prevent the user from setting a new value

@@ -153,15 +153,15 @@ public class file {
      * last modified.
      *
      */
-    def last_modified() : int {
+    def last_modified() : long {
         return fs.last_modified_time(self, file_system.last_modification);
     }
 
-    def last_status_changed() : int {
+    def last_status_changed() : long {
         return fs.last_modified_time(self, file_system.last_status_change);
     }
 
-    def last_accessed() : int {
+    def last_accessed() : long {
         return fs.last_modified_time(self, file_system.last_access);
     }
 

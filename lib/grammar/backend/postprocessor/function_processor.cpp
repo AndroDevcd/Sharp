@@ -155,7 +155,7 @@ void process_function(
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected | flag_override
-                | flag_thread_safe | flag_local | flag_static
+                | flag_local | flag_static
                 | flag_native,
                 "function", with_class,
                 ast->getSubAst(ast_access_type)

@@ -136,7 +136,13 @@ void compile_assign_expression(expression *e, Ast *ast) {
                     e->scheme.copy(right.scheme);
                     e->type.copy(right.type);
                 } else {
-                    create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                    if(left.scheme.steps.last()->type == operation_get_array_element_at_index) {
+                        left.scheme.steps.last()->type = operation_set_array_element_at_index;
+                        create_array_index_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                    } else {
+                        create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                    }
+
                     e->type.copy(left.type);
                 }
 
@@ -179,7 +185,13 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 }
 
                 if(is_match_normal(match_result)) {
-                    create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                    if(left.scheme.steps.last()->type == operation_get_array_element_at_index) {
+                        left.scheme.steps.last()->type = operation_set_array_element_at_index;
+                        create_array_index_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                    } else {
+                        create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                    }
+
                     e->type.copy(left.type);
                 } else {
                     create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,

@@ -43,7 +43,7 @@ void compile_static_closure_reference(sharp_field *field) {
 
     if(with_class != NULL) {
         function = resolve_function(
-                static_init_function_name, with_class,
+                tls_init_function_name, with_class,
                 params, normal_function, exclude_all,
                 field->ast, false, false
         );
@@ -56,7 +56,7 @@ void compile_static_closure_reference(sharp_field *field) {
             create_dependency(function, field);
             APPLY_TEMP_SCHEME(0, (*function->scheme),
                  create_new_class_operation(&scheme_0, field->type._class);
-                 create_static_field_access_operation(&scheme_0, field, false);
+                 create_tls_field_access_operation(&scheme_0, field, false);
                  create_pop_value_from_stack_operation(&scheme_0);
             )
         } else {

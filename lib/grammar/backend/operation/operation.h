@@ -296,6 +296,7 @@ enum operation_type {
     operation_is_uint64,
     operation_is_var,
     operation_get_array_element_at_index,
+    operation_set_array_element_at_index,
     operation_retain_numeric_value,
     operation_discard_register,
     operation_allocate_register,
@@ -385,6 +386,7 @@ enum _operation_scheme {
     scheme_null_fallback,
     scheme_inline_if,
     scheme_assign_value,
+    scheme_assign_array_index,
     scheme_compound_assign_value,
     scheme_binary_math,
     scheme_accelerated_binary_math,
@@ -949,6 +951,12 @@ void create_get_string_constant_operation(
 void create_value_assignment_operation(
         operation_schema *scheme,
         operation_schema *asigneeScheme,
+        operation_schema *valueScheme,
+        bool resetState = true);
+
+void create_array_index_assignment_operation(
+        operation_schema *scheme,
+        operation_schema *arrayScheme,
         operation_schema *valueScheme,
         bool resetState = true);
 

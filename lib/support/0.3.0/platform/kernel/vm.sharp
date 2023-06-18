@@ -95,10 +95,10 @@ class vm {
     static def start_fiber(fib: fiber, t: thread, args: object[]?, main: (object[]?)(var)) : int {
         result: var;
         name := fib.name.data;
-        threadid := -1; // -1 to unbind from thread
+        threadid : var = -1; // -1 to unbind from thread
 
         if(t != null)
-           threadid = t.get_native_handle();
+           threadid = t.get_native_handle().value;
 
         asm {
             pushl [args]
@@ -292,8 +292,8 @@ class vm {
     }
 
     static def thread_start(t: thread, args: object[]?) : thread_result {
-        id := t.get_native_handle();
-        stack_size := t.get_stack_size();
+        id : var = t.get_native_handle().value;
+        stack_size : var = t.get_stack_size();
         result: var;
 
         asm {
@@ -410,7 +410,7 @@ class vm {
        return result;
     }
 
-    static def time_in_nanoseconds() : int {
+    static def time_in_nanoseconds() : long {
         now: var;
 
         asm
@@ -418,6 +418,7 @@ class vm {
             int 0xb
             smovr2 [now], bmr
         };
+
         return now;
     }
 

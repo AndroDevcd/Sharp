@@ -11,7 +11,7 @@
 void set_full_name(sharp_alias *alias) {
     alias->fullName = alias->owner->fullName + "." + alias->name;
 }
-;
+
 
 sharp_alias* create_alias(
         sharp_file *file,

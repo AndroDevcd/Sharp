@@ -268,7 +268,7 @@ void stored_block_info::copy(const stored_block_info &item)  {
     line = item.line;
     reachable = item.reachable;
     endLabel = item.endLabel;
-    beginLabel = item.beginLabel;
+    repeatLoopLabel = item.repeatLoopLabel;
     finallyLabel = item.finallyLabel;
     lockExpression = item.lockExpression;
 }

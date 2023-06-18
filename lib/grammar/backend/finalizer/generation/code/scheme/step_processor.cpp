@@ -220,6 +220,8 @@ void process_step(operation_step *step) {
             return process_post_access(step);
         case operation_get_array_element_at_index:
             return process_get_array_element_at_index(step);
+        case operation_set_array_element_at_index:
+            return process_set_array_element_at_index(step);
         case operation_unused_data:
             return process_unused_data(step);
         case operation_setup_local_field:
@@ -563,6 +565,27 @@ void process_get_array_element_at_index(operation_step *step) {
         set_machine_data(get_register(EBX));
     } else {
         add_instruction(Opcode::Builder::movnd(ADX));
+        set_machine_data(generic_object_data);
+    }
+}
+
+void process_set_array_element_at_index(operation_step *step) {
+    validate_step_type(step, operation_set_array_element_at_index);
+
+    push_machine_data_to_stack();
+    process_scheme(step->scheme);
+    consume_machine_data(get_register(ADX));
+
+    add_instruction(Opcode::Builder::popObject2());
+    add_instruction(Opcode::Builder::checklen(ADX));
+
+    if(step->nativeType <= type_var) {
+        set_machine_data(numeric_instance_field);
+        add_instruction(Opcode::Builder::loadValue(EBX));
+        add_instruction(Opcode::Builder::rmov(ADX, EBX));
+    } else {
+        add_instruction(Opcode::Builder::movnd(ADX));
+        add_instruction(Opcode::Builder::popObject());
         set_machine_data(generic_object_data);
     }
 }
@@ -934,7 +957,7 @@ void process_is_type(operation_step *step) {
         generation_error("incorrect data type found for type check!");
     }
 
-    decrement_machine_data(type);
+    consume_machine_data();
     add_instruction(Opcode::Builder::is(BMR, type));
     set_machine_data(get_register(BMR));
 }
@@ -997,15 +1020,16 @@ void process_assign_array_element_from_stack(operation_step *step) {
     validate_step_type(step, operation_assign_array_element_from_stack);
 
     add_instruction(Opcode::Builder::movsl(-1));
-    add_instruction(Opcode::Builder::movn(step->integer));
 
     if(!step->_bool) {
         set_machine_data(array_object_data);
+        add_instruction(Opcode::Builder::movn(step->integer));
         add_instruction(Opcode::Builder::popObject());
     } else {
         set_machine_data(array_numeric_data);
+        add_instruction(Opcode::Builder::movi(step->integer, ADX));
         add_instruction(Opcode::Builder::loadValue(EGX));
-        add_instruction(Opcode::Builder::imov(EGX));
+        add_instruction(Opcode::Builder::rmov(ADX, EGX));
     }
 }
 

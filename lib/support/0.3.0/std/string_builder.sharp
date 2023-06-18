@@ -57,7 +57,7 @@ class string_builder : loopable<_int8> {
         cursor += sizeof(str) - offset.value;
     }
 
-    def space_available(space_required : var) : int {
+    def space_available(space_required : var) : bool {
         return ((cursor + 1) + space_required) < sizeof(data);
     }
 

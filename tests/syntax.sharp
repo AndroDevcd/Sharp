@@ -14,26 +14,26 @@ counter := new atomic<var>{ 0 };
 
 def main(args: string[]) {
 
-    for(i := 0; i < slices; i++) {
-        launcher = { ->
-//            for(i := 0; i < 10000000; i++) {
+//    for(i := 0; i < slices; i++) {
+//        launcher = { ->
+////            for(i := 0; i < 10000000; i++) {
+////            }
+//
+//            println("start");
+//            for(i := 0; i < loop_count; i++) {
+//                counter++;
 //            }
-
-            println("start");
-            for(i := 0; i < loop_count; i++) {
-                counter++;
-            }
-            println("done");
-
-        };
-    }
+//            println("done");
+//
+//        };
+//    }
 
     for(i := 0; i < 10000000; i++) {
     }
 
-    chan.read_next(0, slices * loop_count);
-
-    println("done");
+//    chan.read_next(0, slices * loop_count);
+//
+//    println("done");
 
     // took 8.288s
 }

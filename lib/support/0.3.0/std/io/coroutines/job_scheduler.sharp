@@ -9,10 +9,10 @@ import (
 
 private short_term_threads := new atomic<int>(0);
 private long_term_threads := new atomic<int>(0);
-private max_threads : int = 0;
+private max_threads : var = 0;
 private scheduler : thread?;
 
-private const FIBER_THRESHOLD_TRIGGER  := 2; // create a new thread after 15 fibers
+private const FIBER_THRESHOLD_TRIGGER  : var = 2; // create a new thread after 15 fibers
 
 public def start_scheduler() {
     lock(launcher) {
@@ -26,7 +26,7 @@ public def start_scheduler() {
 }
 
 private def calculate_max_threads() {
-    n_cores := vm.hardware_concurrency();
+    n_cores : var = vm.hardware_concurrency().value;
     n_cores -= 2;
 
     if(n_cores <= 1) {
@@ -42,7 +42,7 @@ private def calculate_max_threads() {
     if(long_term_threads == 0)
         long_term_threads = 1;
 
-    max_threads = short_term_threads + long_term_threads.read();
+    max_threads = (short_term_threads + long_term_threads.read()).value;
 }
 
 def set_thread_max(max: int) {
@@ -54,8 +54,8 @@ def set_thread_max(max: int) {
 
         if(max >= 2) {
             if(max > 2) {
-                short_term_threads = round(max * 0.75);
-                long_term_threads = round(max * 0.25);
+                short_term_threads = round((max * 0.75).to_double());
+                long_term_threads = round((max * 0.25).to_double());
             }
 
             if(short_term_threads == 0)
@@ -64,7 +64,7 @@ def set_thread_max(max: int) {
             if(long_term_threads == 0)
                 long_term_threads = 1;
 
-            max_threads = max;
+            max_threads = max.value;
         } else {
             throw new ill_arg_except("cannot have less than 2 max threads");
         }
@@ -82,9 +82,9 @@ def get_thread_max() : int {
 def run_scheduler() {
 	jobs := launcher.job_queue;
 	canceled_jobs := launcher.canceled_job_queue;
-	const SLEEP_TIME := 2;
-	const SPIN_COUNT := 60000 / SLEEP_TIME;
-	spins_left := SPIN_COUNT;
+	const SLEEP_TIME : var = 2;
+	const SPIN_COUNT : var = 60000 / SLEEP_TIME;
+	spins_left : var = SPIN_COUNT;
 	cancel_list := new list<int>();
     count := 0;
 

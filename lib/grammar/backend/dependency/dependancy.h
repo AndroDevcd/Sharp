@@ -9,6 +9,7 @@
 #include "../types/sharp_type.h"
 #include "../../List.h"
 #include "../../frontend/parser/Ast.h"
+#include "../meta_data.h"
 
 struct sharp_file;
 struct sharp_class;
@@ -280,6 +281,16 @@ bool resolve_function_for_address(
 
 sharp_field* resolve_local_field(string, stored_context_item*, Int);
 
+void check_access(
+        string &type,
+        string &name,
+        uInt flags,
+        context &ctx,
+        bool inPrimaryClass,
+        sharp_class *owner,
+        impl_location &location,
+        Ast *ast);
+
 enum resolve_filter {
     resolve_filter_local_field = 0x1,
     resolve_filter_class_field = 0x2,
@@ -313,6 +324,7 @@ enum resolve_filter {
             | resolve_filter_class
             | resolve_filter_inner_class
             | resolve_filter_generic_type_param
+            | resolve_filter_local_alias
             | resolve_generic_type,
 
     resolve_all = resolve_filter_local_field

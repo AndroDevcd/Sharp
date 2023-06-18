@@ -55,6 +55,10 @@ void process_class_delegates(sharp_class* parentClass, sharp_class *with_class, 
         with_class = resolve_class(parentClass, name, ast->getType() == ast_generic_class_decl, false);
     }
 
+    if(with_class->name == "std.io#atomic<std#int>") {
+        int i = 0;
+    }
+
     create_context(with_class, true);
     if(with_class->blueprintClass) {
         GUARD(globalLock)
@@ -140,6 +144,7 @@ void process_delegates(sharp_class *with_class) {
                     foundFunc = true;
                     fun->delegate = delegate;
                     create_dependency(fun, delegate);
+                    create_dependency(delegate, fun);
                     delegate->impls.addif(fun);
                     break;
                 }
@@ -163,6 +168,7 @@ void process_delegates(sharp_class *with_class) {
                 if(basefun != NULL) {
                     fun->delegate = basefun;
                     create_dependency(fun, basefun);
+                    create_dependency(basefun, fun);
                 } else {
                     stringstream err;
                     err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"

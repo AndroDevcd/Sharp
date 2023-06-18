@@ -83,11 +83,11 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
     }
 
     info = retrieve_loop_block();
-    if(info->beginLabel == NULL) {
+    if(info->repeatLoopLabel == NULL) {
         create_new_error(GENERIC, ast->line, ast->col, "attempt to call `continue` outside of an enclosing loop");
     }
 
-    create_jump_operation(subScheme, info->beginLabel);
+    create_jump_operation(subScheme, info->repeatLoopLabel);
     add_scheme_operation(scheme, subScheme);
     current_context.blockInfo.reachable = false;
     delete subScheme;

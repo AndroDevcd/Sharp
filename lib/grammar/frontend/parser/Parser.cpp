@@ -3721,7 +3721,6 @@ bool parser::isAccessDecl(Token &token) {
             (token.getValue() == "stable") ||
             (token.getValue() == "native") ||
             (token.getValue() == "excuse") ||
-            (token.getValue() == "thread_safe") ||
             (token.getValue() == "override") ||
             (token.getValue() == "public"));
 }

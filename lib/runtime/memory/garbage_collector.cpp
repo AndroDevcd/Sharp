@@ -16,16 +16,19 @@ garbage_collector gc;
 recursive_mutex gc_lock;
 
 void reserve_bytes(size_t bytes, bool unsafe = false) {
-    guard_mutex(gc_lock)
 
     if(unsafe) {
+        guard_mutex(gc_lock)
         gc.managedBytes += bytes;
     } else {
         if ((bytes + gc.managedBytes) >= gc.memoryLimit) {
+            auto gcThread = get_thread(gc_threadid);
+            suspend_and_wait(gcThread, true);
             gc_collect(policy_full_sweep);
         }
 
         if ((bytes + gc.managedBytes) < gc.memoryLimit) {
+            guard_mutex(gc_lock)
             gc.managedBytes += bytes;
         } else {
             throw vm_exception(vm.out_of_memory_except, "out of memory");
@@ -110,6 +113,7 @@ void release_all_mutexes(fiber *task) {
 void age_mem(sharp_object *prev, sharp_object *ager, sharp_object **newHeap)
 {
     if(prev != nullptr && ager != nullptr) {
+        guard_mutex(gc_lock)
         prev->next = ager->next;
         ager->next = *newHeap;
         *newHeap = ager;
@@ -131,7 +135,7 @@ void mark_memory(sharp_object *heap) {
         if(GENERATION(heap->info) <= gc_old) {
             if(heap->refCount == 0) {
                 MARK(heap->info, 1);
-            } else if(heap->refCount != invalid_references) {
+            } else if(heap->refCount <= 0) {
 
                 auto next = heap->next;
                 switch (GENERATION(heap->info)) {
@@ -164,7 +168,7 @@ void sweep(sharp_object *prev, sharp_object *obj) {
     if(obj != nullptr && prev != nullptr)
     {
         if(obj->type <= type_var) {
-            gc.managedBytes -= sizeof(double) * obj->size;
+            release_bytes(sizeof(long double) * obj->size);
             std::free(obj->HEAD);
         } else if(obj->node != nullptr) {
             for(Int i = 0; i < obj->size; i++) {
@@ -172,7 +176,7 @@ void sweep(sharp_object *prev, sharp_object *obj) {
 
                 if(child != nullptr) {
                     dec_ref(child)
-                    if(child->refCount == 0) MARK(child->info, 1);
+                    if(child->refCount <= 0) MARK(child->info, 1);
                 }
             }
 
@@ -201,7 +205,7 @@ void sweep_memory(sharp_object *heap) {
         CHECK_STATE
 
         if(MARKED(heap->info) && GENERATION(heap->info) != gc_perm) {
-            if(heap->refCount > 0 || heap->refCount == invalid_references) {
+            if(heap->refCount > 0) {
                 MARK(heap->info, 0);
             } else {
 
@@ -413,6 +417,81 @@ gc_main(void *pVoid) {
 #ifdef POSIX_
     return nullptr;
 #endif
+}
+
+void print_memory_diagnostics() {
+    cout << "Memory DIagnostics\n";
+    cout << "====================================\n\n";
+
+    long types[type_label+1];
+    long references[101];
+    long young = 0, adult = 0, old = 0;
+    cout << "young objects: ";
+
+    auto obj = gc.yMemHead;
+    while(obj != nullptr) {
+        types[obj->type]++;
+        young++;
+        if(obj->refCount < 100) {
+            if(obj->refCount >= 0)
+                references[obj->refCount]++;
+        } else {
+            references[100]++;
+        }
+        obj = obj->next;
+    }
+    cout << young << endl;
+
+    cout << "adult objects: ";
+    obj = gc.aMemHead;
+    while(obj != nullptr) {
+        types[obj->type]++;
+        adult++;
+        if(obj->refCount < 100) {
+            if(obj->refCount >= 0)
+                references[obj->refCount]++;
+        } else {
+            references[100]++;
+        }
+        obj = obj->next;
+    }
+    cout << adult << endl;
+
+    cout << "old objects: ";
+    obj = gc.aMemHead;
+    while(obj != nullptr) {
+        types[obj->type]++;
+        old++;
+        if(obj->refCount < 100) {
+            if(obj->refCount >= 0)
+                references[obj->refCount]++;
+        } else {
+            references[100]++;
+        }
+        obj = obj->next;
+    }
+    cout << old << endl;
+
+    int highestIndex = 0;
+    int highestCount = 0;
+    for(Int i =0; i < (type_label + 1); i++) {
+        if(types[i] > highestCount) {
+            highestCount = types[i];
+            highestIndex = i;
+        }
+    }
+
+    cout << "most found type: " << highestIndex << ":" << highestCount << endl;
+    highestIndex = 0;
+    highestCount = 0;
+    for(Int i =0; i < (101); i++) {
+        if(references[i] > highestCount) {
+            highestCount = references[i];
+            highestIndex = i;
+        }
+    }
+
+    cout << "most common ref amount: " << highestIndex << ":" << highestCount << endl;
 }
 
 void gc_startup() {

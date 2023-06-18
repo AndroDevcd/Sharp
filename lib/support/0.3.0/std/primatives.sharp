@@ -41,39 +41,6 @@ public class number<T, NT> base base_number<NT> {
     number(initial_val : _uint64) {
         value = initial_val;
     }
-    number(initial_val : short) {
-        value = initial_val.value;
-    }
-    number(initial_val : bool) {
-        value = initial_val.value;
-    }
-    number(initial_val : ushort) {
-        value = initial_val.value;
-    }
-    number(initial_val : char) {
-        value = initial_val.value;
-    }
-    number(initial_val : byte) {
-        value = initial_val.value;
-    }
-    number(initial_val : uchar) {
-        value = initial_val.value;
-    }
-    number(initial_val : int) {
-        value = initial_val.value;
-    }
-    number(initial_val : uint) {
-        value = initial_val.value;
-    }
-    number(initial_val : long) {
-        value = initial_val.value;
-    }
-    number(initial_val : ulong) {
-        value = initial_val.value;
-    }
-    number(initial_val : double) {
-        value = initial_val.value;
-    }
 
     override def hash() : int {
         return value;
@@ -160,6 +127,8 @@ public class number<T, NT> base base_number<NT> {
     def operator-(num : _uint16)    := new NT(value-num);
     def operator-(num : _uint32)    := new NT(value-num);
     def operator-(num : _uint64)    := new NT(value-num);
+
+    def operator-()  := new NT(-value);
     
     def operator*(num : ulong)  := new NT(value*num.value);
     def operator*(num : long)   := new NT(value*num.value);
@@ -668,7 +637,7 @@ public class number<T, NT> base base_number<NT> {
         number : T = 0;
 
         if(number is var) { // double.class
-            return strtod(s);
+            return new NT(strtod(s).value);
         } else { //  integer type
             i := 0;
             negative := false;
@@ -719,17 +688,7 @@ class base_number<NT> {
 }
 
 class ulong base number<_uint64, ulong> {
-    ulong(i : long) -> base(i.value) {}
-    ulong(i : int) -> base(i.value) {}
-    ulong(i : short) -> base(i.value) {}
-    ulong(i : char) -> base(i.value) {}
-    ulong(i : byte) -> base(i.value) {}
-    ulong(i : bool) -> base(i.value) {}
     ulong(i : ulong) -> base(i.value) {}
-    ulong(i : uint) -> base(i.value) {}
-    ulong(i : ushort) -> base(i.value) {}
-    ulong(i : uchar) -> base(i.value) {}
-    ulong(i : double) -> base(i.value) {}
     ulong(initial_val : var) -> base(initial_val) {}
     ulong(initial_val : _int8) -> base(initial_val) {}
     ulong(initial_val : _uint8) -> base(initial_val) {}
@@ -749,17 +708,6 @@ class ulong base number<_uint64, ulong> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string? {
         return snprintf('L', value, 0);
@@ -767,16 +715,6 @@ class ulong base number<_uint64, ulong> {
 }
 class long base number<_int64, long> {
     long(i : long) -> base(i.value) {}
-    long(i : int) -> base(i.value) {}
-    long(i : short) -> base(i.value) {}
-    long(i : char) -> base(i.value) {}
-    long(i : byte) -> base(i.value) {}
-    long(i : bool) -> base(i.value) {}
-    long(i : ulong) -> base(i.value) {}
-    long(i : uint) -> base(i.value) {}
-    long(i : ushort) -> base(i.value) {}
-    long(i : uchar) -> base(i.value) {}
-    long(i : double) -> base(i.value) {}
     long(initial_val : var) -> base(initial_val) {}
     long(initial_val : _int8) -> base(initial_val) {}
     long(initial_val : _uint8) -> base(initial_val) {}
@@ -796,31 +734,10 @@ class long base number<_int64, long> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 }
 
 class uint base number<_uint32, uint> {
-    uint(i : long) -> base(i.value) {}
-    uint(i : int) -> base(i.value) {}
-    uint(i : short) -> base(i.value) {}
-    uint(i : char) -> base(i.value) {}
-    uint(i : byte) -> base(i.value) {}
-    uint(i : bool) -> base(i.value) {}
-    uint(i : ulong) -> base(i.value) {}
     uint(i : uint) -> base(i.value) {}
-    uint(i : ushort) -> base(i.value) {}
-    uint(i : uchar) -> base(i.value) {}
-    uint(i : double) -> base(i.value) {}
     uint(initial_val : var) -> base(initial_val) {}
     uint(initial_val : _int8) -> base(initial_val) {}
     uint(initial_val : _uint8) -> base(initial_val) {}
@@ -840,30 +757,9 @@ class uint base number<_uint32, uint> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 }
 class int base number<_int32, int> {
-    int(i : long) -> base(i.value) {}
     int(i : int) -> base(i.value) {}
-    int(i : short) -> base(i.value) {}
-    int(i : char) -> base(i.value) {}
-    int(i : byte) -> base(i.value) {}
-    int(i : bool) -> base(i.value) {}
-    int(i : ulong) -> base(i.value) {}
-    int(i : uint) -> base(i.value) {}
-    int(i : ushort) -> base(i.value) {}
-    int(i : uchar) -> base(i.value) {}
-    int(i : double) -> base(i.value) {}
     int(initial_val : var) -> base(initial_val) {}
     int(initial_val : _int8) -> base(initial_val) {}
     int(initial_val : _uint8) -> base(initial_val) {}
@@ -883,30 +779,9 @@ class int base number<_int32, int> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 }
 class ushort base number<_uint16, ushort> {
-    ushort(i : long) -> base(i.value) {}
-    ushort(i : int) -> base(i.value) {}
-    ushort(i : short) -> base(i.value) {}
-    ushort(i : char) -> base(i.value) {}
-    ushort(i : byte) -> base(i.value) {}
-    ushort(i : bool) -> base(i.value) {}
-    ushort(i : ulong) -> base(i.value) {}
-    ushort(i : uint) -> base(i.value) {}
     ushort(i : ushort) -> base(i.value) {}
-    ushort(i : uchar) -> base(i.value) {}
-    ushort(i : double) -> base(i.value) {}
     ushort(initial_val : var) -> base(initial_val) {}
     ushort(initial_val : _int8) -> base(initial_val) {}
     ushort(initial_val : _uint8) -> base(initial_val) {}
@@ -926,30 +801,9 @@ class ushort base number<_uint16, ushort> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 }
 class short base number<_int16, short> {
-    short(i : long) -> base(i.value) {}
-    short(i : int) -> base(i.value) {}
     short(i : short) -> base(i.value) {}
-    short(i : char) -> base(i.value) {}
-    short(i : byte) -> base(i.value) {}
-    short(i : bool) -> base(i.value) {}
-    short(i : ulong) -> base(i.value) {}
-    short(i : uint) -> base(i.value) {}
-    short(i : ushort) -> base(i.value) {}
-    short(i : uchar) -> base(i.value) {}
-    short(i : double) -> base(i.value) {}
     short(initial_val : var) -> base(initial_val) {}
     short(initial_val : _int8) -> base(initial_val) {}
     short(initial_val : _uint8) -> base(initial_val) {}
@@ -969,30 +823,9 @@ class short base number<_int16, short> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 }
 class uchar base number<_uint8, uchar> {
-    uchar(i : long) -> base(i.value) {}
-    uchar(i : int) -> base(i.value) {}
-    uchar(i : short) -> base(i.value) {}
-    uchar(i : char) -> base(i.value) {}
-    uchar(i : byte) -> base(i.value) {}
-    uchar(i : bool) -> base(i.value) {}
-    uchar(i : ulong) -> base(i.value) {}
-    uchar(i : uint) -> base(i.value) {}
-    uchar(i : ushort) -> base(i.value) {}
     uchar(i : uchar) -> base(i.value) {}
-    uchar(i : double) -> base(i.value) {}
     uchar(initial_val : var) -> base(initial_val) {}
     uchar(initial_val : _int8) -> base(initial_val) {}
     uchar(initial_val : _uint8) -> base(initial_val) {}
@@ -1012,17 +845,6 @@ class uchar base number<_uint8, uchar> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string? {
         return new string(value as _int8);
@@ -1061,17 +883,7 @@ class uchar base number<_uint8, uchar> {
     }
 }
 class char base number<_int8, char> {
-    char(i : long) -> base(i.value) {}
-    char(i : int) -> base(i.value) {}
-    char(i : short) -> base(i.value) {}
     char(i : char) -> base(i.value) {}
-    char(i : byte) -> base(i.value) {}
-    char(i : bool) -> base(i.value) {}
-    char(i : ulong) -> base(i.value) {}
-    char(i : uint) -> base(i.value) {}
-    char(i : ushort) -> base(i.value) {}
-    char(i : uchar) -> base(i.value) {}
-    char(i : double) -> base(i.value) {}
     char(initial_val : var) -> base(initial_val) {}
     char(initial_val : _int8) -> base(initial_val) {}
     char(initial_val : _uint8) -> base(initial_val) {}
@@ -1091,17 +903,6 @@ class char base number<_int8, char> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string? {
         return new string(value);
@@ -1125,14 +926,14 @@ class char base number<_int8, char> {
         return is_alpha(ch) || is_digit(ch);
     }
 
-    static def to_lower(ch: char) : bool {
+    static def to_lower(ch: char) : char {
         if('A' <= ch.value && ch.value <= 'Z')
             return 'a' + (ch.value - 'A');
         else
             return ch;
     }
 
-    static def to_upper(ch: char) : bool {
+    static def to_upper(ch: char) : char {
         if('a' <= ch.value && ch.value <= 'z')
             return 'A' + (ch.value - 'a');
         else
@@ -1140,17 +941,7 @@ class char base number<_int8, char> {
     }
 }
 class byte base uchar {
-    byte(i : long) -> base(i.value) {}
-    byte(i : int) -> base(i.value) {}
-    byte(i : short) -> base(i.value) {}
-    byte(i : char) -> base(i.value) {}
     byte(i : byte) -> base(i.value) {}
-    byte(i : bool) -> base(i.value) {}
-    byte(i : ulong) -> base(i.value) {}
-    byte(i : uint) -> base(i.value) {}
-    byte(i : ushort) -> base(i.value) {}
-    byte(i : uchar) -> base(i.value) {}
-    byte(i : double) -> base(i.value) {}
     byte(initial_val : var) -> base(initial_val) {}
     byte(initial_val : _int8) -> base(initial_val) {}
     byte(initial_val : _uint8) -> base(initial_val) {}
@@ -1170,31 +961,10 @@ class byte base uchar {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 }
 
 class bool base number<_int8, bool> {
-    bool(i : long) -> base(i.value) {}
-    bool(i : int) -> base(i.value) {}
-    bool(i : short) -> base(i.value) {}
-    bool(i : char) -> base(i.value) {}
-    bool(i : byte) -> base(i.value) {}
     bool(i : bool) -> base(i.value) {}
-    bool(i : ulong) -> base(i.value) {}
-    bool(i : uint) -> base(i.value) {}
-    bool(i : ushort) -> base(i.value) {}
-    bool(i : uchar) -> base(i.value) {}
-    bool(i : double) -> base(i.value) {}
     bool(initial_val : var) -> base(initial_val) {}
     bool(initial_val : _int8) -> base(initial_val) {}
     bool(initial_val : _uint8) -> base(initial_val) {}
@@ -1214,17 +984,6 @@ class bool base number<_int8, bool> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string {
        return value ? "true" : "false";
@@ -1232,16 +991,6 @@ class bool base number<_int8, bool> {
 }
 
 class double base number<var, double> {
-    double(i : long) -> base(i.value) {}
-    double(i : int) -> base(i.value) {}
-    double(i : short) -> base(i.value) {}
-    double(i : char) -> base(i.value) {}
-    double(i : byte) -> base(i.value) {}
-    double(i : bool) -> base(i.value) {}
-    double(i : ulong) -> base(i.value) {}
-    double(i : uint) -> base(i.value) {}
-    double(i : ushort) -> base(i.value) {}
-    double(i : uchar) -> base(i.value) {}
     double(i : double) -> base(i.value) {}
     double(initial_val : var) -> base(initial_val) {}
     double(initial_val : _int8) -> base(initial_val) {}
@@ -1262,17 +1011,6 @@ class double base number<var, double> {
     init(initial_val : _uint16)  -> base(initial_val) { }
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
-    init(initial_val : long)     -> base(initial_val) { }
-    init(initial_val : int)      -> base(initial_val) { }
-    init(initial_val : short)    -> base(initial_val) { }
-    init(initial_val : char)     -> base(initial_val) { }
-    init(initial_val : byte)     -> base(initial_val) { }
-    init(initial_val : bool)     -> base(initial_val) { }
-    init(initial_val : ulong)    -> base(initial_val) { }
-    init(initial_val : ushort)   -> base(initial_val) { }
-    init(initial_val : uint)     -> base(initial_val) { }
-    init(initial_val : uchar)    -> base(initial_val) { }
-    init(initial_val : double)   -> base(initial_val) { }
 
     override def to_string() : string? {
         return snprintf('f', value, 16);

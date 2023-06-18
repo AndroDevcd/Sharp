@@ -1099,6 +1099,7 @@ void create_and_and_operation(
     create_jump_if_false_operation(scheme, endLabel); // && short circuit
 
     create_get_value_operation(scheme, rightScheme, false, false);
+    create_jump_if_false_operation(scheme, endLabel); // && short circuit
     create_set_label_operation(scheme, endLabel);
 }
 
@@ -1834,6 +1835,24 @@ void create_value_assignment_operation(
 
 }
 
+void create_array_index_assignment_operation(
+        operation_schema *scheme,
+        operation_schema *arrayScheme,
+        operation_schema *valueScheme,
+        bool resetState) {
+    if(resetState) scheme->free();
+    scheme->schemeType = scheme_assign_array_index;
+
+    scheme->steps.add(new operation_step(
+            valueScheme, operation_get_value));
+
+    scheme->steps.add(new operation_step(
+            operation_push_value_to_stack));
+
+    scheme->steps.add(new operation_step(
+            arrayScheme, operation_step_scheme));
+}
+
 void create_plus_value_assignment_operation(
         operation_schema *scheme,
         Int registerLeft,
@@ -1911,7 +1930,7 @@ void create_mult_value_assignment_operation(
             operation_retain_numeric_value, registerLeft));
 
     scheme->steps.add(new operation_step(
-            operation_sub, registerLeft, registerRight));
+            operation_mult, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
             operation_assign_numeric_value));
@@ -1939,7 +1958,7 @@ void create_div_value_assignment_operation(
             operation_retain_numeric_value, registerLeft));
 
     scheme->steps.add(new operation_step(
-            operation_sub, registerLeft, registerRight));
+            operation_div, registerLeft, registerRight));
 
     scheme->steps.add(new operation_step(
             operation_assign_numeric_value));

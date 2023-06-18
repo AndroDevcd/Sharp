@@ -57,8 +57,13 @@
 #define GET_Bc(i) (int32_t)(((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
 
 #define DISPATCH() goto *opcode_table[GET_OP(*task->pc)];
+#ifdef VM_DEBUG
+#define branch task->pc++; goto run;
+#define branch_for(x) task->pc+=x; goto run;
+#else
 #define branch  task->pc++; DISPATCH()
 #define branch_for(x)  task->pc+=x; DISPATCH()
+#endif
 
 #define single_arg GET_Da(*task->pc)
 #define dual_arg1 GET_Ca(*task->pc)

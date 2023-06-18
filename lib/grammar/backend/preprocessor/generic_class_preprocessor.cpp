@@ -20,7 +20,7 @@ void pre_process_generic_class(sharp_class *parentClass, Ast *ast) {
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected | flag_local
-                | flag_thread_safe | flag_stable | flag_unstable
+                | flag_stable | flag_unstable
                 | flag_extension,
                 "class", parentClass,
                 ast->getSubAst(ast_access_type)

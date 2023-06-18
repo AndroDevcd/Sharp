@@ -49,15 +49,14 @@ void process_assign_value_scheme(operation_schema *scheme) {
             add_instruction(Opcode::Builder::dup());
         }
 
-        add_instruction(Opcode::Builder::movg(closureRef->owner->ci->address));
-        add_instruction(Opcode::Builder::movn(closureRef->ci->address));
+        add_instruction(Opcode::Builder::tlsMovl(closureRef->ci->address));
         add_instruction(Opcode::Builder::movn(closure->ci->address));
 
         set_machine_data(closure, false);
         pop_machine_data_from_stack();
 
         if(!clearData) {
-            if (is_numeric_type(closure->closure->type) && !closure->type.isArray) {
+            if (is_numeric_type(closure->type) && !closure->type.isArray) {
                 set_machine_data(get_register(EBX));
                 pop_machine_data_from_stack();
                 set_machine_data(get_register(EBX));

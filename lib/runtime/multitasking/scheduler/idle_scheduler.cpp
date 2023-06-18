@@ -76,11 +76,11 @@ void idle_main_loop() {
             uInt index = 0;
 
             while(idleTask != nullptr) {
-                if((index % 1000) == 0 && TIME_SINCE(idleTime) > (CLOCK_CYCLE * 2)) { // sleep every clock cycle
-//                    __usleep(CLOCK_CYCLE * 2);
-
-                    std::this_thread::yield();
-                }
+//                if((index % 1000) == 0 && TIME_SINCE(idleTime) > (CLOCK_CYCLE * 2)) { // sleep every clock cycle
+////                    __usleep(CLOCK_CYCLE * 2);
+//
+//                    std::this_thread::yield();
+//                }
                 if(can_purge(idleTask->task)) {
                     idleTask->task->free();
                     auto nextTask = idleTask->next;

@@ -28,7 +28,6 @@ void process_last_finally_scheme(operation_schema *scheme) {
     process_master_scheme(next_step->scheme);
 
     process_get_local_field_value(next_step);
-    consume_machine_data();
 
     process_check_null(next_step);
     process_jump_if_true(next_step);

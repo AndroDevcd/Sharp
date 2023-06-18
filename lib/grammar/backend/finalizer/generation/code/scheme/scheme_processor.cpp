@@ -81,6 +81,7 @@
 #include "scheme_asm.h"
 #include "../../../../../../core/opcode/opcode_macros.h"
 #include "scheme_get_field_value.h"
+#include "scheme_assign_array_index.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -191,6 +192,8 @@ void process_scheme(operation_schema *scheme) {
                 return process_for_each_position_check_scheme(scheme);
             case scheme_for_each_get_array_item:
                 return process_for_each_get_array_item_scheme(scheme);
+            case scheme_assign_array_index:
+                return process_assign_array_index_scheme(scheme);
             case scheme_when:
                 return process_when_scheme(scheme);
             case scheme_when_clause:

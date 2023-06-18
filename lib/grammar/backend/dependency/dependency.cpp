@@ -806,6 +806,16 @@ bool resolve_local_alias(
         operation_schema *scheme,
         context &ctx) {
     sharp_alias *alias;
+
+    if((alias = resolve_local_alias(item.name, &ctx)) != NULL) {
+
+        resultType.copy(alias->type);
+
+        if(resultType.type == type_class)
+            create_dependency(resultType._class);
+        return true;
+    }
+
     for(Int i = ctx.storedItems.size() - 1; i >= 0; i--) {
         stored_context_item *contextItem = ctx.storedItems.get(i);
 
@@ -879,12 +889,13 @@ bool resolve_local_field(
 
                         staticClosureRef->staticClosure = true;
                         staticClosureRef->flags |= flag_static;
+                        staticClosureRef->fieldType = tls_field;
                         contextItem->functionCxt->closure = staticClosureRef;
                         field->closure = closure;
                         field->closureRef = staticClosureRef;
                         resultType.field = closure;
 
-                        create_static_field_access_operation(scheme, staticClosureRef);
+                        create_tls_field_access_operation(scheme, staticClosureRef);
                         create_instance_field_access_operation(scheme, closure);
 
                         if (field->type.type == type_class)
@@ -2103,12 +2114,13 @@ bool resolve_local_function_pointer_field(
 
                         staticClosureRef->staticClosure = true;
                         staticClosureRef->flags |= flag_static;
+                        staticClosureRef->fieldType = tls_field;
                         contextItem->functionCxt->closure = staticClosureRef;
                         field->closure = closure;
                         field->closureRef = staticClosureRef;
                         resultType.copy(field->type.fun->returnType);
 
-                        create_static_field_access_operation(scheme, staticClosureRef);
+                        create_tls_field_access_operation(scheme, staticClosureRef);
                         create_instance_field_access_operation(scheme, closure);
 
                         compile_function_call(
@@ -2826,7 +2838,7 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
                 process_class(NULL, generic, generic->ast);
                 process_generic_extension_functions(generic, genericBlueprint);
                 process_generic_mutations(generic, genericBlueprint);
-//                process_delegates(generic);
+                process_delegates(generic);
             }
 
             if (compilation_ready(currStage)) {

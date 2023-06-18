@@ -91,6 +91,7 @@ void process_instance_not_eq(operation_step *step);
 void process_instance_eq(operation_step *step);
 void process_post_access(operation_step *step);
 void process_get_array_element_at_index(operation_step *step);
+void process_set_array_element_at_index(operation_step *step);
 void process_unused_data(operation_step *step);
 void process_setup_local_field(operation_step *step);
 void process_unlock(operation_step *step);

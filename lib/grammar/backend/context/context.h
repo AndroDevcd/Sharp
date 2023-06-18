@@ -67,7 +67,7 @@ struct stored_block_info {
             id(-1),
             line(-1),
             lockExpression(NULL),
-            beginLabel(NULL),
+            repeatLoopLabel(NULL),
             endLabel(NULL),
             finallyLabel(NULL)
     {}
@@ -79,7 +79,7 @@ struct stored_block_info {
             id(-1),
             line(-1),
             lockExpression(NULL),
-            beginLabel(NULL),
+            repeatLoopLabel(NULL),
             finallyLabel(NULL),
             endLabel(NULL)
     {
@@ -98,7 +98,7 @@ struct stored_block_info {
     Int id;
     Int line;
     bool reachable;
-    sharp_label *beginLabel;
+    sharp_label *repeatLoopLabel;
     sharp_label *endLabel;
     sharp_label *finallyLabel;
     Ast *lockExpression;

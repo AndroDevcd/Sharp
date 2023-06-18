@@ -386,12 +386,12 @@ bool compile_block(
         Ast *ast,
         operation_schema *scheme,
         block_type bt,
-        sharp_label *beginLabel,
+        sharp_label *repeatLoopLabel,
         sharp_label *endLabel,
         Ast *lockExpression,
         sharp_label *finallyLabel) {
     create_block(&current_context, bt);
-    current_context.blockInfo.beginLabel = beginLabel;
+    current_context.blockInfo.repeatLoopLabel = repeatLoopLabel;
     current_context.blockInfo.endLabel = endLabel;
     if(lockExpression)
         current_context.blockInfo.lockExpression = lockExpression;

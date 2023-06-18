@@ -14,7 +14,7 @@ bool compile_block(
         Ast *ast,
         operation_schema *scheme,
         block_type bt = normal_block,
-        sharp_label *beginLabel = NULL,
+        sharp_label *repeatLoopLabel = NULL,
         sharp_label *endLabel = NULL,
         Ast *lockExpression = NULL,
         sharp_label *finallyLabel = NULL);

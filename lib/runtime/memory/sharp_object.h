@@ -64,12 +64,12 @@ sharp_object* create_object(Int size, bool unsafe = false);
 void realloc_object(sharp_object *, Int size, bool unsafe = false);
 Int sizeof_object(sharp_object *o);
 void cast_object(object *from, Int toClass);
+void cast_numeric_array(object *from, Int toType);
 void lock_object(sharp_object *o);
 void unlock_object(sharp_object *o);
 void populate_string(string &s, sharp_object *o);
 
 #define inc_ref(x) (x)->refCount++;
 #define dec_ref(x) (x)->refCount--;
-#define invalid_references (-1)
 
 #endif //SHARP_SHARP_OBJECT_H

@@ -49,7 +49,7 @@ void generate() {
         generate(compressedCompilationFunctions.get(i));
     }
 
-    remove_delegate_functions();
+//    remove_delegate_functions();
     compressedCompilationFunctions.linearSort(is_greater_than);
     compressedCompilationClasses.linearSort(is_greater_than);
 
@@ -57,12 +57,24 @@ void generate() {
         auto sf = compressedCompilationFunctions.get(i);
         cout << function_to_str(sf) << endl;
         cout << "address: " << sf->ci->address << endl;
-        cout << "file: " << sf->implLocation.file->name << endl;
+        cout << "file: " << get_true_source_file(sf)->name << endl;
+        cout << "owner: " << sf->owner->fullName << endl;
         cout << "frameStackOffset: " << sf->ci->frameStackOffset << endl;
         cout << "fpOffset: " << sf->ci->fpOffset << endl;
         cout << "spOffset: " << sf->ci->spOffset << endl;
         cout << "stackSize: " << sf->ci->stackSize;
         cout << "\ncode:\n\n" << code_to_string(sf->ci) << endl;
+    }
+
+    cout << endl << "classes:\n";
+    for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
+        cout << "[" << i << "]: " << compressedCompilationClasses.get(i)->fullName << " - "
+            << compressedCompilationClasses.get(i)->ci->address << endl;
+    }
+
+    cout << endl << endl << "constants:\n";
+    for(Int i = 0; i < constantMap.size(); i++) {
+        cout << "[" << i << "]: " << constantMap.get(i) << endl;
     }
     generate_exe();
 }

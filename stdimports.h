@@ -36,10 +36,6 @@ using namespace std;
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#ifndef __wtypes_h__
-#include <wtypes.h>
-#endif
-
 #ifndef __WINDEF_
 #include <windef.h>
 #endif
@@ -59,11 +55,12 @@ using namespace std;
 
 //#define GOD_MODE
 #define SAFE_EXECUTION
+//#define VM_DEBUG
 
 #ifdef GOD_MODE
 #define SHARP_PROF_
 #endif
-//#define COROUTINE_DEBUGGING
+#define COROUTINE_DEBUGGING
 
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"

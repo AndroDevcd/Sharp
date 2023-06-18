@@ -16,9 +16,9 @@ void generate_address(sharp_function *sf) {
     if(sf->ci == NULL) {
         sf->ci = new code_info();
         sf->ci->uuid = UUIDGenerator++;
-        if(sf->type == delegate_function)
-            sf->ci->address = delegateFunctionAddressCounter++;
-        else
+//        if(sf->type == delegate_function)
+//            sf->ci->address = delegateFunctionAddressCounter++;
+//        else
             sf->ci->address = functionAddressCounter++;
         compressedCompilationFunctions.addif(sf);
     }

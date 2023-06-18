@@ -1,8 +1,294 @@
 mod main;
 
+import (
+    std.*
+);
+
+secondTaskDone := false;
+
+def factorCount(n: var) : int {
+    square: var = sqrt(new double(n)).value;
+    isquare: var = square as _int64;
+    count: var = isquare == square ? -1 : 0;
+    while(isquare) {
+        if(0 == n % isquare) count += 2;
+        isquare--;
+    }
+    return count;
+}
+
+limit : var = 10000;
+iters: var = 10;
+finished:= 0;
+count := new atomic<int>(0);
+
+   chan := new channel<_nil>(UNLIMITED);
 def main() {
-   print("hello, world");
+   for(i : var = 0; i < limit; i++) {
+       slice (
+            { args: object[] -> (int)
+
+                count++;
+                chan.send(nothing);
+                return 0;
+            }
+       );
+   }
+
+   chan.read_next(0, limit);
+
+   println(count);
+   println(finished);
+}
+
+def runTests() {
+   sqrt(9);
+ // break test
+   for(i : var = 0; i < 10; i++) {
+       println(i);
+       if(i == 5) break;
+   }
+
+   // continue
+   for(i : var = 0; i < 10; i++) {
+       if(i == 5) continue;
+       println(i);
+   }
+
+    alias var as xxnum;
+   // do while
+   x : xxnum;
+   do {
+       println("hi");
+       x++;
+   } while(x < 5);
+
+   // if
+   if(x >= 5) {
+      println("x >= 5");
+   }
+
+   // if else
+   if(x < 5) {
+      println("x < 5");
+   } else if(x == 5) {
+      println("x == 5");
+   }
+
+   // else
+   if(false) {
+   } else if(false) {
+   } else {
+     println("all false");
+   }
+
+   // lock
+   k := 9;
+   lock(k) {
+      println("locked");
+   }
+
+   // try
+   try {
+      foo();
+   } catch(e: exception) {}
+
+//   feep();
+   y : var = 9;
+   x = 1;
+
+   x = x + y;
+   println("+");
+   println(x);
+
+   x = x && y;
+   println("&&");
+   println(x);
+
+   x = x == y;
+   println("==");
+   println(x);
+
+   x = x ^ 9;
+   println("^");
+   println(x);
+
+   x = x < 9;
+   println("<");
+   println(x);
+
+   x = x > 9;
+   println(">");
+   println(x);
+
+   x = x <= 9;
+   println("<=");
+   println(x);
+
+   x = x >= 9;
+   println(">=");
+   println(x);
+
+   x = x * 9;
+   println("*");
+   println(x);
+
+   x = x / 9;
+   println("/");
+   println(x);
+
+   x = x - 9;
+   println("-");
+   println(x);
+
+   x = x << 9;
+   println("<<");
+   println(x);
+
+   x = x >> 9;
+   println(">>");
+   println(x);
+
+   x = 7;
+   y = 8;
+   x = x & y;
+   println("&");
+   println(x);
+
+   x = 7;
+   y = 8;
+   x &= y;
+   println("&=");
+   println(x);
+
+   x = 7;
+   y = 8;
+   x = x | y;
+   println("|");
+   println(x);
+
+   x = 7;
+   y = 8;
+   x ^= 9;
+   println("^=");
+   println(x);
+
+   x = 7;
+   y = 8;
+   x |= y;
+   println("|=");
+   println(x);
+
+   x = 7;
+   y = 8;
+   x += 1;
+   println("+=");
+   println(x);
+
+   x -= 1;
+   println("-=");
+   println(x);
+
+   x *= 2;
+   println("*=");
+   println(x);
+
+   x /= 2;
+   println("/=");
+   println(x);
+
+   x %= 2;
+   println("%=");
+   println(x);
+
+   x = 2;
+   x = x ** 6;
+   println("**");
+   println(x);
+
+
+   arry := new var[10];
+   arry[5] = 8;
+   println("arry[5]");
+   println(arry[5]);
+
+   println("arry size");
+   println((sizeof(arry) == 10) as var);
+
+   v : A?;
+   llok := v?.value;
+//   x = v!!.valuex;
+
+   println("is");
+   println(((arry as object) is var[]) as var);
+
+   llok = null;
+
+   clNum : int = 9;
+   println("clnum");
+   println(clNum);
+   lambda :=  { -> (nil)
+        println("lmabda");
+        clNum = 7;
+        println("clnum lambda()");
+        println(clNum);
+
+//        clNum = null;
+   };
+
+   lambda();
+   println("clnum after");
+   println(clNum);
+
+   nnum6 : int? = 10;
+   lv := nnum6 ?: 9;
+
+   println("lv");
+   println(lv);
+   cc := (lv as object) as int;
+
+   nnum := 10;
+   vnum : var = 4;
+   println(-nnum);
+   println(-vnum);
+   println(!vnum);
+   println(!nnum);
+   println(++vnum);
+   println(++nnum);
+   println(vnum++);
+   println(nnum++);
+
+   println(" ==================== ");
+   dict := { "hello" : 4 };
+   varry := { 1, 2, 3 };
+   varry2 := new var[]{ 1, 2, 3 };
+
+   println("varry");
+   println(varry[1] as var);
+   println(varry2[1]);
+
+   println("if");
+   println(varry[1] == 2 ? "true" : "false");
+}
+
+class A {
+    value: A;
+    valuex: var;
+}
+
+def feep() {
+   try {
+     foo();
+   } finally {
+      println("feep");
+   }
+}
+
+def foo() {
+    throw new exception("foo");
 }
 
 // todo fix crash from _stat_id := = 8; should just error out
+// fix calling println(int?) not working
+// todo: fix print("\b$count"); breaking compiler
 

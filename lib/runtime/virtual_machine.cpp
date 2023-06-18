@@ -78,7 +78,7 @@ void main_vm_loop()
                     enable_exception_flag(thread, true);
                     goto catch_exception;
                 }
-                branch
+                check_state(1)
             HLT:
                 send_interrupt_signal(thread);
                 return;
@@ -91,10 +91,14 @@ void main_vm_loop()
                 );
                 branch
             CAST:
-                cast_object(task->ptr, single_arg);
+                require_object_with_value(
+                    cast_object(task->ptr, single_arg);
+                )
                 branch
             VARCAST:
-                // todo: phase this instruction out
+                require_object_with_value(
+                    cast_numeric_array(task->ptr, dual_arg1);
+                )
                 branch
             MOV8:
                 regs[dual_arg1] = (int8_t)regs[dual_arg2];
@@ -246,7 +250,7 @@ void main_vm_loop()
                 branch
             CALL:
                 prepare_method(single_arg);
-                check_state(0)
+                branch_for(0)
             CALLD:
                 if((data = (Int)regs[single_arg]) <= 0 || data >= vm.manifest.methods) {
                     stringstream ss;
@@ -255,7 +259,7 @@ void main_vm_loop()
                 }
 
                 prepare_method(data);
-                check_state(0)
+                branch_for(0)
             NEWCLASS:
                 grow_stack
                 stack_overflow_check
@@ -327,7 +331,7 @@ void main_vm_loop()
                 regs[triple_arg3] = (Int)regs[triple_arg1] << (Int)regs[triple_arg2];
                 branch
             SHR:
-                regs[triple_arg3] = (Int)regs[triple_arg1] << (Int)regs[triple_arg2];
+                regs[triple_arg3] = (Int)regs[triple_arg1] >> (Int)regs[triple_arg2];
                 branch
             SKPE: // todo: phase out
                 if((Int)regs[dual_arg1] != 0) {
@@ -538,7 +542,7 @@ void main_vm_loop()
                 branch
             INVOKE_DELEGATE:
                 invoke_delegate(single_arg, dual_raw_arg2, dual_raw_arg1);
-                check_state(0)
+                branch_for(0)
             ISADD:
                 (task->sp + single_arg)->var += raw_arg2;
                 branch_for(2)
@@ -693,8 +697,9 @@ void invoke_delegate(Int address, Int argSize, bool staticCall) {
             throw vm_exception(vm.runtime_except, "attempting to invoke a function call on a non-class object");
 
         while(referenceClass != nullptr) {
-            for(Int i = 0; i < referenceClass->methodCount; i++) {
+            for(Int i = referenceClass->methodCount - 1; i >= 0; i--) {
                 if(referenceClass->methods[i]->delegateAddress == address) {
+                    task->pc++;
                     prepare_method(referenceClass->methods[i]->address);
                     return;
                 }
@@ -739,10 +744,6 @@ void prepare_method(Int address) {
     task->sp += function->frameStackOffset;
     task->rom = function->bytecode;
     task->pc = function->bytecode;
-
-    if(function->name == "print_chars") {
-        int i = 0;
-    }
 
     #ifdef SAFE_EXECUTION
     if(!check_flag(function->flags, flag_static)) {

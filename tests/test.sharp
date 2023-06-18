@@ -8,51 +8,27 @@ import std.*;
 import platform;
 import platform.kernel;
 
-chan := new channel<var>(UNLIMITED);
-const loop_count := 10000;
-const slices := 10;
-const n := 0;
-counter := new atomic<var>(0);
-
-class ff {
-    x : var[];
-    y : int;
-
-    static def flarky()  {
-
-    }
-
-    static def addUpTo(n: _int8) := 9;
-
-    static def flarkyfoo() := 10;
-
-
-    def foo(n: var) {
-        for(i := 0; i < slices; i++) {
-            launcher = { ->
-    //            for(i := 0; i < 10000000; i++) {
-    //            }
-
-                println("start");
-                for(i := 0; i < loop_count; i++) {
-                    counter++;
-                }
-                println("done");
-
-            };
-        }
-
-        for(i := 0; i < 10000000; i++) {
-        }
-
-        chan.read_next(0, slices * loop_count);
-
-        println("done");
-
-        // took 8.288s
-    }
-}
-
 def main() {
    // fep(9);
+    pi : var = 1;
+    x : var = 1;
+
+    for (i : var = 2; i < 10000000 + 2; i++) {
+        x *= -1;
+        pi += (x / (2 * i - 1));
+    }
+
+    pi *= 4;
+    println(pi);
+}
+
+def factorCount(n: var) : var {
+    square: var = sqrt(n);
+    isquare: var = square as _int64;
+    count: var = isquare == square ? -1 : 0;
+    while(isquare) {
+        if(0 == n % isquare) count += 2;
+        isquare--;
+    }
+    return count;
 }

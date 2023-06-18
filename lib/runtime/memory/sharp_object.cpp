@@ -35,20 +35,14 @@ void copy_object(object *to, object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from ? from->o : nullptr;
-    if(to->o) {
-        if(to->o->refCount == invalid_references) to->o->refCount = 1;
-        else inc_ref(to->o)
-    }
+    if(to->o) inc_ref(to->o)
 }
 
 void copy_object(object *to, sharp_object *from) {
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from;
-    if(to->o) {
-        if(to->o->refCount == invalid_references) to->o->refCount = 1;
-        else inc_ref(to->o)
-    }
+    if(to->o) inc_ref(to->o)
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
@@ -56,10 +50,8 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
 
     init_struct(o);
     o->size = sc->staticFields;
-    o->refCount = invalid_references;
     o->type = type_class;
     SET_INFO(o->info, sc->address, gc_young);
-    push_object(o);
 
     if(o->size > 0)
     {
@@ -72,6 +64,7 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
         }
     }
 
+    push_object(o);
     return o;
 }
 
@@ -80,10 +73,8 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
 
     init_struct(o);
     o->size = sc->instanceFields;
-    o->refCount = invalid_references;
     o->type = type_class;
     SET_INFO(o->info, sc->address, gc_young);
-    push_object(o);
 
     if(o->size > 0)
     {
@@ -96,6 +87,7 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
         }
     }
 
+    push_object(o);
     return o;
 }
 
@@ -106,12 +98,11 @@ sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
 
         init_struct(o);
         o->size = size;
-        o->refCount = invalid_references;
         o->type = type_class;
         SET_INFO(o->info, sc->address, gc_young);
-        push_object(o);
 
         o->node = malloc_struct<object>(sizeof(object), size, unsafe);
+        push_object(o);
         return o;
     }
 
@@ -185,12 +176,11 @@ sharp_object* create_object(Int size, bool unsafe) {
 
         init_struct(o);
         o->size = size;
-        o->refCount = invalid_references;
         o->type = type_object;
         SET_GENERATION(o->info, gc_young);
-        push_object(o);
 
         o->node = malloc_struct<object>(sizeof(object), size, unsafe);
+        push_object(o);
         return o;
     }
 
@@ -204,15 +194,15 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
 
         init_struct(o);
         o->size = size;
-        o->refCount = invalid_references;
         o->type = type;
         SET_GENERATION(o->info, gc_young);
-        push_object(o);
 
         o->HEAD = malloc_mem<long double>(sizeof(long double) * size, unsafe);
         for(Int i = 0; i < size; i++) {
             o->HEAD[i] = 0;
         }
+
+        push_object(o);
         return o;
     }
 
@@ -220,7 +210,19 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
 }
 
 void cast_object(object *from, Int toClass) {
+    if(!(from->o->type == type_class && is_type(from, toClass))) {
+        vm_exception err(vm.ill_state_except, "casted object does not match expected type");
+        enable_exception_flag(thread_self, true);
+        throw err;
+    }
+}
 
+void cast_numeric_array(object *from, Int toType) {
+    if(!(from->o->type <= type_var && is_type(from, toType))) {
+        vm_exception err(vm.ill_state_except, "casted object does not match expected type");
+        enable_exception_flag(thread_self, true);
+        throw err;
+    }
 }
 
 void unlock_object(sharp_object *o) {
@@ -243,34 +245,14 @@ void lock_object(sharp_object *o) {
         task->f_lock = mut;
     }
 
-    const int spinLimit = 100000000;
-    int spins = 0;
-
-    acquire_lock:
-    while(mut->id != -1)
-    {
-        if(spins >= spinLimit)
-            enable_context_switch(thread, true);
-
-        if(thread->signal) {
-            if(hasSignal(thread->signal, tsig_suspend))
-                suspend_self();
-            else {
-                return;
-            }
-        }
-
-        __usleep(0); // yield
-        spins++;
-    }
-
     lock_mut.lock();
     if(mut->id == -1) {
         mut->id = task->id;
+        task->f_lock = nullptr;
         lock_mut.unlock();
     } else {
         lock_mut.unlock();
-        goto acquire_lock;
+        enable_context_switch(thread, true);
     }
 }
 

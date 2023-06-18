@@ -48,7 +48,7 @@ bool can_capture_closure(sharp_field *sf) {
         || sf->type.type == type_object && sf->fieldType == normal_field;
 }
 
-sharp_field* create_closure_field( // todo: look into setting static closure ref as a thread_local for thread safetey
+sharp_field* create_closure_field(
         sharp_class *sc,
         string name,
         sharp_type type,

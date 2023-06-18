@@ -27,6 +27,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
     static const default_capacity := 10;
     static const DEFAULT_FILTER := 0;
 
+    private channel() {}
 
     channel(capacity : int) {
        add_filters(1);
@@ -90,8 +91,10 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
     def get_capacity() := capacity;
     def get_buffer_type() := buff_type;
-    thread_safe def is_closed() : bool {
-       return state == channel_state.CLOSED;
+    def is_closed() : bool {
+       lock(self) {
+          return state == channel_state.CLOSED;
+       }
     }
 
     override def send(data : t) {
@@ -118,12 +121,16 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        return filters[filter].read(self);
     }
 
-    override thread_safe def close() {
-       state = channel_state.CLOSED;
+    override def close() {
+       lock(self) {
+          state = channel_state.CLOSED;
+       }
     }
 
-    override thread_safe def open() {
-       state = channel_state.OPEN;
+    override def open() {
+       lock(self) {
+           state = channel_state.OPEN;
+       }
     }
 
     override def read_next(filter: int, count: int) : list<t> {
@@ -234,7 +241,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        tail : channel_data<t>?;
        buff_size : var;
 
-       def filo() : t {
+       def filo() : t? {
           data := head?.data;
           head = head?.next;
           if(head == null)
@@ -275,7 +282,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                     tail = null;
                     head = null;
                     buff_size = 0;
-                    return data;
+                    return data!!;
                 }
              }
              SINGLE -> {
@@ -283,7 +290,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
                 data := head?.data;
                 buff_size = 0;
-                return data;
+                return data!!;
              }
              UNLIMITED -> {
                 wait_for_data();
@@ -291,7 +298,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 lock(self) {
                     buff_size--;
                     data := filo();
-                    return data;
+                    return data!!;
                 }
              }
              BUFFERED -> {
@@ -300,7 +307,7 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
                 lock(self) {
                     buff_size--;
                     data := filo();
-                    return data;
+                    return data!!;
                 }
              }
              else -> {

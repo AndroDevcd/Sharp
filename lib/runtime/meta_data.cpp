@@ -7,11 +7,11 @@
 
 CXX11_INLINE void init_struct(file_data *fd) {
     new (&fd->name) string();
-    new (&fd->lines) list<string>();
+    new (&fd->lines) linkedlist<string>();
 }
 
 string get_line_info(file_data *file, Int line) {
-    if(line >= 0 && line < file->lines.size)
+    if(line >= 0 && line < file->lines.size && file->lines.node_at(line))
         return file->lines.node_at(line)->data;
     else return "";
 }

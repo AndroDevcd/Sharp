@@ -69,6 +69,18 @@ void generate_addresses(sharp_file *file) {
      return str;
  }
 
+ sharp_file* get_true_source_file(sharp_class *sc) {
+     if(sc->genericBuilder != NULL) {
+         return get_true_source_file(sc->genericBuilder);
+     } else return sc->implLocation.file;
+ }
+
+ sharp_file* get_true_source_file(sharp_function *sf) {
+     if(sf->owner->genericBuilder != NULL) {
+         return get_true_source_file(sf->owner);
+     } else return sf->implLocation.file;
+ }
+
 void build_manifest() {
     exeBuf << (char)manif;
     exeBuf << ((char)0x02); exeBuf << options.out << ((char)nil);
@@ -218,6 +230,9 @@ void build_symbol_section() {
     for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
         sharp_class *sc = compressedCompilationClasses.get(i);
 
+        if(sc->fullName == "std#int") {
+            int ll = 0;
+        }
         exeBuf << (char)data_class;
         exeBuf << putInt32(sc->ci->address);
         exeBuf << (sc->owner == NULL ? putInt32(-1) : putInt32(sc->owner->ci->address));
@@ -270,7 +285,7 @@ void build_constant_section() {
 }
 
  void build_method_data(sharp_function *fun) { // todo: decide at the last minute to provide regular name or obfuscated name for all types
-    if(compressedCompilationFiles.indexof(fun->implLocation.file) == -1) {
+    if(compressedCompilationFiles.indexof(get_true_source_file(fun)) == -1) {
         cout << "fun: " << fun->owner->fullName << "." << function_to_str(fun) << " no file added " << endl;
     }
 
@@ -279,7 +294,7 @@ void build_constant_section() {
      dataSec << putInt32(fun->uid);
      dataSec << fun->name << ((char)nil);
      dataSec << fun->fullName << ((char)nil);
-     dataSec << putInt32(compressedCompilationFiles.indexof(fun->implLocation.file));
+     dataSec << putInt32(compressedCompilationFiles.indexof(get_true_source_file(fun)));
      dataSec << putInt32(fun->owner->ci->address);
      dataSec << putInt32(fun->type);
      dataSec << putInt32(fun->ci->stackSize);

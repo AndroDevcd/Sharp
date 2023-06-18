@@ -44,7 +44,7 @@ enum collection_policy
 #define COLLECTION_TIME (1000)
 #define COLLECTION_WINDOW_YOUNG(tm) ((COLLECTION_TIME - (tm % COLLECTION_TIME)) > (COLLECTION_TIME / 50))
 #define COLLECTION_WINDOW_ADULT(tm) ((COLLECTION_TIME - (tm % COLLECTION_TIME)) > (COLLECTION_TIME / 15))
-#define GC_CLOCK_CYCLE (2000) // 2ms
+#define GC_CLOCK_CYCLE (500) // 2ms
 
 struct garbage_collector {
     gc_state state;
@@ -69,6 +69,7 @@ void gc_collect(collection_policy);
 void send_message(collection_policy policy);
 fib_mutex* create_mutex(sharp_object*);
 void release_all_mutexes(fiber *task);
+void print_memory_diagnostics();
 void gc_startup();
 void sleep_gc();
 void sedate_gc();

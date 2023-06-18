@@ -46,7 +46,8 @@ struct sharp_alias {
             scheme(NULL),
             ast(ast)
     {
-        set_full_name(this);
+        if(owner != NULL)
+            set_full_name(this);
     }
 
     sharp_alias(const sharp_alias &alias)
@@ -81,7 +82,8 @@ struct sharp_alias {
             scheme(NULL),
             ast(ast)
     {
-        set_full_name(this);
+        if(owner != NULL)
+            set_full_name(this);
     }
 
     ~sharp_alias()

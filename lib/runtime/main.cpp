@@ -150,8 +150,16 @@ int  str_start(int argc, const char* argv[]) {
             if(i+1 >= argc)
                 error("maximum memory limit required after option `" + string(argv[i]) + "`");
             else {
-                // todo: set garbage collector memory limit
+                size_t sz = mem_str_to_bytes(argv[i+1], argv[i]);
                 i++;
+
+                if(sz > MEMORY_MIN) {
+                    set_memory_limit(sz);
+                } else {
+                    stringstream ss;
+                    ss << "memory size must be greater than " << MEMORY_MIN << " bytes \n";
+                    error(ss.str());
+                }
             }
         }
         else if(opt("-stack")){

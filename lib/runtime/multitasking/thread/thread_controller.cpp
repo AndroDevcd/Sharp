@@ -84,25 +84,30 @@ vm_thread_entry(void *arg)
             main_vm_loop();
 
             _unboundExceptionThrown:
-            if(thread->task->boundThread != thread
-               && hasSignal(thread->signal, tsig_except)) {
+            if(hasSignal(thread->signal, tsig_except)) {
 
-                /**
-                 * Unbound fibers are more forgiving than bound fibers are.
-                 * We only crash a thread when a bound fiber throws an exception.
-                 */
-                print_thrown_exception();
-                kill_task(thread->task);
-                set_attached_thread(thread->task, nullptr);
-                thread->task = nullptr;
+                if(thread->task->boundThread != thread) {
+                    /**
+                     * Unbound fibers are more forgiving than bound fibers are.
+                     * We only crash a thread when a bound fiber throws an exception.
+                     */
+                    print_thrown_exception();
+                    kill_task(thread->task);
+                    set_attached_thread(thread->task, nullptr);
+                    thread->task = nullptr;
 
-                enable_context_switch(thread, true);
-                enable_exception_flag(thread, false);
+                    enable_context_switch(thread, true);
+                    enable_exception_flag(thread, false);
+                } else {
+                    goto end;
+                }
             }
 
             if(all_tasks_finished(thread)) {
                 enable_context_switch(thread, false);
                 goto end;
+            } else if(thread->task && thread->task->finished) {
+                enable_context_switch(thread, true);
             }
 
             if(hasSignal(thread->signal, tsig_context_switch)
@@ -434,9 +439,14 @@ void enable_exception_flag(sharp_thread* thread, bool enable) {
 }
 
 void observe_queue(sharp_thread *thread) {
-    set_attached_thread(thread->task, nullptr);
-    set_task_state(thread, thread->task, FIB_SUSPENDED, 0);
-    thread->task = nullptr;
+    if(thread->task != NULL) {
+        if(thread->task->finished)
+            set_task_state(thread, thread->task, FIB_KILLED, 0);
+        else if(thread->task->state == FIB_RUNNING)
+            set_task_state(thread, thread->task, FIB_SUSPENDED, 0);
+        set_attached_thread(thread->task, nullptr);
+        thread->task = nullptr;
+    }
 
     observe:
     thread->state = THREAD_SCHED;
@@ -844,11 +854,13 @@ void resume_all_threads(bool withMarking) {
     guard_mutex(thread_mutex)
     _sched_thread *scht = get_sched_threads();
     sharp_thread *thread;
+    sharp_thread *current = thread_self;
 
     while(scht != NULL)
     {
         thread = scht->thread;
-        if(thread_self && thread->id != thread_self->id) {
+        if(current && thread->id == current->id) {
+            scht = scht->next;
             continue;
         }
 
@@ -870,7 +882,7 @@ void suspend_all_threads(bool withMarking) {
     while(scht != NULL)
     {
         thread = scht->thread;
-        if(thread_self && thread->id != thread_self->id){
+        if(thread_self && thread->id == thread_self->id){
             scht = scht->next;
             continue;
         }

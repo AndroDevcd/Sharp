@@ -31,9 +31,11 @@ void compile_elvis_expression(expression *e, Ast *ast) {
     sharp_function *constructor;
     if((match_result = is_implicit_type_match(nullableExpression.type, fallbackExpression.type, constructor_only, constructor)) != no_match_found) {
         e->type.copy(get_real_type(nullableExpression.type));
-        e->type.nullable = !fallbackExpression.type.nullable || !nullableExpression.type.nullable;
+        if(e->type.nullable && !get_real_type(fallbackExpression.type).nullable) {
+            e->type.nullable = false;
+        }
 
-        if(match_result == match_constructor) {
+        if(match_result == match_constructor) { // todo: add in high performance mode only passing nullable expr if its not null
             operation_schema scheme;
             compile_initialization_call(ast, constructor, fallbackExpression, &scheme);
             fallbackExpression.scheme.free();
@@ -42,7 +44,7 @@ void compile_elvis_expression(expression *e, Ast *ast) {
     } else {
         create_new_error(INTERNAL_ERROR, ast->line, ast->col,
                          " expressions are not compatible and cannot be converted to type `" +
-                         type_to_str(nullableExpression.type) + "`,  to type `" + type_to_str(fallbackExpression.type) + "`.");
+                         type_to_str(nullableExpression.type) + "`,  from type `" + type_to_str(fallbackExpression.type) + "`.");
     }
 
     create_null_fallback_operation(&e->scheme, &nullableExpression.scheme,

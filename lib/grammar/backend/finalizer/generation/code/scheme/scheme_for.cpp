@@ -14,6 +14,7 @@ void process_for_scheme(operation_schema *scheme) {
 
     process_allocate_label(next_step);
     process_allocate_label(next_step);
+    process_allocate_label(next_step);
 
     if(scheme->steps.get(stepPos)->type == operation_step_scheme
         && scheme->steps.get(stepPos)->scheme->schemeType == scheme_master) {
@@ -34,11 +35,11 @@ void process_for_scheme(operation_schema *scheme) {
     // master scheme for block
     process_step(next_step);
 
+    process_set_label(next_step);
     if(scheme->steps.get(stepPos)->type == operation_step_scheme
        && scheme->steps.get(stepPos)->scheme->schemeType == scheme_for_iter) {
         // for iter
         process_step(next_step);
-        clear_machine_data();
     }
 
     process_jump(next_step);

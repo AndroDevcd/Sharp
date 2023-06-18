@@ -61,6 +61,10 @@ void compile_new_class_expression(sharp_type *newType, expression *e, Ast *ast) 
 
         if(constructor != NULL) {
 
+            string constructorType = "constructor";
+            check_access(constructorType, constructor->fullName,
+                         constructor->flags, current_context, true,
+                         constructor->owner, constructor->implLocation, ast);
             create_dependency(newType->_class);
             create_dependency(constructor);
 

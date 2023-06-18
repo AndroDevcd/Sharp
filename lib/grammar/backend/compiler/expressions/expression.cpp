@@ -71,7 +71,9 @@ void convert_expression_type_to_real_type(
         typeDefinition.type.isArray = true;
     } else if(typeDefinition.type == type_field) {
         process_field(typeDefinition.type.field);
+        bool nullable = typeDefinition.type.nullable || typeDefinition.type.field->type.nullable;
         typeDefinition.type.copy(typeDefinition.type.field->type);
+        typeDefinition.type.nullable = nullable;
     }
 }
 

@@ -10,5 +10,5 @@
 
 void process_for_iter_scheme(operation_schema *scheme) {
     process_get_value(scheme->steps.get(0));
-    clear_machine_data();
+    process_unused_data(scheme->steps.get(1));
 }

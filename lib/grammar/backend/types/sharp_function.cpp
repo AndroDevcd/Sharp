@@ -59,8 +59,6 @@ bool create_function(
             currThread->currTask->file->functions.add(sf);
         }
 
-        if(check_flag(sf->owner->flags, flag_thread_safe))
-            sf->flags |= flag_thread_safe;
         sf->uid = uniqueId++;
         create_dependency(sf, sc);
         sc->functions.add(sf);
@@ -102,9 +100,6 @@ void create_default_constructor(sharp_class *sc, uInt flags, Ast *createLocation
                                       type, constructor_function);
 
         GUARD(globalLock)
-        if(check_flag(sf->owner->flags, flag_thread_safe))
-            sf->flags |= flag_thread_safe;
-
         sf->uid = uniqueId++;
         create_dependency(sf, sc);
         currThread->currTask->file->functions.add(sf);

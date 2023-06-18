@@ -32,7 +32,7 @@ void compile_for_statement(Ast *ast, operation_schema *scheme, bool *controlPath
         compile_for_statement_style_2(ast, scheme, controlPaths);
     else {
         stringstream ss;
-        sharp_label *beginLabel, *endLabel;
+        sharp_label *beginLabel, *endLabel, *repeatLoopLabel;
         operation_schema *subScheme = new operation_schema();
         subScheme->schemeType = scheme_for;
 
@@ -40,6 +40,8 @@ void compile_for_statement(Ast *ast, operation_schema *scheme, bool *controlPath
         beginLabel = create_label(ss.str(), &current_context, ast, subScheme);
         set_internal_label_name(ss, "for_end", uniqueId++)
         endLabel = create_label(ss.str(), &current_context, ast, subScheme);
+        set_internal_label_name(ss, "for_repeat", uniqueId++)
+        repeatLoopLabel = create_label(ss.str(), &current_context, ast, subScheme);
 
         create_block(&current_context, normal_block);
         if(ast->hasSubAst(ast_variable_decl)) {
@@ -68,16 +70,18 @@ void compile_for_statement(Ast *ast, operation_schema *scheme, bool *controlPath
             }
         }
 
-        compile_block(ast->getSubAst(ast_block), subScheme, for_block, beginLabel, endLabel);
+        compile_block(ast->getSubAst(ast_block), subScheme, for_block, repeatLoopLabel, endLabel);
         current_context.blockInfo.reachable = true;
 
 
+        create_set_label_operation(subScheme, repeatLoopLabel);
         if(ast->hasSubAst(ast_for_expresion_iter)) {
             expression iter;
             operation_schema *iterScheme = new operation_schema(scheme_for_iter);
 
             compile_expression(iter, ast->getSubAst(ast_for_expresion_iter)->getSubAst(ast_expression));
             create_get_value_operation(iterScheme, &iter.scheme, false, false);
+            create_unused_data_operation(iterScheme);
 
             add_scheme_operation(subScheme, iterScheme);
 

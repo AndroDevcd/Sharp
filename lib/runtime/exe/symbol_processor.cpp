@@ -39,7 +39,13 @@ void process_symbols(KeyPair<int, string> &result) {
     }
 
 
-    PROCESS_SECTION(eos,
+    for(;;) {\
+        switch(next_char()) {\
+            case 0x0:\
+            case 0x0a:\
+            case 0x0d:\
+            case (eos):\
+                break;\
 
         case data_symbol: {
             if(functionPointersProcessed >= vm.manifest.functionPointers) {
@@ -88,6 +94,9 @@ void process_symbols(KeyPair<int, string> &result) {
             sc->methodCount = next_int32();
             sc->interfaceCount = next_int32();
 
+            if(sc->fullName == "std#int" || sc->address == 9) {
+                int i = 0;
+            }
             if(sc->totalFieldCount > 0) {
                 sc->fields = (sharp_field*) calloc(sc->totalFieldCount, sizeof(sharp_field));
             }
@@ -138,8 +147,8 @@ void process_symbols(KeyPair<int, string> &result) {
                             throw invalid_argument("file `" + executable + "` may be corrupt");
                         }
 
-                        cursor++;
-                        sc->methods[itemsProcessed++] = &vm.methods[next_int32()];
+                        Int funcAddress = next_int32();
+                        sc->methods[itemsProcessed++] = &vm.methods[funcAddress];
                     } else if(current_char() == 0x0 || current_char() == 0x0a || current_char() == 0x0d){ /* ignore */ }
                     else {
                         cursor--;
@@ -173,7 +182,15 @@ void process_symbols(KeyPair<int, string> &result) {
                 }
             }
             continue;
-        },// on section_end
-        break;
-    )
+        }
+            default: {
+                result.with(CORRUPT_MANIFEST, "file `" + executable + "` may be corrupt.\n");
+                throw runtime_error("");
+            }
+        }
+
+        if(current_char() == eos)  {
+            break;
+        }
+    }
 }

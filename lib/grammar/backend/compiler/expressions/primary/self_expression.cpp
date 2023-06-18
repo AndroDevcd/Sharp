@@ -37,11 +37,14 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
                 ast
         );
 
+        staticClosureRef->staticClosure = true;
+        staticClosureRef->flags |= flag_static;
+        staticClosureRef->fieldType = tls_field;
         fun->closure = staticClosureRef;
 
         create_dependency(closure);
         create_dependency(staticClosureRef);
-        create_static_field_access_operation(&e->scheme, staticClosureRef);
+        create_tls_field_access_operation(&e->scheme, staticClosureRef);
         create_instance_field_access_operation(&e->scheme, closure);
     } else {
         if(ctx.isStatic) {

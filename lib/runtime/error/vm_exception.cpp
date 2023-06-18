@@ -114,6 +114,7 @@ void vm_exception::push_exception() {
 
         if(err.handlingClass == vm.out_of_memory_except) {
 
+            print_memory_diagnostics();
             if(thread->task != NULL && thread->task != NULL) {
                 /*
                  * If there is no memory we exit

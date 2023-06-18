@@ -170,8 +170,8 @@ def println(o: printable) {
     print_char('\n');
 }
 
-def print(o: printable) {
-    print_chars(o.to_string()?.data);
+def print(o: printable?) {
+    print_chars(o?.to_string()?.data ?: "null");
 }
 
 def print(data: double) {
@@ -182,11 +182,11 @@ def flush() {
     asm { int 0x34 }
 }
 
-def utc_mills() : int {
+def utc_mills() : long {
     return time.mills_time();
 }
 
-def nano_time() : int {
+def nano_time() : long {
     return time.nano_time();
 }
 
@@ -199,7 +199,7 @@ def exit() {
 }
 
 def sizeOf(data: object) : long {
-    result := 0;
+    result : var = 0;
 
     asm {
         pushl [data]
@@ -210,7 +210,7 @@ def sizeOf(data: object) : long {
 }
 
 def sizeOf(data: object[]) : long {
-    result := 0;
+    result : var = 0;
 
     asm {
         pushl [data]
@@ -321,7 +321,7 @@ local def print_chars(str: _int16[]) {
 }
 
 local def read_ch(hide: var) : char {
-    result  := 0;
+    result  : var = 0;
 
     asm {
         loadl cmt, [hide]

@@ -63,10 +63,10 @@ void run_scheduler() {
         sched_unsched_items();
         schth = sched_threads;
 
-        if(taskCount == 1) {
-            this_thread::yield();
-            goto check_state;
-        }
+//        if(taskCount == 1) {
+//            this_thread::yield();
+//            goto check_state;
+//        }
 
         if(scht == nullptr) {
             scht = sched_tasks;
@@ -111,7 +111,8 @@ void run_scheduler() {
                     dispose(scht);
                     scht = next;
                     goto wrap;
-                } else if(is_task_idle(scht)) {
+                }
+                else if(taskCount > MAIN_POOL_SIZE_LIMIT && is_task_idle(scht)) {
                     auto next = scht->next;
                     post_idle_task(scht);
                     remove_task(scht);
@@ -148,9 +149,6 @@ void run_scheduler() {
         }
 
         std::this_thread::yield();
-//        sleepTm = CLOCK_CYCLE - TIME_SINCE(schedTime);
-//        if(sleepTm > 0) __usleep(sleepTm);
-//        else __usleep(0);
     } while(true);
 }
 
@@ -178,10 +176,6 @@ void sched_unsched_tasks() {
 
     uInt i = 0;
     while (unsched_tasks != nullptr) {
-        if ((i++ % 100) == 0 && CLOCKS_SINCE >= 1) {
-            return;
-        }
-
         if (!queue_task(unsched_tasks->task)) {
             return;
         }
@@ -216,7 +210,12 @@ bool is_thread_ready(sharp_thread *thread) {
 
 bool is_runnable(fiber *task, sharp_thread *thread) {
     if(task->attachedThread == NULL && task->state == FIB_SUSPENDED && task->wakeable) {
-        return (task->boundThread == thread || task->boundThread == NULL);
+        if(task->delayTime != -1 && NANO_TOMILL(Clock::realTimeInNSecs()) < task->delayTime) {
+            return false;
+        }
+
+        return (task->f_lock == NULL || (task->f_lock->id == -1)) &&
+            (task->boundThread == thread || task->boundThread == NULL);
     }
 
     return false;

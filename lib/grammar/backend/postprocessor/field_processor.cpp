@@ -105,7 +105,7 @@ void process_setter(sharp_field *field, Ast *ast) {
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected
-                | flag_thread_safe | flag_local | flag_static,
+                | flag_local | flag_static,
                 "setter function", field->owner,
                 ast->getSubAst(ast_access_type)
         );
@@ -169,7 +169,7 @@ void process_getter(sharp_field *field, Ast *ast) {
         flags = parse_access_flags(
                 flag_public
                 | flag_private | flag_protected
-                | flag_thread_safe | flag_local | flag_static,
+                | flag_local | flag_static,
                 "getter function", field->owner,
                 ast->getSubAst(ast_access_type)
         );
@@ -180,11 +180,6 @@ void process_getter(sharp_field *field, Ast *ast) {
 
         if(!check_flag(flags, flag_public))
             flags |= flag_public;
-
-        if(check_flag(flags, flag_thread_safe)) { // todo: add deadlock protection call in sharp api
-            threadSafe = true;
-            set_flag(flags, flag_thread_safe, false);
-        }
     } else flags = field->flags;
 
     if(flags != field->flags) {
@@ -192,7 +187,6 @@ void process_getter(sharp_field *field, Ast *ast) {
                          "getter for field `" + field->name + "`, cannot have differing access types from the field itself.");
     }
 
-    set_flag(flags, flag_thread_safe, threadSafe);
     if(field->fieldType == tls_field) {
         create_new_error(GENERIC, ast->line, ast->col,
                                                            "cannot apply getter to thread_local field `" + field->name + "`");
@@ -382,7 +376,9 @@ void validate_field_type(
             }
         }
 
+        bool nullable = type.nullable || type.field->type.nullable;
         field->type = type.field->type;
+        field->type.nullable = nullable;
         return;
     } else if(type.type == type_lambda_function) {
         create_dependency(type.fun);

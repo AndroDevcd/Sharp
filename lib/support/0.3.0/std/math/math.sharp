@@ -130,23 +130,23 @@ def abs(num: double) : double {
 }
 
 def abs(num: int) : int {
-    return fabs(num).to_int();
+    return fabs(num.to_double()).to_int();
 }
 
 def abs(num: long) : long {
-    return fabs(num).to_long();
+    return fabs(num.to_double()).to_long();
 }
 
 def abs(num: short) : short {
-    return fabs(num).to_short();
+    return fabs(num.to_double()).to_short();
 }
 
 def abs(num: char) : char {
-    return fabs(num).to_char();
+    return fabs(num.to_double()).to_char();
 }
 
 def abs(num: byte) : byte {
-    return fabs(num).to_byte();
+    return fabs(num.to_double()).to_byte();
 }
 
 local def fabs(num: double) : double {
@@ -165,8 +165,8 @@ def round(num: double) : double {
     int_val := num.to_long();
     num -= int_val;
 
-    if(num >= 0.5) return int_val + 1;
-    else return int_val;
+    if(num >= 0.5) return (int_val + 1).to_double();
+    else return int_val.to_double();
 }
 
 local def math_proc(num: double, proc: double) : double {

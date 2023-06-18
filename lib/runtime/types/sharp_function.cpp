@@ -59,7 +59,7 @@ string get_info(sharp_function *sf, Int pc) {
         x++;
     }
 
-    if(linePos != -1) {
+    if(linePos != -1 && sf->lineTable.node_at(linePos)) {
         ss << ", line " << (line = sf->lineTable.node_at(linePos)->data.line_number);
     } else
         ss << ", line ?";
@@ -72,7 +72,7 @@ string get_info(sharp_function *sf, Int pc) {
         ss << " " << (sf->nativeFunc ? "(jit)" : "");
     }
 
-    if(sf->sourceFile != -1 && line != -1 && vm.mdata.files.size > 0) {
+    if(sf->sourceFile != -1 && line != -1 && vm.mdata.files.size > 0 && vm.mdata.files.node_at(sf->sourceFile)) {
         auto info = get_info(vm.mdata.files.node_at(sf->sourceFile)->data, line);
         if(!info.empty()) ss << info;
     }

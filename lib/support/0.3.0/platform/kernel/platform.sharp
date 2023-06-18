@@ -25,7 +25,7 @@ class platform
 
         static_init();
         tls_init();
-//        start_scheduler();
+        start_scheduler();
 
         main_thread := args[4] as thread;
         vm.set_thread(main_thread);
@@ -33,7 +33,7 @@ class platform
         priority := max_priority;
         thread_group.main_group.add(main_thread);
 
-        set_seed(utc_mills() >> 4);
+        set_seed((utc_mills() >> 4).to_int());
 
         asm {
             movg $thread_group

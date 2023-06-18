@@ -129,7 +129,7 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         else create_object_return_operation(subScheme, &returnVal.scheme);
     } else if(match_result == indirect_match_w_nullability_mismatch) {
         create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
-                                                           " expressions are not compatible, assigning nullable type of `" +
+                                                           " expressions are not compatible, returning nullable type of `" +
                                                                    type_to_str(returnVal.type) + "` to non nullable type of `" + type_to_str(current_context.functionCxt->returnType) + "`.");
     } else {
         create_new_error(GENERIC, ast->line, ast->col, "returning `" + type_to_str(returnVal.type) + "` from a function returning `"
