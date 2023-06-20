@@ -1,31 +1,38 @@
 mod std.io.coroutines;
 
 import (
-    std.io
-)
+    std.io.*
+);
 
-class deferred<t> base observable<t> { // todo: remove observable and force a mutex call to wait for task to finish
+class deferred<t> base observable<t> {
 
-    response : t;
+    response : t?;
         get {
-            response = await();
-            return response;
+            return await();
         }
+        private set value -> {}
+
+    private deferred() {}
 
 	deferred(scheduled_job : job) {
 		self->scheduled_job = scheduled_job;
 	}
 
-	private def await(): t {
+	public override def post(data : t?) {
+	    base->post(data);
+	    changed = true;
+	}
+
+	private def await(): t? {
 	    if(scheduled_job == null)
 	        return data;
 
 		while(true) {
-			if(changed || scheduled_job.is_finished()) {
+			if(changed.read() || scheduled_job.is_finished()) {
 		        changed = false;
 				return data;
 			} else
-				delay(2);
+				delay(0);
 		}
 
 		return data;
@@ -33,6 +40,6 @@ class deferred<t> base observable<t> { // todo: remove observable and force a mu
 
 	def get_job() := scheduled_job;
 
-    private response_received: var;
+    private changed := new atomic<bool>(false);
 	private scheduled_job : job;
 }

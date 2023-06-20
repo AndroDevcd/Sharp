@@ -16,7 +16,7 @@ void compile_self_expression(expression *e, Ast *ast) {
     context &ctx = currThread->currTask->file->context;
     sharp_class *primaryClass = get_primary_class(&ctx);
 
-    compile_self_expression(primaryClass, primaryClass, e, ast);
+    compile_self_expression(primaryClass, NULL, e, ast);
 }
 
 void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceClass, expression *e, Ast *ast) {
@@ -57,12 +57,12 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
     }
 
     e->type.type = type_class;
-    e->type._class = instanceClass;
+    e->type._class = primaryClass;
 
     if(ast->hasToken(PTR)) {
 //        create_context(instanceClass, false);
         compile_dot_notation_call_expression(
-                e, NULL, true, ast->getSubAst(ast_dotnotation_call_expr));
+                e, instanceClass, true, ast->getSubAst(ast_dotnotation_call_expr));
 //        delete_context();
     } else {
         compile_post_ast_expression(e, ast);

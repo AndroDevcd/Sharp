@@ -386,6 +386,7 @@ enum _operation_scheme {
     scheme_null_fallback,
     scheme_inline_if,
     scheme_assign_value,
+    scheme_process_steps,
     scheme_assign_array_index,
     scheme_compound_assign_value,
     scheme_binary_math,
@@ -774,7 +775,8 @@ struct operation_step {
         _bool(false),
         _string(""),
         nativeType(type_undefined)
-    {}
+    {
+    }
 
     operation_step(operation_type type, operation_schema *scheme)
     :

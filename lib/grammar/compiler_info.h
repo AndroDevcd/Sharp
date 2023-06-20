@@ -55,6 +55,8 @@ extern int main_method_sig;
             (ss) << "$$03_internal_fptr_" << (name) << (id);
 #define any_component_name "?"
 #define single_component_field_name_prefix "@sub_component_"
+#define single_component_field_init_flag_prefix "@sub_component_init_flag_"
+#define single_component_field_init_prefix "@sub_component_init_"
 #define anonymous_func_prefix "@anonymous_fun_"
 #define current_file currThread->currTask->file
 #define error_manager currThread->currTask->file->errors

@@ -144,10 +144,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        for(i : var = 0; i < count.value; i++) {
           filtered_channel.wait_for_data_or_close(self);
 
-          if(filtered_channel.avail_data()) {
+          if(state == channel_state.OPEN) {
              data.add(filtered_channel.read(self));
-          } else {
-             return data;
           }
        }
 
@@ -167,6 +165,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        data := new list<t>();
        lock(filtered_channel) {
           for(;;) {
+             if(state == channel_state.CLOSED) return data;
+
              if(filtered_channel.avail_data()) {
                 data.add(filtered_channel.read(self));
              } else {
@@ -189,10 +189,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
        for(;;) {
           filtered_channel.wait_for_data_or_close(self);
 
-          if(filtered_channel.avail_data()) {
+          if(state == channel_state.OPEN && filtered_channel.avail_data()) {
              data.add(filtered_channel.read(self));
-          } else {
-             return data;
           }
        }
 
@@ -235,6 +233,8 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
     }
 
     def get_state() := state;
+
+    def size() : int = filters[0].buff_size;
 
     class filter<t> {
        head : channel_data<t>?;

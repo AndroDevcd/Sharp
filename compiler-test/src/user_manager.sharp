@@ -1,0 +1,32 @@
+mod main;
+
+/**
+* Created by bknun on 6/19/2023
+* 
+* @class user_manager
+*
+* Description:
+*
+*/
+class user_manager {
+    users := new list<user>();
+
+    def locate_user(username: string): user? {
+        foreach(customer in users) {
+            if(customer.name == username) {
+                return customer;
+            }
+        }
+
+        return null;
+    }
+
+    def create_user(username: string, passwd: string): bool {
+        if(locate_user(username) == null) {
+            users.add(new user(username, passwd));
+            return true;
+        }
+
+        return false;
+    }
+}

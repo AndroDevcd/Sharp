@@ -1,0 +1,34 @@
+mod main;
+
+/**
+* Created by bknun on 6/19/2023
+* 
+* @class account_manager
+*
+* Description:
+*
+*/
+class account_manager {
+    accounts := new list<bank_account>();
+    inject user_registry: user_manager;
+
+
+
+    def find_user(username: string): user? =
+        user_registry.locate_user(username);
+
+    def get_associated_accounts(usr: user): list<bank_account> {
+        associated_accounts := new list<bank_account>();
+
+        foreach(acct in accounts) {
+            if(acct.is_user_associated(usr)) {
+                associated_accounts.add(acct);
+            }
+        }
+
+        return associated_accounts;
+    }
+
+    def create_user(username: string, password: string): bool =
+        user_registry.create_user(username, password);
+}

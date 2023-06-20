@@ -11,8 +11,7 @@
 void compile_base_expression(expression *e, Ast *ast) {
     sharp_class *primary
             = get_primary_class(&currThread->currTask->file->context);
-    sharp_class *base = compile_base_class(ast->getSubAst(ast_base_utype));
-    compile_self_expression(primary, base, e, ast);
+    compile_self_expression(primary, primary->baseClass, e, ast);
 }
 
 sharp_class* compile_base_class(Ast *ast) {

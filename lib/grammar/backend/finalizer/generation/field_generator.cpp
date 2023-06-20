@@ -7,6 +7,7 @@
 #include "code/code_info.h"
 #include "code/scheme/scheme_processor.h"
 #include "generator.h"
+#include "class_generator.h"
 
 uInt threadLocalCount = 0;
 void generate_address(sharp_field *field) {
@@ -21,6 +22,9 @@ void generate_address(sharp_field *field) {
             field->ci->address = threadLocalCount++;
         } else {
             Int address = 0;
+            if(!isStatic && field->owner->baseClass) {
+                address = get_instance_field_count(field->owner->baseClass);
+            }
 
             for (Int i = 0; i < field->owner->fields.size(); i++) {
                 sharp_field *sf = field->owner->fields.get(i);

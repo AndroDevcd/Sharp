@@ -9,6 +9,7 @@
 #include "../../compiler_info.h"
 #include "../operation/operation.h"
 #include "../finalizer/generation/code/code_info.h"
+#include "../compiler/functions/function_compiler.h"
 
 bool is_fully_qualified_function(sharp_function* function) {
     if(!function->parameters.empty()) {
@@ -29,11 +30,13 @@ void fully_qualify_function(sharp_function* function, sharp_function* qualifiedF
             if(parameter->type.type >= type_any)
                 parameter->type.copy(qualifiedFunction->parameters.get(i)->type);
         }
-
-        if(function->returnType.type >= type_any) {
-            function->returnType.copy(qualifiedFunction->returnType);
-        }
     }
+
+    if(function->returnType.type >= type_any) {
+        function->returnType.copy(qualifiedFunction->returnType);
+    }
+
+    compile_function(function, function->ast);
 }
 
 bool create_function(

@@ -114,7 +114,10 @@ void compile_type_definition(
     }
 
     expression typeDefinition;
+    sharp_function container;
+    create_context(&container);
     compile_expression(typeDefinition, ast->getSubAst(ast_expression));
+    delete_context();
 
     if(typeDefinition.type != type_undefined) {
         if(!lastTry) {
@@ -178,12 +181,17 @@ void compile_type_definition(
             );
 
             if(subComponent != NULL) {
+                subComponent->dependencies.addAll(container.dependencies);
                 if(rule == factory_type_definition)
                     subComponent->scheme = new operation_schema(typeDefinition.scheme);
                 else {
                     stringstream ss;
                     ss << single_component_field_name_prefix << subComponent->id;
-                    string fieldName = ss.str();
+                    string fieldName = ss.str(); ss.str("");
+                    ss << single_component_field_init_flag_prefix << subComponent->id;
+                    string initFlagName = ss.str(); ss.str("");
+                    ss << single_component_field_init_prefix << subComponent->id;
+                    string initName = ss.str(); ss.str("");
                     sharp_field *single_field = create_field(
                             file,
                             currModule,
@@ -194,11 +202,104 @@ void compile_type_definition(
                             ast
                     );
 
-                    // todo: investigate whether this static field is being initialized in static init
-                    single_field->scheme = new operation_schema(typeDefinition.scheme);
-                    subComponent->scheme = new operation_schema();
+                    sharp_type initFlagType(type_var);
+                    sharp_field *single_init_flag = create_field(
+                            file,
+                            currModule,
+                            initFlagName,
+                            flag_static | flag_public,
+                            initFlagType,
+                            normal_field,
+                            ast
+                    );
 
-                    create_static_field_access_operation(subComponent->scheme, single_field);
+                    List<sharp_field*> params;
+                    sharp_function *init_func;
+                    create_function(
+                            resolve_class(currModule, global_class_name, false, false), flag_static | flag_public, normal_function,
+                            initName, false, params,
+                            *subComponent->type, ast, init_func);
+
+                    if(single_init_flag && init_func && single_field) {
+                        init_func->scheme = new operation_schema(scheme_master);
+                        init_func->returnProtected = true;
+
+                        create_context(init_func);
+                        // code initialization block
+                        APPLY_TEMP_SCHEME_WITHOUT_INJECT(1,
+                           APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+                              create_static_field_access_operation(&scheme_0, single_init_flag);
+                           )
+                           APPLY_TEMP_SCHEME_WITHOUT_INJECT(5,
+                              create_static_field_access_operation(&scheme_5, single_field);
+                           )
+
+                           ss.str("");
+                           List<operation_schema*> emptyParams;
+                           set_internal_label_name(ss, "if_end", uniqueId++)
+                           auto endLabel = create_label(ss.str(), &current_context, ast, &scheme_1);
+                           create_get_value_operation(&scheme_1, &scheme_0, false);
+                           create_jump_if_false_operation(&scheme_1, endLabel);
+
+                           if(init_func->returnType.type == type_nil) {
+                               create_return_operation(&scheme_1);
+                           } else if(is_numeric_type(init_func->returnType) && !get_real_type(init_func->returnType).isArray) {
+                               create_numeric_return_operation(&scheme_1, &scheme_5);
+                           } else {
+                               create_object_return_operation(&scheme_1, &scheme_5);
+                           }
+
+                           create_set_label_operation(&scheme_1, endLabel);
+
+                           APPLY_TEMP_SCHEME_WITHOUT_INJECT(4,
+                               APPLY_TEMP_SCHEME_WITHOUT_INJECT(2,
+                                   create_get_integer_constant_operation(&scheme_2, 1);
+                               )
+
+                               create_value_assignment_operation(&scheme_4, &scheme_0, &scheme_2);
+                           )
+
+                           add_scheme_operation(&scheme_1, &scheme_4);
+                           create_unused_data_operation(&scheme_1);
+
+
+                           APPLY_TEMP_SCHEME_WITHOUT_INJECT(7,
+                               APPLY_TEMP_SCHEME_WITHOUT_INJECT(6,
+                                   create_get_value_operation(&scheme_6, &typeDefinition.scheme, false);
+                               )
+
+                               create_value_assignment_operation(&scheme_7, &scheme_5, &scheme_6);
+                           )
+
+                           add_scheme_operation(&scheme_1, &scheme_7);
+                           create_unused_data_operation(&scheme_1);
+
+                           if(init_func->returnType.type == type_nil) {
+                               create_return_operation(&scheme_1);
+                           } else if(is_numeric_type(init_func->returnType) && !get_real_type(init_func->returnType).isArray) {
+                               create_numeric_return_operation(&scheme_1, &scheme_5);
+                           } else {
+                               create_object_return_operation(&scheme_1, &scheme_5);
+                           }
+
+                           scheme_1.schemeType = scheme_process_steps;
+                           create_unused_data_operation(&scheme_1);
+                        )
+                        delete_context();
+
+                        init_func->scheme->steps.add(new operation_step(operation_step_scheme, &scheme_1));
+
+                        subComponent->dependencies.add(dependency(single_field));
+                        subComponent->dependencies.add(dependency(single_init_flag));
+                        subComponent->dependencies.add(dependency(init_func));
+
+
+                        List<operation_schema*> paramSchemea;
+                        subComponent->scheme = new operation_schema();
+                        create_static_function_call_operation(subComponent->scheme, paramSchemea, init_func);
+                    } else {
+                        // err
+                    }
                 }
             }
         }

@@ -310,7 +310,7 @@ class vm {
                if(t.is_exited()) {
                    return result_thread_not_started;
                } else {
-                  delay(2);
+                  delay(0);
                }
            }
         }

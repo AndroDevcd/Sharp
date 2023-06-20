@@ -44,6 +44,16 @@ sharp_class* locate_class(const char *name) {
     return nullptr;
 }
 
+sharp_class* locate_class_simple(const char *name) {
+    for(uInt i = 0; i < vm.manifest.classes; i++) {
+        if(vm.classes[i].name == name) {
+            return &vm.classes[i];
+        }
+    }
+
+    return nullptr;
+}
+
 void assign_numeric_field(sharp_object* o, uInt index, double value) {
     o->HEAD[index] = value;
 }

@@ -13,6 +13,7 @@ object* resolve_field(string name, sharp_object* o);
 
 // Member Location
 sharp_class* locate_class(const char *);
+sharp_class* locate_class_simple(const char *name);
 
 
 // Member assignment

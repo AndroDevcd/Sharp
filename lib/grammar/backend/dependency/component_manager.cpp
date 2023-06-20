@@ -121,7 +121,7 @@ type_definition* get_type_definition(
         component *c = manager.components.get(i);
         type_definition *ct;
 
-        if(c->name == componentName) {
+        if(c->name == componentName || componentName == "?") {
             if ((ct = get_type_definition(comparer, c)) != NULL) {
                 return ct;
             }

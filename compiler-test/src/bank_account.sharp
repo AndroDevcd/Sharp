@@ -1,0 +1,29 @@
+mod main;
+
+class bank_account {
+    primary_user: user;
+    secondary_users := new list<user>();
+    balance: long = 0;
+    transactions := new list<transaction>();
+
+    private bank_account() {}
+
+    public bank_account(primary: user) {
+        primary_user = primary;
+    }
+
+    def add_transaction(tx: transaction) {
+        transactions.add(tx);
+    }
+
+    def is_user_associated(usr: user): bool {
+        if(usr.uid != primary_user.uid) {
+            foreach (secondary in secondary_users) {
+                if(secondary.uid == usr.uid)
+                    return true;
+            }
+
+            return false;
+        } else return true;
+    }
+}

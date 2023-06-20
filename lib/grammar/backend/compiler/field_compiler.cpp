@@ -34,6 +34,7 @@ void compile_class_fields(sharp_class *with_class, Ast *block) {
 void compile_static_closure_reference(sharp_field *field) {
     GUARD2(globalLock)
     create_context(field);
+    field->closureSetup = true;
 
     sharp_function *function;
     List<sharp_field*> params;
@@ -115,6 +116,34 @@ void compile_field_injection_request(sharp_field *field, Ast *ast) {
     delete request; request = NULL;
 
     if(td) {
+        if(field->scheme == NULL)
+            field->scheme = new operation_schema();
+
+        for(Int i = 0; i < td->dependencies.size(); i++) {
+            auto dep = td->dependencies.get(i);
+
+            switch(dep.type) {
+                case no_dependency:
+                    break;
+
+                case dependency_file:
+                    break;
+
+                case dependency_class:
+                    create_dependency(field, dep.classDependency);
+                    break;
+
+                case dependency_function:
+                    create_dependency(field, dep.functionDependency);
+                    break;
+
+                case dependency_field:
+                    create_dependency(field, dep.fieldDependency);
+                    break;
+
+            }
+        }
+
         field->scheme->copy(*td->scheme);
     } else {
         create_new_error(GENERIC, ast,
@@ -129,6 +158,37 @@ void compile_field(sharp_field *field, Ast *ast) {
 
     if(field->request != NULL) {
         compile_field_injection_request(field, ast);
+
+        if(field->scheme->schemeType != scheme_none && !field->scheme->steps.empty()) {
+            APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+               scheme_0.schemeType = scheme_assign_value;
+
+               operation_schema *resultVariableScheme = new operation_schema();
+               create_get_value_operation(&scheme_0, field->scheme, false, false);
+               create_push_to_stack_operation(&scheme_0);
+
+               if (check_flag(field->flags, flag_static)) {
+                   if (field->fieldType == normal_field) {
+                       create_static_field_access_operation(resultVariableScheme,
+                                                            field);
+                   } else {
+                       create_tls_field_access_operation(resultVariableScheme,
+                                                         field);
+                   }
+               } else {
+                   create_primary_instance_field_access_operation(
+                           resultVariableScheme, field);
+               }
+               create_get_value_operation(&scheme_0, resultVariableScheme, false,
+                                          false);
+               create_pop_value_from_stack_operation(&scheme_0);
+               create_unused_data_operation(&scheme_0);
+            )
+
+            field->scheme->free();
+            field->scheme->copy(scheme_0);
+        }
+        return;
     }
 
     if(field->scheme == NULL) {

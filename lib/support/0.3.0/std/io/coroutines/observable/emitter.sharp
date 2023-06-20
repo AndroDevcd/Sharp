@@ -1,0 +1,13 @@
+mod std.io.coroutines.observable;
+
+/**
+* Created by bknun on 6/18/2023
+* 
+* @class emitter
+*
+* Description:
+*
+*/
+interface emitter<t> {
+	public def post(data : t?);
+}

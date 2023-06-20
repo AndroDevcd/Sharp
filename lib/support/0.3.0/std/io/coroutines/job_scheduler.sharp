@@ -30,7 +30,7 @@ private def calculate_max_threads() {
     n_cores -= 2;
 
     if(n_cores <= 1) {
-        //we should only supply short term thread support
+        short_term_threads = 1;
     } else {
         short_term_threads = round(n_cores * 0.75);
         long_term_threads = round(n_cores * 0.25);
@@ -98,10 +98,9 @@ def run_scheduler() {
             }
 
             jobs.avail_data(0) -> {
-                total := jobs.avail_data(0);
-                println("jobs: $total started: $started");
                 foreach(scheduled_job in jobs.read_next(0)) {
                    count++;
+
                    if(!cancel_list.empty()) {
                       if(cancel_list.find(scheduled_job.tag, { it, it2 -> return it == it2; }) == scheduled_job.tag)
                          continue;
@@ -113,24 +112,13 @@ def run_scheduler() {
                    if(scheduled_job.delay_time != 0) {
                    		if(time.mills_time() >= scheduled_job.delay_time) {
                    			scheduled_job.delay_time = 0;
-                   			result := execute_job(scheduled_job);
 
-                   			if(!result || scheduled_job.has_timeout) {
+                   			if(!execute_job(scheduled_job)) {
                    			   jobs.send(scheduled_job);
                    			}
+                   		} else {
+                            jobs.send(scheduled_job);
                    		}
-                   } else if(scheduled_job.has_timeout) {
-                       if(scheduled_job.host == null) {
-                           if(!execute_job(scheduled_job)) {
-                               jobs.send(scheduled_job);
-                               continue;
-                           }
-                       }
-
-                       if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
-                            scheduled_job.cancel();
-                       	    launcher.cleanup_job(scheduled_job);
-                       }
                    } else {
                        if(!execute_job(scheduled_job)) {
                    		   jobs.send(scheduled_job);
@@ -158,8 +146,7 @@ public def scheduler_main(args : object[]) : int
 	return 0;
 }
 
-thread_local avail_threads : int;
-thread_local fiber_count := 1e+100;
+thread_local avail_threads : var;
 thread_local host : thread?;
 thread_local pool : thread_group;
 private def get_host(long_running : bool) : thread? {
@@ -199,11 +186,13 @@ private def get_host(long_running : bool) : thread? {
             if(long_term_threads > 0) {
                 long_term_threads--;
                 host = new thread("long_term_worker_thread#${pool.size()+1}", job.job_main, pool);
+                host!!.start();
             }
         } else {
             if(short_term_threads > 0) {
                 short_term_threads--;
                 host = new thread("worker_thread#${pool.size()+1}", job.job_main, pool);
+                host!!.start();
             }
         }
     }
@@ -275,7 +264,9 @@ protected def execute_job(scheduled_job : job) : bool {
 
     if(fib_host != null) {
         scheduled_job.host = fib_host;
-        if(scheduled_job.execute_async() != 0) {
+        result := scheduled_job.execute_async();
+
+        if(result != 0) {
            scheduled_job.host = null;
            return false;
         }

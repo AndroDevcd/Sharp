@@ -38,6 +38,7 @@ struct sharp_field {
             closureRef(NULL),
             uid(-1),
             staticClosure(false),
+            closureSetup(false),
             used(false),
             hasConstValue(false),
             obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
@@ -69,6 +70,7 @@ struct sharp_field {
             closure(sf.closure),
             closureRef(sf.closureRef),
             staticClosure(sf.staticClosure),
+            closureSetup(sf.staticClosure),
             used(sf.used),
             ast(sf.ast),
             block(sf.block),
@@ -105,6 +107,7 @@ struct sharp_field {
             closureRef(NULL),
             uid(-1),
             staticClosure(false),
+            closureSetup(false),
             obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             used(false),
             constValue(0),
@@ -149,6 +152,7 @@ struct sharp_field {
     bool hasConstValue;
     Int block;
     bool staticClosure;
+    bool closureSetup;
     bool used;
     obfuscation_modifier obfuscateModifier;
     uInt uid;

@@ -643,10 +643,10 @@ void shutdown_thread(sharp_thread* thread) {
         thread->task->exitVal = read_numeric_value(valueField->o, 0);
     }
 
-    kill_task(thread->task);
-    if(thread->task) set_attached_thread(thread->task, nullptr);
     print_thrown_exception();
 
+    kill_task(thread->task);
+    if(thread->task) set_attached_thread(thread->task, nullptr);
     kill_bound_tasks(thread);
     kill_bound_idle_tasks(thread);
 

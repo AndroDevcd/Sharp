@@ -1293,7 +1293,8 @@ bool parser::parseStatement(Ast* ast) {
         return true;
     }
     else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
-       (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+       (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":=")))
+       || isInjectRequest(current()) || (isStorageType(current()) && isInjectRequest(*peek(1))))
     {
 //        if(*peek(1) == ":") {
 //            Token *old = _current;
@@ -1835,9 +1836,11 @@ void parser::parseInjectRequest(Ast* ast) {
     Ast *branch = getBranch(ast, ast_inject_request);
 
     expect(branch, "inject", false);
-    expect(branch, "(", false);
-    expectIdentifier(branch);
-    expect(branch, ")", false);
+    if(*peek(1) == "(") {
+        expect(branch, "(", false);
+        expectIdentifier(branch);
+        expect(branch, ")", false);
+    }
 }
 
 void parser::parseGetterSetterAccessTypes() {
@@ -3527,7 +3530,8 @@ void parser::parseClassBlock(Ast *ast) {
             parseImportDecl(branch);
         }
         else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
-                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":=")))
+                || isInjectRequest(current()) || (isStorageType(current()) && isInjectRequest(*peek(1))))
         {
             parseVariableDecl(branch);
         }
@@ -3759,6 +3763,10 @@ bool parser::isEnumDecl(Token &token) {
 
 bool parser::isStorageType(Token &token) {
     return (token.getId() == IDENTIFIER && (token.getValue() == "thread_local"));
+}
+
+bool parser::isInjectRequest(Token &token) {
+    return (token.getId() == IDENTIFIER && (token.getValue() == "inject"));
 }
 
 bool parser::isInterfaceDecl(Token &token) {

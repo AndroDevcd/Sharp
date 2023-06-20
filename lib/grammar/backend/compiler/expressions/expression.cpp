@@ -240,6 +240,9 @@ void compile_function_call(
 
                     if(matchedConstructor != NULL)
                         create_dependency( matchedConstructor);
+                } else if(*assigner == type_lambda_function
+                   && !is_fully_qualified_function(assigner->fun)) {
+                    fully_qualify_function(assigner->fun, asignee->fun);
                 }
             }
 

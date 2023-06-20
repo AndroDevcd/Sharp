@@ -14,9 +14,7 @@ void type_definition::copy(const type_definition &c) {
     name = c.name;
     representation = c.representation;
     location = c.location;
-
-    if(c.accessor)
-        accessor = new sharp_field(*c.accessor);
+    dependencies.addAll(c.dependencies);
 
     if(c.scheme)
         scheme = new operation_schema(*c.scheme);
@@ -26,7 +24,6 @@ void type_definition::copy(const type_definition &c) {
 }
 
 void type_definition::free() {
-    delete accessor; accessor = NULL;
     delete scheme;scheme = NULL;
     delete type; type = NULL;
 }

@@ -11,6 +11,7 @@ class Ast;
 void compile_global_members();
 void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast);
 bool validate_control_paths(bool *controlPaths);
+void compile_static_closure_references(sharp_class *with_class);
 
 #define CONTROL_PATH_SIZE 8
 #define MAIN_CONTROL_PATH 0

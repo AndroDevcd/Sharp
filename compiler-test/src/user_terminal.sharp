@@ -1,0 +1,96 @@
+mod main;
+
+/**
+* Created by bknun on 6/19/2023
+* 
+* @class user_terminal
+*
+* Description:
+*
+*/
+def terminal_main_loop() {
+    println("=================================");
+    println("             JBS Bank            ");
+    println("=================================");
+    println();
+    println("    Main User terminal");
+    println();
+
+    inject acct_manager: account_manager;
+    while(true) {
+        initial_greeting();
+
+        when(read_line().to_lower()) {
+            "help" -> {
+                print_help();
+            }
+            "search user" -> {
+                print("Please enter username: ");
+                username := read_line();
+
+                println("\nSearching for user...");
+                usr := acct_manager.find_user(username);
+                if(usr != null) {
+                    println("User Found!\n");
+                    println("Would you like to view this users information? (y\\n) ");
+                    if(get_yes_no()) {
+                        if(get_password(usr!!.password)) {
+                            println(usr);
+                        }
+                    }
+                } else {
+                    println("No User Found!\n");
+                }
+            }
+            else -> {
+                println("unknown command");
+            }
+        }
+    }
+}
+
+def get_password(passwd: string) : bool {
+    trys := 0;
+    while(true) {
+        println("Please enter your password: ");
+        pwd := read_passwd();
+
+        if(pwd == passwd) {
+            return true;
+        } else {
+            trys++;
+            println("Incorrect password.");
+
+            if(trys >= 3) {
+                println("Would you like to cancel? (y\\n) ");
+                if(get_yes_no()) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+def get_yes_no(): bool {
+    while(true) {
+        answer := read_char();
+        if(answer == 'y' || answer == 'n') {
+            return answer == 'y';
+        }
+        println("\b");
+    }
+
+    return false;
+}
+
+def initial_greeting() {
+    println("Welcome to JBS bank\nHow may we assist you today?\nYou can type help for a list of instructions.");
+}
+
+def print_help() {
+    println("JBS Bank Terminal commands:");
+    println("\tSearch User (look up users info, password required)");
+
+}

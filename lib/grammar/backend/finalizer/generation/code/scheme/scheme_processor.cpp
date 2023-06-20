@@ -82,6 +82,7 @@
 #include "../../../../../../core/opcode/opcode_macros.h"
 #include "scheme_get_field_value.h"
 #include "scheme_assign_array_index.h"
+#include "scheme_process_steps.h"
 
 void process_scheme(operation_schema *scheme) {
     if(scheme != NULL) {
@@ -164,6 +165,8 @@ void process_scheme(operation_schema *scheme) {
                 return process_unused_data_scheme(scheme);
             case scheme_get_value:
                 return process_get_value_scheme(scheme);
+            case scheme_process_steps:
+                return process_steps_scheme(scheme);
             case scheme_for:
                 return process_for_scheme(scheme);
             case scheme_for_cond:

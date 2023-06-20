@@ -43,6 +43,7 @@ public:
     List<string> &getLines() { return lines; }
     tokenizer *getTokenizer() { return toks; }
     static bool isStorageType(Token &t);
+    static bool isInjectRequest(Token &t);
     static bool isNativeType(string t);
     static bool isOverrideOperator(string t);
     static bool isAssignExprSymbol(string t);

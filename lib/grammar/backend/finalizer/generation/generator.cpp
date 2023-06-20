@@ -38,6 +38,23 @@ bool is_greater_than(sharp_class* e1, sharp_class* e2) {
     return e1->ci->address > e2->ci->address;
 }
 
+void print_field_addresses(sharp_class *sc, bool isStatic) {
+    if(sc->baseClass && !isStatic) {
+        print_field_addresses(sc->baseClass, isStatic);
+    }
+
+    for(Int i = 0; i < sc->fields.size(); i++) {
+        auto sf = sc->fields.get(i);
+
+        if(sf->used && check_flag(sf->flags, flag_static) == isStatic) {
+            cout << "\t [" << sf->ci->address << "]";
+
+            if(isStatic) cout << " static";
+            cout << " : " << sf->fullName << endl;
+        }
+    }
+}
+
 void generate() {
     offsetUUIDGenerator();
 
@@ -70,6 +87,9 @@ void generate() {
     for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
         cout << "[" << i << "]: " << compressedCompilationClasses.get(i)->fullName << " - "
             << compressedCompilationClasses.get(i)->ci->address << endl;
+
+        print_field_addresses(compressedCompilationClasses.get(i), true);
+        print_field_addresses(compressedCompilationClasses.get(i), false);
     }
 
     cout << endl << endl << "constants:\n";
@@ -82,6 +102,7 @@ void generate() {
 void generation_error(string message) {
 
     cout << PROG_NAME << ": <code-generator> fatal error: " << message << endl;
-    cout << "note: in function: " << function_to_str(cc.container) << endl;
+    if(cc.container)
+        cout << "note: in function: " << function_to_str(cc.container) << endl;
     exit(1);
 }

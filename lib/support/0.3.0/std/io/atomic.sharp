@@ -7,10 +7,12 @@ class atomic<t base base_number<t> > {
         value = initial_val;
      }
 
-     def read() := value.value;
+     def read() : t { lock(self) { return value; }}
 
      override def to_string() : string? {
-        return "" + value;
+        lock(self) {
+            return "" + value;
+        }
      }
 
      def operator!=(num : atomic<t>) : bool   { lock(self) { return (value.value!=num.value.value); }}

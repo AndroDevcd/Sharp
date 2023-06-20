@@ -156,6 +156,7 @@ void consume_machine_data() {
             }
 
             case function_numeric_data:
+            case numeric_tls_field:
             case numeric_instance_field:
             case numeric_local_field: {
                 generation_error("attempting to consume numeric data instead of object!");
@@ -231,6 +232,12 @@ void pop_machine_data_from_stack() {
                 break;
             }
 
+            case numeric_tls_field: {
+                add_instruction(Opcode::Builder::loadValue(EBX));
+                add_instruction(Opcode::Builder::movabs(cc.machineData.dataAddress));
+                break;
+            }
+
             case function_numeric_data: {
                 generation_error("attempting to assign temporary numeric function data!");
                 break;
@@ -295,6 +302,11 @@ void push_machine_data_to_stack() {
             case numeric_local_field: {
                 add_instruction(Opcode::Builder::ipushl(
                         cc.machineData.dataAddress));
+                break;
+            }
+            case numeric_tls_field: {
+                add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+                add_instruction(Opcode::Builder::rstore(EBX));
                 break;
             }
             case numeric_register_data: {
@@ -371,6 +383,18 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
                                     cc.machineData.dataAddress, internalRegister->address));
                         }
                     }
+                    break;
+                }
+                case numeric_tls_field: {
+                    if (internalRegister->type == normal_register) {
+                        if(internalRegister->address != EBX)
+                            add_instruction(Opcode::Builder::movr(EBX, (_register)internalRegister->address));
+                    } else {
+                        add_instruction(Opcode::Builder::loadl(
+                                EBX, internalRegister->address));
+                    }
+
+                    add_instruction(Opcode::Builder::movabs(cc.machineData.dataAddress));
                     break;
                 }
                 case numeric_register_data: {
@@ -460,6 +484,20 @@ void consume_machine_data(internal_register *internalRegister) {
                     } else {
                         add_instruction(Opcode::Builder::smovr4(
                                 internalRegister->address, cc.machineData.dataAddress));
+                    }
+                    break;
+                }
+                case numeric_tls_field: {
+                    if (internalRegister->type == normal_register) {
+                        add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+
+                        if(internalRegister->address == EBX) {
+                            add_instruction(Opcode::Builder::movr((_register) internalRegister->address, EBX));
+                        }
+                    } else {
+                        add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+                        add_instruction(Opcode::Builder::smovr2(
+                                EBX, internalRegister->address));
                     }
                     break;
                 }
@@ -567,6 +605,19 @@ void decrement_machine_data(data_type type) {
                 }
                 break;
             }
+            case numeric_tls_field: {
+                if(type == type_var) {
+                    add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+                    add_instruction(Opcode::Builder::dec(EBX));
+                    add_instruction(Opcode::Builder::movabs(cc.machineData.dataAddress));
+                } else {
+                    add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+                    add_instruction(Opcode::Builder::dec(EBX));
+                    cast_machine_data(EBX, type);
+                    add_instruction(Opcode::Builder::movabs(cc.machineData.dataAddress));
+                }
+                break;
+            }
             case numeric_register_data: {
                 if(type == type_var) {
                     add_instruction(Opcode::Builder::dec((_register) cc.machineData.dataAddress));
@@ -637,6 +688,19 @@ void increment_machine_data(data_type type) {
                     add_instruction(Opcode::Builder::inc(EGX));
                     cast_machine_data(EGX, type);
                     add_instruction(Opcode::Builder::smovr2(EGX, address));
+                }
+                break;
+            }
+            case numeric_tls_field: {
+                if(type == type_var) {
+                    add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+                    add_instruction(Opcode::Builder::inc(EBX));
+                    add_instruction(Opcode::Builder::movabs(cc.machineData.dataAddress));
+                } else {
+                    add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
+                    add_instruction(Opcode::Builder::inc(EBX));
+                    cast_machine_data(EBX, type);
+                    add_instruction(Opcode::Builder::movabs(cc.machineData.dataAddress));
                 }
                 break;
             }

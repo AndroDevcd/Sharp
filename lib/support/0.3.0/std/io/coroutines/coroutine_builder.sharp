@@ -17,16 +17,6 @@ public class coroutine_builder {
 	    self->scheduled_job.args = job_args;
 	}
 
-	def with_timeout(mills_time : long) : coroutine_builder {
-	    if(scheduled_job.block_caller) {
-	        throw new ill_state_except("cannot set a timeout on a job that's blocking the calling thread");
-	    }
-
-		scheduled_job.timeout = mills_time;
-		scheduled_job.has_timeout = true;
-		return self;
-	}
-
 	def schedule(future : long) : coroutine_builder {
 		scheduled_job.delay_time = future;
 		return self;
@@ -41,7 +31,7 @@ public class coroutine_builder {
 		return self;
 	}
 
-	def with_host(host : thread) : coroutine_builder {
+	def with_host(host : thread?) : coroutine_builder {
 	    if(scheduled_job.unconfined) {
 	        throw new ill_state_except("cannot set task's host when running as unconfined");
 	    }
@@ -84,10 +74,6 @@ public class coroutine_builder {
 	}
 
 	def block() : coroutine_builder {
-	    if(scheduled_job.has_timeout) {
-	        throw new ill_state_except("cannot block calling thread on job that has a timeout");
-	    }
-
 	    if(scheduled_job.recurring) {
 	        throw new ill_state_except("cannot block calling thread on a recurring job");
 	    }

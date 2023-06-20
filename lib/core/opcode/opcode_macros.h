@@ -73,7 +73,7 @@
 #define triple_arg3 GET_Bc(*task->pc)
 #define raw_arg2 (int32_t)*(task->pc+1)
 #define dual_raw_arg1 GET_Ca(*(task->pc+1))
-#define dual_raw_arg2 GET_Cb(*(task->pc+2))
+#define dual_raw_arg2 GET_Cb(*(task->pc+1))
 
 #define pop_stack_object (task->sp--)->obj
 #define push_stack_object (++task->sp)->obj

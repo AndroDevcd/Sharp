@@ -239,7 +239,11 @@ uInt is_implicit_type_match(
         case type_null:
         case type_label:
         case type_nil: {
-            return with_result(comparee.type == comparer.type, nullability_check(comparer, comparee, direct_match));
+            return with_result(comparee.type == comparer.type
+            || comparee.type == type_class
+            || comparee.type == type_object
+            || (comparee.type <= type_var && comparee.isArray),
+            nullability_check(comparer, comparee, direct_match));
         }
         case type_any:
         case type_untyped:
@@ -299,13 +303,13 @@ uInt is_implicit_type_match(
         }
 
         case type_object: {
-            if(comparee.type == type_null) return nullability_check(comparer, comparee, indirect_match);
+            if(comparee.type == type_null) return true;
 
             return with_result(comparee.type == type_class
                    || comparee.type == type_object
                    || (comparee.type > type_var && comparee.isArray)
                    || (comparee.type <= type_var && comparee.isArray && !comparer.isArray),
-                   nullability_check(comparer, comparee, indirect_match));
+                   indirect_match);
         }
 
         case type_int8:

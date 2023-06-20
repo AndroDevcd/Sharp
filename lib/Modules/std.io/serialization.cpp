@@ -99,14 +99,14 @@ void serialize(object *from, object *to) {
 
         push_data(SERIALIZE_START)
         serialize_object(from->o);
+        push_data(SERIALIZE_END)
 
-        auto serializedData = create_object(bufferSize, type_int8);
+        auto serializedData = create_object(bufferPos + 1, type_int8);
         copy_object(to, serializedData);
 
         for(Int i = 0; i < (bufferPos + 1); i++) {
             serializedData->HEAD[i] = serializeBuffer[i];
         }
-        push_data(SERIALIZE_END)
     } catch(runtime_error &err) {}
 
     processedObjects.delete_all(nullptr);
@@ -156,7 +156,7 @@ void deserialize_object(object *to) {
                 }
             }
 
-            serializedClass = locate_class(className.c_str());
+            serializedClass = locate_class_simple(className.c_str());
             if(serializedClass == nullptr) {
                 throw vm_exception("failed to load class `" + className + "` from deserialization buffer");
             }
@@ -200,6 +200,8 @@ void deserialize_object(object *to) {
                 expect_data(ITEM_END)
             }
         }
+
+        expect_data(DATA_END)
     }
 }
 

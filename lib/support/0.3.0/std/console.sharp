@@ -165,8 +165,8 @@ def println(str: string) {
     print_char('\n');
 }
 
-def println(o: printable) {
-    print_chars(o.to_string()?.data);
+def println(o: printable?) {
+    print_chars(o?.to_string()?.data ?: "null");
     print_char('\n');
 }
 

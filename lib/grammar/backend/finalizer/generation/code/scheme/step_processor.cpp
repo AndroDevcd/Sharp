@@ -1421,6 +1421,11 @@ void process_get_tls_field_value(operation_step *step) {
     validate_step_type(step, operation_get_tls_field_value);
 
     sharp_field *tlsField = step->field;
-    add_instruction(Opcode::Builder::tlsMovl(get_or_initialize_code(tlsField)->address));
-    set_machine_data(tlsField, false, true);
+
+    if(tlsField->type.type <= type_var && !tlsField->type.isArray) {
+        set_machine_data(numeric_tls_field, tlsField->ci->address, true);
+    } else {
+        add_instruction(Opcode::Builder::tlsMovl(get_or_initialize_code(tlsField)->address));
+        set_machine_data(tlsField, false, true);
+    }
 }

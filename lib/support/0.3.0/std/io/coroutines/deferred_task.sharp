@@ -6,7 +6,7 @@ class deferred_task<t> base deferred<t> {
     static def for_result(builder : coroutine_builder, main: (object, object[])()) : deferred<t> {
     	future := new deferred_task<t>(builder.scheduled_job);
     	builder.scheduled_job.deferred_obj = future;
-    	builder = main;
+    	builder = main; // todo. implement closure
     	return future;
     }
 

@@ -23,6 +23,7 @@ enum machine_data_type {
     string_constant,
     numeric_instance_field,
     numeric_local_field,
+    numeric_tls_field,
     class_object_data,
     field_object_data,
     local_field_object_data,

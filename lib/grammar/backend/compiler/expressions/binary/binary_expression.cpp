@@ -676,9 +676,6 @@ void compile_binary_expression(
                         is_implicit_type_match(left.type, right.type, overload_only);
                 if (result == no_match_found) {
                     goto _overload;
-                } else if(result == indirect_match_w_nullability_mismatch && right.type != type_null && left.type != type_null) {
-                    create_new_error(
-                            NULLABILITY_MISMATCH, ast->getSubAst(0), ", unqualified use  of operator `" + operand.getValue() + "` with type `" + type_to_str(right.type) + "`");
                 } else if(result == match_operator_overload) {
                     goto _overload;
                 }

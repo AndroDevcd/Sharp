@@ -1,0 +1,27 @@
+mod main;
+
+/**
+* Created by bknun on 6/19/2023
+* 
+* @class unser
+*
+* Description:
+*
+*/
+class user {
+    name: string;
+    password: string;
+    uid: int;
+
+    private user() {}
+
+    public user(username: string, password: string) {
+        self->name = username;
+        self->password = password;
+        uid = rand_int();
+    }
+
+    override def to_string() : string {
+        return "User ($name, $uid)";
+    }
+}

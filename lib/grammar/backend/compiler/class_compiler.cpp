@@ -12,6 +12,7 @@
 #include "functions/function_compiler.h"
 #include "functions/init_compiler.h"
 #include "obfuscate_compiler.h"
+#include "compiler.h"
 
 
 void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) {
@@ -40,8 +41,9 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     compile_class_mutations(with_class, block);
     compile_inits(with_class, block);
     compile_class_functions(with_class, block);
-    compile_class_lambdas(with_class);
     compile_default_constructor(with_class);
+    compile_class_lambdas(with_class);
+    compile_static_closure_references(with_class);
 
 
     for(Int i = 0; i < block->getSubAstCount(); i++) {
@@ -103,5 +105,6 @@ void compile_classes() {
         }
     }
 
+    compile_static_closure_references(globalClass);
     delete_context();
 }

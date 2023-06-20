@@ -1,0 +1,30 @@
+mod main;
+
+/**
+* Created by bknun on 6/19/2023
+* 
+* @class transaction
+*
+* Description:
+*
+*/
+class transaction {
+    amount: long;
+    memo: string;
+    payee: string;
+    time: long;
+
+    private transaction() {}
+
+    transaction(
+        amount: long,
+        memo: string,
+        payee: string,
+        time: long
+    ) {
+        self->amount = amount;
+        self->memo = memo;
+        self->payee = payee;
+        self->time = time;
+    }
+}

@@ -17,7 +17,8 @@
 
 void compile_static_closure_references(sharp_class *with_class) {
     for(Int i = 0; i < with_class->fields.size(); i++) {
-        if(with_class->fields.get(i)->staticClosure) {
+        if(with_class->fields.get(i)->staticClosure &&
+            !with_class->fields.get(i)->closureSetup) {
             compile_static_closure_reference(with_class->fields.get(i));
         }
     }

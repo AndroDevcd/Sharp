@@ -964,26 +964,26 @@ class byte base uchar {
 }
 
 class bool base number<_int8, bool> {
-    bool(i : bool) -> base(i.value) {}
-    bool(initial_val : var) -> base(initial_val) {}
-    bool(initial_val : _int8) -> base(initial_val) {}
-    bool(initial_val : _uint8) -> base(initial_val) {}
-    bool(initial_val : _int16)  -> base(initial_val) {}
-    bool(initial_val : _uint16)  -> base(initial_val) {}
-    bool(initial_val : _int32)  -> base(initial_val) {}
-    bool(initial_val : _uint32)  -> base(initial_val) {}
-    bool(initial_val : _int64)  -> base(initial_val) {}
-    bool(initial_val : _uint64)  -> base(initial_val) {}
+    bool(i : bool) -> base(i.value >= 1) {}
+    bool(initial_val : var) -> base(initial_val >= 1) {}
+    bool(initial_val : _int8) -> base(initial_val >= 1) {}
+    bool(initial_val : _uint8) -> base(initial_val >= 1) {}
+    bool(initial_val : _int16)  -> base(initial_val >= 1) {}
+    bool(initial_val : _uint16)  -> base(initial_val >= 1) {}
+    bool(initial_val : _int32)  -> base(initial_val >= 1) {}
+    bool(initial_val : _uint32)  -> base(initial_val >= 1) {}
+    bool(initial_val : _int64)  -> base(initial_val >= 1) {}
+    bool(initial_val : _uint64)  -> base(initial_val >= 1) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
-    init(initial_val : _int8)    -> base(initial_val) { }
-    init(initial_val : _int16)   -> base(initial_val) { }
-    init(initial_val : _int32)   -> base(initial_val) { }
-    init(initial_val : _int64)   -> base(initial_val) { }
-    init(initial_val : _uint8)   -> base(initial_val) { }
-    init(initial_val : _uint16)  -> base(initial_val) { }
-    init(initial_val : _uint32)  -> base(initial_val) { }
-    init(initial_val : _uint64)  -> base(initial_val) { }
+    init(initial_val : var)      -> base(initial_val >= 1) { }
+    init(initial_val : _int8)    -> base(initial_val >= 1) { }
+    init(initial_val : _int16)   -> base(initial_val >= 1) { }
+    init(initial_val : _int32)   -> base(initial_val >= 1) { }
+    init(initial_val : _int64)   -> base(initial_val >= 1) { }
+    init(initial_val : _uint8)   -> base(initial_val >= 1) { }
+    init(initial_val : _uint16)  -> base(initial_val >= 1) { }
+    init(initial_val : _uint32)  -> base(initial_val >= 1) { }
+    init(initial_val : _uint64)  -> base(initial_val >= 1) { }
 
     override def to_string() : string {
        return value ? "true" : "false";

@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../../List.h"
 #include "../meta_data.h"
+#include "../dependency/dependancy.h"
 
 extern uInt uniqueComponentId;
 
@@ -25,10 +26,10 @@ struct type_definition {
     :
         id(-1),
         name(""),
-        accessor(NULL),
         scheme(NULL),
         type(NULL),
         location(),
+        dependencies(),
         representation(single_type_definition)
     {}
 
@@ -36,9 +37,9 @@ struct type_definition {
     :
             id(uniqueComponentId++),
             name(""),
-            accessor(NULL),
             scheme(NULL),
             type(NULL),
+            dependencies(),
             location(location),
             representation(single_type_definition)
     {
@@ -53,9 +54,9 @@ struct type_definition {
     :
             id(uniqueComponentId++),
             name(""),
-            accessor(NULL),
             scheme(NULL),
             type(NULL),
+            dependencies(),
             location(location),
             representation(representation)
     {
@@ -67,10 +68,10 @@ struct type_definition {
     :
       id(-1),
       name(""),
-      accessor(NULL),
       scheme(NULL),
       type(NULL),
       location(),
+      dependencies(),
       representation(single_type_definition)
     {
         copy(c);
@@ -87,8 +88,8 @@ struct type_definition {
 
     uInt id;
     string name;
-    sharp_field *accessor;
     operation_schema *scheme;
+    List<dependency> dependencies;
     sharp_type *type;
     type_definition_rule representation;
     impl_location location;
