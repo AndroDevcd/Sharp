@@ -217,5 +217,6 @@ struct code_info {
 };
 
 string code_to_string(code_info *info);
+string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code);
 
 #endif //SHARP_CODE_INFO_H

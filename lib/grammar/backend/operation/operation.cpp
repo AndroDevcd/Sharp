@@ -1552,9 +1552,6 @@ void create_setup_local_field_operation(
         operation_schema *scheme,
         sharp_field* field) {
     if(scheme) {
-        if(field == NULL) {
-            int r= 0;
-        }
         scheme->schemeType = scheme_access_local_field;
         scheme->field = field;
 

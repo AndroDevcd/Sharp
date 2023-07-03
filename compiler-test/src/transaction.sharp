@@ -27,4 +27,8 @@ class transaction {
         self->payee = payee;
         self->time = time;
     }
+
+    override def to_string(): string {
+        return "[at: $time, $amount, memo: $memo, to/from: $payee]";
+    }
 }

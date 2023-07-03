@@ -96,13 +96,27 @@ void generate() {
     for(Int i = 0; i < constantMap.size(); i++) {
         cout << "[" << i << "]: " << constantMap.get(i) << endl;
     }
+
+    cout << endl << endl << "strings:\n";
+    for(Int i = 0; i < stringMap.size(); i++) {
+        cout << "[" << i << "]: " << stringMap.get(i) << endl;
+    }
     generate_exe();
 }
 
 void generation_error(string message) {
 
     cout << PROG_NAME << ": <code-generator> fatal error: " << message << endl;
-    if(cc.container)
+    if(cc.container) {
         cout << "note: in function: " << function_to_str(cc.container) << endl;
+        cout << "address: " << cc.container->ci->address << endl;
+        cout << "file: " << get_true_source_file(cc.container)->name << endl;
+        cout << "owner: " << cc.container->owner->fullName << endl;
+        cout << "frameStackOffset: " << cc.container->ci->frameStackOffset << endl;
+        cout << "fpOffset: " << cc.container->ci->fpOffset << endl;
+        cout << "spOffset: " << cc.container->ci->spOffset << endl;
+        cout << "stackSize: " << cc.container->ci->stackSize;
+        cout << "\ncode:\n\n" << code_to_string(cc.lineTable, cc.instructions) << endl;
+    }
     exit(1);
 }

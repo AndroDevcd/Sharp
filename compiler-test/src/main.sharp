@@ -4,12 +4,7 @@ import (
     std.*
 );
 
-
 def main() {
     terminal_main_loop();
 }
-// todo: auto init all primitive wrapper classes to 0
-// todo: auto init all string classes to ""
-// todo fix crash from _stat_id := = 8; should just error out
-// todo: fix print("\b$count"); breaking compiler
 

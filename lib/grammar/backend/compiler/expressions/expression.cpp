@@ -58,6 +58,21 @@ void compile_expression_for_type(sharp_type &type, Ast *ast) {
     type.copy(e.type);
 }
 
+bool pre_initialize_class(sharp_class *sc) {
+    return sc->fullName == "std#bool" ||
+       sc->fullName == "std#byte" ||
+       sc->fullName == "std#short" ||
+       sc->fullName == "std#char" ||
+       sc->fullName == "std#int" ||
+       sc->fullName == "std#long" ||
+       sc->fullName == "std#ushort" ||
+       sc->fullName == "std#uchar" ||
+       sc->fullName == "std#uint" ||
+       sc->fullName == "std#ulong" ||
+       sc->fullName == "std#double" ||
+       sc->fullName == "std#string";
+}
+
 void convert_expression_type_to_real_type(
         expression &typeDefinition) {
     if(typeDefinition.type == type_integer

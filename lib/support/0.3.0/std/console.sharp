@@ -4,7 +4,7 @@ import (
     platform.kernel
 )
 
-def strtod(str: string) : char {
+def strtod(str: string) : double {
     data := str.data;
     result : var;
 
@@ -17,7 +17,7 @@ def strtod(str: string) : char {
     return result;
 }
 
-def strtol(str: string, base_num: int) : char {
+def strtol(str: string, base_num: int) : long {
     data := str.data;
     result := base_num.value;
 
@@ -136,6 +136,7 @@ def read_line() : string {
         ch = read_char();
     }
 
+    flush();
     return message;
 }
 
@@ -149,15 +150,16 @@ def read_passwd() : string {
         ch = read_raw_char();
     }
 
+    flush();
     return message;
 }
 
 def read_char() : char {
-    return read_ch(false);
+    return read_ch(true);
 }
 
 def read_raw_char() : char {
-    return read_ch(true);
+    return read_ch(false);
 }
 
 def println(str: string) {
@@ -199,7 +201,7 @@ def exit() {
 }
 
 def sizeOf(data: object) : long {
-    result : var = 0;
+    result : var;
 
     asm {
         pushl [data]
@@ -210,7 +212,7 @@ def sizeOf(data: object) : long {
 }
 
 def sizeOf(data: object[]) : long {
-    result : var = 0;
+    result : var;
 
     asm {
         pushl [data]
@@ -320,11 +322,11 @@ local def print_chars(str: _int16[]) {
     print_chars(str);
 }
 
-local def read_ch(hide: var) : char {
+local def read_ch(echo: var) : char {
     result  : var = 0;
 
     asm {
-        loadl cmt, [hide]
+        loadl cmt, [echo]
         get ebx
         smovr2 [result], ebx
     }

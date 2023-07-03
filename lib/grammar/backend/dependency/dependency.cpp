@@ -2004,7 +2004,7 @@ void resolve_function_ptr_item(
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
         sharp_type resolvedType;
         resolve(*item.typeSpecifiers.get(i), resolvedType, hardType,
-                resolve_hard_type, item.ast, NULL);
+                resolve_hard_type, -1, item.ast, NULL);
 
         string name = "";
         params.add(new sharp_field(
@@ -2015,7 +2015,7 @@ void resolve_function_ptr_item(
 
     if(item.returnType) {
         resolve(*item.returnType, returnType, hardType,
-                resolve_hard_type, item.ast, NULL);
+                resolve_hard_type, -1, item.ast, NULL);
     } else returnType.type = type_nil;
 
     hardType = true;
@@ -2782,7 +2782,7 @@ string get_typed_generic_class_name(unresolved_item &item, List<sharp_type> &res
         resolve(
                 *item.typeSpecifiers.get(i),
                 resultTypes.__new(),
-                false,
+                false, -1,
                 resolve_hard_type,
                 item.ast,
                 NULL);
@@ -3108,23 +3108,24 @@ void resolve(
         sharp_type &resultType,
         bool ignoreInitialType,
         uInt filter,
+        Int endLabel,
         Ast *resolveLocation,
         operation_schema *scheme) {
     if(!ignoreInitialType && unresolvedType.type != type_untyped) {
         resultType.copy(unresolvedType);
     } else {
         unresolved_type &type = unresolvedType.unresolvedType;
-        bool hardType = false;
-        Int label = 0;
+        bool hardType = false, labelSet = false;
         operation_schema *subScheme = new operation_schema();
 
-        if(scheme && resolveLocation) {
-            label = create_allocate_label_operation(scheme);
+        if(scheme && resolveLocation && endLabel == -1) {
+            labelSet = true;
+            endLabel = create_allocate_label_operation(scheme);
         }
 
         for(Int i = 0; i < type.items.size(); i++) {
             resolve_item(*type.items.get(i), resultType, hardType,
-                    label, scheme != NULL ? subScheme : NULL, filter, resolveLocation);
+                    endLabel, scheme != NULL ? subScheme : NULL, filter, resolveLocation);
 
             if(resultType.type == type_undefined)
                 break;
@@ -3167,7 +3168,7 @@ void resolve(
             scheme->fun = subScheme->fun;
             scheme->sc = subScheme->sc;
             scheme->appendSteps(*subScheme);
-            create_set_label_operation(scheme, label);
+            if(labelSet) create_set_label_operation(scheme, endLabel);
         }
 
         delete subScheme;
@@ -3191,7 +3192,8 @@ sharp_type resolve(
         Ast *resolveLocation,
         uInt filter,
         operation_schema *scheme,
-        sharp_class *with_class) {
+        sharp_class *with_class,
+        Int endLabel) {
     sharp_type unresolvedType, resolvedType;
 
     GUARD(globalLock)
@@ -3280,6 +3282,7 @@ sharp_type resolve(
             resolvedType,
             with_class != NULL,
             filter,
+            endLabel,
             resolveLocation,
             scheme);
 

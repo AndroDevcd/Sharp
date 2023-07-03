@@ -12,8 +12,6 @@ class account_manager {
     accounts := new list<bank_account>();
     inject user_registry: user_manager;
 
-
-
     def find_user(username: string): user? =
         user_registry.locate_user(username);
 
@@ -27,6 +25,35 @@ class account_manager {
         }
 
         return associated_accounts;
+    }
+
+    def get_primary_account(usr: user): bank_account? {
+        foreach(acct in accounts) {
+            if(acct.is_user_primary(usr)) {
+                return acct;
+            }
+        }
+
+        return null;
+    }
+
+    def create_account(usr: user): bool {
+        if(get_primary_account(usr) == null) {
+            accounts.add(new bank_account(usr));
+            return true;
+        }
+
+        return false;
+    }
+
+    def delete_account(usr: user): bool {
+        primary := get_primary_account(usr);
+        if(primary != null) {
+            accounts.remove(primary!!);
+            return true;
+        }
+
+        return false;
     }
 
     def create_user(username: string, password: string): bool =

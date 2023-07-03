@@ -3,33 +3,72 @@ mod std.io.coroutines;
 class deferred_task<t> base deferred<t> {
 	deferred_task(scheduled_job : job) -> base(scheduled_job) {}
 
-    static def for_result(builder : coroutine_builder, main: (object, object[])()) : deferred<t> {
+    static def for_result(builder : coroutine_builder, main: (deferred_task<t>, object[])()) : deferred<t> {
+        args := builder.scheduled_job.args;
+        new_args := new object[sizeof(args) > 0 ? sizeof(args) : 1];
+        new_args[0] = new callback<t>(main);
+
+        if(sizeof(args) > 0) {
+            for(i : var = 1; i < sizeof(new_args); i++) {
+                new_args[i] = args[i];
+            }
+        }
+
+        builder.with_args(new_args);
     	future := new deferred_task<t>(builder.scheduled_job);
     	builder.scheduled_job.deferred_obj = future;
-    	builder = main; // todo. implement closure
+    	builder = { deferred: object, args: object[] ->
+            call := args[1] as callback<t>;
+            call.main1(deferred as deferred_task<t>);
+        };
     	return future;
     }
 
-    static def for_result(builder : coroutine_builder, main: (object)()) : deferred<t> {
+    static def for_result(builder : coroutine_builder, main: (deferred_task<t>)()) : deferred<t> {
+        builder.with_args(new object[] { new callback<t>(main) });
     	future := new deferred_task<t>(builder.scheduled_job);
     	builder.scheduled_job.deferred_obj = future;
-    	builder = main;
+    	builder = { deferred: object, args: object[] ->
+            call := args[1] as callback<t>;
+            call.main1(deferred as deferred_task<t>);
+        };
     	return future;
     }
 
-    static def for_result(main: (object, object[])()) : deferred<t> {
-        builder := coroutine.builder();
+    static def for_result(main: (deferred_task<t>, object[])()) : deferred<t> {
+        builder := coroutine.builder()
+            .with_args(new object[] { new callback<t>(main) });
     	future := new deferred_task<t>(builder.scheduled_job);
     	builder.scheduled_job.deferred_obj = future;
-    	builder = main;
+    	builder = { deferred: object, args: object[] ->
+            call := args[1] as callback<t>;
+            call.main2(deferred as deferred_task<t>);
+        };
     	return future;
     }
 
-    static def for_result(main: (object)()) : deferred<t> {
-        builder := coroutine.builder();
-    	future := new deferred<t>(builder.scheduled_job);
+    static def for_result(main: (deferred_task<t>)()) : deferred<t> {
+        builder := coroutine.builder()
+            .with_args(new object[] { new callback<t>(main) });
+    	future := new deferred_task<t>(builder.scheduled_job);
     	builder.scheduled_job.deferred_obj = future;
-    	builder = main;
+    	builder = { deferred: object, args: object[] ->
+    	    call := args[1] as callback<t>;
+    	    call.main1(deferred as deferred_task<t>);
+    	};
     	return future;
+    }
+
+    private class callback<t> {
+        main1: (deferred_task<t>)();
+        main2: (deferred_task<t>, object[])();
+
+        callback(main1: (deferred_task<t>)()) {
+            self->main1 = main1;
+        }
+
+        callback(main1: (deferred_task<t>, object[])()) {
+            self->main2 = main1;
+        }
     }
 }

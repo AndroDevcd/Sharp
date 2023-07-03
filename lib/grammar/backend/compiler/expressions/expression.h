@@ -49,6 +49,8 @@ void recompile_cond_expression(expression &out, Ast *ast);
 void convert_expression_type_to_real_type(
         expression &typeDefinition);
 
+bool pre_initialize_class(sharp_class*);
+
 /**
  * This function can be used to call simple constructors or init() calls
  * @param ast

@@ -13,7 +13,7 @@
 #include "../../../../settings/settings.h"
 #include "array_expression.h"
 
-void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
+void compile_post_ast_expression(expression *e, Ast *ast, Int startPos, Int endLabel) {
     for(Int i = startPos; i < ast->getSubAstCount(); i++) {
         if(ast->getSubAst(i)->getType() == ast_post_inc_e)
             compile_post_inc_expression(e, ast->getSubAst(i), false);
@@ -48,7 +48,7 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos) {
 
                 if(ast->getSubAst(i)->getType() == ast_dot_not_e)
                     create_post_access_operation(&e->scheme);
-                compile_dot_notation_call_expression(e, with_class, false, dotNotationCallExpr);
+                compile_dot_notation_call_expression(e, with_class, false, endLabel, dotNotationCallExpr);
             } else {
                 create_new_error(GENERIC, ast, "expected `class` type but type `"
                     + type_to_str(e->type) + "` was found.");

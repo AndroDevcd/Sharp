@@ -110,7 +110,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
 
     controlPaths[TRY_CONTROL_PATH] =
             compile_block(ast->getSubAst(ast_block), subScheme, try_block,
-                          NULL, NULL, NULL, finallyBeginLabel);
+                          NULL, NULL, NULL, ast->hasSubAst(ast_finally_block) ? finallyBeginLabel : NULL);
     create_try_catch_block_end_operation(subScheme, tc_data);
 
     if(hasCatchBlock)

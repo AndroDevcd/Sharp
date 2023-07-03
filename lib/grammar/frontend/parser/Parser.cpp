@@ -83,7 +83,8 @@ void parser::parse() {
             parseEnumDecl(NULL);
         }
         else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
-                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":=")))
+                || isInjectRequest(current()) || (isStorageType(current()) && isInjectRequest(*peek(1))))
         {
             parseVariableDecl(NULL);
         }
@@ -2248,6 +2249,11 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary, bool ignoreInlineLambd
         advance();
         branch->addToken(current());
 
+        if(branch->sub_asts.empty()) {
+            errors->createNewError(GENERIC, current(), "expected expression before `" + current().getValue() + "`");
+            return false;
+        }
+
         parseExpression(branch);
         branch->encapsulate(ast_assign_e);
 
@@ -2683,8 +2689,6 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
     Ast* branch = getBranch(ast, ast_expression_list);
 
     expect(branch, beginChar);
-    if(peek(1)->getId() == STRING_LITERAL && peek(1)->getValue() == endChar)
-        goto compile;
 
     if(peek(1)->getValue() != endChar)
     {

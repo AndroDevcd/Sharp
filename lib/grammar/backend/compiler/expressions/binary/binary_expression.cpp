@@ -674,10 +674,23 @@ void compile_binary_expression(
             if(operand == "==" || operand == "!=") {
                 uInt result =
                         is_implicit_type_match(left.type, right.type, overload_only);
+
+                auto comparee = get_real_type(right.type);
+                List<sharp_field*> params;
+                string name = "mock";
+                impl_location location;
+                params.add(new sharp_field(name, NULL, location,
+                                           comparee, flag_none, normal_field, NULL));
+
                 if (result == no_match_found) {
                     goto _overload;
                 } else if(result == match_operator_overload) {
                     goto _overload;
+                } else if(resolve_function("operator" + operand.getValue(), get_real_type(left.type)._class,
+                    params, operator_function,
+                    match_constructor | match_initializer | match_operator_overload,
+                    NULL, true, true) != NULL) {
+                    goto _overload; // silly bypass that's needed due to implicit type checking flaw
                 }
 
                 compile_binary_object_expression(e, left, right, operand, ast);

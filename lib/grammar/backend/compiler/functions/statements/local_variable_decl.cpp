@@ -105,6 +105,19 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
             }
 
             field->scheme->copy(e.scheme);
+        } else if(field->type.type == type_class && pre_initialize_class(field->type._class)) {
+            List<sharp_field*> params;
+            List<operation_schema*> paramOps;
+            auto constr = resolve_function(field->type._class->name, field->type._class, params,
+                                           constructor_function, exclude_all, ast, false, false);
+
+            if(constr != NULL) {
+                compile_initialization_call(ast, field->type._class,
+                                            constr, params, paramOps, field->scheme);
+            } else {
+                create_new_error(GENERIC, ast,
+                                 "no default constructor found for class `" + field->type._class->fullName + "`:");
+            }
         }
     }
 

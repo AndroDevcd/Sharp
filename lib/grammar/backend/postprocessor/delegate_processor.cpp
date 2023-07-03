@@ -166,9 +166,17 @@ void process_delegates(sharp_class *with_class) {
                                                            delegate_function, exclude_all, fun->ast, true, false);
 
                 if(basefun != NULL) {
-                    fun->delegate = basefun;
-                    create_dependency(fun, basefun);
-                    create_dependency(basefun, fun);
+                    if(is_explicit_type_match(basefun->returnType, fun->returnType)) {
+                        fun->delegate = basefun;
+                        create_dependency(fun, basefun);
+                        create_dependency(basefun, fun);
+                    } else {
+                        stringstream err;
+                        err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"
+                            << with_class->fullName << "`, mismatched return types, expected type `"
+                            << type_to_str(basefun->returnType) << "`:";
+                        create_new_error(GENERIC, functions.get(i)->ast, err.str());
+                    }
                 } else {
                     stringstream err;
                     err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"

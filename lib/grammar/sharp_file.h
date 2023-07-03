@@ -28,7 +28,7 @@ enum compilation_stage {
 };
 
 #define pre_compilation_state classes_post_processed
-#define compilation_ready(state) ((state) == class_delegates_processed)
+#define compilation_ready(state) ((state) >= class_delegates_processed)
 
 /**
  * Sharp file

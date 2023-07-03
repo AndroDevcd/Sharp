@@ -255,8 +255,44 @@ void compile_field(sharp_field *field, Ast *ast) {
             )
 
             field->scheme->copy(scheme_0);
-        } else {
-            create_setup_local_field_operation(field->scheme, field);
+        } else if(field->type.type == type_class && pre_initialize_class(field->type._class)) {
+            List<sharp_field*> params;
+            List<operation_schema*> paramOps;
+            field->scheme = new operation_schema();
+            auto constr = resolve_function(field->type._class->name, field->type._class, params,
+                                           constructor_function, exclude_all, ast, false, false);
+
+            if(constr != NULL) {
+                operation_schema *initScheme = new operation_schema();
+                compile_initialization_call(ast, field->type._class,
+                                            constr, params, paramOps, initScheme);
+
+                APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+                    scheme_0.schemeType = scheme_assign_value;
+
+                    operation_schema *resultVariableScheme = new operation_schema();
+                    create_get_value_operation(&scheme_0, initScheme, false, false);
+                    create_push_to_stack_operation(&scheme_0);
+
+                    if(check_flag(field->flags, flag_static)) {
+                        if(field->fieldType == normal_field) {
+                            create_static_field_access_operation(resultVariableScheme, field);
+                        } else {
+                            create_tls_field_access_operation(resultVariableScheme, field);
+                        }
+                    } else {
+                        create_primary_instance_field_access_operation(resultVariableScheme, field);
+                    }
+                    create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
+                    create_pop_value_from_stack_operation(&scheme_0);
+                    create_unused_data_operation(&scheme_0);
+                )
+
+                field->scheme->copy(scheme_0);
+            } else {
+                create_new_error(GENERIC, ast,
+                                 "no default constructor found for class `" + field->type._class->fullName + "`:");
+            }
         }
 
         if(ast->hasSubAst(ast_getter) && field->getter == NULL) {
@@ -350,6 +386,43 @@ void compile_field(sharp_field *field, Ast *ast) {
                         )
 
                         xtraField->scheme->copy(scheme_0);
+                    } else if(xtraField->type.type == type_class && pre_initialize_class(xtraField->type._class)) {
+                        List<sharp_field*> params;
+                        List<operation_schema*> paramOps;
+                        auto constr = resolve_function(xtraField->type._class->name, xtraField->type._class, params,
+                                                       constructor_function, exclude_all, ast, false, false);
+
+                        if(constr != NULL) {
+                            operation_schema *initScheme = new operation_schema();
+                            compile_initialization_call(ast, xtraField->type._class,
+                                                        constr, params, paramOps, initScheme);
+
+                            APPLY_TEMP_SCHEME_WITHOUT_INJECT(0,
+                                scheme_0.schemeType = scheme_assign_value;
+
+                                operation_schema *resultVariableScheme = new operation_schema();
+                                create_get_value_operation(&scheme_0, initScheme, false, false);
+                                create_push_to_stack_operation(&scheme_0);
+
+                                if(check_flag(xtraField->flags, flag_static)) {
+                                    if(xtraField->fieldType == normal_field) {
+                                        create_static_field_access_operation(resultVariableScheme, xtraField);
+                                    } else {
+                                        create_tls_field_access_operation(resultVariableScheme, xtraField);
+                                    }
+                                } else {
+                                    create_primary_instance_field_access_operation(resultVariableScheme, xtraField);
+                                }
+                                create_get_value_operation(&scheme_0, resultVariableScheme, false, false);
+                                create_pop_value_from_stack_operation(&scheme_0);
+                                create_unused_data_operation(&scheme_0);
+                            )
+
+                            xtraField->scheme->copy(scheme_0);
+                        } else {
+                            create_new_error(GENERIC, ast,
+                                             "no default constructor found for class `" + xtraField->type._class->fullName + "`:");
+                        }
                     }
 
                     delete_context();

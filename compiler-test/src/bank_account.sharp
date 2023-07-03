@@ -4,16 +4,32 @@ class bank_account {
     primary_user: user;
     secondary_users := new list<user>();
     balance: long = 0;
+    number: long = 0;
+    static account_number : long = 0;
     transactions := new list<transaction>();
 
     private bank_account() {}
 
     public bank_account(primary: user) {
         primary_user = primary;
+        number = account_number++;
     }
 
     def add_transaction(tx: transaction) {
         transactions.add(tx);
+    }
+
+    def is_user_primary(usr: user): bool {
+        return usr.uid == primary_user.uid;
+    }
+
+    def add_as_secondary(usr: user): bool {
+        if(!is_user_associated(usr)) {
+            secondary_users.add(usr);
+            return true;
+        }
+
+        return false;
     }
 
     def is_user_associated(usr: user): bool {
@@ -25,5 +41,13 @@ class bank_account {
 
             return false;
         } else return true;
+    }
+
+    def get_owner_status(usr: user): string {
+        if(usr.uid == primary_user.uid) {
+            return "Main Account (owner: you) - $number";
+        } else if(is_user_associated(usr)) {
+            return "Secondary Account (owner: ${primary_user.name}) - $number";
+        } else throw new ill_state_except("user is not associated with account");
     }
 }

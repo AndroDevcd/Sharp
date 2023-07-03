@@ -716,7 +716,7 @@ bool tokenizer::parseString() {
                     if (!escaped_found)
                         add_token(STRING_LITERAL);
                     else
-                        tokens.add(Token(from_escaped_string(toks.substr(start, (cursor-start))), STRING_LITERAL, col, line));
+                        tokens.add(Token(from_escaped_string(toks.substr(start, (cursor-start)+1)), STRING_LITERAL, col, line));
                     cursor++;
 
                     advance();

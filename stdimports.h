@@ -53,13 +53,10 @@ using namespace std;
 #define __os_yield() sched_yield();
 #endif
 
-//#define GOD_MODE
 #define SAFE_EXECUTION
 //#define VM_DEBUG
+// #define SHARP_PROF
 
-#ifdef GOD_MODE
-#define SHARP_PROF_
-#endif
 #define COROUTINE_DEBUGGING
 
 #ifdef SHARP_PROF_

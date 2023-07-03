@@ -205,7 +205,7 @@ class string : loopable<_int8> {
 
     override def get_elements() := data;
 
-    def to_array() : char_array?
+    def to_char_array() : char_array?
     {
         if(data == null) return null;
         return new char_array(copy(data!!, 0, sizeof(data)));
@@ -266,19 +266,19 @@ class string : loopable<_int8> {
     }
 
     def operator+(num : var) : string {
-        return operator+(num as _int8);
+        return operator+(new double(num).to_string());
     }
 
     def operator+(num : _int16) : string {
-        return operator+(num as _int8);
+        return operator+(new short(num).to_string());
     }
 
     def operator+(num : _int32) : string {
-        return operator+(num as _int8);
+        return operator+(new int(num).to_string());
     }
 
     def operator+(num : _int64) : string {
-        return operator+(num as _int8);
+        return operator+(new long(num).to_string());
     }
 
     def operator+(num : _uint8) : string {
@@ -286,15 +286,15 @@ class string : loopable<_int8> {
     }
 
     def operator+(num : _uint16) : string {
-        return operator+(num as _int8);
+        return operator+(new ushort(num).to_string());
     }
 
     def operator+(num : _uint32) : string {
-        return operator+(num as _int8);
+        return operator+(new uint(num).to_string());
     }
 
     def operator+(num : _uint64) : string {
-        return operator+(num as _int8);
+        return operator+(new ulong(num).to_string());
     }
 
     def size() := sizeof(data);

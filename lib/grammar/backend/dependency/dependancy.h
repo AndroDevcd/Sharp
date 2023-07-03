@@ -358,6 +358,7 @@ void resolve(
         sharp_type &resultType,
         bool ignoreInitialType,
         uInt filter,
+        Int endLabel,
         Ast *resolveLocation,
         operation_schema *scheme = NULL);
 
@@ -365,6 +366,7 @@ sharp_type resolve(
         Ast *resolveLocation,
         uInt filter = resolve_hard_type,
         operation_schema *scheme = NULL,
-        sharp_class *with_class = NULL);
+        sharp_class *with_class = NULL,
+        Int endLabel = -1);
 
 #endif //SHARP_DEPENDANCY_H

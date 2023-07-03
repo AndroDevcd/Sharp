@@ -211,7 +211,15 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
 
 void cast_object(object *from, Int toClass) {
     if(!(from->o->type == type_class && is_type(from, toClass))) {
-        vm_exception err(vm.ill_state_except, "casted object does not match expected type");
+        stringstream ss;
+        if(from->o->type == type_class) {
+            ss << "invalid cast from: "
+                  + vm.classes[CLASS(from->o->info)].fullName + " to: " + vm.classes[toClass].fullName;
+        } else {
+            ss << "casted object does not match expected type";
+        }
+
+        vm_exception err(vm.ill_state_except, ss.str());
         enable_exception_flag(thread_self, true);
         throw err;
     }

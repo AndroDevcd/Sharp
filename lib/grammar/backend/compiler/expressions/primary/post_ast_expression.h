@@ -9,6 +9,6 @@
 
 struct expression;
 
-void compile_post_ast_expression(expression *e, Ast *ast, Int startPos = 1);
+void compile_post_ast_expression(expression *e, Ast *ast, Int startPos = 1, Int endLabel = -1);
 
 #endif //SHARP_POST_AST_EXPRESSION_H

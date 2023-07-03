@@ -33,9 +33,9 @@ void compile_while_statement(Ast *ast, operation_schema *scheme, bool *controlPa
     compile_block(ast->getSubAst(ast_block), subScheme, while_block, beginLabel, endLabel);
     current_context.blockInfo.reachable = !current_context.blockInfo.reachable;
 
-    if(!current_context.blockInfo.reachable && (cond.type != type_bool && !cond.type._bool) && (cond.type != type_integer && !cond.type.integer)) {
+//    if(!current_context.blockInfo.reachable && (cond.type != type_bool && !cond.type._bool) && (cond.type != type_integer && !cond.type.integer)) {
         current_context.blockInfo.reachable = true;
-    }
+//    }
 
     create_jump_operation(subScheme, beginLabel);
     create_set_label_operation(subScheme, endLabel);

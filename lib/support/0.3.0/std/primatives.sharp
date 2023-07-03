@@ -143,13 +143,13 @@ public class number<T, NT> base base_number<NT> {
     def operator*(num : double)   := new NT(value*num.value);
     def operator*(num : var)    := new NT(value*num);
     def operator*(num : _int8)    := new NT(value*num);
-    def operator*(num : _int16)   := new NT(value+num);
-    def operator*(num : _int32)   := new NT(value+num);
-    def operator*(num : _int64)   := new NT(value+num);
-    def operator*(num : _uint8)   := new NT(value+num);
-    def operator*(num : _uint16)  := new NT(value+num);
-    def operator*(num : _uint32)  := new NT(value+num);
-    def operator*(num : _uint64)  := new NT(value+num);
+    def operator*(num : _int16)   := new NT(value*num);
+    def operator*(num : _int32)   := new NT(value*num);
+    def operator*(num : _int64)   := new NT(value*num);
+    def operator*(num : _uint8)   := new NT(value*num);
+    def operator*(num : _uint16)  := new NT(value*num);
+    def operator*(num : _uint32)  := new NT(value*num);
+    def operator*(num : _uint64)  := new NT(value*num);
     
     def operator/(num : ulong)  := new NT(value/num.value);
     def operator/(num : long)   := new NT(value/num.value);

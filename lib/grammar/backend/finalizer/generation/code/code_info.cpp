@@ -63,7 +63,10 @@ string register_to_str(int64_t r) {
 
 extern uInt delegateFunctionAddressCounter;
 string code_to_string(code_info *info) {
-    List<opcode_instr> &code = info->code;
+    return code_to_string(info->lineTable, info->code);
+}
+
+string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
     stringstream ss, endData;
     Int linesProcessed = 0, currLine = 0;
 
@@ -71,9 +74,9 @@ string code_to_string(code_info *info) {
         opcode_instr opcodeData=code.get(x);
         ss << x <<std::hex << " [0x" << x << std::dec << "]"<< ": ";
 
-        if(linesProcessed < info->lineTable.size() && x >= info->lineTable.get(linesProcessed)->start_pc) {
-            currLine = info->lineTable.get(linesProcessed++)->line;
-            ss << "line: " <<  currLine << " - " << info->lineTable.get(linesProcessed-1)->start_pc;
+        if(linesProcessed < lineTable.size() && x >= lineTable.get(linesProcessed)->start_pc) {
+            currLine = lineTable.get(linesProcessed++)->line;
+            ss << "line: " <<  currLine << " - " << lineTable.get(linesProcessed-1)->start_pc;
         } else {
             if(currLine <=9) ss << "        ";
             else if(currLine <=99) ss << "         ";

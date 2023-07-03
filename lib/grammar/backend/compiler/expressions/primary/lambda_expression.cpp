@@ -21,7 +21,7 @@ void compile_lambda_expression(expression *e, Ast *ast) {
             if(params.get(i)->type.type != type_any) {
                 sharp_type resolvedType;
                 resolve(params.get(i)->type, resolvedType,
-                        false, resolve_hard_type, params.get(i)->ast);
+                        false, resolve_hard_type, -1, params.get(i)->ast);
 
                 params.get(i)->type.copy(resolvedType);
             }

@@ -58,6 +58,10 @@ class list<T base _object_> : loopable<T> {
         return at(n_elements - 1);
     }
 
+    def first(): T {
+        return at(0);
+    }
+
     def put(index: int, element: T) : T {
         if (index.value >= n_elements || index.value < 0)
             throw new bounds_except(out_of_bounds_msg(index));

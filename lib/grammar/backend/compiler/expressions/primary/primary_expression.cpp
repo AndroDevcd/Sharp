@@ -27,7 +27,7 @@ void compile_primary_expression(expression *e, Ast *ast) {
     else if(ast->hasSubAst(ast_self_e))
         compile_self_expression(e, ast->getSubAst(ast_self_e));
     else if(ast->hasSubAst(ast_dot_not_e))
-        compile_dot_notation_call_expression(e, NULL, false, ast->getSubAst(ast_dot_not_e));
+        compile_dot_notation_call_expression(e, NULL, false, -1, ast->getSubAst(ast_dot_not_e));
     else if(ast->hasSubAst(ast_base_e))
         compile_base_expression(e, ast->getSubAst(ast_base_e));
     else if(ast->hasSubAst(ast_null_e))

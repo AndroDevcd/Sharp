@@ -83,7 +83,7 @@ void process_extension_class(
             resolve(
                     unresolvedType,
                     resultType,
-                    false,
+                    false, -1,
                     resolve_hard_type | resolve_generic_type,
                     ast);
 
@@ -133,7 +133,7 @@ void process_function_parameters(List<sharp_field*> &params, sharp_class *with_c
         sharp_type resolvedType;
 
         param->owner = with_class;
-        resolve(param->type, resolvedType, false,
+        resolve(param->type, resolvedType, false, -1,
                 resolve_hard_type, param->ast);
         param->type.free();
         param->type = sharp_type();
