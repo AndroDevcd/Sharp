@@ -25,39 +25,41 @@ class vm {
         return new file(name).get_absolute_path().data!!;
     }
 
-//    static def load_library(name: string) {
-//        lib_name : _int8[] = get_lib_path(name);
-//        asm {
-//            pushl {lib_name}
-//            int 0x39
-//        }
-//    }
-//
-//    static def free_library(name: string): var {
-//        lib_name : _int8[] = get_lib_path(name);
-//        result := 0;
-//        asm {
-//            pushl {lib_name}
-//            int 0x3a
-//            smovr2 [result], ebx
-//        }
-//
-//        return result;
-//    }
-//
-//    static def link_func(name: string, library: string): var {
-//        lib_name : _int8[] = get_lib_path(name);
-//        func_name := name.data;
-//        result := 0;
-//        asm {
-//            pushl {func_name}
-//            pushl {lib_name}
-//            int 0x3b
-//            smovr2 [result], ebx
-//        }
-//
-//        return result;
-//    }
+    static def load_library(name: string) {
+        lib_name : _int8[] = get_lib_path(name);
+
+        asm {
+            pushl [lib_name]
+            int 0x39
+        }
+    }
+
+    static def free_library(name: string): int {
+        lib_name : _int8[] = get_lib_path(name);
+        result := 0;
+
+        asm {
+            pushl [lib_name]
+            int 0x3a
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def link_func(name: string, library: string): int {
+        lib_name : _int8[] = get_lib_path(name);
+        func_name := name.data;
+        result : var = 0;
+        asm {
+            pushl [func_name]
+            pushl [lib_name]
+            int 0x3b
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
 
     static def get_frame_info() : stack_state? {
         asm {
@@ -171,8 +173,11 @@ class vm {
     }
 
     static def get_bound_fibers(t: thread?) : int {
-        threadid := t?.get_native_handle() ?: -1;
+        threadid : var;
         result: var;
+
+        if(t != null)
+            threadid = t!!.get_native_handle().value;
 
         asm {
             ipushl [threadid]

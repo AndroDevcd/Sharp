@@ -15,5 +15,6 @@
 void process_scheme_steps(operation_schema *scheme);
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container);
 void process_scheme(operation_schema *scheme);
+void validate_scheme_type(operation_schema *scheme, _operation_scheme type);
 
 #endif //SHARP_SCHEME_PROCESSOR_H

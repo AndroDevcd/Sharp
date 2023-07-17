@@ -26,12 +26,9 @@ void help() {
     cout <<               "    -showversion         print compiler version and continue"                       << endl;
     cout <<               "    -o<file>             set the output object file"                                << endl;
     cout <<               "    -c                   compile only and do not generate exe"                      << endl;
-    cout <<               "    -a                   enable aggressive error reporting"                         << endl;
-    cout <<               "    -O -O1               basic optimization of code"                                << endl;
-    cout <<               "    -O2                  max level optimization of code"                            << endl;
+    cout <<               "    -a                   enable aggressive error reporting"                                << endl;
     cout <<               "    -L<path>             library directory path"                                    << endl;
     cout <<               "    -w                   disable all warnings"                                      << endl;
-    cout <<               "    --clean              flush compiler cache and recompile the project fresh"      << endl;
     cout <<               "    -run                 run compiled source after successful compilation"          << endl;
     cout <<               "    -g -green            run compiler in \"green\" mode to consume less power"      << endl;
     cout <<               "    -dbg -debug          enables debugging in source code (enabled by default)"     << endl;
@@ -180,12 +177,6 @@ int _bootstrap(int argc, const char* args[])
             printVersion();
             exit(0);
         }
-        else if(opt("-O") || opt("-O1")){
-            set_optimization_level(basic_optimization);
-        }
-        else if(opt("-O2")){
-            set_optimization_level(high_performance_optimization);
-        }
         else if(opt("--h") || opt("-?")){
             help();
             exit(0);
@@ -195,7 +186,6 @@ int _bootstrap(int argc, const char* args[])
             exit(0);
         }
         else if(opt("-R") || opt("-release")){
-            set_optimization_level(high_performance_optimization);
             enable_app_debugging(false);
         }
         else if(opt("-magic")){
@@ -231,9 +221,6 @@ int _bootstrap(int argc, const char* args[])
         }
         else if(opt("-run")){
             enable_run_source_code(true);
-        }
-        else if(opt("-clean")){
-            enable_clean_project(true);
         }
         else if(opt("-g") || opt("-green")){
             enable_green_mode(true);

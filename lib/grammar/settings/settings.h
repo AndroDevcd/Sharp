@@ -106,19 +106,9 @@ struct settings {
     bool warnings = true;
 
     /*
-     * Enable file caching
-     */
-    bool file_caching = true;
-
-    /*
      * Execute source code after successful compilation
      */
     bool run_source = false;
-
-    /*
-     * Optimize code
-     */
-    int optimize_level = no_optimization;
 
     /*
      * Set the compilation mode
@@ -129,11 +119,6 @@ struct settings {
      * Set code to be debuggable (flag only used in manifest creation)
      */
     bool debug = true;
-
-    /*
-     * Flush compiler cache and start from scratch (only used in project mode)
-     */
-    bool clean_build = false;
 
     /*
      * Enable warnings as errors
@@ -194,7 +179,6 @@ void enable_show_all_errors(bool);
 void enable_compile_only(bool);
 void set_output_file(string);
 void add_library_path(string);
-void set_optimization_level(optimization_level);
 void enable_magic_mode(bool);
 void enable_debug_mode(bool);
 void enable_app_debugging(bool);
@@ -203,7 +187,6 @@ void enable_warnings(bool);
 void enable_warning_type(string, bool);
 void set_compilation_mode(compilation_mode);
 void enable_run_source_code(bool);
-void enable_clean_project(bool);
 void enable_green_mode(bool);
 void set_new_project_path(string);
 void set_source_version(string);

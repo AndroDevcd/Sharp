@@ -1,0 +1,11 @@
+{
+  "name": "sharpc",
+  "version": "1.0",
+  "output": "sharpc",
+  "ignore_folders": [
+     "build"
+  ],
+  "extern_lib": [
+     "..\\support\\0.3.0"
+  ]
+}

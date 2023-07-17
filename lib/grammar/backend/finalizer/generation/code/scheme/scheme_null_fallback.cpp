@@ -8,7 +8,8 @@
 #include "../../generator.h"
 
 void process_null_fallback_scheme(operation_schema *scheme) {
-    process_get_value(scheme->steps.get(0));
+    process_allocate_label(scheme->steps.get(0));
+    process_get_value(scheme->steps.get(1));
 
     consume_machine_data();
     add_instruction(Opcode::Builder::checkNull(CMT));
@@ -19,9 +20,16 @@ void process_null_fallback_scheme(operation_schema *scheme) {
                        dynamic_argument(label_argument, label)
             )
     );
-    process_get_value(scheme->steps.get(1));
+
+    process_set_label(scheme->steps.get(2));
+    process_get_value(scheme->steps.get(3));
     consume_machine_data();
     set_machine_data(generic_object_data);
 
     set_label(find_label(label));
+    if(scheme->steps.size() > 4){
+        for(Int i = 4; i < scheme->steps.size(); i++) {
+            process_step(scheme->steps.get(i));
+        }
+    }
 }

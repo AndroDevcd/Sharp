@@ -8,10 +8,10 @@
 #include "../../../../stdimports.h"
 
 #define TIME_UNIT_MULT 1000          /* Represents how many microseconds/millisecond */
-#define LPTSI ((TIME_UNIT_MULT * 1000) / 250)  /* low priority time slice interval 250 ctx switches/sec */  // ~4ms
+#define LPTSI ((TIME_UNIT_MULT * 1000) / 80)  /* low priority time slice interval 80 ctx switches/sec */  // ~12.5ms
 #define NPTSI ((TIME_UNIT_MULT * 1000) / 150)  /* norm priority time slice interval 150 ctx switches/sec */ // ~6.6ms
-#define HPTSI ((TIME_UNIT_MULT * 1000) / 100)  /* high priority time slice interval 100 ctx switches/sec */ // ~10ms
-#define CLOCK_CYCLE 1500                     /* Time between clock cycle switches 1.5ms */
+#define HPTSI ((TIME_UNIT_MULT * 1000) / 250)  /* high priority time slice interval 250 ctx switches/sec */ // ~4ms
+#define CLOCK_CYCLE 2500                     /* Time between clock cycle switches 1.5ms */
 
 #define CLOCKS_SINCE ((NANO_TOMICRO(Clock::realTimeInNSecs()) - schedTime) / CLOCK_CYCLE)
 #define TIME_SINCE(tm) (NANO_TOMICRO(Clock::realTimeInNSecs()) - (tm))

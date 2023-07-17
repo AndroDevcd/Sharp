@@ -11,6 +11,7 @@
 #include "function_generator.h"
 #include "code/code_context.h"
 #include "../../../../util/File.h"
+#include "native_generator.h"
 
 Int UUIDGenerator = 0;
 const int range_from  = 0;
@@ -55,17 +56,20 @@ void print_field_addresses(sharp_class *sc, bool isStatic) {
     }
 }
 
-void generate() {
+void pre_generate_addresses() {
     offsetUUIDGenerator();
 
     for(Int i = 0; i < compressedCompilationFiles.size(); i++) {
         generate_addresses(compressedCompilationFiles.get(i));
     }
+}
 
+void generate() {
     for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
         generate(compressedCompilationFunctions.get(i));
     }
 
+    application_id = abs(distr(generator));
 //    remove_delegate_functions();
     compressedCompilationFunctions.linearSort(is_greater_than);
     compressedCompilationClasses.linearSort(is_greater_than);
@@ -101,6 +105,8 @@ void generate() {
     for(Int i = 0; i < stringMap.size(); i++) {
         cout << "[" << i << "]: " << stringMap.get(i) << endl;
     }
+
+    generate_native_code();
     generate_exe();
 }
 

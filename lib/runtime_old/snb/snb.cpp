@@ -243,7 +243,7 @@ void clearException() {
     sendSignal(thread_self->signal, tsig_except, 0);
 }
 
-void *lib_funcs[] =
+void *lib_funcs[26] =
 {
         (void*)inc_ref,
         (void*)dec_ref,

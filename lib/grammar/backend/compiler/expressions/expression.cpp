@@ -20,7 +20,7 @@
 #include "inline_if_expression.h"
 #include "primary/force_non_null_expression.h"
 
-void compile_expression(expression &e, Ast *ast) {
+void compile_expression(expression &e, Ast *ast, Int endLabel) {
     if(ast->getType() == ast_expression)
         compile_expression(e, ast->getSubAst(0));
     else if(ast->getType() == ast_minus_e)
@@ -28,7 +28,7 @@ void compile_expression(expression &e, Ast *ast) {
     else if(ast->getType() == ast_pre_inc_e)
         compile_pre_increment_expression(&e, ast);
     else if(ast->getType() == ast_primary_expr)
-        compile_primary_expression(&e, ast);
+        compile_primary_expression(&e, ast, endLabel);
     else if(ast->getType() == ast_dictionary_array)
         compile_dictionary_expression(&e, ast);
     else if(ast->getType() == ast_vect_e)

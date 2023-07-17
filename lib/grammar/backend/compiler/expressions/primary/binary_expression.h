@@ -9,6 +9,6 @@
 
 struct expression;
 
-void compile_primary_expression(expression *e, Ast *ast);
+void compile_primary_expression(expression *e, Ast *ast, Int endLabel);
 
 #endif //SHARP_PRIMARY_EXPRESSION_H

@@ -95,6 +95,7 @@ void build_manifest() {
     exeBuf << ((char)0x0f); exeBuf << putInt32(compressedCompilationFiles.size());
     exeBuf << ((char)0x1b); exeBuf << putInt32(threadLocalCount);
     exeBuf << ((char)0x1c); exeBuf << putInt32(constantMap.size());
+    exeBuf << ((char)0x2a); exeBuf << putInt32(application_id);
     exeBuf << '\n' << (char)eoh;
 }
 

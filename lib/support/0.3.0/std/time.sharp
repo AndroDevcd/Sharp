@@ -68,8 +68,13 @@ class time {
         }
     }
 
+    static def measureMills(block: ()()): long {
+        return measure(time_unit.milliseconds, block);
+    }
+
     static def measure(tm_unit: time_unit, block: ()()) : long {
-        start := nano_time(), end;
+        start := nano_time();
+        end: long;
         block();
         end = nano_time();
 

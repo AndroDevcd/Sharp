@@ -43,7 +43,6 @@ class job_master {
 	protected def cleanup_job(scheduled_job : job) {
 		scheduled_job.deferred_obj = null;
 		scheduled_job.host = null;
-		scheduled_job.host = null;
 		scheduled_job.next_task = null;
 		scheduled_job.args = null;
 		scheduled_job.name = null;

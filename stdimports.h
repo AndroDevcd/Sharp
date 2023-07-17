@@ -53,7 +53,7 @@ using namespace std;
 #define __os_yield() sched_yield();
 #endif
 
-#define SAFE_EXECUTION
+//#define SAFE_EXECUTION
 //#define VM_DEBUG
 // #define SHARP_PROF
 

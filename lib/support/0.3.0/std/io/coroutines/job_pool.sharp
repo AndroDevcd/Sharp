@@ -1,0 +1,13 @@
+mod std.io.coroutines;
+
+/**
+* Created by bknun on 7/11/2023
+* 
+* @class job_pool
+*
+* Description:
+*
+*/
+class job_pool {
+
+}

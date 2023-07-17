@@ -10,6 +10,8 @@
 #include "reflect/reflect_helpers.h"
 #include "multitasking/scheduler/idle_scheduler.h"
 #include "multitasking/thread/sharp_thread.h"
+#include "../util/time.h"
+#include "main.h"
 
 int initialize_virtual_machine()
 {

@@ -62,6 +62,10 @@ void process_manifest(KeyPair<int, string> &result) {
              vm.manifest.constants = next_int32();
              processedFlags++;
              continue;
+         case 0x2a:
+             vm.manifest.applicationId = next_int32();
+             processedFlags++;
+             continue;
          , // on section_end
 
          if(processedFlags != HEADER_SIZE) {

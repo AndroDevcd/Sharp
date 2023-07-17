@@ -417,6 +417,7 @@ void pop_queue(sharp_thread *thread) {
     thread->task = thread->queue;
     thread->queue = nullptr;
 
+//    cout << thread->task->name << endl;
     enable_context_switch(thread, false);
     set_task_state(thread, thread->task, FIB_RUNNING, NO_DELAY);
 }
@@ -566,9 +567,6 @@ void setup_thread(sharp_thread* thread) {
     thread->terminated = false;
 
     if(thread->id != main_threadid){
-        auto task = create_task(thread->name, thread->mainMethod);
-        bind_task(task, thread);
-
         if(thread->currentThread.o != nullptr
            && IS_CLASS(thread->currentThread.o)) {
             auto threadName = create_object(thread->name.size(), type_int8);
@@ -960,6 +958,9 @@ uInt create_thread(uInt methodAddr, bool daemon) {
     stringstream ss;
     ss << "Thread@" << threadId;
     string name = ss.str();
+#ifdef COROUTINE_DEBUGGING
+    cout << "new thread " << name << endl;
+#endif
     setup_thread(thread, name, threadId, daemon, method, true);
 
     post(thread);
@@ -1002,7 +1003,7 @@ void thread_sched_prepare(_sched_thread *scht) {
     if (can_dispose(scht)) {
         dispose(scht);
         return;
-    } else if(scht->thread->state != THREAD_RUNNING)
+    } else if(scht->thread->state != THREAD_RUNNING || scht->thread->nativeCalls > 0)
         return;
 
     if (is_thread_ready(scht->thread)) {
@@ -1011,7 +1012,7 @@ void thread_sched_prepare(_sched_thread *scht) {
 }
 
 bool can_sched_thread(sharp_thread *thread) {
-    return hasSignal(thread->signal, tsig_context_switch) && thread->state == THREAD_SCHED;
+    return hasSignal(thread->signal, tsig_context_switch) && thread->state == THREAD_SCHED && thread->nativeCalls == 0;
 }
 
 void queue_task(sharp_thread *thread, sched_task *task) {

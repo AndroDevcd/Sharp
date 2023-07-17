@@ -251,6 +251,14 @@ void process_scheme(operation_schema *scheme) {
     }
 }
 
+void validate_scheme_type(operation_schema *scheme, _operation_scheme type) {
+    if(scheme->schemeType != type) {
+        stringstream ss;
+        ss << "incorrect operation_schema, found (" << scheme->schemeType << ") when (" << type << ") was expected.";
+        generation_error(ss.str());
+    }
+}
+
 /**
  * A very simplistic way to process a scheme that dosen't require any additional reflection/logic
  * to ensure the correct coe is generated

@@ -40,7 +40,7 @@ struct expression {
     operation_schema scheme;
 };
 
-void compile_expression(expression &, Ast*);
+void compile_expression(expression &, Ast*, Int endLabel = -1);
 void compile_cond_expression(expression &, Ast*);
 void compile_expression_for_type(expression &, Ast*);
 void extract_value_field_from_expression(expression &e, string className, Ast *ast, bool forceError = false);

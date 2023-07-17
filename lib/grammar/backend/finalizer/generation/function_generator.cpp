@@ -25,7 +25,7 @@ void generate_address(sharp_function *sf) {
 }
 
 void generate(sharp_function *sf) {
-    if(sf->type == delegate_function) {
+    if(sf->type == delegate_function || sf->type == native_function) {
         return;
     }
 
@@ -63,17 +63,6 @@ void generate_static_class_setup() {
 
         if(sc->staticInit != NULL && sc->staticInit->used) {
             add_instruction(Opcode::Builder::call(sc->staticInit->ci->address));
-        }
-    }
-}
-
-void remove_delegate_functions() {
-    for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
-        sharp_function *sf = compressedCompilationFunctions.get(i);
-
-        if(sf->type == delegate_function) {
-            compressedCompilationFunctions.removeAt(i);
-            i--;
         }
     }
 }

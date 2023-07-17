@@ -12,6 +12,7 @@ struct internal_register;
 
 void add_instruction(opcode_instr *instr);
 void add_instruction(opcode_instr instr);
+void validate_step_type(operation_step *step, operation_type type);
 
 void process_get_static_class_instance(operation_step *step);
 void process_get_instance_field_value(operation_step *step);

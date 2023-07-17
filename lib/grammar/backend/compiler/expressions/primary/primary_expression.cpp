@@ -19,17 +19,17 @@
 #include "is_expression.h"
 #include "force_non_null_expression.h"
 
-void compile_primary_expression(expression *e, Ast *ast) {
+void compile_primary_expression(expression *e, Ast *ast, Int endLabel) {
     if(ast->hasSubAst(ast_not_e))
         compile_not_expression(e, ast->getSubAst(ast_not_e));
     else if(ast->hasSubAst(ast_literal_e))
         compile_literal_expression(e, ast->getSubAst(ast_literal_e)->getSubAst(ast_literal));
     else if(ast->hasSubAst(ast_self_e))
-        compile_self_expression(e, ast->getSubAst(ast_self_e));
+        compile_self_expression(e, ast->getSubAst(ast_self_e), endLabel);
     else if(ast->hasSubAst(ast_dot_not_e))
-        compile_dot_notation_call_expression(e, NULL, false, -1, ast->getSubAst(ast_dot_not_e));
+        compile_dot_notation_call_expression(e, NULL, false, endLabel, ast->getSubAst(ast_dot_not_e));
     else if(ast->hasSubAst(ast_base_e))
-        compile_base_expression(e, ast->getSubAst(ast_base_e));
+        compile_base_expression(e, ast->getSubAst(ast_base_e), endLabel);
     else if(ast->hasSubAst(ast_null_e))
         compile_null_expression(e, ast->getSubAst(ast_null_e));
     else if(ast->hasSubAst(ast_new_e))

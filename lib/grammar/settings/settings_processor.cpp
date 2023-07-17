@@ -84,51 +84,11 @@ void process_settings() {
                 set_output_file(member->getValue()->getStringValue());
             }
 
-            if((member = jo["optimize_level"]) != NULL) {
-                if(member->getValue()->getType() == jtype_int) {
-                    switch (member->getValue()->getIntValue()) {
-                        case 0:
-                            set_optimization_level(optimization_level::no_optimization);
-                            break;
-                        case 1:
-                            set_optimization_level(optimization_level::basic_optimization);
-                            break;
-                        case 2:
-                            set_optimization_level(optimization_level::high_performance_optimization);
-                            break;
-                        default: {
-                            stringstream ss;
-                            ss << "invalid optimize level: " << member->getValue()->getIntValue()
-                               << ", allowed values are [ 0, 1, 2 ]";
-                            error(ss.str());
-                            break;
-                        }
-                    }
-                } else if(member->getValue()->getType() == jtype_string) {
-                    string olevel = member->getValue()->getStringValue();
-                    
-                    if(olevel == "none") set_optimization_level(optimization_level::no_optimization);
-                    else if(olevel == "O1") set_optimization_level(optimization_level::basic_optimization);
-                    else if(olevel == "O2") set_optimization_level(optimization_level::high_performance_optimization);
-                } else {
-                    stringstream ss;
-                    ss << "invalid json value type: " << json_value::typeToString(member->getValue()->getType())
-                        << " expect values are [ 0, 1, 2 ] or [ none, O1, O2 ]";
-                    error(ss.str());
-                }
-            }
-
             if((member = jo["release_build"]) != NULL || (member = jo["release"]) != NULL) {
                 require_type(member, jtype_bool);
                 if(member->getValue()->getBoolValue()) {
-                    set_optimization_level(high_performance_optimization);
                     enable_app_debugging(false);
                 }
-            }
-
-            if((member = jo["cache_files"]) != NULL) {
-                require_type(member, jtype_bool);
-                options.file_caching = member->getValue()->getBoolValue();
             }
 
             if((member = jo["magic_mode"]) != NULL) {

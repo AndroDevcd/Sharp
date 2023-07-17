@@ -1,10 +1,85 @@
 mod main;
 
 import (
-    std.*
+    std.*,
+    platform
 );
 
+th : thread?;
 def main() {
-    terminal_main_loop();
+//    terminal_main_loop();
+
+//    th = new thread("runnable thread", { args: object[] -> (int)
+//        while(true) { delay(0); }
+//        return 0;
+//    });
+//
+//    th!!.start();
+//    code_motion(min_priority);
+//    code_motion(norm_priority);
+//    code_motion(max_priority);
+//    foo();
+    load_library("libSharpDLL");
+    foo_native(5, 112);
+}
+
+native def foo_native(x: _int64, n: int);
+
+def foo() {
+    println("helloHigh Level");
+}
+
+obfuscate -keep_inclusive {
+    foo()
+}
+
+x : var = 0;
+limit : var = 10000000;
+def code_motion(prior: thread_priority) {
+//    t1 := new thread("thread High", { args: object[] -> (int)
+//        while(true) { delay(0); }
+//        return 0;
+//    });
+//    t1.set_priority(max_priority);
+//    t1.start();
+
+    x = 0;
+    th!!.set_priority(prior);
+
+    control := time.measureMills({ ->
+        for(i : var = 0; i < limit; i++) {
+           x++;
+        }
+    });
+    println("control: $control");
+    println("expected: ${control * 10}");
+
+    x = 0;
+    jobs := new list<job>();
+    total := time.measureMills({ ->
+        for(j : var = 0; j < 10; j++) {
+            jobs.add(
+                coroutine.builder()
+                    .with_host(th!!)
+//                    .long_term()
+                     = { args ->
+                    for(i : var = 0; i < limit; i++) {
+                        x++;
+                    }
+               }
+            );
+        }
+
+        foreach(j in jobs) {
+            j.join();
+        }
+        while(x < limit) {
+            delay(0);
+        }
+    });
+    println("x: $x ");
+    println("actual: $total ");
+    println("gain: ${(control * 10) - total} ");
+    println("total: ${total + control} ");
 }
 

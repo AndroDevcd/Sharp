@@ -10,6 +10,7 @@
 
 extern Int UUIDGenerator;
 void generate();
+void pre_generate_addresses();
 void generation_error(string message);
 
 extern List<sharp_function*> compressedCompilationFunctions;

@@ -50,7 +50,7 @@ DWORD WINAPI
 void*
 #endif
 delegatorStart(void *) {
-    calculateMaxWorkers();
+//    calculateMaxWorkers();
 
     delegator.alive = true;
     if(options.green_mode) {

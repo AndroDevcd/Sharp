@@ -176,6 +176,10 @@ void sched_unsched_tasks() {
 
     uInt i = 0;
     while (unsched_tasks != nullptr) {
+        if ((i++ % 10) == 0 && CLOCKS_SINCE >= 1) {
+            return;
+        }
+
         if (!queue_task(unsched_tasks->task)) {
             return;
         }
@@ -209,7 +213,7 @@ bool is_thread_ready(sharp_thread *thread) {
 }
 
 bool is_runnable(fiber *task, sharp_thread *thread) {
-    if(task->attachedThread == NULL && task->state == FIB_SUSPENDED && task->wakeable) {
+    if(task->attachedThread == NULL && (task->state == FIB_SUSPENDED || task->state == FIB_CREATED) && task->wakeable) {
         if(task->delayTime != -1 && NANO_TOMILL(Clock::realTimeInNSecs()) < task->delayTime) {
             return false;
         }

@@ -44,6 +44,16 @@ sharp_class* locate_class(const char *name) {
     return nullptr;
 }
 
+sharp_function* locate_function(const char *name) {
+    for(uInt i = 0; i < vm.manifest.methods; i++) {
+        if(vm.methods[i].fullName == name) {
+            return &vm.methods[i];
+        }
+    }
+
+    return nullptr;
+}
+
 sharp_class* locate_class_simple(const char *name) {
     for(uInt i = 0; i < vm.manifest.classes; i++) {
         if(vm.classes[i].name == name) {

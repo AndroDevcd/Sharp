@@ -18,14 +18,24 @@ class platform
     private static def static_init() {}
 
     private static def srt_init(args: object[]) : int {
-        build.app_name = "${args[0] as _int8[]}";
-        build.version = "${args[1] as _int8[]}";
-        build.platform = "${args[2] as _int8[]}";
-        build.os = "${args[3] as _int8[]}";
+        app_name := "${args[0] as _int8[]}";
+        version := "${args[1] as _int8[]}";
+        platform := "${args[2] as _int8[]}";
+        os := "${args[3] as _int8[]}";
+
+        build.app_name = app_name; // this needs to happen 2 times due to static_init<>
+        build.version = version;
+        build.platform = platform;
+        build.os = os;
 
         static_init();
         tls_init();
         start_scheduler();
+
+        build.app_name = app_name;
+        build.version = version;
+        build.platform = platform;
+        build.os = os;
 
         main_thread := args[4] as thread;
         vm.set_thread(main_thread);

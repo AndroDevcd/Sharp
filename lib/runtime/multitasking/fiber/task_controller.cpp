@@ -17,6 +17,9 @@ atomic<uInt> taskIds = { 0 };
 fiber* create_task(string &name, sharp_function *main) {
     fiber *fib = nullptr;
 
+    if(name.find("worker_thread") != string::npos) {
+        int i = 0;
+    }
     try {
         fib = malloc_struct<fiber>(sizeof(fiber), 1);
         fib->name = name;

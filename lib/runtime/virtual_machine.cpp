@@ -542,7 +542,7 @@ void main_vm_loop()
                 branch
             INVOKE_DELEGATE:
                 invoke_delegate(single_arg, dual_raw_arg2, dual_raw_arg1);
-                branch_for(0)
+                check_state(0)
             ISADD:
                 (task->sp + single_arg)->var += raw_arg2;
                 branch_for(2)
@@ -599,8 +599,11 @@ void main_vm_loop()
 
         state_check:
         if(thread->signal) {
-            if (hasSignal(thread->signal, tsig_context_switch))
-                return;
+            if (hasSignal(thread->signal, tsig_context_switch)) {
+                if(thread->nativeCalls == 0) {
+                    return;
+                }
+            }
             if (hasSignal(thread->signal, tsig_suspend))
                 suspend_self();
             if(hasSignal(thread->signal, tsig_except))
@@ -683,9 +686,94 @@ bool catch_exception() {
     return false;
 }
 
+recursive_mutex library_mutex;
+extern_lib* locate_lib(string name) {
+    for(long i = 0; i < vm.libs.size; i++) {
+        if(vm.libs.node_at(i)->data->name == name)
+            return vm.libs.node_at(i)->data;
+    }
+
+    return NULL;
+}
+
+int release_lib(string name) {
+    auto lib = locate_lib(name);
+
+    guard_mutex(library_mutex)
+
+    if(lib != nullptr) {
+        bridge_fun bridge = (bridge_fun) load_func(lib->handle, "snb_main");
+        for(Int i = 0; i < vm.manifest.methods; i++) {
+            if(vm.methods[i].bridge == bridge) {
+                vm.methods[i].bridge = NULL;
+                vm.methods[i].linkAddr = -1;
+            }
+        }
+
+        free_lib(lib->handle);
+        vm.libs.delete_at(lib, [](void *data, node<extern_lib*> *node) {
+            return data == node;
+        });
+        return 0;
+    }
+
+    return 1;
+}
+
+bool link(extern_lib *lib, sharp_function *fun) {
+    if(lib != nullptr) {
+        if(!fun->nativeFunc) return false;
+        else if(fun->linkAddr >= 0 && fun->bridge != nullptr) {
+            throw vm_exception(vm.unsatisfied_link_except, "native function already linked");
+        }
+
+        auto linker =
+                (link_proc) load_func(lib->handle,
+                                     "snb_link_proc");
+        int32_t linkAddr;
+
+        if (linker != nullptr && (linkAddr = linker(fun->fullName.c_str())) >= 0) {
+            fun->linkAddr = linkAddr;
+            fun->bridge = (bridge_fun) load_func(lib->handle, "snb_main");
+
+            if(fun->bridge == nullptr) {
+                fun->linkAddr = -1;
+                return false;
+            } else return true;
+        }
+    }
+
+    return false;
+}
+
+void try_link_function(sharp_function *fun) {
+    for(Int i = 0; i < vm.libs.size; i++) {
+        if(link(vm.libs.node_at(i)->data, fun)) {
+            return;
+        }
+    }
+
+    throw vm_exception(vm.unsatisfied_link_except, "native function could not be linked");
+}
+
 void invoke_delegate(Int address, Int argSize, bool staticCall) {
     if(staticCall) { // native calls are currently unsupported
-        throw vm_exception(vm.runtime_except, "attempting to call non-native static delegate function");
+        if(vm.methods[address].nativeFunc) {
+            if(vm.methods[address].bridge != NULL) {
+                thread_self->nativeCalls++;
+                vm.methods[address].bridge(vm.methods[address].linkAddr);
+            } else {
+                try_link_function(&vm.methods[address]);
+                thread_self->nativeCalls++;
+                vm.methods[address].bridge(vm.methods[address].linkAddr);
+            }
+
+            thread_self->nativeCalls--;
+            thread_self->task->pc+= 2; // skip past functions
+            return;
+        } else {
+            throw vm_exception(vm.runtime_except, "attempting to call non-native static delegate function");
+        }
     } else {
         auto task = thread_self->task;
         auto classObject = (task->sp - argSize)->obj.o;
@@ -720,6 +808,7 @@ void prepare_method(Int address) {
     }
 
     auto task = thread_self->task;
+    auto inNative = task->current && task->current->nativeFunc;
     auto function = vm.methods + address;
 //    cout << "call: " << function->fullName << "(" << function->address << ")";
 //    if(task->current) {
@@ -769,6 +858,9 @@ void prepare_method(Int address) {
         }
     }
     #endif
+
+    if(!task->current->nativeFunc && inNative)
+        main_vm_loop();
 }
 
 bool return_method() {
@@ -791,9 +883,17 @@ bool return_method() {
     task->sp = task->stack + frame->sp;
     task->fp = task->stack + frame->fp;
 
+    if(task->current->nativeFunc)
+        return true;
 //    cout << " pc now: " << current_pc;
 //    cout << endl;
     return false;
+}
+
+
+void populate_string(string& s, long double* arry, uInt len) {
+    for(Int i = 0; i < len; i++)
+        s += (unsigned char)arry[i];
 }
 
 void exec_interrupt(Int interrupt)
@@ -1192,6 +1292,91 @@ void exec_interrupt(Int interrupt)
                 throw vm_exception(vm.nullptr_except, "");
             }
 
+            return;
+        }
+        case OP_LOAD_LIBRARY: {
+            sharp_object *libNameObj = (thread_self->task->sp--)->obj.o;
+
+            if (libNameObj != NULL && libNameObj->type <= type_var) {
+                string name;
+
+                populate_string(name, libNameObj->HEAD, libNameObj->size);
+                guard_mutex(library_mutex)
+
+                if(locate_lib(name) == NULL) {
+                    extern_lib *lib = new extern_lib();
+                    lib->name = name;
+
+#ifndef _WIN32
+                    char *libError = dlerror(); // we need this variable to ensure everything is okay
+#endif
+                    lib->handle = load_lib(name);
+
+#ifndef _WIN32
+                    libError = dlerror();
+#endif
+
+                    if(!lib->handle
+
+#ifndef _WIN32
+                        || libError != NULL
+#endif
+                            ) {
+                        string libName = name;
+                        delete lib;
+#ifdef _WIN32
+                        throw vm_exception(vm.ill_state_except, string("could not load library ") + libName);
+#else
+                        throw Exception(vm.IllStateExcept, string("could not load library: ") + libError);
+#endif
+                    }
+
+                    lib_init _lib_init =
+                            (lib_init)load_func(lib->handle, "snb_initialize");
+
+                    int result;
+                    if(_lib_init && (result = initializeLibrary(_lib_init)) == 0) {
+                        vm.libs.createnode(lib);
+                    } else {
+                        delete lib;
+                        stringstream ss;
+                        ss << "handshake failed, could not load library, error: " << result;
+                        throw vm_exception(vm.ill_state_except, ss.str());
+                    }
+                }
+            } else {
+                throw vm_exception(vm.nullptr_except, "");
+            }
+            return;
+        }
+        case OP_FREE_LIBRARY: {
+            sharp_object *libNameObj = (thread_self->task->sp--)->obj.o;
+
+            if (libNameObj != NULL && libNameObj->type <= type_var) {
+                string name;
+                populate_string(name, libNameObj->HEAD, libNameObj->size);
+                guard_mutex(library_mutex)
+                registers[EBX] = release_lib(name);
+            }
+            return;
+        }
+        case OP_LINK_FUNC: {
+            sharp_object *libNameObj = (thread_self->task->sp--)->obj.o;
+            sharp_object *funcNameObj = (thread_self->task->sp--)->obj.o;
+
+            if (libNameObj != NULL && libNameObj->type <= type_var
+                && funcNameObj != NULL && funcNameObj->type <= type_var) {
+                string libname, funcname;
+
+                populate_string(libname, libNameObj->HEAD, libNameObj->size);
+                populate_string(funcname, funcNameObj->HEAD, funcNameObj->size);
+                guard_mutex(library_mutex)
+                sharp_function *sf;
+
+                if((sf = locate_function(funcname.c_str())))
+                    registers[EBX] = link(locate_lib(libname), sf);
+                else registers[EBX] = 0;
+            }
             return;
         }
         case OP_DISK_SPACE:

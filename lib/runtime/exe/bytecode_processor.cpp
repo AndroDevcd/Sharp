@@ -27,7 +27,7 @@ void process_bytecode(KeyPair<int, string> &result) {
                 for(int64_t i = 0; i < method->bytecodeSize; i++) {
                     method->bytecode[i] = next_int32();
                 }
-            } else if(method->fnType != delegate_function) {
+            } else if(method->fnType != delegate_function && method->fnType != native_function) {
                 result.with(CORRUPT_FILE, "method `" + method->fullName + "` is missing bytecode");
                 throw runtime_error("");
             }

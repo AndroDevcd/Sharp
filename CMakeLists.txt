@@ -22,7 +22,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -mno-red-zone -Werror -lstdc++  -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
-set(SHARPC "build")
+#set(SHARPC "build")
 #set(LEGACY "build")
 
 # compiler
@@ -80,6 +80,12 @@ if (SHARPC)
             "lib/grammar/backend/finalizer/*.cpp"
             "lib/grammar/backend/finalizer/optimization/*.h"
             "lib/grammar/backend/finalizer/optimization/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/codemotion/*.h"
+            "lib/grammar/backend/finalizer/optimization/codemotion/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/analyzer/*.h"
+            "lib/grammar/backend/finalizer/optimization/analyzer/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/processor/*.h"
+            "lib/grammar/backend/finalizer/optimization/processor/*.cpp"
             "lib/grammar/backend/finalizer/generation/*.h"
             "lib/grammar/backend/finalizer/generation/*.cpp"
             "lib/grammar/backend/finalizer/generation/code/*.h"
@@ -150,6 +156,8 @@ else()
             "lib/runtime/memory/*.cpp"
             "lib/runtime/reflect/*.h"
             "lib/runtime/reflect/*.cpp"
+            "lib/runtime/snb/*.h"
+            "lib/runtime/snb/*.cpp"
             "lib/runtime/multitasking/*/*.h"
             "lib/runtime/multitasking/*/*.cpp"
             "lib/runtime/types/*.h"

@@ -15,6 +15,7 @@ struct manifest {
         version(""),
         debug(0),
         entryMethod(0),
+        applicationId(0),
         methods(0),
         classes(0),
         fvers(0),
@@ -29,6 +30,7 @@ struct manifest {
     :
         functionPointers(m.functionPointers),
         application(m.application),
+        applicationId(m.applicationId),
         version(m.version),
         debug(m.debug),
         entryMethod(m.entryMethod),
@@ -47,6 +49,7 @@ struct manifest {
     string application;
     string version;
     bool debug;
+    Int applicationId;
     Int entryMethod;
     Int methods;
     Int classes;

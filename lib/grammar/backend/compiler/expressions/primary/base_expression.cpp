@@ -8,10 +8,10 @@
 #include "self_expression.h"
 #include "../../../../compiler_info.h"
 
-void compile_base_expression(expression *e, Ast *ast) {
+void compile_base_expression(expression *e, Ast *ast, Int endLabel) {
     sharp_class *primary
             = get_primary_class(&currThread->currTask->file->context);
-    compile_self_expression(primary, primary->baseClass, e, ast);
+    compile_self_expression(primary, primary->baseClass, e, ast, endLabel);
 }
 
 sharp_class* compile_base_class(Ast *ast) {

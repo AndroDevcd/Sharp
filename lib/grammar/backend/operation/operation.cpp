@@ -914,11 +914,13 @@ void create_cast_operation(
 void create_null_fallback_operation(
         operation_schema *scheme,
         operation_schema *nullScheme,
-        operation_schema *fallbackScheme) {
+        operation_schema *fallbackScheme,
+        Int endLabel) {
     scheme->schemeType = scheme_null_fallback;
 
     scheme->steps.add(new operation_step(
             operation_get_value, nullScheme));
+    create_set_label_operation(scheme, endLabel);
     scheme->steps.add(new operation_step(
             operation_get_value, fallbackScheme));
 }

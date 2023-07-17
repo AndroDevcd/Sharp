@@ -9,6 +9,7 @@
 #include "../main.h"
 #include "../types/sharp_field.h"
 #include "../types/try_catch_data.h"
+#include "../../core/access_flag.h"
 
 void process_function_data(KeyPair<int, string> &result) {
     check_section(sdata, CORRUPT_FILE, result);
@@ -34,7 +35,7 @@ void process_function_data(KeyPair<int, string> &result) {
             sf->stackSize = next_int32();
             sf->bytecodeSize = next_int32();
             sf->flags = next_int32();
-            sf->nativeFunc = ((sf->flags >> 9) & 1u);
+            sf->nativeFunc = check_flag(sf->flags, flag_native);
             sf->delegateAddress = next_int32();
             sf->fpOffset = next_int32();
             sf->spOffset = next_int32();

@@ -102,10 +102,6 @@ void add_library_path(string path) {
     options.libraries.add(fullPath);
 }
 
-void set_optimization_level(optimization_level level) {
-    options.optimize_level = level;
-}
-
 void enable_magic_mode(bool enable) {
     options.magic = enable;
 }
@@ -154,10 +150,6 @@ void set_compilation_mode(compilation_mode mode) {
 
 void enable_run_source_code(bool enable) {
     options.run_source = enable;
-}
-
-void enable_clean_project(bool enable) {
-    options.clean_build = enable;
 }
 
 void enable_green_mode(bool enable) {

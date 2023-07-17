@@ -23,6 +23,7 @@ sharp_function *user_main_method = NULL;
 sharp_function *genesis_method = NULL;
 sharp_function *static_init_method = NULL;
 int main_method_sig = 0;
+int application_id = 0;
 
 void create_new_warning(error_type error, int type, Ast *ast, string xcmnts) {
     create_new_warning(error, type, ast->line, ast->col, xcmnts);

@@ -9,6 +9,7 @@
 #include "exe/manifest.h"
 #include "types/sharp_type.h"
 #include "memory/sharp_object.h"
+#include "types/library.h"
 
 extern thread_local long double *registers;
 
@@ -31,7 +32,8 @@ struct virtual_machine {
         exitVal(0),
         mdata(),
         state(VM_CREATED),
-        nativeTypes(nullptr)
+        nativeTypes(nullptr),
+        libs()
     {}
 
     manifest manifest;
@@ -44,6 +46,7 @@ struct virtual_machine {
     object memoryExcept;
     meta_data mdata;
     sharp_type *nativeTypes;
+    linkedlist<extern_lib*> libs;
     vm_state state;
 
     /**

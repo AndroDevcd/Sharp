@@ -11,11 +11,10 @@
 #include "line_data.h"
 #include "try_catch_data.h"
 #include "../../util/linked_list.h"
+#include "../snb/snb_internal.h"
 
 struct sharp_class;
 struct sharp_type;
-
-typedef void (*bridge_fun)(long handle);
 
 struct function_param {
     sharp_type *type;

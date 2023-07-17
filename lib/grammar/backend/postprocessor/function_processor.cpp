@@ -173,6 +173,18 @@ void process_function(
             flags |= flag_public;
     } else flags = flag_public;
 
+    if(type == delegate_function && !check_flag(flags, flag_native) && check_flag(with_class->flags, flag_global)) {
+        create_new_error(GENERIC, ast, " delegate function `" + name + "` missing enclosing class");
+    } else if(type == delegate_function && check_flag(flags, flag_native)) {
+        if (!check_flag(flags, flag_static)) {
+            flags |= flag_static;
+        } else {
+            create_new_warning(GENERIC, __w_access, ast->line, ast->col,
+                               "`static` access specifier is added by default on native functions");
+        }
+    }
+
+
     if(check_flag(with_class->flags, flag_global)) {
         if (!check_flag(flags, flag_static)) {
             flags |= flag_static;

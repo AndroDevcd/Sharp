@@ -20,7 +20,6 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
         flags |= flag_static;
     }
 
-
     sharp_field *field = create_local_field(
             current_file,
             &current_context,
@@ -151,6 +150,7 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
             create_setup_local_field_operation(&scheme_0, field);
         }
 
+        create_unused_data_operation(&scheme_0);
         delete fieldScheme;
     )
 
@@ -180,6 +180,7 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
                     create_setup_local_field_operation(&scheme_1, subField);
                 }
 
+                create_unused_data_operation(&scheme_1);
                 delete fieldScheme;
             )
         }

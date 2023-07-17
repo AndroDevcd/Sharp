@@ -132,26 +132,21 @@ void compile_assign_expression(expression *e, Ast *ast) {
             }
 
             if(is_match_normal(match_result)) {
-                if(left.type.type != type_field && options.optimize_level  == high_performance_optimization) {
-                    e->scheme.copy(right.scheme);
-                    e->type.copy(right.type);
-                } else {
-                    Int lastPos = -1;
-                    for(Int i = left.scheme.steps.size() - 1; i >= 0; i--) {
-                        if(left.scheme.steps.get(i)->type == operation_get_array_element_at_index) {
-                            lastPos = i;
-                        }
+                Int lastPos = -1;
+                for(Int i = left.scheme.steps.size() - 1; i >= 0; i--) {
+                    if(left.scheme.steps.get(i)->type == operation_get_array_element_at_index) {
+                        lastPos = i;
                     }
-
-                    if(lastPos != -1) {
-                        left.scheme.steps.at(lastPos)->type = operation_set_array_element_at_index;
-                        create_array_index_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
-                    } else {
-                        create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
-                    }
-
-                    e->type.copy(left.type);
                 }
+
+                if(lastPos != -1) {
+                    left.scheme.steps.at(lastPos)->type = operation_set_array_element_at_index;
+                    create_array_index_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                } else {
+                    create_value_assignment_operation(&e->scheme, &left.scheme, &right.scheme);
+                }
+
+                e->type.copy(left.type);
 
             } else if(is_match_function(match_result)){
                 List<sharp_field *> params;

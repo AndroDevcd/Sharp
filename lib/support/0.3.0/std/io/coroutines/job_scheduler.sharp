@@ -12,7 +12,7 @@ private long_term_threads := new atomic<int>(0);
 private max_threads : var = 0;
 private scheduler : thread?;
 
-private const FIBER_THRESHOLD_TRIGGER  : var = 2; // create a new thread after 15 fibers
+private const FIBER_THRESHOLD_TRIGGER  : var = 10; // create a new thread after 15 fibers
 
 public def start_scheduler() {
     lock(launcher) {
@@ -173,7 +173,7 @@ private def get_host(long_running : bool) : thread? {
         return false;
     });
 
-    if(host != null && ((fiber.poll(host) >= FIBER_THRESHOLD_TRIGGER) || ((launcher.running_jobs.size() / avail_threads) > FIBER_THRESHOLD_TRIGGER))) {
+    if(host != null && ((fiber.poll(host) >= FIBER_THRESHOLD_TRIGGER))) {
        if((long_running && long_term_threads > 0) || short_term_threads > 0) {
            host = null;
        }

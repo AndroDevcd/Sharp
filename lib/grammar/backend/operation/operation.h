@@ -1392,6 +1392,7 @@ void create_is_operation(
 void create_null_fallback_operation(
         operation_schema *scheme,
         operation_schema *nullScheme,
-        operation_schema *fallbackScheme);
+        operation_schema *fallbackScheme,
+        Int endLabel);
 
 #endif //SHARP_OPERATION_H

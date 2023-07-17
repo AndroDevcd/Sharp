@@ -9,7 +9,7 @@ public class thread {
 
     private thread() {} // the user must use standardized constructor
 
-	public thread(name : string, main: (object[])(var)) {
+	public thread(name : string, main: (object[])(int)) {
         self->main = main;
         self->name = name;
 		self->parent_group = thread_group.main_group;
@@ -20,7 +20,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-	public thread(name : string, daemon: var, main: (object[])(var)) {
+	public thread(name : string, daemon: var, main: (object[])(int)) {
         self->main = main;
         self->name = name;
         self->daemon = daemon;
@@ -32,7 +32,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, main: (object[])(var), stack_size : var) {
+    public thread(name : string, main: (object[])(int), stack_size : var) {
         self->main = main;
         self->name = name;
         self->stack_size = stack_size;
@@ -44,7 +44,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, daemon: var, main: (object[])(var), stack_size : var) {
+    public thread(name : string, daemon: var, main: (object[])(int), stack_size : var) {
         self->main = main;
         self->name = name;
         self->stack_size = stack_size;
@@ -57,7 +57,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, main: (object[])(var), stack_size : var, group : thread_group) {
+    public thread(name : string, main: (object[])(int), stack_size : var, group : thread_group) {
         self->main = main;
         self->name = name;
         self->stack_size = stack_size;
@@ -69,7 +69,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, main: (object[])(var), group : thread_group) {
+    public thread(name : string, main: (object[])(int), group : thread_group) {
         self->main = main;
         self->name = name;
 		self->parent_group = group;
@@ -80,7 +80,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, daemon: var, main: (object[])(var), stack_size : var, group : thread_group) {
+    public thread(name : string, daemon: var, main: (object[])(int), stack_size : var, group : thread_group) {
         self->main = main;
         self->name = name;
         self->daemon = daemon;

@@ -58,8 +58,11 @@ protected class win_fs base file_system {
                    buffer[buf_index++] = pathname[i];
            }
 
-
-           return new string(buffer, 0, buf_index);
+           path_buf := new char[buf_index];
+           for(i : var = 0; i < (buf_index); i++) {
+               path_buf[i] = buffer[i];
+           }
+           return new string(path_buf, 0, buf_index);
         }
     }
 

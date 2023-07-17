@@ -14,6 +14,10 @@ public class job {
 		self->tag = rand_int();
 	}
 
+    public override def to_string() : string {
+        return "job($name): $tag";
+    }
+
 	protected def execute_async() : int {
 		if(state == created) {
             if(!host?.is_active()) {

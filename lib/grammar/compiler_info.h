@@ -35,6 +35,7 @@ extern sharp_function *user_main_method;
 extern sharp_function *genesis_method;
 extern sharp_function *static_init_method;
 extern int main_method_sig;
+extern int application_id;
 
 #define global_class_name "__srt_global"
 #define main_component_name "__main__"

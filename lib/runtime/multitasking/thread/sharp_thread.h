@@ -37,6 +37,7 @@ struct sharp_thread {
     Int id;
     Int stackSize;
     Int signal;
+    Int nativeCalls;
     int priority;
     bool daemon;
     bool terminated;

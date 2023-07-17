@@ -12,14 +12,14 @@
 #include "../../../../compiler_info.h"
 #include "post_ast_expression.h"
 
-void compile_self_expression(expression *e, Ast *ast) {
+void compile_self_expression(expression *e, Ast *ast, Int endLabel) {
     context &ctx = currThread->currTask->file->context;
     sharp_class *primaryClass = get_primary_class(&ctx);
 
-    compile_self_expression(primaryClass, NULL, e, ast);
+    compile_self_expression(primaryClass, NULL, e, ast, endLabel);
 }
 
-void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceClass, expression *e, Ast *ast) {
+void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceClass, expression *e, Ast *ast, Int endLabel) {
     context &ctx = currThread->currTask->file->context;
     sharp_function *fun = get_primary_function(&ctx);
 
@@ -62,7 +62,7 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
     if(ast->hasToken(PTR)) {
 //        create_context(instanceClass, false);
         compile_dot_notation_call_expression(
-                e, instanceClass, true, -1, ast->getSubAst(ast_dotnotation_call_expr));
+                e, instanceClass, true, endLabel, ast->getSubAst(ast_dotnotation_call_expr));
 //        delete_context();
     } else {
         compile_post_ast_expression(e, ast);

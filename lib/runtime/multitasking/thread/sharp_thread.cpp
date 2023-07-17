@@ -26,6 +26,7 @@ void init_struct(sharp_thread *thread) {
     thread->daemon = false;
     thread->terminated = false;
     thread->state = 0;
+    thread->nativeCalls = 0;
     thread->signal = 0;
     thread->suspended = false;
     thread->exited = false;
