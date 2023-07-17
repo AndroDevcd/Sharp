@@ -15,7 +15,10 @@ void process_imports() {
     sharp_file *file = currThread->currTask->file;
 
     string modName = "std";
-    file->imports.add(get_module(modName));
+    auto mod = get_module(modName);
+
+    if(mod != nullptr)
+        file->imports.add(mod);
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;
@@ -30,7 +33,8 @@ void process_imports() {
                 currModule = get_module(package);
             }
 
-            file->imports.add(currModule);
+            if(currModule != nullptr)
+                file->imports.add(currModule);
             continue;
         }
 

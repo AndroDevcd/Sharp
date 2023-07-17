@@ -160,7 +160,7 @@ void compile_classes_() {
 void execute_task() {
     {
         GUARD(errorMutex);
-//        cout << "executing task(" << currThread->currTask->type << ") on: " << currThread->currTask->file->name << endl;
+        cout << "executing task(" << currThread->currTask->type << ") on: " << currThread->currTask->file->name << endl;
     }
     switch(currThread->currTask->type) {
         case task_none_: { break; }

@@ -34,6 +34,7 @@ sharp_class* resolve_class(
         bool matchName) {
     sharp_class *sc = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return NULL;
     List<sharp_class*> *searchList = &module->classes;
 
     if(isGeneric) searchList = &module->genericClasses;
@@ -130,6 +131,7 @@ sharp_field* resolve_field(string name, sharp_module *module, bool checkBase) {
     sharp_class *sc = NULL;
     sharp_field *sf = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return NULL;
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -208,6 +210,7 @@ sharp_field* resolve_enum(string name, sharp_module *module) {
     sharp_class *sc = NULL;
     sharp_field *sf = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return NULL;
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -287,6 +290,7 @@ sharp_alias* resolve_alias(string name, sharp_module *module) {
     sharp_class *sc = NULL;
     sharp_alias *sa = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return NULL;
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -446,6 +450,7 @@ sharp_field* resolve_function_pointer_field(
     sharp_class *sc = NULL;
     sharp_field *sf = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return NULL;
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -475,6 +480,7 @@ sharp_function* resolve_function(
     sharp_class *sc = NULL;
     sharp_function *sf = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return NULL;
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
@@ -613,6 +619,7 @@ sharp_function* resolve_function(
     List<sharp_function*> resolvedFunctions;
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
+    if(searchClass == nullptr) return NULL;
 
     if(functionType == constructor_function && searchClass->genericBuilder != NULL) {
         locate_functions_with_type(searchClass, constructor_function, checkBaseClass, locatedFunctions);
@@ -699,6 +706,7 @@ bool resolve_function_for_address(
         List<sharp_function*> &results) {
     sharp_class *sc = NULL;
     GUARD(globalLock)
+    if(module == nullptr) return false;
     List<sharp_class*> *searchList = &module->classes;
 
     for(Int i = 0; i < searchList->size(); i++) {
