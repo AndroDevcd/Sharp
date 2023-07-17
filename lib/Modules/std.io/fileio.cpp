@@ -31,13 +31,13 @@
 #endif
 
 recursive_mutex fileMutex;
-thread_local struct stat result;
+thread_local struct stat statResult;
 uInt get_file_attrs(string& path) {
     guard_mutex(fileMutex);
 
-    if(stat(path.c_str(), &result)==0)
+    if(stat(path.c_str(), &statResult)==0)
     {
-        uInt mode = result.st_mode, attrs=0;
+        uInt mode = statResult.st_mode, attrs=0;
 
         switch (mode & S_IFMT) {
             case S_IFBLK:  attrs |= FILE_BLOCK_DEVICE;     break;
@@ -102,15 +102,15 @@ int check_access(string& path, int access_flg) {
 Int last_update(string& path, int tm_request) {
     guard_mutex(fileMutex);
 
-    if(stat(path.c_str(), &result)==0)
+    if(stat(path.c_str(), &statResult)==0)
     {
         switch(tm_request) {
             case 0:
-                return result.st_mtime;
+                return statResult.st_mtime;
             case 1:
-                return result.st_ctime;
+                return statResult.st_ctime;
             case 2:
-                return result.st_atime;
+                return statResult.st_atime;
 
         }
     }
@@ -121,8 +121,8 @@ Int file_size(string &path)
 {
     guard_mutex(fileMutex);
 
-    int rc = stat(path.c_str(), &result);
-    return rc == 0 ? result.st_size : -1;
+    int rc = stat(path.c_str(), &statResult);
+    return rc == 0 ? statResult.st_size : -1;
 }
 
 void current_directory(string &path) {
@@ -164,7 +164,7 @@ void get_file_list(string &path, std::list<string> &files) {
                 file = path + string(ent->d_name);
 
 
-            if(stat(file.c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
+            if(stat(file.c_str(), &statResult) == 0 && S_ISDIR(statResult.st_mode)) {
                 string folder(file + div);
                 get_file_list(folder, files);
                 continue;
@@ -200,8 +200,8 @@ time_t update_time(string &path, time_t time)
 
     struct utimbuf new_times;
 
-    if(stat(path.c_str(), &result)==0) {
-        new_times.actime = result.st_atime; /* keep atime unchanged */
+    if(stat(path.c_str(), &statResult)==0) {
+        new_times.actime = statResult.st_atime; /* keep atime unchanged */
         new_times.modtime = time;    /* set mtime to current time */
         utime(path.c_str(), &new_times);
         return time;
@@ -217,8 +217,8 @@ int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly)
 {
     guard_mutex(fileMutex);
 
-    if(stat(path.c_str(), &result)==0) {
-        Int mode = result.st_mode;
+    if(stat(path.c_str(), &statResult)==0) {
+        Int mode = statResult.st_mode;
 
         if (set_mode & ACCESS_READ) {
 
@@ -250,8 +250,8 @@ int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly)
 #else
 int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly)
 {
-    if(stat(path.c_str(), &result)==0) {
-        Int mode = result.st_mode;
+    if(stat(path.c_str(), &statResult)==0) {
+        Int mode = statResult.st_mode;
 
         if (set_mode & ACCESS_READ) {
 
