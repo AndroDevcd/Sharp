@@ -24,6 +24,7 @@ def main() {
 }
 
 native def foo_native(x: _int64, n: int);
+native def foo_native2(x: _int64, n: int);
 
 def foo() {
     println("helloHigh Level");

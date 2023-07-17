@@ -421,7 +421,7 @@ void append_call_functions(sharp_class* klass, stringstream& ss) {
     for(Int k = 0; k < classMethods.size(); k++) {
         sharp_function *func = classMethods.get(k);
 
-        if(!check_flag(func->flags, flag_native)) continue;
+        if(!check_flag(func->flags, flag_native) || !func->used) continue;
         Int duplicateCount = get_duplicate_count(func, classMethods, k);
 
         ss << "void call_" << module_to_cpp_name(func->owner->module->name)
@@ -496,7 +496,7 @@ void append_main_functions(sharp_class* klass, stringstream& ss) {
     for(Int k = 0; k < classMethods.size(); k++) {
         sharp_function *func = classMethods.get(k);
 
-        if(!check_flag(func->flags, flag_native)) continue;
+        if(!check_flag(func->flags, flag_native) || !func->used) continue;
         Int duplicateCount = get_duplicate_count(func, classMethods, k);
 
         ss << "\t\t\t";
