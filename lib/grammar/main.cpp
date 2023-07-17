@@ -196,7 +196,11 @@ int _bootstrap(int argc, const char* args[])
             enable_debug_mode(true);
         }
         else if(opt("-j")){
-            enable_debug_mode(true);
+            if(i+1 >= argc)
+                error("file version required after option `-target`");
+            else {
+                set_target_threads(string(args[++i]));
+            }
         }
         else if(opt("-dbg") | opt("-debug")) {
             enable_app_debugging(true);
@@ -209,7 +213,7 @@ int _bootstrap(int argc, const char* args[])
             if(i+1 >= argc)
                 error("file version required after option `-target`");
             else {
-                set_target_threads(string(args[++i]));
+                set_target_platform(string(args[++i]));
             }
         }
         else if(opt("-w")){
