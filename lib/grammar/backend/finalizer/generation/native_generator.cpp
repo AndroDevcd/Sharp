@@ -387,7 +387,7 @@ void create_proc_addr_function(sharp_class* sc, stringstream &ss, bool &firstFun
     for(Int k = 0; k < classMethods.size(); k++) {
         sharp_function *func = classMethods.get(k);
 
-        if(func->used && check_flag(func->flags, flag_native)) {
+        if(func->used && check_flag(func->flags, flag_native) && func->used) {
             if(firstFunc) {
                 ss << "\tif(";
                 firstFunc = false;
