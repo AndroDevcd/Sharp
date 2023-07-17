@@ -26,6 +26,10 @@ void generate_address(sharp_function *sf) {
 
 void generate(sharp_function *sf) {
     if(sf->type == delegate_function || sf->type == native_function) {
+        if(sf->type == native_function) {
+            update_context(sf->ci, sf);
+            flush_context(); // generate stack offsets
+        }
         return;
     }
 
