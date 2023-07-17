@@ -23,7 +23,7 @@ enum vm_state {
 struct virtual_machine {
     virtual_machine()
     :
-            manif(),
+            mf(),
             classes(nullptr),
             methods(nullptr),
             strings(nullptr),
