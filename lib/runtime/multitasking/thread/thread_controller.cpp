@@ -1003,7 +1003,7 @@ void thread_sched_prepare(_sched_thread *scht) {
     if (can_dispose(scht)) {
         dispose(scht);
         return;
-    } else if(scht->thread->state != THREAD_RUNNING || scht->thread->nativeCalls > 0)
+    } else if(scht->thread->state != THREAD_RUNNING)
         return;
 
     if (is_thread_ready(scht->thread)) {
@@ -1012,7 +1012,7 @@ void thread_sched_prepare(_sched_thread *scht) {
 }
 
 bool can_sched_thread(sharp_thread *thread) {
-    return hasSignal(thread->signal, tsig_context_switch) && thread->state == THREAD_SCHED && thread->nativeCalls == 0;
+    return hasSignal(thread->signal, tsig_context_switch) && thread->state == THREAD_SCHED;
 }
 
 void queue_task(sharp_thread *thread, sched_task *task) {

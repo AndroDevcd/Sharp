@@ -764,11 +764,9 @@ void invoke_delegate(Int address, Int argSize, bool staticCall) {
                 vm.methods[address].bridge(vm.methods[address].linkAddr);
             } else {
                 try_link_function(&vm.methods[address]);
-                thread_self->nativeCalls++;
                 vm.methods[address].bridge(vm.methods[address].linkAddr);
             }
 
-            thread_self->nativeCalls--;
             thread_self->task->pc+= 2; // skip past functions
             return;
         } else {
@@ -810,6 +808,8 @@ void prepare_method(Int address) {
     auto task = thread_self->task;
     auto inNative = task->current && task->current->nativeFunc;
     auto function = vm.methods + address;
+    if(function->nativeFunc)
+        thread_self->nativeCalls++;
 //    cout << "call: " << function->fullName << "(" << function->address << ")";
 //    if(task->current) {
 //        cout << " current: " << task->current->fullName << "(" << task->current->address << ")"
@@ -872,6 +872,8 @@ bool return_method() {
         return true;
     }
 
+    if(task->current->nativeFunc)
+        thread_self->nativeCalls--;
     auto frame = task->frames + task->callFramePtr--;
 //    cout << "return from : " << task->current->fullName << "(" << task->current->address << ")";
 //    cout << " to: " << (vm.methods + frame->returnAddress)->fullName
