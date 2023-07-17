@@ -2,7 +2,6 @@
 // Created by bknun on 9/18/2022.
 //
 
-#include <conio.h>
 #include "virtual_machine.h"
 #include "error/vm_exception.h"
 #include "../core/opcode/opcode_macros.h"
@@ -23,6 +22,7 @@
 #include "../Modules/std.io/fileio.h"
 #include "../Modules/std.io/serialization.h"
 #include "../core/access_flag.h"
+#include "termios.h"
 
 virtual_machine vm;
 thread_local long double *registers;
@@ -252,7 +252,7 @@ void main_vm_loop()
                 prepare_method(single_arg);
                 branch_for(0)
             CALLD:
-                if((data = (Int)regs[single_arg]) <= 0 || data >= vm.manif.methods) {
+                if((data = (Int)regs[single_arg]) <= 0 || data >= vm.mf.methods) {
                     stringstream ss;
                     ss << "invalid call to method (@" << data << ") out of range!";
                     throw vm_exception(ss.str());
@@ -703,7 +703,7 @@ int release_lib(string name) {
 
     if(lib != nullptr) {
         bridge_fun bridge = (bridge_fun) load_func(lib->handle, "snb_main");
-        for(Int i = 0; i < vm.manif.methods; i++) {
+        for(Int i = 0; i < vm.mf.methods; i++) {
             if(vm.methods[i].bridge == bridge) {
                 vm.methods[i].bridge = NULL;
                 vm.methods[i].linkAddr = -1;
@@ -801,7 +801,7 @@ void invoke_delegate(Int address, Int argSize, bool staticCall) {
 }
 
 void prepare_method(Int address) {
-    if(address >= vm.manif.methods || address < 0) {
+    if(address >= vm.mf.methods || address < 0) {
         stringstream ss;
         ss << "invalid call to method with address of " << address;
         throw vm_exception(ss.str());
@@ -955,7 +955,7 @@ void exec_interrupt(Int interrupt)
                 fiber *fib;
 
                 try {
-                    fib = create_task(fiberName, &vm.methods[mainFunc % vm.manif.methods]);
+                    fib = create_task(fiberName, &vm.methods[mainFunc % vm.mf.methods]);
                 } catch(vm_exception &e) {
                     fiberName.clear();
                     throw;
@@ -1327,7 +1327,7 @@ void exec_interrupt(Int interrupt)
 #ifdef _WIN32
                         throw vm_exception(vm.ill_state_except, string("could not load library ") + libName);
 #else
-                        throw Exception(vm.IllStateExcept, string("could not load library: ") + libError);
+                        throw vm_exception(vm.ill_state_except, string("could not load library: ") + libError);
 #endif
                     }
 

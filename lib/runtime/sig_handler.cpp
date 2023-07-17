@@ -6,6 +6,7 @@
 #include "sig_handler.h"
 #include "multitasking/thread/sharp_thread.h"
 #include "error/vm_exception.h"
+#include "termios.h"
 
 string signalToString(int signal) {
     switch(signal) {
