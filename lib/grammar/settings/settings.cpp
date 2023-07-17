@@ -128,6 +128,19 @@ void set_target_platform(string target) {
     }
 }
 
+void set_target_threads(string target) {
+    if(isNumber(target)) {
+        options.target = stoi(target, nullptr, 0);
+        if(options.target <= 0 || options.target >= 10) {
+            stringstream ss;
+            ss << "invalid target threads amount" << target;
+            error(ss.str());
+        }
+    } else {
+        error("target threads amount must be number");
+    }
+}
+
 void enable_warnings(bool enable) {
     options.warnings = enable;
 }

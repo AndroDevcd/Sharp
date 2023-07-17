@@ -155,6 +155,11 @@ struct settings {
     int target = alpha;
 
     /*
+     * Set target compilation threads
+     */
+    int target_threads = 0;
+
+    /*
      * List of user defined library paths
      */
     List<string> libraries;
@@ -183,6 +188,7 @@ void enable_magic_mode(bool);
 void enable_debug_mode(bool);
 void enable_app_debugging(bool);
 void set_target_platform(string);
+void set_target_threads(string)
 void enable_warnings(bool);
 void enable_warning_type(string, bool);
 void set_compilation_mode(compilation_mode);

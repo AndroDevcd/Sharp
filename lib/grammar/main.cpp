@@ -28,6 +28,7 @@ void help() {
     cout <<               "    -c                   compile only and do not generate exe"                      << endl;
     cout <<               "    -a                   enable aggressive error reporting"                                << endl;
     cout <<               "    -L<path>             library directory path"                                    << endl;
+    cout <<               "    -j<amount>           specify how many threads to run compiler"                  << endl;
     cout <<               "    -w                   disable all warnings"                                      << endl;
     cout <<               "    -run                 run compiled source after successful compilation"          << endl;
     cout <<               "    -g -green            run compiler in \"green\" mode to consume less power"      << endl;
@@ -194,6 +195,9 @@ int _bootstrap(int argc, const char* args[])
         else if(opt("-d")){
             enable_debug_mode(true);
         }
+        else if(opt("-j")){
+            enable_debug_mode(true);
+        }
         else if(opt("-dbg") | opt("-debug")) {
             enable_app_debugging(true);
         }
@@ -205,7 +209,7 @@ int _bootstrap(int argc, const char* args[])
             if(i+1 >= argc)
                 error("file version required after option `-target`");
             else {
-                set_target_platform(string(args[++i]));
+                set_target_threads(string(args[++i]));
             }
         }
         else if(opt("-w")){

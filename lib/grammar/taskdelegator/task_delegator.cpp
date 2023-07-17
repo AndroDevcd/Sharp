@@ -34,8 +34,10 @@ int start_task_delegator() {
 }
 
 void calculateMaxWorkers() {
-    maxWorkers = std::thread::hardware_concurrency() * 2;
-    maxWorkers--; // for delegator thread
+    if(options.target_threads == 0) {
+        maxWorkers = std::thread::hardware_concurrency() * 2;
+        maxWorkers--; // for delegator thread
+    } else maxWorkers = options.target_threads;
 }
 
 void throttle_max_threads() {
@@ -50,7 +52,7 @@ DWORD WINAPI
 void*
 #endif
 delegatorStart(void *) {
-//    calculateMaxWorkers();
+    calculateMaxWorkers();
 
     delegator.alive = true;
     if(options.green_mode) {
