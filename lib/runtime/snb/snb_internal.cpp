@@ -309,7 +309,7 @@ void return_call() {
 }
 
 bool validate_app_id(int id) {
-    if(vm.manifest.applicationId != id) {
+    if(vm.mf.applicationId != id) {
         vm_exception e("error invalid app id: external library is out of sync with source code. Please update your c++ mapping files!");
         sendSignal(thread_self->signal, tsig_except, 1);
         return false;

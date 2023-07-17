@@ -36,7 +36,7 @@ void init_struct(sharp_function *sf) {
 string get_info(sharp_function *sf, Int pc) {
     stringstream ss;
     ss << "\tSource ";
-    if(sf->sourceFile != -1 && sf->sourceFile < vm.manifest.sourceFiles) {
+    if(sf->sourceFile != -1 && sf->sourceFile < vm.mf.sourceFiles) {
         ss << "\""; ss << vm.mdata.files.node_at(sf->sourceFile)->data->name << "\"";
     }
     else

@@ -16,7 +16,7 @@ void process_strings(KeyPair<int, string> &result) {
     uInt itemsProcessed=0;
     PROCESS_SECTION(eos,
        case data_string: {
-           if(itemsProcessed >= vm.manifest.strings) {
+           if(itemsProcessed >= vm.mf.strings) {
                result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt");
                throw runtime_error("");
            }
@@ -25,7 +25,7 @@ void process_strings(KeyPair<int, string> &result) {
            continue;
        }, // on section_end
 
-       if (itemsProcessed != vm.manifest.strings) {
+       if (itemsProcessed != vm.mf.strings) {
            throw invalid_argument("Failed to process all strings in executable.");
        }
 

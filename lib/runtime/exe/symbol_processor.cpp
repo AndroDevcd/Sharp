@@ -18,15 +18,15 @@ void process_symbols(KeyPair<int, string> &result) {
     uInt functionPointersProcessed=0;
     uInt functionPtrIndex=0;
 
-    vm.manifest.functionPointers = next_int32();
-    vm.classes = (sharp_class*) calloc(vm.manifest.classes, sizeof(sharp_class));
-    vm.methods = (sharp_function*) calloc(vm.manifest.methods + vm.manifest.functionPointers, sizeof(sharp_function));
-    vm.strings = (string*)calloc(vm.manifest.strings, sizeof(string)); // TODO: create "" string from compiler as the 0'th element
-    vm.constants = (double*)calloc(vm.manifest.constants, sizeof(double));
-    vm.staticHeap = (object*)calloc(vm.manifest.classes, sizeof(object));
+    vm.mf.functionPointers = next_int32();
+    vm.classes = (sharp_class*) calloc(vm.mf.classes, sizeof(sharp_class));
+    vm.methods = (sharp_function*) calloc(vm.mf.methods + vm.mf.functionPointers, sizeof(sharp_function));
+    vm.strings = (string*)calloc(vm.mf.strings, sizeof(string)); // TODO: create "" string from compiler as the 0'th element
+    vm.constants = (double*)calloc(vm.mf.constants, sizeof(double));
+    vm.staticHeap = (object*)calloc(vm.mf.classes, sizeof(object));
 
     vm.nativeTypes = (sharp_type*) calloc(nativeSymbolCount, sizeof(sharp_type));
-    functionPtrIndex = vm.manifest.methods;
+    functionPtrIndex = vm.mf.methods;
     
     if(vm.classes == nullptr || vm.methods == nullptr || vm.staticHeap == nullptr
        || vm.strings == nullptr || vm.constants  == nullptr || vm.nativeTypes == nullptr) {
@@ -48,7 +48,7 @@ void process_symbols(KeyPair<int, string> &result) {
                 break;\
 
         case data_symbol: {
-            if(functionPointersProcessed >= vm.manifest.functionPointers) {
+            if(functionPointersProcessed >= vm.mf.functionPointers) {
                 result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt");
                 throw runtime_error("");
             }
@@ -73,7 +73,7 @@ void process_symbols(KeyPair<int, string> &result) {
 
         case data_class: {
             Int address = next_int32();
-            if(address >= vm.manifest.classes || address < 0) {
+            if(address >= vm.mf.classes || address < 0) {
                 throw invalid_argument("file `" + executable + "` may be corrupt");
             }
 

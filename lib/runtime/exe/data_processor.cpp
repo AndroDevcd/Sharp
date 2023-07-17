@@ -17,7 +17,7 @@ void process_function_data(KeyPair<int, string> &result) {
     uInt itemsProcessed=0;
     PROCESS_SECTION(data_byte,
         case data_method: {
-            if(itemsProcessed >= vm.manifest.methods) {
+            if(itemsProcessed >= vm.mf.methods) {
                 result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt");
                 throw runtime_error("");
             }
@@ -96,7 +96,7 @@ void process_function_data(KeyPair<int, string> &result) {
             break;
         }, // on section_end
 
-        if(itemsProcessed != vm.manifest.methods)
+        if(itemsProcessed != vm.mf.methods)
             throw std::runtime_error("data section may be corrupt");
         cursor--;
         break;

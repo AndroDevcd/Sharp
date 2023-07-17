@@ -22,7 +22,7 @@ int initialize_virtual_machine()
         return result.key;
     }
 
-    if((virtualStackSize - vm.manifest.threadLocals) <= 1)
+    if((virtualStackSize - vm.manif.threadLocals) <= 1)
         return 2;
 
 
@@ -65,7 +65,7 @@ int initialize_virtual_machine()
     /**
      * Initialize all classes to be used for static access
      */
-    for(unsigned long i = 0; i < vm.manifest.classes; i++) {
+    for(unsigned long i = 0; i < vm.manif.classes; i++) {
         copy_object(vm.staticHeap + i, create_static_object(vm.classes + i));
         SET_GENERATION(vm.staticHeap[i].o->info, gc_perm);
     }

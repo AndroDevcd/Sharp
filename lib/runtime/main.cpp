@@ -85,12 +85,12 @@ int run_app() {
         goto bail;
     }
 
-    if((vm.manifest.threadLocals + (sizeof(stack_item) / KB_TO_BYTES(25))) >= virtualStackSize) {
+    if((vm.mf.threadLocals + (sizeof(stack_item) / KB_TO_BYTES(25))) >= virtualStackSize) {
         unsigned int oldSize = (virtualStackSize * sizeof(stack_item)) / KB_TO_BYTES(1);
-        virtualStackSize = vm.manifest.threadLocals + (KB_TO_BYTES(64) / sizeof(stack_item));
+        virtualStackSize = vm.mf.threadLocals + (KB_TO_BYTES(64) / sizeof(stack_item));
         unsigned int updatedBytes = (virtualStackSize * sizeof(stack_item)) / KB_TO_BYTES(1);
         fprintf(stdout, "Virtual stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
-                oldSize, vm.manifest.application.c_str(), updatedBytes);
+                oldSize, vm.mf.application.c_str(), updatedBytes);
     }
 
     start_thread(get_main_thread(), 0);

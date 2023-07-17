@@ -35,7 +35,7 @@ object* resolve_field(string name, sharp_object* o) {
 }
 
 sharp_class* locate_class(const char *name) {
-    for(uInt i = 0; i < vm.manifest.classes; i++) {
+    for(uInt i = 0; i < vm.mf.classes; i++) {
         if(vm.classes[i].fullName == name) {
             return &vm.classes[i];
         }
@@ -45,7 +45,7 @@ sharp_class* locate_class(const char *name) {
 }
 
 sharp_function* locate_function(const char *name) {
-    for(uInt i = 0; i < vm.manifest.methods; i++) {
+    for(uInt i = 0; i < vm.mf.methods; i++) {
         if(vm.methods[i].fullName == name) {
             return &vm.methods[i];
         }
@@ -55,7 +55,7 @@ sharp_function* locate_function(const char *name) {
 }
 
 sharp_class* locate_class_simple(const char *name) {
-    for(uInt i = 0; i < vm.manifest.classes; i++) {
+    for(uInt i = 0; i < vm.mf.classes; i++) {
         if(vm.classes[i].name == name) {
             return &vm.classes[i];
         }

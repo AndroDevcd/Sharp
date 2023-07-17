@@ -44,7 +44,7 @@ sharp_thread* get_main_thread() {
 }
 
 sharp_function* get_main_method() {
-    return vm.methods + vm.manifest.entryMethod;
+    return vm.methods + vm.mf.entryMethod;
 }
 
 bool all_tasks_finished(sharp_thread *thread) {
@@ -634,10 +634,10 @@ void __os_sleep(uInt time) {
 void shutdown_thread(sharp_thread* thread) {
     guard_mutex(thread->mut);
     if (thread->id == main_threadid && thread->task && thread->task->stack != NULL
-        && thread->task->stack[vm.manifest.threadLocals].obj.o != NULL
-        && thread->task->stack[vm.manifest.threadLocals].obj.o->type == type_class
-        && CLASS(thread->task->stack[vm.manifest.threadLocals].obj.o->info) == vm.int_class->address) {
-        auto valueField = resolve_field("value", thread->task->stack[vm.manifest.threadLocals].obj.o);
+        && thread->task->stack[vm.mf.threadLocals].obj.o != NULL
+        && thread->task->stack[vm.mf.threadLocals].obj.o->type == type_class
+        && CLASS(thread->task->stack[vm.mf.threadLocals].obj.o->info) == vm.int_class->address) {
+        auto valueField = resolve_field("value", thread->task->stack[vm.mf.threadLocals].obj.o);
         thread->task->exitVal = read_numeric_value(valueField->o, 0);
     }
 
@@ -943,7 +943,7 @@ sharp_thread* get_thread(uInt id) {
 uInt create_thread(uInt methodAddr, bool daemon) {
     int32_t threadId = new_thread_id();
     registers[CMT] = false;
-    if(methodAddr < 0 || methodAddr >= vm.manifest.methods)
+    if(methodAddr < 0 || methodAddr >= vm.mf.methods)
         return RESULT_THREAD_CREATE_FAILED;
 
     if(threadId == ILL_THREAD_ID)

@@ -28,15 +28,15 @@ void initialize_main_thread_stack(std::list<string>& appArgs) {
     Int iter=0;
 
     stringstream ss;
-    ss << vm.manifest.target;
+    ss << vm.mf.target;
     string str = ss.str();
 
     copy_object(argsObject, create_object(size));
 
-    copy_object(argsObject->o->node + iter, create_object(vm.manifest.application.size(), type_int8));
-    assign_string_field((argsObject->o->node + iter++)->o, vm.manifest.application);
-    copy_object(argsObject->o->node + iter, create_object(vm.manifest.version.size(), type_int8));
-    assign_string_field((argsObject->o->node + iter++)->o, vm.manifest.version);
+    copy_object(argsObject->o->node + iter, create_object(vm.mf.application.size(), type_int8));
+    assign_string_field((argsObject->o->node + iter++)->o, vm.mf.application);
+    copy_object(argsObject->o->node + iter, create_object(vm.mf.version.size(), type_int8));
+    assign_string_field((argsObject->o->node + iter++)->o, vm.mf.version);
     copy_object(argsObject->o->node + iter, create_object(str.size(), type_int8));
     assign_string_field((argsObject->o->node + iter++)->o, str);
 

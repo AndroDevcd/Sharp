@@ -35,7 +35,7 @@ void process_meta_data(KeyPair<int, string> &result) {
            auto fileData = new file_data();
            next_string(fileData->name);
 
-           if(vm.manifest.debug) {
+           if(vm.mf.debug) {
                string sourceFileData;
                next_chars(sourceFileData, next_int32());
                parseSourceFile(*fileData, sourceFileData);

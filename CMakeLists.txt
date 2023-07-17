@@ -22,7 +22,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -mno-red-zone -Werror -lstdc++  -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
-set(SHARPC "build")
+#set(SHARPC "build")
 #set(LEGACY "build")
 
 # compiler
@@ -99,6 +99,7 @@ if (SHARPC)
             "lib/core/opcode/*.cpp"
             "lib/core/opcode/*.h"
     )
+
 
 
     set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})

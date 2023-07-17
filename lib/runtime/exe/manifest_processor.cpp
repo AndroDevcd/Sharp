@@ -15,55 +15,55 @@ void process_manifest(KeyPair<int, string> &result) {
     PROCESS_SECTION(eoh,
 
          case 0x2:
-            next_string(vm.manifest.application);
+            next_string(vm.mf.application);
             processedFlags++;
             continue;
          case 0x4:
-             next_string(vm.manifest.version);
+             next_string(vm.mf.version);
              processedFlags++;
              continue;
          case 0x5:
-             vm.manifest.debug = next_char() == '1';
+             vm.mf.debug = next_char() == '1';
              processedFlags++;
              continue;
          case 0x6:
-             vm.manifest.entryMethod = next_int32();
+             vm.mf.entryMethod = next_int32();
              processedFlags++;
              continue;
          case 0x7:
-             vm.manifest.methods = next_int32();
+             vm.mf.methods = next_int32();
              processedFlags++;
              continue;
          case 0x8:
-             vm.manifest.classes = next_int32();
+             vm.mf.classes = next_int32();
              processedFlags++;
              continue;
          case 0x9:
-             vm.manifest.fvers = parse_int();
+             vm.mf.fvers = parse_int();
              processedFlags++;
              continue;
          case 0x0c:
-             vm.manifest.strings = next_int32();
+             vm.mf.strings = next_int32();
              processedFlags++;
              continue;
          case 0x0e:
-             vm.manifest.target = parse_int();
+             vm.mf.target = parse_int();
              processedFlags++;
              continue;
          case 0x0f:
-             vm.manifest.sourceFiles = next_int32();
+             vm.mf.sourceFiles = next_int32();
              processedFlags++;
              continue;
          case 0x1b:
-             vm.manifest.threadLocals = next_int32();
+             vm.mf.threadLocals = next_int32();
              processedFlags++;
              continue;
          case 0x1c:
-             vm.manifest.constants = next_int32();
+             vm.mf.constants = next_int32();
              processedFlags++;
              continue;
          case 0x2a:
-             vm.manifest.applicationId = next_int32();
+             vm.mf.applicationId = next_int32();
              processedFlags++;
              continue;
          , // on section_end
@@ -74,14 +74,14 @@ void process_manifest(KeyPair<int, string> &result) {
              ss << processedFlags << " header size";
              throw runtime_error(ss.str());
          }
-         else if(vm.manifest.target > BUILD_VERS) {
+         else if(vm.mf.target > BUILD_VERS) {
              result.key = UNSUPPORTED_BUILD_VERSION;
              throw runtime_error("build vers");
          }
 
-         if(!(vm.manifest.fvers >= min_file_vers && vm.manifest.fvers <= file_vers)) {
+         if(!(vm.mf.fvers >= min_file_vers && vm.mf.fvers <= file_vers)) {
              stringstream err;
-             err << "unsupported file version of: " << vm.manifest.fvers << ". Sharp supports file versions from `"
+             err << "unsupported file version of: " << vm.mf.fvers << ". Sharp supports file versions from `"
                  << min_file_vers << "-" << file_vers << "` that can be processed. Are you possibly targeting the incorrect virtual machine?";
 
              result.with(UNSUPPORTED_FILE_VERS,  err.str());

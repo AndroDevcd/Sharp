@@ -16,7 +16,7 @@ void process_constants(KeyPair<int, string> &result) {
     uInt itemsProcessed=0;
     PROCESS_SECTION(eos,
         case data_const: {
-            if(itemsProcessed >= vm.manifest.constants) {
+            if(itemsProcessed >= vm.mf.constants) {
                 result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt");
                 throw runtime_error("");
             }
@@ -27,7 +27,7 @@ void process_constants(KeyPair<int, string> &result) {
             continue;
         }, // on section_end
 
-        if (itemsProcessed != vm.manifest.constants) {
+        if (itemsProcessed != vm.mf.constants) {
             throw invalid_argument("Failed to process all constants in executable.");
         }
 

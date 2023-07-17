@@ -142,7 +142,7 @@ sharp_type *next_type() {
         return t;
     } else if(type == type_function_ptr) {
         sharp_type *t = new sharp_type();
-        t->fun = &vm.methods[vm.manifest.methods + next_int32()];
+        t->fun = &vm.methods[vm.mf.methods + next_int32()];
         t->type = type_function_ptr;
         return t;
     } else {

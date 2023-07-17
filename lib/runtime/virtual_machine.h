@@ -23,20 +23,20 @@ enum vm_state {
 struct virtual_machine {
     virtual_machine()
     :
-        manifest(),
-        classes(nullptr),
-        methods(nullptr),
-        strings(nullptr),
-        constants(nullptr),
-        staticHeap(nullptr),
-        exitVal(0),
-        mdata(),
-        state(VM_CREATED),
-        nativeTypes(nullptr),
-        libs()
+            manif(),
+            classes(nullptr),
+            methods(nullptr),
+            strings(nullptr),
+            constants(nullptr),
+            staticHeap(nullptr),
+            exitVal(0),
+            mdata(),
+            state(VM_CREATED),
+            nativeTypes(nullptr),
+            libs()
     {}
 
-    manifest manifest;
+    manifest mf;
     int exitVal;
     sharp_class *classes;
     sharp_function *methods;

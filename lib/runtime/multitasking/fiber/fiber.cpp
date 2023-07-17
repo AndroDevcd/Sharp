@@ -99,25 +99,25 @@ void init_struct(fiber *fib) {
     if(virtualStackSize < INITIAL_STACK_SIZE) {
         fib->stackSize = virtualStackSize;
     }
-    else if((vm.manifest.threadLocals + 50) < INITIAL_STACK_SIZE) {
+    else if((vm.mf.threadLocals + 50) < INITIAL_STACK_SIZE) {
         fib->stackSize = INITIAL_STACK_SIZE;
     }
     else {
-        fib->stackSize = vm.manifest.threadLocals + INITIAL_STACK_SIZE;
+        fib->stackSize = vm.mf.threadLocals + INITIAL_STACK_SIZE;
     }
 
     fib->stack = malloc_struct<stack_item>(sizeof(stack_item), fib->stackSize);
-    if(virtualStackSize - vm.manifest.threadLocals < INITIAL_FRAME_SIZE) {
-        fib->frameSize = virtualStackSize - vm.manifest.threadLocals;
+    if(virtualStackSize - vm.mf.threadLocals < INITIAL_FRAME_SIZE) {
+        fib->frameSize = virtualStackSize - vm.mf.threadLocals;
     }
     else {
         fib->frameSize = INITIAL_FRAME_SIZE;
     }
 
     fib->frames = malloc_mem<frame>(fib->frameSize * sizeof(frame));
-    fib->frameLimit = virtualStackSize - vm.manifest.threadLocals;
-    fib->fp = &fib->stack[vm.manifest.threadLocals];
-    fib->sp = (&fib->stack[vm.manifest.threadLocals]) - 1;
+    fib->frameLimit = virtualStackSize - vm.mf.threadLocals;
+    fib->fp = &fib->stack[vm.mf.threadLocals];
+    fib->sp = (&fib->stack[vm.mf.threadLocals]) - 1;
 }
 
 void fiber::growStack(Int requiredSize) {

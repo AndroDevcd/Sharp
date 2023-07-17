@@ -15,7 +15,7 @@ void process_bytecode(KeyPair<int, string> &result) {
     PROCESS_SECTION(eos,
 
         case data_byte: {
-            if(itemsProcessed >= vm.manifest.methods) {
+            if(itemsProcessed >= vm.mf.methods) {
                 result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt");
                 throw runtime_error("");
             }
