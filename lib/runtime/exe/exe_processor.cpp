@@ -119,11 +119,11 @@ int32_t next_int32() {
 }
 
 Int parse_int() {
-#if _ARCH_BITS == 32
-    return strtol(next_string().c_str(), NULL, 0);
-#else
     string s;
     next_string(s);
+#if _ARCH_BITS == 32
+    return strtol(s.c_str(), NULL, 0);
+#else
     return strtoll(s.c_str(), NULL, 0);
 #endif
 }
