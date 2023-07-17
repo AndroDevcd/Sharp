@@ -36,7 +36,7 @@ void init_struct(sharp_thread *thread) {
     init_struct(&thread->args);
     thread->mainMethod = nullptr;
     thread->lastRanMicros = 0;
-    thread->thread = nullptr;
+    thread->thread = 0;
     init_struct(&thread->queueNotification);
     thread->queueNotification.cond = queue_filled;
 #ifdef COROUTINE_DEBUGGING
