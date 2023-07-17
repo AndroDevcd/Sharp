@@ -32,7 +32,7 @@ protected class win_fs base file_system {
                // Remove duplicate slashes.
                if (pathname[i] == '/') {
                    if(buf_index > 0 && buffer[buf_index - 1] != '\\')
-                       buffer[buf_index++] = '\\';
+                       buffer[buf_index++] = new char('\\');
 
                    if(((i + 1) < n) && pathname[i + 1] == '/') {
                        do {
@@ -52,7 +52,7 @@ protected class win_fs base file_system {
                    }
 
                    if(buf_index > 0 && buffer[buf_index - 1] != '\\')
-                       buffer[buf_index++] = '\\';
+                       buffer[buf_index++] = new char('\\');
                }
                else
                    buffer[buf_index++] = pathname[i];
