@@ -588,7 +588,7 @@ component {
     factory("string vers 2") { string("hi") } // named factory
     
     factory("string vers 3") { string("hi" + x) } // static vars are to be proicessed first and then the di stuff
-    // create context with struct that holds the *DependencyManager type & check if it is anywhere in the context whjen resolve is called!
+    // create ctx with struct that holds the *DependencyManager type & check if it is anywhere in the ctx whjen resolve is called!
     // struct DependencyManager will contain a list of the global model & list of named models as well as the global factory
     // struct Model will contain a list of named/non-named factories & singles
     

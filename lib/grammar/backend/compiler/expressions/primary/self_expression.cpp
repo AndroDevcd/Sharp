@@ -13,14 +13,14 @@
 #include "post_ast_expression.h"
 
 void compile_self_expression(expression *e, Ast *ast, Int endLabel) {
-    context &ctx = currThread->currTask->file->context;
+    context &ctx = currThread->currTask->file->ctx;
     sharp_class *primaryClass = get_primary_class(&ctx);
 
     compile_self_expression(primaryClass, NULL, e, ast, endLabel);
 }
 
 void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceClass, expression *e, Ast *ast, Int endLabel) {
-    context &ctx = currThread->currTask->file->context;
+    context &ctx = currThread->currTask->file->ctx;
     sharp_function *fun = get_primary_function(&ctx);
 
     if(fun != NULL && !check_flag(fun->flags, flag_static)

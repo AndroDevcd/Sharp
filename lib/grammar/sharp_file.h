@@ -54,18 +54,18 @@ enum compilation_stage {
 struct sharp_file {
     sharp_file()
     :
-        name(""),
-        tok(NULL),
-        p(NULL),
-        errors(NULL),
-        module(NULL),
-        used(false),
-        stage(not_compiled),
-        compilationFailed(false),
-        dependencies(),
-        imports(),
-        context(),
-        importGroups()
+            name(""),
+            tok(NULL),
+            p(NULL),
+            errors(NULL),
+            module(NULL),
+            used(false),
+            stage(not_compiled),
+            compilationFailed(false),
+            dependencies(),
+            imports(),
+            ctx(),
+            importGroups()
     {}
 
     sharp_file(string filePath)
@@ -80,7 +80,7 @@ struct sharp_file {
             compilationFailed(false),
             dependencies(),
             imports(),
-            context(),
+            ctx(),
             importGroups()
     {}
 
@@ -93,7 +93,7 @@ struct sharp_file {
     string name;
     tokenizer *tok;
     parser *p;
-    context context;
+    context ctx;
     sharp_module *module;
     List<import_group*> importGroups;
     List<sharp_field*> fields;

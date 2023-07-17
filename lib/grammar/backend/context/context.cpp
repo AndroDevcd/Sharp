@@ -12,19 +12,19 @@
 #include "../operation/operation.h"
 
 void create_context(sharp_class *sc, bool isStatic) {
-    create_context(&currThread->currTask->file->context, sc, isStatic);
+    create_context(&currThread->currTask->file->ctx, sc, isStatic);
 }
 
 void create_context(sharp_field *sf) {
-    create_context(&currThread->currTask->file->context, sf, check_flag(sf->flags, flag_static));
+    create_context(&currThread->currTask->file->ctx, sf, check_flag(sf->flags, flag_static));
 }
 
 void create_context(sharp_function *fun) {
-    create_context(&currThread->currTask->file->context, fun, check_flag(fun->flags, flag_static));
+    create_context(&currThread->currTask->file->ctx, fun, check_flag(fun->flags, flag_static));
 }
 
 void create_context(component *comp) {
-    create_context(&currThread->currTask->file->context, comp);
+    create_context(&currThread->currTask->file->ctx, comp);
 }
 
 void create_context(context *ctx, sharp_class *sc, bool isStatic) {
@@ -83,11 +83,11 @@ void create_context(context *ctx, component *comp) {
 }
 
 void delete_block() {
-    delete_block(&currThread->currTask->file->context.blockInfo);
+    delete_block(&currThread->currTask->file->ctx.blockInfo);
 }
 
 void delete_context() {
-    delete_context(&currThread->currTask->file->context);
+    delete_context(&currThread->currTask->file->ctx);
 }
 
 void delete_block(block_info *info) {

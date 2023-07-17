@@ -175,7 +175,7 @@ namespace snb_api {
         extern _return_object return_object;
         extern _return_number return_number;
         extern _return_call return_call;
-        extern _validate_app_id validate_app_id;
+        extern _validate_app_id validate_app_id;                  // throws exception
     }
 
     class VMException : public std::runtime_error {

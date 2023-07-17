@@ -12,7 +12,7 @@ type_definition* get_type_definition(
         component_manager &manager,
         sharp_type &comparer,
         get_component_request &request) {
-    component *primary = get_primary_component(&currThread->currTask->file->context);
+    component *primary = get_primary_component(&currThread->currTask->file->ctx);
     type_definition *td;
 
     if(request.componentName.empty() && request.typeDefinitionName.empty()) {

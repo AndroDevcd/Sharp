@@ -98,7 +98,7 @@ void add_base_constructor(Ast *ast, sharp_function *function) {
 
                 impl_location location;
                 params.add(new sharp_field(
-                        name, get_primary_class(&currThread->currTask->file->context), location,
+                        name, get_primary_class(&currThread->currTask->file->ctx), location,
                         expressions.last()->type, flag_public, normal_field,
                         baseClassConstr->getSubAst(ast_expression_list)
                 ));

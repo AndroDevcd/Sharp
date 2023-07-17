@@ -152,7 +152,7 @@ void compile_initialization_call(
 
     impl_location location;
     params.add(new sharp_field(
-            name, get_primary_class(&currThread->currTask->file->context), location,
+            name, get_primary_class(&currThread->currTask->file->ctx), location,
             e.type, flag_public, normal_field,
             ast
     ));

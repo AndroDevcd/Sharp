@@ -139,7 +139,7 @@ void  compile_binary_string_expression(
     impl_location location(current_file, ast);
 
     params.add(new sharp_field(
-            name, get_primary_class(&currThread->currTask->file->context), location,
+            name, get_primary_class(&currThread->currTask->file->ctx), location,
             type, flag_public, normal_field, ast
     ));
     paramOperations.add(new operation_schema(left.scheme));
@@ -161,7 +161,7 @@ void  compile_binary_string_expression(
         deleteList(paramOperations);
         type = get_real_type(right.type);
         params.add(new sharp_field(
-                name, get_primary_class(&currThread->currTask->file->context), location,
+                name, get_primary_class(&currThread->currTask->file->ctx), location,
                 type, flag_public, normal_field, ast
         ));
 
@@ -708,7 +708,7 @@ void compile_binary_expression(
                 sharp_type type;
                 type.copy(right.type);
                 impl_location location(current_file, ast);
-                params.add(new sharp_field(name, get_primary_class(&current_file->context),
+                params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
                                            location, type, flag_public, normal_field, ast));
 
                 compile_class_function_overload(

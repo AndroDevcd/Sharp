@@ -26,7 +26,7 @@ int start_task_delegator() {
     if(delegator.thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
 #endif
 #ifdef POSIX_
-    if(pthread_create( &delegator.thread, NULL, delegatorStart, (void*) thread)!=0)
+    if(pthread_create( &delegator.thread, NULL, delegatorStart, (void*) delegator.thread)!=0)
         return RESULT_THREAD_NOT_STARTED; // thread was not started
 #endif
 
@@ -134,7 +134,7 @@ uInt start_worker(worker_thread* wt) {
     else return wait_for_idle(wt);
 #endif
 #ifdef POSIX_
-    if(pthread_create( &wt->thread, NULL, workerStart, (void*) thread)!=0)
+    if(pthread_create( &wt->thread, NULL, workerStart, (void*) delegator.thread)!=0)
         return RESULT_THREAD_NOT_STARTED; // thread was not started
     else return wait_for_idle(wt);
 #endif

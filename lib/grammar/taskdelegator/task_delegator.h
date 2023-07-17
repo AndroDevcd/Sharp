@@ -22,7 +22,7 @@ struct worker_thread {
             state(none),
             currTask(NULL),
             nextTask(NULL),
-            thread(NULL)
+            thread(0)
     {}
 
 
@@ -35,7 +35,7 @@ struct worker_thread {
                 state(state),
                 currTask(pTask),
                 nextTask(NULL),
-                thread(NULL)
+                thread(0)
     {}
 
     Int id;
@@ -56,7 +56,7 @@ struct task_delegator {
     :
         alive(false),
         allWorkersFree(false),
-        thread(NULL)
+        thread(0)
     {}
 
     bool alive;

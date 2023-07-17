@@ -82,13 +82,13 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
 
                     impl_location location;
                     params.add(new sharp_field(
-                            name, get_primary_class(&currThread->currTask->file->context), location,
+                            name, get_primary_class(&currThread->currTask->file->ctx), location,
                             keyExpr->type, flag_public, normal_field,
                             ast
                     ));
 
                     params.add(new sharp_field(
-                            name, get_primary_class(&currThread->currTask->file->context), location,
+                            name, get_primary_class(&currThread->currTask->file->ctx), location,
                             valExpr->type, flag_public, normal_field,
                             ast
                     ));
@@ -143,7 +143,7 @@ void compile_dictionary_expression(expression *e, Ast *ast) {
 
                 impl_location location;
                 params.add(new sharp_field(
-                        name, get_primary_class(&currThread->currTask->file->context), location,
+                        name, get_primary_class(&currThread->currTask->file->ctx), location,
                         pairArrayType, flag_public, normal_field,
                         ast
                 ));

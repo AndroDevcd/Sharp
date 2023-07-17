@@ -1474,7 +1474,7 @@ void resolve_normal_item(
         operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
-    context &context = currThread->currTask->file->context;
+    context &context = currThread->currTask->file->ctx;
 
     if(resultType.type == type_untyped) {
         // first item
@@ -1930,7 +1930,7 @@ void resolve_operator_item(
         operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
-    context &context = currThread->currTask->file->context;
+    context &context = currThread->currTask->file->ctx;
 
     if(resultType.type == type_untyped) {
         // first item
@@ -1998,7 +1998,7 @@ void resolve_function_ptr_item(
     sharp_type returnType;
     uInt flags = flag_public | flag_static;
     impl_location location(currThread->currTask->file, resolveLocation->line, resolveLocation->col);
-    context &context = currThread->currTask->file->context;
+    context &context = currThread->currTask->file->ctx;
     sharp_class *primaryClass = get_primary_class(&context);
 
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
@@ -2537,7 +2537,7 @@ void resolve_function_reference_item(
         operation_schema *scheme,
         uInt filter,
         Ast *resolveLocation) {
-    context &context = currThread->currTask->file->context;
+    context &context = currThread->currTask->file->ctx;
 
     List<sharp_field*> params;
     for(Int i = 0; i < item.typeSpecifiers.size(); i++) {
@@ -2949,7 +2949,7 @@ void resolve_generic_item(
         uInt filter,
         Ast *resolveLocation) {
     List<sharp_type> resolvedTypes;
-    context &context = currThread->currTask->file->context;
+    context &context = currThread->currTask->file->ctx;
     string typedClassName = get_typed_generic_class_name(item, resolvedTypes);
 
     if(resultType.type == type_untyped) {

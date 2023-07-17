@@ -10,13 +10,13 @@
 
 void compile_base_expression(expression *e, Ast *ast, Int endLabel) {
     sharp_class *primary
-            = get_primary_class(&currThread->currTask->file->context);
+            = get_primary_class(&currThread->currTask->file->ctx);
     compile_self_expression(primary, primary->baseClass, e, ast, endLabel);
 }
 
 sharp_class* compile_base_class(Ast *ast) {
     sharp_class *primary
-        = get_primary_class(&currThread->currTask->file->context);
+        = get_primary_class(&currThread->currTask->file->ctx);
     if(ast != NULL) {
         sharp_type baseType = resolve(ast->getSubAst(ast_base_utype)->getSubAst(ast_utype));
         if(baseType.type == type_class) {

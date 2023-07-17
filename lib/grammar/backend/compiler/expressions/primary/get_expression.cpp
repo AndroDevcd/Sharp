@@ -23,7 +23,7 @@ void compile_get_expression(expression *e, Ast *ast) {
         componentName = tok->getValue();
     }
 
-    if(get_primary_component(&currThread->currTask->file->context) == NULL
+    if(get_primary_component(&currThread->currTask->file->ctx) == NULL
         && (!ast->hasSubAst(ast_utype) && (typeName.empty() || componentName.empty()))) {
         create_new_error(GENERIC, ast->line, ast->col,
                     "cannot call `get()` outside of a component block without explicitly declaring type. Try `get<my_type>()`.");
@@ -91,7 +91,7 @@ void compile_get_expression(expression *e, Ast *ast) {
             typeDefinition = get_type_definition(
                     componentManager, typeName, componentName);
         } else {
-            component *primary = get_primary_component(&currThread->currTask->file->context);
+            component *primary = get_primary_component(&currThread->currTask->file->ctx);
 
             if(primary != NULL) {
                 typeDefinition = get_type_definition(typeName, primary);

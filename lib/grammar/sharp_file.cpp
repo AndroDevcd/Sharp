@@ -12,7 +12,7 @@ void sharp_file::free()  {
     functions.free();
     classes.free();
     aliases.free();
-    context.localFields.free();
-    deleteList(context.storedItems);
+    ctx.localFields.free();
+    deleteList(ctx.storedItems);
     deleteList(importGroups);
 }

@@ -393,7 +393,7 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                 string name;
                 sharp_type type(type_var);
                 impl_location location(current_file, ast);
-                params.add(new sharp_field(name, get_primary_class(&current_file->context),
+                params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
                                            location, type, flag_public, normal_field, ast));
 
                 auto fun = compile_class_function_overload(

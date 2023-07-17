@@ -61,7 +61,7 @@ extern int application_id;
 #define anonymous_func_prefix "@anonymous_fun_"
 #define current_file currThread->currTask->file
 #define error_manager currThread->currTask->file->errors
-#define current_context currThread->currTask->file->context
+#define current_context currThread->currTask->file->ctx
 #define invalid_block_id (-1)
 #define valid_block_id(id) ((id) >= 0)
 

@@ -6,7 +6,7 @@
 #define SHARP_VECTOR_ARRAY_EXPRESSION_H
 
 #include "../../../frontend/parser/Ast.h"
-#include "../,./../../../../util/KeyPair.h"
+#include "../../../../util/KeyPair.h"
 
 struct expression;
 struct sharp_type;

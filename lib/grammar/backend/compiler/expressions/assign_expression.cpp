@@ -101,7 +101,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
 
                 impl_location location;
                 params.add(new sharp_field(
-                        name, get_primary_class(&currThread->currTask->file->context), location,
+                        name, get_primary_class(&currThread->currTask->file->ctx), location,
                         right.type, flag_public, normal_field,
                         ast
                 ));
@@ -158,7 +158,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 string stdModule = "std";
                 impl_location location;
                 params.add(new sharp_field(
-                        name, get_primary_class(&currThread->currTask->file->context), location,
+                        name, get_primary_class(&currThread->currTask->file->ctx), location,
                         right.type, flag_public, normal_field,
                         ast
                 ));
@@ -225,7 +225,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
             sharp_type type;
             type.copy(right.type);
             impl_location location(current_file, ast);
-            params.add(new sharp_field(name, get_primary_class(&current_file->context),
+            params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
                                        location, type, flag_public, normal_field, ast));
 
             compile_class_function_overload(

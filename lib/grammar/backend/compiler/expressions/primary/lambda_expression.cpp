@@ -35,7 +35,7 @@ void compile_lambda_expression(expression *e, Ast *ast) {
     string functionName = name.str();
 
     GUARD(globalLock)
-    sharp_class *primaryClass = get_primary_class(&current_file->context);
+    sharp_class *primaryClass = get_primary_class(&current_file->ctx);
 
     if(primaryClass == NULL)
         primaryClass = resolve_class(currModule, global_class_name, false, false);

@@ -28,7 +28,7 @@ void compile_array_expression(expression *e, Ast *ast) {
 
         convert_expression_type_to_real_type(*expressions.last());
         params.add(new sharp_field(
-                name, get_primary_class(&currThread->currTask->file->context), location,
+                name, get_primary_class(&currThread->currTask->file->ctx), location,
                 expressions.last()->type, flag_public, normal_field,
                 list->getSubAst(j)
         ));
