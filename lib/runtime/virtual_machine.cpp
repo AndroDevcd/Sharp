@@ -760,7 +760,6 @@ void invoke_delegate(Int address, Int argSize, bool staticCall) {
     if(staticCall) { // native calls are currently unsupported
         if(vm.methods[address].nativeFunc) {
             if(vm.methods[address].bridge != NULL) {
-                thread_self->nativeCalls++;
                 vm.methods[address].bridge(vm.methods[address].linkAddr);
             } else {
                 try_link_function(&vm.methods[address]);
