@@ -38,8 +38,8 @@ void __usleep(unsigned int usec)
 }
 
 void run_scheduler() {
-    _sched_thread *schth;
-    sched_task *scht;
+    _sched_thread *schth = nullptr;
+    sched_task *scht = nullptr;
     uInt sleepTm = 0;
 
 #ifdef WIN32_
@@ -90,7 +90,6 @@ void run_scheduler() {
 
         std::this_thread::yield(); // yield to give threads some time to go into sched mode
         schth = sched_threads;
-        scht = sched_tasks;
         while (schth != nullptr) {
             if(!can_sched_thread(schth->thread)) {
                 schth = schth->next;

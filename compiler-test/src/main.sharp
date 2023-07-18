@@ -25,19 +25,21 @@ def main() {
             println("st");
             for(j := 0; j < 100_000_000; j++){
                 count++;
-                if((count % 1000) == 0)
+                if((count % 100000) == 0)
                     println(count);
             }
             return 0;
           }, thread.current(), null);
     }
 
-    load_library("libSharpDLL");
-    foo_native(5, 112);
+    for(i := 0; i < 10000000; i++) {}
+    println("done");
+//    load_library("libSharpDLL");
+//    foo_native(5, 112);
 }
 
-native def foo_native(x: _int64, n: int);
-native def foo_native2(x: _int64, n: int);
+//native def foo_native(x: _int64, n: int);
+//native def foo_native2(x: _int64, n: int);
 
 def foo() {
     println("helloHigh Level");
