@@ -19,7 +19,7 @@ uInt idleTime = 0;
 bool should_post_task(unsched_task *task) {
     return taskCount < MAIN_POOL_SIZE_LIMIT
         && task->task->wakeable
-        && (NANO_TOMILL(Clock::realTimeInNSecs()) - task->task->delayTime) > 0
+        && (NANO_TOMICRO(Clock::realTimeInNSecs()) - task->task->delayTime) > 0
         && (task->task->f_lock == nullptr || task->task->f_lock->id == -1);
 }
 
@@ -27,7 +27,7 @@ bool is_task_idle(sched_task *task) {
     return task->task->state == FIB_SUSPENDED && task->task->attachedThread == nullptr &&
             (
                 !task->task->wakeable
-                || (NANO_TOMILL(Clock::realTimeInNSecs()) - task->task->delayTime) < 0
+                || (NANO_TOMICRO(Clock::realTimeInNSecs()) - task->task->delayTime) < 0
                 || (task->task->f_lock != nullptr && task->task->f_lock->id != -1)
             );
 }

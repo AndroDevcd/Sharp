@@ -105,7 +105,7 @@ void set_task_state(sharp_thread* thread, fiber* task, fiber_state newState, uIn
         case FIB_SUSPENDED: {
             if(task->state == FIB_KILLED) return;
             if(delay > 0) {
-                task->delayTime = NANO_TOMILL(Clock::realTimeInNSecs()) + delay;
+                task->delayTime = NANO_TOMICRO(Clock::realTimeInNSecs()) + (delay * 1000);
             } else task->delayTime = -1;
             task->state = newState;
             break;

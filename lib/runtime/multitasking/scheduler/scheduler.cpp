@@ -208,7 +208,7 @@ bool is_thread_ready(sharp_thread *thread) {
 
 bool is_runnable(fiber *task, sharp_thread *thread) {
     if(task->attachedThread == NULL && (task->state == FIB_SUSPENDED || task->state == FIB_CREATED) && task->wakeable) {
-        if(task->delayTime != -1 && NANO_TOMILL(Clock::realTimeInNSecs()) < task->delayTime) {
+        if(task->delayTime != -1 && NANO_TOMICRO(Clock::realTimeInNSecs()) < task->delayTime) {
             return false;
         }
 
