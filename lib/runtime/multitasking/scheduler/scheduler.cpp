@@ -90,6 +90,7 @@ void run_scheduler() {
 
         std::this_thread::yield(); // yield to give threads some time to go into sched mode
         schth = sched_threads;
+        scht = sched_tasks;
         while (schth != nullptr) {
             if(!can_sched_thread(schth->thread)) {
                 schth = schth->next;

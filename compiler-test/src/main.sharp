@@ -6,6 +6,7 @@ import (
 );
 
 th : thread?;
+count := 0;
 def main() {
 //    terminal_main_loop();
 
@@ -19,6 +20,18 @@ def main() {
 //    code_motion(norm_priority);
 //    code_motion(max_priority);
 //    foo();
+     for(i := 0; i < 10; i++) {
+          slice({ args: object[] -> (int)
+            println("st");
+            for(j := 0; j < 100_000_000; j++){
+                count++;
+                if((count % 1000) == 0)
+                    println(count);
+            }
+            return 0;
+          }, thread.current(), null);
+    }
+
     load_library("libSharpDLL");
     foo_native(5, 112);
 }

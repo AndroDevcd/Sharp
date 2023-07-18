@@ -1158,7 +1158,7 @@ void exec_interrupt(Int interrupt)
                 auto strObject = create_object(absolute.size(), type_int8);
 
                 copy_object(relPath, strObject);
-                assign_string_field(strObject, absolute);
+                if(strObject) assign_string_field(strObject, absolute);
             } else {
                 throw vm_exception(vm.nullptr_except, "");
             }
