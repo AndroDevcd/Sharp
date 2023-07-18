@@ -972,7 +972,6 @@ void setup_thread(sharp_thread *thread, string &name, uInt id, bool daemon, shar
     thread->name = name;
     thread->id = id;
     thread->daemon=daemon;
-    thread->mainMethod=main;
     if(initializeStack) {
         auto task = create_task(thread->name, main);
         set_attached_thread(task, thread);

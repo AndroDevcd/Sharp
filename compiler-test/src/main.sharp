@@ -20,25 +20,32 @@ def main() {
 //    code_motion(norm_priority);
 //    code_motion(max_priority);
 //    foo();
-     for(i := 0; i < 10; i++) {
-          slice({ args: object[] -> (int)
-            println("st");
-            for(j := 0; j < 100_000_000; j++){
-                count++;
-                if((count % 100000) == 0)
-                    println(count);
-            }
-            return 0;
-          }, thread.current(), null);
-    }
+    load_library("libSharpDLL");
+      for(i := 0; i < 10; i++) {
+           coroutine.builder() = { args: object[] -> (int)
+             println("st");
+             for(j := 0; j < 100_000_000; j++){
+                 count++;
+             }
+             return 0;
+           };
+        }
 
-    for(i := 0; i < 10000000; i++) {}
-    println("done");
-//    load_library("libSharpDLL");
-//    foo_native(5, 112);
+        println("2");
+        //sig_loop(2);
+        foo_native(5, 112);
+        println("3");
+        coroutine.builder() = { args: object[] -> (int)
+        for(i : var = 0; i < 1_000_000; i++) {
+            foo_native(5, 112);
+        }
+          return 0;
+        };
+
+         println("4");
 }
 
-//native def foo_native(x: _int64, n: int);
+native def foo_native(x: _int64, n: int);
 //native def foo_native2(x: _int64, n: int);
 
 def foo() {

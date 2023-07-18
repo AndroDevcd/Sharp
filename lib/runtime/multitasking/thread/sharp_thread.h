@@ -47,7 +47,6 @@ struct sharp_thread {
     bool marked;
     std::string name;
     object currentThread, args;
-    sharp_function* mainMethod;
     uInt lastRanMicros;
 #ifdef COROUTINE_DEBUGGING
     Int timeSleeping, switched, skipped,

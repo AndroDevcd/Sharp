@@ -34,7 +34,6 @@ void init_struct(sharp_thread *thread) {
     new (&thread->name) string();
     init_struct(&thread->currentThread);
     init_struct(&thread->args);
-    thread->mainMethod = nullptr;
     thread->lastRanMicros = 0;
     thread->thread = 0;
     init_struct(&thread->queueNotification);

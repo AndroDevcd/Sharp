@@ -26,6 +26,7 @@ _unsched_thread *unsched_threads = nullptr;
 
 recursive_mutex task_mutex;
 recursive_mutex thread_mutex;
+recursive_mutex unsched_mutex;
 
 void __usleep(unsigned int usec)
 {
@@ -153,7 +154,7 @@ void run_scheduler() {
 }
 
 void sched_unsched_threads() {
-    guard_mutex(thread_mutex)
+    guard_mutex(unsched_mutex)
 
     uInt i = 0;
     while (unsched_threads != nullptr) {
@@ -169,7 +170,7 @@ void sched_unsched_threads() {
 }
 
 void sched_unsched_tasks() {
-    guard_mutex(task_mutex)
+    guard_mutex(unsched_mutex)
 
     uInt i = 0;
     while (unsched_tasks != nullptr) {

@@ -89,7 +89,7 @@ void main_vm_loop()
                     &push_stack_object,
                     create_object(regs[dual_arg1], (data_type)dual_arg2)
                 );
-                branch
+                check_state(1)
             CAST:
                 require_object_with_value(
                     cast_object(task->ptr, single_arg);
@@ -264,7 +264,7 @@ void main_vm_loop()
                 grow_stack
                 stack_overflow_check
                 copy_object(&push_stack_object, create_object(&vm.classes[raw_arg2]));
-                branch_for(2)
+                check_state(2)
             MOVN:
                 require_object_with_value(
                         #ifdef SAFE_EXECUTION
@@ -317,7 +317,7 @@ void main_vm_loop()
                 grow_stack
                 stack_overflow_check
                 copy_object(&push_stack_object, create_object(regs[single_arg]));
-                branch
+                check_state(1)
             NOT:
                 regs[dual_arg1] = !regs[dual_arg2];
                 branch
@@ -375,7 +375,7 @@ void main_vm_loop()
                         &push_stack_object,
                         create_object(vm.classes + raw_arg2, (Int)regs[single_arg])
                 );
-                branch_for(2)
+                check_state(2)
             NEWSTRING:
                 grow_stack
                 stack_overflow_check
@@ -390,7 +390,7 @@ void main_vm_loop()
 
                 if(vm.strings[data].size() > 0)
                     assign_string_field(task->sp->obj.o, vm.strings[data]);
-                branch
+                check_state(1)
             ADDL:
                 (task->fp + dual_arg2)->var += regs[dual_arg1];
                 branch
