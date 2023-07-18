@@ -67,7 +67,7 @@ public:
     uInt stackSize;
     long double *registers;
     object *ptr;
-    Int delayTime;
+    long long delayTime;
     bool wakeable;
     bool finished;
     fib_mutex *f_lock;
