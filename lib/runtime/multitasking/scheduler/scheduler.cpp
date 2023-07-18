@@ -157,9 +157,6 @@ void sched_unsched_threads() {
 
     uInt i = 0;
     while (unsched_threads != nullptr) {
-        if ((i++ % 10) == 0 && CLOCKS_SINCE >= 1) {
-            return;
-        }
 
         if (!queue_thread(unsched_threads->thread)) {
             return;
@@ -176,10 +173,6 @@ void sched_unsched_tasks() {
 
     uInt i = 0;
     while (unsched_tasks != nullptr) {
-        if ((i++ % 10) == 0 && CLOCKS_SINCE >= 1) {
-            return;
-        }
-
         if (!queue_task(unsched_tasks->task)) {
             return;
         }
