@@ -173,6 +173,7 @@ public class job {
         delay := (start_time + sched_time) - time.mills_time().value;
         jb := coroutine.builder()
             .with_name(name!!)
+            .with_tag(tag);
             .recurring(sched_time, milliseconds);
 
         user_args := new object[sizeof(args) - 1];

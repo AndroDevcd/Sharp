@@ -2,26 +2,26 @@ mod std;
 
 /**
 * Created by bknun on 9/5/2022
-* 
+*
 * @class hash_map
 *
 * Description:
 *
 */
 class hash_map<k base _object_, v base _object_> {
-    data: entry<k?, v?>[];
+    data: entry<k, v?>[];
     threshold := 0.75;
     max_size := 96;
     size : var;
 
     private static const default_capacity := 128;
-    public hashtable(initialCapacity: int) {
-        data = new entry<k,v>[initialCapacity.value];
+    public hash_map(initialCapacity: int) {
+        data = new entry<k,v?>[initialCapacity.value];
         max_size = (sizeof(data) * threshold);
     }
 
-    public hashtable() {
-        data = new entry<k,v>[default_capacity];
+    public hash_map() {
+        data = new entry<k,v?>[default_capacity];
     }
 
     def set_threshold(threshold: int) {
@@ -29,20 +29,20 @@ class hash_map<k base _object_, v base _object_> {
         max_size = (sizeof(data) * threshold.value);
     }
 
-    private def hash(key: k) : var {
+    private def hash(key: k) : int {
         return key.hash() % sizeof(data);
     }
 
     private def resize() {
-        old_data := data;
-        data = new entry<k,v>[sizeof(old_data) + (sizeof(old_data) >> 1)];
+        old_data : entry<k, v?>[]? = data;
+        data = new entry<k,v?>[sizeof(old_data) + (sizeof(old_data) >> 1)];
         max_size = sizeof(data) * threshold;
         foreach(entry in old_data)
         {
             while(entry != null) // todo fix this this is wrong i think
             {
                 next := entry.next;
-                index : var = hash(entry.key);
+                index : var = hash(entry.key).value;
                 entry.next = data[index];
                 data[index] = entry;
                 entry = next;
@@ -52,8 +52,8 @@ class hash_map<k base _object_, v base _object_> {
         old_data = null;
     }
 
-    public def at(key: k) : v {
-        index: var = hash(key);
+    public def at(key: k) : v? {
+        index: var = hash(key).value;
         initialHash := -1;
         no_value : v;
 
@@ -72,9 +72,9 @@ class hash_map<k base _object_, v base _object_> {
         }
     }
 
-    public def put(key: k, value: v) : bool {
-        index: var = hash(key);
-        prev : entry<k,v>;
+    public def put(key: k, value: v?) : bool {
+        index: var = hash(key).value;
+        prev : entry<k,v?>;
         entry := data[index];
 
         while (entry != null && entry.key != key) {
@@ -84,7 +84,7 @@ class hash_map<k base _object_, v base _object_> {
 
         if(entry == null) {
             size++;
-            entry =  new entry<k,v>(key, value);
+            entry =  new entry<k,v?>(key, value);
             if(prev == null) {
                 data[index] = entry;
             } else {
@@ -99,22 +99,22 @@ class hash_map<k base _object_, v base _object_> {
     }
 
     public def remove(key: k) : bool {
-        index := hash(key);
+        index := hash(key).value;
         if(data[index] == null) {
-            prev_entry: entry<k,v>;
-            entry := data[index];
-            while(entry != null && entry.key != key) {
+            prev_entry: entry<k,v?>?;
+            entry : entry<k,v?>? = data[index];
+            while(entry != null && entry!!.key != key) {
                 prev_entry = entry;
-                entry = entry.next;
+                entry = entry!!.next;
             }
 
-            if(entry.key == key) {
+            if(entry!!.key == key) {
                 if(prev_entry == null) {
-                    next_entry := entry.next;
+                    next_entry := entry!!.next;
                     data[index] = next_entry;
                 } else {
-                    next_entry := entry.next;
-                    prev_entry.next = next_entry;
+                    next_entry := entry!!.next;
+                    prev_entry!!.next = next_entry;
                     entry = null;
                 }
 
@@ -127,10 +127,10 @@ class hash_map<k base _object_, v base _object_> {
 
     class entry<k, v> {
         protected key: k;
-        protected value: v;
-        protected next: entry<k, v>;
+        protected value: v?;
+        protected next: entry<k, v?>;
 
-        public entry(key: k, value: v) {
+        public entry(key: k, value: v?) {
             self->key = key;
             self->value = value;
         }

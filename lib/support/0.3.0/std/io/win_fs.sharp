@@ -23,8 +23,8 @@ protected class win_fs base file_system {
         lock(self) {
            buffer := new char[512];
            n := pathname.size();
-           buf_index := 0;
-           for (i := 0; i < n; i++) {
+           buf_index : var = 0;
+           for (i : var = 0; i < n; i++) {
                // remove any trailing slashes
                if((i + 1) >= n && buf_index > 0 && (pathname[i] == '\\' || pathname[i] == '/'))
                    break;

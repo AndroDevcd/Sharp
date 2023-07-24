@@ -92,6 +92,16 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
                 create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,
                                  " expressions are not compatible, assigning nullable type of `" +
                                  type_to_str(field->type) + "` to non nullable type of `" + type_to_str(e.type) + "`.");
+            } else if(e.type.type == type_lambda_function && !is_fully_qualified_function(e.type.fun)) {
+                if(field->type.type == type_function_ptr) {
+                    if(is_fully_qualified_function(field->type.fun)) {
+                        fully_qualify_function(e.type.fun, field->type.fun);
+                    } else {
+                        create_new_error(GENERIC, ast,
+                                         "cannot assign non fully qualified function to field `" + field->name + ": " +
+                                         type_to_str(field->type) + "`, try setting types of prameters and return type to either field or expression.");
+                    }
+                }
             }
 
             if(field_match_result == match_initializer) {

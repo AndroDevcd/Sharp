@@ -45,6 +45,14 @@ def main() {
          println("4");
 }
 
+	def send(response: string): int {
+	    check_state();
+
+	    common.network.driver#send(response.data);
+	    return get_last_error();
+	}
+
+
 native def foo_native(x: _int64, n: int);
 //native def foo_native2(x: _int64, n: int);
 

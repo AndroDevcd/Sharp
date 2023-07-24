@@ -13,6 +13,7 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
     compile_expression(trueExpr, ast->getSubAst(1));
     compile_expression(falseExpr, ast->getSubAst(2));
 
+    extract_value_field_from_expression(condExpr, "", ast->getSubAst(0));
     if(is_evaluable_type(condExpr.type)) {
         stringstream ss;
         sharp_label *endLabel, *ifFalseLabel;
