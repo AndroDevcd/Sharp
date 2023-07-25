@@ -251,6 +251,12 @@ namespace snb_api {
             SharpObject (*get_stack_trace)(SharpObject $instance),
             void (*constructor)(SharpObject $instance)
     );
+    SharpObject create_new_primitive_wrapper(
+            const char *classname,
+            var value,
+            void (*constructor)(SharpObject $instance, var value)
+    );
+    void string_from(std::string &str, SharpObject strObj);
 }
 
 #endif //SHARP_SNB_API_H

@@ -142,6 +142,8 @@ string class_to_cpp_name(string &name) {
                 ss << '$';
             else if(name[i] == ',')
                 ss << "_0_";
+            else if(name[i] == '?')
+                ss << "9";
             else if(name[i] == ' ') {}
             else ss << name[i];
         }
@@ -163,6 +165,8 @@ string func_to_cpp_name(string &name) {
             ss << '$';
         else if(name[i] == ',')
             ss << "_0_";
+        else if(name[i] == '?')
+            ss << "9";
         else if(name[i] == '@')
             ss << "_";
         else if(name[i] == ' ') {}

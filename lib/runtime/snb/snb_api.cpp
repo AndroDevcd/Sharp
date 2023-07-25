@@ -100,6 +100,25 @@ namespace snb_api {
         }
     }
 
+    SharpObject create_new_primitive_wrapper(
+            const char *classname,
+            var value,
+            void (*constructor)(SharpObject $instance, var value)
+    ) {
+        using namespace internal;
+        auto exceptionVar = create_local_variable(); // create space for new exception
+        if(exceptionVar.obj == nullptr) return nullptr;
+
+        new_class(classname);
+        assign_object(exceptionVar.obj, pop_object());
+
+        use_var(exceptionVar,
+                constructor(exceptionVar.obj, value);
+        )
+
+        return pop_object();
+    }
+
     SharpObject create_new_exception(
             const char *classname,
             const char *errorMsg,
@@ -131,6 +150,15 @@ namespace snb_api {
                 get_stack_trace(exceptionVar.obj);
         )
         return pop_object();
+    }
+
+    void string_from(std::string &str, SharpObject strObj) {
+        auto raw = internal::get_raw_number_data(strObj);
+        auto size = internal::get_size(strObj);
+
+        for(long i = 0; i < size; i++) {
+            str += (char)raw[i];
+        }
     }
 
     LocalVariable create_local_variable() {
