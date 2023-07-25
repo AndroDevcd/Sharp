@@ -17,6 +17,7 @@ void free_struct(sharp_thread *thread) {
 
 void init_struct(sharp_thread *thread) {
     thread->task = nullptr;
+    thread->last_sched = nullptr;
     new(&thread->boundFibers) atomic<Int>();
     new(&thread->queue) atomic<sched_task*>();
     new (&thread->mut) recursive_mutex();

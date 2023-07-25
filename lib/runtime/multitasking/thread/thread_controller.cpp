@@ -1018,6 +1018,7 @@ void queue_task(sharp_thread *thread, sched_task *task) {
     if(thread->queue == NULL) {
         set_attached_thread(task->task, thread);
         thread->queue = task->task;
+        thread->last_sched = task;
         send_notification(&thread->queueNotification);
     }
 }
