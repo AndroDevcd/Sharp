@@ -29,5 +29,11 @@ bool are_classes_related(sharp_class *base, sharp_class *reference) {
     if(base->guid == reference->guid)
         return true;
 
+    for(Int i = 0; i < base->interfaceCount; i++) {
+        if(are_classes_related(base->interfaces[i], base)) {
+            return true;
+        }
+    }
+
     return base->base != NULL && are_classes_related(base->base, reference);
 }
