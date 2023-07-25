@@ -259,13 +259,16 @@ protected def execute_synchronous(scheduled_job : job) {
 }
 
 protected def execute_job(scheduled_job : job) : bool {
+    println("exec job: ${ scheduled_job.host == null } ");
     fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
            	    : scheduled_job.host;
 
     if(fib_host != null) {
+        println("try run");
         scheduled_job.host = fib_host;
         result := scheduled_job.execute_async();
 
+        println("result: $result");
         if(result != 0) {
            scheduled_job.host = null;
            return false;

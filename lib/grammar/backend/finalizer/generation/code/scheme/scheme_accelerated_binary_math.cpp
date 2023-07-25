@@ -13,7 +13,6 @@ void process_accelerated_binary_math_scheme(operation_schema *scheme) {
     Int stepPos = 0;
 
     process_allocate_register(next_step);
-
     process_get_value(next_step);
     process_push_value_to_stack(next_step);
 
