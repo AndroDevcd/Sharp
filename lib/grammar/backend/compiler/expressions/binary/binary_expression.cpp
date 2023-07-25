@@ -332,11 +332,13 @@ void compile_binary_integer_expression(
             } else {
                 ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
                       create_get_value_operation(&e->scheme, &right.scheme, false);
-                      create_retain_numeric_value_operation(&e->scheme, register_1);
+                      create_push_to_stack_operation(&e->scheme);
                       create_get_integer_constant_operation(&e->scheme,
                                                             get_numeric_expression_value_as_int(
                                                                     left), false);
                       create_retain_numeric_value_operation(&e->scheme, register_0);
+                      create_pop_direct_numeric_value_from_stack_operation(&e->scheme, register_1);
+                      create_unused_data_operation(&e->scheme);
 
                       if (operand == "&") {
                           create_and_operation(&e->scheme, register_0, register_1);
@@ -437,8 +439,10 @@ void compile_binary_numeric_expression(
                 if (left.scheme.schemeType == scheme_binary_math) {
                     ALLOCATE_REGISTER_1X(0, &e->scheme,
                          create_get_value_operation(&e->scheme, &right.scheme, false);
-                         create_retain_numeric_value_operation(&e->scheme, register_0);
+                         create_push_to_stack_operation(&e->scheme);
                          create_get_value_operation(&e->scheme, &left.scheme, false);
+                         create_pop_direct_numeric_value_from_stack_operation(&e->scheme, register_0);
+                         create_unused_data_operation(&e->scheme);
 
                          if (operand == "&") {
                              create_and_operation(&e->scheme, -1, register_0);
@@ -481,9 +485,11 @@ void compile_binary_numeric_expression(
                 } else {
                     ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
                          create_get_value_operation(&e->scheme, &right.scheme, false);
-                         create_retain_numeric_value_operation(&e->scheme, register_1);
+                         create_push_to_stack_operation(&e->scheme);
                          create_get_value_operation(&e->scheme, &left.scheme, false);
                          create_retain_numeric_value_operation(&e->scheme, register_0);
+                         create_pop_direct_numeric_value_from_stack_operation(&e->scheme, register_1);
+                         create_unused_data_operation(&e->scheme);
 
                          if (operand == "&") {
                              create_and_operation(&e->scheme, register_0, register_1);

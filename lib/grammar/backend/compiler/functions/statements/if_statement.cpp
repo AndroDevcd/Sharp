@@ -30,6 +30,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
         set_internal_label_name(ss, "if_block_end", uniqueId++)
         blockEndLabel = create_label(ss.str(), &current_context, ast, subScheme);
         create_jump_if_false_operation(subScheme, blockEndLabel);
+        create_unused_data_operation(subScheme);
 
         controlPaths[IF_CONTROL_PATH] = compile_block(ast->getSubAst(ast_block), subScheme, if_block);
         controlPaths[ELSEIF_CONTROL_PATH] = true;
@@ -54,6 +55,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
                         blockEndLabel = create_label(ss.str(), &current_context, ast, &scheme_0);
                         create_get_value_operation(&scheme_0, &elseIfCond.scheme, false, false);
                         create_jump_if_false_operation(&scheme_0, blockEndLabel);
+                        create_unused_data_operation(&scheme_0);
 
                         if(!compile_block(branch->getSubAst(ast_block), &scheme_0, elseif_block)) {
                             controlPaths[ELSEIF_CONTROL_PATH] = false;
@@ -84,6 +86,7 @@ void compile_if_statement(Ast *ast, operation_schema *scheme, bool *controlPaths
         }
     } else {
         create_jump_if_false_operation(subScheme, endLabel);
+        create_unused_data_operation(subScheme);
         compile_block(ast->getSubAst(ast_block), subScheme, if_block);
         current_context.blockInfo.reachable = true;
     }

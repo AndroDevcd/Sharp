@@ -16,11 +16,13 @@ void process_binary_math_scheme(operation_schema *scheme) {
     process_allocate_register(next_step);
 
     process_get_value(next_step);
-    process_retain_numeric_value(next_step);
+    process_push_value_to_stack(next_step);
 
 
     process_step(next_step);
     process_retain_numeric_value(next_step);
+    process_pop_direct_numeric_value_from_stack(next_step);
+    process_unused_data(next_step);
 
     process_step(next_step); // add, sub, mult, div, mod, etc
 
