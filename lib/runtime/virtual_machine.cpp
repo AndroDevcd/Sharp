@@ -778,6 +778,8 @@ void invoke_delegate(Int address, Int argSize, bool staticCall) {
 
         if(classObject && classObject->type == type_class)
             referenceClass = vm.classes + CLASS(classObject->info);
+        else if(classObject == nullptr)
+            throw vm_exception(vm.nullptr_except, "attempting to invoke a function call on null object");
         else
             throw vm_exception(vm.runtime_except, "attempting to invoke a function call on a non-class object");
 
