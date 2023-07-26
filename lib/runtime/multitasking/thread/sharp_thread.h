@@ -31,7 +31,6 @@ extern thread_local sharp_thread* thread_self;
 struct sharp_thread {
     atomic<fiber*> queue;
     notification queueNotification;
-    sched_task *last_sched;
     fiber *task;
     atomic<Int> boundFibers;
     recursive_mutex mut;

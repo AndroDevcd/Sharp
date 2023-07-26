@@ -20,97 +20,24 @@ def main() {
 //    code_motion(norm_priority);
 //    code_motion(max_priority);
 //    foo();
-    load_library("libSharpDLL");
-      for(i := 0; i < 10; i++) {
-           coroutine.builder() = { args: object[] -> (int)
-             println("st");
-             for(j := 0; j < 100_000_000; j++){
-                 count++;
-             }
-             return 0;
-           };
-        }
+  jb: job;
+    for(i := 0; i < 1; i++) {
+       jb = coroutine.builder().schedule(1000).recurring(100, time_unit.milliseconds) = { args: object[] -> (int)
+         println("st");
+         for(j := 0; j < 1_000; j++){
+             count++;
+         }
+         return 0;
+       };
+    }
 
-        println("2");
-        //sig_loop(2);
-        foo_native(5, 112);
-        println("3");
-        coroutine.builder() = { args: object[] -> (int)
-        for(i : var = 0; i < 1_000_000; i++) {
-            foo_native(5, 112);
-        }
-          return 0;
-        };
+    for(i := 0; i < 1_000_000; i++) {
+    }
+    jb.cancel();
+    println("cancel");
+    for(i : var = 0; i < 100_000_000; i++) {
+    }
 
-         println("4");
-}
-
-	def send(response: string): int {
-	    check_state();
-
-	    common.network.driver#send(response.data);
-	    return get_last_error();
-	}
-
-
-native def foo_native(x: _int64, n: int);
-//native def foo_native2(x: _int64, n: int);
-
-def foo() {
-    println("helloHigh Level");
-}
-
-obfuscate -keep_inclusive {
-    foo()
-}
-
-x : var = 0;
-limit : var = 10000000;
-def code_motion(prior: thread_priority) {
-//    t1 := new thread("thread High", { args: object[] -> (int)
-//        while(true) { delay(0); }
-//        return 0;
-//    });
-//    t1.set_priority(max_priority);
-//    t1.start();
-
-    x = 0;
-    th!!.set_priority(prior);
-
-    control := time.measureMills({ ->
-        for(i : var = 0; i < limit; i++) {
-           x++;
-        }
-    });
-    println("control: $control");
-    println("expected: ${control * 10}");
-
-    x = 0;
-    jobs := new list<job>();
-    total := time.measureMills({ ->
-        for(j : var = 0; j < 10; j++) {
-            jobs.add(
-                coroutine.builder()
-                    .with_host(th!!)
-//                    .long_term()
-                     = { args ->
-                    for(i : var = 0; i < limit; i++) {
-                        x++;
-                    }
-               }
-            );
-        }
-
-        foreach(j in jobs) {
-            j.join();
-        }
-        while(x < limit) {
-            delay(0);
-        }
-    });
-    println("x: $x ");
-    println("actual: $total ");
-    println("gain: ${(control * 10) - total} ");
-    println("total: ${total + control} ");
+    println("done");
 }
 

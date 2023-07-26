@@ -86,7 +86,6 @@ def run_scheduler() {
 	const SPIN_COUNT : var = 60000 / SLEEP_TIME;
 	spins_left : var = SPIN_COUNT;
 	cancel_list := new list<int>();
-    count := 0;
 
     while(true)
     {
@@ -99,8 +98,6 @@ def run_scheduler() {
 
             jobs.avail_data(0) -> {
                 foreach(scheduled_job in jobs.read_next(0)) {
-                   count++;
-
                    if(!cancel_list.empty()) {
                       if(cancel_list.find(scheduled_job.tag, { it, it2 -> return it == it2; }) == scheduled_job.tag)
                          continue;
@@ -109,20 +106,8 @@ def run_scheduler() {
                    if(scheduled_job.state == cancelled)
                       continue;
 
-                   if(scheduled_job.delay_time != 0) {
-                   		if(time.mills_time() >= scheduled_job.delay_time) {
-                   			scheduled_job.delay_time = 0;
-
-                   			if(!execute_job(scheduled_job)) {
-                   			   jobs.send(scheduled_job);
-                   			}
-                   		} else {
-                            jobs.send(scheduled_job);
-                   		}
-                   } else {
-                       if(!execute_job(scheduled_job)) {
-                   		   jobs.send(scheduled_job);
-                   	   }
+                   if(!execute_job(scheduled_job)) {
+                   	   jobs.send(scheduled_job);
                    }
                 }
 
@@ -253,22 +238,19 @@ private def kill_threads() {
 protected def execute_synchronous(scheduled_job : job) {
 	if(scheduled_job.delay_time != 0) {
 		future := scheduled_job.delay_time - time.mills_time();
-		if(future > 0) delay(future);
 	}
+    delay(scheduled_job.delay_time);
 	scheduled_job.execute();
 }
 
 protected def execute_job(scheduled_job : job) : bool {
-    println("exec job: ${ scheduled_job.host == null } ");
     fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
            	    : scheduled_job.host;
 
     if(fib_host != null) {
-        println("try run");
         scheduled_job.host = fib_host;
         result := scheduled_job.execute_async();
 
-        println("result: $result");
         if(result != 0) {
            scheduled_job.host = null;
            return false;

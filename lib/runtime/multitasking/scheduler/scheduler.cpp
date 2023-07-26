@@ -97,8 +97,6 @@ void run_scheduler() {
                 continue;
             }
 
-            if(schth->thread->last_sched)
-                scht = schth->thread->last_sched;
             if(scht == nullptr) {
                 scht = sched_tasks;
             }
@@ -110,18 +108,12 @@ void run_scheduler() {
                 }
 
                 if(can_purge(scht->task)) {
-                    if(schth->thread->last_sched == scht)
-                        schth->thread->last_sched = nullptr;
-
                     auto next = scht->next;
                     dispose(scht);
                     scht = next;
                     goto wrap;
                 }
                 else if(taskCount > MAIN_POOL_SIZE_LIMIT && is_task_idle(scht)) {
-                    if(schth->thread->last_sched == scht)
-                        schth->thread->last_sched = nullptr;
-
                     auto next = scht->next;
                     post_idle_task(scht);
                     remove_task(scht);

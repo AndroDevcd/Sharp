@@ -26,9 +26,6 @@ class job_master {
 	protected def create_job(name : string) := new job(name);
 
 	protected def start_job(scheduled_job : job) {
-		if(scheduled_job.delay_time != 0)
-			scheduled_job.delay_time = scheduled_job.delay_time + time.mills_time();
-
 		if(scheduled_job.block_caller)
 			execute_synchronous(scheduled_job);
 		else {
@@ -43,7 +40,6 @@ class job_master {
 	protected def cleanup_job(scheduled_job : job) {
 		scheduled_job.deferred_obj = null;
 		scheduled_job.host = null;
-		scheduled_job.next_task = null;
 		scheduled_job.args = null;
 		scheduled_job.name = null;
 		running_jobs.remove(scheduled_job);
@@ -55,7 +51,7 @@ class job_master {
 	   lock(running_jobs) {
            foreach(schdj in running_jobs) {
                if(schdj.tag == tag_id) {
-                  schdj.cancel();
+                  schdj.cancel_task();
 		          running_jobs.remove(schdj);
                }
            }

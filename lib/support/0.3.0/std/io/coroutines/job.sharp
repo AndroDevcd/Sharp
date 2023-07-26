@@ -44,6 +44,11 @@ public class job {
 	}
 
 	public def cancel() {
+	    cancel_task();
+	    launcher.cancel_jobs_by_tag(tag);
+	}
+
+	protected def cancel_task() {
 	    lock(self) {
             if(state == active) {
                 state = cancelled;
@@ -57,22 +62,8 @@ public class job {
             } else if(state == created) {
                 state = cancelled;
             }
-	    }
-	}
-
-	protected def cancel_future() {
-	    lock(self) {
-            if(recurring) {
-                jb := next_task;
-                while(jb != null) {
-                    jb?.cancel();
-                    launcher.cleanup_job(jb!!);
-
-                    jb = jb?.next_task;
-                }
-            }
-		}
-	}
+        }
+    }
 
 	public def join() {
 	    if(block_caller
@@ -115,11 +106,12 @@ public class job {
 	protected def execute() {
 	    start_time = time.mills_time();
 		launcher.add_job(self);
+		fib = fiber.current();
 		state = active;
 
 		try {
-		   if(recurring)
-		       reschedule();
+           if(delay_time > 0)
+               delay(delay_time);
 
            when {
                main0 != 0 -> main0();
@@ -127,6 +119,9 @@ public class job {
                main2 != 0 -> main2(deferred_obj!!, args!!);
                main3 != 0 -> main3(deferred_obj!!);
            }
+
+		   if(recurring)
+		       reschedule();
 
 		   state = completed;
 		   launcher.cleanup_job(self);
@@ -137,7 +132,7 @@ public class job {
            state = cancelled;
            launcher.cleanup_job(self);
            if(!block_caller)
-		      fib.current().unbind(); // protect against crashing the thread
+		      fib.unbind(); // protect against crashing the thread
 		   throw t;
 		}
 	}
@@ -148,11 +143,6 @@ public class job {
     public def update_interval(tm: long, interval: time_unit) {
         if(!recurring)
 	        throw new ill_state_except("cannot set update restart interval on non-recurring job");
-
-        if(state == active) {
-           cancel_future();
-           next_task = null;
-        }
 
         if(interval == nanoseconds) {
             sched_time = time.nano_to_mills(tm);
@@ -196,7 +186,6 @@ public class job {
         if(delay > 0)
            jb.schedule(delay);
 
-        next_task = jb.scheduled_job;
         jb.master.start_job(jb.scheduled_job);
     }
 
@@ -212,7 +201,6 @@ public class job {
 	protected start_time : long = 0;
 	protected sched_time : long = 0;
 	protected delay_time : long = 0;
-	protected next_task : job?;
 	protected recurring := false;
 	protected tag : int = 0;
 	protected block_caller := false;
