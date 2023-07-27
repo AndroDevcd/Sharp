@@ -679,7 +679,7 @@ void compile_binary_expression(
             _class:
             if(operand == "==" || operand == "!=") {
                 uInt result =
-                        is_implicit_type_match(left.type, right.type, overload_only);
+                        is_implicit_type_match(left.type, right.type, exclude_all);
 
                 auto comparee = get_real_type(right.type);
                 List<sharp_field*> params;
@@ -692,11 +692,6 @@ void compile_binary_expression(
                     goto _overload;
                 } else if(result == match_operator_overload) {
                     goto _overload;
-                } else if(resolve_function("operator" + operand.getValue(), get_real_type(left.type)._class,
-                    params, operator_function,
-                    match_constructor | match_initializer | match_operator_overload,
-                    NULL, true, true) != NULL) {
-                    goto _overload; // silly bypass that's needed due to implicit type checking flaw
                 }
 
                 compile_binary_object_expression(e, left, right, operand, ast);
