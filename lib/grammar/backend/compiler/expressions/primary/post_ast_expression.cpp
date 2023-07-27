@@ -12,6 +12,7 @@
 #include "../../../../compiler_info.h"
 #include "../../../../settings/settings.h"
 #include "array_expression.h"
+#include "force_non_null_expression.h"
 
 void compile_post_ast_expression(expression *e, Ast *ast, Int startPos, Int endLabel) {
     for(Int i = startPos; i < ast->getSubAstCount(); i++) {
@@ -44,6 +45,11 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos, Int endL
                           && !e->type.nullable) {
                     create_new_warning(GENERIC, __w_access, ast, "unnecessary use of`" + access->getValue()
                                + "` on non nullable type `" + type_to_str(e->type) + "`");
+                } else if(access->getType() == SAFEDOT) {
+                    sharp_type type = get_real_type(e->type);
+                    if(type.nullable) {
+                        force_null_safety_check(&e->scheme, endLabel, dotNotationCallExpr);
+                    }
                 }
 
                 if(ast->getSubAst(i)->getType() == ast_dot_not_e)

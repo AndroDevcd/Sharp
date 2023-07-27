@@ -18,7 +18,7 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
         if(check_flag(field->flags, flag_static)) {
             function = resolve_function(
                     static_init_name(with_class->name), with_class,
-                    params,normal_function, exclude_all,
+                    params, initializer_function, exclude_all,
                     ast, false, false
             );
 
@@ -29,7 +29,7 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
 
             function = resolve_function(
                     instance_init_name(with_class->name), with_class,
-                    params,normal_function, exclude_all,
+                    params,initializer_function, exclude_all,
                     ast, false, false
             );
 

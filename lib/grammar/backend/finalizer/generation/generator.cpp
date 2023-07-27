@@ -39,19 +39,19 @@ bool is_greater_than(sharp_class* e1, sharp_class* e2) {
     return e1->ci->address > e2->ci->address;
 }
 
-void print_field_addresses(sharp_class *sc, bool isStatic) {
+void print_field_addresses(sharp_class *sc, bool isStatic, stringstream &ss) {
     if(sc->baseClass && !isStatic) {
-        print_field_addresses(sc->baseClass, isStatic);
+        print_field_addresses(sc->baseClass, isStatic, ss);
     }
 
     for(Int i = 0; i < sc->fields.size(); i++) {
         auto sf = sc->fields.get(i);
 
         if(sf->used && check_flag(sf->flags, flag_static) == isStatic) {
-            cout << "\t [" << sf->ci->address << "]";
+            ss << "\t [" << sf->ci->address << "]";
 
-            if(isStatic) cout << " static";
-            cout << " : " << sf->fullName << endl;
+            if(isStatic) ss << " static";
+            ss << " : " << sf->fullName << endl;
         }
     }
 }
@@ -74,36 +74,60 @@ void generate() {
     compressedCompilationFunctions.linearSort(is_greater_than);
     compressedCompilationClasses.linearSort(is_greater_than);
 
+    stringstream ss;
     for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
         auto sf = compressedCompilationFunctions.get(i);
-        cout << function_to_str(sf) << endl;
-        cout << "address: " << sf->ci->address << endl;
-        cout << "file: " << get_true_source_file(sf)->name << endl;
-        cout << "owner: " << sf->owner->fullName << endl;
-        cout << "frameStackOffset: " << sf->ci->frameStackOffset << endl;
-        cout << "fpOffset: " << sf->ci->fpOffset << endl;
-        cout << "spOffset: " << sf->ci->spOffset << endl;
-        cout << "stackSize: " << sf->ci->stackSize;
-        cout << "\ncode:\n\n" << code_to_string(sf->ci) << endl;
+        ss << function_to_str(sf) << endl;
+        ss << "address: " << sf->ci->address << endl;
+        ss << "file: " << get_true_source_file(sf)->name << endl;
+        ss << "owner: " << sf->owner->fullName << endl;
+        ss << "frameStackOffset: " << sf->ci->frameStackOffset << endl;
+        ss << "fpOffset: " << sf->ci->fpOffset << endl;
+        ss << "spOffset: " << sf->ci->spOffset << endl;
+        ss << "stackSize: " << sf->ci->stackSize;
+        ss << "\ncode:\n\n" << code_to_string(sf->ci) << endl;
     }
 
-    cout << endl << "classes:\n";
+    ss << endl << "classes:\n";
     for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
-        cout << "[" << i << "]: " << compressedCompilationClasses.get(i)->fullName << " - "
+        ss << "[" << i << "]: " << compressedCompilationClasses.get(i)->fullName << " - "
             << compressedCompilationClasses.get(i)->ci->address << endl;
 
-        print_field_addresses(compressedCompilationClasses.get(i), true);
-        print_field_addresses(compressedCompilationClasses.get(i), false);
+        print_field_addresses(compressedCompilationClasses.get(i), true, ss);
+        print_field_addresses(compressedCompilationClasses.get(i), false, ss);
     }
 
-    cout << endl << endl << "constants:\n";
+    ss << endl << endl << "constants:\n";
     for(Int i = 0; i < constantMap.size(); i++) {
-        cout << "[" << i << "]: " << constantMap.get(i) << endl;
+        ss << "[" << i << "]: " << constantMap.get(i) << endl;
     }
 
-    cout << endl << endl << "strings:\n";
+    ss << endl << endl << "strings:\n";
     for(Int i = 0; i < stringMap.size(); i++) {
-        cout << "[" << i << "]: " << stringMap.get(i) << endl;
+        ss << "[" << i << "]: " << stringMap.get(i) << endl;
+    }
+
+    if(options.compile_mode == project_mode) {
+        string div;
+
+#ifdef __WIN32
+        div = "\\";
+#else
+        div = "/";
+#endif
+
+        string buildDir = options.project_dir + div + "build";
+        string outFile = buildDir + div + options.out + ".aout";
+
+        File::makeDir(buildDir);
+        if (File::write(outFile.c_str(), ss.str())) {
+            cout << PROG_NAME << ": error: failed to write out to executable " << outFile << endl;
+        }
+    } else {
+        string outFile = options.out + ".aout";
+        if (File::write(outFile.c_str(), ss.str())) {
+            cout << PROG_NAME << ": error: failed to write out to executable " << options.out << endl;
+        }
     }
 
     generate_native_code();

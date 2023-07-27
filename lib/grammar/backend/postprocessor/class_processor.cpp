@@ -162,7 +162,7 @@ void create_class_init_functions(sharp_class *with_class, Ast *ast) {
 
     function = resolve_function(
             static_init_name(with_class->name), with_class,
-            params,normal_function, exclude_all,
+            params, initializer_function, exclude_all,
             ast, false, false
     );
 
@@ -170,7 +170,7 @@ void create_class_init_functions(sharp_class *with_class, Ast *ast) {
         name = static_init_name(with_class->name);
         create_function(
                 with_class, flag_private | flag_static,
-                normal_function, name,
+                initializer_function, name,
                 false, params,
                 void_type, ast, function
         );
@@ -183,7 +183,7 @@ void create_class_init_functions(sharp_class *with_class, Ast *ast) {
 
     function = resolve_function(
             instance_init_name(with_class->name), with_class,
-            params,normal_function, exclude_all,
+            params,initializer_function, exclude_all,
             ast, false, false
     );
 
@@ -191,7 +191,7 @@ void create_class_init_functions(sharp_class *with_class, Ast *ast) {
         name = instance_init_name(with_class->name);
         create_function(
                 with_class, flag_private,
-                normal_function, name,
+                initializer_function, name,
                 false, params,
                 void_type, ast, function
         );

@@ -60,7 +60,7 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
         if (check_flag(flags, flag_static)) { // here we assume that `params` must be empty if function == NULL
             function = resolve_function(
                     static_init_name(with_class->name), with_class,
-                    params,normal_function, exclude_all,
+                    params,initializer_function, exclude_all,
                     ast, false, false
             );
 
@@ -68,7 +68,7 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
                 string name = static_init_name(with_class->name);
                 create_function(
                         with_class, flag_private | flag_static,
-                        normal_function, name,
+                        initializer_function, name,
                         false, params,
                         void_type, ast, function
                 );
@@ -78,7 +78,7 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
         } else {
             function = resolve_function(
                     instance_init_name(with_class->name), with_class,
-                    params,normal_function, exclude_all,
+                    params,initializer_function, exclude_all,
                     ast, false, false
             );
 
@@ -86,7 +86,7 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
                 string name = instance_init_name(with_class->name);
                 create_function(
                         with_class, flag_private,
-                        normal_function, name,
+                        initializer_function, name,
                         false, params,
                         void_type, ast, function
                 );
@@ -129,7 +129,7 @@ void compile_initialization_paring(sharp_function *constructor) {
     GUARD2(globalLock)
     function = resolve_function(
             instance_init_name(constructor->owner->name), constructor->owner,
-            params,normal_function, exclude_all,
+            params, initializer_function, exclude_all,
             constructor->owner->ast, false, false
     );
 
@@ -137,7 +137,7 @@ void compile_initialization_paring(sharp_function *constructor) {
         name = instance_init_name(constructor->owner->name);
         create_function(
                 constructor->owner, flag_private,
-                normal_function, name,
+                initializer_function, name,
                 false, params,
                 void_type, constructor->owner->ast, function
         );
@@ -167,7 +167,7 @@ void compile_static_initialization_requirement(sharp_function *constructor) {
     GUARD2(globalLock)
     function = resolve_function(
             static_init_name(constructor->owner->name), constructor->owner,
-            params,normal_function, exclude_all,
+            params, initializer_function, exclude_all,
             constructor->owner->ast, false, false
     );
 
@@ -175,7 +175,7 @@ void compile_static_initialization_requirement(sharp_function *constructor) {
         name = static_init_name(constructor->owner->name);
         create_function(
                 constructor->owner, flag_private | flag_static,
-                normal_function, name,
+                initializer_function, name,
                 false, params,
                 void_type, constructor->owner->ast, function
         );
