@@ -15,11 +15,11 @@ import (
 class observer<t> {
     callback: (observer<t>, t?)();
     on_thread: thread?;
-    emitter: receiver<t>;
+    listener: receiver<t>;
 
-    observer(emt: receiver<t>, fun: (observer<t>, t?)(), t: thread?) {
+    observer(l: receiver<t>, fun: (observer<t>, t?)(), th: thread?) {
         callback = fun;
-        on_thread = t;
-        emitter = emt;
+        on_thread = th;
+        listener = l;
     }
 }

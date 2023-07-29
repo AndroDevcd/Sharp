@@ -31,6 +31,9 @@ struct generic_type_identifier {
             type(type),
             name(name)
     {
+        if(type.type == type_field) {
+            int i = 0;
+        }
         this->baseType.copy(baseType);
     }
 

@@ -24,8 +24,8 @@ public class observable<t base _object_> : emitter<t>, receiver<t> {
 	    return o;
 	}
 
-	public override def observe_on(on_update: (observer<t>, t?)(), t: thread): observer<t> {
-	    o := new observer<t>(self, on_update, t);
+	public override def observe_on(on_update: (observer<t>, t?)(), th: thread): observer<t> {
+	    o := new observer<t>(self, on_update, th);
 	    observers.add(o);
 	    return o;
 	}

@@ -1485,6 +1485,18 @@ void resolve_normal_item(
     context &context = currThread->currTask->file->ctx;
 
     if(resultType.type == type_untyped) {
+        sharp_class *primaryClass = get_primary_class(&context);
+        if(primaryClass) {
+            if((hasFilter(filter, resolve_filter_generic_type_param)
+                || hasFilter(filter, resolve_filter_un_restricted))
+               && !primaryClass->genericTypes.empty()
+               && resolve_generic_type_param(item, primaryClass, resultType, scheme, context)) {
+
+                hardType = true;
+                return;
+            }
+        }
+
         // first item
         if(context.type == block_context
            && (hasFilter(filter, resolve_filter_label)
@@ -1514,7 +1526,6 @@ void resolve_normal_item(
             return;
         }
 
-        sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
             if(!context.isStatic && (hasFilter(filter, resolve_filter_class_field)
                || hasFilter(filter, resolve_filter_un_restricted))
@@ -1567,15 +1578,6 @@ void resolve_normal_item(
             if((hasFilter(filter, resolve_filter_class)
                || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class(item, primaryClass, resultType, scheme, context)) {
-
-                hardType = true;
-                return;
-            }
-
-            if((hasFilter(filter, resolve_filter_generic_type_param)
-               || hasFilter(filter, resolve_filter_un_restricted))
-               && !primaryClass->genericTypes.empty()
-               && resolve_generic_type_param(item, primaryClass, resultType, scheme, context)) {
 
                 hardType = true;
                 return;
