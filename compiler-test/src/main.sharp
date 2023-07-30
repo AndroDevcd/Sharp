@@ -8,11 +8,73 @@ import (
 th : thread?;
 count := 0;
 def main() {
-  load_library("libSharpDLL");
-  if(get_last_error() == 6) {
-     println("equals!");
-  } else
-     println("not equals!");
+    start_time := time.mills_time();
+    delay(1000);
+
+    time_since := time.mills_time() - start_time; // press & hold functionality
+    intervals2 := time_since / constants.PRESS_HOLD_INTERVAL;
+    println("time since: $time_since intervals: $intervals2");
 }
 
-native def get_last_error(): int;
+
+class constants {
+
+    static const INPUT : var = 0;
+    static const OUTPUT : var = 1;
+    static const PWM : var = 2;
+    static const HIGH : var = 1;
+    static const LOW : var = 0;
+    static const DELAY_1250US : var = 5;
+    static const DELAY_500US : var = 2;
+    static const RF24_PA_MIN : var = 0;
+    static const RF24_PA_LOW : var = 1;
+    static const RF24_PA_HIGH : var = 2;
+    static const RF24_PA_MAX : var = 3;
+    static const RF24_250KBPS : var = 0;
+    static const RF24_1MBPS : var = 1;
+    static const RF24_2MBPS : var = 2;
+    static const RF24_MAX_RETRY : var = 15;
+    static const SIGNAL_MIN : var = 0;
+    static const SIGNAL_LOW : var = 1;
+    static const SIGNAL_MED : var = 2;
+    static const SIGNAL_HIGH : var = 3;
+    static const SIGNAL_MAX : var = 4;
+    static const CLIENT : var = 1;
+    static const SERVER : var = 0;
+    static NETWORK_STATE : var = CLIENT;
+    static const RW_LIMIT : var = 3;
+    static const INFINITE : var = -100;
+    static const CONNECTING_LED_INTERVAL : var = -100;
+    static const ONE_SECOND : var = 1000;
+    static const UP_BUTTON_PIN : var = 28;
+    static const DOWN_BUTTON_PIN : var = 29;
+    static const DEVICE_CONNECTING_PIN : var = 27;
+    static const INITIAL_START_DELAY : var = 3000;
+    static const DEVICE_UPDATE_INTERVAL : var = 50;
+    static const PRESS_HOLD_INTERVAL : var = 250;
+    static const TWO_FIFTY: var = 250;
+    static const TWO_HUNDRED: var = 200;
+    static const SIGNAL_UPD_THRESHOLD: var = 4;
+
+    class strings {
+        static const CMD : string = "cmd";
+        static const RESPONSE : string = "response";
+        static const YES : string = "yes";
+        static const MODE : string = "mode";
+        static const CHANNEL : string = "channel";
+        static const ALT : string = "altitude";
+        static const BAT : string = "bat_lvl";
+        static const SPEED : string = "speed";
+        static const FLIGHT_MODE_NORM : string = "100";
+        static const FLIGHT_MODE_SPORT : string = "200";
+        static const HANDSHAKE : string = "0";
+        static const UP : string = "1";
+        static const DOWN : string = "2";
+        static const LEFT : string = "3";
+        static const RIGHT : string = "4";
+        static const CHANGE_MODE : string = "5";
+        static const FLIGHT_DATA : string = "6";
+        static const JAM : string = "7";
+    }
+}
+

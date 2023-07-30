@@ -110,7 +110,7 @@ void main_vm_loop()
                 regs[dual_arg1] = (int32_t)regs[dual_arg2];
                 branch
             MOV64:
-                regs[dual_arg1] = (Int)regs[dual_arg2];
+                regs[dual_arg1] = (int64_t)regs[dual_arg2];
                 branch
             MOVU8:
                 regs[dual_arg1] = (uint8_t)regs[dual_arg2];
@@ -122,7 +122,7 @@ void main_vm_loop()
                 regs[dual_arg1] = (uint32_t)regs[dual_arg2];
                 branch
             MOVU64:
-                regs[dual_arg1] = (uInt)regs[dual_arg2];
+                regs[dual_arg1] = (uint64_t)regs[dual_arg2];
                 branch
             RSTORE:
                 grow_stack
