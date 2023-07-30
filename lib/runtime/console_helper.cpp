@@ -72,7 +72,7 @@ void dbl_printf(int format, double value, int precision) {
             snprintf(buf, 256, "%%");
             break;
         case 'l': {
-            string str(to_string((Int)value));
+            string str(to_string((int64_t)value));
             auto strObject = create_object(str.size(), type_int8);
 
             copy_object(&push_stack_object, strObject);
@@ -80,7 +80,7 @@ void dbl_printf(int format, double value, int precision) {
             return;
         }
         case 'L': {
-            string str(to_string((uInt)value));
+            string str(to_string((uint64_t)value));
             auto strObject = create_object(str.size(), type_int8);
 
             copy_object(&push_stack_object, strObject);
