@@ -538,6 +538,7 @@ void create_main_func(stringstream &ss) {
     ss << "\t\t}" << endl;
     ss << "\t}" << endl;
     ss << "\tcatch(std::exception &e) {" << endl;
+    ss << "\t\tusing namespace snb_api::internal;" << endl;
     ss << "\t\tprepare_exception(" << endl;
     ss << "\t\t\tcreate_new_exception(" << endl;
     ss << "\t\t\t\t\"std#illegal_state_exception\"," << endl;

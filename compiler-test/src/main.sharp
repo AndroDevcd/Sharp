@@ -8,92 +8,11 @@ import (
 th : thread?;
 count := 0;
 def main() {
-//    terminal_main_loop();
-
-//    th = new thread("runnable thread", { args: object[] -> (int)
-//        while(true) { delay(0); }
-//        return 0;
-//    });
-//
-//    th!!.start();
-//    code_motion(min_priority);
-//    code_motion(norm_priority);
-//    code_motion(max_priority);
-//    foo();
-  rd := new request_data();
-  rd.add_item("CMD", "hi");
-  println(rd.to_string());
+  load_library("libSharpDLL");
+  if(get_last_error() == 6) {
+     println("equals!");
+  } else
+     println("not equals!");
 }
 
-
-
-class request_data {
-    items := new list<request_item>();
-    indexing_func : (request_item, request_item)(bool) =
-        { t1, t2 ->
-            return t1.key == t2.key;
-        };
-    request_string : string?;
-       get {
-          return build_request_data();
-       }
-
-    def build_request_data(): string? {
-        sb := new string_builder();
-        println("items $items");
-        for(i := 0; i < items.size(); i++) {
-            sb += items[i].key;
-            sb += "=" + items[i].value;
-
-            if((i + 1) < items.size()) {
-                sb += ",";
-            }
-        }
-
-        return sb.to_string();
-    }
-
-    def add_item(key: string, value: string) : request_data {
-        item := new request_item(key, value);
-        index := items.indexof(item, indexing_func);
-
-        if(index == -1)
-            items.add(item);
-        else
-            items.at(index).value = value;
-
-        request_string = null;
-        return self;
-    }
-
-    override def to_string() : string? {
-        return build_request_data();
-    }
-
-    def at(key: string): string? {
-        item := new request_item(key, null);
-        index := items.indexof(item, indexing_func);
-
-        if(index == -1)
-            return null;
-        else
-            return items.at(index).value;
-    }
-
-    def clear() {
-        items.clear();
-        request_string = null;
-    }
-
-    class request_item
-    {
-        key: string;
-        value: string?;
-
-        request_item(k: string, v: string?)
-        {
-            key = k;
-            value = v;
-        }
-    }
-}
+native def get_last_error(): int;
