@@ -110,10 +110,12 @@ namespace snb_api {
         if(exceptionVar.obj == nullptr) return nullptr;
 
         new_class(classname);
-        assign_object(exceptionVar.obj, pop_object());
+        use_var(exceptionVar,
+            assign_object(exceptionVar.obj, pop_object());
+        )
 
         use_var(exceptionVar,
-                constructor(exceptionVar.obj, value);
+           constructor(exceptionVar.obj, value);
         )
 
         return pop_object();
