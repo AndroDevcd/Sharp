@@ -481,9 +481,13 @@ void append_call_functions(sharp_class* klass, stringstream& ss) {
 
         ss << ");";
         if(func->returnType.type != type_nil) {
-            ss << endl << "\t" << "internal::push_object($result);";
+            if(func->returnType.type == type_function_ptr)
+                ss << endl << "\t" << "internal::return_number($result);";
+            else
+                ss << endl << "\t" << "internal::return_object($result);";
         }
 
+        ss << endl << "\t" << "internal::return_call();";
         ss << endl << "}" << endl << endl;
     }
 }
@@ -532,6 +536,16 @@ void create_main_func(stringstream &ss) {
     ss << "\t\t\tif(e.exceptionClass)" << endl;
     ss << "\t\t\t\tprepare_exception(e.exceptionClass);" << endl;
     ss << "\t\t}" << endl;
+    ss << "\t}" << endl;
+    ss << "\tcatch(std::exception &e) {" << endl;
+    ss << "\t\tprepare_exception(" << endl;
+    ss << "\t\t\tcreate_new_exception(" << endl;
+    ss << "\t\t\t\t\"std#illegal_state_exception\"," << endl;
+    ss << "\t\t\t\te.what() ? e.what() : \"unexpected c++ exception thrown, please review your code!\"," << endl;
+    ss << "\t\t\t\tstd_throwable::get_stack_trace," << endl;
+    ss << "\t\t\t\tstd_illegal_state_exception::illegal_state_exception2" << endl;
+    ss << "\t\t\t)" << endl;
+    ss << "\t\t);" << endl;
     ss << "\t}" << endl;
     ss << "}" << endl;
 }
