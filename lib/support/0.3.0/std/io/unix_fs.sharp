@@ -20,7 +20,7 @@ protected class unix_fs base file_system {
     override def normalize(pathname: string) : string {
         lock(self) {
            n := pathname.size();
-           buf_index := 0;
+           buf_index : var = 0;
            for (i : var = 0; i < n; i++) {
                // remove any trailing slashes
                if((i + 1) >= n && buf_index > 0 && (pathname[i] == '\\' || pathname[i] == '/'))
