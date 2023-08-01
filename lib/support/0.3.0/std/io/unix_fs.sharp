@@ -48,7 +48,7 @@ protected class unix_fs base file_system {
                            i--;
                    }
 
-                   if(buf_index == 0 || buf_index > 0 && buffer[buf_index - 1] != '/')
+                   if(buf_index == 0 || (buf_index > 0 && buffer[buf_index - 1] != '/'))
                        buffer[buf_index++] = new char('/');
                }
                else
