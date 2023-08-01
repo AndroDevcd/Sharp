@@ -25,6 +25,8 @@ stable class _object_ : printable, unique {
         vm.unlock_object(self);
     }
 
+    def equals(obj: _object_) := (self as object) == (obj as object);
+
     override def hash() : int {
         /* must be implemented at a higher level */
         return 1;

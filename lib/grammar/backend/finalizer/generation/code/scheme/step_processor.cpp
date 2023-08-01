@@ -1176,7 +1176,10 @@ void process_instance_function_call(operation_step *step) {
     validate_step_type(step, operation_call_instance_function);
 
     sharp_function *fun = step->function;
-    if(fun->type == delegate_function || fun->type == native_function) {
+    if(fun->delegate) {
+        add_instruction(Opcode::Builder::invokeDelegate(fun->delegate->ci->address, fun->delegate->parameters.size(), check_flag(fun->delegate->flags, flag_static)));
+    }
+    else if(fun->type == delegate_function || fun->type == native_function) {
         add_instruction(Opcode::Builder::invokeDelegate(fun->ci->address, fun->parameters.size(), check_flag(fun->flags, flag_static)));
     } else {
         add_instruction(Opcode::Builder::call(fun->ci->address));
@@ -1218,7 +1221,10 @@ void process_static_function_call(operation_step *step) {
     validate_step_type(step, operation_call_static_function);
 
     sharp_function *fun = step->function;
-    if(fun->type == delegate_function || fun->type == native_function) {
+    if(fun->delegate) {
+        add_instruction(Opcode::Builder::invokeDelegate(fun->delegate->ci->address, fun->delegate->parameters.size(), check_flag(fun->delegate->flags, flag_static)));
+    }
+    else if(fun->type == delegate_function || fun->type == native_function) {
         add_instruction(Opcode::Builder::invokeDelegate(fun->ci->address, fun->parameters.size(), check_flag(fun->flags, flag_static)));
     } else {
         add_instruction(Opcode::Builder::call(fun->ci->address));

@@ -679,7 +679,7 @@ void compile_binary_expression(
             _class:
             if(operand == "==" || operand == "!=") {
                 uInt result =
-                        is_implicit_type_match(left.type, right.type, exclude_all);
+                        is_implicit_type_match(left.type, right.type, overload_only);
 
                 auto comparee = get_real_type(right.type);
                 List<sharp_field*> params;
