@@ -336,9 +336,9 @@ protected class file_system {
         return result;
     }
 
-    static def read(f: file) : string {
+    static def read(f: file) : string? {
         path := f.get_absolute_path().data;
-        data : string;
+        data : string?;
 
         /*
         * This will perform the os call to request the

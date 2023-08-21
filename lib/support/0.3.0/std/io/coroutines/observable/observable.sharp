@@ -39,9 +39,9 @@ public class observable<t base _object_> : emitter<t>, receiver<t> {
            coroutine.builder()
               .with_host(obs.on_thread)
               .with_args(new object[] { get_data(), obs }) = { args: object[] ->
-              data : t? = args[1] == null ? null : args[1] as t;
-              obs := args[2] as observer<t>;
-              obs.callback(obs, data);
+                  data : t? = args[1] == null ? null : args[1] as t;
+                  obs := args[2] as observer<t>;
+                  obs.callback(obs, data);
            };
         }
 	}

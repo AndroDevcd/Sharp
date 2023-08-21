@@ -1,8 +1,0 @@
-mod std.io;
-
-enum buffer_type {
-   EXCLUSIVE, // blocking
-   SINGLE, // overrides value
-   UNLIMITED,
-   BUFFERED
-}

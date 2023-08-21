@@ -48,6 +48,7 @@ class platform
         asm {
             movg $thread_group
             movn $thread_group[main_group]
+
             pushObj
 
             movl [main_thread]
