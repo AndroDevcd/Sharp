@@ -14,7 +14,7 @@
 #include "../../../util/time.h"
 
 atomic<uInt> taskIds = { 0 };
-fiber* create_task(string &name, sharp_function *main) {
+fiber* create_task(string &name, sharp_function *main, sharp_object *fibObject, sharp_object *args, sharp_thread *bindTo) {
     fiber *fib = nullptr;
 
     try {
@@ -22,6 +22,13 @@ fiber* create_task(string &name, sharp_function *main) {
         fib->name = name;
         fib->main = main;
         fib->id = taskIds++;
+
+        if(bindTo != nullptr)
+            bind_task(fib, bindTo);
+        copy_object(&fib->fiberObject, fibObject);
+
+        if(args != nullptr)
+            copy_object(&(++fib->sp)->obj, args); // apply args to fiber's stack
         post(fib);
     } catch(vm_exception &e) {
         if(fib) {

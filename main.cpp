@@ -4,7 +4,6 @@
 
 #ifdef MAKE_COMPILER
     #include "lib/grammar/main.h"
-    #include "lib/old_grammar/options.h"
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/main.h"

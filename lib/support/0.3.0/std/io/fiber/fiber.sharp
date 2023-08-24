@@ -10,9 +10,9 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
    private fiber() {}
 
    name : string = "";
-   id := -1;
+   id : var = -1;
    main : (object[]?)(int);
-   exit_val := 0;
+   exit_val : var = 0;
    bound_thread : thread;
 
    fiber(name : string, main : (object[])(int)) {
@@ -28,7 +28,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
 
    def start(args: object[]?) {
       if(id == -1)
-         id = vm.start_fiber(self, bound_thread, args, fiber_main);
+         id = vm.start_fiber(self, bound_thread, args, fiber_main).value;
    }
 
    def suspend() : int {
@@ -100,7 +100,7 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
       fib := current();
 
       try {
-         fib.exit_val = fib.main(args);
+         fib.exit_val = fib.main(args).value;
       } catch(t: throwable) {
          fib.id = -1;
          fib.exit_val = 300;

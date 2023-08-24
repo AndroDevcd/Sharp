@@ -161,10 +161,6 @@ void set_compilation_mode(compilation_mode mode) {
     options.compile_mode = mode;
 }
 
-void enable_run_source_code(bool enable) {
-    options.run_source = enable;
-}
-
 void enable_green_mode(bool enable) {
     options.green_mode = enable;
 }

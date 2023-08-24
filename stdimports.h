@@ -57,7 +57,7 @@ using namespace std;
 //#define VM_DEBUG
 // #define SHARP_PROF
 
-#define COROUTINE_DEBUGGING
+//#define COROUTINE_DEBUGGING
 
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"

@@ -1,8 +1,27 @@
 mod main;
 
+import ( std.* );
+
+count := new atomic<int>(0);
 
 def main() {
-    prefs := new shared_preference("settings.prefs");
-    prefs.add
+    for(i := 0; i < 10_000; i++) {
+        slice({ args: object[] -> (int)
+            loop();
+           return 0;
+        }, thread.current(), null);
+    }
+
+    loop();
+    while(count != 10_001) { delay(0); }
+    println("count: $count");
+}
+
+def loop() {
+    for(i: var = 0; i < 100; i++) {}
+    count++;
+//    if(count % 100 == 0) {
+//        println("count: $count");
+//    }
 }
 

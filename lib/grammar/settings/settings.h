@@ -106,11 +106,6 @@ struct settings {
     bool warnings = true;
 
     /*
-     * Execute source code after successful compilation
-     */
-    bool run_source = false;
-
-    /*
      * Set the compilation mode
      */
     int compile_mode = file_mode;
@@ -192,7 +187,6 @@ void set_target_threads(string);
 void enable_warnings(bool);
 void enable_warning_type(string, bool);
 void set_compilation_mode(compilation_mode);
-void enable_run_source_code(bool);
 void enable_green_mode(bool);
 void set_new_project_path(string);
 void set_source_version(string);

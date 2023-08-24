@@ -8,6 +8,7 @@ import (
 
 class platform
 {
+    static build_info: build;
 
     private static main : (string[])(int);
     private static main2 : (string[])();
@@ -18,24 +19,15 @@ class platform
     private static def static_init() {}
 
     private static def srt_init(args: object[]) : int {
-        app_name := "${args[0] as _int8[]}";
-        version := "${args[1] as _int8[]}";
-        platform := "${args[2] as _int8[]}";
-        os := "${args[3] as _int8[]}";
-
-        build.app_name = app_name; // this needs to happen 2 times due to static_init<>
-        build.version = version;
-        build.platform = platform;
-        build.os = os;
+        build_info = new build();
+        build_info.app_name = "${args[0] as _int8[]}";
+        build_info.version = "${args[1] as _int8[]}";
+        build_info.platform = "${args[2] as _int8[]}";
+        build_info.os = "${args[3] as _int8[]}";
 
         static_init();
         tls_init();
         start_scheduler();
-
-        build.app_name = app_name;
-        build.version = version;
-        build.platform = platform;
-        build.os = os;
 
         main_thread := args[4] as thread;
         vm.set_thread(main_thread);

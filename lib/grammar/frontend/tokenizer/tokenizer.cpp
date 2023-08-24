@@ -121,6 +121,12 @@ void tokenizer::parse()
     while(!is_end) {
         start = cursor;
 
+        if(line == 5777) {
+            int i = 0;
+            if(cursor >= 11649) {
+                int k  = 0;
+            }
+        }
         switch (current) {
             case ' ':
             case '\t':
@@ -235,7 +241,8 @@ void tokenizer::parse()
                         } else {
                             tokens.add(Token(")", SINGLE, col, line, RIGHTPAREN));
                             tokens.add(Token("+", SINGLE, col, line, PLUS));
-                            parseString();
+                            if(parseString())
+                                continue;
                         }
                     } else
                         add_token(RIGHTCURLY);
@@ -711,6 +718,7 @@ bool tokenizer::parseString() {
                 break;
 
             if('$' == current && dynamicStringSupport) {
+                bool addPlus = true;
                 if(start != cursor) {
                     cursor--;
                     if (!escaped_found)
@@ -721,7 +729,9 @@ bool tokenizer::parseString() {
 
                     advance();
                 } else if(peek(1) != '$') {
-                    tokens.add(Token("", STRING_LITERAL, col, line));
+                    if(!tokens.empty() && tokens.last().getType() != PLUS)
+                        tokens.add(Token("", STRING_LITERAL, col, line));
+                    else addPlus = false;
                     advance();
                 }
 
@@ -732,12 +742,14 @@ bool tokenizer::parseString() {
                     dynamicString = true;
                     brackets = 1;
 
-                    tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                    if(addPlus)
+                        tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
                     tokens.add(Token(string(1, '('), SINGLE, col, line, LEFTPAREN));
                     return true;
                 } else if('$' != current){
                     start = cursor;
-                    tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                    if(addPlus)
+                        tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
 
                     if(!isend() && (isalnum(current) || current == '_'))
                         parseIdentifier();

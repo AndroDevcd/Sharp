@@ -207,6 +207,7 @@ def terminal_main_loop() {
                         foreach(tx in acct!!.transactions) {
                             println(tx);
                         }
+                        println("Total txns (${acct!!.transactions.size()}) final balance: ${acct!!.balance}");
                     } else println("No account selected, cancelling.");
                 }
             }
@@ -214,7 +215,7 @@ def terminal_main_loop() {
                 usr := login_user();
 
                 if(usr != null) {
-                   print("Are you sure you want to remove thr primary account for: ${usr!!.name}, all sub owners will loose access? (y\\n) ");
+                   print("Are you sure you want to remove the primary account for: ${usr!!.name}, all sub owners will loose access? (y\\n) ");
                    answer := get_yes_no();
 
                    if(answer) {

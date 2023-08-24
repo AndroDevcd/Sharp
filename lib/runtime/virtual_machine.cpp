@@ -289,9 +289,11 @@ void main_vm_loop()
                 branch
             LOCK:
                 require_object_with_value(
-                    lock_object(task->ptr->o);
+                    if(lock_object(task->ptr->o)) {
+                        return;
+                    }
                 )
-                check_state(1)
+                branch
             ULOCK:
                 require_object_with_value(
                     unlock_object(task->ptr->o);
@@ -951,27 +953,28 @@ void exec_interrupt(Int interrupt)
             auto *name = pop_stack_object.o;
             Int mainFunc = pop_stack_number;
             Int threadid = pop_stack_number;
+            auto fibObj = pop_stack_object.o;
+            auto fibArgs = pop_stack_object.o;
 
             if(name != NULL && name->type <= type_var) {
                 string fiberName;
                 populate_string(fiberName, name);
                 fiber *fib;
+                sharp_thread *binder;
+
+                if(threadid != -1 && threadid != gc_threadid && threadid != idle_threadid) {
+                    binder = get_thread(threadid);
+                } else {
+                    registers[EBX] = -1;
+                    return;
+                }
 
                 try {
-                    fib = create_task(fiberName, &vm.methods[mainFunc % vm.mf.methods]);
+                    fib = create_task(fiberName, &vm.methods[mainFunc % vm.mf.methods], fibObj, fibArgs, binder);
                 } catch(vm_exception &e) {
                     fiberName.clear();
                     throw;
                 }
-
-                if(threadid != -1 && threadid != gc_threadid && threadid != idle_threadid) {
-                    auto *thread = get_thread(threadid);
-                    bind_task(fib, thread);
-                }
-
-                copy_object(&fib->fiberObject, pop_stack_object.o);
-                copy_object(&(++fib->sp)->obj, pop_stack_object.o); // apply args to fiber's stack
-                set_task_state(NULL, fib, FIB_SUSPENDED, NO_DELAY);
 
                 registers[EBX] = fib->id;
             } else {

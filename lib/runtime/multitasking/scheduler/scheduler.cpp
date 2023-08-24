@@ -122,6 +122,7 @@ void run_scheduler() {
                 }
                 else if(is_runnable(scht->task, schth->thread)) {
                     queue_task(schth->thread, scht);
+                    scht = scht->next;
                     break;
                 }
 
@@ -242,7 +243,7 @@ void post(sharp_thread* thread) {
 }
 
 void post(fiber* fib) {
-    guard_mutex(task_mutex)
+    guard_mutex(unsched_mutex)
     unsched_task *t = (unsched_task*)malloc(sizeof(unsched_task));
 
     if(t)

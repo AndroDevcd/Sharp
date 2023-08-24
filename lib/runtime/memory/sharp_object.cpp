@@ -237,18 +237,20 @@ void unlock_object(sharp_object *o) {
     auto mut = create_mutex(o);
     auto task = thread_self->task;
 
+    lock_mut.lock();
     if(mut->id == task->id) {
         mut->id = -1;
     }
+    lock_mut.unlock();
 }
 
-void lock_object(sharp_object *o) {
+bool lock_object(sharp_object *o) {
     auto mut = create_mutex(o);
     auto task = thread_self->task;
     auto thread = thread_self;
 
     if(mut->id == task->id) {
-        return;
+        return false;
     } else {
         task->f_lock = mut;
     }
@@ -261,7 +263,10 @@ void lock_object(sharp_object *o) {
     } else {
         lock_mut.unlock();
         enable_context_switch(thread, true);
+        return true;
     }
+
+    return false;
 }
 
 extern void populate_string(string &s, sharp_object *o) {

@@ -69,6 +69,12 @@ void fill_stack_trace(string &output) {
     }
 }
 
+void dump_stack_trace() {
+    string trace;
+    fill_stack_trace(trace);
+    cout << "Dumped Stack Trace: " << endl << trace << endl;
+}
+
 void fill_stack_trace_from_frame_info() {
     auto task = thread_self->task;
     auto stackState = pop_stack_object.o;

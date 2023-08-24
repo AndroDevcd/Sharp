@@ -16,7 +16,7 @@ class vm {
     }
 
     private static def get_lib_path(name: string) : _int8[] {
-        if(build.is_windows()) {
+        if(platform.build_info.is_windows()) {
             name += ".dll";
         } else {
             name += ".so";

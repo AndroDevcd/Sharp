@@ -115,7 +115,7 @@ protected class file_system {
         _owneronly := owneronly.value;
         result := 0;
 
-        if(build.is_windows() && access == access_execute)
+        if(platform.build_info.is_windows() && access == access_execute)
             return -1;
 
         /*

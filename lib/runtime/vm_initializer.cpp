@@ -101,7 +101,5 @@ void destroy() {
         vm.exitVal = 1;
 
     if(thread_self) shutdown_thread(thread_self);
-    cout << "4" << endl;
     kill_all_threads();
-    cout << "5" << endl;
 }

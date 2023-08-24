@@ -30,7 +30,6 @@ void help() {
     cout <<               "    -L<path>             library directory path"                                    << endl;
     cout <<               "    -j<amount>           specify how many threads to run compiler"                  << endl;
     cout <<               "    -w                   disable all warnings"                                      << endl;
-    cout <<               "    -run                 run compiled source after successful compilation"          << endl;
     cout <<               "    -g -green            run compiler in \"green\" mode to consume less power"      << endl;
     cout <<               "    -dbg -debug          enables debugging in source code (enabled by default)"     << endl;
     cout <<               "    -ignoredir<dir>      include a directory to ignore"                             << endl;
@@ -226,9 +225,6 @@ int _bootstrap(int argc, const char* args[])
         }
         else if(opt("-p")){
             set_compilation_mode(project_mode);
-        }
-        else if(opt("-run")){
-            enable_run_source_code(true);
         }
         else if(opt("-g") || opt("-green")){
             enable_green_mode(true);

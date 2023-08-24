@@ -10,16 +10,16 @@ mod platform;
 * program and os
 */
 class build {
-    static os: string;
-    static app_name: string;
-    static platform: string;
-    static version: string;
+    os: string;
+    app_name: string;
+    platform: string;
+    version: string;
 
-    static def is_windows() : bool {
+    def is_windows() : bool {
         return os == "win";
     }
 
-    static def is_linux() : bool {
+    def is_linux() : bool {
         return os == "posix";
     }
 }
