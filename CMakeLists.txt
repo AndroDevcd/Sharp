@@ -23,7 +23,7 @@ else()
 endif ()
 
 #set(SHARPC "build")
-#set(sLEGACY "build")
+#set(LEGACY "build")
 
 # compiler
 if (SHARPC)

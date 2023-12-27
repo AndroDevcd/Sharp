@@ -5,23 +5,17 @@ import ( std.* );
 count := new atomic<int>(0);
 
 def main() {
-    for(i := 0; i < 10_000; i++) {
-        slice({ args: object[] -> (int)
-            loop();
-           return 0;
-        }, thread.current(), null);
+    for( i := 0; i < 10000; i++) {
+        coroutine.builder()
+            .long_term()
+            = { args: object[] -> (int)
+            count++;
+            return 0;
+        };
     }
 
-    loop();
-    while(count != 10_001) { delay(0); }
-    println("count: $count");
-}
-
-def loop() {
-    for(i: var = 0; i < 100; i++) {}
-    count++;
-//    if(count % 100 == 0) {
-//        println("count: $count");
-//    }
+    println("main task!");
+    while(count != 10000) { delay(0); }
+    println("tasks finished!");
 }
 

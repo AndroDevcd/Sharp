@@ -962,11 +962,13 @@ void exec_interrupt(Int interrupt)
                 fiber *fib;
                 sharp_thread *binder;
 
-                if(threadid != -1 && threadid != gc_threadid && threadid != idle_threadid) {
-                    binder = get_thread(threadid);
-                } else {
-                    registers[EBX] = -1;
-                    return;
+                if(threadid != -1) {
+                    if(threadid != gc_threadid && threadid != idle_threadid) {
+                        binder = get_thread(threadid);
+                    } else {
+                        registers[EBX] = -1;
+                        return;
+                    }
                 }
 
                 try {

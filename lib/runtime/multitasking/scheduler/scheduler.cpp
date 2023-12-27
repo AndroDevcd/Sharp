@@ -120,7 +120,7 @@ void run_scheduler() {
                     scht = next;
                     goto wrap;
                 }
-                else if(is_runnable(scht->task, schth->thread)) {
+                else if(is_runnable(scht->task, schth->thread, taskWrap)) {
                     queue_task(schth->thread, scht);
                     scht = scht->next;
                     break;
@@ -207,14 +207,14 @@ bool is_thread_ready(sharp_thread *thread) {
     return false;
 }
 
-bool is_runnable(fiber *task, sharp_thread *thread) {
+bool is_runnable(fiber *task, sharp_thread *thread, bool execUnbound) {
     if(task->attachedThread == NULL && (task->state == FIB_SUSPENDED || task->state == FIB_CREATED) && task->wakeable) {
         if(task->delayTime != -1 && NANO_TOMICRO(Clock::realTimeInNSecs()) < task->delayTime) {
             return false;
         }
 
         return (task->f_lock == NULL || (task->f_lock->id == -1)) &&
-            (task->boundThread == thread || task->boundThread == NULL);
+            (task->boundThread == thread || (task->boundThread == NULL && execUnbound));
     }
 
     return false;

@@ -237,11 +237,9 @@ void unlock_object(sharp_object *o) {
     auto mut = create_mutex(o);
     auto task = thread_self->task;
 
-    lock_mut.lock();
     if(mut->id == task->id) {
         mut->id = -1;
     }
-    lock_mut.unlock();
 }
 
 bool lock_object(sharp_object *o) {
@@ -262,7 +260,7 @@ bool lock_object(sharp_object *o) {
         lock_mut.unlock();
     } else {
         lock_mut.unlock();
-        enable_context_switch(thread, true);
+        enable_context_switch(thread, true); // todo: check if in c++ env if so throw an exception
         return true;
     }
 

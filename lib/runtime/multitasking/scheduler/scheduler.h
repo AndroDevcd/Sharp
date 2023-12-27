@@ -53,7 +53,7 @@ void post(sharp_thread*);
 fiber *locate_task(uInt taskId);
 void dispose(_sched_thread*);
 void kill_bound_tasks(sharp_thread* thread);
-bool is_runnable(fiber *task, sharp_thread *thread);
+bool is_runnable(fiber *task, sharp_thread *thread, bool execUnbound);
 bool can_purge(fiber *task);
 void post(fiber*);
 void sched_unsched_items();
