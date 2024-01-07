@@ -113,7 +113,7 @@ struct settings {
     /*
      * Set code to be debuggable (flag only used in manifest creation)
      */
-    bool debug = true;
+    bool debug = false;
 
     /*
      * Enable warnings as errors
@@ -182,6 +182,7 @@ void add_library_path(string);
 void enable_magic_mode(bool);
 void enable_debug_mode(bool);
 void enable_app_debugging(bool);
+void enable_code_obfuscation(bool);
 void set_target_platform(string);
 void set_target_threads(string);
 void enable_warnings(bool);

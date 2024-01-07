@@ -114,6 +114,10 @@ void enable_debug_mode(bool enable) {
     options.debug_mode = enable;
 }
 
+void enable_code_obfuscation(bool enable) {
+    options.obfuscate = enable;
+}
+
 void set_target_platform(string target) {
     if(isNumber(target)) {
         options.target = stoi(target, nullptr, 0);

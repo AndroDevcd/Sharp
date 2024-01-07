@@ -855,7 +855,7 @@ class uchar base number<_uint8, uchar> {
     }
 
     static def is_newline(ch: char) : bool {
-        if(platform.build_info.is_windows()) return ch.value == '\n' || ch.value == '\r';
+        if(build.is_windows()) return ch.value == '\n' || ch.value == '\r';
         else  return ch == '\n';
     }
 
@@ -913,7 +913,7 @@ class char base number<_int8, char> {
     }
 
     static def is_newline(ch: char) : bool {
-        if(platform.build_info.is_windows()) return ch == '\n' || ch == '\r';
+        if(build.is_windows()) return ch == '\n' || ch == '\r';
         else  return ch == '\n';
     }
 

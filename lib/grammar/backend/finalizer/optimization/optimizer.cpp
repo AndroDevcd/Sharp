@@ -23,6 +23,7 @@ void optimize() {
         injectAllRelevantFields();
         markExplicitObfuscatedItems();
         pre_generate_addresses();
+        validate_required_dependencies();
 
 //        if(options.optimize_level == high_performance_optimization) {
 //            optimize_code_motion();

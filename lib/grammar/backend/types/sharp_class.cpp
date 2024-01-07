@@ -116,6 +116,7 @@ sharp_class* create_generic_class(
                 genericBlueprint->implLocation.file->classes.add(sc);
             }
 
+            sc->obfuscateModifier = genericBlueprint->obfuscateModifier;
             sc->genericBuilder = genericBlueprint;
             sc->genericTypes.addAll(genericIdentifiers);
             genericIdentifiers.free();

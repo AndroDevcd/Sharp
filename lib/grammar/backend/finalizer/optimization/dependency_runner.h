@@ -8,6 +8,7 @@
 #include "../../dependency/dependancy.h"
 
 void markRelevantDependencyMembers();
+void validate_required_dependencies();
 
 void mark(sharp_field *sf);
 void mark(sharp_function *fun);

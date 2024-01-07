@@ -57,6 +57,7 @@ struct sharp_file {
             name(""),
             tok(NULL),
             p(NULL),
+            uid(-1),
             errors(NULL),
             module(NULL),
             used(false),
@@ -68,11 +69,12 @@ struct sharp_file {
             importGroups()
     {}
 
-    sharp_file(string filePath)
+    sharp_file(string filePath, uInt uid)
             :
             name(filePath),
             tok(NULL),
             p(NULL),
+            uid(uid),
             errors(NULL),
             module(NULL),
             used(false),
@@ -91,6 +93,7 @@ struct sharp_file {
     void free();
 
     string name;
+    uInt uid;
     tokenizer *tok;
     parser *p;
     context ctx;

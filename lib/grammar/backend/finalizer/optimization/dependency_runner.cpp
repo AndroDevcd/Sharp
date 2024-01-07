@@ -6,6 +6,7 @@
 #include "../../../compiler_info.h"
 #include "../../types/types.h"
 #include "optimizer.h"
+#include "../generation/generator.h"
 
 void run_and_mark_tree(List<dependency> &dependencies);
 
@@ -96,5 +97,78 @@ void markRelevantDependencyMembers() {
     mark(genesis_method);
     mark(user_main_method);
     mark(static_init_method);
+}
+
+int require_module(sharp_module *mod, string name) {
+    if(mod == NULL) {
+        cout << PROG_NAME << ": fatal error: missing required module dependency `" << name << "`, this module may be obfuscated or not present." << endl;
+        return 1;
+    } else {
+        if(mod->obfuscateModifier > modifier_keep_inclusive) {
+            cout << PROG_NAME << ": fatal error: missing required module dependency `" << name << "`, this module may be obfuscated." << endl;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int require_class(string fullName) {
+    for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
+        auto klazz = compressedCompilationClasses.get(i);
+        if(klazz->fullName == fullName) {
+            return 0;
+        }
+    }
+
+    cout << PROG_NAME << ": fatal error: missing required class dependency `" << fullName << "`, this class may be obfuscated or missing." << endl;
+    return 1;
+}
+
+void validate_required_dependencies() {
+
+    // validate modules
+    int error = 0;
+    string mod;
+    mod = "std";
+    error += require_module(get_module(mod), "std");
+    mod = "std.io";
+    error += require_module(get_module(mod), "std.io");
+    mod = "std.io.fiber";
+    error += require_module(get_module(mod), "std.io.fiber");
+    mod = "platform.kernel";
+    error += require_module(get_module(mod), "platform.kernel");
+    
+
+    // validate classes
+    error += require_class("std#throwable");
+    error += require_class("std#exception");
+    error += require_class("std#error");
+    error += require_class("std#_enum_");
+    error += require_class("std#illegal_argument_exception");
+    error += require_class("std#illegal_state_exception");
+    error += require_class("std#out_of_bounds_exception");
+    error += require_class("std#invalid_operation_exception");
+    error += require_class("std#nullptr_exception");
+    error += require_class("std#runtime_exception");
+    error += require_class("std#stack_overflow_exception");
+    error += require_class("std#thread_stack_exception");
+    error += require_class("std#class_cast_exception");
+    error += require_class("std#out_of_memory_exception");
+    error += require_class("std#invalid_operation_exception");
+    error += require_class("std#incompatible_class_exception");
+    error += require_class("std#unsatisfied_link_error");
+    error += require_class("std#object_import_error");
+    error += require_class("platform.kernel#stack_state");
+    error += require_class("std.io#thread");
+    error += require_class("std#string");
+    error += require_class("std#char_array");
+    error += require_class("std#int");
+    error += require_class("std#number<_int32, int>");
+    error += require_class("std.io.fiber#fiber");
+
+    if(error > 0) {
+        exit(1);
+    }
 }
 

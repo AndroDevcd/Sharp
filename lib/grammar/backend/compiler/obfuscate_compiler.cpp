@@ -26,7 +26,7 @@ void set_obfuscation_flag(obfuscation_modifier &obfuscate, obfuscation_modifier 
     obfuscate = modifier;
 }
 
-void obfuscate_class(sharp_class *sc, obfuscation_modifier modifier, Ast *ast) { // todo: if modifier is present for any type complain about overriding it
+void obfuscate_class(sharp_class *sc, obfuscation_modifier modifier, Ast *ast) {
     set_obfuscation_flag(sc->obfuscateModifier, modifier);
 
     if(modifier == modifier_keep_inclusive || modifier == modifier_obfuscate_inclusive) {

@@ -12,6 +12,7 @@
 #include "code/code_context.h"
 #include "../../../../util/File.h"
 #include "native_generator.h"
+#include "obfuscation/obfuscator.h"
 
 Int UUIDGenerator = 0;
 const int range_from  = 0;
@@ -73,6 +74,25 @@ void generate() {
 //    remove_delegate_functions();
     compressedCompilationFunctions.linearSort(is_greater_than);
     compressedCompilationClasses.linearSort(is_greater_than);
+
+    if(options.obfuscate) {
+        for(Int i = 0; i < compressedCompilationFiles.size(); i++) {
+            auto file = compressedCompilationFiles.get(i);
+            obfuscate(compressedCompilationFiles.get(i));
+        }
+    }
+
+    for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
+            obfuscate(compressedCompilationClasses.get(i));
+    }
+
+    for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
+        auto function = compressedCompilationFunctions.get(i);
+        if(function->obfuscateModifier == modifier_obfuscate 
+            || function->obfuscateModifier == modifier_obfuscate_inclusive) {
+            obfuscate(function);
+        }
+    }
 
     stringstream ss;
     for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {

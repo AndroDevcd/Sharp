@@ -456,7 +456,7 @@ int compile()
 {
     for(Int i = 0; i < options.source_files.size(); i++) {
         sharpFiles.add(
-                new sharp_file(options.source_files.get(i)));
+                new sharp_file(options.source_files.get(i), uniqueId++));
     }
 
     sharpFiles.linearSort(isFileLarger);

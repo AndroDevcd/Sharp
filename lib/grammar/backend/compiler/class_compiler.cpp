@@ -33,10 +33,9 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
 
         delete_context();
         return;
-    } else if(with_class->genericBuilder != NULL && with_class->genericBuilder->obfuscateModifier) {
-        obfuscate_class(with_class, with_class->genericBuilder->obfuscateModifier ? modifier_obfuscate_inclusive : modifier_keep_inclusive, block);
     }
 
+    obfuscate_class(with_class, with_class->obfuscateModifier, block);
     compile_class_fields(with_class, block);
     compile_class_mutations(with_class, block);
     compile_inits(with_class, block);

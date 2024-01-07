@@ -87,8 +87,14 @@ void process_settings() {
             if((member = jo["release_build"]) != NULL || (member = jo["release"]) != NULL) {
                 require_type(member, jtype_bool);
                 if(member->getValue()->getBoolValue()) {
+                    enable_code_obfuscation(true);
                     enable_app_debugging(false);
                 }
+            }
+
+            if((member = jo["debug"]) != NULL) {
+                require_type(member, jtype_bool);
+                enable_app_debugging(member->getValue()->getBoolValue());
             }
 
             if((member = jo["magic_mode"]) != NULL) {

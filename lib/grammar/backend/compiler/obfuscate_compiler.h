@@ -10,7 +10,7 @@
 struct sharp_class;
 
 enum obfuscation_modifier {
-    modifier_none,
+    modifier_none=0,
     modifier_keep,
     modifier_keep_inclusive,
     modifier_obfuscate,
