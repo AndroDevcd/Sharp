@@ -117,7 +117,9 @@ int require_class(string fullName) {
     for(Int i = 0; i < compressedCompilationClasses.size(); i++) {
         auto klazz = compressedCompilationClasses.get(i);
         if(klazz->fullName == fullName) {
-            return 0;
+            if(klazz->obfuscateModifier <= modifier_keep_inclusive) {
+                return 0;
+            } else break;
         }
     }
 
@@ -164,7 +166,7 @@ void validate_required_dependencies() {
     error += require_class("std#string");
     error += require_class("std#char_array");
     error += require_class("std#int");
-    error += require_class("std#number<_int32, int>");
+    error += require_class("std#number<_int32, std#int>");
     error += require_class("std.io.fiber#fiber");
 
     if(error > 0) {

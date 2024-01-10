@@ -49,6 +49,7 @@ struct sharp_field {
             getter(NULL),
             setter(NULL),
             scheme(NULL),
+            preInitScheme(NULL),
             request(NULL)
     {}
 
@@ -77,6 +78,7 @@ struct sharp_field {
             getter(sf.getter),
             setter(sf.setter),
             scheme(NULL),
+            preInitScheme(NULL),
             request(NULL)
     {
         create_scheme(sf.scheme);
@@ -117,6 +119,7 @@ struct sharp_field {
             getter(NULL),
             setter(NULL),
             scheme(NULL),
+            preInitScheme(NULL),
             request(NULL)
     {
         set_full_name();
@@ -144,7 +147,7 @@ struct sharp_field {
     List<dependency> dependencies;
     code_info *ci;
     sharp_field* closure, *closureRef;
-    operation_schema* scheme;
+    operation_schema* scheme, *preInitScheme;
     injection_request *request;
     sharp_type type;
     field_type fieldType;

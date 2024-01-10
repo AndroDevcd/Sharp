@@ -4,6 +4,7 @@ import ( std.*, platform );
 
 count := new atomic<int>(0);
 
+foo: int = 0;
 def main() {
     for( i := 0; i < 10000; i++) {
         coroutine.builder()
@@ -14,6 +15,7 @@ def main() {
         };
     }
 
+    foo = 0;
     println("${build.app_name} ${build.version} ${build.platform} ${build.os}");
     println("main task!");
     while(count != 10000) { delay(0); }

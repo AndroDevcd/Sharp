@@ -57,7 +57,7 @@ sharp_field* create_closure_field(
 
     if((sf = locate_field(name, sc)) != NULL) {
         return sf;
-    } else return create_field(sc->implLocation.file, sc, name, flag_public, type, normal_field, ast);
+    } else return create_field(sc->implLocation.file, sc, name, flag_public | flag_excuse, type, normal_field, ast);
 }
 
 sharp_field* create_local_field(
@@ -154,5 +154,6 @@ void sharp_field::free() {
     dependencies.free();
     delete ci; ci = NULL;
     delete scheme; scheme = NULL;
+    delete preInitScheme; preInitScheme = NULL;
     delete request; request = NULL;
 }

@@ -76,6 +76,19 @@ bool create_new_error(error_type error, int line, int col, string xcmnts) {
     return reported;
 }
 
+
+void create_impl_error(error_type error, impl_location &impl, string xcmnts) {
+    auto tmp = new ErrorManager(
+            &impl.file->tok->getLines(),
+            impl.file->name,
+            true,
+            true
+    );
+
+    tmp->createNewError(error, impl.line, impl.col, xcmnts);
+    delete tmp;
+}
+
 bool all_files_parsed() {
     for(Int i = 0; i < sharpFiles.size(); i++) {
         if(sharpFiles.get(i)->p == NULL || !sharpFiles.get(i)->p->parsed)

@@ -11,6 +11,7 @@
 #include "../../../settings/settings.h"
 #include "codemotion/code_motion.h"
 #include "../generation/generator.h"
+#include "initialization_validator.h"
 
 // this field represents a compressed list of all source files to only include the source files that the user
 // code depends on
@@ -23,7 +24,9 @@ void optimize() {
         injectAllRelevantFields();
         markExplicitObfuscatedItems();
         pre_generate_addresses();
+        validateNonNullableInitializations();
         validate_required_dependencies();
+        
 
 //        if(options.optimize_level == high_performance_optimization) {
 //            optimize_code_motion();

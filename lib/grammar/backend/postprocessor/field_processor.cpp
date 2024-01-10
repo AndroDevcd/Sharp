@@ -215,7 +215,7 @@ void process_getter(sharp_field *field, Ast *ast) {
 void create_static_init_flag_field(sharp_class *owner, Ast *ast) {
     string name = static_init_flag_name;
     field_type ft = normal_field;
-    uInt flags = flag_private | flag_static;
+    uInt flags = flag_private | flag_static  | flag_excuse;
 
     if(resolve_field(name, owner, false) == NULL) {
         check_decl_conflicts(ast, owner, "field", name);

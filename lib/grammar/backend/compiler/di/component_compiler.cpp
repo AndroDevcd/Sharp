@@ -196,7 +196,7 @@ void compile_type_definition(
                             file,
                             currModule,
                             fieldName,
-                            flag_static | flag_public,
+                            flag_static | flag_public | flag_excuse,
                             *subComponent->type,
                             normal_field,
                             ast
@@ -207,7 +207,7 @@ void compile_type_definition(
                             file,
                             currModule,
                             initFlagName,
-                            flag_static | flag_public,
+                            flag_static | flag_public | flag_excuse,
                             initFlagType,
                             normal_field,
                             ast

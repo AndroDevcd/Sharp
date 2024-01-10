@@ -76,6 +76,7 @@ bool create_new_error(error_type error, int line, int col, string xcmnts);
 void create_new_warning(error_type error, int type, int line, int col, string xcmnts);
 void create_new_warning(error_type error, int type, Ast *ast, string xcmnts);
 bool create_new_error(error_type error, Ast *ast, string xcmnts);
+void create_impl_error(error_type error, impl_location &impl, string xcmnts);
 bool all_files_parsed();
 bool all_files_compiled_successfully();
 

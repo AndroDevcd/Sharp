@@ -133,8 +133,10 @@ public def scheduler_main(args : object[]) : int
 
 thread_local avail_threads : var;
 thread_local host : thread?;
-thread_local pool : thread_group;
+excuse thread_local pool : thread_group;
 private def get_host(long_running : bool) : thread? {
+    thread_local pool : thread_group;
+    
 	if(long_running) {
 		pool = launcher.long_term_pool;
 	} else

@@ -80,7 +80,7 @@ void pre_process_enum(
 }
 
 void pre_process_enum_field(sharp_class *parentClass, Ast *ast) {
-    uInt flags = flag_public | flag_static | flag_const;
+    uInt flags = flag_public | flag_static | flag_const | flag_excuse;
     string name = ast->getToken(0).getValue();
 
     create_field(

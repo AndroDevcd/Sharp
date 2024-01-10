@@ -10,6 +10,7 @@
 #include "../../../operation/operation.h"
 
 enum fragment_type {
+    no_fragment,
     code_block_fragment,
     while_block_fragment,
     if_block_fragment,

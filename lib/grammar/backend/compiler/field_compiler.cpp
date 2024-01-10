@@ -268,7 +268,7 @@ void compile_field(sharp_field *field, Ast *ast) {
         } else if(field->type.type == type_class && pre_initialize_class(field->type._class)) {
             List<sharp_field*> params;
             List<operation_schema*> paramOps;
-            field->scheme = new operation_schema();
+            field->preInitScheme = new operation_schema();
             auto constr = resolve_function(field->type._class->name, field->type._class, params,
                                            constructor_function, exclude_all, ast, false, false);
 
@@ -298,7 +298,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                     create_unused_data_operation(&scheme_0);
                 )
 
-                field->scheme->copy(scheme_0);
+                field->preInitScheme->copy(scheme_0);
             } else {
                 create_new_error(GENERIC, ast,
                                  "no default constructor found for class `" + field->type._class->fullName + "`:");
@@ -399,6 +399,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                     } else if(xtraField->type.type == type_class && pre_initialize_class(xtraField->type._class)) {
                         List<sharp_field*> params;
                         List<operation_schema*> paramOps;
+                        xtraField->preInitScheme = new operation_schema();
                         auto constr = resolve_function(xtraField->type._class->name, xtraField->type._class, params,
                                                        constructor_function, exclude_all, ast, false, false);
 
@@ -428,7 +429,7 @@ void compile_field(sharp_field *field, Ast *ast) {
                                 create_unused_data_operation(&scheme_0);
                             )
 
-                            xtraField->scheme->copy(scheme_0);
+                            xtraField->preInitScheme->copy(scheme_0);
                         } else {
                             create_new_error(GENERIC, ast,
                                              "no default constructor found for class `" + xtraField->type._class->fullName + "`:");

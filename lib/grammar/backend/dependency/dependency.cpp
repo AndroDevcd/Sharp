@@ -882,8 +882,8 @@ bool resolve_local_field(
                     if(field->type.type == type_class)
                         create_dependency(field->type._class);
                 } else {
-                    if (can_capture_closure(field)) {
-                        sharp_class *closure_class = create_closure_class(
+                    if (can_capture_closure(field)) { // todo: observe what happens and how closures behave accross multiple threads 
+                        sharp_class *closure_class = create_closure_class( // there may be a bug with how it works refer to the job_scheduler as a case study
                                 currThread->currTask->file, currModule, contextItem->functionCxt,
                                 item.ast);
                         sharp_field *closure = create_closure_field(closure_class, item.name,

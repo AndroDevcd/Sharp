@@ -29,6 +29,12 @@ code_fragment* analyze_code(operation_schema *scheme) {
                 // need to check multiple fragments
                 if((frag = analyze_local_variable_write(scheme)))
                     return frag;
+                else {
+                    stringstream ss;
+                    ss << "unknown scheme type: " << scheme->schemeType;
+                    generation_error(ss.str());
+                    break;
+                }
                 break;
             case scheme_new_class:
                 return analyze_new_class(scheme);
