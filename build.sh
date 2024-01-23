@@ -4,7 +4,7 @@ g++ -o bin/sharpc -std=c++11 -pthread -lstdc++ -O3 -Ofast -g main.cpp stdimports
 sudo cp bin/sharpc /bin
 
 echo "installing runtime support..."
-#g++ -o bin/sharp -std=c++11 -pthread -lstdc++ -lm -lrt -lstdc++ -O3 -ldl -mno-red-zone -g -Ofast main.cpp stdimports.h lib/runtime/error/*.h lib/runtime/error/*.cpp lib/runtime/exe/*.h lib/runtime/exe/*.cpp lib/runtime/memory/*.h lib/runtime/memory/*.cpp lib/runtime/reflect/*.h lib/runtime/reflect/*.cpp lib/runtime/snb/*.h lib/runtime/snb/*.cpp lib/runtime/multitasking/*/*.h lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.h lib/runtime/types/*.cpp lib/runtime/*.h lib/runtime/*.cpp lib/core/*.cpp lib/core/*.h lib/core/opcode/*.cpp lib/core/opcode/*.h lib/util/*.cpp lib/util/*.h lib/util/zip/*.cpp lib/util/zip/*.h lib/Modules/math/*.h lib/Modules/math/*.cpp lib/Modules/std/*.h lib/Modules/std/*.cpp lib/Modules/std.io/*.h lib/Modules/std.io/*.cpp 
+g++ -o bin/sharp -std=c++11 -pthread -lstdc++ -lm -lrt -lstdc++ -O3 -ldl -mno-red-zone -g -Ofast main.cpp stdimports.h lib/runtime/error/*.h lib/runtime/error/*.cpp lib/runtime/exe/*.h lib/runtime/exe/*.cpp lib/runtime/memory/*.h lib/runtime/memory/*.cpp lib/runtime/reflect/*.h lib/runtime/reflect/*.cpp lib/runtime/snb/*.h lib/runtime/snb/*.cpp lib/runtime/multitasking/*/*.h lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.h lib/runtime/types/*.cpp lib/runtime/*.h lib/runtime/*.cpp lib/core/*.cpp lib/core/*.h lib/core/opcode/*.cpp lib/core/opcode/*.h lib/util/*.cpp lib/util/*.h lib/util/zip/*.cpp lib/util/zip/*.h lib/Modules/math/*.h lib/Modules/math/*.cpp lib/Modules/std/*.h lib/Modules/std/*.cpp lib/Modules/std.io/*.h lib/Modules/std.io/*.cpp
 sudo cp bin/sharp /bin
 
 # echo -n "Installing  standard Lib"

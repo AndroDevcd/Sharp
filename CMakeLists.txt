@@ -22,7 +22,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -mno-red-zone -Werror -lstdc++  -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
-#set(SHARPC "build")
+set(SHARPC "build")
 #set(LEGACY "build")
 
 # compiler
@@ -90,6 +90,8 @@ if (SHARPC)
             "lib/grammar/backend/finalizer/generation/*.cpp"
             "lib/grammar/backend/finalizer/generation/code/*.h"
             "lib/grammar/backend/finalizer/generation/code/*.cpp"
+            "lib/grammar/backend/finalizer/generation/obfuscation/*.h"
+            "lib/grammar/backend/finalizer/generation/obfuscation/*.cpp"
             "lib/grammar/backend/finalizer/generation/code/scheme/*.h"
             "lib/grammar/backend/finalizer/generation/code/scheme/*.cpp"
             "lib/util/*.cpp"

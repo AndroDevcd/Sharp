@@ -101,7 +101,7 @@ bool is_cpp_keyword(string &word) {
            word == "synchronized" ||
            word == "template" ||
            word == "this" ||
-           word == "thread_local" ||
+           word == "localized" ||
            word == "throw" ||
            word == "true" ||
            word == "try" ||

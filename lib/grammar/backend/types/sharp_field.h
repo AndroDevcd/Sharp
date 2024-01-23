@@ -20,7 +20,7 @@ struct code_info;
 
 enum field_type {
     normal_field,
-    tls_field
+    localized_field
 };
 
 struct sharp_field {

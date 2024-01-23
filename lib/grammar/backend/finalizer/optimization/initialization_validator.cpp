@@ -56,13 +56,41 @@ void validate_instance_class_field_initialization(sharp_class *sc) {
                 }
             } else {
                 // check if field is assigned before read in all constructors
+                if(sf->fullName == "std.io.fiber#fiber.main") {
+                    int iol = 0;
+                }
+                bool fullCoverageInit = true;
                 for(Int j = 0; j < sc->functions.size(); j++) {
                     auto func = sc->functions.get(j);
-                    if(func->type == constructor_function) {
-                        cout << "field " << sf->fullName << " ";
-                        auto result = first_field_access_fragment(sf, require_non_null(analyze_code(func->scheme)));
-                        cout << " = " << result << endl;
+                    if(func->used && func->type == constructor_function) {
+                        if(first_field_access_fragment(
+                                sf,
+                                require_non_null(analyze_code(func->scheme))) != variable_write) {
+                            fullCoverageInit = false;
+                            break;
+                        }
                     }
+                }
+
+                // override if we have initialization in init
+                if(!fullCoverageInit) {
+                    string initializerFunc = instance_init_name(sc->name);
+                    for(Int j = 0; j < sc->functions.size(); j++) {
+                        auto func = sc->functions.get(j);
+                        if(func->name ==  initializerFunc && func->used && func->parameters.empty()) {
+                            if(first_field_access_fragment(
+                                    sf,
+                                    require_non_null(analyze_code(func->scheme))) == variable_write) {
+                                fullCoverageInit = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if(!fullCoverageInit) {
+                    validationPassed = false;
+                    create_impl_error(GENERIC, sf->implLocation, "field `" + sf->name + "` must be initialized");
                 }
             }
         }
@@ -82,8 +110,24 @@ void validate_static_class_field_initialization(sharp_class *sc) {
                     inject_field_initialization(sf->owner, sf->ast, sf);
                 }
             } else {
-                validationPassed = false;
-                create_impl_error(GENERIC, sf->implLocation, "field `" + sf->name + "` must be initialized");
+                bool fullCoverageInit = false;
+                string initializerFunc = static_init_name(sc->name);
+                for(Int j = 0; j < sc->functions.size(); j++) {
+                    auto func = sc->functions.get(j);
+                    if(func->name ==  initializerFunc && func->used && func->parameters.empty()) {
+                        if(first_field_access_fragment(
+                                sf,
+                                require_non_null(analyze_code(func->scheme))) == variable_write) {
+                            fullCoverageInit = true;
+                        }
+                        break;
+                    }
+                }
+
+                if(!fullCoverageInit) {
+                    validationPassed = false;
+                    create_impl_error(GENERIC, sf->implLocation, "field `" + sf->name + "` must be initialized");
+                }
             }
         }
     }
@@ -101,7 +145,6 @@ void validate_class_field_initialization() {
 }
 
 void validateNonNullableInitializations() {
-    // stage 1 global Fields!
      validate_global_field_initialization();
      validate_class_field_initialization();
 

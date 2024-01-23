@@ -54,8 +54,12 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
         }
         case variable_write: {
             auto frag = (write_variable*)origin;
-            if(frag->variable == field)
-                return variable_write;
+            if(frag->variable == field) {
+                auto result = first_field_access_fragment(field, frag->assignmentData);
+                if(result == no_fragment)
+                    return variable_write;
+                else return no_fragment;
+            }
 
             auto result = first_field_access_fragment(field, frag->assignmentData);
             if(result == variable_write || result == variable_read) 
@@ -99,6 +103,40 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
                 if(result == variable_write || result == variable_read) 
                     return result;
             }
+            break;
+        }
+        case no_fragment:
+            break;
+        case negated_value_fragment: {
+            auto frag = (negated_value*)origin;
+
+            auto result = first_field_access_fragment(field, frag->value);
+            if(result == variable_write || result == variable_read)
+                return result;
+            break;
+        }
+        case incremented_value_fragment: {
+            auto frag = (incremented_value*)origin;
+
+            auto result = first_field_access_fragment(field, frag->value);
+            if(result == variable_write || result == variable_read)
+                return result;
+            break;
+        }
+        case decremented_value_fragment: {
+            auto frag = (decremented_value*)origin;
+
+            auto result = first_field_access_fragment(field, frag->value);
+            if(result == variable_write || result == variable_read)
+                return result;
+            break;
+        }
+        case not_value_fragment: {
+            auto frag = (not_value*)origin;
+
+            auto result = first_field_access_fragment(field, frag->value);
+            if(result == variable_write || result == variable_read)
+                return result;
             break;
         }
     }

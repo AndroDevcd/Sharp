@@ -851,7 +851,7 @@ bool resolve_local_field(
         resultType.type = type_field;
         resultType.field = field;
 
-        if(field->fieldType == tls_field)
+        if(field->fieldType == localized_field)
             create_tls_field_access_operation(scheme, field);
         else
             create_local_field_access_operation(scheme, field);
@@ -869,7 +869,7 @@ bool resolve_local_field(
             if(ctx.functionCxt == contextItem->functionCxt) { // same func no closure needed
                 resultType.field = field;
 
-                if(field->fieldType == tls_field)
+                if(field->fieldType == localized_field)
                     create_tls_field_access_operation(scheme, field);
                 else
                     create_local_field_access_operation(scheme, field);
@@ -877,13 +877,13 @@ bool resolve_local_field(
                 if(field->type.type == type_class)
                     create_dependency(field->type._class);
             } else {
-                if(field->fieldType == tls_field) {
+                if(field->fieldType == localized_field) {
                     create_tls_field_access_operation(scheme, field);
                     if(field->type.type == type_class)
                         create_dependency(field->type._class);
                 } else {
-                    if (can_capture_closure(field)) { // todo: observe what happens and how closures behave accross multiple threads 
-                        sharp_class *closure_class = create_closure_class( // there may be a bug with how it works refer to the job_scheduler as a case study
+                    if (can_capture_closure(field)) {
+                        sharp_class *closure_class = create_closure_class(
                                 currThread->currTask->file, currModule, contextItem->functionCxt,
                                 item.ast);
                         sharp_field *closure = create_closure_field(closure_class, item.name,
@@ -897,7 +897,7 @@ bool resolve_local_field(
 
                         staticClosureRef->staticClosure = true;
                         staticClosureRef->flags |= flag_static;
-                        staticClosureRef->fieldType = tls_field;
+                        staticClosureRef->fieldType = localized_field;
                         contextItem->functionCxt->closure = staticClosureRef;
                         field->closure = closure;
                         field->closureRef = staticClosureRef;
@@ -1008,7 +1008,7 @@ bool resolve_primary_class_field(
 
             auto primaryFunction = get_primary_function(&current_context);
             if (field->getter != NULL && field->getter != primaryFunction && field->setter != primaryFunction) {
-                if(field->fieldType == tls_field) {
+                if(field->fieldType == localized_field) {
                     reset = true;
                     create_static_field_getter_operation(getValueScheme, field);
                 } else {
@@ -1027,10 +1027,10 @@ bool resolve_primary_class_field(
 
                 create_dependency(field->getter);
             } else {
-                if(field->fieldType == tls_field) {
+                if(field->fieldType == localized_field) {
                     if(!unrestricted && !isSelfInstance && !isStatic) {
                         create_new_warning(GENERIC, __w_access, item.ast,
-                                           "accessing static thread_local field `" + field->fullName + "` through instance.");
+                                           "accessing static localized field `" + field->fullName + "` through instance.");
                     }
 
                     create_tls_field_access_operation(getValueScheme, field, false);
@@ -1053,7 +1053,7 @@ bool resolve_primary_class_field(
             resultType.field = field;
         }
 
-        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        add_get_field_value_scheme_operation(scheme, getValueScheme, field, reset);
         delete getValueScheme;
         string fieldType = "field";
         if(!unrestricted) {
@@ -1266,7 +1266,7 @@ bool resolve_global_class_field(
             create_static_field_getter_operation(getValueScheme, field);
             create_dependency(field->getter);
         } else {
-            if(field->fieldType == tls_field) {
+            if(field->fieldType == localized_field) {
                 create_tls_field_access_operation(getValueScheme, field, false);
             } else {
                 reset = true;
@@ -1275,7 +1275,7 @@ bool resolve_global_class_field(
         }
 
 
-        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        add_get_field_value_scheme_operation(scheme, getValueScheme, field, reset);
         delete getValueScheme;
         string fieldType = "field";
         if(!unrestricted) {
@@ -2080,7 +2080,7 @@ bool resolve_local_function_pointer_field(
         resultType.copy(field->type.fun->returnType);
         process_field(field);
 
-        if(field->fieldType == tls_field)
+        if(field->fieldType == localized_field)
             create_tls_field_access_operation(scheme, field);
         else
             create_local_field_access_operation(scheme, field);
@@ -2104,7 +2104,7 @@ bool resolve_local_function_pointer_field(
             if(ctx.functionCxt == contextItem->functionCxt) { // same func no closure needed
                 goto local_found;
             } else {
-                if(field->fieldType == tls_field) {
+                if(field->fieldType == localized_field) {
                     create_tls_field_access_operation(scheme, field);
                     if(field->type.type == type_class)
                         create_dependency(field->type._class);
@@ -2124,7 +2124,7 @@ bool resolve_local_function_pointer_field(
 
                         staticClosureRef->staticClosure = true;
                         staticClosureRef->flags |= flag_static;
-                        staticClosureRef->fieldType = tls_field;
+                        staticClosureRef->fieldType = localized_field;
                         contextItem->functionCxt->closure = staticClosureRef;
                         field->closure = closure;
                         field->closureRef = staticClosureRef;
@@ -2224,7 +2224,7 @@ bool resolve_primary_class_function_pointer_field(
 
             auto primaryFunction = get_primary_function(&current_context);
             if (field->getter != NULL && field->getter != primaryFunction && field->setter != primaryFunction) {
-                if(field->fieldType == tls_field) {
+                if(field->fieldType == localized_field) {
                     reset = true;
                     create_static_field_getter_operation(getValueScheme, field);
                 } else {
@@ -2244,10 +2244,10 @@ bool resolve_primary_class_function_pointer_field(
                 create_dependency(field->getter);
                 create_dependency(field);
             } else {
-                if(field->fieldType == tls_field) {
+                if(field->fieldType == localized_field) {
                     if(!isPrimaryClass && !isStaticCall) {
                         create_new_warning(GENERIC, __w_access, item.ast,
-                                           "accessing static thread_local field `" + field->fullName + "` through instance.");
+                                           "accessing static localized field `" + field->fullName + "` through instance.");
                     }
 
                     create_tls_field_access_operation(getValueScheme, field, false);
@@ -2272,7 +2272,7 @@ bool resolve_primary_class_function_pointer_field(
                 field->type.fun, true, false, true
         );
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
-        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        add_get_field_value_scheme_operation(scheme, getValueScheme, field, reset);
         delete getValueScheme;
 
         string fieldType = "field";
@@ -2422,7 +2422,7 @@ bool resolve_global_class_function_pointer_field(
             create_static_field_getter_operation(getValueScheme, field);
             create_dependency(field->getter);
         } else {
-            if(field->fieldType == tls_field) {
+            if(field->fieldType == localized_field) {
                 create_tls_field_access_operation(getValueScheme, field, false);
             } else {
                 reset = true;
@@ -2436,7 +2436,7 @@ bool resolve_global_class_function_pointer_field(
         );
 
         field->dependencies.appendAllUnique(field->type.fun->dependencies);
-        add_get_field_value_scheme_operation(scheme, getValueScheme, reset);
+        add_get_field_value_scheme_operation(scheme, getValueScheme, field, reset);
         delete getValueScheme;
 
         string fieldType = "field";

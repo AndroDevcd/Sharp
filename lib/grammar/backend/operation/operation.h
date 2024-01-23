@@ -873,6 +873,7 @@ void add_scheme_operation(
 void add_get_field_value_scheme_operation(
         operation_schema *scheme,
         operation_schema *valueScheme,
+        sharp_field *field,
         bool resetState);
 
 void create_primary_instance_field_getter_operation(

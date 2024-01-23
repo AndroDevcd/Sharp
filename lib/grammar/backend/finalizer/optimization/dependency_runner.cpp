@@ -20,6 +20,9 @@ void mark(sharp_field *sf) {
 
 void mark(sharp_function *fun) {
     if(!fun->used) {
+        if(fun->fullName == "platform#build.static_init<build>") {
+            int i = 0;
+        }
         fun->used = true;
         for(Int i = 0; i < fun->locals.size(); i++) {
             mark(fun->locals.get(i));

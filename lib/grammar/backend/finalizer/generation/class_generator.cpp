@@ -8,12 +8,18 @@
 #include "function_generator.h"
 #include "generator.h"
 
+#define CLASS_LIMIT 0xfffffff
 uInt classAddressCounter = 0;
-void generate_address(sharp_class *sc) { // todo: ensure classes and all address dont go over the address limit for the vm
+void generate_address(sharp_class *sc) {
     if(sc->ci == NULL) {
         sc->ci = new code_info();
         sc->ci->uuid = UUIDGenerator++;
         sc->ci->address = classAddressCounter++;
+        if(sc->ci->address >= CLASS_LIMIT) {
+            stringstream ss;
+            ss << "Class limit (" << CLASS_LIMIT << ") reached, try reducing class size!";
+            generation_error(ss.str());
+        }
         compressedCompilationClasses.addif(sc);
     }
 }

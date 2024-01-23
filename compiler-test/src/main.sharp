@@ -2,10 +2,19 @@ mod main;
 
 import ( std.*, platform );
 
-count := new atomic<int>(0);
-
-foo: int = 0;
 def main() {
-    t := new bank_account(new user());
+
+   // launch a task that you can get the answer at a later time
+   answer := deferred_task<int>.for_result({ obs ->
+           obs.post(foo());
+       }
+   );
+
+   println("you're answer is ${answer.await()}"); // block main thread until answer is posted
+}
+
+def foo(): int {
+    delay(1000);
+    return 0;
 }
 

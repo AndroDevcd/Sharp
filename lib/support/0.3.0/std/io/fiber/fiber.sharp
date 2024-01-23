@@ -11,9 +11,9 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
 
    name : string = "";
    id : var = -1;
-   main : (object[]?)(int);
+   excuse main : (object[]?)(int);
    exit_val : var = 0;
-   bound_thread : thread;
+   bound_thread : thread?;
 
    fiber(name : string, main : (object[])(int)) {
       self->name = name;

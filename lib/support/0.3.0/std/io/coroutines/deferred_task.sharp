@@ -42,7 +42,7 @@ class deferred_task<t> base deferred<t> {
     	builder.scheduled_job.deferred_obj = future;
     	builder = { deferred: object, args: object[] ->
             call := args[1] as callback<t>;
-            call.main2(deferred as deferred_task<t>);
+            call.main2(deferred as deferred_task<t>, args);
         };
     	return future;
     }

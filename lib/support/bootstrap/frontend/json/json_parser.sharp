@@ -5,10 +5,10 @@ import (
     std.io
 )
 
-thread_local json_data : string;
-thread_local pos := -1;
-thread_local tok : tokenizer;
-thread_local tokens : token[];
+localized json_data : string;
+localized pos := -1;
+localized tok : tokenizer;
+localized tokens : token[];
 
 class json_parse_error base error {
     public json_parse_error(message : _int8[]) -> base(message) {}

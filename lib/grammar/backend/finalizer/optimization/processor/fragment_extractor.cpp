@@ -219,6 +219,82 @@ bool search_function_call_fragment(
     return false;
 }
 
+bool search_negated_value_fragment(
+        fragment_type type,
+        code_fragment *frag,
+        List<code_fragment*> &results,
+        bool recursiveSearch,
+        code_fragment *endPoint
+) {
+    if(type == negated_value_fragment) {
+        results.add(frag);
+        if(!recursiveSearch) return false;
+    }
+
+    negated_value *vfrag = (negated_value*)frag;
+    if(search_frag(type, vfrag->value, results, recursiveSearch, endPoint))
+        return true;
+
+    return false;
+}
+
+bool search_incremented_value_fragment(
+        fragment_type type,
+        code_fragment *frag,
+        List<code_fragment*> &results,
+        bool recursiveSearch,
+        code_fragment *endPoint
+) {
+    if(type == incremented_value_fragment) {
+        results.add(frag);
+        if(!recursiveSearch) return false;
+    }
+
+    incremented_value *vfrag = (incremented_value*)frag;
+    if(search_frag(type, vfrag->value, results, recursiveSearch, endPoint))
+        return true;
+
+    return false;
+}
+
+bool search_decremented_value_fragment(
+        fragment_type type,
+        code_fragment *frag,
+        List<code_fragment*> &results,
+        bool recursiveSearch,
+        code_fragment *endPoint
+) {
+    if(type == decremented_value_fragment) {
+        results.add(frag);
+        if(!recursiveSearch) return false;
+    }
+
+    decremented_value *vfrag = (decremented_value*)frag;
+    if(search_frag(type, vfrag->value, results, recursiveSearch, endPoint))
+        return true;
+
+    return false;
+}
+
+bool search_not_value_fragment(
+        fragment_type type,
+        code_fragment *frag,
+        List<code_fragment*> &results,
+        bool recursiveSearch,
+        code_fragment *endPoint
+) {
+    if(type == not_value_fragment) {
+        results.add(frag);
+        if(!recursiveSearch) return false;
+    }
+
+    not_value *vfrag = (not_value*)frag;
+    if(search_frag(type, vfrag->value, results, recursiveSearch, endPoint))
+        return true;
+
+    return false;
+}
+
 
 bool search_frag(
         fragment_type type,
@@ -267,6 +343,20 @@ bool search_frag(
             break;
         case function_call_fragment:
             cancel = search_function_call_fragment(type, frag, results, recursiveSearch, endPoint);
+            break;
+        case no_fragment:
+            break;
+        case negated_value_fragment:
+            cancel = search_negated_value_fragment(type, frag, results, recursiveSearch, endPoint);
+            break;
+        case incremented_value_fragment:
+            cancel = search_incremented_value_fragment(type, frag, results, recursiveSearch, endPoint);
+            break;
+        case decremented_value_fragment:
+            cancel = search_decremented_value_fragment(type, frag, results, recursiveSearch, endPoint);
+            break;
+        case not_value_fragment:
+            cancel = search_not_value_fragment(type, frag, results, recursiveSearch, endPoint);
             break;
     }
 

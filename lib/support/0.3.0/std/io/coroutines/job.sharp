@@ -189,12 +189,12 @@ public class job {
         jb.master.start_job(jb.scheduled_job);
     }
 
-	protected main0: ()();
-	protected main1: (args : object[])();
-	protected main2: (object, object[])();
-	protected main3: (object)();
+	protected excuse main0: ()();
+	protected excuse main1: (args : object[])();
+	protected excuse main2: (object, object[])();
+	protected excuse main3: (object)();
 	protected host : thread?;
-	protected fib : fiber;
+	protected excuse fib : fiber;
 	protected name : string?;
 	protected args : object[]?;
 	protected deferred_obj : object?;

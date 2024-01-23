@@ -58,8 +58,8 @@ void pre_process_field(sharp_class *parentClass, Ast *ast) {
 void pre_process_field(sharp_class *owner, uInt flags, Ast *ast) {
     string name = ast->getToken(0).getValue();
     field_type ft = normal_field;
-    if(name == "thread_local") {
-        ft = tls_field;
+    if(name == "localized") {
+        ft = localized_field;
         name = ast->getToken(1).getValue();
         flags |= flag_static;
     }

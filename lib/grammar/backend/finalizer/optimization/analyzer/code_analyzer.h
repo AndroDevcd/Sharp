@@ -25,6 +25,7 @@ enum fragment_type {
     negated_value_fragment,
     incremented_value_fragment,
     decremented_value_fragment,
+    not_value_fragment,
     unsupported_fragment, // officially unsupported fragments, this can be used as a quick way to traverse large code paths
 };
 
@@ -260,7 +261,7 @@ struct not_value: public code_fragment {
             operation_schema *scheme,
             code_fragment *value
     ):
-            code_fragment(decremented_value_fragment),
+            code_fragment(not_value_fragment),
             scheme(scheme),
             value(value)
     {}

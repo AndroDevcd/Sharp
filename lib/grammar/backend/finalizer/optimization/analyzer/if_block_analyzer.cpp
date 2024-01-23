@@ -7,7 +7,7 @@
 
 code_fragment* analyze_single_if_block(operation_schema *scheme) {
     auto condStep = scheme->steps[1];
-    auto blockStep = scheme->steps[3];
+    auto blockStep = scheme->steps[4];
 
     validate_step_type(condStep, operation_get_value);
     validate_step_type(blockStep, operation_step_scheme);

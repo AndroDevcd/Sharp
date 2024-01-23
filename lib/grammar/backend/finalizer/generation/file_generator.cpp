@@ -32,6 +32,9 @@ void generate_addresses(sharp_file *file) {
     for(Int i = 0; i < file->classes.size(); i++) {
         sharp_class *sc = file->classes.get(i);
 
+        if(sc->name == "build") {
+            int j = 0;
+        }
         if(sc->used) {
             generate_class_addresses(sc);
         }
@@ -58,7 +61,7 @@ void generate_addresses(sharp_file *file) {
      return s.str();
  }
 
- string putInt32(int32_t i32) // todo: rename to have underscores in name
+ string put_int32(int32_t i32)
  {
      string str;
 
@@ -86,16 +89,16 @@ void build_manifest() {
     exeBuf << ((char)0x02); exeBuf << options.out << ((char)nil);
     exeBuf << ((char)0x4); exeBuf << options.version << ((char)nil);
     exeBuf << ((char)0x5); exeBuf << (options.debug ? 1 : 0);
-    exeBuf << ((char)0x6); exeBuf << putInt32(genesis_method->ci->address);
-    exeBuf << ((char)0x7); exeBuf << putInt32(compressedCompilationFunctions.size());
-    exeBuf << ((char)0x8); exeBuf << putInt32(compressedCompilationClasses.size());
+    exeBuf << ((char)0x6); exeBuf << put_int32(genesis_method->ci->address);
+    exeBuf << ((char)0x7); exeBuf << put_int32(compressedCompilationFunctions.size());
+    exeBuf << ((char)0x8); exeBuf << put_int32(compressedCompilationClasses.size());
     exeBuf << ((char)0x9); exeBuf << file_vers << ((char)nil);
-    exeBuf << ((char)0x0c); exeBuf << putInt32(stringMap.size());
+    exeBuf << ((char)0x0c); exeBuf << put_int32(stringMap.size());
     exeBuf << ((char)0x0e); exeBuf << options.target << ((char)nil);
-    exeBuf << ((char)0x0f); exeBuf << putInt32(compressedCompilationFiles.size());
-    exeBuf << ((char)0x1b); exeBuf << putInt32(threadLocalCount);
-    exeBuf << ((char)0x1c); exeBuf << putInt32(constantMap.size());
-    exeBuf << ((char)0x2a); exeBuf << putInt32(application_id);
+    exeBuf << ((char)0x0f); exeBuf << put_int32(compressedCompilationFiles.size());
+    exeBuf << ((char)0x1b); exeBuf << put_int32(threadLocalCount);
+    exeBuf << ((char)0x1c); exeBuf << put_int32(constantMap.size());
+    exeBuf << ((char)0x2a); exeBuf << put_int32(application_id);
     exeBuf << '\n' << (char)eoh;
 }
 
@@ -106,11 +109,11 @@ void build_header() {
 }
 
 void add_symbol(sharp_type &type, stringstream &ss = exeBuf) {
-    ss << putInt32(type.type);
+    ss << put_int32(type.type);
     if(type == type_class) {
-        ss << putInt32(type._class->ci->address);
+        ss << put_int32(type._class->ci->address);
     } else if(type == type_function_ptr) {
-        ss << putInt32(functionPointers.indexof(type.fun));
+        ss << put_int32(functionPointers.indexof(type.fun));
     } else if(type.type > type_class && type.type != type_nil) {
         generation_error("attempt to add invalid type to exe file");
     }
@@ -143,12 +146,12 @@ void add_function_pointers() {
         }
     }
 
-    exeBuf << putInt32(functionPointers.size());
+    exeBuf << put_int32(functionPointers.size());
     for(Int i = 0; i < functionPointers.size(); i++) {
         sharp_function *fun = functionPointers.get(i);
         exeBuf << (char)data_symbol;
 
-        exeBuf << putInt32(fun->parameters.size());
+        exeBuf << put_int32(fun->parameters.size());
         for(Int j = 0; j < fun->parameters.size(); j++) {
             sharp_field *param = fun->parameters.get(j);
             add_symbol(param->type);
@@ -164,13 +167,13 @@ void build_field_data(sharp_field *field) {
     exeBuf << (char)data_field;
     exeBuf << field->name << ((char)nil);
     exeBuf << field->fullName << ((char)nil);
-    exeBuf << putInt32(field->ci->address);
-    exeBuf << putInt32(field->uid);
-    exeBuf << putInt32(field->flags);
+    exeBuf << put_int32(field->ci->address);
+    exeBuf << put_int32(field->uid);
+    exeBuf << put_int32(field->flags);
     exeBuf << (field->type.isArray ? 1 : 0);
-    exeBuf << (field->fieldType == tls_field ? 1 : 0);
+    exeBuf << (field->fieldType == localized_field ? 1 : 0);
     add_symbol(field->type);
-    exeBuf << putInt32(field->owner->ci->address);
+    exeBuf << put_int32(field->owner->ci->address);
     exeBuf << ((char)nil) << ((char)nil);
 }
 
@@ -205,7 +208,7 @@ void build_method_data(sharp_class *sc) {
 
         if(function->used) {
             exeBuf << (char) data_method;
-            exeBuf << putInt32(function->ci->address) << ((char) nil);
+            exeBuf << put_int32(function->ci->address) << ((char) nil);
         }
     }
 }
@@ -219,7 +222,7 @@ void build_interface_data(sharp_class *sc) {
 
         if(intf->used) {
             exeBuf << (char) data_interface;
-            exeBuf << putInt32(intf->ci->address) << ((char) nil);
+            exeBuf << put_int32(intf->ci->address) << ((char) nil);
         }
     }
 }
@@ -235,16 +238,16 @@ void build_symbol_section() {
             int ll = 0;
         }
         exeBuf << (char)data_class;
-        exeBuf << putInt32(sc->ci->address);
-        exeBuf << (sc->owner == NULL ? putInt32(-1) : putInt32(sc->owner->ci->address));
-        exeBuf << (sc->baseClass == NULL ? putInt32(-1) : putInt32(sc->baseClass->ci->address));
-        exeBuf << putInt32(sc->uid);
+        exeBuf << put_int32(sc->ci->address);
+        exeBuf << (sc->owner == NULL ? put_int32(-1) : put_int32(sc->owner->ci->address));
+        exeBuf << (sc->baseClass == NULL ? put_int32(-1) : put_int32(sc->baseClass->ci->address));
+        exeBuf << put_int32(sc->uid);
         exeBuf << sc->name << ((char)nil);
         exeBuf << sc->fullName << ((char)nil);
-        exeBuf << putInt32(get_static_field_count(sc));
-        exeBuf << putInt32(get_instance_field_count(sc));
-        exeBuf << putInt32(get_function_count(sc));
-        exeBuf << putInt32(get_interface_count(sc));
+        exeBuf << put_int32(get_static_field_count(sc));
+        exeBuf << put_int32(get_instance_field_count(sc));
+        exeBuf << put_int32(get_function_count(sc));
+        exeBuf << put_int32(get_interface_count(sc));
 
         if(sc->name == "out_of_memory_exception") {
             int fi = 0;
@@ -263,7 +266,7 @@ void build_string_section() {
 
     for(Int i = 0; i < stringMap.size(); i++) {
         exeBuf << (char)data_string;
-        exeBuf << putInt32(stringMap.get(i).size());
+        exeBuf << put_int32(stringMap.get(i).size());
         exeBuf << stringMap.get(i);
     }
 
@@ -285,29 +288,29 @@ void build_constant_section() {
     exeBuf << '\n' << (char)eos;
 }
 
- void build_method_data(sharp_function *fun) { // todo: decide at the last minute to provide regular name or obfuscated name for all types
+ void build_method_data(sharp_function *fun) {
     if(compressedCompilationFiles.indexof(get_true_source_file(fun)) == -1) {
         cout << "fun: " << fun->owner->fullName << "." << function_to_str(fun) << " no file added " << endl;
     }
 
     dataSec << (char)data_method;
-     dataSec << putInt32(fun->ci->address);
-     dataSec << putInt32(fun->uid);
+     dataSec << put_int32(fun->ci->address);
+     dataSec << put_int32(fun->uid);
      dataSec << fun->name << ((char)nil);
      dataSec << fun->fullName << ((char)nil);
-     dataSec << putInt32(compressedCompilationFiles.indexof(get_true_source_file(fun)));
-     dataSec << putInt32(fun->owner->ci->address);
-     dataSec << putInt32(fun->type);
-     dataSec << putInt32(fun->ci->stackSize);
-     dataSec << putInt32(fun->ci->code.size());
-     dataSec << putInt32(fun->flags);
-     dataSec << putInt32(fun->delegate == NULL ? -1 : fun->delegate->ci->address);
-     dataSec << putInt32(fun->ci->fpOffset);
-     dataSec << putInt32(fun->ci->spOffset);
-     dataSec << putInt32(fun->ci->frameStackOffset);
+     dataSec << put_int32(compressedCompilationFiles.indexof(get_true_source_file(fun)));
+     dataSec << put_int32(fun->owner->ci->address);
+     dataSec << put_int32(fun->type);
+     dataSec << put_int32(fun->ci->stackSize);
+     dataSec << put_int32(fun->ci->code.size());
+     dataSec << put_int32(fun->flags);
+     dataSec << put_int32(fun->delegate == NULL ? -1 : fun->delegate->ci->address);
+     dataSec << put_int32(fun->ci->fpOffset);
+     dataSec << put_int32(fun->ci->spOffset);
+     dataSec << put_int32(fun->ci->frameStackOffset);
      add_symbol(fun->returnType, dataSec);
      dataSec << (fun->returnType.isArray ? 1 : 0);
-     dataSec << putInt32(fun->parameters.size());
+     dataSec << put_int32(fun->parameters.size());
      for(Int i = 0; i < fun->parameters.size(); i++) {
          sharp_field *param = fun->parameters.get(i);
          add_symbol(param->type, dataSec);
@@ -315,33 +318,33 @@ void build_constant_section() {
      }
 
 
-     dataSec << putInt32(fun->ci->lineTable.size());
+     dataSec << put_int32(fun->ci->lineTable.size());
      for(Int i = 0; i < fun->ci->lineTable.size(); i++) {
-         dataSec << putInt32(fun->ci->lineTable.get(i)->start_pc);
-         dataSec << putInt32(fun->ci->lineTable.get(i)->line);
+         dataSec << put_int32(fun->ci->lineTable.get(i)->start_pc);
+         dataSec << put_int32(fun->ci->lineTable.get(i)->line);
      }
 
-     dataSec << putInt32(fun->ci->tryCatchTable.size());
+     dataSec << put_int32(fun->ci->tryCatchTable.size());
      for(Int i = 0; i < fun->ci->tryCatchTable.size(); i++) {
          try_catch_data *tryCatchData = fun->ci->tryCatchTable.get(i);
-         dataSec << putInt32(tryCatchData->tryStartPc);
-         dataSec << putInt32(tryCatchData->tryEndPc);
-         dataSec << putInt32(tryCatchData->blockStartPc);
-         dataSec << putInt32(tryCatchData->blockEndPc);
+         dataSec << put_int32(tryCatchData->tryStartPc);
+         dataSec << put_int32(tryCatchData->tryEndPc);
+         dataSec << put_int32(tryCatchData->blockStartPc);
+         dataSec << put_int32(tryCatchData->blockEndPc);
 
-         dataSec << putInt32(tryCatchData->catchTable.size());
+         dataSec << put_int32(tryCatchData->catchTable.size());
          for(Int j = 0; j < tryCatchData->catchTable.size(); j++) {
              catch_data *catchData = tryCatchData->catchTable.get(j);
-             dataSec << putInt32(catchData->handlerPc);
-             dataSec << putInt32(catchData->exceptionFieldAddress);
-             dataSec << putInt32(catchData->classAddress);
+             dataSec << put_int32(catchData->handlerPc);
+             dataSec << put_int32(catchData->exceptionFieldAddress);
+             dataSec << put_int32(catchData->classAddress);
          }
 
          if(tryCatchData->finallyData != NULL) {
              dataSec << ((char)1);
-             dataSec << putInt32(tryCatchData->finallyData->startPc);
-             dataSec << putInt32(tryCatchData->finallyData->endPc);
-             dataSec << putInt32(tryCatchData->finallyData->exceptionFieldAddress);
+             dataSec << put_int32(tryCatchData->finallyData->startPc);
+             dataSec << put_int32(tryCatchData->finallyData->endPc);
+             dataSec << put_int32(tryCatchData->finallyData->exceptionFieldAddress);
          } else
              dataSec << ((char)nil);
      }
@@ -351,7 +354,7 @@ void build_constant_section() {
      dataSec << (char)data_byte;
 
      for(Int i = 0; i < fun->ci->code.size(); i++) {
-         dataSec << putInt32(fun->ci->code.get(i));
+         dataSec << put_int32(fun->ci->code.get(i));
      }
  }
 
@@ -378,7 +381,7 @@ void build_constant_section() {
          dataSec << compressedCompilationFiles.get(i)->name << ((char)nil);
 
          if(options.debug) {
-             dataSec << putInt32(compressedCompilationFiles.get(i)->p->getData().size());
+             dataSec << put_int32(compressedCompilationFiles.get(i)->p->getData().size());
              dataSec << compressedCompilationFiles.get(i)->p->getData() << ((char)nil);
          }
      }
@@ -421,7 +424,7 @@ void generate_exe() {
 #else
         div = "/";
 #endif
-        string buildDir = options.project_dir + div + "build";
+        string buildDir = options.project_dir + div + "build"+ div + "outputs";
         string outFile = buildDir + div + options.out;
 
         File::makeDir(buildDir);

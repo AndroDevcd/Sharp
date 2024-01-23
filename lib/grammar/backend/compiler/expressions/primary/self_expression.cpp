@@ -39,7 +39,7 @@ void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceCla
 
         staticClosureRef->staticClosure = true;
         staticClosureRef->flags |= flag_static;
-        staticClosureRef->fieldType = tls_field;
+        staticClosureRef->fieldType = localized_field;
         fun->closure = staticClosureRef;
 
         create_dependency(closure);

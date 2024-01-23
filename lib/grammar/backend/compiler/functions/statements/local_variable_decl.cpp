@@ -14,8 +14,8 @@
 sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type *type, uInt flags, Ast *ast) {
     string name = ast->getToken(0).getValue();
     field_type ft = normal_field;
-    if(name == "thread_local") {
-        ft = tls_field;
+    if(name == "localized") {
+        ft = localized_field;
         name = ast->getToken(1).getValue();
         flags |= flag_static;
     }
@@ -151,7 +151,7 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
         operation_schema *fieldScheme = new operation_schema();
 
         if(field->scheme->schemeType != scheme_none && !field->scheme->steps.empty()) {
-            if(field->fieldType == tls_field)
+            if(field->fieldType == localized_field)
                 create_tls_field_access_operation(fieldScheme, field);
             else
                 create_local_field_access_operation(fieldScheme, field);
@@ -181,7 +181,7 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
                 operation_schema *fieldScheme = new operation_schema();
 
                 if(field->scheme->schemeType != scheme_none && !subField->scheme->steps.empty()) {
-                    if(field->fieldType == tls_field)
+                    if(field->fieldType == localized_field)
                         create_tls_field_access_operation(fieldScheme, field);
                     else
                         create_local_field_access_operation(fieldScheme, field);

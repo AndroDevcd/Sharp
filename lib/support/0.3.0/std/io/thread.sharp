@@ -209,16 +209,16 @@ public class thread {
     private exit_code : int;
     private native_handle : var;
     private id : var;
-    private priority : thread_priority;
+    private excuse priority : thread_priority;
     private daemon : var; // not supported as of now
     private exited : var;
     private name : string = "";
-	private parent_group : thread_group;
+	private excuse parent_group : thread_group;
     private started : var;
 	private suspended : var;
     private stack_size : var;
-    private main: (object[]?)(int);
-	private error_handler: uncaught_exception_handler;
+    private excuse main: (object[]?)(int);
+	private error_handler: uncaught_exception_handler?;
 	private static id_generator : var;
-	private fib: fiber;
+	private fib: fiber?;
 }

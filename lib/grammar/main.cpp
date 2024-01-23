@@ -88,9 +88,7 @@ void create_project() {
     // project files
     string srcDir = dir + div + "src";
     string buildDir = dir + div + "build";
-    string cacheDir = dir + div + "build" + div + "cache";
     string outputsDir = dir + div + "build" + div + "outputs";
-    string filesDir = dir + div + "build" + div + "cache" + div + "files";
     string main_file = dir + div + "src" + div + "main.sharp";
     string settings_file = dir + div + SETTINGS_FILE;
 
@@ -99,8 +97,7 @@ void create_project() {
     string settings_template_file;
 
     if(File::makeDir(srcDir) || File::makeDir(buildDir)
-        || File::makeDir(cacheDir) || File::makeDir(outputsDir)
-        || File::makeDir(filesDir)) {
+        || File::makeDir(outputsDir)) {
         cout << "failed to create all necessary directories for project: " << options.project_name << endl;
         exit(1);
     }

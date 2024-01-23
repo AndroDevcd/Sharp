@@ -3766,7 +3766,7 @@ bool parser::isEnumDecl(Token &token) {
 }
 
 bool parser::isStorageType(Token &token) {
-    return (token.getId() == IDENTIFIER && (token.getValue() == "thread_local"));
+    return (token.getId() == IDENTIFIER && (token.getValue() == "localized"));
 }
 
 bool parser::isInjectRequest(Token &token) {
@@ -4006,11 +4006,11 @@ bool parser::isKeyword(string key) {
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "interface" || key == "lock" || key == "enum"
            || key == "when" || key == "local" || key == "native"
-           || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
+           || key == "localized" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as" || key == "in" || key == "override" || key == "obfuscate" || key == "is"
            || key == "inject" || key == "component" || key == "single" || key == "factory"
-           || key == "excuse" || key == "thread_safe";
+           || key == "excuse";
 }
 
 void parser::parseAccessTypes() {

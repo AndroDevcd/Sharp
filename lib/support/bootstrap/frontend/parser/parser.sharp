@@ -1597,7 +1597,7 @@ class parser {
         "async",
         "get",
         "set",
-        "thread_local",
+        "localized",
         "defer",
         "alias",
         "init"

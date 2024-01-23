@@ -273,7 +273,6 @@ void process_scheme_steps(operation_schema *scheme) {
 
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container) {
     update_context(ci, container);
-    // todo add thread_safe code for before and end of function and at all return instructions
     generate_initial_closure_setup(container);
 
     process_scheme(scheme);

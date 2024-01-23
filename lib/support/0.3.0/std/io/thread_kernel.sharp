@@ -14,7 +14,7 @@ def _srt_thread_start() {
         result = curr?.get_main_method()(vm.thread_args());
     } catch(e: throwable) {
         if(curr?.get_exception_handler() != null) {
-            curr?.get_exception_handler().uncaught_exception(e);
+            curr?.get_exception_handler()?.uncaught_exception(e);
         } else {
             curr?.set_finished(result);
             throw e;

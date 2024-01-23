@@ -13,7 +13,7 @@ uInt threadLocalCount = 0;
 void generate_address(sharp_field *field) {
     if (field->ci == NULL) {
         bool isStatic = check_flag(field->flags, flag_static);
-        bool threadLocal = field->fieldType == tls_field;
+        bool threadLocal = field->fieldType == localized_field;
 
         field->ci = new code_info();
         field->ci->uuid = UUIDGenerator++;
@@ -42,7 +42,7 @@ void generate_address(sharp_field *field) {
 
 void generate_address(sharp_field *field, Int localFieldIndex, bool staticFunction) {
     if (field->ci == NULL && field->used) {
-        bool threadLocal = field->fieldType == tls_field;
+        bool threadLocal = field->fieldType == localized_field;
 
         field->ci = new code_info();
         field->ci->uuid = UUIDGenerator++;

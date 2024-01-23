@@ -20,8 +20,7 @@ mod app;
     
 // lets say hi 3 times!
 def main() {    
-   for < 3:
-      print("hello, world!");    
+   print("hello, world!");    
 }    
 ```  
 
@@ -66,7 +65,7 @@ component user_component {
 ``` 
 
 
-The standard library comes with a comprehensive lightweight co-routines library `task`
+The standard library comes with a comprehensive lightweight co-routines library
 that makes handling work in the background simple to put together but looks good as well.
   
 ```javascript  
@@ -74,37 +73,33 @@ mod app;
 
 // import the threadding library
 import (
-    std.io,
-    std.io.task
+    std.io.coroutines
 )
   
 def heavy_computation() {
     // simulate heavy work being done
-    sleep(3000);
+    delay(3000);
 }
 
 def lots_of_math() : int {
     // simulate heavy work being done
-    sleep(1000);
+    delay(1000);
     return 6;
 }
 
 def main() {  
     // here we create a background task to do some work
-   launch = { -> 
+   launcher = { -> 
         heavy_computation();
-   }
+   };
 
    // launch a task that you can get the answer at a later time
-   answer := deferred_task<int>.for_result(
-       with_timeout(1500),
-       { obs : observable<int> ->
-           obs.post(lots_of_math());
-       }
-   );
+    answer := deferred_task<int>.for_result({ observer ->
+            observer.post(foo());
+        }
+    );
     
-   sleep(700);
-   println("you're answer is ${answer.response}"); // block main thread until answer is posted
+   println("you're answer is ${answer.await()}"); // block main thread until answer is posted
 }  
 ```  
 
@@ -133,7 +128,7 @@ def list.last() : T {
 * Function pointers
 */
 def main() { /* ... */ }
-main_ptr := main;
+main_ref := main;
 
 /*
 * inline function declarations
@@ -178,10 +173,10 @@ days := {
 /*
 * Anonymous functions
 */
-fn total_size := { data : object[] -> (var)
+total_size := { items : int[] -> (int)
     total := 0;
-    for i < data: {
-        total += sizeof(data[i]);
+    foreach(item in items) {
+        total += item;
     }
     
     return total;
@@ -206,32 +201,11 @@ mutate class list {
 
 Sharp has a multi-language inspired syntax taking the beauty of languages such 
 as JavaScript, python, Java, lua, Go, and C#. While expressing it in a more concise way. 
-The language supports anonymous functions that make it easy to abstract away blocks of code without the need to declare a bunch of on-time use functions in your code.  
-  
-```javascript
-mod app;  
-  
-def main() {  
-   var num;  
-   for < 100: {  
-      num = num*Math.sqrt(num)/2;
-   }  
-  
-   fn someComputation = { num : var -> (nil)  
-      // we are in a completly seperate code space  
-      // this code space knows nothing of the x variable  
-      // unless explicitly passed in  
-  
-      print("num = " + num);  
-   };  
 
-   someComputation(num);
-}  
-```  
 
 ## Getting Started
 
-Thdocumentation below explains how to get you started with using sharp.
+The documentation below explains how to get you started with using sharp.
 
 #### Downloading
 
@@ -250,7 +224,7 @@ Next cd into the directory of your sharp build to the folder lib and run the com
 
 ```
 mkdir "C:/Program Files/Sharp/include/"
-cd {SHARP_INSTALL_PATH}/lib/support/0.2.9/
+cd {SHARP_INSTALL_PATH}/lib/support/0.3.0/
 cp -r * "C:/Program Files/Sharp/include/"
 Sharpc test.sharp -o test -s -R
 Sharp test
@@ -265,6 +239,21 @@ Navigate to the folder ``{YOUR_DIR}\release-pkg\``.  Installing sharp on linux i
 ```
 chmod +x linux-install.bash
 ./linux-install.bash
+```
+
+#### Building Locally
+
+To build the project locally simply run the following:
+
+```
+git clone https://github.com/AndroDevcd/Sharp.git
+cd Sharp
+chmod +x build.sh
+./build.sh
+sharpc --new-project helloworld
+cd helloworld
+sharpc -p
+sharp build/outputs/helloworld
 ```
 
 After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
