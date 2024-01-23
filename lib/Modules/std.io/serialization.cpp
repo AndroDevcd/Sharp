@@ -110,7 +110,7 @@ void serialize(object *from, object *to) {
     } catch(runtime_error &err) {}
 
     processedObjects.delete_all(nullptr);
-    std::free(serializeBuffer);
+    std::free(serializeBuffer); serializeBuffer = nullptr;
     release_bytes(sizeof(char) * bufferSize);
 }
 

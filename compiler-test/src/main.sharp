@@ -1,20 +1,18 @@
 mod main;
 
-import ( std.*, platform );
+import ( std.export );
+
+class SerializeTest {
+    word := "test";
+    nm := 10;
+    arry := { 1, 2, 3 };
+}
 
 def main() {
 
-   // launch a task that you can get the answer at a later time
-   answer := deferred_task<int>.for_result({ obs ->
-           obs.post(foo());
-       }
-   );
-
-   println("you're answer is ${answer.await()}"); // block main thread until answer is posted
-}
-
-def foo(): int {
-    delay(1000);
-    return 0;
+   for(i := 0; i < 1_000_000; i++) {
+        serialize(new SerializeTest());
+   }
+   println("done");
 }
 
