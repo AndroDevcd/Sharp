@@ -9,5 +9,7 @@
 
 code_fragment *analyze_local_variable_read(operation_schema *scheme);
 code_fragment *analyze_instance_variable_read(operation_schema *scheme);
+code_fragment *analyze_static_variable_read(operation_schema *scheme);
+code_fragment *analyze_tls_variable_read(operation_schema *scheme);
 
 #endif //SHARP_VARIABLE_READ_ANALYZER_H

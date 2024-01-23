@@ -2,12 +2,22 @@
 
 fragment_type first_field_access_fragment(sharp_field *field, code_fragment *origin) {
     switch(origin->type) {
+        case unsupported_fragment: {
+            auto frag = (unsupported*)origin;
+            for(Int i = 0; i < frag->nodes.size(); i++) {
+                auto result = first_field_access_fragment(field, frag->nodes.get(i));
+
+                if(result == variable_write || result == variable_read) 
+                    return result;
+            }
+            break;
+        }
         case code_block_fragment: {
             auto frag = (code_block*)origin;
             for(Int i = 0; i < frag->nodes.size(); i++) {
                 auto result = first_field_access_fragment(field, frag->nodes.get(i));
 
-                if(result == variable_write || variable_read) 
+                if(result == variable_write || result == variable_read) 
                     return result;
             }
             break;
@@ -16,11 +26,11 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
             auto frag = (while_loop*)origin;
 
             auto result = first_field_access_fragment(field, frag->conditionCheck);
-            if(result == variable_write || variable_read) 
+            if(result == variable_write || result == variable_read) 
                 return result;
 
             result = first_field_access_fragment(field, frag->block);
-            if(result == variable_write || variable_read) 
+            if(result == variable_write || result == variable_read) 
                 return result;
             break;
         }
@@ -28,19 +38,11 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
             auto frag = (if_blk*)origin;
 
             auto result = first_field_access_fragment(field, frag->conditionCheck);
-            if(result == variable_write || variable_read) 
+            if(result == variable_write || result == variable_read) 
                 return result;
 
             result = first_field_access_fragment(field, frag->block);
-            if(result == variable_write || variable_read) 
-                return result;
-            break;
-        }
-        case return_data: {
-            auto frag = (data_return*)origin;
-
-            auto result = first_field_access_fragment(field, frag->returnData);
-            if(result == variable_write || variable_read) 
+            if(result == variable_write || result == variable_read) 
                 return result;
             break;
         }
@@ -56,7 +58,7 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
                 return variable_write;
 
             auto result = first_field_access_fragment(field, frag->assignmentData);
-            if(result == variable_write || variable_read) 
+            if(result == variable_write || result == variable_read) 
                 return result;
             break;
         }
@@ -68,16 +70,17 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
             for(Int i = 0; i < frag->actions.size(); i++) {
                 auto result = first_field_access_fragment(field, frag->actions.get(i));
 
-                if(result == variable_write || variable_read) 
+                if(result == variable_write || result == variable_read) 
                     return result;
             }
+            break;
         }
         case new_class_fragment: {
             auto frag = (new_class*)origin;
             for(Int i = 0; i < frag->params.size(); i++) {
                 auto result = first_field_access_fragment(field, frag->params.get(i));
 
-                if(result == variable_write || variable_read) 
+                if(result == variable_write || result == variable_read) 
                     return result;
             }
             break;
@@ -93,7 +96,7 @@ fragment_type first_field_access_fragment(sharp_field *field, code_fragment *ori
             for(Int i = 0; i < frag->actions.size(); i++) {
                 auto result = first_field_access_fragment(field, frag->actions.get(i));
 
-                if(result == variable_write || variable_read) 
+                if(result == variable_write || result == variable_read) 
                     return result;
             }
             break;

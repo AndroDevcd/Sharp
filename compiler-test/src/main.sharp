@@ -6,19 +6,6 @@ count := new atomic<int>(0);
 
 foo: int = 0;
 def main() {
-    for( i := 0; i < 10000; i++) {
-        coroutine.builder()
-            .long_term()
-            = { args: object[] -> (int)
-            count++;
-            return 0;
-        };
-    }
-
-    foo = 0;
-    println("${build.app_name} ${build.version} ${build.platform} ${build.os}");
-    println("main task!");
-    while(count != 10000) { delay(0); }
-    println("tasks finished!");
+    t := new bank_account(new user());
 }
 

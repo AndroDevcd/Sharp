@@ -13,7 +13,7 @@ class user {
     password: string;
     uid: int;
 
-    private user() {}
+     user() {}
 
     public user(username: string, password: string) {
         self->name = username;

@@ -33,6 +33,28 @@ bool search_block_fragment(
     return false;
 }
 
+
+bool search_unsupported_fragment(
+        fragment_type type,
+        code_fragment *frag,
+        List<code_fragment*> &results,
+        bool recursiveSearch,
+        code_fragment *endPoint
+) {
+    if(type == unsupported_fragment) {
+        results.add(frag);
+        if(!recursiveSearch) return false;
+    }
+
+    unsupported *ufrag = (unsupported*)frag;
+    for(Int i = 0; i < ufrag->nodes.size(); i++) {
+        if(search_frag(type, ufrag->nodes[i], results, true, endPoint))
+            return true;
+    }
+
+    return false;
+}
+
 bool search_while_block_fragment(
         fragment_type type,
         code_fragment *frag,
@@ -211,6 +233,9 @@ bool search_frag(
 
     bool cancel = false;
     switch(frag->type) {
+        case unsupported_fragment:
+            cancel = search_unsupported_fragment(type, frag, results, recursiveSearch, endPoint);
+            break;
         case code_block_fragment:
             cancel = search_block_fragment(type, frag, results, recursiveSearch, endPoint);
             break;
@@ -219,8 +244,6 @@ bool search_frag(
             break;
         case if_block_fragment:
             cancel = search_if_block_fragment(type, frag, results, recursiveSearch, endPoint);
-            break;
-        case return_data:
             break;
         case data_nil:
             break;

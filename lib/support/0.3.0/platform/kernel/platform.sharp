@@ -8,10 +8,10 @@ import (
 
 class platform
 {
-    private static main : (string[])(int);
-    private static main2 : (string[])();
-    private static main3 : ()();
-    private static main4 : ()(int);
+    private static excuse main : (string[])(int);
+    private static excuse main2 : (string[])();
+    private static excuse main3 : ()();
+    private static excuse main4 : ()(int);
 
     static def tls_init() {}
     private static def static_init() {}

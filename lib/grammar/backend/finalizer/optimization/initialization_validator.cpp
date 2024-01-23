@@ -13,7 +13,7 @@
 bool validationPassed = true;
 bool requires_initialization(sharp_type &type) {
     return type.isArray || type == type_class
-        || type == type_object;
+        || type == type_object || type == type_function_ptr;
 }
 
 void validate_global_field_initialization() {
@@ -59,7 +59,9 @@ void validate_instance_class_field_initialization(sharp_class *sc) {
                 for(Int j = 0; j < sc->functions.size(); j++) {
                     auto func = sc->functions.get(j);
                     if(func->type == constructor_function) {
-                        first_field_access_fragment(sf, require_non_null(analyze_code(func->scheme)));
+                        cout << "field " << sf->fullName << " ";
+                        auto result = first_field_access_fragment(sf, require_non_null(analyze_code(func->scheme)));
+                        cout << " = " << result << endl;
                     }
                 }
             }

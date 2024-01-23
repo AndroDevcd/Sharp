@@ -10,11 +10,10 @@
 #include "../../../operation/operation.h"
 
 enum fragment_type {
-    no_fragment,
+    no_fragment=0,
     code_block_fragment,
     while_block_fragment,
     if_block_fragment,
-    return_data,
     data_nil,
     debug_info,
     variable_write,
@@ -23,8 +22,11 @@ enum fragment_type {
     get_constant,
     break_fragment,
     function_call_fragment,
+    negated_value_fragment,
+    incremented_value_fragment,
+    decremented_value_fragment,
+    unsupported_fragment, // officially unsupported fragments, this can be used as a quick way to traverse large code paths
 };
-
 
 struct code_fragment {
     code_fragment(fragment_type type)
@@ -33,6 +35,18 @@ struct code_fragment {
     {}
 
     fragment_type type;
+};
+
+struct unsupported: public code_fragment {
+    unsupported(operation_schema *scheme)
+    :
+        code_fragment(unsupported_fragment),
+        scheme(scheme),
+        nodes()
+    {}
+
+    operation_schema *scheme;
+    List<code_fragment*> nodes;
 };
 
 struct code_block: public code_fragment {
@@ -197,6 +211,62 @@ struct read_variable: code_fragment {
     bool isLocal;
     operation_schema *scheme;
     List<code_fragment*> actions;
+};
+
+struct negated_value: public code_fragment {
+    negated_value(
+            operation_schema *scheme,
+            code_fragment *value
+    ):
+            code_fragment(negated_value_fragment),
+            scheme(scheme),
+            value(value)
+    {}
+
+    operation_schema *scheme;
+    code_fragment* value;
+};
+
+struct incremented_value: public code_fragment {
+    incremented_value(
+            operation_schema *scheme,
+            code_fragment *value
+    ):
+            code_fragment(incremented_value_fragment),
+            scheme(scheme),
+            value(value)
+    {}
+
+    operation_schema *scheme;
+    code_fragment* value;
+};
+
+struct decremented_value: public code_fragment {
+    decremented_value(
+            operation_schema *scheme,
+            code_fragment *value
+    ):
+            code_fragment(decremented_value_fragment),
+            scheme(scheme),
+            value(value)
+    {}
+
+    operation_schema *scheme;
+    code_fragment* value;
+};
+
+struct not_value: public code_fragment {
+    not_value(
+            operation_schema *scheme,
+            code_fragment *value
+    ):
+            code_fragment(decremented_value_fragment),
+            scheme(scheme),
+            value(value)
+    {}
+
+    operation_schema *scheme;
+    code_fragment* value;
 };
 
 code_fragment* analyze_code(operation_schema *scheme);
