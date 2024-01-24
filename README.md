@@ -95,7 +95,7 @@ def main() {
 
    // launch a task that you can get the answer at a later time
     answer := deferred_task<int>.for_result({ observer ->
-            observer.post(foo());
+            observer.post(lots_of_math());
         }
     );
     
