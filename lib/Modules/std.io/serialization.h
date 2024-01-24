@@ -9,6 +9,7 @@
 
 #define BUFFER_ALLOC_CHUNK_SIZE_STANDARD (128 * 128)
 #define BUFFER_ALLOC_CHUNK_SIZE_LARGE (512 * 512)
+#define BUFFER_ALLOC_CACHE_LIMIT (2048 * 2048)
 #define SERIALIZE_START (0x3b)
 #define SERIALIZE_END (0x3d)
 #define BEGIN_OBJECT (0x3a)
@@ -22,13 +23,13 @@
 #define NULL_OBJECT (0x008)
 #define OBJECT_ID_START (0x7F)
 
-#define push_data(data) \
+#define push_data(bufferSize, data) \
     if((bufferPos + 1) >= bufferSize) { \
         alloc_buffer(); \
     } \
     serializeBuffer[++bufferPos] = (data);
 
-#define push_int32(data) \
+#define push_int32(bufferSize, data) \
     if((bufferPos + 4) >= bufferSize) { \
         alloc_buffer(); \
     } \
@@ -40,14 +41,14 @@
 #define formatted_buffer(pos) \
     ((char) deserializeBuffer[(pos)])
 
-#define expect_data(data) \
+#define expect_data(bufferSize, data) \
     if((bufferPos + 1) >= bufferSize) { \
         throw vm_exception("invalid format: unexpected end of deserialization buffer");\
     } else if(formatted_buffer(++bufferPos) != data) { \
         throw vm_exception("unexpected data found in deserialization buffer");\
     }
 
-#define read_int32(out) \
+#define read_int32(bufferSize, out) \
     if((bufferPos + 4) >= bufferSize) { \
         throw vm_exception("invalid format: unexpected end of deserialization buffer");\
     } \

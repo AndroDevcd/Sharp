@@ -15,25 +15,36 @@
 thread_local linkedlist<KeyPair<Int, sharp_object*>> processedObjects;
 thread_local char *serializeBuffer = nullptr;
 thread_local long double *deserializeBuffer = nullptr;
-thread_local Int bufferSize = 0;
+thread_local Int serializeBufferSize = 0;
+thread_local Int deserializerBufferSize = 0;
 thread_local Int bufferPos = -1;
 thread_local Int guid = OBJECT_ID_START;
 
 CXX11_INLINE void alloc_buffer() {
     Int allocSize;
-    if(bufferSize < MB_TO_BYTES(1)) // increase allocation size for large objects
+    if(serializeBufferSize < MB_TO_BYTES(1)) // increase allocation size for large objects
         allocSize = BUFFER_ALLOC_CHUNK_SIZE_STANDARD;
     else allocSize = BUFFER_ALLOC_CHUNK_SIZE_LARGE;
 
     if(serializeBuffer == nullptr) {
         serializeBuffer = malloc_mem<char>(sizeof(char) * allocSize);
-        bufferSize = allocSize;
+        serializeBufferSize = allocSize;
     } else {
         serializeBuffer = realloc_mem<char>(serializeBuffer,
-             sizeof(char) * (bufferSize + allocSize),
-             sizeof(char) * bufferSize);
-        bufferSize += allocSize;
+             sizeof(char) * (serializeBufferSize + allocSize),
+             sizeof(char) * serializeBufferSize);
+        serializeBufferSize += allocSize;
     }
+}
+
+void preserve_or_free_serialize_buffer() {
+    if(serializeBufferSize >= BUFFER_ALLOC_CACHE_LIMIT) {
+        std::free(serializeBuffer); serializeBuffer = nullptr;
+        release_bytes(sizeof(char) * serializeBufferSize);
+        serializeBufferSize = 0;
+    }
+
+    bufferPos = -1;
 }
 
 void serialize_object(sharp_object *o) {
@@ -44,62 +55,60 @@ void serialize_object(sharp_object *o) {
 
         if (processedObj == nullptr) {
             Int id = ++guid;
-            push_data(BEGIN_OBJECT)
-            push_int32(id)
-            push_int32(o->size)
-            push_int32(o->type)
+            push_data(serializeBufferSize, BEGIN_OBJECT)
+            push_int32(serializeBufferSize, id)
+            push_int32(serializeBufferSize, o->size)
+            push_int32(serializeBufferSize, o->type)
 
             processedObjects.insert_start(KeyPair<Int, sharp_object *>(id, o));
             if (o->type == type_class) {
-                push_data(CLASS_NAME_BEGIN)
+                push_data(serializeBufferSize, CLASS_NAME_BEGIN)
 
                 auto classType = vm.classes + CLASS(o->info);
                 for (char c: classType->name) {
-                    push_data(c)
+                    push_data(serializeBufferSize, c)
                 }
 
-                push_data(CLASS_NAME_END)
+                push_data(serializeBufferSize, CLASS_NAME_END)
             }
 
-            push_data(DATA_BEGIN)
+            push_data(serializeBufferSize, DATA_BEGIN)
             if (o->type <= type_var) {
                 for (Int i = 0; i < o->size; i++) {
                     string value = to_string(o->HEAD[i]);
-                    push_data(ITEM_START)
+                    push_data(serializeBufferSize, ITEM_START)
                     for (char c: value) {
-                        push_data(c)
+                        push_data(serializeBufferSize, c)
                     }
-                    push_data(ITEM_END)
+                    push_data(serializeBufferSize, ITEM_END)
                 }
             } else {
                 for (Int i = 0; i < o->size; i++) {
-                    push_data(ITEM_START)
+                    push_data(serializeBufferSize, ITEM_START)
                     serialize_object(o->node[i].o);
-                    push_data(ITEM_END)
+                    push_data(serializeBufferSize, ITEM_END)
                 }
             }
-            push_data(DATA_END)
+            push_data(serializeBufferSize, DATA_END)
         } else {
-            push_data(BEGIN_OBJECT)
-            push_data(REFERENCE_OBJECT)
-            push_int32(processedObj->data.key)
+            push_data(serializeBufferSize, BEGIN_OBJECT)
+            push_data(serializeBufferSize, REFERENCE_OBJECT)
+            push_int32(serializeBufferSize, processedObj->data.key)
         }
     } else {
-        push_data(BEGIN_OBJECT)
-        push_data(NULL_OBJECT)
+        push_data(serializeBufferSize, BEGIN_OBJECT)
+        push_data(serializeBufferSize, NULL_OBJECT)
     }
 }
 
 void serialize(object *from, object *to) {
     try {
         processedObjects.delete_all(nullptr); // just in case
-        bufferPos = -1;
-        bufferSize = 0;
         guid = OBJECT_ID_START;
 
-        push_data(SERIALIZE_START)
+        push_data(serializeBufferSize, SERIALIZE_START)
         serialize_object(from->o);
-        push_data(SERIALIZE_END)
+        push_data(serializeBufferSize, SERIALIZE_END)
 
         auto serializedData = create_object(bufferPos + 1, type_int8);
         copy_object(to, serializedData);
@@ -110,17 +119,16 @@ void serialize(object *from, object *to) {
     } catch(runtime_error &err) {}
 
     processedObjects.delete_all(nullptr);
-    std::free(serializeBuffer); serializeBuffer = nullptr;
-    release_bytes(sizeof(char) * bufferSize);
+    preserve_or_free_serialize_buffer();
 }
 
 void deserialize_object(object *to) {
-    expect_data(BEGIN_OBJECT)
+    expect_data(deserializerBufferSize, BEGIN_OBJECT)
 
     Int typeOrId, size, type;
-    read_int32(typeOrId)
-    read_int32(size)
-    read_int32(type)
+    read_int32(deserializerBufferSize, typeOrId)
+    read_int32(deserializerBufferSize, size)
+    read_int32(deserializerBufferSize, type)
 
     if(typeOrId == NULL_OBJECT) {
         copy_object(to, (sharp_object*) nullptr);
@@ -139,11 +147,11 @@ void deserialize_object(object *to) {
         sharp_object *deserializedObject;
 
         if (type == type_class) {
-            expect_data(CLASS_NAME_BEGIN)
+            expect_data(deserializerBufferSize, CLASS_NAME_BEGIN)
             string className;
 
             for(;;) {
-                if((bufferPos + 1) >= bufferSize) {
+                if((bufferPos + 1) >= deserializerBufferSize) {
                     throw vm_exception("invalid format: unexpected end of deserialization buffer");
                 }
 
@@ -174,14 +182,14 @@ void deserialize_object(object *to) {
 
         processedObjects.insert_start(KeyPair<Int, sharp_object *>(typeOrId, deserializedObject));
         copy_object(to, deserializedObject);
-        expect_data(DATA_BEGIN)
+        expect_data(deserializerBufferSize, DATA_BEGIN)
 
         for(Int i = 0; i < size; i++) {
-            expect_data(ITEM_START)
+            expect_data(deserializerBufferSize, ITEM_START)
             if(type <= type_var) {
                 string number;
                 for(;;) {
-                    if((bufferPos + 1) >= bufferSize) {
+                    if((bufferPos + 1) >= deserializerBufferSize) {
                         throw vm_exception("invalid format: unexpected end of deserialization buffer");
                     }
 
@@ -197,25 +205,25 @@ void deserialize_object(object *to) {
                 deserializedObject->HEAD[i] = strtod(number.c_str(), nullptr);
             } else {
                 deserialize_object(deserializedObject->node + i);
-                expect_data(ITEM_END)
+                expect_data(deserializerBufferSize, ITEM_END)
             }
         }
 
-        expect_data(DATA_END)
+        expect_data(deserializerBufferSize, DATA_END)
     }
 }
 
 void deserialize(object *from, object *to) {
     try {
         if(from->o && from->o->type <= type_var) {
-            bufferSize = from->o->size;
+            deserializerBufferSize = from->o->size;
             bufferPos = -1;
             deserializeBuffer = from->o->HEAD;
             guid = OBJECT_ID_START;
 
-            expect_data(SERIALIZE_START)
+            expect_data(deserializerBufferSize, SERIALIZE_START)
             deserialize_object(to);
-            expect_data(SERIALIZE_END)
+            expect_data(deserializerBufferSize, SERIALIZE_END)
 
             deserializeBuffer = nullptr;
             processedObjects.delete_all(nullptr);
