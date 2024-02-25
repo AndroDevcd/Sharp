@@ -1,18 +1,174 @@
 mod main;
 
-import ( std.export );
+import (
+    settings,
+    std.io.coroutines
+)
 
-class SerializeTest {
-    word := "test";
-    nm := 10;
-    arry := { 1, 2, 3 };
+private program_name : string = "sharpc";
+private program_vers : string = "0.3.0";
+private files := new list<string>();
+
+def main(args: string[]): int {
+    if(args == null) {
+        help();
+        return 1;
+    }
+
+    for(i: var = 0; i < sizeof(args); i++) {
+        
+        arg := args[i];
+        if(arg == "-a"){
+            enable_show_all_errors(true);
+        }
+        else if(arg == "-c"){
+            enable_compile_only(true);
+        }
+        else if(arg == "-o"){
+            if(i+1 >= sizeof(args))
+                error("output file required after option `-o`");
+            else
+                set_output_file(args[++i]);
+        }
+        else if(arg == "-L"){
+            if((i+1) >= sizeof(args))
+                error("library directory required after option `-L`");
+            else {
+                add_library_path(args[++i]);
+            }
+        }
+        else if(arg == "-V"){
+            print_version();
+            exit();
+        }
+        else if(arg == "--h" || arg == "-?"){
+            help();
+            exit();
+        }
+        else if(arg == "--hw"){
+            help_warning();
+            exit();
+        }
+        else if(arg == "-R" || arg == "-release"){
+            enable_app_debugging(false);
+        }
+        else if(arg == "-magic"){
+            enable_magic_mode(true);
+        }
+        else if(arg == "-debug"){
+            enable_app_debugging(true);
+        }
+        else if(arg == "-j"){
+            if((i+1) >= sizeof(args))
+                error("target threads required after option `-j`");
+            else {
+                target := int.parse(args[++i]);
+
+                if(target <= (get_thread_max() * 2)) {
+                    set_thread_max(target);
+                } else {
+                    error("target threads too high: $target > max(${get_thread_max() * 2}) `-j`");
+                }
+            }
+        }
+        else if(arg == "-dev"){
+            enable_developer_mode(true);
+        }
+        else if(arg == "-showversion"){
+            print_version();
+            println();
+        }
+        else if(arg == "-target"){
+            if(i+1 >= sizeof(args))
+                error("file version required after option `-target`");
+            else {
+                set_target_platform(args[++i]);
+            }
+        }
+        else if(arg == "-w"){
+            enable_warnings(false);
+        }
+        else if(arg == "-waccess" || arg == "-wambig" || arg == "-wdecl"
+          || arg == "-wmain" || arg == "-wcast" || arg == "-winit"
+          || arg == "-wnull" || arg == "-wdep"){
+            enable_warning_type(arg, false);
+        }
+        else if(arg == "-p"){
+            set_compilation_mode(compilation_mode.project_mode);
+        }
+        else if(arg == "-run"){
+            enable_run_source(true);
+        }
+        else if(arg == "--clean"){
+            enable_clean_build(true);
+        }
+    }
+    return 0;
 }
 
-def main() {
 
-   for(i := 0; i < 1_000_000; i++) {
-        serialize(new SerializeTest());
-   }
-   println("done");
+def help() {
+    println("Usage: sharpc {OPTIONS} SOURCE FILE(S)");                                                     
+    println("Source file must have a .sharp extension to be compiled.\n");                                       
+    println("[-options]\n\n    -V                   print compiler version and exit");                           
+    println(               "    -showversion         print compiler version and continue");                       
+    println(               "    -o<file>             set the output object file");                                
+    println(               "    -c                   compile only and do not generate exe");                      
+    println(               "    -a                   enable aggressive error reporting");                                
+    println(               "    -L<path>             library directory path");                                    
+    println(               "    -j<amount>           specify how many threads to run compiler");                  
+    println(               "    -w                   disable all warnings");                                      
+    println(               "    -g -green            run compiler in \"green\" mode to consume less power");      
+    println(               "    -dbg -debug          enables debugging in source code (enabled by default)");     
+    println(               "    -ignoredir<dir>      include a directory to ignore");                             
+    println(               "    -nativedir -nd <dir> set output native code directory");                          
+    println(               "    -ignore<file>        include a file to ignore");                                  
+    println(               "    -p                   enable project mode compilation");                           
+    println(               "    -obf                 obfuscate user code");                                       
+    println(               "    -P<path>             enable project mode compilation on a specific path");        
+    println(               "    --new-project<name>  create a new sharp project");                                
+    println(               "    -errlmt<count>       set max errors the compiler allows before quitting");        
+    println(               "    -v<version>          set the application version");                               
+    println(               "    -target              target the specified platform of sharp to run on");          
+    println(               "    -release -r          generate a release build exe");                              
+    println(               "    --hw                 display help message for warning options");                  
+    println(               "    --h -?               display this help message");                                 
 }
 
+def help_warning() {
+    println( "Usage: sharpc {OPTIONS} SOURCE FILE(S)");
+    println( "Source file must have a .sharp extion to be compiled.\n");
+    println( "Please note that not all warnings will be able to be disabled individually.\n");
+    println( "[-options]\n\n    -w                disable all warnings"                                     );
+    println(               "    -winit            disable class initialization warnings"                    );
+    println(               "    -waccess          disable access modifier warnings (public, static, etc.)"  );
+    println(               "    -wambig           disable ambiguous symbol warnings"                        );
+    println(               "    -wdecl            disable object declaration warnings"                      );
+    println(               "    -wmain            disable multiple main method warnings"                    );
+    println(               "    -wcast            disable type cast warnings"                               );
+    println(               "    -wnull            disable null type warnings"                               );
+    println(               "    -wdep             disable dependency injection warnings"                    );
+    println(               "    -werror           enable warnings as errors"                                );
+    println(               "    --hw               display this help message"                               );
+}
+
+local def error(message: string) {
+    println("$program_name:  error: $message");
+    exit();
+}
+
+local def warning(message: string) {
+    println("$program_name:  warning: $message");
+}
+
+def print_version() {
+    print("$program_name $program_vers");
+}
+
+def is_number(str: string) : bool {
+    foreach(c in str) {
+        if(!char.is_digit(c))
+            return false;
+    }
+    return true;
+}

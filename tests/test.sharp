@@ -1,34 +1,36 @@
 mod main;
 
-foo : var = 9;
+import (
+    std.export
+)
 
-def ll(k: _int8) := 9;
+class Foo {
+    username : string;
+    password : string;
+    params : hash_map<string, _object_>;
 
-import std.*;
-import platform;
-import platform.kernel;
-
-def main() {
-   // fep(9);
-    pi : var = 1;
-    x : var = 1;
-
-    for (i : var = 2; i < 10000000 + 2; i++) {
-        x *= -1;
-        pi += (x / (2 * i - 1));
+    init {
+        username = new string("dan");
+        password = new string("123456789");
+        params = new hash_map<string, _object_>();
+        for(i := 0; i< 20; i++) {
+            params.put(i.to_string()!!, new string("a"));
+        }
     }
-
-    pi *= 4;
-    println(pi);
 }
 
-def factorCount(n: var) : var {
-    square: var = sqrt(n);
-    isquare: var = square as _int64;
-    count: var = isquare == square ? -1 : 0;
-    while(isquare) {
-        if(0 == n % isquare) count += 2;
-        isquare--;
+def main() {
+
+    //Before changed
+    // 59817ms, 59211ms, 60143ms, 59672ms, 59672ms
+    // After Change
+    // 
+
+    f := new Foo();
+    for (i : var = 0; i < 1_0_00; i++) {
+        if((i % 100) == 0) println(i);
+        deserialize(serialize(f));
     }
-    return count;
+
+    println("serialization done");
 }

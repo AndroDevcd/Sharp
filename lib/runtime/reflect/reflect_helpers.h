@@ -15,6 +15,7 @@ object* resolve_field(string name, sharp_object* o);
 sharp_class* locate_class(const char *);
 sharp_function* locate_function(const char *);
 sharp_class* locate_class_simple(const char *name);
+sharp_class* locate_class_hashed(uint32_t hash);
 
 
 // Member assignment

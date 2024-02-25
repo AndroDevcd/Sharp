@@ -14,6 +14,7 @@ struct sharp_function;
 struct sharp_class {
     int32_t address;
     int32_t guid;
+    uint32_t hash;
     string name;
     string fullName;
     sharp_class *owner;
@@ -31,5 +32,6 @@ struct sharp_class {
 
 CXX11_INLINE void init_struct(sharp_class *sc);
 bool are_classes_related(sharp_class*, sharp_class*);
+uint32_t get_hash(string &name);
 
 #endif //SHARP_SHARP_CLASS_H

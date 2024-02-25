@@ -53,7 +53,7 @@ int initialize_virtual_machine()
     vm.exception_class = locate_class("std#exception");
     vm.error_class = locate_class("std#error");
     vm.char_array_class = locate_class("std#char_array");
-    vm.fiber_class = locate_class("std.io.fiber#fiber"); // todo: check if any of these classes are null
+    vm.fiber_class = locate_class("std.io.fiber#fiber");
     cout.precision(16);
 
     copy_object(&vm.memoryExcept, create_object(vm.out_of_memory_except));

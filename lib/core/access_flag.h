@@ -16,7 +16,6 @@ enum access_flag {
 
     flag_override = (flag_public << 3),
 
-    // todo: add errors for non-nullable fields not being assigned
     flag_excuse = (flag_public << 4), // this flag excuses a non-nullable fields not being initialized
 
     flag_local = (flag_public << 5),

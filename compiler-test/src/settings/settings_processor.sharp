@@ -1,0 +1,86 @@
+mod settings;
+
+import ( main )
+
+def enable_show_all_errors(enable: bool) {
+    options.show_all_errors = enable;
+}
+
+def enable_compile_only(enable: bool) {
+    options.compile_only = enable;
+}
+
+def set_output_file(out: string) {
+    options.output_file = out;
+}
+
+def add_library_path(path : string) {
+    options.libraries.add(path);
+}
+
+def enable_app_debugging(enable: bool) {
+    options.debug = enable;
+}
+
+def enable_magic_mode(enable: bool) {
+    options.magic = enable;
+}
+
+def set_target_threads(target: int) {
+    options.target_threads = target;
+}
+
+def enable_developer_mode(enable: bool) {
+    options.developer = enable;
+}
+
+def enable_warnings(enable: bool) {
+    options.warnings = enable;
+}
+
+def set_compilation_mode(mode: compilation_mode) {
+    options.mode = mode;
+}
+
+def enable_run_source(enable: bool) {
+    options.run = enable;
+}
+
+def enable_warning_type(wtype : string, enable: var) {
+   when(wtype) {
+      "-waccess" -> warning_options[__w_access] = enable;
+      "-wambig" -> warning_options[__w_ambig] = enable;
+      "-wdecl" -> warning_options[__w_decl] = enable;
+      "-wmain" -> warning_options[__w_main] = enable;
+      "-wcast" -> warning_options[__w_cast] = enable;
+      "-winit" -> warning_options[__w_init] = enable;
+      "-wdep" -> warning_options[__w_dep] = enable;
+      "-wnull" -> warning_options[__w_null] = enable;
+      else -> error("invalid warning type: $wtype");
+   }
+}
+
+def set_target_platform(target: string) {
+    if(is_number(target)) {
+       options.target = int.parse(target);
+       check_target();
+   } else {
+       if(target.to_lower() == "alpha-cr4") {
+           options.target = alpha_cr4.ordinal;
+       }
+       else {
+           error("unknown platform target $target");
+       }
+   }
+}
+
+def check_target() {
+    when(options.target) {
+        alpha_cr4.ordinal -> {
+            return;
+        }
+        else -> {
+            error("invalid platform target `${options.target}`");
+        }
+    }
+}

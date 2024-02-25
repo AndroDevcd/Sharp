@@ -11,6 +11,7 @@ private short_term_threads := new atomic<int>(0);
 private long_term_threads := new atomic<int>(0);
 private max_threads : var = 0;
 private scheduler : thread?;
+private task_thread_lock := false;
 
 private const FIBER_THRESHOLD_TRIGGER  : var = 4; // create a new thread after 15 fibers
 
@@ -47,7 +48,7 @@ private def calculate_max_threads() {
 
 def set_thread_max(max: int) {
     lock(launcher) {
-        if(scheduler != null) {
+        if(task_thread_lock) {
             throw new ill_arg_except("cannot modify max thread count after task library has started, " +
              "try calling this before your first task");
         }
@@ -238,6 +239,7 @@ private def kill_threads() {
 }
 
 protected def execute_synchronous(scheduled_job : job) {
+    task_thread_lock := true;
 	if(scheduled_job.delay_time != 0) {
 		future := scheduled_job.delay_time - time.mills_time();
 	}
@@ -246,6 +248,7 @@ protected def execute_synchronous(scheduled_job : job) {
 }
 
 protected def execute_job(scheduled_job : job) : bool {
+    task_thread_lock := true;
     fib_host := scheduled_job.host == null ? get_host(scheduled_job.long_term)
            	    : scheduled_job.host;
 

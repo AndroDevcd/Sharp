@@ -123,7 +123,7 @@ void set_target_platform(string target) {
         options.target = stoi(target, nullptr, 0);
         check_target();
     } else {
-        if(toLower(target) == "alpha-cr2") {
+        if(toLower(target) == "alpha-cr4") {
             options.target = alpha_cr4;
         }
         else {

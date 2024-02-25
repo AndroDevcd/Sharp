@@ -21,6 +21,7 @@ CXX11_INLINE void init_struct(sharp_class *sc) {
     sc->totalFieldCount = 0;
     sc->methodCount = 0;
     sc->interfaceCount = 0;
+    sc->hash = 0;
 }
 
 bool are_classes_related(sharp_class *base, sharp_class *reference) {
@@ -36,4 +37,9 @@ bool are_classes_related(sharp_class *base, sharp_class *reference) {
     }
 
     return base->base != NULL && are_classes_related(base->base, reference);
+}
+
+thread_local std::hash<std::string> hasher;
+uint32_t get_hash(string &name) {
+    return hasher(name);
 }

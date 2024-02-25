@@ -753,6 +753,7 @@ void suspend_and_wait(sharp_thread* thread, bool sendSignal) {
     const int sMaxSpinCount = 25; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
 
     int retryCount = 0;
+    int spins = 0;
 
     if(sendSignal) send_suspend_signal(thread);
     while (thread->state == THREAD_RUNNING && !thread->suspended)
@@ -765,7 +766,8 @@ void suspend_and_wait(sharp_thread* thread, bool sendSignal) {
                 return;
             else if(thread->state == THREAD_SCHED) {
                 send_notification(&thread->queueNotification);
-            }
+            } else if(++spins > sMaxSpinCount) 
+                return;
 
 #ifdef WIN32_
             Sleep(1);

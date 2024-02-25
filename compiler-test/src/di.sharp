@@ -1,6 +1,0 @@
-mod main;
-
-component {
-    single { new account_manager() }
-    single { new user_manager() }
-}

@@ -1,0 +1,16 @@
+mod settings;
+
+enum platforms {
+    /**
+     * Aug 10, 2021 Build release of Sharp 0.3.0
+     *
+     * Alpha Compiler Revision 4
+     * This version offers:
+     * - Greater stability in the task scheduling system
+     * - Newly revised compiler that includes:
+     *      - Faster compile times
+     *      - Better code generation system
+     *      - Supports compiled projects for the language
+     */
+    alpha_cr4 = 3
+}

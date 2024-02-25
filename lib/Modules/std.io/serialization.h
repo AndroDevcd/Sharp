@@ -7,56 +7,101 @@
 
 #include "../../runtime/memory/sharp_object.h"
 
-#define BUFFER_ALLOC_CHUNK_SIZE_STANDARD (128 * 128)
-#define BUFFER_ALLOC_CHUNK_SIZE_LARGE (512 * 512)
+#define BUFFER_ALLOC_CHUNK_SIZE_STANDARD KB_TO_BYTES(24)
+#define BUFFER_ALLOC_CHUNK_SIZE_LARGE MB_TO_BYTES(2)
 #define SERIALIZE_START (0x3b)
 #define SERIALIZE_END (0x3d)
-#define BEGIN_OBJECT (0x3a)
-#define CLASS_NAME_BEGIN (0x1a)
-#define CLASS_NAME_END (0xb)
 #define REFERENCE_OBJECT (0xf)
 #define DATA_BEGIN (0xe)
 #define DATA_END (0x2e)
-#define ITEM_START (0x002)
-#define ITEM_END (0x1c)
+#define CLASS_SECTION_BEGIN (0x002)
+#define CLASS_SECTION_END (0x1c)
 #define NULL_OBJECT (0x008)
-#define OBJECT_ID_START (0x7F)
+#define OBJECT_ID_START (0x0)
+#define STANDARD_OBJECT (0x009)
+#define NUMERIC_OBJECT (0x3a)
+#define CLASS_OBJECT (0x1a)
 
-#define push_data(data) \
-    if((bufferPos + 1) >= bufferSize) { \
-        alloc_buffer(); \
-    } \
-    serializeBuffer[++bufferPos] = (data);
+struct serialize_buffer_t
+{
+    char *buf = nullptr;
+    uint32_t size = 0;
+    uint32_t pos = -1;
+};
 
-#define push_int32(data) \
-    if((bufferPos + 4) >= bufferSize) { \
-        alloc_buffer(); \
+struct deserialize_buffer_t
+{
+    long double *buf = nullptr;
+    uint32_t size = 0;
+    uint32_t pos = -1;
+    sharp_object **references = nullptr;
+};
+
+struct serialized_classes_t
+{
+    sharp_class **serialized = nullptr;
+    uint32_t size = 0;
+    uint32_t count = 0;
+};
+
+#define buffer_size(buf) \
+buf.pos + 1
+
+#define push_data(bufer, data) \
+     if(((bufer.pos) + 1) >= (bufer.size)) { \
+        alloc_buffer(bufer); \
     } \
-    serializeBuffer[++bufferPos] = GET_i32w(data); \
-    serializeBuffer[++bufferPos] = GET_i32x(data); \
-    serializeBuffer[++bufferPos] = GET_i32y(data); \
-    serializeBuffer[++bufferPos] = GET_i32z(data);
+    (bufer.buf)[++bufer.pos] = (data); 
+
+#define push_int32(buffer, data) \
+    if(((buffer.pos) + 4) >= (buffer.size)) { \
+        alloc_buffer(buffer); \
+    } \
+    (buffer.buf)[++(buffer.pos)] = GET_i32w(data); \
+    (buffer.buf)[++(buffer.pos)] = GET_i32x(data); \
+    (buffer.buf)[++(buffer.pos)] = GET_i32y(data); \
+    (buffer.buf)[++(buffer.pos)] = GET_i32z(data);
+
+#define push_double(buffer, data) \
+    std::memcpy(doubleBytes, &data, sizeof(long double)); \
+    for(int jj = 0; jj < sizeof(long double); jj++) { \
+        push_data(buffer, doubleBytes[jj]) \
+    }
 
 #define formatted_buffer(pos) \
-    ((char) deserializeBuffer[(pos)])
+    ((uint8_t) dBuffer.buf[(pos)])
 
 #define expect_data(data) \
-    if((bufferPos + 1) >= bufferSize) { \
+    if((dBuffer.pos + 1) >= dBuffer.size) { \
         throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } else if(formatted_buffer(++bufferPos) != data) { \
+    } else if(formatted_buffer(++dBuffer.pos) != data) { \
         throw vm_exception("unexpected data found in deserialization buffer");\
     }
 
+#define overflow_check \
+    if((dBuffer.pos + 1) >= dBuffer.size) { \
+        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
+    }
+
 #define read_int32(out) \
-    if((bufferPos + 4) >= bufferSize) { \
+    if((dBuffer.pos + 4) >= dBuffer.size) { \
         throw vm_exception("invalid format: unexpected end of deserialization buffer");\
     } \
-    (out) = SET_i32(formatted_buffer(bufferPos+1), formatted_buffer(bufferPos+2), \
-                formatted_buffer(bufferPos+3), formatted_buffer(bufferPos+4)); \
-    bufferPos += 4;
+    (out) = SET_i32(formatted_buffer(dBuffer.pos+1), formatted_buffer(dBuffer.pos+2), \
+                formatted_buffer(dBuffer.pos+3), formatted_buffer(dBuffer.pos+4)); \
+    dBuffer.pos += 4;
 
 #define read_data \
-    formatted_buffer(++bufferPos)
+    formatted_buffer(++dBuffer.pos)
+
+#define read_double(out) \
+    if((dBuffer.pos + sizeof(long double)) >= dBuffer.size) { \
+        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
+    } \
+    for(int jj = 0; jj < sizeof(long double); jj++) { \
+        doubleBytes[jj] = read_data; \
+    } \
+    std::memcpy(&(out), doubleBytes, sizeof(long double));
 
 void serialize(object *from, object *to);
 void deserialize(object *from, object *to);

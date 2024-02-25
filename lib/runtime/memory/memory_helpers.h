@@ -26,6 +26,21 @@ T* malloc_mem(uInt bytes, bool unsafe = true)
 }
 
 template<class T>
+T* calloc_mem(uInt n, uInt size, bool unsafe = true)
+{
+    T* ptr =nullptr;
+    reserve_bytes(n*size, unsafe);
+
+    ptr=(T*)calloc(n, size);
+    if(ptr == nullptr) {
+        release_bytes(n*size);
+        throw vm_exception(vm.out_of_memory_except, "out of memory");
+    }
+
+    return ptr;
+}
+
+template<class T>
 T* malloc_struct(uInt bytes, uInt size, bool unsafe = true) {
     T* data = malloc_mem<T>(bytes * size, unsafe);
 

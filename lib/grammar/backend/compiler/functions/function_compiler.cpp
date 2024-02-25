@@ -30,7 +30,7 @@ void check_main_method_signature(sharp_function *function) {
             params.add(new sharp_field (args, function->owner, location, stringType, flags, normal_field, function->ast));
 
             if(function_parameters_match(function->parameters, params, false, exclude_all)) {
-                if(function->returnType == type_var) { // fn main(string[]) : var;
+                if(function->returnType == type_class && function->returnType._class->fullName == "std#int") { // fn main(string[]) : int;
                     if(user_main_method == NULL) {
                         user_main_method = function;
                         main_method_sig = 0;
@@ -61,7 +61,7 @@ void check_main_method_signature(sharp_function *function) {
                         create_new_error(GENERIC, function->ast, "main method with the same or different signature already exists");
                         print_impl_location(function->name, "function", function->implLocation);
                     }
-                } else if(function->returnType == type_var) { // fn main() : var;
+                } else if(function->returnType == type_class && function->returnType._class->fullName == "std#int") { // fn main() : int;
                     if(user_main_method == NULL) {
                         user_main_method = function;
                         main_method_sig = 3;

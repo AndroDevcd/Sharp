@@ -1,5 +1,7 @@
 mod std;
 
+import ( std.math )
+
 /**
 * Created by bknun on 9/5/2022
 *
@@ -30,7 +32,7 @@ class hash_map<k base _object_, v base _object_> {
     }
 
     private def hash(key: k) : int {
-        return key.hash() % sizeof(data);
+        return abs(key.hash() % sizeof(data));
     }
 
     private def resize() {
@@ -136,7 +138,7 @@ class hash_map<k base _object_, v base _object_> {
         }
 
         public def to_string() : string {
-            return "key " + key + " value " + value;
+            return "key " + key + " value " + value?.to_string();
         }
     }
 }

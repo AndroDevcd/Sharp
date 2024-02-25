@@ -88,6 +88,7 @@ void process_symbols(KeyPair<int, string> &result) {
             sc->guid = next_int32();
             next_string(sc->name);
             next_string(sc->fullName);
+            sc->hash = get_hash(sc->fullName);
             sc->staticFields = next_int32();
             sc->instanceFields = next_int32();
             sc->totalFieldCount = sc->staticFields + sc->instanceFields;

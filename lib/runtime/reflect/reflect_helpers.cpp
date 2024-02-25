@@ -64,6 +64,16 @@ sharp_class* locate_class_simple(const char *name) {
     return nullptr;
 }
 
+sharp_class* locate_class_hashed(uint32_t hash) {
+    for(uInt i = 0; i < vm.mf.classes; i++) {
+        if(vm.classes[i].hash == hash) {
+            return &vm.classes[i];
+        }
+    }
+
+    return nullptr;
+}
+
 void assign_numeric_field(sharp_object* o, uInt index, double value) {
     o->HEAD[index] = value;
 }

@@ -14,6 +14,7 @@
 
 garbage_collector gc;
 recursive_mutex gc_lock;
+std::atomic<bool> collectionFlag(false);
 
 void reserve_bytes(size_t bytes, bool unsafe = false) {
 
@@ -130,7 +131,7 @@ void mark_memory(sharp_object *heap) {
 
     while(heap != nullptr)
     {
-        CHECK_STATE
+        if(thread_self->signal || thread_self->state != THREAD_RUNNING) return;
 
         if(GENERATION(heap->info) <= gc_old) {
             if(heap->refCount == 0) {
@@ -202,7 +203,7 @@ void sweep_memory(sharp_object *heap) {
 
     while(heap != nullptr)
     {
-        CHECK_STATE
+        if(thread_self->signal || thread_self->state != THREAD_RUNNING) return;
 
         if(MARKED(heap->info) && GENERATION(heap->info) != gc_perm) {
             if(heap->refCount > 0) {
@@ -278,6 +279,11 @@ void update_threshold() {
 }
 
 void gc_collect(collection_policy policy) {
+    if(!collectionFlag) {
+        
+    }
+
+    collectionFlag = true;
     if(collection_allowed())
     {
         switch(policy) {
@@ -330,7 +336,7 @@ void wake_gc() {
 
     if(gc.state == SLEEPING && gcThread) {
         gc.state = RUNNING;
-        suspend_and_wait(gcThread, true);
+        unsuspend_and_wait(gcThread, true);
     }
 }
 
