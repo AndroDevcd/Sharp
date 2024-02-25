@@ -2,14 +2,11 @@
 #include "stdimports.h"
 #include "lib/util/time.h"
 
-Sharp versions;
 #ifdef MAKE_COMPILER
     #include "lib/grammar/main.h"
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/main.h"
-#include "lib/runtime/VirtualMachine.h"
-
 #endif
 
 int main(int argc, const char* argv[]) {
@@ -20,15 +17,13 @@ int main(int argc, const char* argv[]) {
     _bootstrap( argc, argv );
 #endif
 #ifndef MAKE_COMPILER
-    result = runtimeStart( argc, argv );
+    result = str_start( argc, argv );
 #endif
 
     now= Clock::realTimeInNSecs();
-    if(c_options.debugMode)
-        cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
-             << NANO_TOMILL(now-past) << "ms\n";
 
-    if(c_options.debugMode)
-        cout << endl << "program exiting..." << endl;
+    cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
+             << NANO_TOMILL(now-past) << "ms\n";
+    cout << endl << "program exiting..." << endl;
     return result;
 }

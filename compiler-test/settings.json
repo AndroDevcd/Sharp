@@ -1,0 +1,12 @@
+{
+  "name": "compiler-test",
+  "version": "1.0",
+  "output": "compiler-test",
+  "optimize_level": "2",
+  "ignore_folders": [
+     "build"
+  ],
+  "extern_lib": [
+     "..\\lib\\support\\0.3.0"
+  ]
+}

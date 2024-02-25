@@ -1,10 +1,12 @@
 mod cache;
 
-import std.io;
-import std.io.fiber;
-import std.export;
-import main;
-import frontend.parser;
+import (
+    std.io,
+    std.io.fiber,
+    std.export,
+    main,
+    frontend.parser
+)
 
 ufid := new atomic<var>(0);
 file_info : cache_info;

@@ -5,40 +5,34 @@
 #ifndef SHARP_FILEIO_H
 #define SHARP_FILEIO_H
 
-#include "../../runtime/symbols/string.h"
-#include "../../runtime/List.h"
+#include "../../../stdimports.h"
 
-native_string resolve_path(native_string& path);
+int check_access(string& path, int access_flag);
 
+uInt get_file_attrs(string& path);
 
-int check_access(native_string& path, int access_flag);
+Int last_update(string& path, int tm_request);
 
-uInt get_file_attrs(native_string& path);
+Int file_size(string &path);
 
-Int last_update(native_string& path, int tm_request);
+void create_file(string &path);
 
-Int file_size(native_string &path);
+long delete_file(string &path);
 
-void create_file(native_string &path);
+void get_file_list(string &path, std::list<string> &list);
 
-long delete_file(native_string &path);
+long delete_dir(string &path);
 
-void get_file_list(native_string &path, _List<native_string> &list);
+long rename_file(string &path, string &newName);
 
-long make_dir(native_string &path);
+time_t update_time(string &path, time_t time);
 
-long delete_dir(native_string &path);
-
-long rename_file(native_string &path, native_string &newName);
-
-time_t update_time(native_string &path, time_t time);
-
-int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly);
+int __chmod(string &path, mode_t set_mode, bool enable, bool userOnly);
 
 long long disk_space(long request);
 
-void current_directory(native_string &path);
+void current_directory(string &path);
 
-void read_file(native_string &path, native_string &outStr);
+void read_file(string &path, string &outStr);
 
 #endif //SHARP_FILEIO_H

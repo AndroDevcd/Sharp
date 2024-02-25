@@ -7,6 +7,7 @@
 #include "../../util/KeyPair.h"
 #include "parser/Ast.h"
 #include "parser/Parser.h"
+#include "../settings/settings.h"
 
 void initalizeErrors()
 {
@@ -33,7 +34,7 @@ void initalizeErrors()
     err.set(ILLEGAL_CHAR_LITERAL_FORMAT, "illegal character literal format");
     predefinedErrors.push_back(err);
 
-    err.set(GENERIC, "");
+    err.set(GENERIC, "\b");
     predefinedErrors.push_back(err);
 
     err.set(ILLEGAL_ACCESS_DECLARATION, "illegal specification of access specifier(s)");
@@ -51,7 +52,7 @@ void initalizeErrors()
     err.set(MULTIPLE_DEFINITION, "multiple definition of");
     predefinedErrors.push_back(err);
 
-    err.set(PREVIOUSLY_DEFINED, "");
+    err.set(PREVIOUSLY_DEFINED, "\b");
     predefinedErrors.push_back(err);
 
     err.set(DUPLICATE_CLASS, "duplicate class:");
@@ -60,7 +61,7 @@ void initalizeErrors()
     err.set(REDUNDANT_TOKEN, "redundant token");
     predefinedErrors.push_back(err);
 
-    err.set(INTERNAL_ERROR, "internal runtime error");
+    err.set(INTERNAL_ERROR, "internal runtime_old error");
     predefinedErrors.push_back(err);
 
     err.set(COULD_NOT_RESOLVE, "could not resolve symbol");
@@ -84,7 +85,7 @@ void initalizeErrors()
     err.set(INVALID_ACCESS, "invalid access of");
     predefinedErrors.push_back(err);
 
-    err.set(SYMBOL_ALREADY_DEFINED, "");
+    err.set(SYMBOL_ALREADY_DEFINED, "\b");
     predefinedErrors.push_back(err);
 
     err.set(INVALID_PARAM, "invalid param of type");
@@ -95,9 +96,23 @@ void initalizeErrors()
 
     err.set(DUPlICATE_DECLIRATION, "duplicate declaration of");
     predefinedErrors.push_back(err);
+
+    err.set(NULLABILITY_MISMATCH, "nullability mismatch");
+    predefinedErrors.push_back(err);
+}
+
+bool panicCheck() {
+    if(panic) return true;
+
+    options.max_errors--;
+    if(options.max_errors <= 0) { panic = true; }
+    return panic;
 }
 
 void ErrorManager::printError(ParseError &err) {
+    if(panicCheck()) return;
+    GUARD(globalLock)
+
     if(err.warning)
         cout << filename << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
              << endl;
@@ -117,6 +132,8 @@ string ErrorManager::getErrors(list<ParseError>* errors)
     stringstream errorlist;
     for(const ParseError &err : *errors)
     {
+        if(panicCheck()) return errorlist.str();
+
         if(err.warning)
             errorlist << filename << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
                       << endl;
@@ -136,6 +153,8 @@ string ErrorManager::getErrors(list<ParseError>* errors)
 }
 
 void ErrorManager::printErrors() {
+    GUARD(globalLock)
+
     if(!asis) {
         if(_err) {
             if(aggressive || (errors->size() == 0 && unfilteredErrors->size() > 0)) // print aggressive errors
@@ -154,12 +173,12 @@ int ErrorManager::createNewError(error_type err, Token token, string xcmts) {
 
     if(shouldReport(&token, lastError, e) || (aggressive && asis))
     {
-        if(asis) {
-            printError(e);
-        } else if(protectedMode) {
+        if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
             return 1;
+        } else if(asis) {
+            printError(e);
         }
 
         _err = true;
@@ -210,29 +229,32 @@ bool ErrorManager::shouldReportWarning(Token *token, const ParseError &lastError
     return false;
 }
 
-void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
+Int ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
     KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(kp, l,c, xcmts);
     ParseError last_err = protectedMode ? lastCheckedError : lastError;
 
     if(shouldReport(NULL, last_err, e) || (aggressive && asis))
     {
-        if(asis) {
-            printError(e);
-        } else if(protectedMode) {
+        if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
-            return;
+            return 1;
+        } else if(asis) {
+             printError(e);
         }
 
         _err = true;
         errors->push_back(e);
         unfilteredErrors->push_back(e);
         lastError = e;
+        return 1;
     }
     else if(!protectedMode) {
         unfilteredErrors->push_back(e);
     }
+
+    return 0;
 }
 
 void ErrorManager::createNewWarning(error_type err, int l, int c, string xcmts) {
@@ -298,6 +320,8 @@ void ErrorManager::fail() {
         for(ParseError &err : *getPossibleErrorList())
         {
             if(shouldReport(NULL, lastError, err)) {
+                if(asis) printError(err);
+
                 errors->push_back(err);
                 lastError = err;
                 unfilteredErrors->push_back(err);
@@ -319,49 +343,22 @@ void ErrorManager::pass() {
     removePossibleErrorList();
 }
 
-template<class T>
-void freeList(List<T> &lst)
-{
-    for(unsigned int i = 0; i < lst.size(); i++)
-    {
-        lst.get(i).free();
-    }
-    lst.free();
-}
-
-template<class T>
-void freeListPtr(List<T> &lst)
-{
-    for(unsigned int i = 0; i < lst.size(); i++)
-    {
-        lst.get(i)->free();
-    }
-    lst.free();
-}
-
-template<class T>
-void freeList(list<T> &lst)
-{
-    for(T item : lst)
-    {
-        item.free();
-    }
-    lst.clear();
-}
-
 void ErrorManager::free() {
     this->protectedMode = false;
     this->_err = false;
     this->lastCheckedError.free();
     this->lastError.free();
-    freeList(*errors);
-    freeList(*warnings);
-    freeList(*unfilteredErrors);
-    for(std::list<ParseError>* lst : *possibleErrors) {
-        freeList(*lst);
-        delete (lst);
+    if(errors) freeList(*errors);
+    if(warnings) freeList(*warnings);
+    if(unfilteredErrors) freeList(*unfilteredErrors);
+
+    if(possibleErrors) {
+        for (std::list<ParseError> *lst : *possibleErrors) {
+            freeList(*lst);
+            delete (lst);
+        }
+        possibleErrors->clear();
     }
-    possibleErrors->clear();
     delete (errors); this->errors = NULL;
     delete (warnings); this->warnings = NULL;
     delete (possibleErrors); this->possibleErrors = NULL;
@@ -383,12 +380,12 @@ int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
 
     if(shouldReport(NULL, last_err, e) || (aggressive && asis))
     {
-        if(asis) {
-            printError(e);
-        } else if(protectedMode) {
+        if(protectedMode) {
             getPossibleErrorList()->push_back(e);
             lastCheckedError = e;
             return 1;
+        } else if(asis) {
+            printError(e);
         }
 
         _err = true;

@@ -1,5 +1,5 @@
 //
-// Created by BraxtonN on 2/15/2018.
+// Created by bknun on 9/16/2022.
 //
 
 #ifndef SHARP_MAIN_H
@@ -7,47 +7,20 @@
 
 #include "../../stdimports.h"
 
-int runtimeStart(int argc, const char* argv[]);
+int str_start(int argc, const char* argv[]);
 
 void error(string message);
 
 #define progname "sharp"
-#define rev "r7"
-#define progvers "2.6.5" rev
-
-#ifdef SHARP_PROF_
-enum profilerSort {
-    tm,
-    avgt,
-    calls,
-    ir
-};
-#endif
+#define rev "r9"
+#define progvers "3.0.0" rev
 
 struct options {
-
-    bool debugMode = false;
-
-    /**
-     * JIT Compiler enabled by default to boost Sharp
-     * speeds of 25-50%+ faster than the original 
-     * program speed
-     */
-    bool jit = true;
-
-    /**
-     * Slow boot allows you to not care about the initial startup time
-     * gained by not compiling all the user code. This option will force
-     * the JIT to imediatley compile all functions at startup-time to allow
-     * for faster processing at runtime once completed.
-     */
-    bool slowBoot = false;
-
-#ifdef SHARP_PROF_
-    int sortBy = profilerSort::tm;
-#endif
+    bool debugMode = true;
 };
 
 extern options c_options;
+extern string executable;
+extern std::list<string> exeArgs;
 
 #endif //SHARP_MAIN_H

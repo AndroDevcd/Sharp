@@ -1,29 +1,39 @@
 //
-// Created by BraxtonN on 2/10/2018.
+// Created by bknun on 9/16/2022.
 //
-#include <cstring>
-#include <cstdio>
-#include "../../stdimports.h"
-#include "../util/File.h"
-#include "symbols/string.h"
-#include "List.h"
+
 #include "main.h"
-#include "symbols/Object.h"
-#include "VirtualMachine.h"
-#include "Thread.h"
-#include "Exe.h"
-#include "register.h"
-#include "memory/GarbageCollector.h"
-#include "Manifest.h"
-#include "scheduler.h"
+#include "../core/exe_macros.h"
+#include "memory/garbage_collector.h"
+#include "multitasking/thread/stack_limits.h"
+#include "memory/vm_stack.h"
+#include "../util/File.h"
+#include "vm_initializer.h"
+#include "virtual_machine.h"
+#include "multitasking/scheduler/scheduler.h"
+#include "multitasking/thread/thread_controller.h"
 
 options c_options;
-int startApplication(string &e, std::list<string> &appArgs);
-void pushArgumentsToStack(std::list<string>& appArgs);
-void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *thread);
-uInt getMemBytes(const char *argv, string option);
+string executable;
+std::list<string> exeArgs;
 
-void version() {
+void help() {
+#ifndef SHARP_PROF_
+    std::cerr << "Usage: " << progname << " {OPTIONS} EXECUTABLE" << std::endl;
+#endif
+#ifdef SHARP_PROF_
+    std::cerr << "Usage: " << PROFILER_NAME << "  {OPTIONS} EXECUTABLE" << std::endl;
+#endif
+    cout << "Executable must be built with sharpc to be executed\n" << endl;
+    cout << "[-options]\n\n    -V                     print the version number and exit" << endl;
+    cout <<               "    -showversion           print the version number and continue." << endl;
+    cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
+    cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
+    cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
+    cout <<               "    --h -?                 display this help message." << endl;
+}
+
+void print_version() {
     cout << progname << " " << progvers << " build-" << BUILD_VERS << endl;
 }
 
@@ -32,156 +42,7 @@ void error(string message) {
     exit(1);
 }
 
-void help() {
-#ifndef SHARP_PROF_
-    std::cerr << "Usage: sharp" << " {OPTIONS} EXECUTABLE" << std::endl;
-#endif
-#ifdef SHARP_PROF_
-    std::cerr << "Usage: " << PROFILER_NAME << "  {OPTIONS} EXECUTABLE" << std::endl;
-#endif
-    cout << "Executable must be built with sharpc to be executed\n" << endl;
-    cout << "[-options]\n\n    -V                     print the version number and exit" << endl;
-#ifdef SHARP_PROF_
-    cout <<               "    -sort<id>              sort by time(tm), avg time(avgt), calls(calls), or ir(ir)." << endl;
-#endif
-    cout <<               "    -showversion           print the version number and continue." << endl;
-    cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
-    cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
-    cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
-    cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
-    cout <<               "    -slowboot              compile entire codebase at startup." << endl;
-    cout <<               "    -h -?                 display this help message." << endl;
-}
-
-#define opt(v) strcmp(argv[i], v) == 0
-bool internalStackUpdated = false;
-
-int runtimeStart(int argc, const char* argv[])
-{
-    if (argc < 2) { // We expect at least 1 argument: the executable
-        help();
-        return 1;
-    }
-
-    string executable;
-    std::list<string> appArgs;
-
-    /**
-     * We start off with allowing 64 megabytes of memory to be under
-     * mangement
-     */
-    GarbageCollector::initilize();
-    GarbageCollector::setMemoryLimit(GC_HEAP_LIMIT);
-    GarbageCollector::setMemoryThreshold(MB_TO_BYTES(128));
-
-    for (int i = 1; i < argc; ++i) {
-        if(opt("-V")){
-            version();
-            exit(0);
-        }
-        else if(opt("-h") || opt("-?")){
-            help();
-            exit(0);
-        }
-        else if(opt("-showversion")){
-            version();
-        }
-        else if(opt("-nojit")){
-            c_options.jit = false;
-        }
-        else if(opt("-slowboot")){
-            c_options.slowBoot = true;
-        }
-        else if(opt("-debug")) {
-            c_options.debugMode = true;
-        }
-#ifdef SHARP_PROF_
-        else if(opt("-sort") || opt("-sortby")) {
-            if((i+1) >= argc)
-                error("expected argument after option `-sort`");
-
-            i++;
-            if(opt("tm")) {
-                c_options.sortBy = profilerSort::tm;
-            } else if(opt("avgt") || opt("avgtm")) {
-                c_options.sortBy = avgt;
-            } else if(opt("calls")) {
-                c_options.sortBy = calls;
-            } else if(opt("ir")) {
-                c_options.sortBy = ir;
-            } else {
-                error("invalid argument after option `-sort`");
-            }
-        }
-#endif
-        else if(opt("-maxlmt") || opt("-mem")){
-            if(i+1 >= argc)
-                error("maximum memory limit required after option `" + string(argv[i]) + "`");
-            else {
-                GarbageCollector::setMemoryLimit(getMemBytes(argv[i+1], argv[i]));
-                GarbageCollector::setMemoryThreshold((Int) (gc.getMemoryLimit() * 0.35));
-                i++;
-            }
-        }
-        else if(opt("-stack")){
-            if(i+1 >= argc)
-                error("maximum stack limit required after option `-stack`");
-            else {
-                size_t sz = getMemBytes(argv[i+1], argv[i]);
-                i++;
-
-                if(Thread::validStackSize(sz)) {
-                    threadStackSize = sz;
-                } else {
-                    stringstream ss;
-                    ss << "default stack size must be greater than " << STACK_MIN << " bytes \n";
-                    error(ss.str());
-                }
-            }
-        }
-        else if(opt("-istack")){
-            if(i+1 >= argc)
-                error("internal stack limit required after option `-istack`");
-            else {
-                internalStackUpdated = true;
-                size_t memoryLimit = getMemBytes(argv[i+1], argv[i]);
-                size_t stackSize = memoryLimit / sizeof(StackElement);
-                i++;
-
-                if(Thread::validInternalStackSize(memoryLimit)) {
-                    internalStackSize = stackSize;
-                } else {
-                    stringstream ss;
-                    ss << "default internal stack size must be at least " << INTERNAL_STACK_MIN << " bytes \n";
-                    error(ss.str());
-                }
-            }
-        }
-        else if(string(argv[i]).at(0) == '-'){
-            error("invalid option `" + string(argv[i]) + "`, try sharp -h");
-        }
-        else {
-            executable = argv[i++];
-            while(i < argc) {
-                appArgs.emplace_back(argv[i++]);
-            }
-            break;
-        }
-    }
-
-    if(executable.empty()){
-        help();
-        return 1;
-    }
-
-    if(!File::exists(executable.c_str())){
-        error("file `" + executable + "` doesnt exist!");
-    }
-
-    return startApplication(executable, appArgs);
-}
-
-uInt getMemBytes(const char *str, string option) {
+uInt mem_str_to_bytes(const char *str, string option) {
     string size = string(str);
     stringstream ss;
     bool parsedDigit = false;
@@ -217,94 +78,143 @@ uInt getMemBytes(const char *str, string option) {
     return 0;
 }
 
-int startApplication(string &exe, std::list<string>& appArgs) {
+int run_app() {
     int result;
-    Thread *main = NULL;
-    try {
-        if ((result = CreateVirtualMachine(exe)) != 0) {
-            fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
-            goto bail;
-        }
-    } catch(Exception &e) {
-        result = OUT_OF_MEMORY;
+    if ((result = initialize_virtual_machine()) != 0) {
         fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
         goto bail;
     }
 
-    if((vm.manifest.threadLocals+1) >= internalStackSize) {
-        unsigned int oldSize = (internalStackSize * sizeof(StackElement)) / KB_TO_BYTES(1);
-        internalStackSize = vm.manifest.threadLocals + (vm.manifest.threadLocals * 0.25);
-        unsigned int updatedBytes = (internalStackSize * sizeof(StackElement)) / KB_TO_BYTES(1);
-        if(internalStackUpdated) {
-            fprintf(stdout, "Internal stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
-                    oldSize, vm.manifest.application.str().c_str(), updatedBytes);
+    if((vm.mf.threadLocals + (sizeof(stack_item) / KB_TO_BYTES(25))) >= virtualStackSize) {
+        unsigned int oldSize = (virtualStackSize * sizeof(stack_item)) / KB_TO_BYTES(1);
+        virtualStackSize = vm.mf.threadLocals + (KB_TO_BYTES(64) / sizeof(stack_item));
+        unsigned int updatedBytes = (virtualStackSize * sizeof(stack_item)) / KB_TO_BYTES(1);
+        fprintf(stdout, "Virtual stack size of: %u Kib was too small for the application \"%s\" updating stack size to %u Kib\n",
+                oldSize, vm.mf.application.c_str(), updatedBytes);
+    }
+
+    start_thread(get_main_thread(), 0);
+    run_scheduler();
+    result = vm.exitVal;
+
+    bail:
+    shutdown();
+    return result;
+}
+
+#define opt(v) strcmp(argv[i], v) == 0
+int  str_start(int argc, const char* argv[]) {
+    if (argc < 2) { // We expect at least 1 argument: the executable
+        help();
+        return 1;
+    }
+
+    set_memory_limit(DEFAULT_HEAP_SIZE);
+    set_memory_threshold(DEFAULT_HEAP_THRESHOLD);
+
+    for (int i = 1; i < argc; ++i) {
+        if(opt("-V")){
+            print_version();
+            exit(0);
+        }
+        else if(opt("-h") || opt("-?")){
+            help();
+            exit(0);
+        }
+        else if(opt("-showversion")){
+            print_version();
+        }
+        else if(opt("-debug")) {
+            c_options.debugMode = true;
+        }
+#ifdef SHARP_PROF_
+            else if(opt("-sort") || opt("-sortby")) {
+            if((i+1) >= argc)
+                error("expected argument after option `-sort`");
+
+            i++;
+            if(opt("tm")) {
+                c_options.sortBy = profilerSort::tm;
+            } else if(opt("avgt") || opt("avgtm")) {
+                c_options.sortBy = avgt;
+            } else if(opt("calls")) {
+                c_options.sortBy = calls;
+            } else if(opt("ir")) {
+                c_options.sortBy = ir;
+            } else {
+                error("invalid argument after option `-sort`");
+            }
+        }
+#endif
+        else if(opt("-maxlmt") || opt("-mem")){
+            if(i+1 >= argc)
+                error("maximum memory limit required after option `" + string(argv[i]) + "`");
+            else {
+                size_t sz = mem_str_to_bytes(argv[i+1], argv[i]);
+                i++;
+
+                if(sz > MEMORY_MIN) {
+                    set_memory_limit(sz);
+                } else {
+                    stringstream ss;
+                    ss << "memory size must be greater than " << MEMORY_MIN << " bytes \n";
+                    error(ss.str());
+                }
+            }
+        }
+        else if(opt("-stack")){
+            if(i+1 >= argc)
+                error("maximum stack limit required after option `-stack`");
+            else {
+                size_t sz = mem_str_to_bytes(argv[i+1], argv[i]);
+                i++;
+
+                if(valid_stack_size(sz)) {
+                    threadStackSize = sz;
+                } else {
+                    stringstream ss;
+                    ss << "default stack size must be greater than " << STACK_MIN << " bytes \n";
+                    error(ss.str());
+                }
+            }
+        }
+        else if(opt("-istack")){
+            if(i+1 >= argc)
+                error("internal stack limit required after option `-istack`");
+            else {
+                size_t memoryLimit = mem_str_to_bytes(argv[i+1], argv[i]);
+                size_t stackSize = memoryLimit / sizeof(stack_item);
+                i++;
+
+                if(valid_internal_stack_size(memoryLimit)) {
+                    virtualStackSize = stackSize;
+                } else {
+                    stringstream ss;
+                    ss << "default internal stack size must be at least " << INTERNAL_STACK_MIN << " bytes \n";
+                    error(ss.str());
+                }
+            }
+        }
+        else if(string(argv[i]).at(0) == '-'){
+            error("invalid option `" + string(argv[i]) + "`, try sharp -h");
+        }
+        else {
+            executable = argv[i++];
+            while(i < argc) {
+                exeArgs.emplace_back(argv[i++]);
+            }
+            break;
         }
     }
 
-    pushArgumentsToStack(appArgs);
-    Thread::start(main_threadid, 0);
-    run_scheduler();
-
-    result=vm.exitVal;
-    return result;
-
-    bail:
-    vm.destroy();
-    return result;
-}
-
-void pushArgumentsToStack(std::list<string>& appArgs) {
-    GUARD(Thread::threadsListMutex)
-    Thread *main = Thread::threads.at(main_threadid);
-    pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs, main);
-}
-
-void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *main) {
-    const short MIN_ARGS = 5;
-    Int size = MIN_ARGS+appArgs.size();
-    Int iter=0;
-
-    stringstream ss;
-    ss << vm.manifest.target;
-    native_string str(ss.str());
-
-    *object = gc.newObjectArray(size);
-
-    gc.createStringArray(&object->object->node[iter++],vm.manifest.application);
-    gc.createStringArray(&object->object->node[iter++],vm.manifest.version);
-    gc.createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
-
-#ifdef WIN32_
-    str.set("win");
-#endif
-#ifdef POSIX_
-    str.set("posix");
-#endif
-    gc.createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
-    SharpObject *mainThread = gc.newObject(vm.ThreadClass);
-    object->object->node[iter++] = mainThread;
-    main->currentThread = mainThread;
-
-    vm.setFieldVar("native_handle", mainThread, 0, 0);
-    vm.setFieldClass("name", mainThread, vm.StringClass);
-
-    Object* field;
-    if((field = vm.resolveField("name", mainThread)) != NULL && field->object) {
-        str.set("main");
-        gc.createStringArray(vm.resolveField("data", field->object), str);
+    if(executable.empty()){
+        help();
+        return 1;
     }
 
-    vm.setFieldVar("started", mainThread, 0, 1);
-    vm.setFieldVar("stack_size", mainThread, 0, threadStackSize);
-
-    /*
-     * Assign program args to be passed to main
-     */
-    for(unsigned int i = 0; i < appArgs.size(); i++) {
-        runtime::String argStr(*std::next(appArgs.begin(), i));
-        gc.createStringArray(&object->object->node[iter++],  argStr);
+    if(!File::exists(executable.c_str())){
+        error("file `" + executable + "` doesnt exist!");
     }
 
-    appArgs.clear();
+    return run_app();
 }
-

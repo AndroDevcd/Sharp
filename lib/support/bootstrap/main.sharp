@@ -1,11 +1,13 @@
 mod main;
 
-import std.io;
-import std.io.*;
-import platform;
-import frontend.*;
-import cache;
-import platform.kernel;
+import (
+    std.io,
+    std.io.*,
+    platform,
+    frontend.*,
+    cache,
+    platform.kernel
+)
 
 private program_name : string = "sharpc";
 private program_vers : string = "0.3.0";
@@ -542,6 +544,7 @@ private static def help_warning() {
     println(               "    -wmain            disable multiple main method warnings"                    );
     println(               "    -wcast            disable type cast warnings"                               );
     println(               "    -wnull            disable null type warnings"                               );
+    println(               "    -wdep             disable dependency injection warnings"                    );
     println(               "    -werror           enable warnings as errors"                                );
     println(               "    --hw               display this help message"                               );
 }

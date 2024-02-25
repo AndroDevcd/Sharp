@@ -17,29 +17,173 @@ else()
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
 
-    set(CMAKE_CXX_FLAGS_DEBUG  "-std=c++11 -Werror -g -lstdc++   ${CMAKE_C_FLAGS_DEBUG}")
+    set(CMAKE_CXX_FLAGS_DEBUG  "-std=c++11 -Werror  -g -lstdc++   ${CMAKE_C_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-std=c++11 -mno-red-zone -Werror -lstdc++ -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
     set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -mno-red-zone -Werror -lstdc++  -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
 #set(SHARPC "build")
+#set(LEGACY "build")
 
 # compiler
 if (SHARPC)
     add_definitions(-DMAKE_COMPILER)
 
+    file(GLOB compiler_SRC
+            "lib/grammar/*.h"
+            "lib/grammar/*.cpp"
+            "lib/grammar/json/*.h"
+            "lib/grammar/json/*.cpp"
+            "lib/grammar/settings/*.h"
+            "lib/grammar/settings/*.cpp"
+            "lib/grammar/frontend/tokenizer/*.h"
+            "lib/grammar/frontend/tokenizer/*.cpp"
+            "lib/grammar/frontend/parser/*.h"
+            "lib/grammar/frontend/parser/*.cpp"
+            "lib/grammar/frontend/*.h"
+            "lib/grammar/frontend/*.cpp"
+            "lib/grammar/taskdelegator/*.h"
+            "lib/grammar/taskdelegator/*.cpp"
+            "lib/grammar/backend/dependency/*.h"
+            "lib/grammar/backend/dependency/*.cpp"
+            "lib/grammar/backend/preprocessor/*.h"
+            "lib/grammar/backend/preprocessor/*.cpp"
+            "lib/grammar/backend/postprocessor/*.h"
+            "lib/grammar/backend/postprocessor/*.cpp"
+            "lib/grammar/backend/astparser/*.h"
+            "lib/grammar/backend/astparser/*.cpp"
+            "lib/grammar/backend/context/*.h"
+            "lib/grammar/backend/context/*.cpp"
+            "lib/grammar/backend/compiler/*.h"
+            "lib/grammar/backend/compiler/*.cpp"
+            "lib/grammar/backend/compiler/expressions/*.h"
+            "lib/grammar/backend/compiler/expressions/*.cpp"
+            "lib/grammar/backend/compiler/expressions/binary/*.h"
+            "lib/grammar/backend/compiler/expressions/binary/*.cpp"
+            "lib/grammar/backend/compiler/expressions/primary/*.h"
+            "lib/grammar/backend/compiler/expressions/primary/*.cpp"
+            "lib/grammar/backend/compiler/expressions/unary/*.h"
+            "lib/grammar/backend/compiler/expressions/unary/*.cpp"
+            "lib/grammar/backend/operation/*.h"
+            "lib/grammar/backend/operation/*.cpp"
+            "lib/grammar/backend/*.h"
+            "lib/grammar/backend/*.cpp"
+            "lib/grammar/backend/types/*.h"
+            "lib/grammar/backend/types/*.cpp"
+            "lib/grammar/backend/compiler/di/*.h"
+            "lib/grammar/backend/compiler/di/*.cpp"
+            "lib/grammar/backend/compiler/functions/*.h"
+            "lib/grammar/backend/compiler/functions/*.cpp"
+            "lib/grammar/backend/compiler/functions/statements/*.h"
+            "lib/grammar/backend/compiler/functions/statements/*.cpp"
+            "lib/grammar/backend/finalizer/*.h"
+            "lib/grammar/backend/finalizer/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/*.h"
+            "lib/grammar/backend/finalizer/optimization/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/codemotion/*.h"
+            "lib/grammar/backend/finalizer/optimization/codemotion/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/analyzer/*.h"
+            "lib/grammar/backend/finalizer/optimization/analyzer/*.cpp"
+            "lib/grammar/backend/finalizer/optimization/processor/*.h"
+            "lib/grammar/backend/finalizer/optimization/processor/*.cpp"
+            "lib/grammar/backend/finalizer/generation/*.h"
+            "lib/grammar/backend/finalizer/generation/*.cpp"
+            "lib/grammar/backend/finalizer/generation/code/*.h"
+            "lib/grammar/backend/finalizer/generation/code/*.cpp"
+            "lib/grammar/backend/finalizer/generation/obfuscation/*.h"
+            "lib/grammar/backend/finalizer/generation/obfuscation/*.cpp"
+            "lib/grammar/backend/finalizer/generation/code/scheme/*.h"
+            "lib/grammar/backend/finalizer/generation/code/scheme/*.cpp"
+            "lib/util/*.cpp"
+            "lib/util/zip/*.cpp"
+            "lib/core/*.cpp"
+            "lib/core/*.h"
+            "lib/core/opcode/*.cpp"
+            "lib/core/opcode/*.h"
+    )
 
-    set(SOURCE_FILES main.cpp stdimports.h lib/grammar/List.h lib/grammar/backend/data/Literal.cpp lib/grammar/backend/data/Literal.h lib/grammar/backend/Expression.h lib/grammar/backend/Expression.cpp lib/grammar/backend/code/CodeHolder.h lib/grammar/backend/data/Utype.h lib/grammar/backend/data/Utype.cpp lib/grammar/backend/ReferencePointer.h lib/grammar/backend/ReferencePointer.cpp lib/grammar/backend/Scope.h lib/grammar/main.cpp lib/grammar/main.h lib/grammar/options.h lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/grammar/backend/data/DataEntity.h lib/grammar/backend/data/DataEntity.cpp lib/grammar/DataType.h lib/grammar/AccessFlag.h lib/util/zip/zlib.cpp lib/util/zip/zlib.h lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h lib/grammar/frontend/tokenizer/token.h lib/grammar/frontend/tokenizer/token.cpp lib/grammar/frontend/tokenizer/tokenizer.h lib/grammar/frontend/tokenizer/tokentype.h lib/grammar/frontend/tokenizer/tokenizer.cpp lib/grammar/frontend/ErrorManager.h lib/grammar/frontend/ErrorManager.cpp lib/grammar/frontend/parser/Ast.cpp lib/grammar/frontend/parser/Ast.h lib/grammar/frontend/parser/Parser.cpp lib/runtime/Opcode.h lib/runtime/Opcode.cpp lib/grammar/frontend/parser/Parser.h lib/grammar/backend/Compiler.cpp lib/grammar/backend/Compiler.h lib/grammar/backend/oo/Field.cpp lib/grammar/backend/oo/Field.h lib/grammar/backend/oo/Method.h lib/grammar/backend/oo/Method.cpp lib/grammar/backend/oo/ClassObject.h lib/grammar/backend/oo/ClassObject.cpp lib/grammar/backend/data/Alias.cpp lib/grammar/backend/data/Alias.h lib/runtime/InterruptFlag.h lib/grammar/main.cpp lib/grammar/main.h lib/runtime/ThreadStates.h lib/grammar/backend/Compiler2.cpp lib/grammar/backend/ofuscation/Obfuscater.cpp lib/grammar/backend/ofuscation/Obfuscater.h lib/grammar/generator/ExeBuilder.cpp lib/grammar/generator/ExeBuilder.h lib/grammar/optimizer/Optimizer.cpp lib/grammar/optimizer/Optimizer.h)
+
+
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
 
     add_executable(Sharpc ${SOURCE_FILES})
+elseif(LEGACY)
+    add_definitions(-DMAKE_COMPILER)
+
+    file(GLOB compiler_SRC
+            "lib/old_grammar/*.h"
+            "lib/old_grammar/*.cpp"
+            "lib/old_grammar/optimizer/*.h"
+            "lib/old_grammar/optimizer/*.cpp"
+            "lib/old_grammar/generator/*.h"
+            "lib/old_grammar/generator/*.cpp"
+            "lib/old_grammar/frontend/tokenizer/*.h"
+            "lib/old_grammar/frontend/tokenizer/*.cpp"
+            "lib/old_grammar/frontend/parser/*.h"
+            "lib/old_grammar/frontend/parser/*.cpp"
+            "lib/old_grammar/frontend/*.h"
+            "lib/old_grammar/frontend/*.cpp"
+            "lib/old_grammar/backend/*.h"
+            "lib/old_grammar/backend/*.cpp"
+            "lib/old_grammar/backend/oo/*.h"
+            "lib/old_grammar/backend/oo/*.cpp"
+            "lib/old_grammar/backend/ofuscation/*.h"
+            "lib/old_grammar/backend/ofuscation/*.cpp"
+            "lib/old_grammar/backend/data/*.h"
+            "lib/old_grammar/backend/data/*.cpp"
+            "lib/old_grammar/backend/code/*.h"
+            "lib/util/*.cpp"
+            "lib/util/*.h"
+            "lib/util/zip/*.cpp"
+            "lib/util/zip/*.h"
+            "lib/core/*.cpp"
+            "lib/core/*.h"
+            "lib/core/opcode/*.cpp"
+            "lib/core/opcode/*.h"
+            )
+
+
+    set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
+
+    add_executable(LegacySharpc ${SOURCE_FILES})
 else()
     #virtual machine
     add_definitions(-DDEBUGGING)
 
-    #            "lib/runtime/jit.cpp.old"
-    #            "lib/runtime/jit.h.old"
-    set(SOURCE_FILES main.cpp lib/runtime/scheduler.cpp lib/runtime/main.cpp lib/runtime/architecture.h lib/runtime/symbols/string.h lib/runtime/List.h lib/runtime/memory/GarbageCollector.cpp lib/runtime/memory/GarbageCollector.h lib/runtime/symbols/Object.h lib/runtime/symbols/Exception.cpp lib/runtime/symbols/Exception.h lib/runtime/symbols/Field.h lib/runtime/symbols/ClassObject.cpp lib/runtime/symbols/ClassObject.h lib/runtime/register.h lib/runtime/fiber.h lib/runtime/fiber.cpp lib/runtime/symbols/Method.h lib/util/fmt/include/core.h lib/util/fmt/include/format.h lib/util/fmt/include/format-inl.h lib/util/fmt/include/ostream.h lib/util/fmt/include/posix.h lib/util/fmt/include/printf.h lib/util/fmt/include/ranges.h lib/util/fmt/include/time.h lib/util/fmt/src/format.cc lib/util/fmt/src/posix.cc lib/runtime/Thread.cpp lib/runtime/Thread.h lib/runtime/symbols/Object.cpp lib/runtime/Manifest.h lib/runtime/Manifest.cpp lib/runtime/Exe.h lib/runtime/Exe.cpp lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/util/zip/zlib.cpp lib/util/zip/zlib.h lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/runtime/VirtualMachine.cpp lib/runtime/VirtualMachine.h lib/runtime/main.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h stdimports.h lib/runtime/Opcode.h lib/Modules/std.io/fileio.cpp lib/Modules/std.io/fileio.h lib/runtime/profiler.h lib/runtime/profiler.cpp lib/runtime/SignalHandler.cpp lib/runtime/termios.cpp lib/runtime/termios.h lib/Modules/math/cmath.cpp lib/Modules/math/cmath.h lib/Modules/std/Random.cpp lib/Modules/std/Random.h lib/Modules/std.os.gui/win/Gui.cpp lib/Modules/std.os.gui/win/Gui.h lib/runtime/Opcode.cpp lib/util/HashMap.h lib/runtime/symbols/symbol.h lib/runtime/symbols/symbol.cpp lib/runtime/symbols/param.h lib/Modules/std.io/memory.cpp lib/Modules/std.io/memory.h lib/runtime/snb/snb.cpp lib/runtime/snb/snb.h lib/runtime/Library.h lib/runtime/snb/util.h lib/runtime/scheduler.h lib/runtime/linked_list.h lib/Modules/std.io/serialization.h lib/Modules/std.io/serialization.cpp lib/runtime/architecture.h lib/runtime/OpcodeInjection.h
-            generated/_Tmp_Sharp_class_0.cpp generated/_Tmp_Sharp_class_1.cpp generated/_Tmp_Sharp_class_2.cpp generated/_Tmp_Sharp_class_3.cpp generated/_Tmp_Sharp_class_4.cpp generated/_Tmp_Sharp_class_5.cpp generated/_Tmp_Sharp_class_6.cpp generated/_Tmp_Sharp_class_7.cpp generated/_Tmp_Sharp_class_8.cpp generated/_Tmp_Sharp_class_9.cpp generated/_Tmp_Sharp_class_10.cpp generated/_Tmp_Sharp_class_11.cpp generated/_Tmp_Sharp_class_12.cpp generated/_Tmp_Sharp_class_13.cpp generated/_Tmp_Sharp_class_14.cpp generated/_Tmp_Sharp_class_15.cpp generated/_Tmp_Sharp_class_16.cpp generated/_Tmp_Sharp_class_17.cpp generated/_Tmp_Sharp_class_18.cpp generated/_Tmp_Sharp_class_19.cpp generated/_Tmp_Sharp_class_20.cpp generated/_Tmp_Sharp_class_21.cpp generated/_Tmp_Sharp_class_22.cpp generated/_Tmp_Sharp_class_23.cpp generated/_Tmp_Sharp_class_24.cpp generated/_Tmp_Sharp_class_25.cpp generated/_Tmp_Sharp_class_26.cpp generated/_Tmp_Sharp_class_27.cpp generated/_Tmp_Sharp_class_28.cpp generated/_Tmp_Sharp_class_29.cpp generated/_Tmp_Sharp_class_30.cpp generated/_Tmp_Sharp_class_31.cpp generated/_Tmp_Sharp_class_32.cpp generated/_Tmp_Sharp_class_33.cpp generated/_Tmp_Sharp_class_34.cpp generated/_Tmp_Sharp_class_35.cpp generated/_Tmp_Sharp_class_36.cpp generated/_Tmp_Sharp_class_37.cpp generated/_Tmp_Sharp_class_38.cpp generated/_Tmp_Sharp_class_39.cpp generated/_Tmp_Sharp_class_40.cpp generated/_Tmp_Sharp_class_41.cpp generated/_Tmp_Sharp_class_42.cpp generated/_Tmp_Sharp_class_43.cpp generated/_Tmp_Sharp_class_44.cpp generated/_Tmp_Sharp_class_45.cpp generated/_Tmp_Sharp_class_46.cpp generated/_Tmp_Sharp_class_47.cpp generated/_Tmp_Sharp_class_48.cpp generated/_Tmp_Sharp_class_49.cpp generated/_Tmp_Sharp_class_50.cpp generated/_Tmp_Sharp_class_51.cpp generated/_Tmp_Sharp_class_52.cpp generated/_Tmp_Sharp_class_53.cpp generated/_Tmp_Sharp_class_54.cpp generated/_Tmp_Sharp_class_55.cpp generated/_Tmp_Sharp_class_56.cpp generated/_Tmp_Sharp_class_57.cpp generated/_Tmp_Sharp_class_58.cpp generated/_Tmp_Sharp_class_59.cpp generated/_Tmp_Sharp_class_60.cpp generated/_Tmp_Sharp_class_61.cpp generated/_Tmp_Sharp_class_62.cpp generated/_Tmp_Sharp_class_63.cpp generated/_Tmp_Sharp_class_64.cpp generated/_Tmp_Sharp_class_65.cpp generated/_Tmp_Sharp_class_66.cpp generated/_Tmp_Sharp_class_67.cpp generated/_Tmp_Sharp_class_68.cpp generated/_Tmp_Sharp_class_69.cpp generated/_Tmp_Sharp_class_70.cpp generated/_Tmp_Sharp_class_71.cpp generated/_Tmp_Sharp_class_72.cpp generated/_Tmp_Sharp_class_73.cpp generated/_Tmp_Sharp_class_74.cpp generated/_Tmp_Sharp_class_75.cpp generated/_Tmp_Sharp_class_76.cpp generated/_Tmp_Sharp_class_77.cpp generated/_Tmp_Sharp_class_78.cpp generated/_Tmp_Sharp_class_79.cpp generated/_Tmp_Sharp_class_80.cpp generated/_Tmp_Sharp_class_81.cpp generated/_Tmp_Sharp_class_82.cpp generated/_Tmp_Sharp_class_83.cpp generated/_Tmp_Sharp_class_84.cpp generated/_Tmp_Sharp_class_85.cpp generated/_Tmp_Sharp_class_86.cpp generated/_Tmp_Sharp_class_87.cpp generated/_Tmp_Sharp_class_88.cpp generated/_Tmp_Sharp_class_89.cpp generated/_Tmp_Sharp_class_90.cpp generated/_Tmp_Sharp_class_91.cpp generated/_Tmp_Sharp_class_92.cpp generated/_Tmp_Sharp_class_93.cpp generated/_Tmp_Sharp_class_94.cpp generated/_Tmp_Sharp_class_95.cpp generated/_Tmp_Sharp_class_96.cpp generated/_Tmp_Sharp_class_97.cpp generated/_Tmp_Sharp_class_98.cpp generated/_Tmp_Sharp_class_99.cpp generated/_Tmp_Sharp_class_100.cpp generated/_Tmp_Sharp_class_101.cpp generated/_Tmp_Sharp_class_102.cpp generated/_Tmp_Sharp_class_103.cpp generated/_Tmp_Sharp_class_104.cpp generated/_Tmp_Sharp_class_105.cpp generated/_Tmp_Sharp_class_106.cpp generated/_Tmp_Sharp_class_107.cpp generated/_Tmp_Sharp_class_108.cpp generated/_Tmp_Sharp_class_109.cpp generated/_Tmp_Sharp_class_110.cpp generated/_Tmp_Sharp_class_111.cpp generated/_Tmp_Sharp_class_112.cpp generated/_Tmp_Sharp_class_113.cpp generated/_Tmp_Sharp_class_114.cpp generated/_Tmp_Sharp_class_115.cpp generated/_Tmp_Sharp_class_116.cpp generated/_Tmp_Sharp_class_117.cpp generated/_Tmp_Sharp_class_118.cpp generated/_Tmp_Sharp_Env_Setup.cpp generated/_Tmp_Sharp_Class_Meta.cpp generated/_Tmp_Sharp_constants.cpp generated/_Tmp_Sharp_File_Meta.cpp generated/_Tmp_Sharp_FunctionPtr_Meta.cpp generated/_Tmp_Sharp_Method_Meta.cpp)
+    file(GLOB runtime_SRC
+            "lib/runtime/error/*.h"
+            "lib/runtime/error/*.cpp"
+            "lib/runtime/exe/*.h"
+            "lib/runtime/exe/*.cpp"
+            "lib/runtime/memory/*.h"
+            "lib/runtime/memory/*.cpp"
+            "lib/runtime/reflect/*.h"
+            "lib/runtime/reflect/*.cpp"
+            "lib/runtime/snb/*.h"
+            "lib/runtime/snb/*.cpp"
+            "lib/runtime/multitasking/*/*.h"
+            "lib/runtime/multitasking/*/*.cpp"
+            "lib/runtime/types/*.h"
+            "lib/runtime/types/*.cpp"
+            "lib/runtime/*.h"
+            "lib/runtime/*.cpp"
+            "lib/core/*.cpp"
+            "lib/core/*.h"
+            "lib/core/opcode/*.cpp"
+            "lib/core/opcode/*.h"
+            "lib/util/*.cpp"
+            "lib/util/*.h"
+            "lib/util/zip/*.cpp"
+            "lib/util/zip/*.h"
+            "lib/Modules/math/*.h"
+            "lib/Modules/math/*.cpp"
+            "lib/Modules/std/*.h"
+            "lib/Modules/std/*.cpp"
+            "lib/Modules/std.io/*.h"
+            "lib/Modules/std.io/*.cpp"
+            )
+
+    set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC})
     if (POSIX)
         set(LRT_LIB -lrt -ldl)
     endif ()

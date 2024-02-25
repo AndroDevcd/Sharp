@@ -5,6 +5,7 @@
 #include "Parser.h"
 #include "../../main.h"
 #include "Ast.h"
+#include "../../json/json.h"
 
 #define current() \
     (*_current)
@@ -16,12 +17,12 @@
 #define isEnd() \
     (_current->getType() == _EOF)
 
-long recursion = 0;
+
 void parser::parse() {
     if(toks->size() == 0)
         return;
 
-    errors = new ErrorManager(&toks->getLines(), toks->file, false, c_options.aggressive_errors);
+    errors = new ErrorManager(&toks->getLines(), toks->file, false, options.aggressive_errors);
     _current= &toks->getTokens().get(0);
 
     while(true) {
@@ -65,6 +66,10 @@ void parser::parse() {
         {
             parseAliasDeclaration(NULL);
         }
+        else if(isComponentDeclaration(current()))
+        {
+            parseComponentDeclaration(NULL);
+        }
         else if(isInterfaceDecl(current()))
         {
             parseInterfaceDecl(NULL);
@@ -78,7 +83,8 @@ void parser::parse() {
             parseEnumDecl(NULL);
         }
         else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
-                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":=")))
+                || isInjectRequest(current()) || (isStorageType(current()) && isInjectRequest(*peek(1))))
         {
             parseVariableDecl(NULL);
         }
@@ -107,7 +113,9 @@ void parser::parse() {
 }
 
 bool parser::isObfuscationOption(Token &token) {
-    return token.getValue() == "keep";
+    return token.getValue() == "keep"
+           || token.getValue() == "keep_inclusive"
+           || token.getValue() == "inclusive";
 }
 
 void parser::parseObfuscateDecl(Ast *ast) {
@@ -132,8 +140,9 @@ void parser::parseObfuscateElement(Ast *ast) {
     } else {
         parseUtype(branch);
         if(peek(1)->getType() == LEFTPAREN) {
-            parseUtypeArgListOpt(branch);
-            parseMethodReturnType(branch);
+
+            Ast *child = branch->encapsulate(ast_function_signature);
+            parseUtypeArgListOpt(child);
         }
     }
 }
@@ -171,7 +180,7 @@ void parser::parseInterfaceDecl(Ast *ast) {
         branch->setAstType(ast_generic_interface_decl);
 
         expect(branch, "<", false);
-        parseIdentifierList(branch);
+        parseGenericIdentifierList(branch);
         expect(branch, ">", false);
     }
 
@@ -194,10 +203,12 @@ void parser::parseMethodDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
-    parseReferencePointer(branch);
-    if(isOverrideOperator(current().getValue()))
-    {
-        errors->createNewError(GENERIC, current(), "expected identifier");
+    if((peek(1)->getId() == IDENTIFIER && peek(2)->getType() != LEFTPAREN)
+        || peek(1)->getValue() == "operator") {
+        branch->setAstType(ast_operator_decl);
+        parseReferencePointer(branch);
+    } else {
+        expectIdentifier(branch);
     }
 
     parseUtypeArgList(branch);
@@ -346,9 +357,81 @@ void parser::parseAliasDeclaration(Ast *ast) {
     expect(branch, ";", false);
 }
 
+void parser::parseComponentTypeList(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_component_type_list);
+
+    _pcTypeArg:
+    if(peek(1)->getType() != RIGHTCURLY)
+    {
+        parseTypeDefinition(branch);
+
+        goto _pcTypeArg;
+    }
+}
+
+void parser::parseTypeDefinition(Ast *ast) {
+    if(peek(1)->getValue() == "single")
+        parseSingleTypeDefinition(ast);
+    else
+        parseFactoryTypeDefinition(ast);
+}
+
+void parser::parseSingleTypeDefinition(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_single_definition);
+
+    expect(branch, "single", false);
+
+    if(peek(1)->getType() == LEFTPAREN)
+        parseComponentName(branch);
+
+    expect(branch, "{", false);
+    parseExpression(branch);
+    expect(branch, "}", false);
+}
+
+void parser::parseFactoryTypeDefinition(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_factory_definition);
+
+    expect(branch, "factory", false);
+
+    if(peek(1)->getType() == LEFTPAREN)
+        parseComponentName(branch);
+
+    expect(branch, "{", false);
+    parseExpression(branch);
+    expect(branch, "}", false);
+}
+
+void parser::parseComponentName(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_component_name);
+    expect(branch, "(", false);
+
+    if(peek(1)->getId() == STRING_LITERAL) {
+        advance();
+        branch->addToken(current());
+    } else {
+        errors->createNewError(GENERIC, current(), "expected string literal");
+    }
+
+    expect(branch, ")", false);
+
+}
+
+void parser::parseComponentDeclaration(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_component_decl);
+
+    if(peek(1)->getId() == IDENTIFIER) {
+        expectIdentifier(branch); // component name
+    }
+
+    expect(branch, "{", false);
+    parseComponentTypeList(branch);
+    expect(branch, "}", false);
+}
+thread_local bool inIf = false;
 void parser::parseIfStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_if_statement);
-
+    inIf = true;
     expect(branch, "(");
     parseExpression(branch);
     expect(branch, ")");
@@ -387,40 +470,59 @@ void parser::parseIfStatement(Ast *ast) {
         if(!isElse)
             goto condexpr;
     }
+    inIf = false;
 }
 
-void parser::parseForStatement(Ast *ast) {
+void parser::parseForStatement(Ast *ast) { // remove ":" ending requirement for loop
     Ast* branch = getBranch(ast, ast_for_statement);
 
     _current--;
-    if(branch->line >= 3000) {
-        int i = 0;
-    }
     expect(branch, "for");
+    bool hasParen = false;
 
-    expect(branch, "(");
+    if(peek(1)->getType() == LEFTPAREN) {
+        hasParen = true;
+        expect(branch, "(", false);
+    }
 
-    if(peek(1)->getType() != SEMICOLON) {
-        _current++;
-        RETAIN_RECURSION(0)
-        parseVariableDecl(branch);
-        RESTORE_RECURSION()
-    } else {
+    if(peek(1)->getType() == RIGHTPAREN
+        || !hasParen) {
+        branch->setAstType(ast_for_style_2_statement);
+    } else { // statndard: for i := 0; i < 10; i++ :
+        if(peek(1)->getType() != SEMICOLON) {
+            _current++;
+            RETAIN_RECURSION(0)
+            parseVariableDecl(branch);
+            RESTORE_RECURSION()
+        } else {
+            expect(branch, ";");
+        }
+
+        if(peek(1)->getType() != SEMICOLON) {
+            Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
+            parseExpression(exprCond);
+        }
         expect(branch, ";");
+
+        if(peek(1)->getType() != RIGHTPAREN
+           && peek(1)->getType() != COLON) {
+            Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
+            parseExpression(exprIter);
+        }
     }
 
-    if(peek(1)->getType() != SEMICOLON) {
-        Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
-        parseExpression(exprCond);
-    }
-    expect(branch, ";");
 
-    if(peek(1)->getType() != RIGHTPAREN) {
-        Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
-        parseExpression(exprIter);
-    }
+    if(peek(1)->getType() == RIGHTPAREN) {
+        if(!hasParen) {
+            errors->createNewError(GENERIC, current(), "unexpected symbol `)`");
+        }
 
-    expect(branch, ")");
+        expect(branch, ")", false);
+    } else {
+        if(hasParen) {
+            errors->createNewError(GENERIC, current(), "expected symbol `)`");
+        }
+    }
 
     parseBlock(branch);
 }
@@ -461,7 +563,7 @@ void parser::parseThrowStatement(Ast *ast) {
     expect(branch, ";", false);
 }
 
-void parser::parseGotoStatement(Ast *ast) {
+void parser::parseGotoStatement(Ast *ast) { // unused for now
     Ast* branch = getBranch(ast, ast_goto_statement);
 
     _current--;
@@ -489,10 +591,6 @@ void parser::parseAsmStatement(Ast *ast) {
 
     _current--;
     expect(branch, "asm", false);
-    if(peek(1)->getValue() == "volatile") {
-        expect(branch, "volatile");
-    }
-
     parseAsmBlock(branch);
 }
 
@@ -977,7 +1075,6 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         expectIdentifier(branch);
         expect(branch, ":");
-        parseAssemblyInstruction(branch);
     } else {
         errors->createNewError(GENERIC, current(), "expected assembly instruction");
     }
@@ -1016,10 +1113,10 @@ void parser::parseWhenBlock(Ast *ast) {
     } else {
         Ast* whenClause = getBranch(branch, ast_when_clause);
 
-        parseExpression(whenClause);
+        parseExpression(whenClause, false, true);
         while(peek(1)->getValue() == ",") {
             expect(whenClause, ",", false);
-            parseExpression(whenClause);
+            parseExpression(whenClause, false, true);
         }
 
         expect(whenClause, "->", false);
@@ -1136,7 +1233,7 @@ void parser::parseForEachStatement(Ast *ast) {
     parseBlock(branch);
 }
 
-void parser::parseLabelDecl(Ast* ast) {
+void parser::parseLabelDecl(Ast* ast) { // unused for now
     Ast *branch = getBranch(ast, ast_label_decl);
 
     _current--;
@@ -1197,27 +1294,28 @@ bool parser::parseStatement(Ast* ast) {
         return true;
     }
     else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
-       (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+       (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":=")))
+       || isInjectRequest(current()) || (isStorageType(current()) && isInjectRequest(*peek(1))))
     {
-        if(*peek(1) == ":") {
-            Token *old = _current;
-            _current++;
-
-            errors->enterProtectedMode();
-            parseUtype(branch);
-            branch->freeLastSub();
-            errors->pass();
-
-            if(*peek(1) == "=" || *peek(1) == ";"
-                || *peek(1) == ",") {
-                _current = old;
-                parseVariableDecl(branch);
-            } else {
-                _current = old;
-                goto labelDecl;
-            }
-        } else
-            parseVariableDecl(branch);
+//        if(*peek(1) == ":") {
+//            Token *old = _current;
+//            _current++;
+//
+//            errors->enterProtectedMode();
+//            parseUtype(branch);
+//            branch->freeLastSub();
+//            errors->pass();
+//
+//            if(*peek(1) == "=" || *peek(1) == ";"
+//                || *peek(1) == ",") {
+//                _current = old;
+//                parseVariableDecl(branch);
+//            } else {
+//                _current = old;
+//                goto labelDecl;
+//            }
+//        } else
+        parseVariableDecl(branch);
         return true;
     }
     else if(isForEachStatement(current()))
@@ -1250,14 +1348,6 @@ bool parser::parseStatement(Ast* ast) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
         parseThrowStatement(branch);
-        return true;
-    }
-    else if(isGotoStatement(current()))
-    {
-        if(access_types.size() > 0)
-            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-
-        parseGotoStatement(branch);
         return true;
     }
     else if(isBreakStatement(current()))
@@ -1322,21 +1412,6 @@ bool parser::parseStatement(Ast* ast) {
     }
     else
     {
-        /*
-         * label decl?
-         */
-        if(current().getId() == IDENTIFIER && !isKeyword(current().getValue())
-            && peek(2)->getType() == COLON)
-        {
-            labelDecl:
-            if(access_types.size() > 0) {
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
-            }
-
-            parseLabelDecl(branch);
-            return true;
-        }
-
         errors->enterProtectedMode();
         if(access_types.size() > 0) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
@@ -1360,38 +1435,6 @@ bool parser::parseStatement(Ast* ast) {
     }
 
     return false;
-}
-
-void parser::parseOperatorDecl(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_operator_decl);
-
-    addAccessTypes(branch);
-    access_types.free();
-    expect(branch, "operator");
-    expectOverrideOperator(branch);
-
-    parseUtypeArgList(branch);
-    if(peek(1)->getType() == COLON) {
-        parseMethodReturnType(branch);
-
-        if(peek(1)->getType() == EQUALS) {
-            expect(branch, "=", true);
-            parseExpression(branch);
-            expect(branch, ";", false);
-        } else {
-            if(peek(1)->getType() != LEFTCURLY)
-                errors->createNewError(GENERIC, current(), "expected `{`");
-            parseBlock(branch);
-        }
-    } else if(peek(1)->getType() == INFER) {
-        expect(branch, ":=", true);
-        parseExpression(branch);
-        expect(branch, ";", false);
-    } else {
-        if(peek(1)->getType() != LEFTCURLY)
-            errors->createNewError(GENERIC, current(), "expected `{`");
-        parseBlock(branch);
-    }
 }
 
 void parser::parseInterfaceBlock(Ast* ast) {
@@ -1457,19 +1500,15 @@ void parser::parseInterfaceBlock(Ast* ast) {
         }
         else if(isMethodDecl(current()))
         {
-            if(peek(1)->getValue() == "operator") {
-                if(access_types.size() > 0)
-                {
-                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-                }
-                errors->createNewError(GENERIC, current(), "unexpected operator declaration");
-                parseOperatorDecl(branch);
-            } else {
-                parseMethodDecl(branch);
+            parseMethodDecl(branch);
 
-                if(branch->getLastSubAst()->getType() != ast_delegate_decl)
-                    errors->createNewError(GENERIC, current(), "unexpected method declaration");
-            }
+            if(branch->getLastSubAst()->getType() != ast_delegate_decl)
+                errors->createNewError(GENERIC, current(), "unexpected method declaration");
+        }
+        else if(isComponentDeclaration(current()))
+        {
+            parseComponentDeclaration(branch);
+            errors->createNewError(GENERIC, current(), "unexpected component declaration");
         }
         else if(isInitDecl(current()))
         {
@@ -1546,10 +1585,7 @@ void parser::parseAll(Ast *ast) {
     }
     else if(isMethodDecl(current()))
     {
-        if(peek(1)->getValue() == "operator")
-            parseOperatorDecl(ast);
-        else
-            parseMethodDecl(ast);
+        parseMethodDecl(ast);
     }
     else if(isModuleDecl(current()))
     {
@@ -1582,6 +1618,10 @@ void parser::parseAll(Ast *ast) {
     else if(isAliasDeclaration(current()))
     {
         parseAliasDeclaration(ast);
+    }
+    else if(isComponentDeclaration(current()))
+    {
+        parseComponentDeclaration(ast);
     }
     else if(isObfuscateDecl(current()))
     {
@@ -1621,6 +1661,14 @@ void parser::parseInitDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
+    if(peek(1)->getType() == LEFTPAREN) {
+        parseUtypeArgList(branch); // must only be 1 param size
+        branch->setAstType(ast_init_func_decl);
+
+        if(peek(1)->getType() == PTR) {
+            parseBaseClassConstructor(branch);
+        }
+    }
     parseBlock(branch);
 }
 
@@ -1707,7 +1755,8 @@ bool parser::parseTypeIdentifier(Ast* ast) {
 
     advance();
     if(isNativeType(current().getValue())){
-        branch->addToken(current());
+        Ast *child = getBranch(branch, ast_native_type);
+        child->addToken(current());
         return true;
     } else
         _current--;
@@ -1737,6 +1786,12 @@ bool parser::parseUtype(Ast* ast) {
             expect(branch, "]");
         }
 
+        if(peek(1)->getType() == QUESMK)
+            expect(branch, "?");
+
+        if(peek(1)->getType() == QUESMK)
+            expect(branch, "?");
+
         return true;
     }
     else
@@ -1759,26 +1814,44 @@ bool parser::parseUtypeNaked(Ast* ast) {
 }
 
 void parser::parseGetter(Ast* ast) {
-    if(*peek(1) == "get") {
-        Ast *branch = getBranch(ast, ast_getter);
-        expect(branch, "get");
-        RETAIN_RECURSION(0);
-        parseBlock(branch);
-        RESTORE_RECURSION();
-    }
+    Ast *branch = getBranch(ast, ast_getter);
+    addAccessTypes(branch);
+
+    RETAIN_RECURSION(0);
+    parseBlock(branch);
+    RESTORE_RECURSION();
 }
 
 void parser::parseSetter(Ast* ast) {
-    if(*peek(1) == "set") {
-        Ast *branch = getBranch(ast, ast_setter);
-        expect(branch, "set");
+    Ast *branch = getBranch(ast, ast_setter);
+    addAccessTypes(branch);
 
+    expectIdentifier(branch);
+    expect(branch, "->");
+    RETAIN_RECURSION(0);
+    parseBlock(branch);
+    RESTORE_RECURSION();
+}
+
+void parser::parseInjectRequest(Ast* ast) {
+    Ast *branch = getBranch(ast, ast_inject_request);
+
+    expect(branch, "inject", false);
+    if(*peek(1) == "(") {
+        expect(branch, "(", false);
         expectIdentifier(branch);
-        expect(branch, "->");
-        RETAIN_RECURSION(0);
-        parseBlock(branch);
-        RESTORE_RECURSION();
+        expect(branch, ")", false);
     }
+}
+
+void parser::parseGetterSetterAccessTypes() {
+    if(isAccessDecl(*peek(1)))
+    {
+        advance();
+    }
+
+    parseAccessTypes();
+    if(access_types.empty()) advance()
 }
 
 void parser::parseVariableDecl(Ast* ast) {
@@ -1795,7 +1868,12 @@ void parser::parseVariableDecl(Ast* ast) {
             _current--;
     }
 
+    if(peek(1)->getValue() == "inject") {
+        parseInjectRequest(branch);
+    }
+
     expectIdentifier(branch);
+
     if(recursion == 1) {
         if(*peek(1) == ":") {
             expect(branch, ":");
@@ -1824,27 +1902,106 @@ void parser::parseVariableDecl(Ast* ast) {
         expect(branch, ",");
 
         parseVariableDecl(recursion <= 1 ? branch : ast);
+    }
 
-        if(recursion == 1)
-            expect(branch, ";");
-    } else {
-        if(recursion == 1)
-            expect(branch, ";");
+    if(recursion == 1) {
+        expect(branch, ";");
 
-        if (*peek(1) == "get" || *peek(1) == "set") {
-            if (*peek(1) == "get") {
+        Token *old = _current;
+        parseGetterSetterAccessTypes();
+        if (current() == "get" || current() == "set") {
+
+            if (current() == "get") {
                 parseGetter(branch);
-                parseSetter(branch);
+
+                old = _current;
+                parseGetterSetterAccessTypes();
+                if (current() == "set") {
+                    parseSetter(branch);
+                } else {
+                    _current = old;
+                    access_types.free();
+                }
             } else {
                 parseSetter(branch);
-                parseGetter(branch);
+
+                old = _current;
+                parseGetterSetterAccessTypes();
+                if (current() == "get") {
+                    parseGetter(branch);
+                } else {
+                    _current = old;
+                    access_types.free();
+                }
             }
+        } else {
+            _current = old;
+            access_types.free();
         }
     }
 
     recursion--;
 }
 
+void parser::exportLines(json_object* jo) {
+    json_value *jv = new json_value();
+    json_array* lineItems = new json_array();
+
+    jo->addMember("lines");
+    json_member *m_lines = (*jo)["lines"];
+
+    jv->setArrayValue(lineItems);
+    m_lines->setValue(jv);
+    for(Int i = 0; i < lines.size(); i++) {
+        json_value *line = new json_value();
+
+        line->setStringValue(lines.get(i));
+        lineItems->addValue(line);
+    }
+}
+
+void parser::importData(json_value *jv) {
+    if(jv) {
+        auto jo = jv->getJsonObject();
+
+        auto _lines = (*jo)["lines"]->getValue()
+                ->getArrayValue()->get_values();
+
+        for (Int i = 0; i < _lines.size(); i++) {
+            lines.add(_lines.get(i)->getStringValue());
+        }
+
+        auto _tree = (*jo)["tree"]->getValue()
+                ->getArrayValue()->get_values();
+
+        for (Int i = 0; i < _tree.size(); i++) {
+            tree.add(new Ast(_tree.get(i)));
+        }
+    }
+}
+
+json_value* parser::exportData() {
+    json_value *jv = new json_value();
+    json_object *jo = new json_object();
+
+    exportLines(jo);
+    jv->setObjectValue(jo);
+
+    jo->addMember("tree");
+    json_value *treeValue = new json_value();
+    json_array *treeItems = new json_array();
+    treeValue->setArrayValue(treeItems);
+    (*jo)["tree"]->setValue(treeValue);
+    for(Int i = 0; i < tree.size(); i++) {
+        treeItems->addValue(tree.get(i)->exportData());
+    }
+
+    return jv;
+}
+
+bool parser::isElvisOperator(string token) {
+    return token == "?:";
+}
 
 bool parser::isAssignExprSymbol(string token) {
     return token == "+=" || token == "-="||
@@ -1852,11 +2009,6 @@ bool parser::isAssignExprSymbol(string token) {
            token == "&=" || token == "|="||
            token == "^=" || token == "%="||
            token == "=";
-}
-
-bool parser::isForLoopCompareSymbol(string token) {
-    return token == "<" || token == ">"||
-           token == "<=" || token == ">=";
 }
 
 bool parser::isExprSymbol(string token) {
@@ -1871,7 +2023,8 @@ bool parser::isExprSymbol(string token) {
            token == "&" || token == "|"||
            token == "&&" || token == "||"||
            token == "^" || token == "?" ||
-           token == "**" ||
+           token == "**" || token == "?:"||
+           token == "!!"||
             isAssignExprSymbol(token);
 }
 
@@ -1883,6 +2036,7 @@ bool parser::isOverrideOperator(string token) {
            token == "+" || token == "==" ||
            token == ">>" || token == "<<"||
            token == "<" || token == ">"||
+           token == "&&" || token == "||"||
            token == "<=" || token == ">="||
            token == "!=" || token == "!"||
            token == "[" || token == "**"||
@@ -2004,20 +2158,16 @@ void parser::parseDictExpression(Ast* ast) {
     }
 }
 
-bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
+bool parser::parseExpression(Ast* ast, bool ignoreBinary, bool ignoreInlineLambda) {
     Ast *branch = getBranch(ast, ast_expression);
     CHECK_ERRLMT(return false;)
     Token* old = NULL;
 
-    if(branch->line >= 3000) {
-        int i = 3000;
-    }
-
-    if(peek(1)->getType() ==MINUS) {
+    if(peek(1)->getType() == MINUS) {
         advance();
         Ast *exprAst = getBranch(branch, ast_minus_e);
         branch->addToken(current());
-        parseExpression(exprAst, true);
+        parseExpression(exprAst, true, true);
         if(!isExprSymbol(peek(1)->getValue()))
             return true;
         else goto assignExpr;
@@ -2029,15 +2179,15 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
         advance();
         Ast *exprAst = getBranch(branch, ast_pre_inc_e);
         exprAst->addToken(current());
-        parseExpression(exprAst, true);
+        parseExpression(exprAst, true, true);
         if(!isExprSymbol(peek(1)->getValue()))
             return true;
         else goto assignExpr;
     }
 
     old = _current;
-    if(parsePrimaryExpr(branch)) {
-        if(ignoreBinary) return true;
+    if(parsePrimaryExpr(branch, ignoreInlineLambda)) {
+        if(ignoreBinary || branch->hasSubAst(ast_get_component)) return true;
         else if(!isExprSymbol(peek(1)->getValue()))
             return true;
     }
@@ -2045,6 +2195,14 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
 
         _current=old;
         branch->freeLastSub();
+    }
+
+    if(peek(1)->getType() == DOUBLEBANG)
+    {
+        advance();
+        branch->encapsulate(ast_force_non_null_e);
+        if(!isExprSymbol(peek(1)->getValue()))
+            return true;
     }
 
     if(peek(1)->getType() == LEFTCURLY)
@@ -2075,6 +2233,15 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
         return true;
     }
 
+    /* expression ?: expression */
+    if(isElvisOperator(peek(1)->getValue()))
+    {
+        advance();
+        parseExpression(branch);
+        branch->encapsulate(ast_elvis_e);
+        return true;
+    }
+
     assignExpr:
     /* expression <assign-expr> expression */
     if(isAssignExprSymbol(peek(1)->getValue()))
@@ -2082,9 +2249,12 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
         advance();
         branch->addToken(current());
 
-        Ast *right = new Ast(branch->getType(), branch->line, branch->col);
-        parseExpression(right);
-        branch->addAst(right->getLastSubAst());
+        if(branch->sub_asts.empty()) {
+            errors->createNewError(GENERIC, current(), "expected expression before `" + current().getValue() + "`");
+            return false;
+        }
+
+        parseExpression(branch);
         branch->encapsulate(ast_assign_e);
 
         if(ignoreBinary) return true;
@@ -2129,7 +2299,8 @@ bool parser::binary(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_and_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2164,7 +2335,8 @@ bool parser::equality(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_equal_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2198,7 +2370,8 @@ bool parser::comparason(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_less_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2232,7 +2405,8 @@ bool parser::shift(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_shift_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2267,7 +2441,8 @@ bool parser::addition(Ast *ast) {
             ast->sub_asts.pop_back();
 
             Ast *branch = getBranch(ast, ast_add_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
 
             advance();
@@ -2302,7 +2477,8 @@ bool parser::multiplication(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_mult_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2336,7 +2512,8 @@ bool parser::exponent(Ast *ast) {
             Ast *left = ast->sub_asts.last();
             ast->sub_asts.pop_back();
             Ast *branch = getBranch(ast, ast_exponent_e);
-            branch->addAst(left);
+            Ast *exprBranch = getBranch(branch, ast_expression);
+            exprBranch->addAst(left);
 
             advance();
             branch->addToken(current());
@@ -2363,7 +2540,7 @@ bool parser::unary(Ast *ast) {
 
     errors->enterProtectedMode();
     Token *old = _current;
-    if (!parsePrimaryExpr(branch)) {
+    if (!parsePrimaryExpr(branch, false)) {
         errors->pass();
         _current = old;
         ast->freeLastSub();
@@ -2414,26 +2591,38 @@ bool parser::parseAsmLiteral(Ast* ast) {
             }
         }
         return true;
-    } else if(t->getType() == LEFTCURLY) { // any
-        expect(branch, "{");
-        parseUtype(branch);
+    } else if(t->getType() == LEFTBRACE) {
+        element_address:
+        Ast *memberAst = getBranch(branch, ast_asm_member_item);
+        expect(branch, "[");
+        expectIdentifier(memberAst);
 
         if(peek(1)->getType() == PLUS || peek(1)->getType() == MINUS) {
             advance();
-            branch->addToken(current());
+            memberAst->addToken(current());
 
             if(t->getId() == INTEGER_LITERAL
                || t->getId() == HEX_LITERAL)
             {
                 advance();
-                branch->addToken(current());
+                memberAst->addToken(current());
                 return true;
             } else {
                 errors->createNewError(GENERIC, current(), "expected literal of type (integer, hex)");
                 return false;
             }
         }
-        expect(branch, "}");
+        expect(memberAst, "]", false);
+        return true;
+    } else if(t->getType() == DOLLAR) {
+        expect(branch, "$");
+        Ast *classAst = getBranch(branch, ast_asm_class_item);
+        parseUtype(classAst);
+
+        if(peek(1)->getType() == LEFTBRACE) {
+            goto element_address;
+        }
+
         return true;
     }
     else {
@@ -2449,16 +2638,16 @@ bool parser::parseRegister(Ast* ast) {
         expect(branch, "%", false);
 
     Token *reg = peek(1);
-    if(to_lower(reg->getValue()) == "adx"
-        || to_lower(reg->getValue()) == "cx"
-        || to_lower(reg->getValue()) == "cmt"
-        || to_lower(reg->getValue()) == "ebx"
-        || to_lower(reg->getValue()) == "ecx"
-        || to_lower(reg->getValue()) == "ecf"
-        || to_lower(reg->getValue()) == "edf"
-        || to_lower(reg->getValue()) == "ehf"
-        || to_lower(reg->getValue()) == "bmr"
-        || to_lower(reg->getValue()) == "egx")
+    if(toLower(reg->getValue()) == "adx"
+        || toLower(reg->getValue()) == "cx"
+        || toLower(reg->getValue()) == "cmt"
+        || toLower(reg->getValue()) == "ebx"
+        || toLower(reg->getValue()) == "ecx"
+        || toLower(reg->getValue()) == "ecf"
+        || toLower(reg->getValue()) == "edf"
+        || toLower(reg->getValue()) == "ehf"
+        || toLower(reg->getValue()) == "bmr"
+        || toLower(reg->getValue()) == "egx")
     {
         advance();
         branch->addToken(current());
@@ -2496,54 +2685,10 @@ void parser::parseBaseClassUtype(Ast *ast) {
     }
 }
 
-bool parser::parseFieldInitializatioin(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_field_init);
-
-    if(peek(1)->getValue() == "base") {
-        expect(branch, "base");
-        parseBaseClassUtype(branch);
-        expect(branch, "->");
-    }
-
-    if(parseUtypeNaked(branch) && peek(1)->getType() == EQUALS) {
-        expect(branch, "=");
-
-        parseExpression(branch);
-        return true;
-    }
-
-    return false;
-}
-
-void parser::parseFieldInitList(Ast *ast) {
-    Ast *branch = getBranch(ast, ast_field_init_list);
-
-    expect(branch, "{");
-
-    if(peek(1)->getType() != RIGHTCURLY)
-    {
-        parseFieldInitializatioin(branch);
-
-        _pField:
-        if(peek(1)->getType() == COMMA)
-        {
-            expect(branch, ",");
-            if(!parseFieldInitializatioin(branch)){
-                errors->createNewError(GENERIC, branch->getLastSubAst(), "expected field initializer");
-            }
-            goto _pField;
-        }
-    }
-
-    expect(branch, "}");
-}
-
 void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
     Ast* branch = getBranch(ast, ast_expression_list);
 
     expect(branch, beginChar);
-    if(peek(1)->getId() == STRING_LITERAL && peek(1)->getValue() == endChar)
-        goto compile;
 
     if(peek(1)->getValue() != endChar)
     {
@@ -2565,7 +2710,9 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
 bool parser::parseDotNotCallExpr(Ast* ast) {
     Ast *branch = getBranch(ast, ast_dotnotation_call_expr);
 
-    if(peek(1)->getType() == DOT)
+    if(peek(1)->getType() == DOT
+        || peek(1)->getType() == SAFEDOT
+        || peek(1)->getType() == FORCEDOT)
     {
         advance();
         branch->addToken(current());
@@ -2597,11 +2744,7 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
         }
         else if(peek(1)->getType() == LEFTBRACE) {
             Ast* arrayBranch = getBranch(branch, ast_arry_e);
-            advance();
-            arrayBranch->addToken(current());
-
-            parseExpression(arrayBranch);
-            expect(arrayBranch, "]");
+            parseArrayItems(arrayBranch);
 
             if(peek(1)->getType() == DOT) {
                 errors->enterProtectedMode();
@@ -2622,7 +2765,9 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             goto incCheck;
         }
         else {
-            if(peek(1)->getType() == DOT) {
+            if(peek(1)->getType() == DOT
+               || peek(1)->getType() == SAFEDOT
+               || peek(1)->getType() == FORCEDOT) {
                 errors->enterProtectedMode();
                 Token *old = _current;
                 if (!parseDotNotCallExpr(branch)) {
@@ -2811,8 +2956,9 @@ void parser::parseLambdaArgList(Ast* ast) {
     }
 }
 
-bool parser::parsePrimaryExpr(Ast* ast) {
+bool parser::parsePrimaryExpr(Ast* ast, bool ignoreInlineLambda) {
     Ast* branch = getBranch(ast, ast_primary_expr);
+    Ast* newAst = NULL;
 
     if(peek(1)->getType() ==NOT) {
         advance();
@@ -2844,38 +2990,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         return true;
     }
     branch->freeLastSub();
-    errors->pass();
-    _current=old;
-
-    errors->enterProtectedMode();
-    old=_current;
-    if(parseUtype(branch))
-    {
-        if(peek(1)->getType() == DOT && *peek(2) == "class")
-        {
-            expect(branch, ".");
-            expect(branch, "class");
-
-            errors->fail();
-            branch->encapsulate(ast_utype_class_e);
-
-            if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC) {
-                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
-            }
-            else if(peek(1)->getType() == DOT)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
-            else if(peek(1)->getType() == LEFTBRACE)
-                errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
-            else if(peek(1)->getValue() == "as")
-                goto asExpr;
-            else if(peek(1)->getValue() == "is")
-                goto isExpr;
-            return true;
-        }else {
-            branch->freeLastSub();
-        }
-    } else
-        branch->freeLastSub();
     errors->pass();
     _current=old;
 
@@ -2936,6 +3050,70 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         return true;
     }
 
+
+    if(peek(1)->getValue() == "get")
+    {
+        expect(branch, "get", false);
+        if(peek(1)->getType() == LESSTHAN) {
+            expect(branch, "<", false);
+            parseUtype(branch);
+            expect(branch, ">", false);
+        }
+
+        expect(branch, "(", false);
+        if(peek(1)->getId() == STRING_LITERAL) {
+            advance();
+            branch->addToken(current());
+
+            if(peek(1)->getType() == COMMA) {
+                advance();
+
+                if(peek(1)->getId() == IDENTIFIER) {
+                    advance();
+                    branch->addToken(current());
+                } else {
+                    errors->createNewError(GENERIC, current(), "expected identifier");
+                }
+            }
+        } else if(peek(1)->getId() == IDENTIFIER) {
+            advance();
+            branch->addToken(current());
+        }
+        expect(branch, ")", false);
+
+        branch->encapsulate(ast_get_component);
+        return true;
+    }
+//
+//    if(!ignoreInlineLambda) {
+//        errors->enterProtectedMode();
+//        old = _current;
+//        newAst = getBranch(branch, ast_lambda_function);
+//        parseLambdaArgList(newAst);
+//
+//        if (peek(1)->getValue() == "->") {
+//            advance();
+//            parseExpression(newAst);
+//            branch = newAst;
+//
+//            if (peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
+//            else if (peek(1)->getType() == DOT)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+//            else if (peek(1)->getType() == LEFTBRACE)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+//            else if (peek(1)->getValue() == "as")
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
+//            else if(peek(1)->getType() == DOUBLEBANG)
+//                errors->createNewError(GENERIC, current(), "unexpected symbol `!!`");
+//            return true;
+//        } else {
+//            branch->freeLastSub();
+//            errors->pass();
+//            _current = old;
+//        }
+//    }
+
     dotNot:
     errors->enterProtectedMode();
     old=_current;
@@ -2980,18 +3158,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         }
         else if(peek(1)->getType() == LEFTPAREN) {
             parseExpressionList(branch, "(", ")");
-        } else if(peek(1)->getType() == LEFTCURLY) {
-            if(peek(2)->getId() == IDENTIFIER) {
-                if(peek(2)->getValue() == "base") {
-                    parseFieldInitList(branch);
-                } else if(peek(3)->getType() == EQUALS){
-                    parseFieldInitList(branch);
-                } else {
-                    parseExpressionList(branch, "{", "}");
-                }
-            } else {
-                parseExpressionList(branch, "{", "}");
-            }
         } else {
             errors->createNewError(GENERIC, current(), "expected '[' or '(' or '{' after new expression");
             return true;
@@ -3015,6 +3181,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         return true;
     }
 
+
+
     if(peek(1)->getValue() == "{")
     {
         errors->enterProtectedMode();
@@ -3022,7 +3190,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         advance();
 
         if(peek(1)->getValue() == "->") {
-            Ast* newAst = getBranch(branch, ast_lambda_function);
+            newAst = getBranch(branch, ast_lambda_function);
             advance();
 
             parseLambdaReturnType(newAst);
@@ -3042,7 +3210,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
                 errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
             return true;
         } else {
-            Ast* newAst = getBranch(branch, ast_lambda_function);
+            newAst = getBranch(branch, ast_lambda_function);
             parseLambdaArgList(newAst);
             if(peek(1)->getValue() == "->") {
                 advance();
@@ -3139,9 +3307,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     if(peek(1)->getType() == LEFTBRACE)
     {
         Ast* arrayBranch = getBranch(branch, ast_arry_e);
-        expect(arrayBranch, "[");
-        parseExpression(arrayBranch);
-        expect(arrayBranch, "]");
+        parseArrayItems(arrayBranch);
 
 
         if(*peek(1) == "."){
@@ -3207,14 +3373,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch->encapsulate(ast_is_e);
         branch = branch->getSubAst(ast_is_e);
         expect(branch, "is");
-
-        if(isNativeType(peek(1)->getValue()) || peek(1)->getValue() == "(") {
-            parseUtype(branch);
-        } else {
-            parseUtype(branch);
-            expect(branch, ".");
-            expect(branch, "class");
-        }
+        parseUtype(branch);
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
@@ -3288,14 +3447,15 @@ void parser::parseClassDecl(Ast* ast) {
         branch->setAstType(ast_generic_class_decl);
 
         expect(branch, "<", false);
-        parseIdentifierList(branch);
+        parseGenericIdentifierList(branch);
         expect(branch, ">", false);
     }
 
     if(peek(1)->getValue() == "base")
     {
-        expect(branch, "base");
-        parseReferencePointer(branch);
+        Ast *base = getBranch(branch, ast_base_class);
+        expect(base, "base", false);
+        parseReferencePointer(base);
     }
 
     if(peek(1)->getValue() == ":")
@@ -3313,7 +3473,7 @@ void parser::parseClassDecl(Ast* ast) {
 
 void parser::parseClassBlock(Ast *ast) {
     Ast *branch = getBranch(ast, ast_block);
-    expect(ast, "{");
+    expect(ast, "{", false);
 
     int brackets = 1;
     while(!isEnd() && brackets > 0)
@@ -3374,7 +3534,8 @@ void parser::parseClassBlock(Ast *ast) {
             parseImportDecl(branch);
         }
         else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
-                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+                (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":=")))
+                || isInjectRequest(current()) || (isStorageType(current()) && isInjectRequest(*peek(1))))
         {
             parseVariableDecl(branch);
         }
@@ -3392,10 +3553,7 @@ void parser::parseClassBlock(Ast *ast) {
         }
         else if(isMethodDecl(current()))
         {
-            if(peek(1)->getValue() == "operator")
-                parseOperatorDecl(branch);
-            else
-                parseMethodDecl(branch);
+            parseMethodDecl(branch);
         }
         else if(isConstructorDecl())
         {
@@ -3437,7 +3595,7 @@ void parser::parseClassBlock(Ast *ast) {
     if(brackets != 0)
         errors->createNewError(MISSING_BRACKET, current(), " expected `}` at end of class declaration");
     else
-        expect(branch, "}");
+        expect(branch, "}", false);
 }
 
 void parser::addAccessTypes(Ast *ast) {
@@ -3451,75 +3609,101 @@ void parser::addAccessTypes(Ast *ast) {
 
 bool parser::parseReferencePointer(Ast *ast) {
     Ast *branch = getBranch(ast, ast_refrence_pointer);
+    bool nullSafeAccess = false;
 
     if(*peek(1) == "operator") {
-        expect(branch, "operator", false);
-        expectOverrideOperator(branch);
+        Ast *child = getBranch(branch, ast_operator_reference);
+        expect(child, "operator", false);
+        expectOverrideOperator(child);
         return true;
     }
 
-    if(!expectIdentifier(branch))
+    Ast *refItem = getBranch(branch, ast_reference_item);
+    if(!expectIdentifier(refItem))
         return false;
 
-    while(peek(1)->getType() == DOT && *peek(2) != "class") {
-        expect(branch, ".");
+    while((peek(1)->getType() == DOT
+           || peek(1)->getType() == SAFEDOT
+           || peek(1)->getType() == FORCEDOT)) {
+        if(peek(1)->getType() == SAFEDOT || peek(1)->getType() == FORCEDOT)
+            nullSafeAccess = true;
+
+        refItem = getBranch(branch, ast_reference_item);
+        expect(refItem, peek(1)->getValue());
 
         if(*peek(1) == "operator") {
-            expect(branch, "operator", false);
-            expectOverrideOperator(branch);
+            expect(refItem, "operator", false);
+            expectOverrideOperator(refItem);
             return true;
         }
-        expectIdentifier(branch);
+
+        expectIdentifier(refItem);
     }
 
     if(peek(1)->getValue() == "#") {
-        expect(branch, "#");
-        expectIdentifier(branch);
+        branch->encapsulate(ast_module_reference);
+        if(nullSafeAccess) {
+            errors->createNewError(GENERIC, current(), "null safe operator `?` or `!!` is not allowed on module names");
+        }
+
+        refItem = getBranch(branch, ast_reference_item);
+        expect(refItem, "#", false);
+        expectIdentifier(refItem);
     }
 
     if(peek(1)->getValue() == "<") {
         Token *old = _current;
-        expect(branch, "<");
+        Ast *tmp = getBranch(refItem, ast_generic_reference);
+        expect(tmp, "<", false);
         errors->enterProtectedMode();
-        parseUtypeList(branch);
+        parseUtypeList(tmp);
 
+        errors->pass();
+        refItem->freeLastSub();
         if(*peek(1) == ">") {
-            errors->fail();
-            expect(branch, ">");
+            _current = old;
+            expect(refItem, "<", false);
+            parseUtypeList(refItem);
+            expect(refItem, ">", false);
+            refItem->encapsulate(ast_generic_reference);
         }
         else {
-            errors->pass();
             _current = old;
-            branch->freeLastSub();
-            branch->freeLastToken();
         }
     }
 
-    while(peek(1)->getType() == DOT && *peek(2) != "class") {
-        expect(branch, ".");
+    while((peek(1)->getType() == DOT
+           || peek(1)->getType() == SAFEDOT
+           || peek(1)->getType() == FORCEDOT)) {
+
+        refItem = getBranch(branch, ast_reference_item);
+        expect(refItem, peek(1)->getValue());
 
         if(*peek(1) == "operator") {
-            expect(branch, "operator", false);
-            expectOverrideOperator(branch);
+            expect(refItem, "operator", false);
+            expectOverrideOperator(refItem);
             return true;
         }
 
-        expectIdentifier(branch);
+        expectIdentifier(refItem);
         if(peek(1)->getValue() == "<") {
             Token *old = _current;
-            expect(branch, "<");
+            Ast *tmp = getBranch(refItem, ast_generic_reference);
+            expect(tmp, "<", false);
             errors->enterProtectedMode();
-            parseUtypeList(branch);
+            parseUtypeList(tmp);
 
+            errors->pass();
+            refItem->freeLastSub();
             if(*peek(1) == ">") {
-                errors->fail();
-                expect(branch, ">");
+                _current = old;
+                expect(refItem, "<", false);
+                parseUtypeList(refItem);
+                expect(refItem, ">", false);
+                refItem->encapsulate(ast_generic_reference);
             }
             else {
-                errors->pass();
                 _current = old;
-                branch->freeLastSub();
-                branch->freeLastToken();
             }
         }
     }
@@ -3544,6 +3728,8 @@ bool parser::isAccessDecl(Token &token) {
             (token.getValue() == "ext") ||
             (token.getValue() == "stable") ||
             (token.getValue() == "native") ||
+            (token.getValue() == "excuse") ||
+            (token.getValue() == "override") ||
             (token.getValue() == "public"));
 }
 
@@ -3580,7 +3766,11 @@ bool parser::isEnumDecl(Token &token) {
 }
 
 bool parser::isStorageType(Token &token) {
-    return (token.getId() == IDENTIFIER && (token.getValue() == "thread_local"));
+    return (token.getId() == IDENTIFIER && (token.getValue() == "localized"));
+}
+
+bool parser::isInjectRequest(Token &token) {
+    return (token.getId() == IDENTIFIER && (token.getValue() == "inject"));
 }
 
 bool parser::isInterfaceDecl(Token &token) {
@@ -3629,6 +3819,10 @@ bool parser::isDoWhileStatement(Token& t) {
 
 bool parser::isAliasDeclaration(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "alias");
+}
+
+bool parser::isComponentDeclaration(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "component");
 }
 
 bool parser::isThrowStatement(Token& t) {
@@ -3800,7 +3994,7 @@ bool parser::isKeyword(string key) {
            || key == "private" || key == "def"
            || key == "import" || key == "return"
            || key == "self" || key == "const"
-           || key == "public" || key == "new"
+           || key == "public" || key == "new" || key == "excuse"
            || key == "null" || key == "operator"
            || key == "base" || key == "if" || key == "while" || key == "do"
            || key == "try" || key == "catch"
@@ -3812,9 +4006,11 @@ bool parser::isKeyword(string key) {
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "interface" || key == "lock" || key == "enum"
            || key == "when" || key == "local" || key == "native"
-           || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
+           || key == "localized" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate" || key == "is";
+           || key == "as" || key == "in" || key == "override" || key == "obfuscate" || key == "is"
+           || key == "inject" || key == "component" || key == "single" || key == "factory"
+           || key == "excuse";
 }
 
 void parser::parseAccessTypes() {
@@ -3874,14 +4070,27 @@ void parser::parseModuleDecl(Ast *ast) {
     expect(branch, ";", false);
 }
 
-void parser::parseIdentifierList(Ast *ast) {
-    Ast *branch = getBranch(ast, ast_identifier_list);
+void parser::parseGenericIdentifierList(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_generic_identifier_list), *identifier;
 
-    expectIdentifier(branch);
+    identifier = getBranch(branch, ast_generic_identifier);
+    expectIdentifier(identifier);
+
+    if(peek(1)->getValue() == "base") {
+        expect(identifier, "base", false);
+        parseUtype(identifier);
+    }
+
     while(peek(1)->getType() == COMMA) {
-        expect(branch, ",");
+        expect(branch, ",", false);
 
-        expectIdentifier(branch);
+        identifier = getBranch(branch, ast_generic_identifier);
+        expectIdentifier(identifier);
+
+        if(peek(1)->getValue() == "base") {
+            expect(identifier, "base", false);
+            parseUtype(identifier);
+        }
     }
 }
 
@@ -3907,8 +4116,8 @@ void parser::parseUtypeList(Ast *ast) {
     }
 }
 
-void parser::parseImportDecl(Ast *ast) {
-    Ast *branch = getBranch(ast, ast_import_decl);
+void parser::parseImportItem(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_import_item);
 
     expectIdentifier(branch);
 
@@ -3921,8 +4130,39 @@ void parser::parseImportDecl(Ast *ast) {
         } else
             expectIdentifier(branch);
     }
+}
 
-    expect(branch, ";", false);
+void parser::parseArrayItems(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_array_index_items);
+
+    expect(branch, "[", false);
+    parseExpression(branch);
+
+    while(peek(1)->getType() == COMMA) {
+        expect(branch, ",", false);
+        parseExpression(branch);
+    }
+
+    expect(branch, "]", false);
+}
+
+void parser::parseImportDecl(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_import_decl);
+
+    expect(branch, "(", false);
+    parseImportItem(branch);
+
+    while(peek(1)->getType() == COMMA) {
+        expect(branch, ",", false);
+
+        parseImportItem(branch);
+    }
+
+    expect(branch, ")", false);
+    if(peek(1)->getValue() == "as") {
+        expect(branch, "as", false);
+        expectIdentifier(branch);
+    }
 }
 
 void parser::expect(Ast* ast, string token, bool addToken, const char *expectedstr) {
@@ -3987,7 +4227,7 @@ void parser::free() {
         access_types.free();
         this->tree.free();
         access_types.free();
-        errors->free();
+        if(errors) errors->free();
         delete (errors); this->errors = NULL;
     }
 }

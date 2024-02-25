@@ -41,8 +41,9 @@ enum error_type
     INVALID_PARAM = 25,
     INCOMPATIBLE_TYPES = 26,
     DUPlICATE_DECLIRATION = 27,
+    NULLABILITY_MISMATCH = 28,
 
-    NO_ERR = 999
+    NOT_AN_ERR = 999
 };
 
 static std::list<KeyPair<error_type, string>> predefinedErrors;
@@ -56,19 +57,25 @@ public:
             :
             error()
     {
-        id = NO_ERR;
+        id = NOT_AN_ERR;
         line = -1;
         col = -1;
     }
     ParseError(const ParseError &pe)
+    :
+        error()
     {
         operator=(pe);
+    }
+
+    ~ParseError() {
+        free();
     }
 
     ParseError(KeyPair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
-        error = (err.value + addon);
+        error = (err.value + " " + addon);
         line = l;
         col = c;
         warning = false;
@@ -77,7 +84,7 @@ public:
     ParseError(bool warning, KeyPair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
-        error = (err.value + addon);
+        error = (err.value + " " + addon);
         line = l;
         col = c;
         this->warning = warning;
@@ -86,7 +93,7 @@ public:
     ParseError(KeyPair<error_type, string> err, Token token, string addon = "")
     {
         id = err.key;
-        error = (err.value + addon);
+        error = (err.value + " " + addon);
         line = token.getLine();
         col = token.getColumn();
         warning = false;
@@ -135,6 +142,10 @@ public:
         lastCheckedError = ParseError();
     }
 
+    ~ErrorManager() {
+        free();
+    }
+
     void update(parser *p, bool asis, bool aggressiveRoporting);
     void printErrors();
     uint64_t getErrorCount() { return errors->size(); }
@@ -142,7 +153,7 @@ public:
     uint64_t getUnfilteredErrorCount() { return unfilteredErrors->size(); }
     int createNewError(error_type err, Token token, string xcmts = "");
     int createNewError(error_type err, Ast* pAst, string xcmts = "");
-    void createNewError(error_type err, int line, int col, string xcmts = "");
+    Int createNewError(error_type err, int line, int col, string xcmts = "");
     void createNewWarning(error_type err, int line, int col, string xcmts);
     void createNewWarning(error_type err, Ast* pAst, string xcmts);
     bool hasErrors();
@@ -181,6 +192,36 @@ private:
 
     bool shouldReportWarning(Token *token, const ParseError &last_err, const ParseError &e) const;
 };
+
+template<class T>
+void freeList(List<T> &lst)
+{
+    for(unsigned int i = 0; i < lst.size(); i++)
+    {
+        lst.get(i).free();
+    }
+    lst.free();
+}
+
+template<class T>
+void freeListPtr(List<T> &lst)
+{
+    for(unsigned int i = 0; i < lst.size(); i++)
+    {
+        lst.get(i)->free();
+    }
+    lst.free();
+}
+
+template<class T>
+void freeList(list<T> &lst)
+{
+    for(T item : lst)
+    {
+        item.free();
+    }
+    lst.clear();
+}
 
 
 #endif //SHARP_PARSEERROR_H

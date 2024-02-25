@@ -1,0 +1,66 @@
+mod std.io.coroutines;
+
+import (
+    std.io
+)
+
+class job_master {
+
+	job_master() {
+		long_term_pool = new thread_group("Long term jobs", min_priority);
+		short_term_pool = new thread_group("Short term jobs", max_priority);
+		job_queue = new channel<job>(UNLIMITED);
+		canceled_job_queue = new channel<int>(UNLIMITED);
+		running_jobs = new synced_list<job>();
+	}
+
+	def operator=(main: ()()) : job {
+	    scheduled_job := create_job();
+		scheduled_job = main;
+		start_job(scheduled_job);
+		return scheduled_job;
+	}
+
+	protected def create_job() := new job("unnamed_job");
+
+	protected def create_job(name : string) := new job(name);
+
+	protected def start_job(scheduled_job : job) {
+		if(scheduled_job.block_caller)
+			execute_synchronous(scheduled_job);
+		else {
+		    job_queue.send(scheduled_job);
+		}
+	}
+
+	protected def add_job(scheduled_job : job) {
+	   running_jobs.add(scheduled_job);
+	}
+
+	protected def cleanup_job(scheduled_job : job) {
+		scheduled_job.deferred_obj = null;
+		scheduled_job.host = null;
+		scheduled_job.args = null;
+		scheduled_job.name = null;
+		running_jobs.remove(scheduled_job);
+	}
+
+	protected def cancel_jobs_by_tag(tag_id: int) {
+	   canceled_job_queue.send(tag_id);
+
+	   lock(running_jobs) {
+           foreach(schdj in running_jobs) {
+               if(schdj.tag == tag_id) {
+                  schdj.cancel_task();
+		          running_jobs.remove(schdj);
+               }
+           }
+       }
+	}
+
+	protected running_jobs : synced_list<job>;
+	protected job_queue : channel<job>;
+	protected canceled_job_queue : channel<int>;
+	protected long_term_pool : thread_group;
+	protected short_term_pool : thread_group;
+}

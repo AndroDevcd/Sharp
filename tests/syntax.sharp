@@ -1,62 +1,44 @@
 mod app;
 
-//import std.io;
-//import std.io.coroutines;
-//import platform;
-//import platform.kernel;
-//
-//chan := new channel<var>(UNLIMITED);
-//task_count := 64;
-//
-//def foo() : var {
-//    for(i := 0; i < task_count; i++) {
-//        coroutine.builder()
-//         .unconfined()
-//         .with_args(new int[] { i }) = { args :object[] ->
-//           index := (args[1] as int).get_value();
-//           for(i := 0; i < 100_000_000; i++) {}
-//           chan.send(0);
-//           println("task #$index");
-//        };
-//    }
-//
-//    return 0;
-//}
-//
-//def main(args: string[]) {
-//   past := time.mills_time();
-//   foo();
-//   chan.read_next(0, task_count);
-//   println(time.mills_time()-past);
-//}
-
-import std.io.*;
-import platform;
-import platform.kernel;
+/*import (
+    std.io.*
+    platform
+    platform.kernel
+)*/
 
 chan := new channel<var>(UNLIMITED);
-task_count := 10000;
+const loop_count := 10000;
+const slices := 10;
+const n := 0;
 counter := new atomic<var>{ 0 };
 
-def foo() : var {
-    for(i := 0; i < task_count; i++) {
-        coroutine.builder()
-//        .unconfined()
-        = { ->
-             for( ;; ) {
-              counter++;
-              delay(1000);
-             }
-        };
+def main(args: string[]) {
+
+//    for(i := 0; i < slices; i++) {
+//        launcher = { ->
+////            for(i := 0; i < 10000000; i++) {
+////            }
+//
+//            println("start");
+//            for(i := 0; i < loop_count; i++) {
+//                counter++;
+//            }
+//            println("done");
+//
+//        };
+//    }
+
+    for(i := 0; i < 10000000; i++) {
     }
 
-    return 0;
+//    chan.read_next(0 slices * loop_count);
+//
+//    println("done");
+
+    // took 8.288s
 }
 
-def main(args: string[]) {
-   past := time.mills_time();
-   foo();
-   delay(1000);
-   println(time.mills_time()-past);
-   println(counter++);
-}
+/*
+59, 58, 9, 0, 0, 0, -128, 0, 0, 0, 1, 0, 0, 0, 11, 95, -41, 34, 100, 0, 0, 0, 8, 26, 109, 97, 105, 110, 35, 70, 111, 111, 11, 14, 2, 58, 9, 0, 0, 0, -127, 0, 0, 0, 1, 0, 0, 0, 11, -20, -70, -39, -114, 0, 0, 0, 10, 26, 115, 116, 100, 35, 115, 116, 114, 105, 110, 103, 11, 14, 2, 58, 9, 0, 0, 0, -126, 0, 0, 0, 3, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 0, -56, 5, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -62, 5, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -36, 5, 64, 0, 0, 0, 0, 0, 0, 46, 28, 46, 28, 46, 61,
+*/
+

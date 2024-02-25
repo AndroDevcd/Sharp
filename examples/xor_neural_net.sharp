@@ -1,6 +1,8 @@
 mod main;
 
-import std.math;
+import (
+    std.math
+)
 
 alias list<neuron> as layer;
 
@@ -160,8 +162,8 @@ class net {
 }
 
 def main() {
-   set_seed(utc_mills_time() >> 4); // set random seed to current time in mills
-   neural_net := new net(new list<var>({ 2, 2, 1 }));
+   set_seed(time.mills_time() >> 4); // set random seed to current time in mills
+   neural_net := new net(new list<var>({ 2, 2, 2, 3, 1 }));
 
 // train net
    for(i := 5000; i >= 0; i--) {

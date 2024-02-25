@@ -1,0 +1,77 @@
+mod platform.kernel;
+
+import (
+    std.io,
+    platform,
+    std.io.coroutines
+)
+
+class platform
+{
+    private static excuse main : (string[])(int);
+    private static excuse main2 : (string[])();
+    private static excuse main3 : ()();
+    private static excuse main4 : ()(int);
+
+    static def tls_init() {}
+    private static def static_init() {}
+
+    private static def setup_build_config(args: object[]) {
+        build.app_name = "${args[0] as _int8[]}";
+        build.version = "${args[1] as _int8[]}";
+        build.platform = "${args[2] as _int8[]}";
+        build.os = "${args[3] as _int8[]}";
+    }
+
+    private static def srt_init(args: object[]) : int {
+        setup_build_config(args);
+        static_init();
+        setup_build_config(args); // build config gets overridden on static init
+        tls_init();
+        start_scheduler();
+
+        main_thread := args[4] as thread;
+        vm.set_thread(main_thread);
+
+        priority := max_priority;
+        thread_group.main_group.add(main_thread);
+
+        set_seed((utc_mills() >> 4).to_int());
+
+        asm {
+            movg $thread_group
+            movn $thread_group[main_group]
+
+            pushObj
+
+            movl [main_thread]
+            movn $thread[parent_group]
+            popObj
+
+            movl [priority]
+            pushObj
+
+            movl [main_thread]
+            movn $thread[priority]
+            popObj
+        }
+
+        const min_args : var = 5;
+        user_args := new string[sizeof(args) - min_args];
+        iter : var = 0;
+
+        for(i := min_args; i < sizeof(args); i++) {
+            user_args[iter++] = new string(args[i] as _int8[]);
+        }
+
+        result := 0;
+        when {
+            main != 0 -> result = main(user_args);
+            main2 != 0 -> main2(user_args);
+            main3 != 0 -> main3();
+            main4 != 0 -> result = main4();
+        } // todo: look into main thread uncaught_exception_handler
+
+        return result;
+    }
+}

@@ -1,0 +1,554 @@
+mod main;
+
+import (
+    std.io,
+    std.io.*,
+    platform,
+//    frontend.*,
+//    cache,
+    platform.kernel
+)
+
+private program_name : string = "sharpc";
+private program_vers : string = "0.3.0";
+private files := new list<string>();
+
+def main(args: string[]) : int {
+    if(args == null) {
+        help();
+        return 1;
+    }
+
+    for(i := 0; i < sizeof(args); i++) {
+        arg := args[i];
+        if(arg == "-a"){
+            enable_show_all_errors(true);
+        }
+        else if(arg == "-c"){
+            enable_compile_only(true);
+        }
+        else if(arg == "-o"){
+            if(i+1 >= sizeof(args))
+                error("output file required after option `-o`");
+            else
+                set_output_file(args[++i]);
+        }
+        else if(arg == "-L"){
+            if((i+1) >= sizeof(args))
+                error("library directory required after option `-L`");
+            else {
+                add_library_path(args[++i]);
+            }
+        }
+        else if(arg == "-V"){
+            print_version();
+            exit();
+        }
+        else if(arg == "-O" || arg == "-O1"){
+            set_optimization_level(optimization_level.basic);
+        }
+        else if(arg == "-O2"){
+            set_optimization_level(optimization_level.high_performance);
+        }
+        else if(arg == "--h" || arg == "-?"){
+            help();
+            exit();
+        }
+        else if(arg == "--hw"){
+            help_warning();
+            exit();
+        }
+        else if(arg == "-R" || arg == "-release"){
+            enable_release_mode();
+        }
+        else if(arg == "-magic"){
+            enable_magic_mode(true);
+        }
+        else if(arg == "-dbg") {
+            enable_debug_mode(true);
+        }
+        else if(arg == "-showvers" || arg == "-showversion"){
+            print_version();
+            println();
+        }
+        else if(arg == "-target"){
+            if(i+1 >= sizeof(args))
+                error("file version required after option `$arg`");
+            else {
+                set_target_platform(args[++i]);
+            }
+        }
+        else if(arg == "-w"){
+            enable_warnings(false);
+        }
+        else if(arg == "-waccess" || arg == "-wambig" || arg == "-wdecl"
+          || arg == "-wmain" || arg == "-wcast" || arg == "-winit"
+          || arg == "-wnull"){
+            enable_warning_type(arg, false);
+        }
+        else if(arg == "-p"){
+            options.compile_mode = compilation_mode.project_mode;
+        }
+        else if(arg == "-run"){
+            options.run_source = true;
+        }
+        else if(arg == "--clean"){
+            options.clean_build = true;
+        }
+        else if(arg == "-g" || arg == "-green"){
+            enable_green_mode(true);
+        }
+        else if(arg == "--new-project" || arg == "--create-project"){
+            if(i+1 >= sizeof(args))
+                error("project directory required after option `$arg`");
+            else {
+                options.new_project_dir = args[++i];
+            }
+        }
+        else if(arg == "-v"){
+            if(i+1 >= sizeof(args))
+                error("file version required after option `-v`");
+            else
+                options.version = args[++i];
+        }
+        else if(arg == "-ignore"){
+            if(i+1 >= sizeof(args))
+                error("file path required after option `$arg`");
+            else {
+                add_ignored_file(args[++i]);
+            }
+        }
+        else if(arg == "-ignoredir"){
+            if(i+1 >= sizeof(args))
+                error("directory path required after option `$arg`");
+            else {
+                add_ignored_directory(args[++i]);
+            }
+        }
+        else if(arg == "-P"){
+            if(i+1 >= sizeof(args))
+                error("project path required after option `$arg`");
+            else {
+                proj_dir := new file(args[++i]);
+                if(!proj_dir.exists()) {
+                   error("project directory: $proj_dir dosen't exist!");
+                }
+
+                if(!proj_dir.is_directory()) {
+                   error("project directory: $proj_dir was found to be a file");
+                }
+
+                options.compile_mode = compilation_mode.project_mode;
+                options.project_dir = proj_dir.get_absolute_path();
+            }
+        }
+        else if(arg == "-werror"){
+            enable_warnings_as_errors();
+        }
+        else if(arg == "-errlmt") {
+            set_error_limit(args[++i]);
+        }
+        else if(arg.at(0) == '-'){
+            error("invalid option `" + arg + "`, try $program_name --h");
+        }
+        else {
+            // add the source files
+            restart : bool;
+
+            do {
+                arg = args[i];
+                if(arg.at(0) == '-'){
+                    i--;
+                    restart = true;
+                    break;
+                }
+
+                if(!contains(files, arg))
+                    files.add(arg);
+                i++;
+            }while(i<sizeof(args));
+
+            if(restart) continue;
+            break;
+        }
+    }
+
+    if(options.new_project_dir != "") {
+       create_project();
+    }
+
+    if(files.size() == 0 && options.compile_mode == compilation_mode.file_mode){
+        help();
+        return 1;
+    }
+
+    if(options.compile_mode == compilation_mode.project_mode) {
+
+        proj_dir : file;
+        if(options.project_dir == "") {
+            options.project_dir = file.current_directory();
+        }
+
+        proj_dir = new file(options.project_dir);
+
+        try {
+           foreach(file in proj_dir.list()) {
+               if(file.ends_with(".sharp"))
+                  files.add(file);
+           }
+        } catch(io_exception) {
+            /* support files not found */
+            error("could not access project directory files in: $proj_dir");
+        }
+
+        process_settings();
+    } else {
+        add_library_files(program_vers);
+    }
+
+    fp := new file("no_file");
+    for(i := 0; i < files.size(); i++) {
+        fp.update_path(files[i]);
+
+        if(!(fp.exists()))
+            error("file `${files.at(i)}` doesnt exist!");
+
+        if(!files[i].ends_with(".sharp"))
+            error("file `${files.at(i)}` is not a sharp file!");
+        files[i] = fp.get_absolute_path();
+    }
+
+    // remove duplicate files
+    for(i := 0; i < files.size(); i++) {
+
+        if(count(files, files[i]) > 1) {
+           files.remove_at(i); i--;
+        }
+    }
+
+    remove_ignored_files(files);
+    exec_runtime(files);
+    return 0;
+}
+
+def add_library_files(version_num: string) {
+//    is_supported := false;
+//    foreach(vers in supported_versions) {
+//       if(version_num == vers) {
+//          is_supported = true;
+//          break;
+//       }
+//    }
+//
+//    if(!is_supported) {
+//        err_msg : string = "Library api version: $version_num is not supported!";
+//        err_msg += " Supported versions are: {";
+//
+//        pos := 0, size = sizeof(supported_versions);
+//        foreach(vers in supported_versions) {
+//           err_msg += " $vers";
+//
+//           if((pos + 1) < size) {
+//              err_msg += ",";
+//           } else {
+//              err_msg += " ";
+//           }
+//
+//           pos++;
+//        }
+//
+//        err_msg += "}";
+//
+//        error(err_msg);
+//    }
+//
+    path : string = "";
+    if(build.is_windows()) {
+        path = "C:\\Program Files\\Sharp\\include\\$version_num";
+    } else {
+        path = "/usr/include/sharp/$version_num";
+    }
+
+    stl_files := new file(path);
+    support_files:= new list<string>();
+//
+//    try {
+//        foreach(file in stl_files.list()) {
+//            if(file.ends_with(".sharp"))
+//              files.add(file);
+//        }
+//    } catch(io_exception) {
+//        /* support files not found */
+//        error("could not find support library files in path `$path`, did you correctly install the target api?");
+//    }
+
+
+    for(i := 0; i < options.libraries.size(); i++) {
+        stl_files.update_path(options.libraries.at(i));
+
+        try {
+            foreach(file in stl_files.list()) {
+               if(file.ends_with(".sharp"))
+                  files.add(file);
+            }
+        } catch(io_exception) {
+            /* support files not found */
+            warning("could not access library files in path `$path`");
+        }
+
+    }
+}
+
+def contains(files: list<string>, file: string) : bool {
+
+    foreach(f in files) {
+        if(f == file)
+            return true;
+    }
+
+    return false;
+}
+
+def count(files: list<string>, file: string) : int {
+    amount := 0;
+    foreach(f in files) {
+        if(f == file)
+            amount++;
+    }
+
+    return amount;
+}
+
+def in_ignored_folder(fullpath: string) : bool {
+   foreach(path in options.ignored_directories) {
+      if(fullpath.starts_with(path))
+        return true;
+   }
+
+   return false;
+}
+
+def is_ignored_file(fullpath: string) : bool {
+   foreach(path in options.ignored_files) {
+      if(fullpath == path)
+        return true;
+   }
+
+   return false;
+}
+
+def remove_ignored_files(files: list<string>) {
+    for(i := 0; i < files.size(); i++) {
+      if(in_ignored_folder(files[i]) || is_ignored_file(files[i])) {
+         files.remove_at(i); i--;
+      }
+    }
+}
+
+/**
+* We dont want to max out the CPU if green mode is set to true
+* So we cut the maximum available threads in half. While this will consume less power,
+* it will result in longer build times overall.
+*/
+def throttle_max_threads() {
+    threads := vm.hardware_concurrency() * 2;
+    threads -= 4;
+
+    if(threads > 3)
+       threads /= 2;
+    set_thread_max(threads);
+}
+
+parser_channel := new channel<parser>(UNLIMITED);
+def exec_runtime(files: list<string>) {
+    if(files.size() == 0) {
+       error("no files were found to be compiled, have you excluded your project directory by chance?");
+    }
+
+    if(options.green_mode) {
+        throttle_max_threads();
+    }
+
+    if(options.clean_build) {
+       flush_cache();
+    }
+
+    foreach(source_file in files) {
+        println("parsing: $source_file");
+
+        coroutine.builder().unconfined()
+         .with_args({ source_file }) = { args: object[] ->
+           source_file := args[1] as string;
+           load_or_parse(source_file);
+        };
+    }
+
+    results := parser_channel.read_next(0, files.size());
+
+    save_cache();
+    all_files_passed := true;
+    foreach(p in results) {
+       if(p == null || !p.parsed) {
+          if(p != null && !p.parsed) {
+             println("file: ${p.source_file} errors: ${p.errors.get_raw_error_count()}");
+          } else if(p != null)
+             println("null file");
+
+          all_files_passed = false;
+       }
+    }
+
+    if(all_files_passed) {
+       // TODO: to be continued...
+    }
+}
+
+
+private def create_project() {
+    dir := new file(options.new_project_dir);
+
+    try{
+       if(dir.exists()) {
+             println("could not create project, a ${dir.is_directory() ? "directory" : "file"} with the name ${options.new_project_dir} already exists!");
+             exit(1);
+       }
+
+       if(dir.mkdir() != 0) {
+          println("failed to create project directory: ${options.new_project_dir}");
+          exit(1);
+       }
+
+       src_dir := new file(options.new_project_dir + "/src/");
+       build_dir := new file(options.new_project_dir + "/build/");
+       cache_dir := new file(options.new_project_dir + "/build/cache/");
+       outputs_dir := new file(options.new_project_dir + "/build/outputs/");
+       files_dir := new file(options.new_project_dir + "/build/cache/files/");
+
+       if(src_dir.mkdir() || build_dir.mkdir() || cache_dir.mkdir()
+          || outputs_dir.mkdir() || files_dir.mkdir()) {
+          println("failed to create all necessary directories for project: ${options.new_project_dir}");
+          exit(1);
+       }
+
+       main_template_file : file;
+       settings_template_file : file;
+       main_file := new file(options.new_project_dir + "/src/main.sharp");
+       settings_file := new file("${options.new_project_dir}/$settings_file_name");
+
+       if(build.is_windows()) {
+          main_template_file = new file("C:\\Program Files\\Sharp\\proj-template\\main.sharp");
+          settings_template_file = new file("C:\\Program Files\\Sharp\\proj-template\\$settings_file_name");
+       } else {
+          main_template_file = new file("/usr/include/sharp/proj-template/main.sharp");
+          settings_template_file = new file("/usr/include/sharp/$settings_file_name");
+       }
+
+       data : string = "";
+       if(main_template_file.exists()) {
+          data = main_template_file.read();
+       } else {
+         data = "mod main;\n\ndef main() {\n  println(\"hello, world!\");\n}\n";
+       }
+
+       main_file.create();
+       if(main_file.write(data) != 0) {
+          println("failed to create the main file for project: ${dir.get_name()}");
+          exit(1);
+       }
+
+       if(settings_template_file.exists()) {
+           data = settings_template_file.read();
+       } else {
+           data = "{\n  name: \"${dir.get_name()}\",\n  version: \"1.0\",\n  output: \"${dir.get_name()}\",\n"
+              + "  ignore_folders: [\n     \"build\"\n  ]\n}\n";
+       }
+
+       settings_file.create();
+       if(settings_file.write(data) != 0) {
+          println("failed to create the main file for project: ${dir.get_name()}");
+          exit(1);
+       }
+    } catch(t: throwable) {
+          println("failed to create all necessary directories for project: ${options.new_project_dir}. Error: ${t.get_message()}");
+          exit(1);
+    }
+
+    println("Project: \"${dir.get_name()}\" successfully created!");
+    exit();
+}
+
+private static def is_number(str: string) : bool {
+    foreach(c in str) {
+        if(!char.is_digit(c))
+            return false;
+    }
+    return true;
+}
+
+private static def check_target() {
+    when(options.target) {
+        main#platform.alpha -> {
+            return;
+        }
+        else -> {
+            error("invalid platform target `${options.target}`");
+        }
+    }
+}
+
+def error(message: string) {
+    println("$program_name:  error: $message");
+    exit();
+}
+
+def warning(message: string) {
+    println("$program_name:  warning: $message");
+}
+
+private static def print_version() {
+    print(program_name + " " + program_vers);
+}
+
+private static def help() {
+    println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
+    println("Source file must have a .sharp extension to be compiled.\n");
+    println("[-options]\n\n    -V                print compiler version and exit"                           );
+    println(              "    -showvers         print compiler version and continue"                       );
+    println(              "    -o<file>          set the output object file"                                );
+    println(              "    -c                compile only and do not generate exe"                      );
+    println(              "    -a                enable aggressive error reporting"                         );
+    println(              "    -O -O1            optimize code level 1"                                     );
+    println(              "    -O2               optimize code level 2"                                     );
+    println(              "    -L<path>          library directory path"                                    );
+    println(              "    -w                disable all warnings"                                      );
+    println(              "    --clean           flush compiler cache and recompile the project fresh"      );
+    println(              "    -run              run compiled source after successful compilation"          );
+    println(              "    -g -green         run compiler in \"green\" mode to consume less power"      );
+    println(              "    -ignoredir<dir>   include a directory to ignore"                             );
+    println(              "    -ignore<file>     include a file to ignore"                                  );
+    println(              "    -p                enable project mode compilation"                           );
+    println(              "    -P<path>          enable project mode compilation on a specific path"        );
+    println(              "    --new-project<name> create a new sharp project"                              );
+    println(              "    -errlmt<count>    set max errors the compiler allows before quitting"        );
+    println(              "    -v<version>       set the application version"                               );
+    println(              "    -target           target the specified platform of sharp to run on"          );
+    println(              "    -release -r       generate a release build exe"                              );
+    println(              "    --hw               display help message for warning options"                 );
+    println(              "    --h -?             display this help message"                                );
+}
+
+private static def help_warning() {
+    println( "Usage: sharpc {OPTIONS} SOURCE FILE(S)");
+    println( "Source file must have a .sharp extion to be compiled.\n");
+    println( "Please note that not all warnings will be able to be disabled individually.\n");
+    println( "[-options]\n\n    -w                disable all warnings"                                     );
+    println(               "    -winit            disable class initialization warnings"                    );
+    println(               "    -waccess          disable access modifier warnings (public, static, etc.)"  );
+    println(               "    -wambig           disable ambiguous symbol warnings"                        );
+    println(               "    -wdecl            disable object declaration warnings"                      );
+    println(               "    -wmain            disable multiple main method warnings"                    );
+    println(               "    -wcast            disable type cast warnings"                               );
+    println(               "    -wnull            disable null type warnings"                               );
+    println(               "    -werror           enable warnings as errors"                                );
+    println(               "    --hw               display this help message"                               );
+}

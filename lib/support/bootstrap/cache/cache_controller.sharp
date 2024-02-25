@@ -1,9 +1,11 @@
 mod cache;
 
-import frontend.parser;
-import frontend.tokenizer;
-import main;
-import std.io;
+import (
+    frontend.parser,
+    frontend.tokenizer,
+    main,
+    std.io
+)
 
 cache_folder : string = "/build/cache";
 def load_or_parse(filepath: string) {

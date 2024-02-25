@@ -4,8 +4,8 @@
 
 #include <math.h>
 #include "cmath.h"
-#include "../../runtime/symbols/Exception.h"
-#include "../../runtime/VirtualMachine.h"
+#include "../../runtime/virtual_machine.h"
+#include "../../runtime/error/vm_exception.h"
 
 double __cmath(double n, double n2, int proc) {
     switch(proc) {
@@ -52,7 +52,7 @@ double __cmath(double n, double n2, int proc) {
         default: {
             stringstream ss;
             ss << "illegal call to math procedure: " << proc;
-            throw Exception(vm.InvalidOperationExcept, ss.str());
+            throw vm_exception(vm.invalid_operation_except, ss.str());
         }
     }
 }

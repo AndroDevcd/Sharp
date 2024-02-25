@@ -1,10 +1,12 @@
 mod frontend.parser;
 
-import main;
-import std.io;
-import frontend.tokenizer;
-import cache;
-import frontend;
+import (
+    main,
+    std.io,
+    frontend.tokenizer,
+    cache,
+    frontend
+)
 
 /**
  * Created by BraxtonN on 10/5/2019.
@@ -349,7 +351,7 @@ class parser {
 
 
            parse_block(tmp);
-           if(!isElse)
+           if(!is_else)
                goto condexpr;
        }
     }
@@ -369,33 +371,34 @@ class parser {
     def parse_for_statement(_ast : ast) {
        branch := get_branch(_ast, ast_for_statement);
 
-       for val in array { // iterated loop with typed var
-
-       }
-
-       for val,i in array { // iterated lop with typed var & index var
-
-       }
-
-       for i := 0; i < 100; i++ { // standard for loop
-
-       }
-
-       for >= 100 { // dynamic iterated array without index var
-
-       }
-
-       for { // infinite loop
-
-       }
+//       for val in array { // iterated loop with typed var
+//
+//       }
+//
+//       for val,i in array { // iterated lop with typed var & index var
+//
+//       }
+//
+//       for i := 0; i < 100; i++ { // standard for loop
+//
+//       }
+//
+//       for >= 100 { // dynamic iterated array without index var
+//
+//       }
+//
+//       for { // infinite loop
+//
+//       }
 
 
        expect_semicolon();
     }
 
-    def parse_expression(_ast : ast) {
+    def parse_expression(_ast : ast) : var {
        branch := get_branch(_ast, ast_expression);
 
+       return true;
     }
 
     def parse_class_block(_ast : ast) {
@@ -760,7 +763,7 @@ class parser {
     def parse_block(_ast: ast) {
        branch := get_branch(_ast, ast_block);
 
-       curly = false;
+       curly := false;
        if(peek(1).type == token_type.left_curly) {
            expect(branch, "{", false);
        }
@@ -1594,7 +1597,7 @@ class parser {
         "async",
         "get",
         "set",
-        "thread_local",
+        "localized",
         "defer",
         "alias",
         "init"

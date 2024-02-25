@@ -1,0 +1,132 @@
+mod settings;
+
+class settings {
+    /*
+     * Activate aggressive error reporting for the compiler.
+     */
+    show_all_errors := false;
+
+    /*
+     * Only compile all the files
+     */
+    compile_only := false;
+
+    /*
+     * Output file to write to
+     */
+    output_file := "out";
+
+    /*
+     * List of user defined library paths
+     */
+    libraries := new list<string>();
+
+    /*
+     * Set code to be debuggable (flag only used in manifest creation)
+     */
+    debug := true;
+
+    /*
+     * Easter egg to enable magic mode
+     */
+    magic := false;
+
+    /*
+     * Set the max target threads to compile with
+     */ 
+    target_threads := 0;
+
+    /*
+     * Developer mode for extra data printouts
+     */ 
+    developer := false;
+
+    /*
+     * Target platform to run on
+     */ 
+    target : int = alpha_cr4.ordinal;
+
+    /*
+     * Display warnings
+     */
+    warnings := true;
+
+    /*
+     * Display warnings
+     */
+    mode := file_mode;
+
+    /*
+     * Run source code after successful compilation
+     */
+    run := false; 
+
+    /*
+     * Clean cache before compilation
+     */
+    clean_build := false;
+}
+
+options: settings = new settings();
+
+// WARNING SWITCHES
+const __w_general := 0;
+const __w_access := 1;
+const __w_ambig := 2;
+const __w_decl := 3;
+const __w_main := 4;
+const __w_cast := 5;
+const __w_init := 6;
+const __w_null := 7;
+const __w_dep := 8;
+
+warning_options := new var[]
+{
+    true,    // general warnings
+    true,    // waccess
+    true,   // wambig
+    true,   // wdecl
+    true,   // wmain
+    true,   // wcast
+    true,    // winit
+    true,    // wnull
+    true    // wdep
+};
+
+enum optimization_level {
+    none = 0,
+
+    /*
+    * This optimization consists of the most basic level of optimization where
+    * no code is changed at the "user" level. Meaning all code written at the language
+    * level remain in place and code at the virtual machine level is replaced with more high performance
+    * instructions
+    *
+    */
+    basic = 1,
+
+    /*
+    * This optimization consists of the highest level of optimization available for your code
+    * Code under this optimization will be changed at both the "user" level and vm level. Meaning that code written at the language
+    * level may not exist at the lower level/ may be heavily modified and code at the virtual machine level is replaced with more high performance
+    * instructions
+    *
+    */
+    high_performance = 2
+};
+
+enum compilation_mode {
+    /*
+    * This mode specifies that you must explicitly pass in
+    * any files that you want compiled
+    */
+    file_mode,
+
+    /*
+    * This mode specifies that you want to run the compiler in project mode,
+    * signifying that you do not have to explicitly provide any files to be compiled.
+    * Any additional files and or directories added to the options will also be added
+    * to the compilation list as well.
+    */
+    project_mode
+};

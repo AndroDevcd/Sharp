@@ -15,6 +15,11 @@ public:
         init();
     }
 
+    List(const List<T> &lst){
+        init();
+        addAll(lst);
+    }
+
     void init(){
         _Data=NULL;
         len=0;
@@ -33,6 +38,10 @@ public:
     T& __new() {
         __expand();
         return _Data[len-1];
+    }
+
+    T& operator[](uInt pos) {
+        return get(pos);
     }
 
     void insert(uint32_t pos, T& data) {
@@ -120,7 +129,7 @@ public:
         return _Data[_X];
     }
 
-    T& get(uint32_t _X) {
+    T & get(uint32_t _X) const {
         if(_X>=len || _X < 0){
             stringstream ss;
             ss << "index out of bounds list::get() _X: " << _X
@@ -139,6 +148,24 @@ public:
         return _Data[len-1];
     }
 
+    T& last(uint32_t _X) {
+        if(len == 0){
+            stringstream ss;
+            ss << "illegal state list::last() length: 0" << endl;
+            throw std::runtime_error(ss.str());
+        }
+        return _Data[len - (1 + _X)];
+    }
+
+    T& first() {
+        if(len == 0){
+            stringstream ss;
+            ss << "illegal state list::last() length: 0" << endl;
+            throw std::runtime_error(ss.str());
+        }
+        return _Data[0];
+    }
+
     void free() {
         if(_Data != NULL)
             delete[] (_Data);
@@ -146,12 +173,18 @@ public:
         len=0;
     }
 
-    uint32_t size() { return len; }
+    uint32_t size() const { return len; }
 
     bool singular() { return len == 1; }
 
     void pop_back() {
         __shrink();
+    }
+
+    void drop(uint32_t _X) {
+        for(Int i = 0; i < _X; i++) {
+            pop_back();
+        }
     }
 
     bool addif(T _V) {
@@ -212,7 +245,7 @@ public:
         _Data[_X] = repl;
     }
 
-    void addAll(List<T>& list) {
+    void addAll(const List<T>& list) {
         free();
         for(uint32_t i = 0; i < list.size(); i++) {
             push_back(list.get(i));
@@ -329,7 +362,8 @@ private:
     CXX11_INLINE
     void __shrink(){
         try {
-            if(len==0) {
+            if(len <= 0) return;
+            else if(len == 1) {
                 free();
                 return;
             }

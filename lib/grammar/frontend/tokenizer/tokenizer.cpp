@@ -11,10 +11,15 @@
     ('\b' == c) || ('\v' == c) || \
     ('\f' == c)) \
 
-#define current \
-    ((cursor < len) ? \
-        toks.at(cursor) \
-    : toks.at(len-1)) \
+#ifdef WIN32_
+#define is_newline(c) \
+    (('\n' == c))
+#endif
+
+#ifdef POSIX_
+    #define is_newline(c) \
+        (('\n' == c))
+#endif
 
 #define newline() \
     col = 0, line++;
@@ -56,7 +61,10 @@
         ((c >= 97) && (c <= 104)))
 
 #define advance() \
-    col++; cursor++;
+    col++; cursor++;  \
+    if(cursor < toks.size()) \
+        current = toks.at(cursor); \
+    else is_end = true;
 
 #define tokensLeft() \
     (len - cursor)
@@ -91,518 +99,258 @@ static inline bool comment_end(const char c0, const char c1, const int mode)
            ((2 == mode) && ( '*' == c0) && ('/' == c1));
 }
 
+void tokenizer::add_token(token_id id) {
+    tokens.add(Token(toks.substr(start, (cursor-start)+1), id, col, line, NONE));
+}
+void tokenizer::add_token(token_type type) {
+    tokens.add(Token(toks.substr(start, (cursor-start)+1), SINGLE, col, line, type));
+}
+
+Int entry = 0;
 void tokenizer::parse()
 {
     if(len == 0)
         return;
 
     parse_lines();
-    errors = new ErrorManager(&lines, file, false, c_options.aggressive_errors);
+    errors = new ErrorManager(&lines, file, false, options.aggressive_errors);
     EOF_token = new Token("", SINGLE, 1, lines.size(), _EOF);
 
-    for(;;)
-    {
-        start:
-        invalidate_whitespace:
-        while(!isend() && iswhitespace(current))
-        {
-            if(current == '\n')
-            {
-                newline();
+    current = toks.at(0);
+
+    while(!is_end) {
+        start = cursor;
+
+        if(line == 5777) {
+            int i = 0;
+            if(cursor >= 11649) {
+                int k  = 0;
+            }
+        }
+        switch (current) {
+            case ' ':
+            case '\t':
+            case '\b':
+            case '\v':
+            case '\r':
+            case '\f':
+                // ignore whitespace
+                break;
+
+            case '\n': {
+                newline()
+                advance()
+                continue;
             }
 
-            advance();
-        }
+            case '_':
+            case 'A': case 'B': case 'C': case 'D': case 'E':
+            case 'F': case 'G': case 'H': case 'I': case 'J':
+            case 'K': case 'L': case 'M': case 'N': case 'O':
+            case 'P': case 'Q': case 'R': case 'S': case 'T':
+            case 'U': case 'V': case 'W': case 'X': case 'Y':
+            case 'Z':
+            case 'a': case 'b': case 'c': case 'd': case 'e':
+            case 'f': case 'g': case 'h': case 'i': case 'j':
+            case 'k': case 'l': case 'm': case 'n': case 'o':
+            case 'p': case 'q': case 'r': case 's': case 't':
+            case 'u': case 'v': case 'w': case 'x': case 'y':
+            case 'z':
+                parseIdentifier();
+                break;
 
-        // invalidate_comments
-        int mode = 0;
-        if (isend() || peekend(1))
-            goto scan;
-        else if (!comment_start(current,peek(1),mode))
-            goto scan;
+            case '"':
+                if (parseString())
+                    continue;
+            break;
 
-        col+=2; cursor+=2;
-        while (!isend() && !comment_end(current,peek(1),mode))
-        {
-            if(current == '\n'){
-                newline();
-            }
+            case '\'':
+                parseChar();
+                break;
 
-            advance();
-        }
+            case '0': case '1': case '2': case '3':
+            case '4': case '5': case '6': case '7':
+            case '8': case '9':
+                parseNumber();
+                break;
 
-        if(current == '\n'){
-            newline();
-        }
+            case '/':{
+                if (match('/')) {
+                    // A comment goes until the end of the line.
+                    Int size = toks.size();
+                    while (!is_newline(current) && !is_end) {
+                        advance();
+                    }
 
-        if (!isend())
-        {
-            cursor += mode;
-            goto invalidate_whitespace;
-        }
-        else if(isend() && !comment_end(current,peek(1),mode))
-        {
-            errors->createNewError(GENERIC, line, col, "expected closed comment before end of file");
-        }
+                    if(is_newline(current)) {
+                        newline()
+                        advance()
+                        continue;
+                    }
+                } else if(match('*')) {
+                    Int nests = 0;
+                    entry++;
+                    bool found_end = false;
 
-        scan:
-        if(isend())
-        {
-            goto end;
-        }
-        else if(issymbol(current)) // <, >, <<, etc.
-        {
-            if(!peekend(1))
-            {
-                token_type  type = NONE;
-                char chs[] = {current, peek(1)};
+                    // A multiline comment goes until the [*/].
+                    while(!is_end)
+                    {
+                        if(is_newline(current)){
+                            newline()
+                            advance()
+                            continue;
+                        } else if(current == '*' && peek(1) == '/') {
+                            if(nests == 0) {
+                                found_end = true;
+                                break;
+                            } else nests--;
+                        } else if(current == '/' && peek(1) == '*')
+                            nests++;
 
-                if ((chs[0] == '<') && (chs[1] == '=')) type = _LTE;
-                else if ((chs[0] == '>') && (chs[1] == '=')) type = _GTE;
-                else if ((chs[0] == '!') && (chs[1] == '=')) type = NOTEQ;
-                else if ((chs[0] == '=') && (chs[1] == '=')) type = EQEQ;
-                else if ((chs[0] == '<') && (chs[1] == '<')) type = SHL;
-                else if ((chs[0] == '>') && (chs[1] == '>')) type = SHR;
-                else if ((chs[0] == '&') && (chs[1] == '&')) type = ANDAND;
-                else if ((chs[0] == '|') && (chs[1] == '|')) type = OROR;
-                else if ((chs[0] == '-') && (chs[1] == '>')) type = PTR;
-                else if ((chs[0] == '+') && (chs[1] == '+')) type = _INC;
-                else if ((chs[0] == '-') && (chs[1] == '-')) type = _DEC;
-                else if ((chs[0] == '+') && (chs[1] == '=')) type = PLUSEQ;
-                else if ((chs[0] == '*') && (chs[1] == '=')) type = MULTEQ;
-                else if ((chs[0] == '*') && (chs[1] == '*')) type = EXPONENT; // TODO: talk about exponent
-                else if ((chs[0] == '-') && (chs[1] == '=')) type = MINUSEQ;
-                else if ((chs[0] == '/') && (chs[1] == '=')) type = DIVEQ;
-                else if ((chs[0] == '&') && (chs[1] == '=')) type = ANDEQ;
-                else if ((chs[0] == '|') && (chs[1] == '=')) type = OREQ;
-                else if ((chs[0] == '^') && (chs[1] == '=')) type = XOREQ;
-                else if ((chs[0] == '%') && (chs[1] == '=')) type = MODEQ;
-                else if ((chs[0] == ':') && (chs[1] == '=')) type = INFER;
+                        advance();
+                    }
 
-                if (NONE != type)
-                {
-                    string s;
-                    s.append(1,chs[0]);
-                    s.append(1,chs[1]);
-
-                    tokens.add(Token(s, SINGLE, col, line, type));
-                    cursor += 2;
-                    goto start;
+                    if(!found_end)
+                        errors->createNewError(GENERIC, line, col, "expected `*/` at end of block comment");
+                    advance();
+                } else {
+                    if(match('='))
+                        add_token(DIVEQ);
+                    else
+                        add_token(_DIV);
                 }
+                break;
             }
 
-            if ('<' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, LESSTHAN));
-            else if ('>' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, GREATERTHAN));
-            else if (';' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, SEMICOLON));
-            else if (':' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, COLON));
-            else if ('+' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, PLUS));
-            else if ('-' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, MINUS));
-            else if ('*' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, MULT));
-            else if (',' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, COMMA));
-            else if ('=' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, EQUALS));
-            else if ('#' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, HASH));
-            else if ('!' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, NOT));
-            else if ('/' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, _DIV));
-            else if ('%' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, _MOD));
-            else if ('(' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, LEFTPAREN));
-            else if (')' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTPAREN));
-            else if ('{' == current) {
+            case '{': {
                 if(dynamicString)
                     brackets++;
-                tokens.add(Token(string(1, current), SINGLE, col, line, LEFTCURLY));
+                add_token(LEFTCURLY);
+                break;
             }
-            else if ('}' == current) {
+
+            case '}': {
                 if(dynamicString) {
                     if(--brackets == 0) {
                         dynamicString = false;
                         if (peek(1) == '"') {
-                            advance()
-                            advance()
-                            tokens.add(Token(string(1, ')'), SINGLE, col, line, RIGHTPAREN));
-                            goto start;
-                        } else {
-                            tokens.add(Token(string(1, ')'), SINGLE, col, line, RIGHTPAREN));
-                            tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
-                            goto process_string;
-                        }
-                    } else {
-                        tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
-                    }
-                } else
-                    tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
-            }
-            else if ('.' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, DOT));
-            else if ('[' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, LEFTBRACE));
-            else if (']' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTBRACE));
-            else if ('&' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, AND));
-            else if ('|' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, OR));
-            else if ('^' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, XOR));
-            else if ('?' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, QUESMK));
-            else if ('$' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, DOLLAR));
-            else if ('@' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, AT));
-            else
-            {
-                errors->createNewError(UNEXPECTED_SYMBOL, line, col, " `" + string(1, current) + "`");
-            }
-
-            advance();
-            goto start;
-        }
-        else if(isletter(current) || current == '_') // int, dave, etc.
-        {
-            parseIdentifier();
-            goto start;
-        }
-        else if(isnumber(current)) // 0xff2ea, 3.14159, 773_721_3376, etc
-        {
-            if(current == '0' && peek(1) == 'x') {
-                stringstream num;
-                bool underscore_ok = false;
-
-                num << "0x";
-                col+=2; cursor+=2;
-                while(!isend() && (ishexnum(current) || current == '_'))
-                {
-                    if(ishexnum(current))
-                        underscore_ok = true;
-                    else {
-                        if(!underscore_ok) {
-                            errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
-                            break;
-                        }
-
-                        advance();
-                        continue;
-                    }
-
-                    num << current;
-                    advance();
-                }
-
-                tokens.add(Token(num.str(), HEX_LITERAL, col, line));
-                goto start;
-            }
-            else {
-                /*
-                Attempt to match a valid numeric value in one of the following formats:
-                1. 123456
-                2. 123.456
-                3. 1_23.456e3
-                4. 123.456E3
-                5. 123.456e+3
-                6. 123.456E+3
-                7. 123.456e-3
-                8. 123.456E-3
-                9. 12345e5
-             */
-                bool dot_found         = false;
-                bool e_found           = false;
-                bool post_e_sign_found = false;
-                bool underscore_ok     = false;
-                stringstream num;
-
-                while (!isend())
-                {
-
-                    if ('_' == current)
-                    {
-                        if(!underscore_ok || peek(-1) == '.')
-                        {
-                            errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
-                            goto start;
-                        }
-                        advance();
-                    }
-                    else if ('.' == current)
-                    {
-                        if(!isdigit(peek(1)))
-                            break;
-
-                        num << current;
-                        if (dot_found)
-                        {
-                            errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", double decimal");
-                            goto start;
-                        }
-                        dot_found = true;
-                        advance();
-                        continue;
-                    }
-                    else if (ismatch('e',current))
-                    {
-                        underscore_ok = false;
-                        num << current;
-                        const char c = peek(1);
-
-                        if (peekend(1))
-                        {
-                            errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", missing exponent prefix");
-                            goto start;
-                        }
-                        else if (
-                                ('+' != c) &&
-                                ('-' != c) &&
-                                ! isnumber(c)
-                                )
-                        {
-                            errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", expected `+`, `-`, or digit");
-                            goto start;
-                        }
-
-                        e_found = true;
-                        advance();
-                        continue;
-                    }
-                    else if (e_found && issign(current))
-                    {
-                        num << current;
-                        if (post_e_sign_found)
-                        {
-                            errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", duplicate exponent sign postfix");
-                            goto start;
-                        }
-
-                        post_e_sign_found = true;
-                        advance();
-                        continue;
-                    }
-                    else if (('.' != current) && !isdigit(current)) {
-                        break;
-                    }
-                    else
-                    {
-                        if(isdigit(current) && !e_found)
-                            underscore_ok = true;
-
-                        num << current;
-                        advance();
-                    }
-                }
-
-                tokens.add(Token(num.str(), INTEGER_LITERAL, col, line));
-                goto start;
-            }
-        }
-        else if('"' == current) // "Hello, World", "Name: \n", etc.
-        {
-            process_string:
-            stringstream message;
-            if (tokensLeft() < 2)
-            {
-                errors->createNewError(EXPECTED_STRING_LITERAL_EOF, line, col);
-                advance();
-                goto start;
-            }
-            advance();
-
-            if(dynamicString && brackets == 0) {
-                dynamicString = false;
-                errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `}` before end of string");
-                goto start;
-            }
-
-            bool escaped_found = false;
-            bool escaped = false;
-
-            while (!isend())
-            {
-                if(current == '\n')
-                {
-                    errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `\"` before end of line");
-                    newline();
-                    goto start;
-                }
-                else if (!escaped && ('\\' == current))
-                {
-                    message << current;
-                    escaped_found = true;
-                    escaped = true;
-                    advance();
-                    continue;
-                }
-                else if (!escaped)
-                {
-                    if ('"' == current)
-                        break;
-
-                    if('$' == current) {
-                        advance();
-
-                        if('{' == current) {
                             advance();
-                            saveString(message, escaped_found);
-                            // we gotta tokenize he rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
-                            dynamicString = true;
-                            brackets = 1;
-
-                            tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
-                            tokens.add(Token(string(1, '('), SINGLE, col, line, LEFTPAREN));
-                            goto start;
-                        } else if('$' != current){
-                            saveString(message, escaped_found);
-
-                            message.str("");
-                            tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
-
-                            if(!isend() && (isalnum(current) || current == '_'))
-                                parseIdentifier();
-                            else
-                                errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `$` must be alpha numeric, or '_' only");
-
-                            if('"' == current || isend()) {
-                                advance()
-                                goto start;
-                            } else {
-                                tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                            advance();
+                            tokens.add(Token(")", SINGLE, col, line, RIGHTPAREN));
+                            continue;
+                        } else {
+                            tokens.add(Token(")", SINGLE, col, line, RIGHTPAREN));
+                            tokens.add(Token("+", SINGLE, col, line, PLUS));
+                            if(parseString())
                                 continue;
-                            }
                         }
-                    }
-
-                    message << current;
-                }
-                else if (escaped)
-                {
-                    if('$' != current && !isletter((char) tolower(current)) && ('\\' != current) && ('\"' != current) && ('\'' != current))
-                    {
-                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '$', '\\', or '\"' only");
-                        goto start;
-                    }
-
-                    message << current;
-                    escaped = false;
-                }
-
-                advance();
-            }
-
-            if (isend())
-            {
-                errors->createNewError(UNEXPECTED_EOF, line, col);
-                goto start;
-            }
-
-            saveString(message, escaped_found);
-            advance();
-            goto start;
-        }
-        else if('\'' == current) // 'a', '\t', etc.
-        {
-            stringstream character;
-            if (tokensLeft() < 2)
-            {
-                errors->createNewError(EXPECTED_CHAR_LITERAL_EOF, line, col);
-                advance();
-                goto start;
-            }
-            advance();
-
-            bool escaped_found = false;
-            bool escaped = false;
-            bool hascharacter = false;
-
-            while (!isend())
-            {
-                if (!escaped && ('\\' == current))
-                {
-                    if(hascharacter)
-                    {
-                        errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
-                        goto start;
-                    }
-
-                    character << current;
-                    escaped_found = true;
-                    escaped = true;
-                    advance();
-                    continue;
-                }
-                else if (!escaped)
-                {
-                    if ('\'' == current)
-                        break;
-
-                    if(hascharacter)
-                    {
-                        errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
-                        goto start;
-                    }
-
-                    hascharacter = true;
-                    character << current;
-                }
-                else if (escaped)
-                {
-                    hascharacter = true;
-                    if(current != '0' && current != 'a' && !isletter((char) tolower(current))
-                       && current != '\\' && current != '\"' && current != '\'')
-                    {
-                        errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
-                        goto start;
-                    }
-                    character << current;
-                    escaped = false;
-                }
-                advance();
-            }
-
-            if (isend())
-            {
-                errors->createNewError(UNEXPECTED_EOF, line, col);
-                goto start;
-            }
-
-            if (!escaped_found)
-            {
-                if(character.str().empty()) {
-                    errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
+                    } else
+                        add_token(RIGHTCURLY);
                 } else
-                    tokens.add(Token(character.str(), CHAR_LITERAL, col, line));
+                    add_token(RIGHTCURLY);
+                break;
             }
-            else
-            {
-                string msg = character.str();
-                tokens.add(Token(get_escaped_string(msg), CHAR_LITERAL, col, line));
+            case '(': add_token(LEFTPAREN); break;
+            case ')': add_token(RIGHTPAREN); break;
+            case '[': add_token(LEFTBRACE); break;
+            case ']': add_token(RIGHTBRACE); break;
+            case ',': add_token(COMMA); break;
+            case '.': add_token(DOT); break;
+            case ';': add_token(SEMICOLON); break;
+            case '#': add_token(HASH); break;
+
+            case '?': {
+                if(match(':'))
+                    add_token(ELVIS);
+                else
+                    add_token(match('.') ? SAFEDOT : QUESMK);
+                break;
+            }
+            case '$': add_token(DOLLAR); break;
+            case '@': add_token(AT); break;
+            case '!': {
+                if(match('!')) {
+                    if(match('.'))
+                        add_token(FORCEDOT);
+                    else add_token(DOUBLEBANG);
+                }
+                else
+                    add_token(match('=') ? NOTEQ : NOT);
+                break;
+            }
+            case '=': add_token(match('=') ? EQEQ : EQUALS); break;
+            case ':': add_token(match('=') ? INFER : COLON); break;
+            case '<': {
+                if(match('<'))
+                    add_token(SHL);
+                else
+                    add_token(match('=') ? _LTE : LESSTHAN);
+                break;
             }
 
-            advance();
-            goto start;
+            case '>': {
+                if(match('>'))
+                    add_token(SHR);
+                else
+                    add_token(match('=') ? _GTE : GREATERTHAN);
+                break;
+            }
+
+            case '&': {
+                if(match('='))
+                    add_token(ANDEQ);
+                else
+                    add_token(match('&') ? ANDAND : AND);
+                break;
+            }
+
+            case '|': {
+                if(match('='))
+                    add_token(OREQ);
+                else
+                    add_token(match('|') ? OROR : OR);
+                break;
+            }
+
+            case '^': add_token(match('=') ? XOREQ : XOR); break;
+            case '%': add_token(match('=') ? MODEQ : _MOD); break;
+            case '+': {
+                if(match('='))
+                    add_token(PLUSEQ);
+                else
+                    add_token(match('+') ? _INC : PLUS);
+                break;
+            }
+
+            case '-': {
+                if(match('='))
+                    add_token(MINUSEQ);
+                else if(match('>'))
+                    add_token(PTR);
+                else
+                    add_token(match('-') ? _DEC : MINUS);
+                break;
+            }
+
+            case '*': {
+                if(match('='))
+                    add_token(MULTEQ);
+                else if(match('*'))
+                    add_token(EXPONENT);
+                else
+                    add_token(MULT);
+                break;
+            }
+            default:
+                errors->createNewError(UNEXPECTED_SYMBOL, line, col, " `" + string(1, current) + "`");
+                break;
         }
-        else
-        {
-            errors->createNewError(UNEXPECTED_SYMBOL, line, col, " `" + string(1, current) + "`");
-            advance();
-            goto start;
-        }
+
+        advance()
     }
 
-
     end:
-
+//    GUARD(globalLock)
 //    for(Int i = 0; i < tokens.size(); i++) {
 //        cout << tokens.at(i).getValue()
 //        << ":" << tokens.at(i).getLine() << ":" << tokens.at(i).getColumn()
@@ -726,74 +474,437 @@ string tokenizer::tokenTypeToString(token_type type) {
         return "?";
 }
 
-CXX11_INLINE
-void tokenizer::parseIdentifier() {
-    stringstream var;
-    bool hasletter = false;
+void tokenizer::parseNumber() {
+    if(current == '0' && peek(1) == 'x') {
+        bool underscore_ok = false;
 
-    while(!isend() && (isalnum(current) || current == '_'))
+        col+=2; cursor+=2;
+        while(!isend() && (ishexnum(current) || current == '_'))
+        {
+            if(ishexnum(current))
+                underscore_ok = true;
+            else {
+                if(!underscore_ok) {
+                    errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                    break;
+                }
+
+                advance();
+                continue;
+            }
+
+            advance();
+        }
+
+        cursor--;
+        add_token(HEX_LITERAL);
+        return;
+    }
+    else {
+        /*
+        Attempt to match a valid numeric value in one of the following formats:
+        1. 123456
+        2. 123.456
+        3. 1_23.456e3
+        4. 123.456E3
+        5. 123.456e+3
+        6. 123.456E+3
+        7. 123.456e-3
+        8. 123.456E-3
+        9. 12345e5
+     */
+        bool dot_found         = false;
+        bool e_found           = false;
+        bool post_e_sign_found = false;
+        bool underscore_ok     = false;
+
+        while (!isend())
+        {
+
+            if ('_' == current)
+            {
+                if(!underscore_ok || peek(-1) == '.')
+                {
+                    errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                    return;
+                }
+
+                advance();
+            }
+            else if ('.' == current)
+            {
+                if(!isdigit(peek(1)))
+                    break;
+
+                if (dot_found)
+                {
+                    errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", double decimal");
+                   return;
+                }
+
+                dot_found = true;
+                advance();
+                continue;
+            }
+            else if (ismatch('e',current))
+            {
+                underscore_ok = false;
+                const char c = peek(1);
+
+                if (peekend(1))
+                {
+                    errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", missing exponent prefix");
+                    return;
+                }
+                else if (
+                        ('+' != c) &&
+                        ('-' != c) &&
+                        ! isnumber(c)
+                        )
+                {
+                    errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", expected `+`, `-`, or digit");
+                    return;
+                }
+
+                e_found = true;
+                advance();
+                continue;
+            }
+            else if (e_found && issign(current))
+            {
+                if (post_e_sign_found)
+                {
+                    errors->createNewError(ILLEGAL_NUMBER_FORMAT, line, col, ", duplicate exponent sign postfix");
+                    return;
+                }
+
+                post_e_sign_found = true;
+                advance();
+                continue;
+            }
+            else if (('.' != current) && !isdigit(current)) {
+                break;
+            }
+            else
+            {
+                if(isdigit(current) && !e_found)
+                    underscore_ok = true;
+
+                advance();
+            }
+        }
+
+        cursor--;
+        add_token(INTEGER_LITERAL);
+    }
+}
+
+void tokenizer::parseChar() {
+    if (tokensLeft() < 2)
     {
-        if(isletter(current))
-            hasletter = true;
+        errors->createNewError(EXPECTED_CHAR_LITERAL_EOF, line, col);
+        advance();
+        return;
+    }
+    advance();
 
-        var << current;
+    start = cursor;
+    bool escaped_found = false;
+    bool escaped = false;
+    bool hascharacter = false;
+
+    while (!isend())
+    {
+        if (!escaped && ('\\' == current))
+        {
+            if(hascharacter)
+            {
+                errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
+                return;
+            }
+
+            escaped_found = true;
+            escaped = true;
+            advance();
+            continue;
+        }
+        else if (!escaped)
+        {
+            if ('\'' == current)
+                break;
+
+            if(hascharacter)
+            {
+                errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
+                return;
+            }
+
+            hascharacter = true;
+        }
+        else if (escaped)
+        {
+            hascharacter = true;
+            if(current != '0' && current != 'a' && !isletter((char) tolower(current))
+               && current != '\\' && current != '\"' && current != '\'')
+            {
+                errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
+                return;
+            }
+
+            escaped = false;
+        }
+
         advance();
     }
 
-    if(!hasletter)
-        errors->createNewError(GENERIC, line, col, " expected at least 1 letter in identifier `" + var.str() + "`");
+    if (isend())
+    {
+        errors->createNewError(UNEXPECTED_EOF, line, col);
+        return;
+    }
+
+    if (!escaped_found)
+    {
+        cursor--;
+        if(!hascharacter) {
+            errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
+        } else
+            add_token(CHAR_LITERAL);
+        cursor++;
+    }
     else
-        tokens.add(Token(var.str(), IDENTIFIER, col, line));
+    {
+        tokens.add(Token(from_escaped_string(toks.substr(start, (cursor-start))), CHAR_LITERAL, col, line));
+    }
+}
+
+bool tokenizer::parseString() {
+    if (tokensLeft() < 2)
+    {
+        errors->createNewError(EXPECTED_STRING_LITERAL_EOF, line, col);
+        advance();
+        return false;
+    }
+
+    advance();
+    if(dynamicString && brackets == 0) {
+        dynamicString = false;
+        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `}` before end of string");
+        return false;
+    }
+
+    start = cursor;
+    bool escaped_found = false;
+    bool escaped = false;
+
+    while (!isend())
+    {
+        if(current == '\n')
+        {
+            errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `\"` before end of line");
+            newline();
+            return false;
+        }
+        else if (!escaped && ('\\' == current))
+        {
+            escaped_found = true;
+            escaped = true;
+            advance();
+            continue;
+        }
+        else if (!escaped)
+        {
+            if ('"' == current)
+                break;
+
+            if('$' == current && dynamicStringSupport) {
+                bool addPlus = true;
+                if(start != cursor) {
+                    cursor--;
+                    if (!escaped_found)
+                        add_token(STRING_LITERAL);
+                    else
+                        tokens.add(Token(from_escaped_string(toks.substr(start, (cursor-start)+1)), STRING_LITERAL, col, line));
+                    cursor++;
+
+                    advance();
+                } else if(peek(1) != '$') {
+                    if(!tokens.empty() && tokens.last().getType() != PLUS)
+                        tokens.add(Token("", STRING_LITERAL, col, line));
+                    else addPlus = false;
+                    advance();
+                }
+
+
+                if('{' == current) {
+                    advance();
+                    // we gotta tokenize he rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
+                    dynamicString = true;
+                    brackets = 1;
+
+                    if(addPlus)
+                        tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                    tokens.add(Token(string(1, '('), SINGLE, col, line, LEFTPAREN));
+                    return true;
+                } else if('$' != current){
+                    start = cursor;
+                    if(addPlus)
+                        tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+
+                    if(!isend() && (isalnum(current) || current == '_'))
+                        parseIdentifier();
+                    else
+                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `$` must be alpha numeric, or '_' only");
+
+                    advance(); // should this be here?
+                    if('"' == current || isend()) {
+                        return false;
+                    } else {
+                        tokens.add(Token(string(1,'+'), SINGLE, col, line, PLUS));
+                        start = cursor;
+                        continue;
+                    }
+                } else{
+                    tokens.add(Token(string(1,'$'), SINGLE, col, line, DOLLAR));
+                    advance();
+
+                    if('"' == current || is_end) {
+                        return false;
+                    } else
+                        start = cursor;
+                }
+            }
+        }
+        else if (escaped)
+        {
+            if(!isletter((char) tolower(current)) && ('\\' != current) && ('\"' != current) && ('\'' != current))
+            {
+                errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', or '\"' only");
+                return false;
+            }
+
+            escaped = false;
+        }
+
+        advance();
+    }
+
+    if (isend())
+    {
+        errors->createNewError(UNEXPECTED_EOF, line, col);
+        return false;
+    }
+
+    cursor--;
+    if(!escaped_found)
+        add_token(STRING_LITERAL);
+    else tokens.add(Token(from_escaped_string(toks.substr(start, (cursor-start)+1)), STRING_LITERAL, col, line));
+    cursor++;
+    return false;
 }
 
 CXX11_INLINE
-void tokenizer::saveString(const stringstream &message, bool escaped_found) {
-    if (!escaped_found)
-        tokens.add(Token(message.str(), STRING_LITERAL, col, line));
+void tokenizer::parseIdentifier() {
+    start = cursor;
+    bool hasletter = false;
+
+    while(!is_end && (isalnum(current) || current == '_'))
+    {
+        if(isletter(current))
+            hasletter = true;
+        advance();
+    }
+
+    cursor--;
+    if(!hasletter)
+        errors->createNewError(GENERIC, line, col, " expected at least 1 letter in identifier");
     else
-        tokens.add(Token(get_escaped_string(message.str()), STRING_LITERAL, col, line));
+        add_token(IDENTIFIER);
 }
 
-string tokenizer::get_escaped_string(string msg) const {
-    stringstream escapedmessage;
+string tokenizer::from_escaped_string(string msg) {
+    string escapedmessage;
     for(unsigned long i = 0; i < msg.length(); i++)
     {
         if(msg.at(i) == '\\')
         {
             switch(msg.at(i+1)) {
                 case 'n':
-                    escapedmessage << endl;
+                    escapedmessage += "\n";
                     break;
                 case 't':
-                    escapedmessage << '\t';
+                    escapedmessage += '\t';
                     break;
                 case 'b':
-                    escapedmessage << '\b';
+                    escapedmessage += '\b';
                     break;
                 case 'v':
-                    escapedmessage << '\v';
+                    escapedmessage += '\v';
                     break;
                 case 'r':
-                    escapedmessage << '\r';
+                    escapedmessage += '\r';
                     break;
                 case 'f':
-                    escapedmessage << '\f';
+                    escapedmessage += '\f';
                     break;
                 case '0':
-                    escapedmessage << '\0';
+                    escapedmessage += '\0';
                     break;
                 case 'a':
-                    escapedmessage << '\a';
+                    escapedmessage += '\a';
+                    break;
+                case '\\':
+                    escapedmessage += '\\';
                     break;
                 default:
-                    escapedmessage << msg.at(i+1);
+                    escapedmessage += msg.at(i+1);
                     break;
             }
 
             i++;
         }
         else
-            escapedmessage << msg.at(i);
+            escapedmessage += msg.at(i);
+    }
+    return escapedmessage;
+}
+
+string tokenizer::to_escaped_string(string msg) {
+    stringstream escapedmessage;
+    for(unsigned long i = 0; i < msg.length(); i++)
+    {
+        switch(msg.at(i)) {
+            case '\n':
+                escapedmessage << "\\n";
+                break;
+            case '\t':
+                escapedmessage << "\\t";
+                break;
+            case '\b':
+                escapedmessage << "\\b";
+                break;
+            case '\v':
+                escapedmessage << "\\v";
+                break;
+            case '\r':
+                escapedmessage << "\\r";
+                break;
+            case '\f':
+                escapedmessage << "\\f";
+                break;
+            case '\0':
+                escapedmessage << "\\0";
+                break;
+            case '\a':
+                escapedmessage << "\\a";
+                break;
+            case '"':
+                escapedmessage << "\\\"";
+                break;
+            default:
+                escapedmessage << msg.at(i);
+                break;
+        }
     }
     return escapedmessage.str();
 }
@@ -801,6 +912,15 @@ string tokenizer::get_escaped_string(string msg) const {
 ErrorManager* tokenizer::getErrors()
 {
     return errors;
+}
+
+bool tokenizer::match(char c) {
+    if(peek(1)==c) {
+        advance();
+        return true;
+    }
+
+    return false;
 }
 
 bool tokenizer::ismatch(char i, char b) {

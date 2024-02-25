@@ -1,0 +1,141 @@
+mod std;
+
+import (
+    platform.kernel
+)
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ *
+ * Class to be used as the baseline of throwing errors
+ */
+class throwable {
+    private message : _int8[]?;
+
+    stack_trace : string?;
+      get {
+        if(stack_trace == null && frame_info != null) {
+            stack_trace =
+                vm.get_stack_trace(frame_info!!);
+        }
+
+        return stack_trace;
+      }
+
+    private frame_info : stack_state?;
+
+    init {
+        frame_info =
+            vm.get_frame_info();
+    }
+
+    public throwable(message : string?) {
+        self->message = message?.data;
+    }
+
+    def get_message() : string {
+        return message;
+    }
+
+    override def to_string() : string?
+         = new string(message);
+}
+
+/**
+ * Created by braxtonn on 3/2/2018.
+ */
+class exception base throwable {
+    public exception(message : string?) -> base(message) {}
+}
+
+class illegal_argument_exception base exception {
+    public illegal_argument_exception(message : string?) -> base(message) {}
+}
+class illegal_state_exception base exception {
+    public illegal_state_exception(message : string?) -> base(message) {}
+}
+class out_of_bounds_exception base exception {
+    public out_of_bounds_exception(message : string?) -> base(message) {}
+}
+class io_exception base exception {
+    public io_exception(message : string?) -> base(message) {}
+}
+class invalid_operation_exception base exception {
+    public invalid_operation_exception(message : string?) -> base(message) {}
+}
+class nullptr_exception base exception {
+    public nullptr_exception(message : string?) -> base(message) {}
+}
+class runtime_exception base exception {
+    public runtime_exception(message : string?) -> base(message) {}
+}
+class stack_overflow_exception base exception {
+    public stack_overflow_exception(message : string?) -> base(message) {}
+}
+class thread_stack_exception base exception {
+    public thread_stack_exception(message : string?) -> base(message) {}
+}
+class class_cast_exception base exception {
+    public class_cast_exception(message : string?) -> base(message) {}
+}
+class out_of_memory_exception base exception {
+    public out_of_memory_exception(message : string?) -> base(message) {}
+}
+class incompatible_class_exception base exception {
+    public incompatible_class_exception(message : string?) -> base(message) {}
+}
+
+class object_import_error base error {
+    public object_import_error(message : string?) -> base(message) {}
+}
+class not_implemented_error base error {
+    public not_implemented_error(message : string?) -> base(message) {}
+}
+class unsatisfied_link_error base error {
+    public unsatisfied_link_error(message : string?) -> base(message) {}
+}
+class assertion_error base error {
+    public assertion_error(message : string?) -> base(message) {}
+}
+
+class error base exception {
+    public error(message : string?) -> base(message) {}
+}
+
+/*
+* Alises for shorter name size
+*/
+alias illegal_argument_exception as ill_arg_except;
+alias illegal_state_exception as ill_state_except;
+alias out_of_bounds_exception as bounds_except;
+alias invalid_operation_exception as invalid_op_except;
+alias nullptr_exception as null_except;
+alias runtime_exception as runtime_except;
+alias thread_stack_exception as stack_except;
+alias class_cast_exception as cast_except;
+alias out_of_memory_exception as memory_except;
+alias incompatible_class_exception as incompatible_except;
+
+def runtime_error(message: string?) : runtime_except {
+    return new runtime_except(message);
+}
+
+def runtime_error() : runtime_except {
+    return new runtime_except();
+}
+
+def todo(message: string?) {
+    throw new not_implemented_error(message);
+}
+
+def assert(cond : bool) {
+   if(!cond) {
+     throw new assertion_error("assertion failed!");
+   }
+}
+
+def assert(cond : bool, message: string?) {
+   if(!cond) {
+     throw new assertion_error(message);
+   }
+}

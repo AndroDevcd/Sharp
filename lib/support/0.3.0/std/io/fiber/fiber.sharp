@@ -1,0 +1,116 @@
+mod std.io.fiber;
+
+import (
+    std.io,
+    platform.kernel
+)
+
+class fiber { // Thread 1mb fiber 6kb <starting size>
+
+   private fiber() {}
+
+   name : string = "";
+   id : var = -1;
+   excuse main : (object[]?)(int);
+   exit_val : var = 0;
+   bound_thread : thread?;
+
+   fiber(name : string, main : (object[])(int)) {
+      self->name = name;
+      self->main = main;
+   }
+
+   fiber(name : string, t: thread, main : (object[])(int)) {
+      self->name = name;
+      self->main = main;
+      self->bound_thread = t;
+   }
+
+   def start(args: object[]?) {
+      if(id == -1)
+         id = vm.start_fiber(self, bound_thread, args, fiber_main).value;
+   }
+
+   def suspend() : int {
+      return vm.suspend_fiber(self);
+   }
+
+   def unsuspend() : int {
+      return vm.unsuspend_fiber(self);
+   }
+
+   def kill() : int {
+      result := vm.kill_fiber(self);
+      if(result == 0)
+         id = -1;
+      return result;
+   }
+
+   def bind(t: thread) : int {
+      result := vm.bind_fiber(self, t);
+      if(result == 0)
+         bound_thread = t;
+      return result;
+   }
+
+   def join() {
+      while(true) {
+         if(id == -1)
+            break;
+         delay(10);
+      }
+   }
+
+   def unbind() : int {
+      return vm.bind_fiber(self, null);
+   }
+
+   def get_state() : fiber_state {
+      state := vm.get_fiber_state(self);
+
+      when(state) {
+         0 -> {
+            return FIB_CREATED;
+         }
+         1 -> {
+            return FIB_RUNNING;
+         }
+         2 -> {
+            return FIB_SUSPENDED;
+         }
+         3 -> {
+            return FIB_KILLED;
+         }
+         else -> {
+            return FIB_INVALID;
+         }
+      }
+   }
+
+   static def current() : fiber {
+      return vm.current_fiber();
+   }
+
+   static def poll(t: thread?) : int {
+      return vm.get_bound_fibers(t);
+   }
+
+   private static def fiber_main(args : object[]?) {
+      platform.tls_init();
+      fib := current();
+
+      try {
+         fib.exit_val = fib.main(args).value;
+      } catch(t: throwable) {
+         fib.id = -1;
+         fib.exit_val = 300;
+         throw t;
+      }
+
+      fib.id = -1;
+   }
+}
+
+def delay(tm: long) {
+   vm.delay(tm);
+}

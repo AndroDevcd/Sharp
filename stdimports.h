@@ -16,7 +16,11 @@
 #include <thread>
 #include <limits>
 #include <cmath>
-#include "lib/runtime/architecture.h"
+#include <mutex>
+#include <atomic>
+#include <memory>
+#include "lib/core/architecture.h"
+#include "lib/grammar/platform.h"
 
 using namespace std;
 
@@ -31,10 +35,6 @@ using namespace std;
 #define __os_yield() std::this_thread::yield();
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
-#ifndef __wtypes_h__
-#include <wtypes.h>
-#endif
 
 #ifndef __WINDEF_
 #include <windef.h>
@@ -53,12 +53,11 @@ using namespace std;
 #define __os_yield() sched_yield();
 #endif
 
-//#define GOD_MODE
+//#define SAFE_EXECUTION
+//#define VM_DEBUG
+// #define SHARP_PROF
 
-#ifdef GOD_MODE
-#define SHARP_PROF_
-#define COROUTINE_DEBUGGING
-#endif
+//#define COROUTINE_DEBUGGING
 
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"
@@ -77,34 +76,6 @@ typedef int64_t Int;
 typedef uint64_t uInt;
 #define _INT_MAX INT64_MAX
 #endif
-
-typedef void (*fptr)(void *);
-
-struct Sharp {
-    /**
-     * Jan 13, 2017 Initial build release of sharp 0.1.3, this contains
-     * all the base level support for running sharp. Sharp was
-     * developed to support both windows and linux operating systems
-     *
-     * Base is no longer supported as it is too old to support
-     */
-    int BASE  = 1;
-
-    /**
-     * Jan 18, 2018 Build release of Sharp 0.2.0, this contains all the base level
-     * support for sharp as well as major performance enhancments and improvements
-     * throughout the platform.
-     */
-    int ALPHA = 2;
-};
-
-extern Sharp versions;
-
-void* __malloc(uInt bytes);
-void* __calloc(uInt n, uInt bytes);
-void* __realloc(void *ptr, uInt bytes, uInt);
-void __os_sleep(Int);
-void setupSigHandler();
 
 #define CXX11_INLINE inline
 

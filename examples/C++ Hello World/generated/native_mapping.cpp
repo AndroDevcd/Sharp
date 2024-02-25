@@ -1,4 +1,5 @@
-#include "native_mapping.h"
+
+#include "snb_api.h"
 
 using namespace std;
 using namespace snb_api;

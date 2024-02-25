@@ -1,0 +1,161 @@
+mod std;
+
+import (
+    platform,
+    platform.kernel
+)
+
+/**
+* Created by bknun on 9/3/2022
+* 
+* @class time
+*
+* Description:
+* This file provides tim information in the form of
+* os time or UTC time
+*/
+class time {
+    static const INFINITE := 1;
+
+    static def nano_time() : long {
+        return vm.time_in_nanoseconds();
+    }
+
+    static def get_os_time(tr: time_request)
+       := vm.get_os_time(tr.ordinal);
+
+    static def nano_to_micro(nano: long) : long {
+        return nano/1000;
+    }
+
+    static def nano_to_mills(nano: long) : long {
+        return nano_to_micro(nano)/1000;
+    }
+
+    public static def nano_to_secs(nano: long) : long {
+        return nano_to_mills(nano)/1000;
+    }
+
+    static def mills_time() : long {
+        return nano_to_mills(nano_time());
+    }
+
+    static def micro_time() : long {
+        return nano_to_micro(nano_time());
+    }
+
+    static def sleep(time: long) {
+        sleep(time_unit.milliseconds, time);
+    }
+
+    static def sleep(tm_unit: time_unit, time: long) {
+        if(time < 0)
+            throw new error("cannot sleep for negative time: $time");
+
+        if(tm_unit == time_unit.seconds) {
+            time *= 1000000;
+        } else if(tm_unit == time_unit.milliseconds) {
+            time *= 1000;
+        } else if(tm_unit == time_unit.nanoseconds) {
+            time /= 1000;
+        }
+
+        // todo: double check all asm statements
+        sleep_tm := time.value; // todo: add support for nanosecond sleeping
+        asm {
+            loadl ebx, [sleep_tm]
+            sleep ebx
+        }
+    }
+
+    static def measureMills(block: ()()): long {
+        return measure(time_unit.milliseconds, block);
+    }
+
+    static def measure(tm_unit: time_unit, block: ()()) : long {
+        start := nano_time();
+        end: long;
+        block();
+        end = nano_time();
+
+        when (tm_unit) {
+            seconds -> {
+                start = nano_to_secs(start);
+                end = nano_to_secs(end);
+            }
+            milliseconds -> {
+                start = nano_to_mills(start);
+                end = nano_to_mills(end);
+            }
+            microseconds -> {
+                start = nano_to_micro(start);
+                end = nano_to_micro(end);
+            }
+        }
+
+        return end - start;
+    }
+
+    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : long {
+        start := nano_time(), end;
+        block(args);
+        end = nano_time();
+
+        when (tm_unit) {
+            seconds -> {
+                start = nano_to_secs(start);
+                end = nano_to_secs(end);
+            }
+            milliseconds -> {
+                start = nano_to_mills(start);
+                end = nano_to_mills(end);
+            }
+            microseconds -> {
+                start = nano_to_micro(start);
+                end = nano_to_micro(end);
+            }
+        }
+
+        return end - start;
+    }
+
+
+    static def wait(tm_unit: time_unit, time: long) {
+        if(time != INFINITE) {
+            if(time < 0)
+                throw new error("cannot sleep for negative time: $time");
+
+            if(tm_unit == time_unit.seconds) {
+                time *= 1000;
+            } else if(tm_unit == time_unit.microseconds) {
+                time /= 1000;
+            } else if(tm_unit == time_unit.nanoseconds) {
+                time /= 1000000;
+            }
+        }
+
+//        asm {
+//            loadl adx, {time}
+//            int 0x14
+//        }
+    }
+}
+
+enum time_request {
+   tm_seconds = 0,
+   tm_minutes = 1,
+   tm_hour = 2,
+   tm_mday = 3,
+   tm_mon = 4,
+   tm_year = 5,
+   tm_wday = 6,
+   tm_yday = 7,
+   tm_isdst = 8
+}
+
+enum time_unit {
+    seconds = 0,
+    milliseconds = 1,
+    microseconds = 2,
+    nanoseconds = 3
+}

@@ -8,37 +8,52 @@
 #include "../../../../stdimports.h"
 #include "../tokenizer/tokenizer.h"
 #include "Ast.h"
+#include "../../json/json_value.h"
 
 class parser {
 public:
     parser(tokenizer *tokenizer)
             :
+            errors(NULL),
             toks(tokenizer),
             parsed(false),
-            panic(false)
+            panic(false),
+            recursion(0),
+            lines()
     {
         if(tokenizer != NULL && tokenizer->getErrors() != NULL &&
            !tokenizer->getErrors()->hasErrors())
         {
+            lines.addAll(tokenizer->getLines());
             access_types.init();
             tree.init();
             parse();
         }
     }
 
+    ~parser() {
+        free();
+    }
+
     ErrorManager* getErrors();
     Ast* astAt(long p);
     size_t size() { return tree.size(); }
     void free();
-    string &getData() { return toks->getData(); }
+    string getData() { return toks ? toks->getData() : ""; }
+    List<string> &getLines() { return lines; }
     tokenizer *getTokenizer() { return toks; }
     static bool isStorageType(Token &t);
+    static bool isInjectRequest(Token &t);
     static bool isNativeType(string t);
     static bool isOverrideOperator(string t);
     static bool isAssignExprSymbol(string t);
+    static bool isElvisOperator(string t);
+    json_value* exportData();
+    void importData(json_value*);
+    void exportLines(json_object*);
 
     bool parsed, panic;
-
+    long recursion;
 
 private:
     void parse();
@@ -72,26 +87,27 @@ private:
     bool isLockStatement(Token &t);
     bool isTryCatchStatement(Token &t);
     bool isAliasDeclaration(Token &t);
+    bool isComponentDeclaration(Token &t);
     bool isSwitchDeclarator(Token &t);
     bool isConstructorDecl();
     bool isKeyword(string s);
     bool iaAssemblyInstruction(string s);
     bool isExprSymbol(string token);
-    bool isForLoopCompareSymbol(string t);
     bool isObfuscationOption(Token &token);
     void parseAccessTypes();
-
     bool expectIdentifier(Ast*);
     bool expectOverrideOperator(Ast* ast);
     void parseModuleDecl(Ast*);
     void parseImportDecl(Ast*);
+    void parseImportItem(Ast*);
+    void parseArrayItems(Ast*);
     void parseClassDecl(Ast*);
     void parseMutateDecl(Ast*);
     void parseInterfaceDecl(Ast*);
     void parseObfuscateBlock(Ast*);
     void parseObfuscateElement(Ast *ast);
     void parseObfuscateDecl(Ast*);
-    void parseIdentifierList(Ast*);
+    void parseGenericIdentifierList(Ast*);
     void addAccessTypes(Ast*);
     bool parseReferencePointer(Ast*);
     void parseUtypeList(Ast*);
@@ -99,12 +115,14 @@ private:
     void parseClassBlock(Ast*);
     void parseInterfaceBlock(Ast*);
     void parseVariableDecl(Ast*);
+    void parseInjectRequest(Ast*);
+    void parseGetterSetterAccessTypes();
     void parseGetter(Ast *ast);
     void parseSetter(Ast *ast);
     bool parseTypeIdentifier(Ast*);
     bool parseUtype(Ast*);
     bool parseUtypeNaked(Ast*);
-    bool parseExpression(Ast*,bool ignoreBinary = false);
+    bool parseExpression(Ast*,bool ignoreBinary = false, bool ignoreInlineLambda = false);
     void parseDictExpression(Ast* ast);
     void parseDictElement(Ast* ast);
     void parseDictionaryType(Ast* ast);
@@ -119,13 +137,12 @@ private:
     bool addition(Ast*);
     bool unary(Ast*);
     bool binary(Ast*);
-    bool parsePrimaryExpr(Ast*);
+    bool parsePrimaryExpr(Ast*, bool ignoreInlineLambda);
     bool parseLiteral(Ast*);
     bool parseRegister(Ast*);
     bool parseAsmLiteral(Ast *ast);
     bool parseDotNotCallExpr(Ast*);
     void parseExpressionList(Ast*,string,string);
-    void parseFieldInitList(Ast*);
     bool parseUtypeArg(Ast*);
     bool parseUtypeArgOpt(Ast*);
     bool parseLambdaArg(Ast*);
@@ -133,12 +150,10 @@ private:
     bool parseUtypeArgListOpt(Ast*);
     void parseLambdaArgList(Ast*);
     bool parseArrayExpression(Ast*);
-    bool parseFieldInitializatioin(Ast*);
     void parseBaseClassUtype(Ast *ast);
     void parseMethodReturnType(Ast*);
     void parseLambdaReturnType(Ast*);
     void parseMethodDecl(Ast*);
-    void parseOperatorDecl(Ast*);
     void parseConstructor(Ast*);
     void parseBaseClassConstructor(Ast*);
     void parseAll(Ast*);
@@ -152,6 +167,12 @@ private:
     void parseReturnStatement(Ast*);
     void parseIfStatement(Ast*);
     void parseAliasDeclaration(Ast *ast);
+    void parseComponentDeclaration(Ast *ast);
+    void parseComponentTypeList(Ast *ast);
+    void parseTypeDefinition(Ast *ast);
+    void parseSingleTypeDefinition(Ast *ast);
+    void parseFactoryTypeDefinition(Ast *ast);
+    void parseComponentName(Ast *ast);
     void parseForStatement(Ast *ast);
     void parseForEachStatement(Ast *ast);
     void parseWhileStatement(Ast*);
@@ -178,11 +199,12 @@ private:
     List<Ast*> tree;
     Token* _current;
     tokenizer *toks;
+    List<string> lines;
     List<Token> access_types;
     ErrorManager *errors;
 };
 
-#define _SHARP_CERROR_LIMIT c_options.error_limit
+#define _SHARP_CERROR_LIMIT options.max_errors
 
 #define CHECK_ERRLMT(exit_proc) \
     if(panic) exit_proc \

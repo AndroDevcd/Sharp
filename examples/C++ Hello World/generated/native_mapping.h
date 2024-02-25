@@ -95,7 +95,10 @@ scope_end()
 
 scope_begin(std, illegal_argument_exception)
 
+    //     void illegal_argument_exception(object $instance, _int8_array& message);
     void illegal_argument_exception(object $instance, _int8_array& message);
+
+    // void illegal_argument_exception(object $instance, _int8_array& message);
     void illegal_argument_exception2(object $instance, object message);
     void illegal_argument_exception3(object $instance);
 scope_end()

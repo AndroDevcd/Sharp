@@ -1,0 +1,36 @@
+mod main;
+
+import (
+    std.export
+)
+
+class Foo {
+    username : string;
+    password : string;
+    params : hash_map<string, _object_>;
+
+    init {
+        username = new string("dan");
+        password = new string("123456789");
+        params = new hash_map<string, _object_>();
+        for(i := 0; i< 20; i++) {
+            params.put(i.to_string()!!, new string("a"));
+        }
+    }
+}
+
+def main() {
+
+    //Before changed
+    // 59817ms, 59211ms, 60143ms, 59672ms, 59672ms
+    // After Change
+    // 
+
+    f := new Foo();
+    for (i : var = 0; i < 1_0_00; i++) {
+        if((i % 100) == 0) println(i);
+        deserialize(serialize(f));
+    }
+
+    println("serialization done");
+}
