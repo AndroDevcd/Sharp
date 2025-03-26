@@ -89,6 +89,8 @@ class string : loopable<_int8> {
 
     def empty() : bool = sizeof(data)==0;
 
+    def not_empty() : bool = !empty();
+
     def append(immstr: _int8[]?) : string
     {
         if(immstr == null) return self;
@@ -146,18 +148,29 @@ class string : loopable<_int8> {
 
     def operator+(obj : printable?) : string {
         s := new string(data);
-        return s.append(obj?.to_string()?.data ?: "null");
+        objstr := obj?.to_string();
+        if(objstr == null) {
+            return s.append("null");
+        } else if(objstr?.data == null) {
+            return s;
+        } else 
+            return s.append(objstr?.data);
     }
 
    def operator+(str : string?) : string {
        s := new string(data);
-       return s.append(str?.data ?: "null");
+        if(str == null) {
+            return s.append("null");
+        } else if(str?.data == null) {
+            return s;
+        } else 
+            return s.append(str?.data);
    }
 
     override def to_string() : string? = new string(data);
 
     def operator==(str : _int8[]?) : bool {
-        if(str == null || sizeof(data) != sizeof(str))
+        if(sizeof(data) != sizeof(str))
             return false;
 
         iter := 0;
@@ -171,7 +184,7 @@ class string : loopable<_int8> {
     }
 
     def operator==(str : string?) : bool {
-        if(str == null || sizeof(data) != sizeof(str?.data))
+        if(sizeof(data) != sizeof(str?.data))
             return false;
 
         iter := 0;
@@ -301,7 +314,14 @@ class string : loopable<_int8> {
 
     def operator+=( obj: printable? ) : string
     {
-        return append(obj?.to_string()?.data ?: "null");
+        str := obj?.to_string();
+        if(str == null) {
+            return append("null");
+        } else if(str?.data == null) {
+            return self;
+        } else {
+            return append(?.data);
+        }
     }
 
     def operator+=( str: string ) := append(str.data!!);

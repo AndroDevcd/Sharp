@@ -194,7 +194,7 @@ private:
     void parseLabelDecl(Ast* ast);
 
     Ast* getBranch(Ast *parent, ast_type type);
-    void expect(Ast* ast, string token, bool addToken = true, const char *expectedstr = nullptr);
+    void expect(Ast* ast, string token, bool addToken = true, const char *expectedstr = nullptr, bool allowStrLiteral = false);
 
     List<Ast*> tree;
     Token* _current;

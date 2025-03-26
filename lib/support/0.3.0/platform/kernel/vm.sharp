@@ -36,7 +36,7 @@ class vm {
 
     static def free_library(name: string): int {
         lib_name : _int8[] = get_lib_path(name);
-        result := 0;
+        result :var = 0;
 
         asm {
             pushl [lib_name]

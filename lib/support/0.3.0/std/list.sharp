@@ -78,6 +78,14 @@ class list<T base _object_> : loopable<T> {
             realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
     }
 
+    private def fit(size: int) {
+        remaining := sizeof(data) - (n_elements + 1);
+        if(size >= remaining && is_compact) {
+            realloc(data!!, sizeof(data) + min_capacity + size);
+        } else
+            realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + size);
+    }
+
     def clear() {
        if(n_elements > 0) {
            data = new T[default_capacity];
@@ -104,6 +112,13 @@ class list<T base _object_> : loopable<T> {
     def add_all(lst: list<T>) {
        data = copy(lst.get_elements()!!, 0, lst.size().value) as T[];
        n_elements = lst.size().value;
+    }
+
+    def append_all(lst: list<T>) {
+       fit(lst.size());
+       foreach(item in lst) {
+          add(item);
+       }
     }
 
     def add(element: T) {

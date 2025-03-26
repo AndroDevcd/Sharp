@@ -1,0 +1,72 @@
+mod frontend.tokenizer;
+
+//import std.io as io;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+
+enum token_type
+{
+    number,
+    letter,
+    underscore,
+    left_paren,
+    right_paren,
+    left_curly,
+    right_curly,
+    hash,               // #
+    dot,                // .
+    safe_dot,                // ?.
+    force_dot,                // !!.
+    plus,
+    minus,
+    mult,
+    exponent,
+    div,               //
+    _mod,               // %
+    colon,              // :
+    semicolon,
+    dub_quote,           // "
+    sing_quote,          // '
+    comma,
+    newline,
+    lte,               // <=
+    gte,               // >=
+    eqeq,               // ==
+    elvis,               // ?:
+    then,               // :>
+    pluseq,
+    minuseq,
+    multeq,
+    diveq,
+    andeq,
+    oreq,
+    xoreq,
+    modeq,
+    noteq,              // !=
+    shl,                // <<
+    shr,                // >>
+    lessthan,
+    greaterthan,
+    and,
+    andand,             // &&
+    or,
+    oror,               // ||
+    xor,                // ^
+    not,                // !
+    equals,             // =
+    infer,             // :=
+    left_brace,          // [
+    right_brace,         // ]
+    quesmk,             // ?
+    ptr,                // ->
+    inc,               // ++
+    dec,               // --
+    dollar,             // $
+    at,                // @
+    eof = 9999,        // end of file
+
+    none                // not a type
+};

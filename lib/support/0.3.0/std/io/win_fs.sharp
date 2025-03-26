@@ -73,7 +73,7 @@ protected class win_fs base file_system {
       */
      override def get_attributes(f: file) : int {
         path := f.path.data;
-        attrs := 0;
+        attrs : var = 0;
 
         /*
         * This will perform the os call to request the
@@ -97,7 +97,7 @@ protected class win_fs base file_system {
       */
      override def check_access(f: file, access: int) : int {
         path := f.path.data;
-        result := 0;
+        result : var = 0;
 
         // unsupported on windows
         if(access == file_system.access_execute)

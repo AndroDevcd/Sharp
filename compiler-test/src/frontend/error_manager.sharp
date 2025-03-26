@@ -1,7 +1,7 @@
 mod frontend;
 
 import (
-    frontend.tokenizer
+    frontend.tokenizer,
     frontend.parser
 )
 
@@ -9,14 +9,15 @@ import (
  * Created by BraxtonN on 6/8/2018.
  */
 class error_manager {
-    private static has_setup : var;
-    private static predefined_errors := new hashmap<compiler_error, string>();
+    private static has_setup : bool;
+    private static predefined_errors := new hash_map<compiler_error, string>();
     private static empty_error := new parse_error();
+    private static total_errors := 0;
 
     private errors: list<parse_error>, raw_errors, warnings;
     private possible_errors: list<list<parse_error> >;
     private last_error: parse_error, last_checked_error;
-    private errors_found: var, protected_mode, direct_report, aggressive_errors;
+    private errors_found: bool, protected_mode, direct_report, aggressive_errors;
     private lines: list<string>;
     private filename: string;
 
@@ -27,7 +28,7 @@ class error_manager {
        }
     }
 
-    public error_manager(lines: list<string>, file: string, as_is: var, aggressive: var)
+    public error_manager(lines: list<string>, file: string, as_is: bool, aggressive: bool)
     {
         self->possible_errors = new list<list<parse_error> >();
         self->errors = new list<parse_error>();
@@ -71,10 +72,10 @@ class error_manager {
         foreach(err in errors) {
             if(err.warning) {
                 sb += filename + ":" + err.line + ":" + err.col + ": warning S60" +
-                    (err.id as var) + ":  " + err.error + "\n";
+                    err.id.ordinal + ":  " + err.error + "\n";
             } else {
                 sb += filename + ":" + err.line + ":" + err.col + ": error S60" +
-                    (err.id as var) + ":  " + err.error + "\n";
+                    err.id.ordinal + ":  " + err.error + "\n";
             }
 
             sb += "\t" + get_line(err.line) + "\n\t";
@@ -84,17 +85,18 @@ class error_manager {
             sb += "^\n";
         }
 
-        return sb.to_string();
+        return sb.to_string() ?: "";
     }
 
     def print_error(error: parse_error) {
         lock(self) {
+           total_errors++;
            if(error.warning) {
                print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
-                   (error.id as var) + ":  " + error.error + "\n");
+                   error.id.ordinal + ":  " + error.error + "\n");
            } else {
                print(filename + ":" + error.line + ":" + error.col + ": error S60" +
-                   (error.id as var) + ":  " + error.error + "\n");
+                   error.id.ordinal + ":  " + error.error + "\n");
            }
 
            print("\t" + get_line(error.line) + "\n\t");
@@ -112,19 +114,19 @@ class error_manager {
             return lines.at(line-1);
     }
 
-    public def get_error_count() : var {
+    public def get_error_count() : int {
         return errors.size();
     }
 
-    public def get_warning_count() : var {
+    public def get_warning_count() : int {
         return warnings.size();
     }
 
-    public def get_raw_error_count() : var {
+    public def get_raw_error_count() : int {
         return raw_errors.size();
     }
 
-    public def has_errors() : var {
+    public def has_errors() : bool {
         return errors_found && raw_errors.size() != 0;
     }
 
@@ -235,12 +237,12 @@ class error_manager {
         }
     }
 
-    def should_report(tok: token, last_err: parse_error, new_err: parse_error) : var
+    def should_report(tok: token, last_err: parse_error, new_err: parse_error) : bool
     {
         if(last_err.error != new_err.error && !(last_err.line == new_err.line && last_err.col == new_err.col)
             && !last_err.error.find(new_err.error) && !has_error(errors, new_err))
         {
-            if(tok != null && !(tok == token_id.single || tok == token_id.char_literal
+            if(tok != null && !(tok == token_id._single || tok == token_id.char_literal
                 || tok == token_id.string_literal || tok == token_id.integer_literal)) {
                 return !last_err.error.find(tok.get_token());
             }
@@ -251,12 +253,12 @@ class error_manager {
         return false;
     }
 
-    def should_report_warning(tok: token, last_err: parse_error, new_err: parse_error) : var
+    def should_report_warning(tok: token, last_err: parse_error, new_err: parse_error) : bool
     {
         if(last_err.error != new_err.error && !(last_err.line == new_err.line && last_err.col == new_err.col)
             && !last_err.error.find(new_err.error))
         {
-            if(tok != null && !(tok == token_id.single || tok == token_id.char_literal
+            if(tok != null && !(tok == token_id._single || tok == token_id.char_literal
                 || tok == token_id.string_literal || tok == token_id.integer_literal)) {
                 return !last_err.error.find(tok.get_token());
             }
@@ -267,7 +269,7 @@ class error_manager {
         return false;
     }
 
-    def has_error(errs: list<parse_error>, err: parse_error) : var {
+    def has_error(errs: list<parse_error>, err: parse_error) : bool {
         foreach(e in errs) {
             if(e.error == err.error)
                 return true;
@@ -376,7 +378,7 @@ class parse_error {
       id = compiler_error.no_err;
    }
 
-   public parse_error(err: compiler_error, msg: string, l: var, c: var,
+   public parse_error(err: compiler_error, msg: string, l: int, c: int,
             additional: string) {
       id = err;
       if(additional != null && additional.size() != 0)
@@ -387,7 +389,7 @@ class parse_error {
       warning = false;
    }
 
-   public parse_error(warning: var, err: compiler_error, msg: string, l: var, c: var,
+   public parse_error(warning: bool, err: compiler_error, msg: string, l: int, c: int,
             additional: string) {
       id = err;
       if(additional != null && additional.size() != 0)
@@ -398,7 +400,7 @@ class parse_error {
       self->warning = warning;
    }
 
-   public parse_error(warning: var, err: compiler_error, msg: string, entity: token,
+   public parse_error(warning: bool, err: compiler_error, msg: string, entity: token,
             additional: string) {
       id = err;
       if(additional != null && additional.size() != 0)
@@ -411,9 +413,9 @@ class parse_error {
 
    public id: compiler_error;
    public error : string = "";
-   public line: var;
-   public col: var;
-   public warning: var;
+   public line: int;
+   public col: int;
+   public warning: bool;
 }
 
 enum compiler_error {

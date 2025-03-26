@@ -2690,7 +2690,8 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
 
     expect(branch, beginChar);
 
-    if(peek(1)->getValue() != endChar)
+    if(peek(1)->getValue() != endChar 
+        || (peek(1)->getValue() == endChar  && peek(1)->getId() == STRING_LITERAL))
     {
         compile:
         parseExpression(branch);
@@ -4165,15 +4166,18 @@ void parser::parseImportDecl(Ast *ast) {
     }
 }
 
-void parser::expect(Ast* ast, string token, bool addToken, const char *expectedstr) {
+void parser::expect(Ast* ast, string token, bool addToken, const char *expectedstr, bool allowStrLiteral) {
     advance();
 
     if(current().getValue() == token)
     {
+        if(!allowStrLiteral && current().getId() == STRING_LITERAL)
+            goto fail;
         if(addToken)
             ast->addToken(current());
     }
     else {
+        fail:
         if(expectedstr != nullptr)
             errors->createNewError(GENERIC, current(), "expected " + string(expectedstr));
         else

@@ -4,7 +4,8 @@
   "output": "compiler-test",
   "optimize_level": "2",
   "ignore_folders": [
-     "build"
+     "build",
+     "basic-proj"
   ],
   "extern_lib": [
      "..\\lib\\support\\0.3.0"

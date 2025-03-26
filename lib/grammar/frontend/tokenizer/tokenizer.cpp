@@ -112,6 +112,10 @@ void tokenizer::parse()
     if(len == 0)
         return;
 
+    // if(file.find("main.sharp") != std::string::npos) {
+    //     printTokens = true;
+    // }
+
     parse_lines();
     errors = new ErrorManager(&lines, file, false, options.aggressive_errors);
     EOF_token = new Token("", SINGLE, 1, lines.size(), _EOF);
@@ -120,13 +124,6 @@ void tokenizer::parse()
 
     while(!is_end) {
         start = cursor;
-
-        if(line == 5777) {
-            int i = 0;
-            if(cursor >= 11649) {
-                int k  = 0;
-            }
-        }
         switch (current) {
             case ' ':
             case '\t':
@@ -350,13 +347,6 @@ void tokenizer::parse()
     }
 
     end:
-//    GUARD(globalLock)
-//    for(Int i = 0; i < tokens.size(); i++) {
-//        cout << tokens.at(i).getValue()
-//        << ":" << tokens.at(i).getLine() << ":" << tokens.at(i).getColumn()
-//        << " " << tokenTypeToString(tokens.at(i).getType()) << endl;
-//    }
-//    cout << "done\n\n";
 
     tokens.push_back(*EOF_token);
 }
@@ -472,6 +462,43 @@ string tokenizer::tokenTypeToString(token_type type) {
         }
 
         return "?";
+}
+
+string tokenizer::tokenIdToString(token_id id) {
+    switch(id) {
+        case IDENTIFIER:
+            return "IDENTIFIER";
+        case NATIVE_TYPE:
+            return "NATIVE_TYPE";
+        case TYPE_IDENTIFIER:
+            return "TYPE_IDENTIFIER";
+        case INTEGER_LITERAL:
+            return "INTEGER_LITERAL";
+        case HEX_LITERAL:
+            return "HEX_LITERAL";
+        case MODULENAME:
+            return "MODULENAME";
+        case STRING_LITERAL:
+            return "STRING_LITERAL";
+        case CHAR_LITERAL:
+            return "CHAR_LITERAL";
+        case LITERAL:
+            return "LITERAL";
+        case VALUE:
+            return "VALUE";
+        case ACCESSTYPE:
+            return "ACCESSTYPE";
+        case SINGLELINE_COMMENT:
+            return "SINGLELINE_COMMENT";
+        case RETURN_STATEMENT:
+            return "RETURN_STATEMENT";
+        case SINGLE:
+            return "SINGLE";
+        case NOENTITY:
+            return "NOENTITY";
+    }
+    
+    return "?";        
 }
 
 void tokenizer::parseNumber() {
@@ -718,24 +745,28 @@ bool tokenizer::parseString() {
                 break;
 
             if('$' == current && dynamicStringSupport) {
+                if(peek(1) == '$') {
+                    escaped_found = true;
+                    advance();
+                    advance();
+                    continue;
+                }
+
                 bool addPlus = true;
-                if(start != cursor) {
+                if(start != cursor && peek(1) != '$') {
                     cursor--;
                     if (!escaped_found)
                         add_token(STRING_LITERAL);
                     else
                         tokens.add(Token(from_escaped_string(toks.substr(start, (cursor-start)+1)), STRING_LITERAL, col, line));
                     cursor++;
-
-                    advance();
                 } else if(peek(1) != '$') {
                     if(!tokens.empty() && tokens.last().getType() != PLUS)
                         tokens.add(Token("", STRING_LITERAL, col, line));
                     else addPlus = false;
-                    advance();
                 }
 
-
+                advance();
                 if('{' == current) {
                     advance();
                     // we gotta tokenize he rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
@@ -764,14 +795,6 @@ bool tokenizer::parseString() {
                         start = cursor;
                         continue;
                     }
-                } else{
-                    tokens.add(Token(string(1,'$'), SINGLE, col, line, DOLLAR));
-                    advance();
-
-                    if('"' == current || is_end) {
-                        return false;
-                    } else
-                        start = cursor;
                 }
             }
         }
@@ -863,6 +886,12 @@ string tokenizer::from_escaped_string(string msg) {
 
             i++;
         }
+        else if(msg.at(i) == '$') {
+            if((i + 1) < msg.length() && msg.at(i+1) == '$') {
+                escapedmessage += msg.at(i+1);
+                i++;
+            }
+        }
         else
             escapedmessage += msg.at(i);
     }
@@ -921,6 +950,20 @@ bool tokenizer::match(char c) {
     }
 
     return false;
+}
+
+void tokenizer::print() {
+    if(printTokens) {
+        GUARD(globalLock)
+        cout << "Printing tokens for(" << file << endl;
+        for(Int i = 0; i < tokens.size(); i++) {
+            cout << tokens.at(i).getValue()
+            << ":" << tokens.at(i).getLine() << ":" << tokens.at(i).getColumn()
+            << " " << tokenTypeToString(tokens.at(i).getType()) << " ("
+            << tokenIdToString(tokens.at(i).getId()) << ")" << endl;
+        }
+        cout << "\n===================== (END)" << endl;
+    }
 }
 
 bool tokenizer::ismatch(char i, char b) {

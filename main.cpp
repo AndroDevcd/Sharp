@@ -24,10 +24,11 @@ int main(int argc, const char* argv[]) {
 
     now= Clock::realTimeInNSecs();
 
-
+#ifdef VM_DEBUG
     cout << endl << "Serialized in " << serializeTime << "us\n";
-    cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
+#endif
+    cout << endl << "Executed in " << NANO_TOMICRO(now-past) << "us & "
              << NANO_TOMILL(now-past) << "ms\n";
-    cout << endl << "program exiting..." << endl;
+    cout << endl << "vm exiting..." << endl;
     return result;
 }

@@ -8,8 +8,8 @@ import (
  * Created by BraxtonN on 6/14/2018.
  */
 class ast {
-    public line: var;
-    public col: var;
+    public line: int;
+    public col: int;
     type: ast_type;
     private tokens: list<token>;
     private children: list<ast>;
@@ -20,7 +20,7 @@ class ast {
         self->children = new list<ast>();
     }
 
-    public ast(type: ast_type, line: var, col: var)
+    public ast(type: ast_type, line: int, col: int)
     {
         self->type = type;
         self->line = line;
@@ -41,15 +41,15 @@ class ast {
         return tokens.at(pos);
     }
 
-    public def token_size() : var {
+    public def token_size() : int {
         return tokens.size();
     }
 
-    public def children_size() : var {
+    public def children_size() : int {
         return children.size();
     }
 
-    public def has_token(type: token_type) : var {
+    public def has_token(type: token_type) : bool {
         foreach(tok in tokens) {
             if(tok.get_type() == type)
                 return true;
@@ -63,7 +63,7 @@ class ast {
         tokens.clear();
     }
 
-    public def has_child(type: ast_type) : var {
+    public def has_child(type: ast_type) : bool {
         foreach(child in children) {
             if(child.type == type)
                 return true;
@@ -76,7 +76,7 @@ class ast {
         return children.at(pos);
     }
 
-    public def get_child(type: ast_type) : ast {
+    public def get_child(type: ast_type) : ast? {
         foreach(child in children) {
             if(child.type == type)
                 return child;

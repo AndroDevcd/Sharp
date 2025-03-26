@@ -1,9 +1,10 @@
 mod frontend.tokenizer;
 
 import (
-    frontend.parser
-    frontend
-    main
+    frontend.parser,
+    frontend,
+    main,
+    settings
 )
 
 /**                          
@@ -17,14 +18,14 @@ class tokenizer {
     private lines: list<string>;
     private text: string;
     private data: _int8[];
-    private cursor: var, start;
-    private current: var;
-    private line: var;
-    private is_end: var;
-    private col: var;
-    private dynamic_string: var;
-    private brackets: var;
-    private start_parser: var;
+    private cursor: int, start;
+    private current: char;
+    private line: int;
+    private is_end: bool;
+    private col: int;
+    private dynamic_string: bool;
+    private brackets: bool;
+    private start_parser: bool;
     private file: string;
 
     private tokenizer(){ /* Dont call */ }
@@ -38,7 +39,7 @@ class tokenizer {
 
         if(!text.empty()) {
             self->text = text;
-            self->data = text.get_data();
+            self->data = text.get_elements()!!;
         }
         else {
             line = 0;
@@ -53,7 +54,7 @@ class tokenizer {
             return;
 
         add_lines();
-        errors = new error_manager(lines, file, false, options.aggressive_errors);
+        errors = new error_manager(lines, file, false, options.show_all_errors);
         current = text.at(0);
 
         while(!is_end) {
@@ -146,11 +147,11 @@ class tokenizer {
                        if (peek(1) == '"') {
                            advance();
                            advance();
-                           tokens.add(new token(")", token_id.single, token_type.right_paren, col, line));
+                           tokens.add(new token(")", token_id._single, token_type.right_paren, col, line));
                            continue;
                        } else {
-                           tokens.add(new token(")", token_id.single, token_type.right_paren, col, line));
-                           tokens.add(new token("+", token_id.single, token_type.plus, col, line));
+                           tokens.add(new token(")", token_id._single, token_type.right_paren, col, line));
+                           tokens.add(new token("+", token_id._single, token_type.plus, col, line));
                            parse_string();
                        }
                     } else
@@ -258,15 +259,15 @@ class tokenizer {
 //                + " col " + tok.get_col());
 //        }
 
-        tokens.add(new token("eof", token_id.single, token_type.eof, 0, line));
+        tokens.add(new token("eof", token_id._single, token_type.eof, 0, line));
 
         if(errors.has_errors()) {
             errors.print_errors();
 
-            if(start_parser)
-               parser_channel.send(null);
+            // if(start_parser)
+            //    parser_channel.send(null);
         } else if(start_parser) {
-            new parser(self);
+            // new parser(self);
         }
     }
 
@@ -275,10 +276,10 @@ class tokenizer {
     }
 
     private def add_token(type: token_type) {
-      tokens.add(new token(text.substring(start, cursor+1), token_id.single, type, col, line));
+      tokens.add(new token(text.substring(start, cursor+1), token_id._single, type, col, line));
     }
 
-    private def match(c: var) : var {
+    private def match(c: char) : bool {
         if(peek(1)==c) {
             advance();
             return true;
@@ -405,14 +406,13 @@ class tokenizer {
 
                 else -> {
                     if(!(current >= '0' && current <= '9'))
-                       goto save;
+                       break;
                 }
             }
 
             advance();
         }
 
-        save:
         cursor--;
         if(!hasletter)
             errors.new_error(compiler_error.generic, line, col, " expected at least 1 letter in identifier");
@@ -531,7 +531,7 @@ class tokenizer {
         }
     }
 
-    private def parse_string() : var {
+    private def parse_string() : bool {
         if (tokens_left() < 2)
         {
             errors.new_error(compiler_error.expected_string_literal_eof, line, col);
@@ -580,19 +580,18 @@ class tokenizer {
                     }
 
                     advance();
-
                     if('{' == current) {
                         advance();
                         // we gotta tokenize the rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
                         dynamic_string = true;
                         brackets = 1;
 
-                        tokens.add(new token("+", token_id.single, token_type.plus, col, line));
-                        tokens.add(new token("(", token_id.single, token_type.left_paren, col, line));
+                        tokens.add(new token("+", token_id._single, token_type.plus, col, line));
+                        tokens.add(new token("(", token_id._single, token_type.left_paren, col, line));
                         return true;
                     } else if('$' != current) {
                         start=cursor;
-                        tokens.add(new token("+", token_id.single, token_type.plus, col, line));
+                        tokens.add(new token("+", token_id._single, token_type.plus, col, line));
                         if(!is_end && (char.is_alpha_num(current) || current == '_')) {
                             parse_identifier();
                         }
@@ -607,7 +606,7 @@ class tokenizer {
                             continue;
                         }
                     } else {
-                        tokens.add(new token("$$", token_id.single, token_type.plus, col, line));
+                        tokens.add(new token("$$", token_id._single, token_type.plus, col, line));
                         advance();
 
                         if('"' == current || is_end) {
@@ -669,7 +668,7 @@ class tokenizer {
     }
 
     def get_escaped_string(msg: string) : string {
-        str := msg.get_data();
+        str := msg.get_elements();
         tmp := new _int8[sizeof(str)*2];
         size := 0;
 
@@ -719,7 +718,7 @@ class tokenizer {
         return new string(tmp, 0, size);
     }
 
-    def is_sign(c : var) : var {
+    def is_sign(c : char) : bool {
         return (('+'  == c) || ('-' == c));
     }
 
@@ -736,15 +735,15 @@ class tokenizer {
         else is_end = true;
     }
 
-    def peek_end(chars: var) : var {
+    def peek_end(chars: var) : bool {
         return (cursor+chars) >= sizeof(data);
     }
 
-    def tokens_left() : var {
+    def tokens_left() : int {
         return sizeof(data) - cursor;
     }
 
-    def peek(chars: var) : var {
+    def peek(chars: int) : char {
         return ((cursor+chars) >= sizeof(data) || (cursor+chars) < 0)
             ? data[sizeof(data)-1] : data[cursor+chars];
     }
@@ -765,7 +764,7 @@ class tokenizer {
         return file;
     }
 
-    public def at(pos: var) : token {
+    public def at(pos: int) : token {
         return tokens.at(pos);
     }
 
@@ -773,16 +772,16 @@ class tokenizer {
         return tokens.last(); // EOF returned
     }
 
-    public def get_tokens() : token[] {
+    public def get_tokens() : token[]? {
         return tokens.get_elements();
     }
 
-    public def size() : var {
+    public def size() : int {
         return tokens.size();
     }
 
     def add_lines() {
-        raw := text.get_data();
+        raw := text.get_elements();
 
         start = 0;
         for(i := 0; i < sizeof(raw); i++) {
@@ -796,7 +795,7 @@ class tokenizer {
             lines.add(new string(raw));
     }
 
-    private static def is_hex_num(c: var) : var {
+    private static def is_hex_num(c: char) : bool {
         return (char.is_digit(c) || ((c >= 65) && (c <= 70)) ||
                        ((c >= 97) && (c <= 102)));
     }

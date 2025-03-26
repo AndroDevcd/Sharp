@@ -27,6 +27,7 @@ public:
             col(0),
             line(1),
             file(file),
+            printTokens(false),
             dynamicString(false),
             brackets(0),
             is_end(false),
@@ -45,6 +46,7 @@ public:
         }
 
         parse();
+        print();
     }
 
     ~tokenizer() {
@@ -64,6 +66,7 @@ public:
     void free();
 
     static string tokenTypeToString(token_type);
+    static string tokenIdToString(token_id id);
     static string from_escaped_string(string msg);
     static string to_escaped_string(string msg);
 
@@ -89,11 +92,13 @@ private:
     bool is_end;
     bool dynamicString;
     long brackets;
+    bool printTokens;
 
     CXX11_INLINE void parseIdentifier();
     bool parseString();
     void parseChar();
     void parseNumber();
+    void print();
 };
 
 #endif //SHARP_TOKENIZER_H

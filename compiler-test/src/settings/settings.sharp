@@ -17,6 +17,21 @@ class settings {
     output_file := "out";
 
     /*
+     * Target api version for the standard library
+     */
+    target_api := "0.3.0";
+
+    /*
+     * Name of new project to create
+     */
+    new_project_dir : string = "";
+
+    /*
+     * Location of the project you want to compile
+     */
+    project_dir : string = "";
+
+    /*
      * List of user defined library paths
      */
     libraries := new list<string>();
@@ -52,7 +67,17 @@ class settings {
     warnings := true;
 
     /*
-     * Display warnings
+     * Enable warnings as errors
+     */
+    werrors := false;
+
+    /*
+     * Maximum errors the compiler will allow
+     */
+    max_errors := 1000;
+
+    /*
+     * Set how compiler processes files to be compiled
      */
     mode := file_mode;
 
@@ -65,9 +90,35 @@ class settings {
      * Clean cache before compilation
      */
     clean_build := false;
+
+    /*
+     * Set to optimize code
+     */
+    optimize := false;
+
+    /*
+     * Set compiler threads to be throttled for less energy consumption
+     */
+    throttle_threads := false;
+
+    /*
+     * Application version
+     */
+    version : string = "1.0";
+
+    /*
+     * List of ignored directories
+     */
+    ignored_directories := new list<string>();
+
+    /*
+     * List of ignored files
+     */
+    ignored_files := new list<string>();
 }
 
 options: settings = new settings();
+settings_file_name : string = "settings.json";
 
 // WARNING SWITCHES
 const __w_general := 0;
@@ -91,28 +142,6 @@ warning_options := new var[]
     true,    // winit
     true,    // wnull
     true    // wdep
-};
-
-enum optimization_level {
-    none = 0,
-
-    /*
-    * This optimization consists of the most basic level of optimization where
-    * no code is changed at the "user" level. Meaning all code written at the language
-    * level remain in place and code at the virtual machine level is replaced with more high performance
-    * instructions
-    *
-    */
-    basic = 1,
-
-    /*
-    * This optimization consists of the highest level of optimization available for your code
-    * Code under this optimization will be changed at both the "user" level and vm level. Meaning that code written at the language
-    * level may not exist at the lower level/ may be heavily modified and code at the virtual machine level is replaced with more high performance
-    * instructions
-    *
-    */
-    high_performance = 2
 };
 
 enum compilation_mode {

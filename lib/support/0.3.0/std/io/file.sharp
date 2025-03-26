@@ -44,7 +44,7 @@ public class file {
         return path;
     }
 
-    def to_string() := path;
+    override def to_string() : string? = path;
 
 	def update_path(path: string) {
         if(path == null)
@@ -70,6 +70,18 @@ public class file {
     }
 
     def get_path() : string {
+        return path;
+    }
+
+    /*
+    * Safe version of @function get_absolute_path()
+    * This function will protect against crashing from getting
+    * an absolute path on a file or folder that cant be resolved
+    */
+    def get_full_path() : string {
+        try {
+            return get_absolute_path();
+        } catch(e: exception) { }
         return path;
     }
 
@@ -114,7 +126,11 @@ public class file {
      *
      */
     def exists() : bool {
-        return fs.check_access(self, file_system.access_ok)==0;
+        return ((fs.get_attributes(self) & file_system.file_exists)!= 0);
+    }
+
+    def file_attrs() : int {
+        return (fs.get_attributes(self));
     }
 
     /**

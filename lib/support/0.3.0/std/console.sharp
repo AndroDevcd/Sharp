@@ -168,12 +168,24 @@ def println(str: string) {
 }
 
 def println(o: printable?) {
-    print_chars(o?.to_string()?.data ?: "null");
+    str := o?.to_string();
+
+    if(str == null) {
+        print_chars("null");
+    } else if(str?.data != null) {
+        print_chars(str?.data);
+    }
     print_char('\n');
 }
 
 def print(o: printable?) {
-    print_chars(o?.to_string()?.data ?: "null");
+    str := o?.to_string();
+
+    if(str == null) {
+        print_chars("null");
+    } else if(str?.data != null) {
+        print_chars(str?.data);
+    }
 }
 
 def print(data: double) {

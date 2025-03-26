@@ -1,0 +1,14 @@
+mod settings.json;
+
+class json_array : loopable<json_value> {
+    values := new list<json_value>();
+
+    num_values : int;
+       get { return values.size(); }
+
+    def operator[](value_index: int) : json_value {
+        return values.at(value_index);
+    }
+
+    override def get_elements() := values.get_elements();
+}

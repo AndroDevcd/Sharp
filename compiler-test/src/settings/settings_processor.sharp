@@ -1,6 +1,10 @@
 mod settings;
 
-import ( main )
+import ( 
+    main,
+    std.io,
+    settings.json
+)
 
 def enable_show_all_errors(enable: bool) {
     options.show_all_errors = enable;
@@ -14,8 +18,16 @@ def set_output_file(out: string) {
     options.output_file = out;
 }
 
+def enable_clean_build(enable: bool) {
+    options.clean_build = enable;
+}
+
 def add_library_path(path : string) {
     options.libraries.add(path);
+}
+
+def set_project_dir(path : string) {
+    options.project_dir = path;
 }
 
 def enable_app_debugging(enable: bool) {
@@ -44,6 +56,76 @@ def set_compilation_mode(mode: compilation_mode) {
 
 def enable_run_source(enable: bool) {
     options.run = enable;
+}
+
+def enable_optimization(enable: bool) {
+   options.optimize = enable;
+}
+
+def enable_throttling(enable: bool) {
+    options.throttle_threads = enable;
+}
+
+def set_version(version: string) {
+    options.version = version;
+}
+
+def set_new_proj_dir(dir: string) {
+    options.new_project_dir = dir;
+}
+
+def set_target_api(api: string) {
+    options.target_api = api;
+}
+
+def enable_warnings_as_errors() {
+   options.werrors = true;
+   options.warnings = true;
+}
+
+def add_ignored_file(filepath : string) {
+   ignored_file := new file(filepath);
+   if(!ignored_file.exists()) {
+      warning("ignored file: $ignored_file dosen't exist!");
+      return;
+   }
+
+   if(ignored_file.is_directory()) {
+      warning("ignored file: $ignored_file is a directory, try `-ignoredir` instead");
+      return;
+   }
+
+   options.ignored_files.add(ignored_file.get_absolute_path());
+}
+
+def add_ignored_directory(dirpath : string) {
+   ignored_dir := new file(dirpath);
+   if(!ignored_dir.exists()) {
+      warning("ignored directory: $ignored_dir dosen't exist!");
+      return;
+   }
+
+   if(!ignored_dir.is_directory()) {
+      warning("ignored directory: $ignored_dir is a file, try `-ignore` instead");
+      return;
+   }
+
+   options.ignored_directories.add(ignored_dir.get_absolute_path());
+}
+
+def set_error_limit(lmt: string) {
+   if(is_number(lmt)) {
+       options.max_errors = int.parse(lmt);
+
+       if(options.max_errors > 100000) {
+           error("cannot set the max errors allowed higher than (100,000) - $lmt");
+       } else if(options.max_errors <= 0) {
+           error("cannot have an error limit of 0 ");
+       }
+   }
+   else {
+       error("invalid error limit set $lmt");
+   }
 }
 
 def enable_warning_type(wtype : string, enable: var) {
@@ -83,4 +165,8 @@ def check_target() {
             error("invalid platform target `${options.target}`");
         }
     }
+}
+
+def process_settings() {
+   jval := parse(options.project_dir + "/settings.json");
 }

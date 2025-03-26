@@ -34,31 +34,31 @@ class token {
         self->line = line;
     }
 
-    public def operator!=(id: token_id) : var {
+    public def operator!=(id: token_id) : bool {
         return self->id != id;
     }
 
-    public def operator!=(type: token_type) : var {
+    public def operator!=(type: token_type) : bool {
         return self->type != type;
     }
 
-    public def operator==(tok: string) : var {
+    public def operator==(tok: string) : bool {
         return self->tok == tok;
     }
 
-    public def operator!=(tok: string) : var {
+    public def operator!=(tok: string) : bool {
         return self->tok != tok;
     }
 
-    public def operator==(entity: token) : var {
+    public def operator==(entity: token) : bool {
         return id==entity.id && tok == entity.tok;
     }
 
-    public def operator==(id: token_id) : var {
+    public def operator==(id: token_id) : bool {
         return self->id == id;
     }
 
-    public def operator==(type: token_type) : var {
+    public def operator==(type: token_type) : bool {
         return self->type == type;
     }
 
@@ -70,11 +70,11 @@ class token {
         return tok;
     }
 
-    public def get_col() : var {
+    public def get_col() : int {
         return self->col;
     }
 
-    public def get_line() : var {
+    public def get_line() : int {
         return self->line;
     }
 
