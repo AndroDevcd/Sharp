@@ -1,5 +1,7 @@
 //
 // Created by BNunnally on 9/14/2020.
+// Optimized by Claude on 3/26/2025
+// Further performance optimizations by Claude on 4/4/2025
 //
 
 #ifndef SHARP_SERIALIZATION_H
@@ -26,98 +28,35 @@
 struct serialize_buffer_t
 {
     char *buf = nullptr;
-    uint32_t size = 0;
-    uint32_t pos = -1;
+    int32_t size = 0;
+    int32_t pos = -1;
 };
 
 struct deserialize_buffer_t
 {
     long double *buf = nullptr;
-    uint32_t size = 0;
-    uint32_t pos = -1;
+    int32_t size = 0;
+    int32_t pos = -1;
     sharp_object **references = nullptr;
 };
 
 struct serialized_classes_t
 {
     sharp_class **serialized = nullptr;
-    uint32_t size = 0;
-    uint32_t count = 0;
-};
-
-struct object_buffer_t
-{
-    sharp_object **buf = nullptr;
     int32_t size = 0;
-    int32_t pos = -1;
+    int32_t count = 0;
 };
 
-#define buffer_size(buf) \
-buf.pos + 1
-
-#define push_data(bufer, data) \
-     if(((bufer.pos) + 1) >= (bufer.size)) { \
-        alloc_buffer(bufer); \
-    } \
-    (bufer.buf)[++bufer.pos] = (data); 
-
-#define push_int32(buffer, data) \
-    if(((buffer.pos) + 4) >= (buffer.size)) { \
-        alloc_buffer(buffer); \
-    } \
-(buffer.buf)[++(buffer.pos)] = GET_i32w(data); \
-    (buffer.buf)[++(buffer.pos)] = GET_i32x(data); \
-    (buffer.buf)[++(buffer.pos)] = GET_i32y(data); \
-    (buffer.buf)[++(buffer.pos)] = GET_i32z(data);
-
-#define push_bytes(buffer, type, data) \
-    unsigned char *bytes = reinterpret_cast<unsigned char*>(&data); \
-    for(int jj = 0; jj < sizeof(type); jj++) { \
-        push_data(buffer, bytes[jj]) \
-    }
-
-#define formatted_buffer(pos) \
-    ((uint8_t) dBuffer.buf[(pos)])
-
-#define expect_data(data) \
-    if((dBuffer.pos + 1) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } else if(formatted_buffer(++dBuffer.pos) != data) { \
-        throw vm_exception("unexpected data found in deserialization buffer");\
-    }
-
-#define overflow_check \
-    if((dBuffer.pos + 1) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    }
-
-#define read_int32(out) \
-    if((dBuffer.pos + 4) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } \
-    (out) = SET_i32(formatted_buffer(dBuffer.pos+1), formatted_buffer(dBuffer.pos+2), \
-                formatted_buffer(dBuffer.pos+3), formatted_buffer(dBuffer.pos+4)); \
-    dBuffer.pos += 4;
-
-#define read_data \
-    formatted_buffer(++dBuffer.pos)
-
-#define pek_data(out) \
-    if((dBuffer.pos + 1) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } \
-    (out) = formatted_buffer(dBuffer.pos+1);
-
-#define read_bytes(type, bytes, out) \
-    if((dBuffer.pos + sizeof(type)) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } \
-    for(int jj = 0; jj < sizeof(type); jj++) { \
-        bytes[jj] = read_data; \
-    } \
-    out = *reinterpret_cast<type*>(bytes); \
-
+// Main serialization functions
 void serialize(object *from, object *to);
 void deserialize(object *from, object *to);
+
+// Helper functions for buffer management
+void init_serialization();
+void reset_serialization_state();
+void clean_serialization_resources();
+
+// For debugging and profiling
+void print_serialization_stats();
 
 #endif //SHARP_SERIALIZATION_H

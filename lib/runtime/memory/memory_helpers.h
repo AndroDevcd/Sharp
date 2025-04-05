@@ -70,5 +70,12 @@ T* realloc_mem(void *ptr, uInt bytes, uInt prevSize, bool unsafe = true)
     return (T*)rmap;
 }
 
+template<class T>
+void free_mem(void *ptr, uInt size)
+{
+    std::free(ptr);
+    release_bytes(sizeof(T) * size);
+}
+
 
 #endif //SHARP_MEMORY_HELPERS_H
