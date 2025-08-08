@@ -67,12 +67,28 @@ struct virtual_machine {
     sharp_class *ill_state_except;
     sharp_class *string_class;
     sharp_class *int_class;
+    sharp_class *char_class;
+    sharp_class *bool_class;
+    sharp_class *short_class;
+    sharp_class *long_class;
+    sharp_class *byte_class;
+    sharp_class *ushort_class;
+    sharp_class *double_class;
+    sharp_class *uint_class;
+    sharp_class *uchar_class;
+    sharp_class *ulong_class;
     sharp_class *stack_sate;
     sharp_class *thread_class;
     sharp_class *exception_class;
     sharp_class *error_class;
     sharp_class *char_array_class;
     sharp_class *fiber_class;
+    sharp_class *reflect_class;
+    sharp_class *reflect_field;
+    sharp_class *reflect_function;
+    sharp_class *reflect_data_type;
+    sharp_class *reflect_func_params;
+    sharp_class *reflect_description;
 };
 
 extern virtual_machine vm;

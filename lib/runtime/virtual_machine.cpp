@@ -23,6 +23,7 @@
 #include "../Modules/std.io/serialization.h"
 #include "../core/access_flag.h"
 #include "termios.h"
+#include "reflect/reflection.h"
 
 virtual_machine vm;
 thread_local long double *registers;
@@ -1435,6 +1436,106 @@ void exec_interrupt(Int interrupt)
             deserialize(&task->sp->obj, &(task->sp+1)->obj);
             copy_object(&task->sp->obj, &(task->sp+1)->obj);
             return;
+        }
+        case OP_DESCRIBE_OBJECT: {
+            auto object = task->sp->obj.o;
+            copy_object(&task->sp->obj, describe_object(object));
+            return;
+        }
+        case OP_REFLECT_FIELD_VALUE: {
+            auto instance = (task->sp--)->obj.o;
+            auto index = (Int)(task->sp)->var;
+
+            if(instance && IS_CLASS(instance) && index < vm.classes[CLASS(instance->info)].instanceFields) {
+                auto field = instance->node[index].o;
+                if(field) {
+                    if (field->type == type_object || field->type == type_class
+                            || field->arrayFlag == 1) {
+                        copy_object(&task->sp->obj, field);
+                    } else {
+                        string field_name = "value";
+                        double value = field->HEAD[0];
+
+                        switch(field->type) {
+                            case type_int8: {
+                                // char
+                                auto obj = create_object(vm.char_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (char)value);
+                                break;
+                            }
+                            case type_int16: {
+                                // char
+                                auto obj = create_object(vm.short_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (short)value);
+                                break;
+                            }
+                            case type_int32: {
+                                // char
+                                auto obj = create_object(vm.int_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (int)value);
+                                break;
+                            }
+                            case type_int64: {
+                                // char
+                                auto obj = create_object(vm.long_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (long)value);
+                                break;
+                            }
+                            case type_uint8: {
+                                // char
+                                auto obj = create_object(vm.uchar_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (unsigned char)value);
+                                break;
+                            }
+                            case type_uint16: {
+                                // char
+                                auto obj = create_object(vm.ushort_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (unsigned short)value);
+                                break;
+                            }
+                            case type_uint32: {
+                                // char
+                                auto obj = create_object(vm.uint_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (unsigned int)value);
+                                break;
+                            }
+                            case type_uint64: {
+                                // char
+                                auto obj = create_object(vm.ulong_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (unsigned long)value);
+                                break;
+                            }
+                            case type_function_ptr: {
+                                // char
+                                auto obj = create_object(vm.long_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, (unsigned long)value);
+                                break;
+                            }
+                            case type_var: {
+                                // char
+                                auto obj = create_object(vm.double_class);
+                                copy_object(&task->sp->obj, obj);
+                                assign_numeric_class_field(obj, value);
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    copy_object(&task->sp->obj, (sharp_object*)nullptr);
+                }
+            } else {
+                copy_object(&task->sp->obj, (sharp_object*)nullptr);
+            }
+            break;
         }
         default: {
             stringstream ss;

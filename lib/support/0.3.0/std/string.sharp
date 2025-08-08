@@ -94,6 +94,7 @@ class string : loopable<_int8> {
     def append(immstr: _int8[]?) : string
     {
         if(immstr == null) return self;
+        else if(immstr == data) return self;
 
         old_size : var = sizeof(data);
 
@@ -113,6 +114,8 @@ class string : loopable<_int8> {
             throw new error("length cannot be less than zero");
         else if(len.value > sizeof(immstr))
             throw new error("length of: $len is greater than the string: ${sizeof(immstr)}");
+        else if(immstr == data)
+            throw new error("attempting to append string data from instance, use substring first");
 
         old_size : var = sizeof(data);
 

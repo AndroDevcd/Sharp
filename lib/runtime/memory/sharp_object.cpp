@@ -216,7 +216,42 @@ void cast_object(object *from, Int toClass) {
             ss << "invalid cast from: "
                   + vm.classes[CLASS(from->o->info)].fullName + " to: " + vm.classes[toClass].fullName;
         } else {
-            ss << "casted object does not match expected type";
+            auto clazz = vm.classes[CLASS(from->o->info)].fullName;
+            switch(from->o->type) {
+                case type_int8:
+                    ss << "casting from _int8" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_int16:
+                    ss << "casting from _int16" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_int32:
+                    ss << "casting from _int32" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_int64:
+                    ss << "casting from _int64" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_uint8:
+                    ss << "casting from _uint8" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_uint16:
+                    ss << "casting from _uint16" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_uint32:
+                    ss << "casting from _uint32" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_uint64:
+                    ss << "casting from _uint64" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_function_ptr:
+                    ss << "casting from func_ptr*" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                case type_object:
+                    ss << "casting from object" << (from->o->arrayFlag ? "[]" : "") << " to " << clazz;
+                    break;
+                default:
+                    ss << "casted object does not match expected type";
+                    break;
+            }
         }
 
         vm_exception err(vm.ill_state_except, ss.str());
@@ -227,7 +262,49 @@ void cast_object(object *from, Int toClass) {
 
 void cast_numeric_array(object *from, Int toType) {
     if(!(from->o->type <= type_var && is_type(from, toType))) {
-        vm_exception err(vm.ill_state_except, "casted object does not match expected type");
+        stringstream ss;
+        switch(from->o->type) {
+            case type_int8:
+                ss << "illegal cast from _int8" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_int16:
+                ss << "illegal cast from _int16" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_int32:
+                ss << "illegal cast from _int32" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_int64:
+                ss << "illegal cast from _int64" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_uint8:
+                ss << "illegal cast from _uint8" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_uint16:
+                ss << "illegal cast from _uint16" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_uint32:
+                ss << "illegal cast from _uint32" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_uint64:
+                ss << "illegal cast from _uint64" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_function_ptr:
+                ss << "illegal cast from func_ptr*" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_object:
+                ss << "illegal cast from object" << (from->o->arrayFlag ? "[]" : "");
+                break;
+            case type_class: {
+                auto clazz = vm.classes[CLASS(from->o->info)].fullName;
+                ss << "illegal cast from class " << clazz;
+                break;
+            }
+            default:
+                ss << "illegal cast object does not match expected type";
+                break;
+        }
+
+        vm_exception err(vm.ill_state_except, ss.str());
         enable_exception_flag(thread_self, true);
         throw err;
     }

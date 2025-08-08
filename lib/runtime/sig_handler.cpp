@@ -25,6 +25,10 @@ string signalToString(int signal) {
 }
 
 void os_signal(int signal) {
+#ifdef POSIX_
+    reset_original_console_settings();
+#endif
+
     if(signal != SIGINT) {
         if(thread_self != NULL) {
             string st;
@@ -33,10 +37,6 @@ void os_signal(int signal) {
         }
 
         cerr << "(" << signalToString(signal) << ") found, please contact the language developer with the call stack below" << endl;
-    } else {
-#ifdef POSIX_
-        reset_original_console_settings();
-#endif
     }
 
     exit(1);

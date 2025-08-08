@@ -1,0 +1,232 @@
+mod serialization;
+
+import (
+    std,
+    std.io
+)
+
+/**
+ * Sample class to test serialization
+ */
+class Person {
+    name: string;
+    age: int;
+    address: Address;
+    
+    Person() {
+        name = "";
+        age = 0;
+        address = null;
+    }
+    
+    Person(name: string, age: int) {
+        self->name = name;
+        self->age = age;
+    }
+    
+    Person(name: string, age: int, address: Address) {
+        self->name = name;
+        self->age = age;
+        self->address = address;
+    }
+    
+    override def to_string() : string {
+        addr := address != null ? address.to_string() : "null";
+        return "Person(name: " + name + ", age: " + age + ", address: " + addr + ")";
+    }
+}
+
+/**
+ * Address class for testing nested objects
+ */
+class Address {
+    street: string;
+    city: string;
+    zip: int;
+    
+    Address() {
+        street = "";
+        city = "";
+        zip = 0;
+    }
+    
+    Address(street: string, city: string, zip: int) {
+        self->street = street;
+        self->city = city;
+        self->zip = zip;
+    }
+    
+    override def to_string() : string {
+        return "Address(street: " + street + ", city: " + city + ", zip: " + zip + ")";
+    }
+}
+
+/**
+ * Main test program for serialization
+ */
+def main() : int {
+    console.println("Serialization Test");
+    console.println("==================");
+    
+    // Create a serialization manager
+    manager := new SerializationManager();
+    
+    // Test simple types
+    test_simple_types(manager);
+    
+    // Test complex objects
+    test_complex_objects(manager);
+    
+    // Test arrays
+    test_arrays(manager);
+    
+    // Test circular references
+    test_circular_references(manager);
+    
+    console.println("All tests completed successfully!");
+    return 0;
+}
+
+/**
+ * Test serializing simple types
+ */
+def test_simple_types(manager: SerializationManager) {
+    console.println("Testing simple types...");
+    
+    // Test integer
+    int_value := 12345;
+    int_bytes := manager.serialize(int_value);
+    int_result := manager.deserialize(int_bytes) as int;
+    
+    console.println("Integer: " + int_value + " -> " + int_result);
+    if (int_value != int_result) {
+        console.println("ERROR: Integer values don't match!");
+    }
+    
+    // Test string
+    string_value := "Hello, World!";
+    string_bytes := manager.serialize(string_value);
+    string_result := manager.deserialize(string_bytes) as string;
+    
+    console.println("String: \"" + string_value + "\" -> \"" + string_result + "\"");
+    if (string_value != string_result) {
+        console.println("ERROR: String values don't match!");
+    }
+    
+    console.println("Simple types test completed.");
+    console.println();
+}
+
+/**
+ * Test serializing complex objects
+ */
+def test_complex_objects(manager: SerializationManager) {
+    console.println("Testing complex objects...");
+    
+    // Create a person with an address
+    address := new Address("123 Main St", "Anytown", 12345);
+    person := new Person("John Doe", 30, address);
+    
+    // Serialize and deserialize
+    bytes := manager.serialize(person);
+    result := manager.deserialize(bytes) as Person;
+    
+    // Display results
+    console.println("Original: " + person);
+    console.println("Serialized size: " + bytes.size + " bytes");
+    console.println("Deserialized: " + result);
+    
+    // Validate
+    if (result.name != person.name || 
+        result.age != person.age || 
+        result.address.street != person.address.street) {
+        console.println("ERROR: Objects don't match!");
+    }
+    
+    console.println("Complex objects test completed.");
+    console.println();
+}
+
+/**
+ * Test serializing arrays
+ */
+def test_arrays(manager: SerializationManager) {
+    console.println("Testing arrays...");
+    
+    // Create an array of persons
+    persons := new Person[3];
+    persons[0] = new Person("Alice", 25);
+    persons[1] = new Person("Bob", 30);
+    persons[2] = new Person("Charlie", 35);
+    
+    // Serialize and deserialize
+    bytes := manager.serialize(persons);
+    result := manager.deserialize(bytes) as Person[];
+    
+    // Display results
+    console.println("Original array length: " + persons.size);
+    console.println("Serialized size: " + bytes.size + " bytes");
+    console.println("Deserialized array length: " + result.size);
+    
+    // Validate each element
+    for (i := 0; i < result.size; i++) {
+        console.println("Element " + i + ": " + result[i]);
+        if (result[i].name != persons[i].name || 
+            result[i].age != persons[i].age) {
+            console.println("ERROR: Array elements don't match!");
+        }
+    }
+    
+    console.println("Arrays test completed.");
+    console.println();
+}
+
+/**
+ * Test serializing objects with circular references
+ */
+def test_circular_references(manager: SerializationManager) {
+    console.println("Testing circular references...");
+    
+    // Create objects with circular references
+    class Node {
+        name: string;
+        next: Node;
+        
+        Node(name: string) {
+            self->name = name;
+        }
+        
+        override def to_string() : string {
+            next_name := next != null ? next.name : "null";
+            return "Node(name: " + name + ", next: " + next_name + ")";
+        }
+    }
+    
+    // Create a circular linked list: A -> B -> C -> A
+    node_a := new Node("A");
+    node_b := new Node("B");
+    node_c := new Node("C");
+    
+    node_a.next = node_b;
+    node_b.next = node_c;
+    node_c.next = node_a;
+    
+    // Serialize and deserialize
+    bytes := manager.serialize(node_a);
+    result := manager.deserialize(bytes) as Node;
+    
+    // Display results
+    console.println("Original: " + node_a + " -> " + node_a.next + " -> " + node_a.next.next);
+    console.println("Serialized size: " + bytes.size + " bytes");
+    console.println("Deserialized: " + result + " -> " + result.next + " -> " + result.next.next);
+    
+    // Validate circular reference
+    if (result.next.next.next != result) {
+        console.println("ERROR: Circular reference not preserved!");
+    } else {
+        console.println("Circular reference correctly preserved!");
+    }
+    
+    console.println("Circular references test completed.");
+    console.println();
+}

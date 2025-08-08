@@ -171,6 +171,12 @@ void validate_required_dependencies() {
     error += require_class("std#int");
     error += require_class("std#number<_int32, std#int>");
     error += require_class("std.io.fiber#fiber");
+    error += require_class("std.reflect#_class_");
+    error += require_class("std.reflect#_field_");
+    error += require_class("std.reflect#_function_");
+    error += require_class("std.reflect#data_type");
+    error += require_class("std.reflect#_function_param_");
+    error += require_class("std.reflect#description");
 
     if(error > 0) {
         exit(1);

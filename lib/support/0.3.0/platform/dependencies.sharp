@@ -3,7 +3,8 @@ mod platform;
 import (
     platform.kernel,
     std.io.fiber,
-    std.io
+    std.io,
+    std.reflect
 )
 
 /**
@@ -17,7 +18,8 @@ obfuscate -keep {
     "std",
     "std.io",
     "std.io.fiber",
-    "platform.kernel"
+    "platform.kernel",
+    "std.reflect"
 }
 
 /*
@@ -47,6 +49,22 @@ obfuscate -keep_inclusive {
     string,
     char_array,
     int,
+    char,
+    bool,
+    short,
+    long,
+    uint,
+    uchar,
+    ushort,
+    ulong,
+    byte,
+    double,
     number<_int32, int>, // int base class
-    fiber
+    fiber,
+    _class_,
+    _field_,
+    _function_,
+    data_type,
+    _function_param_,
+    description
 }

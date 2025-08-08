@@ -10,6 +10,7 @@
 
 struct sharp_field;
 struct sharp_function;
+struct sharp_object;
 
 struct sharp_class {
     int32_t address;
@@ -28,6 +29,7 @@ struct sharp_class {
     Int totalFieldCount;
     Int methodCount;
     Int interfaceCount;
+    sharp_object *reflect;
 };
 
 CXX11_INLINE void init_struct(sharp_class *sc);

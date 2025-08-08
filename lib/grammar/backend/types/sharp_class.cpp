@@ -246,12 +246,12 @@ sharp_class* get_top_level_class(sharp_class *sc) {
     return sc;
 }
 
-bool is_explicit_type_match(sharp_class *comparer, sharp_class * comparee) {
+bool is_explicit_class_type_match(sharp_class *comparer, sharp_class * comparee) {
     return comparer == comparee;
 }
 
-bool is_implicit_type_match(sharp_class *comparer, sharp_class *comparee, bool objectBaseClass) {
-    return is_explicit_type_match(comparer, comparee) || is_class_related_to(comparer, comparee, objectBaseClass)
+bool is_implicit_class_type_match(sharp_class *comparer, sharp_class *comparee, bool objectBaseClass) {
+    return comparer == comparee || is_class_related_to(comparer, comparee, objectBaseClass)
         || is_class_related_to(comparee, comparer, objectBaseClass);
 }
 
@@ -263,7 +263,7 @@ bool is_class_related_to(sharp_class *comparer, sharp_class *baseClass, bool obj
     }
 
     for(Int i = 0; i < comparer->interfaces.size(); i++) {
-        if(is_implicit_type_match(comparer->interfaces.get(i), baseClass, objBaseClass))
+        if(is_implicit_class_type_match(comparer->interfaces.get(i), baseClass, objBaseClass))
             return true;
     }
 

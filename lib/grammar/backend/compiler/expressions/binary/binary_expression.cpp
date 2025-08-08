@@ -677,46 +677,29 @@ void compile_binary_expression(
 
         case type_class: {
             _class:
-            if(operand == "==" || operand == "!=") {
-                uInt result =
-                        is_implicit_type_match(left.type, right.type, overload_only);
+            List<sharp_field *> params;
+            List<operation_schema *> operations;
+            operations.add(new operation_schema());
+            create_get_value_operation(operations.last(), &right.scheme, false);
+            convert_expression_type_to_real_type(right);
 
-                auto comparee = get_real_type(right.type);
-                List<sharp_field*> params;
-                string name = "mock";
-                impl_location location;
-                params.add(new sharp_field(name, NULL, location,
-                                           comparee, flag_none, normal_field, NULL));
+            string name;
+            sharp_type type;
+            type.copy(right.type);
+            impl_location location(current_file, ast);
+            params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
+                                       location, type, flag_public, normal_field, ast));
 
-                if (result == no_match_found) {
-                    goto _overload;
-                } else if(result == match_operator_overload) {
-                    goto _overload;
-                }
-
-                compile_binary_object_expression(e, left, right, operand, ast);
-            } else {
-                _overload:
-                expressions_array_check(left.type, operand, ast->getSubAst(0));
-
-                List<sharp_field *> params;
-                List<operation_schema *> operations;
-                operations.add(new operation_schema());
-                create_get_value_operation(operations.last(), &right.scheme, false);
-                convert_expression_type_to_real_type(right);
-
-                string name;
-                sharp_type type;
-                type.copy(right.type);
-                impl_location location(current_file, ast);
-                params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
-                                           location, type, flag_public, normal_field, ast));
-
-                compile_class_function_overload(
-                        get_class_type(left.type), left, params, operations, operand.getValue(), ast);
+            expression leftOld(left);
+            if(compile_class_function_overload(
+                    get_class_type(left.type), left, params, operations, operand.getValue(), ast, true)) {
+                expressions_array_check(leftOld.type, operand, ast->getSubAst(0));
                 e->type.copy(left.type);
                 e->scheme.copy(left.scheme);
+            } else {
+                compile_binary_object_expression(e, left, right, operand, ast);
             }
+
             break;
         }
 

@@ -35,6 +35,12 @@ class hash_map<k base _object_, v base _object_> {
         return abs(key.hash() % sizeof(data));
     }
 
+    def clear() {
+        data = new entry<k,v?>[default_capacity];
+        max_size = (sizeof(data) * threshold);
+        size = 0;
+    }
+
     private def resize() {
         old_data : entry<k, v?>[]? = data;
         data = new entry<k,v?>[sizeof(old_data) + (sizeof(old_data) >> 1)];

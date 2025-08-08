@@ -1,0 +1,179 @@
+mod serialization;
+
+import (
+    std,
+    std.io
+)
+
+/**
+ * Buffer class for serialization
+ * Represents a dynamically growing byte buffer
+ */
+class Buffer : printable {
+    data: _int8[];
+    position: int = -1;
+    size: int = 0;
+    
+    // Initial chunk size for allocations
+    static const INITIAL_SIZE = 1024;
+    static const GROWTH_FACTOR = 2;
+    
+    Buffer() {
+        data = new _int8[INITIAL_SIZE];
+        size = INITIAL_SIZE;
+    }
+    
+    Buffer(initialSize: int) {
+        if (initialSize <= 0)
+            initialSize = INITIAL_SIZE;
+        
+        data = new _int8[initialSize];
+        size = initialSize;
+    }
+    
+    /**
+     * Ensures the buffer has enough capacity
+     */
+    def ensure_capacity(requiredSpace: int) {
+        if (position + requiredSpace >= size) {
+            newSize := size * GROWTH_FACTOR;
+            
+            // If doubling isn't enough, allocate exactly what we need plus some extra
+            if (position + requiredSpace >= newSize) {
+                newSize = position + requiredSpace + 1024;
+            }
+            
+            newData := new _int8[newSize];
+            memcopy(data, newData, 0, 0, position + 1);
+            data = newData;
+            size = newSize;
+        }
+    }
+    
+    /**
+     * Writes a byte to the buffer
+     */
+    def write_byte(value: _int8) {
+        ensure_capacity(1);
+        data[++position] = value;
+        return self;
+    }
+    
+    /**
+     * Writes a 32-bit integer to the buffer
+     */
+    def write_int32(value: int) {
+        ensure_capacity(4);
+        data[++position] = (value >> 24) & 0xFF;
+        data[++position] = (value >> 16) & 0xFF;
+        data[++position] = (value >> 8) & 0xFF;
+        data[++position] = value & 0xFF;
+        return self;
+    }
+    
+    /**
+     * Writes a 64-bit integer to the buffer
+     */
+    def write_int64(value: long) {
+        ensure_capacity(8);
+        data[++position] = (value >> 56) & 0xFF;
+        data[++position] = (value >> 48) & 0xFF;
+        data[++position] = (value >> 40) & 0xFF;
+        data[++position] = (value >> 32) & 0xFF;
+        data[++position] = (value >> 24) & 0xFF;
+        data[++position] = (value >> 16) & 0xFF;
+        data[++position] = (value >> 8) & 0xFF;
+        data[++position] = value & 0xFF;
+        return self;
+    }
+    
+    /**
+     * Writes a floating point value to the buffer
+     */
+    def write_double(value: double) {
+        // This implementation assumes we have a way to get the bytes of a double
+        // Since we don't have direct bit manipulation in Sharp, we'd typically
+        // use a native function or convert to a long and write that
+        
+        // For now, we'll convert it to a string and write that
+        str := value.to_string();
+        write_string(str);
+        return self;
+    }
+    
+    /**
+     * Writes a string to the buffer
+     */
+    def write_string(value: string) {
+        if (value == null) {
+            write_int32(0);
+            return self;
+        }
+        
+        write_int32(value.length());
+        
+        for (i := 0; i < value.length(); i++) {
+            write_byte(value.char_at(i));
+        }
+        
+        return self;
+    }
+    
+    /**
+     * Writes raw bytes to the buffer
+     */
+    def write_bytes(bytes: _int8[]) {
+        if (bytes == null) {
+            write_int32(0);
+            return self;
+        }
+        
+        ensure_capacity(bytes.size);
+        
+        // Use bulk memcopy for efficiency
+        memcopy(bytes, data, position + 1, 0, bytes.size);
+        position += bytes.size;
+        
+        return self;
+    }
+    
+    /**
+     * Resets the buffer position
+     */
+    def reset() {
+        position = -1;
+    }
+    
+    /**
+     * Creates a new buffer with current data
+     */
+    def to_array() : _int8[] {
+        if (position < 0)
+            return new _int8[0];
+            
+        result := new _int8[position + 1];
+        memcopy(data, result, 0, 0, position + 1);
+        return result;
+    }
+    
+    /**
+     * Get current used size
+     */
+    def used_size() : int = position + 1;
+    
+    /**
+     * String representation for debugging
+     */
+    override def to_string() : string {
+        return "Buffer(size: " + size + ", used: " + used_size() + ")";
+    }
+    
+    /**
+     * Clean up resources
+     */
+    def close() {
+        data = null;
+        size = 0;
+        position = -1;
+    }
+}

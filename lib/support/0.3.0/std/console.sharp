@@ -112,6 +112,10 @@ def println(data: _uint64[]) {
     print_char('\n');
 }
 
+def print(data: var) {
+    print_num(data);
+}
+
 def println(data: var) {
     print_num(data);
     print_char('\n');

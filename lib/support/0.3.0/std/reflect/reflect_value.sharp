@@ -1,0 +1,16 @@
+mod std.reflect;
+
+class reflect_value {
+    data: object?;
+    type: data_type;
+
+    reflect_value(data: object?, type: data_type) {
+        self->data = data;
+        self->type = type;
+    }
+
+
+    def get_field(name: string): _field_? {
+        return type.type_class?.get_field(name);
+    }
+}

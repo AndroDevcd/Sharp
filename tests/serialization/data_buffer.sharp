@@ -1,0 +1,9 @@
+mod std.export;
+
+class data_buffer {
+    data: _int16[];
+
+    data_buffer(initial: int) {
+        data = new _int16[initial];
+    }
+}

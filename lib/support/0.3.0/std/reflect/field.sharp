@@ -1,8 +1,45 @@
 mod std.reflect;
 
 
-class field {
-    subject : object;
-    info : field_info;
+class _field_ {
+    name: string;
+    full_name: string;
+    index: int;
+    flags: int;
+    owner: _class_;
+    is_array: bool;
+    type: data_type;
+
+    def get_value(instance: _object_?): reflect_value? {
+        desc := describe(instance);
+
+        if(desc!!.type.type_class == owner) {
+            return new reflect_value(
+                get_field_data(index.value, instance),
+                type
+            );
+        } else {
+            throw new ill_state_except("provided instance does not match field's class owner: ${owner.full_name}");
+        }
+
+        return null;
+    }
+
+    override def to_string(): string? {
+        return "$name(fullname=$full_name, index=$index, flags=$flags, owner=${owner.full_name}, is_array=$is_array, type=$type)";
+    }
+}
+
+local def get_field_data(index: var, o: _object_?): object? {
+    asm {
+      ipushl [index]
+      pushl [o]
+      int 0x52
+      popObj2
+      returnObj
+      ret 0
+    }
+
+    return null;
 }
 

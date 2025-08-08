@@ -197,7 +197,8 @@ sharp_function* compile_class_function_overload(
         List<sharp_field*> &params,
         List<operation_schema*> &paramOperations,
         string &op,
-        Ast *ast) {
+        Ast *ast,
+        bool allowMissing) {
     sharp_function *fun;
 
     if((fun = resolve_function(
@@ -219,8 +220,12 @@ sharp_function* compile_class_function_overload(
         e.type.copy(fun->returnType);
         return fun;
     } else {
-        create_new_error(GENERIC, ast,
-                "use of operator `" + op + "` does not have any qualified overloads with class `" + with_class->fullName + "`");
+        if(!allowMissing) {
+            create_new_error(GENERIC, ast,
+                             "use of operator `" + op + "` does not have any qualified overloads with class `" +
+                             with_class->fullName + "`");
+        }
+
         return NULL;
     }
 }

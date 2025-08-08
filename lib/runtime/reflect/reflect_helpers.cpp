@@ -5,9 +5,16 @@
 #include "reflect_helpers.h"
 #include "../virtual_machine.h"
 #include "../types/sharp_field.h"
+#include "../types/sharp_class.h"
 #include "../memory/garbage_collector.h"
 #include "../error/vm_exception.h"
 #include "../../core/access_flag.h"
+
+bool ignoreStaticResolution = false;
+
+void ignore_static_resolve(bool ignore) {
+    ignoreStaticResolution = ignore;
+}
 
 bool is_static_class(sharp_object *object) {
     return object != NULL && GENERATION(object->info) == gc_perm;
@@ -21,7 +28,7 @@ object* resolve_field(string name, sharp_object* o) {
         for(Int i = 0; i < representedClass->totalFieldCount; i++) {
             sharp_field &field = representedClass->fields[i];
             if(field.name == name) {
-                if(isStatic == check_flag(field.flags, flag_static)) {
+                if(ignoreStaticResolution || isStatic == check_flag(field.flags, flag_static)) {
                     return &o->node[field.address];
                 }
                 else {
@@ -32,6 +39,29 @@ object* resolve_field(string name, sharp_object* o) {
     }
 
     return nullptr;
+}
+
+
+object* instantiate_class_field_array(string& name, sharp_object *o, sharp_class *sc, Int size) {
+    auto field = resolve_field(name, o);
+    if(field != nullptr) {
+        copy_object(field, create_object(sc, size));
+        return field;
+    }
+
+    string className = vm.classes[CLASS(o->info)].fullName;
+    throw vm_exception("could not find field `" + name + "` in class `" + className + "`");
+}
+
+object* instantiate_class_field(string& name, sharp_object *o, sharp_class *sc) {
+    auto field = resolve_field(name, o);
+    if(field != nullptr) {
+        copy_object(field, create_object(sc));
+        return field;
+    }
+
+    string className = vm.classes[CLASS(o->info)].fullName;
+    throw vm_exception("could not find field `" + name + "` in class `" + className + "`");
 }
 
 sharp_class* locate_class(const char *name) {
@@ -78,18 +108,66 @@ void assign_numeric_field(sharp_object* o, uInt index, double value) {
     o->HEAD[index] = value;
 }
 
+void assign_object_field(sharp_object* o, uInt index, sharp_object* value) {
+    copy_object(o->node + index, value);
+}
+
+
+void assign_string_class_field(sharp_object* o, string &value) {
+    auto field = resolve_field("data", o);
+    if(field) {
+        if(!value.empty()) {
+            copy_object(field, create_object(value.size(), type_int8));
+            assign_string_field(field->o, value);
+        } else {
+            copy_object(field, (sharp_object*)nullptr);
+        }
+    }
+}
+
+object* assign_instance_to_class_field(string &name, sharp_object* o, sharp_object *instance) {
+    auto field = resolve_field(name, o);
+    if(field) {
+        if(field->o != nullptr) {
+            if(!IS_CLASS(field->o)) {
+                throw vm_exception("reflect: assigning class instance to non-class field: " + name);
+            } else if(CLASS(field->o->info) == CLASS(instance->info)) {
+                copy_object(field, instance);
+                return field;
+            } else {
+                auto sc = vm.classes + CLASS(instance->info);
+                throw vm_exception("reflect: assigning incorrect class `" + sc->fullName + "` to field: " + name);
+            }
+        } else {
+            copy_object(field, instance);
+            return field;
+        }
+    }
+
+    return nullptr;
+}
+
 void assign_numeric_class_field(sharp_object* o, double value) {
     auto field = resolve_field("value", o);
     if(field) assign_numeric_field(field->o, 0, value);
 }
 
+void assign_object_class_field(sharp_object* o, string &name, sharp_object* value) {
+    auto field = resolve_field(name, o);
+    if(field) copy_object(field, value);
+}
+
 void assign_string_field(sharp_object* o, string &value) {
-    if(o->size == value.size()) {
-        for(Int i = 0; i < value.size(); i++) {
-            o->HEAD[i] = value[i];
+    if(o != nullptr) {
+        if (o->size == value.size()) {
+            for (Int i = 0; i < value.size(); i++) {
+                o->HEAD[i] = value[i];
+            }
+        } else {
+            throw vm_exception("string.size != field's size");
         }
     } else {
-        throw vm_exception("string.size != field's size");
+        throw vm_exception("string field is null!");
     }
 }
 

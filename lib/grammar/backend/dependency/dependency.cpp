@@ -961,7 +961,7 @@ void check_access(
         }
 
         if (check_flag(flags, flag_protected) && !inPrimaryClass
-            && !((primary->module == location.file->module) || is_implicit_type_match(owner, primary))) {
+            && !((primary->module == location.file->module) || is_implicit_class_type_match(owner, primary))) {
             create_new_error(GENERIC, ast,
                                                                "cannot access protected " + type + " `" + name +
                                                                "`. outside of class: `"

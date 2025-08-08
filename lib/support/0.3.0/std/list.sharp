@@ -12,7 +12,7 @@ import (
 * Description:
 * This class allows you to build la list of items
 */
-class list<T base _object_> : loopable<T> {
+class list<T> : loopable<T> {
     private n_elements : var;
     private data : T[]?;
     private is_compact: var;
@@ -245,35 +245,35 @@ class list<T base _object_> : loopable<T> {
        return false;
     }
 
-    override def to_string() : string? {
-       str := new string_builder();
+//    override def to_string() : string? {
+//       str := new string_builder();
+//
+//       str += "[ ";
+//       for(i : var = 0; i < n_elements; i++) {
+//           str += data[i];
+//
+//           if((i + 1) < n_elements) {
+//               str += ", ";
+//           }
+//       }
+//
+//       str += " ]";
+//       return str.to_string();
+//    }
 
-       str += "[ ";
-       for(i : var = 0; i < n_elements; i++) {
-           str += data[i];
-
-           if((i + 1) < n_elements) {
-               str += ", ";
-           }
-       }
-
-       str += " ]";
-       return str.to_string();
-    }
-
-    override def hash() : int {
-       i : var = 0;
-       hash_value := 0;
-       multiplier : var = 0;
-       const m := 1e9 + 9;
-
-       foreach(item in data) {
-           hash_value = (hash_value + item.hash().value + multiplier) % m;
-           multiplier = i * (i % 10);
-       }
-
-       return hash_value;
-    }
+//    override def hash() : int {
+//       i : var = 0;
+//       hash_value := 0;
+//       multiplier : var = 0;
+//       const m := 1e9 + 9;
+//
+//       foreach(item in data) {
+//           hash_value = (hash_value + item.hash().value + multiplier) % m;
+//           multiplier = i * (i % 10);
+//       }
+//
+//       return hash_value;
+//    }
 
     private def out_of_bounds_msg(index: int) : string {
         return "Index: $index, size: $n_elements";

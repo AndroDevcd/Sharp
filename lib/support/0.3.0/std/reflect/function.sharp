@@ -1,6 +1,51 @@
 mod std.reflect;
 
 
-class function base data_entity {
+enum function_type {
+    normal_function = 1,
+    constructor_function = 2,
+    initializer_function = 3,
+    operator_function = 4,
+    delegate_function = 5,
+    blueprint_function = 6,
+    native_function = 7,
+    undefined_function = 0
+};
 
+class _function_param_ {
+    type: data_type;
+    is_array: bool;
+
+    override def to_string(): string? {
+        return "param(is_array=$is_array, type=$type)";
+    }
+}
+
+class _function_ {
+    name: string;
+    full_name: string;
+    id: int;
+    flags: int;
+    owner: _class_?;
+    type: int;
+    return_type: data_type;
+    array_return: bool;
+    is_delegate: bool;
+    params: _function_param_[]?;
+
+    override def to_string(): string? {
+        str := "$name(full_name=$full_name, id=$id, flags=$flags, owner=${owner != null ? owner!!.full_name : new string("")}," +
+        " type=$type return_type=$return_type, array_return=$array_return, is_delegate=$is_delegate, params=";
+
+        for(i: var = 0; i < sizeof(params); i++) {
+            str += "[#$i] ${params[i]}";
+
+            if((i+1) < sizeof(params)) {
+                str += ",";
+            }
+        }
+
+        str += ")";
+        return str;
+    }
 }

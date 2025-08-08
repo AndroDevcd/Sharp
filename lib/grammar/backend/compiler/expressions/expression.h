@@ -70,7 +70,8 @@ sharp_function* compile_class_function_overload(
         List<sharp_field*> &params,
         List<operation_schema*> &paramOperations,
         string &op,
-        Ast *ast);
+        Ast *ast,
+        bool allowMissing = false);
 
 void compile_function_call(
         operation_schema *scheme,

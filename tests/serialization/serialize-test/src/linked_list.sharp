@@ -1,0 +1,424 @@
+mod serialization;
+
+import (
+    std.io
+)
+
+
+/**
+* Created on 4/10/2025
+*
+* @class linked_list
+*
+* Description:
+* This class implements a singly linked list data structure
+*/
+class linked_list<T> : loopable<T> {
+    private class node<T> {
+        value: T?;
+        next: node<T>?;
+
+        node(value: T) {
+            self->value = value;
+            next = null;
+        }
+
+        override def to_string() : string? {
+            if(value is _object)
+                return value.to_string();
+           else return "";
+        }
+    }
+
+    private head: node<T>?;
+    private tail: node<T>?;
+    private n_elements: var;
+
+    linked_list() {
+        head = null;
+        tail = null;
+        n_elements = 0;
+    }
+
+    linked_list(data: T[]) {
+        foreach(item in data) {
+            add(item);
+        }
+    }
+
+    override def get_elements() : T[]? {
+        if(n_elements == 0) return null;
+
+        elements := new T[n_elements];
+        current := head;
+        i : var = 0;
+
+        while(current != null) {
+            elements[i++] = current!!.value;
+            current = current!!.next;
+        }
+
+        return elements;
+    }
+
+    def operator[](index: int): T {
+        if(index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        return get_node_at(index.value)!!.value;
+    }
+
+    def at(index: int): T {
+        if(index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        return get_node_at(index.value)!!.value;
+    }
+
+    private def get_node_at(index: var): node<T>? {
+        if(index >= n_elements || index < 0)
+            return null;
+
+        current := head;
+        for(i : var = 0; i < index; i++) {
+            current = current!!.next;
+        }
+
+        return current;
+    }
+
+    def last(): T {
+        if(tail == null)
+            throw new bounds_except(out_of_bounds_msg(0));
+
+        return tail!!.value;
+    }
+
+    def first(): T {
+        if(head == null)
+            throw new bounds_except(out_of_bounds_msg(0));
+
+        return head!!.value;
+    }
+
+    def put(index: int, element: T) : T {
+        if(index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        node := get_node_at(index.value);
+        old_val := node!!.value;
+        node!!.value = element;
+        return old_val;
+    }
+
+    def clear() {
+        head = null;
+        tail = null;
+        n_elements = 0;
+    }
+
+    def pop_last() : T {
+        if(n_elements == 0)
+            throw new bounds_except(out_of_bounds_msg(0));
+
+        item := last();
+        pop_back();
+        return item;
+    }
+
+    def pop_first() : T {
+        if(n_elements == 0)
+            throw new bounds_except(out_of_bounds_msg(0));
+
+        item := head!!.value;
+        head = head!!.next;
+        n_elements--;
+
+        if(n_elements == 0)
+            tail = null;
+
+        return item;
+    }
+
+    def add_all(lst: linked_list<T>) {
+        foreach(item in lst) {
+            add(item);
+        }
+    }
+
+    def append_all(lst: linked_list<T>) {
+        foreach(item in lst) {
+            add(item);
+        }
+    }
+
+    def add(element: T) {
+        new_node := new node<T>(element);
+
+        if(head == null) {
+            head = new_node;
+            tail = new_node;
+        } else {
+            tail!!.next = new_node;
+            tail = new_node;
+        }
+
+        n_elements++;
+    }
+
+    def indexof(element: T) : int {
+        current := head;
+        i : var = 0;
+
+        while(current != null) {
+            if(element == current!!.value) {
+                return i;
+            }
+            current = current!!.next;
+            i++;
+        }
+
+        return -1;
+    }
+
+    def pop_back() {
+        if(n_elements == 0)
+            return;
+
+        if(n_elements == 1) {
+            head = null;
+            tail = null;
+            n_elements = 0;
+            return;
+        }
+
+        current := head;
+        for(i : var = 0; i < n_elements - 2; i++) {
+            current = current!!.next;
+        }
+
+        current!!.next = null;
+        tail = current;
+        n_elements--;
+    }
+
+    def size() : int {
+        return n_elements;
+    }
+
+    def empty() : bool {
+        return n_elements == 0;
+    }
+
+    def insert(index: int, element: T) {
+        if(index.value > n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        if(index.value == 0) {
+            new_node := new node<T>(element);
+            new_node!!.next = head;
+            head = new_node;
+
+            if(tail == null)
+                tail = head;
+
+            n_elements++;
+            return;
+        }
+
+        if(index.value == n_elements) {
+            add(element);
+            return;
+        }
+
+        prev := get_node_at(index.value - 1);
+        new_node := new node<T>(element);
+        new_node!!.next = prev!!.next;
+        prev!!.next = new_node;
+        n_elements++;
+    }
+
+    def remove(val: T) {
+        if(head == null)
+            return;
+
+        if(head!!.value == val) {
+            head = head!!.next;
+            n_elements--;
+
+            if(head == null)
+                tail = null;
+
+            return;
+        }
+
+        current := head;
+        while(current!!.next != null && current!!.next!!.value != val) {
+            current = current!!.next;
+        }
+
+        if(current!!.next != null) {
+            if(current!!.next == tail)
+                tail = current;
+
+            current!!.next = current!!.next!!.next;
+            n_elements--;
+        }
+    }
+
+    def remove(val: T, compare_fun: (T, T)(bool)) {
+        if(head == null)
+            return;
+
+        if(compare_fun(head!!.value, val)) {
+            head = head!!.next;
+            n_elements--;
+
+            if(head == null)
+                tail = null;
+
+            return;
+        }
+
+        current := head;
+        while(current!!.next != null && !compare_fun(current!!.next!!.value, val)) {
+            current = current!!.next;
+        }
+
+        if(current!!.next != null) {
+            if(current!!.next == tail)
+                tail = current;
+
+            current!!.next = current!!.next!!.next;
+            n_elements--;
+        }
+    }
+
+    def remove_at(index: int) {
+        if(index.value >= n_elements || index.value < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        if(index.value == 0) {
+            head = head!!.next;
+            n_elements--;
+
+            if(head == null)
+                tail = null;
+
+            return;
+        }
+
+        prev := get_node_at(index.value - 1);
+        if(prev!!.next == tail)
+            tail = prev;
+
+        prev!!.next = prev!!.next!!.next;
+        n_elements--;
+    }
+
+    def indexof(comparer: T, find_func: (T, T)(bool)) : int {
+        current := head;
+        i : var = 0;
+
+        while(current != null) {
+            if(find_func(current!!.value, comparer)) {
+                return i;
+            }
+            current = current!!.next;
+            i++;
+        }
+
+        return -1;
+    }
+
+    def linear_sort(swap: (T, T)(bool)) {
+        if(n_elements <= 1)
+            return;
+
+        sorted := false;
+        while(!sorted) {
+            sorted = true;
+            current := head;
+
+            while(current!!.next != null) {
+                if(swap(current!!.value, current!!.next!!.value)) {
+                    tmp := current!!.value;
+                    current!!.value = current!!.next!!.value;
+                    current!!.next!!.value = tmp;
+                    sorted = false;
+                }
+                current = current!!.next;
+            }
+        }
+    }
+
+    def find(comparer: T, find_func: (T, T)(bool)) : T? {
+        current := head;
+
+        while(current != null) {
+            if(find_func(current!!.value, comparer)) {
+                return current!!.value;
+            }
+            current = current!!.next;
+        }
+
+        return null;
+    }
+
+    def replace(val: T, compare_fun: (T, T)(var)) : bool {
+        current := head;
+
+        while(current != null) {
+            if(compare_fun(val, current!!.value)) {
+                current!!.value = val;
+                return true;
+            }
+            current = current!!.next;
+        }
+
+        return false;
+    }
+
+    override def to_string() : string? {
+        str := new string_builder();
+
+        str += "[ ";
+        current := head;
+        i : var = 0;
+
+        while(current != null) {
+            str += current!!.value.to_string();
+
+            if((i + 1) < n_elements) {
+                str += ", ";
+            }
+
+            current = current!!.next;
+            i++;
+        }
+
+        str += " ]";
+        return str.to_string();
+    }
+
+    override def hash() : int {
+        hash_value := 0;
+        multiplier : var = 0;
+        const m := 1e9 + 9;
+        i : var = 0;
+
+        current := head;
+        while(current != null) {
+            hash_value = (hash_value + current!!.value.hash().value + multiplier) % m;
+            multiplier = i * (i % 10);
+            current = current!!.next;
+            i++;
+        }
+
+        return hash_value;
+    }
+
+    private def out_of_bounds_msg(index: int) : string {
+        return "Index: $index, size: $n_elements";
+    }
+}

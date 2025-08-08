@@ -1,0 +1,142 @@
+mod serialization;
+
+import (
+    std,
+    std.io
+)
+
+/**
+ * ReadBuffer class for deserialization
+ * Provides methods to read various data types from a byte array
+ */
+class ReadBuffer : printable {
+    data: _int8[];
+    position: int = -1;
+    size: int = 0;
+    
+    ReadBuffer(bytes: _int8[]) {
+        if (bytes == null)
+            throw new exception("Cannot create ReadBuffer from null data");
+        
+        data = bytes;
+        size = bytes.size;
+    }
+    
+    /**
+     * Checks if there's enough data to read
+     */
+    def check_overflow(neededBytes: int) : bool {
+        if (position + neededBytes >= size)
+            return false;
+        return true;
+    }
+    
+    /**
+     * Reads a byte from the buffer
+     */
+    def read_byte() : _int8 {
+        if (!check_overflow(1))
+            throw new exception("Read buffer overflow");
+        
+        return data[++position];
+    }
+    
+    /**
+     * Reads a 32-bit integer from the buffer
+     */
+    def read_int32() : int {
+        if (!check_overflow(4))
+            throw new exception("Read buffer overflow");
+        
+        value := 0;
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        
+        return value;
+    }
+    
+    /**
+     * Reads a 64-bit integer from the buffer
+     */
+    def read_int64() : long {
+        if (!check_overflow(8))
+            throw new exception("Read buffer overflow");
+        
+        value := 0L;
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        value = (value << 8) | (data[++position] & 0xFF);
+        
+        return value;
+    }
+    
+    /**
+     * Reads a floating point value from the buffer
+     */
+    def read_double() : double {
+        // Similar to write_double, we need a way to convert bytes to double
+        // For now, we'll read a string and parse it
+        str := read_string();
+        return double.parse(str);
+    }
+    
+    /**
+     * Reads a string from the buffer
+     */
+    def read_string() : string {
+        length := read_int32();
+        
+        if (length <= 0)
+            return "";
+            
+        if (!check_overflow(length))
+            throw new exception("Read buffer overflow when reading string");
+        
+        // Build the string char by char
+        builder := new string_builder();
+        for (i := 0; i < length; i++) {
+            builder.append(read_byte());
+        }
+        
+        return builder.to_string();
+    }
+    
+    /**
+     * Reads raw bytes from the buffer
+     */
+    def read_bytes(length: int) : _int8[] {
+        if (length <= 0)
+            return new _int8[0];
+            
+        if (!check_overflow(length))
+            throw new exception("Read buffer overflow when reading bytes");
+        
+        result := new _int8[length];
+        for (i := 0; i < length; i++) {
+            result[i] = read_byte();
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Resets the buffer position
+     */
+    def reset() {
+        position = -1;
+    }
+    
+    /**
+     * String representation for debugging
+     */
+    override def to_string() : string {
+        return "ReadBuffer(size: " + size + ", position: " + position + ")";
+    }
+}

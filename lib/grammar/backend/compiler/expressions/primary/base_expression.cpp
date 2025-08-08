@@ -20,7 +20,7 @@ sharp_class* compile_base_class(Ast *ast) {
     if(ast != NULL) {
         sharp_type baseType = resolve(ast->getSubAst(ast_base_utype)->getSubAst(ast_utype));
         if(baseType.type == type_class) {
-            if(is_implicit_type_match(primary, baseType._class)) {
+            if(is_implicit_class_type_match(primary, baseType._class)) {
                 return baseType._class;
             } else {
                 create_new_error(GENERIC, ast->line, ast->col, "class `" + baseType._class->fullName

@@ -195,7 +195,7 @@ uInt is_explicit_type_match(sharp_type& left, sharp_type& right) {
 
         if(comparer.fun == NULL) {
             if(comparer.type == type_class) {
-                return with_result(is_explicit_type_match(
+                return with_result(is_explicit_class_type_match(
                         comparer._class, comparee._class
                     ), direct_match);
             } else return direct_match;
@@ -264,7 +264,7 @@ uInt is_implicit_type_match(
         case type_class: {
            if(comparee.type == type_class) {
                 if((comparer.isArray == comparee.isArray)
-                    && (is_implicit_type_match(comparer._class, comparee._class)))
+                    && (is_implicit_class_type_match(comparer._class, comparee._class)))
                     return nullability_check(comparer, comparee, indirect_match);
             } else if(comparee.type == type_null) {
                return nullability_check(comparer, comparee, indirect_match);

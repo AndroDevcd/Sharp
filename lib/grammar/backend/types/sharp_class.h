@@ -286,8 +286,8 @@ sharp_field* locate_field(
  *
  * @return Returns whether or not a class has an implicit or explicit match
  */
-bool is_explicit_type_match(sharp_class*, sharp_class*);
-bool is_implicit_type_match(sharp_class*, sharp_class*, bool objBaseClass = false);
+bool is_explicit_class_type_match(sharp_class*, sharp_class*);
+bool is_implicit_class_type_match(sharp_class*, sharp_class*, bool objBaseClass = false);
 
 // check whether or not a class holds the base class of the class provided
 bool is_class_related_to(sharp_class*, sharp_class*, bool objBaseClass = false);

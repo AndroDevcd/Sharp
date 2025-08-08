@@ -15,6 +15,7 @@
 
 struct sharp_class;
 struct sharp_type;
+struct sharp_object;
 
 struct function_param {
     sharp_type *type;
@@ -46,6 +47,7 @@ struct sharp_function {
     function_param *params;
     linkedlist<line_data> lineTable;
     linkedlist<try_catch_data> tryCatchTable;
+    sharp_object *reflect;
 };
 
 void init_struct(sharp_function *sf);

@@ -1,0 +1,30 @@
+mod main;
+
+import (
+    serialization,
+    std.reflect
+)
+
+class A {
+    b := new B();
+}
+
+class B {
+    str := "this is a string";
+}
+
+class simple_class {
+    num: int;
+}
+
+simple := new simple_class();
+
+def main() {
+  println("Serialize test");
+  num := 5;
+  for(i : var = 0; i < 10_000_000; i++)
+    __serialize__(simple);
+//    describe(num);
+  println("description ${describe(num)}");
+//  __serialize__(num);
+}

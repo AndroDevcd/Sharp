@@ -112,7 +112,7 @@ sharp_class* resolve_base_class(sharp_class *with_class, Ast *ast) {
         sharp_type baseClass(resolve(ast->getSubAst(ast_refrence_pointer)));
 
         if(baseClass.type == type_class) {
-            if(is_implicit_type_match(baseClass._class, with_class)) {
+            if(is_implicit_class_type_match(baseClass._class, with_class)) {
                 create_new_error(GENERIC, ast,
                                        "cyclic dependency of class `" + with_class->fullName + "` in parent class `" +
                                        baseClass._class->fullName + "`");

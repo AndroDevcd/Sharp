@@ -83,6 +83,8 @@ enum interrupt_flag
     OP_DESERIALIZE     = 0x4e,
     OP_CURRENT_DIRECTORY = 0x4f,
     OP_STRTOL = 0x50,
+    OP_DESCRIBE_OBJECT = 0x51,
+    OP_REFLECT_FIELD_VALUE = 0x52,
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

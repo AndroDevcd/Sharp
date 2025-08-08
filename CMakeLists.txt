@@ -183,7 +183,9 @@ else()
             "lib/Modules/std.io/*.cpp"
             )
 
-    set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC})
+    set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC}
+            lib/runtime/reflect/reflection.cpp
+            lib/runtime/reflect/reflection.h)
     if (POSIX)
         set(LRT_LIB -lrt -ldl)
     endif ()

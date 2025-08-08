@@ -1,36 +1,129 @@
 mod main;
 
 import (
+    std.math,
     std.export
 )
 
-class Foo {
-    username : string;
-    password : string;
-    params : hash_map<string, _object_>;
-
-    init {
-        username = new string("dan");
-        password = new string("123456789");
-        params = new hash_map<string, _object_>();
-        for(i := 0; i< 20; i++) {
-            params.put(i.to_string()!!, new string("a"));
-        }
-    }
+class simple_class {
+    num: int;
 }
 
-def main() {
+class advanced_class {
+    simple: simple_class = new simple_class();
+    empty: simple_class?;
+    num: var = 8;
+}
 
-    //Before changed
-    // 59817ms, 59211ms, 60143ms, 59672ms, 59672ms
-    // After Change
-    // 
+class large_class {
+    advanced: advanced_class = new advanced_class();
+    message := "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+    num: var = 9;
+    dec := 0.383;
+    dict := { "1" : 1, "2" : 2 };
+}
 
-    f := new Foo();
-    for (i : var = 0; i < 1_0_00; i++) {
-        if((i % 100) == 0) println(i);
-        deserialize(serialize(f));
-    }
+simple := new simple_class();
+advanced := new advanced_class();
+large := new large_class();
+bench_count: var = 10_000_000;
 
-    println("serialization done");
+def serialization_bench() {
+    simple_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            serialize(simple);
+        }
+    });
+
+    advanced_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            serialize(advanced);
+        }
+    });
+
+    large_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            serialize(large);
+        }
+    });
+
+    println("Serialization Benchmark:\n\nsimple bench: $simple_time ms\nadvanced bench: $advanced_time ms\nlarge bench: $large_time ms\n");
+}
+
+def deserialization_bench() {
+    simple_data := serialize(simple);
+    advanced_data := serialize(advanced);
+    large_data := serialize(large);
+
+    simple_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            deserialize(simple_data);
+        }
+    });
+
+    advanced_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            deserialize(advanced_data);
+        }
+    });
+
+    large_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            deserialize(large_data);
+        }
+    });
+
+    println("De-Serialization Benchmark:\n\nsimple bench: $simple_time ms\nadvanced bench: $advanced_time ms\nlarge bench: $large_time ms\n");
+}
+
+def full_serialization_bench() {
+    simple_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            deserialize(serialize(simple));
+        }
+    });
+
+    advanced_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            deserialize(serialize(advanced));
+        }
+    });
+
+    large_time := time.measure(milliseconds, { ->
+        for(i : var = 0; i < bench_count; i++) {
+            deserialize(serialize(large));
+        }
+    });
+
+    println("Full Serialization Benchmark:\n\nsimple bench: $simple_time ms\nadvanced bench: $advanced_time ms\nlarge bench: $large_time ms\n");
+}
+
+
+/**
+ * @brief 
+ * 
+ * Serialization Benchmark:
+ *
+ * simple bench: 22086 ms
+ * advanced bench: 24396 ms
+ * large bench: 27845 ms
+ * 
+ * 
+ * De-Serialization Benchmark:
+ * 
+ * simple bench: 18585 ms
+ * advanced bench: 18671 ms
+ * large bench: 17688 ms
+ * 
+ * 
+ * Full Serialization Benchmark:
+ * 
+ * simple bench: 46505 ms
+ * advanced bench: 47003 ms
+ * large bench: 45368 ms
+ */
+def main(args: string[]) {
+    serialization_bench();
+    deserialization_bench();
+    //full_serialization_bench();
 }

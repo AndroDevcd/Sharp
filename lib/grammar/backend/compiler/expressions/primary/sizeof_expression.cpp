@@ -14,7 +14,8 @@ void compile_sizeof_expression(expression *e, Ast *ast) {
     auto type = get_real_type(valueExpr.type);
     if(type.type == type_string
         || type.type == type_class
-        || type.isArray) {
+        || type.isArray
+        || type.type == type_object) {
         create_sizeof_operation(&e->scheme, &valueExpr.scheme);
         e->type.type = type_int32;
     } else {

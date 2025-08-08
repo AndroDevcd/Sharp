@@ -1,7 +1,0 @@
-mod std.reflect;
-
-class type_info {
-   // functionType: function_info;
-   // classType: class_info;
-    type: data_type;
-}

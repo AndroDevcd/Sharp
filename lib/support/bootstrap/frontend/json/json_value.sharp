@@ -25,17 +25,17 @@ class json_value {
        get { return get_json_type(); }
 
     def get_json_type() : json_type {
-        if(value is int.class)
+        if(value is int)
            return jtype_int;
-        else if(value is string.class)
+        else if(value is string)
            return jtype_string;
-        else if(value is json_array.class)
+        else if(value is json_array)
            return jtype_array;
-        else if(value is bool.class)
+        else if(value is bool)
            return jtype_bool;
         else if(value == null)
            return jtype_null;
-        else if(value is json_object.class)
+        else if(value is json_object)
            return jtype_object;
         else return jtype_invalid;
     }
