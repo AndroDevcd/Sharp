@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.6)
 project(Sharp)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #set(POSIX "os")
 if (POSIX)
@@ -159,6 +160,14 @@ else()
             "lib/runtime/memory/*.cpp"
             "lib/runtime/reflect/*.h"
             "lib/runtime/reflect/*.cpp"
+            "lib/runtime/jit/*.h"
+            "lib/runtime/jit/*.cpp"
+            "lib/runtime/jit/arm/*.h"
+            "lib/runtime/jit/arm/*.cpp"
+            "lib/runtime/jit/arm/opcode/*.h"
+            "lib/runtime/jit/arm/opcode/*.cpp"
+            "lib/runtime/jit/arm/sections/*.h"
+            "lib/runtime/jit/arm/sections/*.cpp"
             "lib/runtime/snb/*.h"
             "lib/runtime/snb/*.cpp"
             "lib/runtime/multitasking/*/*.h"
@@ -173,6 +182,14 @@ else()
             "lib/core/opcode/*.h"
             "lib/util/*.cpp"
             "lib/util/*.h"
+            "lib/util/jit/asmjit/src/asmjit/*.cpp"
+            "lib/util/jit/asmjit/src/asmjit/*.h"
+            "lib/util/jit/asmjit/src/asmjit/arm/*.cpp"
+            "lib/util/jit/asmjit/src/asmjit/arm/*.h"
+            "lib/util/jit/asmjit/src/asmjit/core/*.cpp"
+            "lib/util/jit/asmjit/src/asmjit/core/*.h"
+            "lib/util/jit/asmjit/src/asmjit/x86/*.cpp"
+            "lib/util/jit/asmjit/src/asmjit/x86/*.h"
             "lib/util/zip/*.cpp"
             "lib/util/zip/*.h"
             "lib/Modules/math/*.h"

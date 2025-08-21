@@ -54,7 +54,17 @@ void run_scheduler() {
     pthread_attr_init(&thAttr);
     pthread_attr_getschedpolicy(&thAttr, &policy);
     pthread_prio = sched_get_priority_max(policy);
-    pthread_setschedprio(pthread_self(), pthread_prio);
+
+    #ifdef __APPLE__
+        // macOS version
+        struct sched_param param;
+        param.sched_priority = pthread_prio;
+        pthread_setschedparam(pthread_self(), policy, &param);
+    #else
+        // Linux version
+            pthread_setschedprio(pthread_self(), pthread_prio);
+    #endif
+
     pthread_attr_destroy(&thAttr);
 #endif
 

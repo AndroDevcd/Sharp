@@ -402,7 +402,16 @@ int set_thread_priority(sharp_thread* thread, int priority) {
             return RESULT_ILL_PRIORITY_SET;
         }
 
-        pthread_setschedprio(thread->thread, pthread_prio);
+        #ifdef __APPLE__
+                // macOS version
+                struct sched_param param;
+                param.sched_priority = pthread_prio;
+                pthread_setschedparam(thread->thread, policy, &param);
+        #else
+                // Linux version
+                pthread_setschedprio(thread->thread, pthread_prio);
+        #endif
+
         pthread_attr_destroy(&thAttr);
 #endif
         thread->priority = priority;

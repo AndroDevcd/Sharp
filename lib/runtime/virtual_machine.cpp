@@ -812,6 +812,11 @@ void prepare_method(Int address) {
     auto task = thread_self->task;
     auto inNative = task->current && task->current->nativeFunc;
     auto function = vm.methods + address;
+    
+    function->callCount++;
+    if(function->callCount >= 10000 && !function->isHighFrequency) {
+        function->isHighFrequency = true;
+    }
     if(function->nativeFunc)
         thread_self->nativeCalls++;
 //    cout << "call: " << function->fullName << "(" << function->address << ")";

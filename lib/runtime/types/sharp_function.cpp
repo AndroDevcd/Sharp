@@ -31,6 +31,8 @@ void init_struct(sharp_function *sf) {
     sf->nativeFunc = false;
     sf->linkAddr = 0;
     sf->bridge = nullptr;
+    sf->callCount = 0;
+    sf->isHighFrequency = false;
 }
 
 string get_info(sharp_function *sf, Int pc) {

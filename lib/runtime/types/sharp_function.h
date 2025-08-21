@@ -48,6 +48,8 @@ struct sharp_function {
     linkedlist<line_data> lineTable;
     linkedlist<try_catch_data> tryCatchTable;
     sharp_object *reflect;
+    uint32_t callCount;
+    bool isHighFrequency;
 };
 
 void init_struct(sharp_function *sf);
