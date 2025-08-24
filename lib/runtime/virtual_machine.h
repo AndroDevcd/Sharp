@@ -93,11 +93,13 @@ struct virtual_machine {
 
 extern virtual_machine vm;
 
-void main_vm_loop();
+void main_vm_loop(sharp_function *frame);
 void exec_interrupt(Int interrupt);
 void prepare_method(Int address);
 void invoke_delegate(Int address, Int argSize, bool staticCall);
 bool catch_exception();
 bool return_method();
+void invoke_next_frame(sharp_function *frame, bool isInterpreter);
+sharp_function* get_next_frame(sharp_function *current);
 
 #endif //SHARP_VIRTUAL_MACHINE_H

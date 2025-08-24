@@ -13,6 +13,7 @@
 #include "../util/time.h"
 #include "main.h"
 #include "reflect/reflection.h"
+#include "jit/jit_compiler.h"
 
 int initialize_virtual_machine()
 {
@@ -30,6 +31,7 @@ int initialize_virtual_machine()
     create_main_thread();
     gc_startup();
     idle_handler_startup();
+    init_jit_compiler();
 
     /**
      * Resolve Frequently Used classes
@@ -119,4 +121,5 @@ void destroy() {
 
     if(thread_self) shutdown_thread(thread_self);
     kill_all_threads();
+    shutdown_jit_compiler();
 }

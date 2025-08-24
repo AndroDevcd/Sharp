@@ -11,24 +11,28 @@
 
 // Forward declaration
 struct sharp_thread;
+struct jit_compiled_function;
 
 // JIT function return codes
 enum jit_return_code {
     JIT_OK = 0,                // Function executed successfully
-    JIT_CONTEXT_SWITCH = 1,    // Context switch required
-    JIT_EXCEPTION = 2,         // Exception occurred
-    JIT_KILL = 3               // Thread termination requested
+    JIT_EXCEPTION = 0x001,         // Exception occurred
+    JIT_CONTEXT_SWITCH = 0x002,    // Context switch required
+    JIT_KILL = 0x004               // Thread termination requested
 };
 
 // JIT function signature typedef
 // Parameters passed to compiled JIT functions (in this order):
 // 1. thread: pointer to Sharp thread context (contains all VM state)
-// 2. registers: pointer to thread-local VM registers array
+// 2. fun: pointer to jit_compiled_function (contains jumpTable for PC dispatch)
+// 3. registers: pointer to thread-local VM registers array
 // Returns: jit_return_code indicating execution result
-typedef int (*jit_function_ptr)(sharp_thread* thread, long double* registers);
+typedef int (*jit_function_ptr)(sharp_thread* thread, jit_compiled_function* fun, long double* registers);
 
 struct jit_compiled_function {
     jit_function_ptr compiledCode;  // Typed function pointer instead of void*
+    void** jumpTable;               // Array of instruction addresses indexed by PC
+    size_t jumpTableSize;           // Number of entries in jump table
     size_t codeSize;
     bool isCompiled;
     sharp_function* originalFunction;

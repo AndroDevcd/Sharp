@@ -81,7 +81,7 @@ vm_thread_entry(void *arg)
                 prepare_method(thread->task->main->address);
             }
 
-            main_vm_loop();
+            main_vm_loop(thread->task->main);
 
             _unboundExceptionThrown:
             if(hasSignal(thread->signal, tsig_except)) {

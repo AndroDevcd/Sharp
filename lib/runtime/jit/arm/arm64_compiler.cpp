@@ -24,11 +24,13 @@ Arm64Compiler::Arm64Compiler() : assembler(&code) {
     // Initialize labeled ARM64 registers
     threadPtr = a64::x19;     // Callee-saved register for thread context pointer
     registersPtr = a64::x20;  // Callee-saved register for registers array pointer
+    jitFunctionPtr = a64::x25; // Callee-saved register for jit_compiled_function pointer
     tempVec1 = a64::d8;       // Callee-saved vector register 1 for floating point
     tempVec2 = a64::d9;       // Callee-saved vector register 2 for floating point
     tempReg1 = a64::x21;      // Callee-saved temp register 1
     tempReg2 = a64::x22;      // Callee-saved temp register 2
     tempReg3 = a64::x23;      // Callee-saved temp register 3
+    jumpTablePtr = a64::x24;  // Callee-saved register for jump table pointer
     
     // Initialize standard ARM64 registers for consistency
     returnReg = a64::w0;      // Function return value register (32-bit)
@@ -40,7 +42,9 @@ Arm64Compiler::Arm64Compiler() : assembler(&code) {
     stateCheckLabel = assembler.newLabel();
     catchExceptionLabel = assembler.newLabel();
     returnFromFunctionLabel = assembler.newLabel();
-    continueLabels.clear();
+    
+    // Initialize PC tracking
+    currentPC = 0;
 }
 
 Arm64Compiler::~Arm64Compiler() {
@@ -54,6 +58,9 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     
     resetCodeHolder();
     
+    // Initialize jump table for this function
+    initializeJumpTable(function->bytecodeSize);
+    
     if(!setupFunctionPrologue()) {
         return false;
     }
@@ -61,12 +68,17 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     // Translate Sharp IR opcodes to ARM64 assembly
     uint32_t* pc = function->bytecode;
     uint32_t* endPc = pc + function->bytecodeSize;
+    currentPC = 0;
     
     while(pc < endPc) {
+        // Bind the label for this PC position
+        setJumpTableEntry(currentPC, opcodeLabels[currentPC]);
+        
         if(!translateOpcode(*pc, pc, function)) {
             return false;
         }
         pc++;
+        currentPC++;
     }
     
     if(!setupFunctionEpilogue()) {
@@ -78,6 +90,16 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     Error err = runtime.add(&func, &code);
     if(err) {
         return false;
+    }
+    
+    // Allocate and populate the jump table
+    output->jumpTableSize = function->bytecodeSize;
+    output->jumpTable = new void*[output->jumpTableSize];
+    
+    // Get the actual addresses of each opcode label
+    for (size_t i = 0; i < output->jumpTableSize; ++i) {
+        size_t offset = code.labelOffset(opcodeLabels[i]);
+        output->jumpTable[i] = static_cast<char*>(func) + offset;
     }
     
     output->compiledCode = reinterpret_cast<jit_function_ptr>(func);
@@ -380,9 +402,10 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
 
 bool Arm64Compiler::setupFunctionPrologue() {
     // ARM64 calling convention: x0-x7 are argument registers
-    // JIT function signature: int jit_func(sharp_thread* thread, long double* registers)
+    // JIT function signature: int jit_func(sharp_thread* thread, jit_compiled_function* fun, long double* registers)
     // x0 = sharp_thread* thread
-    // x1 = long double* registers
+    // x1 = jit_compiled_function* fun
+    // x2 = long double* registers
     
     // Save frame pointer and link register
     assembler.stp(framePtr, linkReg, a64::ptr(stackPtr, -16).pre());
@@ -391,10 +414,11 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler.mov(framePtr, stackPtr);
     
     // Save all callee-saved registers we use (ARM64 requires this)
-    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23
+    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25
     assembler.stp(threadPtr, registersPtr, a64::ptr(stackPtr, -16).pre());
     assembler.stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
-    assembler.str(tempReg3, a64::ptr(stackPtr, -16).pre());
+    assembler.stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
+    assembler.str(jitFunctionPtr, a64::ptr(stackPtr, -16).pre());  // Single register save
     
     // Save vector callee-saved registers: d8, d9
     assembler.stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
@@ -404,7 +428,68 @@ bool Arm64Compiler::setupFunctionPrologue() {
     
     // Store parameters in callee-saved registers
     assembler.mov(threadPtr, a64::x0);      // threadPtr = sharp_thread* (first parameter)
-    assembler.mov(registersPtr, a64::x1);   // registersPtr = long double* registers (second parameter)
+    assembler.mov(jitFunctionPtr, a64::x1); // jitFunctionPtr = jit_compiled_function* (second parameter)
+    assembler.mov(registersPtr, a64::x2);   // registersPtr = long double* registers (third parameter)
+    
+    // Load jump table address from jit_compiled_function->jumpTable
+    // jitFunctionPtr now contains the jit_compiled_function pointer
+    assembler.ldr(jumpTablePtr, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, jumpTable)));
+
+    /*
+     * Context Switch Frame Rebuild Logic
+     * ==================================
+     * 
+     * When a JIT function is called, it might be resuming from a context switch.
+     * In this case, we need to rebuild the call stack to restore proper execution context.
+     * 
+     * This implements the C++ logic:
+     *   if(thread->task->current != fun->originalFunction) {
+     *       sharp_function *frame = get_next_frame(fun->originalFunction);
+     *       invoke_next_frame(frame, false);
+     *       long currentPc = thread->task->pc - thread->task->rom;
+     *       goto check_state(currentPc);  // Check for additional thread signals
+     *   }
+     * 
+     * The comparison checks if the current executing function differs from what
+     * this JIT function expects. If different, it means we're resuming after a
+     * context switch and need to rebuild the call stack hierarchy before continuing.
+     */
+    
+    // Frame rebuild code: if(thread->task->current != fun->originalFunction)
+    Label skipFrameRebuild = assembler.newLabel();
+    
+    // Load thread->task->current
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task))); // tempReg1 = thread->task
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, current)));      // tempReg2 = thread->task->current
+    
+    // Load fun->originalFunction (jitFunctionPtr points to jit_compiled_function)
+    assembler.ldr(tempReg3, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, originalFunction))); // tempReg3 = fun->originalFunction
+    
+    // Compare thread->task->current with fun->originalFunction
+    assembler.cmp(tempReg2, tempReg3);
+    assembler.b_eq(skipFrameRebuild);  // Skip if they are equal
+    
+    // Call get_next_frame(fun->originalFunction)
+    assembler.mov(a64::x0, tempReg3);  // First parameter: fun->originalFunction
+    callStaticFunction(reinterpret_cast<void*>(get_next_frame));
+    assembler.mov(tempReg1, returnReg); // Save returned sharp_function* frame
+    
+    // Call invoke_next_frame(frame, false)
+    assembler.mov(a64::x0, tempReg1);  // First parameter: frame
+    assembler.mov(a64::x1, 0);         // Second parameter: false
+    callStaticFunction(reinterpret_cast<void*>(invoke_next_frame));
+    
+    // Calculate currentPc = thread->task->pc - thread->task->rom
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task))); // tempReg1 = thread->task
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));           // tempReg2 = thread->task->pc  
+    assembler.ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, rom)));          // tempReg3 = thread->task->rom
+    assembler.sub(tempReg3, tempReg2, tempReg3);                               // tempReg3 = pc - rom
+    assembler.lsr(tempReg3, tempReg3, 2);                                      // tempReg3 = (pc - rom) / 4 (currentPc)
+    
+    // Jump to state check with calculated currentPc
+    assembler.b(stateCheckLabel);
+    
+    assembler.bind(skipFrameRebuild);
     
     return true;
 }
@@ -430,7 +515,6 @@ void Arm64Compiler::resetCodeHolder() {
     stateCheckLabel = assembler.newLabel();
     catchExceptionLabel = assembler.newLabel();
     returnFromFunctionLabel = assembler.newLabel();
-    continueLabels.clear();
 }
 
 // Helper functions and section implementations are now in separate files

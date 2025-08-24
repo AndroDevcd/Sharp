@@ -10,6 +10,7 @@
 #include "../../../util/jit/asmjit/src/asmjit/a64.h"
 #include "../../../core/vm_register.h"
 #include "../../../core/thread_state.h"
+#include <vector>
 
 using namespace asmjit;
 
@@ -29,12 +30,15 @@ private:
      * - x21 (tempReg1)         : General purpose temporary register
      * - x22 (tempReg2)         : General purpose temporary register
      * - x23 (tempReg3)         : General purpose temporary register
+     * - x24 (jumpTablePtr)     : Points to jump table array for PC dispatch
+     * - x25 (jitFunctionPtr)   : Points to jit_compiled_function structure
      * - d8  (tempVec1)         : Vector register for long double operations
      * - d9  (tempVec2)         : Vector register for long double operations
      * 
      * CALLER-SAVED REGISTERS (used temporarily, not preserved):
      * - x0  (returnReg)        : Function parameter 1 (sharp_thread*), return value
-     * - x1                     : Function parameter 2 (long double* registers)
+     * - x1                     : Function parameter 2 (jit_compiled_function*)
+     * - x2                     : Function parameter 3 (long double* registers)
      * - x29 (framePtr)         : Frame pointer (saved/restored by prologue/epilogue)
      * - x30 (linkReg)          : Link register (saved/restored by prologue/epilogue)
      * - sp  (stackPtr)         : Stack pointer
@@ -44,9 +48,10 @@ private:
      * +16: x29, x30 (frame pointer, link register)
      * +0:  x19, x20 (threadPtr, registersPtr)  
      * -16: x21, x22 (tempReg1, tempReg2)
-     * -32: x23      (tempReg3)
-     * -48: d8, d9   (tempVec1, tempVec2)
-     * -64: [reserved stack space]
+     * -32: x23, x24 (tempReg3, jumpTablePtr)
+     * -48: x25      (jitFunctionPtr)
+     * -64: d8, d9   (tempVec1, tempVec2)
+     * -80: [reserved stack space]
      * [Low Address]
      * 
      * NOTE: When adding new registers, update both prologue/epilogue save/restore code!
@@ -55,11 +60,13 @@ private:
     // Labeled ARM64 registers for JIT operations
     a64::Gp threadPtr;        // x19 - Points to Sharp thread context
     a64::Gp registersPtr;     // x20 - Points to thread-local registers array
+    a64::Gp jitFunctionPtr;   // x25 - Points to jit_compiled_function structure
     a64::Vec tempVec1;        // d8  - Floating point temp register for long double operations
     a64::Vec tempVec2;        // d9  - Floating point temp register for long double operations  
     a64::Gp tempReg1;         // x21 - General purpose temp register
     a64::Gp tempReg2;         // x22 - General purpose temp register  
     a64::Gp tempReg3;         // x23 - General purpose temp register
+    a64::Gp jumpTablePtr;     // x24 - Pointer to jump table array
     
     // Standard ARM64 registers (for clarity and consistency)
     a64::Gp returnReg;        // w0/x0 - Function return value register
@@ -71,7 +78,10 @@ private:
     Label stateCheckLabel;    // Label for state check section
     Label catchExceptionLabel; // Label for exception handling
     Label returnFromFunctionLabel; // Label for centralized function return
-    std::vector<Label> continueLabels; // Return points after state checks
+    
+    // Jump table management
+    std::vector<Label> opcodeLabels;   // Labels for each opcode (indexed by PC)
+    size_t currentPC;                  // Current PC being compiled (for state check returns)
     
 public:
     Arm64Compiler();
@@ -226,18 +236,29 @@ private:
     void setRegisterImmediate(_register vmReg, int64_t value);       // registers[vmReg] = immediate value
     
     // State checking helpers
-    void emitStateCheck();                                           // Emit jump to state check for current opcode
+    void emitStateCheck(size_t targetPC);                           // Emit jump to state check with target PC for return
+    void emitStateCheckNext();                                       // Emit state check, resume at next instruction (currentPC + 1)
     void generateStateCheckSection();                                // Generate the state check code section
-    Label createContinueLabel();                                     // Create a return point label
     
     // Return helpers
-    void emitReturn(int returnCode = 0);                             // Jump to centralized return with return code
+    void emitReturn(int returnCode = 0);                             // Jump to centralized return with immediate return code (uses currentPC)
+    void emitReturn(int returnCode, a64::Gp &targetPCReg);            // Jump to centralized return with dynamic PC from register
     void generateReturnSection();                                    // Generate the centralized return section
     
     // External function call helpers
     void callStaticFunction(void* functionPtr);                      // Call external C function with no parameters
+    void callStaticFunction(void* functionPtr, a64::Gp param1, a64::Gp param2); // Call external C function with 2 parameters
+    
+    // Jump table helpers
+    void initializeJumpTable(size_t opcodeCount);                    // Initialize jump table for function
+    void setJumpTableEntry(size_t pc, Label opcodeLabel);            // Set jump table entry for PC
+    void generateJumpDispatch(int targetPCRegister);                 // Generate jump to PC using jump table
+    
+    // PC management helpers
+    void setCurrentPc(a64::Gp targetPCReg);                         // Set task->pc from register value
     
     // Exception handling helpers
+    void emitExceptionHandle(a64::Gp targetPCReg);                   // Jump to exception handler with PC in register
     void generateExceptionHandlerSection();                          // Generate exception handling code section
 };
 

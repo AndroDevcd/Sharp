@@ -11,6 +11,25 @@
 
 using namespace asmjit;
 
+/**
+ * This code represent the following vm code:
+ *   state_check:
+ *   if(thread->signal) {
+ *       if (hasSignal(thread->signal, tsig_context_switch)) {
+ *           if(thread->nativeCalls == 0) {
+ *               return;
+ *           }
+ *       }
+ *       if (hasSignal(thread->signal, tsig_suspend))
+ *           suspend_self();
+ *       if(hasSignal(thread->signal, tsig_except))
+ *           goto catch_exception;
+ *       if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED)
+ *           return;
+ *   }
+ *
+ *   DISPATCH();
+ **/
 void Arm64Compiler::generateStateCheckSection() {
     // Bind the state check label
     assembler.bind(stateCheckLabel);
@@ -33,8 +52,11 @@ void Arm64Compiler::generateStateCheckSection() {
     
     // Check if nativeCalls == 0
     assembler.ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, nativeCalls))); // Load thread->nativeCalls
-    Label contextSwitchReturn = assembler.newLabel();
-    assembler.cbz(tempReg2, contextSwitchReturn); // If nativeCalls == 0, return from function
+    assembler.cbnz(tempReg2, skipContextSwitch); // If nativeCalls != 0, skip context switch return
+    
+    // nativeCalls == 0, return with context switch code
+    // tempReg3 contains the current PC from emitStateCheck() call
+    emitReturn(JIT_CONTEXT_SWITCH, tempReg3);
     
     assembler.bind(skipContextSwitch);
     
@@ -52,7 +74,7 @@ void Arm64Compiler::generateStateCheckSection() {
     assembler.tbz(tempReg1, 0, skipException);  // Test bit 0, jump if zero
     
     // Jump to exception handler
-    assembler.b(catchExceptionLabel);
+    emitExceptionHandle(tempReg3);
     
     assembler.bind(skipException);
     
@@ -76,21 +98,21 @@ void Arm64Compiler::generateStateCheckSection() {
     
     assembler.bind(skipKillState);
     
-    // Context switch return - return with context switch code  
-    assembler.bind(contextSwitchReturn);
-    emitReturn(JIT_CONTEXT_SWITCH);
-    
-    // Continue dispatch - jump back to appropriate continue label
+    // Continue dispatch - jump back to appropriate PC using jump table
     assembler.bind(continueDispatch);
     
-    // Simple dispatch based on tempReg3 value
-    for (size_t i = 0; i < continueLabels.size(); ++i) {
-        assembler.cmp(tempReg3, i);
-        assembler.b_eq(continueLabels[i]);
-    }
+    // tempReg3 contains the target PC (set by emitStateCheck calls)
+    // Use jump table dispatch for O(1) PC lookup
     
-    // Default: continue to first label if something goes wrong
-    if (!continueLabels.empty()) {
-        assembler.b(continueLabels[0]);
-    }
+    // Calculate offset: targetPC * 8 (each pointer is 8 bytes)
+    assembler.lsl(tempReg1, tempReg3, 3);  // targetPC << 3
+    
+    // Load jump table address and add offset  
+    assembler.add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (targetPC * 8)
+    
+    // Load target address from jump table
+    assembler.ldr(tempReg1, a64::ptr(tempReg2));      // Load jumpTable[targetPC]
+    
+    // Jump to target address
+    assembler.br(tempReg1);                           // Jump to the target opcode
 }

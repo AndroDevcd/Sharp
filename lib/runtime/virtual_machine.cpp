@@ -24,17 +24,25 @@
 #include "../core/access_flag.h"
 #include "termios.h"
 #include "reflect/reflection.h"
+#include "jit/jit_compiler.h"
+#include "memory/memory_helpers.h"
+#include "main.h"
 
 virtual_machine vm;
 thread_local long double *registers;
 
-void main_vm_loop()
+void main_vm_loop(sharp_function *frame)
 {
     setupOpcodeTable
     auto thread = thread_self;
     auto task = thread->task;
     long double *regs = registers;
     Int data;
+
+    while(frame != thread_self->task->current) {
+        frame = get_next_frame(frame);
+        invoke_next_frame(frame, true);
+    }
 
     run:
     try
@@ -602,15 +610,15 @@ void main_vm_loop()
 
         state_check:
         if(thread->signal) {
+            if (hasSignal(thread->signal, tsig_suspend))
+                suspend_self();
+            if(hasSignal(thread->signal, tsig_except))
+                goto catch_exception;
             if (hasSignal(thread->signal, tsig_context_switch)) {
                 if(thread->nativeCalls == 0) {
                     return;
                 }
             }
-            if (hasSignal(thread->signal, tsig_suspend))
-                suspend_self();
-            if(hasSignal(thread->signal, tsig_except))
-                goto catch_exception;
             if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED)
                 return;
         }
@@ -810,13 +818,22 @@ void prepare_method(Int address) {
     }
 
     auto task = thread_self->task;
-    auto inNative = task->current && task->current->nativeFunc;
+    auto inNative = task->current && (task->current->nativeFunc || task->current->isHighFrequency);
     auto function = vm.methods + address;
     
     function->callCount++;
-    if(function->callCount >= 10000 && !function->isHighFrequency) {
+    if(c_options.jit && function->callCount >= 1 && !function->isHighFrequency
+        && function != task->main && function->name == "jit_func_test") {
         function->isHighFrequency = true;
+        if(function->jfunc == nullptr) {
+            function->jfunc = calloc_mem<jit_compiled_function>(1, sizeof(jit_compiled_function));
+        }
+
+        if(!jitCompiler->compileFunction(function, function->jfunc)) {
+            function->isHighFrequency = false; // keep trying to compile until succeed... shouldn't happen often
+        }
     }
+
     if(function->nativeFunc)
         thread_self->nativeCalls++;
 //    cout << "call: " << function->fullName << "(" << function->address << ")";
@@ -869,7 +886,45 @@ void prepare_method(Int address) {
     #endif
 
     if(!task->current->nativeFunc && inNative)
-        main_vm_loop();
+        main_vm_loop(task->current);
+    else if(task->current->isHighFrequency) {
+        task->current->jfunc->compiledCode(thread_self, task->current->jfunc, registers);
+    }
+}
+
+sharp_function* get_next_frame(sharp_function *current) {
+    auto callStack = thread_self->task->frames;
+    auto frames = thread_self->task->calls;
+
+    for(long i = 0; i < frames; i++) {
+        if(callStack[i].returnAddress == current->address) {
+            sharp_function *fun;
+
+            if((i + 1) >= frames) {
+                // invoke current function
+                fun = thread_self->task->current;
+            } else {
+                fun = vm.methods + callStack[i].returnAddress;
+            }
+
+            return fun;
+        }
+    }
+
+    return nullptr;
+}
+
+void invoke_next_frame(sharp_function *frame, bool isInterpreter) {
+    if(frame == nullptr) {
+        cout << "frame is empty!!! Something went wrong with rebuilding the frame." << endl;
+        return;
+    }
+
+    if(frame->isHighFrequency && frame->jfunc != nullptr) {
+        frame->jfunc->compiledCode(thread_self, frame->jfunc, registers);
+    } else if(!isInterpreter) {
+        main_vm_loop(frame);
+    }
 }
 
 bool return_method() {

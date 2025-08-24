@@ -7,23 +7,18 @@
 
 using namespace asmjit;
 
-Label Arm64Compiler::createContinueLabel() {
-    Label continueLabel = assembler.newLabel();
-    continueLabels.push_back(continueLabel);
-    return continueLabel;
-}
-
-void Arm64Compiler::emitStateCheck() {
-    // Create a continue label for this state check
-    Label continueLabel = createContinueLabel();
-    
-    // Store which continue label to jump back to (using stack or register)
-    // We'll use tempReg3 to store the continue label index
-    assembler.mov(tempReg3, continueLabels.size() - 1);
+void Arm64Compiler::emitStateCheck(size_t targetPC) {
+    // Set the target PC in tempReg3 for return dispatch
+    assembler.mov(tempReg3, targetPC);
     
     // Jump to state check section
     assembler.b(stateCheckLabel);
     
-    // Bind the continue label - execution resumes here after state check
-    assembler.bind(continueLabel);
+    // NOTE: Execution will resume at targetPC after state check completes
+    // The state check section will use the jump table to return to jumpTable[targetPC]
+}
+
+void Arm64Compiler::emitStateCheckNext() {
+    // Emit state check that resumes at the next instruction
+    emitStateCheck(currentPC + 1);
 }

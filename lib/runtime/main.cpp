@@ -27,6 +27,7 @@ void help() {
     cout << "Executable must be built with sharpc to be executed\n" << endl;
     cout << "[-options]\n\n    -V                     print the version number and exit" << endl;
     cout <<               "    -showversion           print the version number and continue." << endl;
+    cout <<               "    -nojit                 disable jit compilation." << endl;
     cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
@@ -126,6 +127,9 @@ int  str_start(int argc, const char* argv[]) {
         }
         else if(opt("-debug")) {
             c_options.debugMode = true;
+        }
+        else if(opt("-nojit")) {
+            c_options.jit = false;
         }
 #ifdef SHARP_PROF_
             else if(opt("-sort") || opt("-sortby")) {

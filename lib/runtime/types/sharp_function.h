@@ -16,6 +16,7 @@
 struct sharp_class;
 struct sharp_type;
 struct sharp_object;
+struct jit_compiled_function;
 
 struct function_param {
     sharp_type *type;
@@ -50,6 +51,7 @@ struct sharp_function {
     sharp_object *reflect;
     uint32_t callCount;
     bool isHighFrequency;
+    jit_compiled_function *jfunc;
 };
 
 void init_struct(sharp_function *sf);
