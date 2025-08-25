@@ -10,11 +10,6 @@
 #include "../../multitasking/thread/sharp_thread.h"
 #include "../../memory/vm_stack.h"
 #include <cstddef>  // For offsetof
-#include "helpers.cpp"
-#include "sections/state_check_section.cpp"
-#include "sections/state_check_helpers.cpp"
-#include "sections/return_section.cpp"
-#include "sections/exception_handler_section.cpp"
 
 using namespace asmjit;
 
