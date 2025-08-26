@@ -25,6 +25,7 @@ Arm64Compiler::Arm64Compiler() : assembler(&code) {
     tempReg1 = a64::x21;      // Callee-saved temp register 1
     tempReg2 = a64::x22;      // Callee-saved temp register 2
     tempReg3 = a64::x23;      // Callee-saved temp register 3
+    tempReg4 = a64::x26;      // Callee-saved temp register 4
     jumpTablePtr = a64::x24;  // Callee-saved register for jump table pointer
     
     // Initialize standard ARM64 registers for consistency
@@ -37,6 +38,8 @@ Arm64Compiler::Arm64Compiler() : assembler(&code) {
     stateCheckLabel = assembler.newLabel();
     catchExceptionLabel = assembler.newLabel();
     returnFromFunctionLabel = assembler.newLabel();
+    growStackLabel = assembler.newLabel();
+    stackOverflowLabel = assembler.newLabel();
     
     // Initialize PC tracking
     currentPC = 0;
@@ -409,11 +412,11 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler.mov(framePtr, stackPtr);
     
     // Save all callee-saved registers we use (ARM64 requires this)
-    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25
+    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25, x26
     assembler.stp(threadPtr, registersPtr, a64::ptr(stackPtr, -16).pre());
     assembler.stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
     assembler.stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
-    assembler.str(jitFunctionPtr, a64::ptr(stackPtr, -16).pre());  // Single register save
+    assembler.stp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, -16).pre());  // Save x25, x26 together
     
     // Save vector callee-saved registers: d8, d9
     assembler.stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
@@ -490,11 +493,40 @@ bool Arm64Compiler::setupFunctionPrologue() {
 }
 
 bool Arm64Compiler::setupFunctionEpilogue() {
-    // Generate state check section before epilogue
+    // Generate stack operation sections first (most commonly used)
+    generateGrowStackSection();
+    
+    // Section separator for debugging
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
+    
+    generateStackOverflowSection();
+    
+    // Section separator for debugging
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
+    
+    // Generate state check section
     generateStateCheckSection();
+    
+    // Section separator for debugging
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
     
     // Generate exception handler section
     generateExceptionHandlerSection();
+    
+    // Section separator for debugging
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
+    assembler.nop();
     
     // Generate centralized return section
     generateReturnSection();
@@ -513,4 +545,5 @@ void Arm64Compiler::resetCodeHolder() {
 }
 
 // Helper functions and section implementations are now in separate files
+
 

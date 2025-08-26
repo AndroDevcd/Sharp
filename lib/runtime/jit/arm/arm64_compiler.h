@@ -32,6 +32,7 @@ private:
      * - x23 (tempReg3)         : General purpose temporary register
      * - x24 (jumpTablePtr)     : Points to jump table array for PC dispatch
      * - x25 (jitFunctionPtr)   : Points to jit_compiled_function structure
+     * - x26 (tempReg4)         : General purpose temporary register
      * - d8  (tempVec1)         : Vector register for long double operations
      * - d9  (tempVec2)         : Vector register for long double operations
      * 
@@ -49,7 +50,7 @@ private:
      * +0:  x19, x20 (threadPtr, registersPtr)  
      * -16: x21, x22 (tempReg1, tempReg2)
      * -32: x23, x24 (tempReg3, jumpTablePtr)
-     * -48: x25      (jitFunctionPtr)
+     * -48: x25, x26 (jitFunctionPtr, tempReg4)
      * -64: d8, d9   (tempVec1, tempVec2)
      * -80: [reserved stack space]
      * [Low Address]
@@ -66,6 +67,7 @@ private:
     a64::Gp tempReg1;         // x21 - General purpose temp register
     a64::Gp tempReg2;         // x22 - General purpose temp register  
     a64::Gp tempReg3;         // x23 - General purpose temp register
+    a64::Gp tempReg4;         // x26 - General purpose temp register
     a64::Gp jumpTablePtr;     // x24 - Pointer to jump table array
     
     // Standard ARM64 registers (for clarity and consistency)
@@ -78,6 +80,8 @@ private:
     Label stateCheckLabel;    // Label for state check section
     Label catchExceptionLabel; // Label for exception handling
     Label returnFromFunctionLabel; // Label for centralized function return
+    Label growStackLabel;     // Label for centralized grow stack section
+    Label stackOverflowLabel; // Label for centralized stack overflow section
     
     // Jump table management
     std::vector<Label> opcodeLabels;   // Labels for each opcode (indexed by PC)
@@ -260,6 +264,16 @@ private:
     // Exception handling helpers
     void emitExceptionHandle(a64::Gp targetPCReg);                   // Jump to exception handler with PC in register
     void generateExceptionHandlerSection();                          // Generate exception handling code section
+    
+    // VM Stack Operation Helpers - Centralized Sections
+    void emitGrowStackCheck(int n, Label returnLabel);               // Jump to grow stack section with return label
+    void emitStackOverflowCheck(int n, Label returnLabel);           // Jump to stack overflow section with return label
+    void generateGrowStackSection();                                 // Generate centralized grow stack section
+    void generateStackOverflowSection();                             // Generate centralized stack overflow section
+    
+    // VM Stack Operation Helpers - Direct Operations
+    void emitPushStackNumber(double value);                          // VM macro: push_stack_number = value
+    void emitPushStackNumberImmediate(int32_t intValue);             // VM macro: push_stack_number = raw_arg2
 };
 
 #endif //SHARP_ARM64_COMPILER_H

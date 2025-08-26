@@ -160,3 +160,202 @@ void Arm64Compiler::emitExceptionHandle(a64::Gp targetPCReg) {
     // Jump to centralized exception handler section
     assembler.b(catchExceptionLabel);
 }
+
+// VM Stack Operation Helpers - Centralized Sections
+
+void Arm64Compiler::emitGrowStackCheck(int n, Label returnLabel) {
+    /*
+     * Emit jump to centralized grow stack section
+     * Parameters passed in registers:
+     * - tempReg1: n (number of items to check)  
+     * - tempReg2: return address (label address)
+     */
+    
+    // Store n parameter in tempReg1
+    assembler.mov(tempReg1, n);
+    
+    // Store return label address in tempReg2
+    assembler.adr(tempReg2, returnLabel);
+    
+    // Jump to centralized grow stack section
+    assembler.b(growStackLabel);
+    
+    // Bind the return label immediately after the call
+    assembler.bind(returnLabel);
+}
+
+void Arm64Compiler::emitStackOverflowCheck(int n, Label returnLabel) {
+    /*
+     * Emit jump to centralized stack overflow section  
+     * Parameters passed in registers:
+     * - tempReg1: n (number of items to check)
+     * - tempReg2: return address (label address)
+     */
+    
+    // Store n parameter in tempReg1
+    assembler.mov(tempReg1, n);
+    
+    // Store return label address in tempReg2
+    assembler.adr(tempReg2, returnLabel);
+    
+    // Jump to centralized stack overflow section
+    assembler.b(stackOverflowLabel);
+    
+    // Bind the return label immediately after the call
+    assembler.bind(returnLabel);
+}
+
+void Arm64Compiler::generateGrowStackSection() {
+    /*
+     * Centralized grow stack section
+     * VM Interpreter Macro:
+     * #define grow_stack_for(n) 
+     *     if(((task->sp-task->stack)+(n)) >= task->stackSize) task->growStack((n));
+     * 
+     * Input registers:
+     * - tempReg1: n (number of items to grow)
+     * - tempReg2: return address to jump back to
+     */
+    
+    assembler.bind(growStackLabel);
+    
+    // Get task pointer: task = thread->task
+    assembler.ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load task->sp and task->stack  
+    assembler.ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
+    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
+    
+    // Calculate current stack depth: (task->sp - task->stack)
+    assembler.sub(tempReg4, tempReg4, returnReg);
+    
+    // Convert to item count: depth / sizeof(stack_item)
+    assembler.mov(returnReg, sizeof(stack_item));
+    assembler.udiv(tempReg4, tempReg4, returnReg);
+    
+    // Add n to current depth: (current_depth + n) [n is in tempReg1]
+    assembler.add(tempReg4, tempReg4, tempReg1);
+    
+    // Load task->stackSize
+    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackSize)));
+    
+    // Compare: if ((current_depth + n) >= stackSize)
+    Label growStackOk = assembler.newLabel();
+    assembler.cmp(tempReg4, returnReg);
+    assembler.b_lt(growStackOk);
+    
+    // Need to grow stack - call task->growStack(n)
+    // Set up parameters: x0 = task, x1 = n
+    assembler.mov(a64::x0, tempReg3);    // task pointer
+    assembler.mov(a64::x1, tempReg1);    // n parameter
+    
+    // Call growStack method (TODO: need actual function address)
+    // TODO: create callInstanceFunction helper
+    // For now, we'll emit a placeholder that causes an exception
+    emitReturn(JIT_EXCEPTION);
+    
+    // Stack growth is OK - return to caller
+    assembler.bind(growStackOk);
+    assembler.br(tempReg2);  // Jump back to return address
+}
+
+void Arm64Compiler::generateStackOverflowSection() {
+    /*
+     * Centralized stack overflow check section
+     * VM Interpreter Macro:
+     * #define stack_overflow_check_for(n)  
+     *     if(((task->sp-task->stack)+(n)) >= task->stackLimit) throw vm_exception(vm.stack_overflow_except, "");
+     * 
+     * Input registers:
+     * - tempReg1: n (number of items to check)
+     * - tempReg2: return address to jump back to
+     */
+    
+    assembler.bind(stackOverflowLabel);
+    
+    // Get task pointer: task = thread->task
+    assembler.ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load task->sp and task->stack
+    assembler.ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
+    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
+    
+    // Calculate current stack depth: (task->sp - task->stack)
+    assembler.sub(tempReg4, tempReg4, returnReg);
+    
+    // Convert to item count: depth / sizeof(stack_item)
+    assembler.mov(returnReg, sizeof(stack_item));
+    assembler.udiv(tempReg4, tempReg4, returnReg);
+    
+    // Add n to current depth: (current_depth + n) [n is in tempReg1]
+    assembler.add(tempReg4, tempReg4, tempReg1);
+    
+    // Load task->stackLimit
+    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackLimit)));
+    
+    // Compare: if ((current_depth + n) >= stackLimit) throw exception
+    Label stackOverflowOk = assembler.newLabel();
+    assembler.cmp(tempReg4, returnReg);
+    assembler.b_lt(stackOverflowOk);
+    
+    // Stack overflow - throw exception
+    // todo: implement low level exception throwing and handeling
+    emitReturn(JIT_EXCEPTION);
+    
+    // Stack is OK - return to caller
+    assembler.bind(stackOverflowOk);
+    assembler.br(tempReg2);  // Jump back to return address
+}
+
+void Arm64Compiler::emitPushStackNumber(double value) {
+    /*
+     * VM Interpreter Macro:
+     * #define push_stack_number (++task->sp)->var
+     * Equivalent to: (++task->sp)->var = value;
+     */
+    
+    // Get task pointer: task = thread->task
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load current stack pointer: sp = task->sp
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Increment stack pointer: ++task->sp
+    assembler.add(tempReg2, tempReg2, sizeof(stack_item));
+    
+    // Store incremented sp back to task->sp
+    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Convert double value to vector register and store in stack_item.var
+    assembler.fmov(tempVec1, value);  // Load immediate double value
+    
+    // Store the double value in stack_item.var field (offset 0)
+    assembler.str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+}
+
+void Arm64Compiler::emitPushStackNumberImmediate(int32_t intValue) {
+    /*
+     * VM Interpreter Macro:
+     * #define push_stack_number (++task->sp)->var
+     * For: push_stack_number = raw_arg2; (where raw_arg2 is int32_t)
+     */
+    
+    // Get task pointer: task = thread->task
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load current stack pointer: sp = task->sp
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Increment stack pointer: ++task->sp
+    assembler.add(tempReg2, tempReg2, sizeof(stack_item));
+    
+    // Store incremented sp back to task->sp
+    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Convert int32 immediate to double and store in stack_item.var
+    assembler.mov(tempReg3, intValue);        // Load immediate int value
+    assembler.scvtf(tempVec1, tempReg3);      // Convert int to double
+    
+    // Store the double value in stack_item.var field (offset 0)
+    assembler.str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+}
