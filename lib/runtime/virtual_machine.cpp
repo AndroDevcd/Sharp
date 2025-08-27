@@ -822,7 +822,7 @@ void prepare_method(Int address) {
     auto function = vm.methods + address;
     
     function->callCount++;
-    if(c_options.jit && function->callCount >= 1 && !function->isHighFrequency
+    if(c_options.jit && function->callCount >= 0 && !function->isHighFrequency
         && function != task->main && function->name == "jit_func_test") {
         function->isHighFrequency = true;
         if(function->jfunc == nullptr) {
@@ -923,7 +923,11 @@ void invoke_next_frame(sharp_function *frame, bool isInterpreter) {
     if(frame->isHighFrequency && frame->jfunc != nullptr) {
         frame->jfunc->compiledCode(thread_self, frame->jfunc, registers);
     } else if(!isInterpreter) {
-        main_vm_loop(frame);
+        try {
+            main_vm_loop(frame);
+        } catch(vm_exception &e) {
+            enable_exception_flag(thread_self, true);
+        }
     }
 }
 

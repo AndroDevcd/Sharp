@@ -27,6 +27,7 @@ Arm64Compiler::Arm64Compiler() : assembler(&code) {
     tempReg3 = a64::x23;      // Callee-saved temp register 3
     tempReg4 = a64::x26;      // Callee-saved temp register 4
     jumpTablePtr = a64::x24;  // Callee-saved register for jump table pointer
+    pcReg = a64::x27;         // Callee-saved register for current PC tracking
     
     // Initialize standard ARM64 registers for consistency
     returnReg = a64::w0;      // Function return value register (32-bit)
@@ -72,13 +73,19 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
         // Bind the label for this PC position
         setJumpTableEntry(currentPC, opcodeLabels[currentPC]);
         
-        if(!translateOpcode(*pc, pc, function)) {
+        // Set pcReg to current PC for this instruction
+        assembler.mov(pcReg, currentPC);
+        if(!translateOpcode(*pc, &pc, function)) {
             return false;
         }
         pc++;
         currentPC++;
     }
-    
+
+    // Safety measure in case the ret instruction is skipped or fails for some reason
+    // (should never get to this point)
+    emitReturn(JIT_OK);
+
     if(!setupFunctionEpilogue()) {
         return false;
     }
@@ -116,7 +123,7 @@ void Arm64Compiler::releaseCompiledFunction(jit_compiled_function* compiledFunc)
     }
 }
 
-bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_function* function) {
+bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_function* function) {
     uint8_t op = GET_OP(opcode);
     
     switch(op) {
@@ -125,8 +132,11 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_nop();
         case Opcode::INT:
             return emit_int(GET_Da(opcode));
-        case Opcode::MOVI:
-            return emit_movi(*(pc + 1), GET_Da(opcode));
+        case Opcode::MOVI: {
+            bool result = emit_movi(*(*pc + 1), GET_Da(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::RET:
             return emit_ret(GET_Da(opcode));
         case Opcode::HLT:
@@ -137,14 +147,20 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_newarray(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::CAST:
             return emit_cast(GET_Da(opcode));
-        case Opcode::NEWCLASS:
-            return emit_newclass(*(pc + 1));
+        case Opcode::NEWCLASS: {
+            bool result = emit_newclass(*(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::NEWSTRING:
             return emit_newstring(GET_Da(opcode));
         case Opcode::NEWOBJARRAY:
             return emit_newobjarray(GET_Da(opcode));
-        case Opcode::NEWCLASSARRAY:
-            return emit_newclassarray(GET_Ca(opcode), *(pc + 1));
+        case Opcode::NEWCLASSARRAY: {
+            bool result = emit_newclassarray(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::DEL:
             return emit_del();
         case Opcode::PUSHOBJ:
@@ -177,8 +193,11 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_movl(GET_Da(opcode));
         case Opcode::MOVSL:
             return emit_movsl(GET_Da(opcode));
-        case Opcode::MOVN:
-            return emit_movn(*(pc + 1));
+        case Opcode::MOVN: {
+            bool result = emit_movn(*(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::MOVG:
             return emit_movg(GET_Da(opcode));
         case Opcode::MOVND:
@@ -197,18 +216,27 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_smovr_2(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::SMOVR_3:
             return emit_smovr_3(GET_Da(opcode));
-        case Opcode::SMOVR_4:
-            return emit_smovr_4(GET_Ca(*(pc + 1)), GET_Cb(*(pc + 1)));
+        case Opcode::SMOVR_4: {
+            bool result = emit_smovr_4(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::IMOV:
             return emit_imov(GET_Da(opcode));
             
         // Store and load operations
         case Opcode::RSTORE:
             return emit_rstore(GET_Da(opcode));
-        case Opcode::ISTORE:
-            return emit_istore(*(pc + 1));
-        case Opcode::ISTOREL:
-            return emit_istorel(GET_Ca(*(pc + 1)), GET_Cb(*(pc + 1)));
+        case Opcode::ISTORE: {
+            bool result = emit_istore(*(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::ISTOREL: {
+            bool result = emit_istorel(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::LOADL:
             return emit_loadl(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::LOADVAL:
@@ -233,16 +261,31 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_div(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
         case Opcode::MOD:
             return emit_mod(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
-        case Opcode::IADD:
-            return emit_iadd(GET_Ca(opcode), *(pc + 1));
-        case Opcode::ISUB:
-            return emit_isub(GET_Ca(opcode), *(pc + 1));
-        case Opcode::IMUL:
-            return emit_imul(GET_Ca(opcode), *(pc + 1));
-        case Opcode::IDIV:
-            return emit_idiv(GET_Ca(opcode), *(pc + 1));
-        case Opcode::IMOD:
-            return emit_imod(GET_Ca(opcode), *(pc + 1));
+        case Opcode::IADD: {
+            bool result = emit_iadd(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::ISUB: {
+            bool result = emit_isub(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IMUL: {
+            bool result = emit_imul(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IDIV: {
+            bool result = emit_idiv(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IMOD: {
+            bool result = emit_imod(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::ADDL:
             return emit_addl(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::SUBL:
@@ -253,16 +296,31 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_divl(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::MODL:
             return emit_modl(GET_Ca(opcode), GET_Cb(opcode));
-        case Opcode::IADDL:
-            return emit_iaddl(*(pc + 1), GET_Da(opcode));
-        case Opcode::ISUBL:
-            return emit_isubl(*(pc + 1), GET_Da(opcode));
-        case Opcode::IMULL:
-            return emit_imull(*(pc + 1), GET_Da(opcode));
-        case Opcode::IDIVL:
-            return emit_idivl(*(pc + 1), GET_Da(opcode));
-        case Opcode::IMODL:
-            return emit_imodl(*(pc + 1), GET_Da(opcode));
+        case Opcode::IADDL: {
+            bool result = emit_iaddl(*(*pc + 1), GET_Da(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::ISUBL: {
+            bool result = emit_isubl(*(*pc + 1), GET_Da(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IMULL: {
+            bool result = emit_imull(*(*pc + 1), GET_Da(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IDIVL: {
+            bool result = emit_idivl(*(*pc + 1), GET_Da(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IMODL: {
+            bool result = emit_imodl(*(*pc + 1), GET_Da(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::INC:
             return emit_inc(GET_Da(opcode));
         case Opcode::DEC:
@@ -271,8 +329,11 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_neg(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::EXP:
             return emit_exp(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
-        case Opcode::ISADD:
-            return emit_isadd(GET_Ca(*(pc + 1)), GET_Cb(*(pc + 1)));
+        case Opcode::ISADD: {
+            bool result = emit_isadd(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
             
         // Bitwise operations
         case Opcode::AND:
@@ -329,10 +390,16 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_tne(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::ITEST:
             return emit_itest(GET_Da(opcode));
-        case Opcode::CMP:
-            return emit_cmp(GET_Ca(opcode), *(pc + 1));
-        case Opcode::IS:
-            return emit_is(GET_Ca(opcode), *(pc + 1));
+        case Opcode::CMP: {
+            bool result = emit_cmp(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
+        case Opcode::IS: {
+            bool result = emit_is(GET_Ca(opcode), *(*pc + 1));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
             
         // Control flow operations
         case Opcode::JMP:
@@ -359,8 +426,11 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t* pc, sharp_functio
             return emit_call(GET_Da(opcode));
         case Opcode::CALLD:
             return emit_calld(GET_Da(opcode));
-        case Opcode::INVOKE_DELEGATE:
-            return emit_invoke_delegate(GET_Ca(*(pc + 1)), GET_Cb(*(pc + 1)), GET_Ca(opcode));
+        case Opcode::INVOKE_DELEGATE: {
+            bool result = emit_invoke_delegate(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)), GET_Ca(opcode));
+            (*pc)++; // Two-word instruction - increment PC for consumed word
+            return result;
+        }
         case Opcode::RETURNVAL:
             return emit_returnval(GET_Da(opcode));
         case Opcode::RETURNOBJ:
@@ -412,11 +482,12 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler.mov(framePtr, stackPtr);
     
     // Save all callee-saved registers we use (ARM64 requires this)
-    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25, x26
+    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25, x26, x27
     assembler.stp(threadPtr, registersPtr, a64::ptr(stackPtr, -16).pre());
     assembler.stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
     assembler.stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
     assembler.stp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, -16).pre());  // Save x25, x26 together
+    assembler.stp(pcReg, a64::x28, a64::ptr(stackPtr, -16).pre());  // Save x27, x28 together (x28 unused but paired)
     
     // Save vector callee-saved registers: d8, d9
     assembler.stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
@@ -433,6 +504,9 @@ bool Arm64Compiler::setupFunctionPrologue() {
     // jitFunctionPtr now contains the jit_compiled_function pointer
     assembler.ldr(jumpTablePtr, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, jumpTable)));
 
+    // load the current pc value should be 0 if first time function call
+    loadPC();
+
     /*
      * Context Switch Frame Rebuild Logic
      * ==================================
@@ -444,8 +518,7 @@ bool Arm64Compiler::setupFunctionPrologue() {
      *   if(thread->task->current != fun->originalFunction) {
      *       sharp_function *frame = get_next_frame(fun->originalFunction);
      *       invoke_next_frame(frame, false);
-     *       long currentPc = thread->task->pc - thread->task->rom;
-     *       goto check_state(currentPc);  // Check for additional thread signals
+     *       goto check_state(pgReg);  // Check for additional thread signals
      *   }
      * 
      * The comparison checks if the current executing function differs from what
@@ -476,17 +549,10 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler.mov(a64::x0, tempReg1);  // First parameter: frame
     assembler.mov(a64::x1, 0);         // Second parameter: false
     callStaticFunction(reinterpret_cast<void*>(invoke_next_frame));
-    
-    // Calculate currentPc = thread->task->pc - thread->task->rom
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task))); // tempReg1 = thread->task
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));           // tempReg2 = thread->task->pc  
-    assembler.ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, rom)));          // tempReg3 = thread->task->rom
-    assembler.sub(tempReg3, tempReg2, tempReg3);                               // tempReg3 = pc - rom
-    assembler.lsr(tempReg3, tempReg3, 2);                                      // tempReg3 = (pc - rom) / 4 (currentPc)
-    
-    // Jump to state check with calculated currentPc
+
+    // Jump to state check
     assembler.b(stateCheckLabel);
-    
+
     assembler.bind(skipFrameRebuild);
     
     return true;

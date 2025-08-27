@@ -7,6 +7,7 @@
 #include "../../../../core/thread_state.h"
 #include "../../../multitasking/thread/sharp_thread.h"
 #include "../../../multitasking/thread/thread_controller.h"
+#include "../../jit_wrappers.h"
 #include <cstddef>  // For offsetof
 
 using namespace asmjit;
@@ -55,8 +56,7 @@ void Arm64Compiler::generateStateCheckSection() {
     assembler.cbnz(tempReg2, skipContextSwitch); // If nativeCalls != 0, skip context switch return
     
     // nativeCalls == 0, return with context switch code
-    // tempReg3 contains the current PC from emitStateCheck() call
-    emitReturn(JIT_CONTEXT_SWITCH, tempReg3);
+    emitReturn(JIT_CONTEXT_SWITCH);
     
     assembler.bind(skipContextSwitch);
     
@@ -64,8 +64,8 @@ void Arm64Compiler::generateStateCheckSection() {
     Label skipSuspend = assembler.newLabel();
     assembler.tbz(tempReg1, 1, skipSuspend);  // Test bit 1, jump if zero
     
-    // Call suspend_self() function
-    callStaticFunction(reinterpret_cast<void*>(suspend_self));
+    // Call suspend_self() function using wrapper for crash protection
+    callStaticFunction(reinterpret_cast<void*>(jit_suspendSelf));
     
     assembler.bind(skipSuspend);
     
@@ -74,7 +74,7 @@ void Arm64Compiler::generateStateCheckSection() {
     assembler.tbz(tempReg1, 0, skipException);  // Test bit 0, jump if zero
     
     // Jump to exception handler
-    emitExceptionHandle(tempReg3);
+    emitExceptionHandle();
     
     assembler.bind(skipException);
     
@@ -101,17 +101,17 @@ void Arm64Compiler::generateStateCheckSection() {
     // Continue dispatch - jump back to appropriate PC using jump table
     assembler.bind(continueDispatch);
     
-    // tempReg3 contains the target PC (set by emitStateCheck calls)
+    // pcReg contains the target PC 
     // Use jump table dispatch for O(1) PC lookup
     
     // Calculate offset: targetPC * 8 (each pointer is 8 bytes)
-    assembler.lsl(tempReg1, tempReg3, 3);  // targetPC << 3
+    assembler.lsl(tempReg1, pcReg, 3);  // pcReg << 3
     
     // Load jump table address and add offset  
-    assembler.add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (targetPC * 8)
+    assembler.add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (pcReg * 8)
     
     // Load target address from jump table
-    assembler.ldr(tempReg1, a64::ptr(tempReg2));      // Load jumpTable[targetPC]
+    assembler.ldr(tempReg1, a64::ptr(tempReg2));      // Load jumpTable[pcReg]
     
     // Jump to target address
     assembler.br(tempReg1);                           // Jump to the target opcode

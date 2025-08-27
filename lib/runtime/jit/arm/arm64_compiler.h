@@ -69,6 +69,7 @@ private:
     a64::Gp tempReg3;         // x23 - General purpose temp register
     a64::Gp tempReg4;         // x26 - General purpose temp register
     a64::Gp jumpTablePtr;     // x24 - Pointer to jump table array
+    a64::Gp pcReg;            // x27 - Current PC register (tracks current Sharp PC during compilation)
     
     // Standard ARM64 registers (for clarity and consistency)
     a64::Gp returnReg;        // w0/x0 - Function return value register
@@ -224,7 +225,7 @@ public:
 protected:
     bool setupFunctionPrologue() override;
     bool setupFunctionEpilogue() override;
-    bool translateOpcode(uint32_t opcode, uint32_t* pc, sharp_function* function) override;
+    bool translateOpcode(uint32_t opcode, uint32_t** pc, sharp_function* function) override;
     
 private:
     void resetCodeHolder();
@@ -239,14 +240,17 @@ private:
     void moveRegister(_register destReg, _register srcReg);          // registers[destReg] = registers[srcReg]
     void setRegisterImmediate(_register vmReg, int64_t value);       // registers[vmReg] = immediate value
     
+    // Stack operation helpers
+    void popStackNumber(a64::Vec destVec);                           // Pop numeric value from stack: (task->sp--)->var
+    void pushStackNumber(a64::Vec srcVec);                           // Push numeric value to stack: (++task->sp)->var
+    
     // State checking helpers
-    void emitStateCheck(size_t targetPC);                           // Emit jump to state check with target PC for return
+    void emitStateCheck(size_t offset);                             // Emit jump to state check with PC offset
     void emitStateCheckNext();                                       // Emit state check, resume at next instruction (currentPC + 1)
     void generateStateCheckSection();                                // Generate the state check code section
     
     // Return helpers
     void emitReturn(int returnCode = 0);                             // Jump to centralized return with immediate return code (uses currentPC)
-    void emitReturn(int returnCode, a64::Gp &targetPCReg);            // Jump to centralized return with dynamic PC from register
     void generateReturnSection();                                    // Generate the centralized return section
     
     // External function call helpers
@@ -260,15 +264,16 @@ private:
     void generateJumpDispatch(int targetPCRegister);                 // Generate jump to PC using jump table
     
     // PC management helpers
-    void setCurrentPc(a64::Gp targetPCReg);                         // Set task->pc from register value
+    void storePC();                                                  // Store pcReg value to task->pc
+    void loadPC();                                                   // Load numeric PC from task->pc to pcReg
     
     // Exception handling helpers
-    void emitExceptionHandle(a64::Gp targetPCReg);                   // Jump to exception handler with PC in register
+    void emitExceptionHandle();                                      // Jump to exception handler
     void generateExceptionHandlerSection();                          // Generate exception handling code section
     
     // VM Stack Operation Helpers - Centralized Sections
     void emitGrowStackCheck(int n, Label returnLabel);               // Jump to grow stack section with return label
-    void emitStackOverflowCheck(int n, Label returnLabel);           // Jump to stack overflow section with return label
+    void emitStackOverflowCheck(int n, Label returnLabel);               // Jump to stack overflow section
     void generateGrowStackSection();                                 // Generate centralized grow stack section
     void generateStackOverflowSection();                             // Generate centralized stack overflow section
     

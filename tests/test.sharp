@@ -115,7 +115,7 @@ def full_serialization_bench() {
  * advanced bench: 18671 ms
  * large bench: 17688 ms
  * 
- * 
+ *
  * Full Serialization Benchmark:
  * 
  * simple bench: 46505 ms
@@ -123,7 +123,13 @@ def full_serialization_bench() {
  * large bench: 45368 ms
  */
 def main(args: string[]) {
-    serialization_bench();
-    deserialization_bench();
+    //serialization_bench();
+    //deserialization_bench();
     //full_serialization_bench();
+    jit_func_test();
+}
+
+def jit_func_test() {
+    for(i : var = 0; i < 10_000_000; i++) {
+    }
 }

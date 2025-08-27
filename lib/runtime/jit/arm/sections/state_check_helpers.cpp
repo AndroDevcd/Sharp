@@ -7,18 +7,17 @@
 
 using namespace asmjit;
 
-void Arm64Compiler::emitStateCheck(size_t targetPC) {
-    // Set the target PC in tempReg3 for return dispatch
-    assembler.mov(tempReg3, targetPC);
+void Arm64Compiler::emitStateCheck(size_t offset) {
+    // Only update PC if offset is non-zero
+    // Add offset to pcReg and store the result
+    assembler.add(pcReg, pcReg, offset);
+    storePC();
     
     // Jump to state check section
     assembler.b(stateCheckLabel);
-    
-    // NOTE: Execution will resume at targetPC after state check completes
-    // The state check section will use the jump table to return to jumpTable[targetPC]
 }
 
 void Arm64Compiler::emitStateCheckNext() {
     // Emit state check that resumes at the next instruction
-    emitStateCheck(currentPC + 1);
+    emitStateCheck(1);
 }

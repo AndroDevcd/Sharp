@@ -181,7 +181,7 @@ public:
 protected:
     virtual bool setupFunctionPrologue() = 0;
     virtual bool setupFunctionEpilogue() = 0;
-    virtual bool translateOpcode(uint32_t opcode, uint32_t* pc, sharp_function* function) = 0;
+    virtual bool translateOpcode(uint32_t opcode, uint32_t** pc, sharp_function* function) = 0;
 };
 
 extern JitCompiler* jitCompiler;

@@ -6,7 +6,10 @@
 #include "arm64_compiler.h"
 #include "../../multitasking/fiber/fiber.h"
 #include "../../multitasking/thread/sharp_thread.h"
+#include "../../memory/vm_stack.h"
 #include "../jit_wrappers.h"
+#include "../../virtual_machine.h"
+#include <cstddef>
 
 using namespace asmjit;
 
@@ -66,6 +69,36 @@ void Arm64Compiler::setRegisterImmediate(_register vmReg, int64_t value) {
     assembler.mov(tempReg1, value);
     assembler.scvtf(tempVec1, tempReg1);  // Convert int to double
     storeRegisterValue(vmReg, tempVec1);
+}
+
+// Stack operation helpers
+
+void Arm64Compiler::popStackNumber(a64::Vec destVec) {
+    // Implements: pop_stack_number macro - (task->sp--)->var
+    // Load task pointer from thread->task
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load task->sp (stack pointer)
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Pop value from stack: load (task->sp)->var, then decrement sp
+    assembler.ldr(destVec, a64::ptr(tempReg2, offsetof(stack_item, var))); // Load stack top value
+    assembler.sub(tempReg2, tempReg2, sizeof(stack_item)); // Decrement sp (pop operation)
+    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store decremented sp back
+}
+
+void Arm64Compiler::pushStackNumber(a64::Vec srcVec) {
+    // Implements: push_stack_number macro - (++task->sp)->var
+    // Load task pointer from thread->task
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load task->sp (stack pointer)
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Push value to stack: increment sp, then store value
+    assembler.add(tempReg2, tempReg2, sizeof(stack_item)); // Increment sp (push operation)
+    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store incremented sp back
+    assembler.str(srcVec, a64::ptr(tempReg2, offsetof(stack_item, var))); // Store value at new stack top
 }
 
 // External function call helpers
@@ -142,35 +175,43 @@ void Arm64Compiler::generateJumpDispatch(int targetPCRegister) {
 }
 
 // PC management helpers
-
-void Arm64Compiler::setCurrentPc(a64::Gp targetPCReg) {
-    // Update task->pc = base + currentPC + 1
+void Arm64Compiler::storePC() {
+    // Update task->pc = base + pcReg
     // Load task pointer
     assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load base bytecode address from task->rom (bytecode[0])
     assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, rom))); // Load task->rom
     
-    // Calculate new PC: base + (currentPC + 1) * sizeof(uint32_t)
-    // targetPCReg contains currentPC from caller
-    assembler.add(targetPCReg, targetPCReg, 1);      // currentPC + 1
-    assembler.lsl(targetPCReg, targetPCReg, 2);      // (currentPC + 1) * 4 (shift left by 2)
-    assembler.add(tempReg2, tempReg2, targetPCReg);  // bytecode + ((currentPC + 1) * 4)
+    // Calculate PC pointer: base + (pcReg * sizeof(uint32_t))
+    assembler.lsl(tempReg3, pcReg, 2);               // pcReg * 4 (shift left by 2)
+    assembler.add(tempReg2, tempReg2, tempReg3);     // bytecode + (pcReg * 4)
     
     // Store updated PC back to task->pc
     assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
 }
 
+void Arm64Compiler::loadPC() {
+    // Load numeric PC from task->pc pointer based on relation to base pointer
+    // Load task pointer
+    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load current PC pointer from task->pc
+    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
+    
+    // Load base bytecode address from task->rom (bytecode[0])
+    assembler.ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, rom)));
+    
+    // Calculate PC offset: (task->pc - base)
+    assembler.sub(tempReg2, tempReg2, tempReg3);     // PC pointer - base
+    
+    // Convert to instruction index: offset / sizeof(uint32_t)
+    assembler.lsr(pcReg, tempReg2, 2);               // (PC pointer - base) / 4
+}
+
 // Exception handling helpers
 
-void Arm64Compiler::emitExceptionHandle(a64::Gp targetPCReg) {
-    // Set the current PC for exception handling context
-    // Verify targetPCReg isn't tempReg3, then assign it to tempReg3
-    if (targetPCReg.id() != tempReg3.id()) {
-        // Move target PC from the provided register to tempReg3
-        assembler.mov(tempReg3, targetPCReg);
-    }
-    
+void Arm64Compiler::emitExceptionHandle() {
     // Jump to centralized exception handler section
     assembler.b(catchExceptionLabel);
 }
@@ -257,6 +298,7 @@ void Arm64Compiler::generateGrowStackSection() {
     Label growStackOk = assembler.newLabel();
     assembler.cmp(tempReg4, returnReg);
     assembler.b_lt(growStackOk);
+    storePC();
     
     // Need to grow stack - call task->growStack(n)
     // Set up parameters: x0 = task, x1 = n
@@ -268,6 +310,7 @@ void Arm64Compiler::generateGrowStackSection() {
     
     // Call the wrapper function: jit_growStack(task, n)
     callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg3, tempReg1);
+    // todo: validate no exception happened
     
     // Stack growth is OK - return to caller
     assembler.bind(growStackOk);
@@ -312,10 +355,19 @@ void Arm64Compiler::generateStackOverflowSection() {
     Label stackOverflowOk = assembler.newLabel();
     assembler.cmp(tempReg4, returnReg);
     assembler.b_lt(stackOverflowOk);
+    storePC();
     
-    // Stack overflow - throw exception
-    // todo: implement low level exception throwing and handeling
-    emitReturn(JIT_EXCEPTION);
+    // Stack overflow - create vm_exception(vm.stack_overflow_except, "")
+    // Load vm.stack_overflow_except class pointer (it's already a sharp_class*)
+    assembler.mov(tempReg4, reinterpret_cast<uint64_t>(vm.stack_overflow_except));
+    
+    // Call jit_throwException(vm.stack_overflow_except, "")
+    assembler.mov(a64::x0, tempReg4);  // exception class
+    assembler.mov(a64::x1, reinterpret_cast<uint64_t>(""));  // empty message
+    callStaticFunction(reinterpret_cast<void*>(jit_throwException), a64::x0, a64::x1);
+    
+    // After exception is created, jump to exception handler
+    emitExceptionHandle();
     
     // Stack is OK - return to caller
     assembler.bind(stackOverflowOk);
