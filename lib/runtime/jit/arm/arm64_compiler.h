@@ -252,6 +252,7 @@ private:
     // External function call helpers
     void callStaticFunction(void* functionPtr);                      // Call external C function with no parameters
     void callStaticFunction(void* functionPtr, a64::Gp param1, a64::Gp param2); // Call external C function with 2 parameters
+    void callInstanceFunction(void* functionPtr, a64::Gp instance, a64::Gp param1); // Call C++ instance method with 1 parameter
     
     // Jump table helpers
     void initializeJumpTable(size_t opcodeCount);                    // Initialize jump table for function

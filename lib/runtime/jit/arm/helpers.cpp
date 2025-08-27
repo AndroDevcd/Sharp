@@ -6,6 +6,7 @@
 #include "arm64_compiler.h"
 #include "../../multitasking/fiber/fiber.h"
 #include "../../multitasking/thread/sharp_thread.h"
+#include "../jit_wrappers.h"
 
 using namespace asmjit;
 
@@ -83,6 +84,19 @@ void Arm64Compiler::callStaticFunction(void* functionPtr, a64::Gp param1, a64::G
     // Move parameters to ARM64 calling convention registers
     assembler.mov(a64::x0, param1);  // First parameter
     assembler.mov(a64::x1, param2);  // Second parameter
+    
+    // Load function address and call
+    assembler.mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
+    assembler.blr(tempReg1);
+}
+
+void Arm64Compiler::callInstanceFunction(void* functionPtr, a64::Gp instance, a64::Gp param1) {
+    // Call C++ instance method with 1 parameter
+    // ARM64 calling convention: x0 = this pointer, x1 = first param
+    
+    // Move parameters to ARM64 calling convention registers
+    assembler.mov(a64::x0, instance);  // 'this' pointer
+    assembler.mov(a64::x1, param1);    // First parameter
     
     // Load function address and call
     assembler.mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
@@ -249,10 +263,11 @@ void Arm64Compiler::generateGrowStackSection() {
     assembler.mov(a64::x0, tempReg3);    // task pointer
     assembler.mov(a64::x1, tempReg1);    // n parameter
     
-    // Call growStack method (TODO: need actual function address)
-    // TODO: create callInstanceFunction helper
-    // For now, we'll emit a placeholder that causes an exception
-    emitReturn(JIT_EXCEPTION);
+    // Call task->growStack(n) using the wrapper function
+    // We have: task instance in tempReg3, parameter n in tempReg1
+    
+    // Call the wrapper function: jit_growStack(task, n)
+    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg3, tempReg1);
     
     // Stack growth is OK - return to caller
     assembler.bind(growStackOk);

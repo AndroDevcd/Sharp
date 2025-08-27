@@ -904,7 +904,7 @@ sharp_function* get_next_frame(sharp_function *current) {
                 // invoke current function
                 fun = thread_self->task->current;
             } else {
-                fun = vm.methods + callStack[i].returnAddress;
+                fun = vm.methods + callStack[i+1].returnAddress;
             }
 
             return fun;

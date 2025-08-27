@@ -18,9 +18,9 @@ else()
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
 
-    set(CMAKE_CXX_FLAGS_DEBUG  "-std=c++11 -Werror  -g -lstdc++   ${CMAKE_C_FLAGS_DEBUG}")
-    set(CMAKE_CXX_FLAGS_MINSIZEREL  "-std=c++11 -mno-red-zone -Werror -lstdc++ -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -mno-red-zone -Werror -lstdc++  -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_DEBUG  "-std=c++17 -Werror  -g -lstdc++ -DASMJIT_STATIC  ${CMAKE_C_FLAGS_DEBUG}")
+    set(CMAKE_CXX_FLAGS_MINSIZEREL  "-std=c++17 -mno-red-zone -Werror -lstdc++ -DASMJIT_STATIC -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
+    set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++17  -mno-red-zone -Werror -lstdc++ -DASMJIT_STATIC -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
 #set(SHARPC "build")

@@ -83,7 +83,11 @@ string type_to_str(sharp_type &type) {
     else if(type.type == type_integer) ss << type.integer;
     else if(type.type == type_decimal) ss << type.decimal;
     else if(type.type == type_untyped) ss << "unknown";
-    else if(type.type == type_class) ss << type._class->fullName;
+    else if(type.type == type_class) {
+        if (type._class != nullptr)
+            ss << type._class->fullName;
+        else ss << "unknown";
+    }
     else if(type.type == type_function_ptr) {
         ss << "*(";
 
