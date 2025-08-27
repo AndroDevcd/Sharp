@@ -18,7 +18,7 @@ class Arm64Compiler : public JitCompiler {
 private:
     JitRuntime runtime;
     CodeHolder code;
-    a64::Assembler assembler;
+    a64::Assembler *assembler;
     
     /*
      * ARM64 Register Usage Map for JIT Compiler

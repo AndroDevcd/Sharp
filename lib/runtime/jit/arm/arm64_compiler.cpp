@@ -13,8 +13,11 @@
 
 using namespace asmjit;
 
-Arm64Compiler::Arm64Compiler() : assembler(&code) {
-    code.init(runtime.environment(), runtime.cpuFeatures());
+Arm64Compiler::Arm64Compiler() {
+    // Explicitly set ARM64 architecture for cross-compilation
+    Environment arm64Env(Arch::kAArch64);
+    code.init(arm64Env);
+    assembler = new a64::Assembler(&code);
     
     // Initialize labeled ARM64 registers
     threadPtr = a64::x19;     // Callee-saved register for thread context pointer
@@ -36,11 +39,11 @@ Arm64Compiler::Arm64Compiler() : assembler(&code) {
     stackPtr = a64::sp;       // Stack pointer
     
     // Initialize labels
-    stateCheckLabel = assembler.newLabel();
-    catchExceptionLabel = assembler.newLabel();
-    returnFromFunctionLabel = assembler.newLabel();
-    growStackLabel = assembler.newLabel();
-    stackOverflowLabel = assembler.newLabel();
+    stateCheckLabel = assembler->newLabel();
+    catchExceptionLabel = assembler->newLabel();
+    returnFromFunctionLabel = assembler->newLabel();
+    growStackLabel = assembler->newLabel();
+    stackOverflowLabel = assembler->newLabel();
     
     // Initialize PC tracking
     currentPC = 0;
@@ -74,7 +77,7 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
         setJumpTableEntry(currentPC, opcodeLabels[currentPC]);
         
         // Set pcReg to current PC for this instruction
-        assembler.mov(pcReg, currentPC);
+        assembler->mov(pcReg, currentPC);
         if(!translateOpcode(*pc, &pc, function)) {
             return false;
         }
@@ -476,33 +479,33 @@ bool Arm64Compiler::setupFunctionPrologue() {
     // x2 = long double* registers
     
     // Save frame pointer and link register
-    assembler.stp(framePtr, linkReg, a64::ptr(stackPtr, -16).pre());
+    assembler->stp(framePtr, linkReg, a64::ptr(stackPtr, -16).pre());
     
     // Set up frame pointer
-    assembler.mov(framePtr, stackPtr);
+    assembler->mov(framePtr, stackPtr);
     
     // Save all callee-saved registers we use (ARM64 requires this)
     // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25, x26, x27
-    assembler.stp(threadPtr, registersPtr, a64::ptr(stackPtr, -16).pre());
-    assembler.stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
-    assembler.stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
-    assembler.stp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, -16).pre());  // Save x25, x26 together
-    assembler.stp(pcReg, a64::x28, a64::ptr(stackPtr, -16).pre());  // Save x27, x28 together (x28 unused but paired)
+    assembler->stp(threadPtr, registersPtr, a64::ptr(stackPtr, -16).pre());
+    assembler->stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
+    assembler->stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
+    assembler->stp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, -16).pre());  // Save x25, x26 together
+    assembler->stp(pcReg, a64::x28, a64::ptr(stackPtr, -16).pre());  // Save x27, x28 together (x28 unused but paired)
     
     // Save vector callee-saved registers: d8, d9
-    assembler.stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
+    assembler->stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
     
     // Reserve minimal stack space (16 bytes for alignment)
-    assembler.sub(stackPtr, stackPtr, 16);
+    assembler->sub(stackPtr, stackPtr, 16);
     
     // Store parameters in callee-saved registers
-    assembler.mov(threadPtr, a64::x0);      // threadPtr = sharp_thread* (first parameter)
-    assembler.mov(jitFunctionPtr, a64::x1); // jitFunctionPtr = jit_compiled_function* (second parameter)
-    assembler.mov(registersPtr, a64::x2);   // registersPtr = long double* registers (third parameter)
+    assembler->mov(threadPtr, a64::x0);      // threadPtr = sharp_thread* (first parameter)
+    assembler->mov(jitFunctionPtr, a64::x1); // jitFunctionPtr = jit_compiled_function* (second parameter)
+    assembler->mov(registersPtr, a64::x2);   // registersPtr = long double* registers (third parameter)
     
     // Load jump table address from jit_compiled_function->jumpTable
     // jitFunctionPtr now contains the jit_compiled_function pointer
-    assembler.ldr(jumpTablePtr, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, jumpTable)));
+    assembler->ldr(jumpTablePtr, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, jumpTable)));
 
     // load the current pc value should be 0 if first time function call
     loadPC();
@@ -527,33 +530,33 @@ bool Arm64Compiler::setupFunctionPrologue() {
      */
     
     // Frame rebuild code: if(thread->task->current != fun->originalFunction)
-    Label skipFrameRebuild = assembler.newLabel();
+    Label skipFrameRebuild = assembler->newLabel();
     
     // Load thread->task->current
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task))); // tempReg1 = thread->task
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, current)));      // tempReg2 = thread->task->current
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task))); // tempReg1 = thread->task
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, current)));      // tempReg2 = thread->task->current
     
     // Load fun->originalFunction (jitFunctionPtr points to jit_compiled_function)
-    assembler.ldr(tempReg3, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, originalFunction))); // tempReg3 = fun->originalFunction
+    assembler->ldr(tempReg3, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, originalFunction))); // tempReg3 = fun->originalFunction
     
     // Compare thread->task->current with fun->originalFunction
-    assembler.cmp(tempReg2, tempReg3);
-    assembler.b_eq(skipFrameRebuild);  // Skip if they are equal
+    assembler->cmp(tempReg2, tempReg3);
+    assembler->b_eq(skipFrameRebuild);  // Skip if they are equal
     
     // Call get_next_frame(fun->originalFunction)
-    assembler.mov(a64::x0, tempReg3);  // First parameter: fun->originalFunction
+    assembler->mov(a64::x0, tempReg3);  // First parameter: fun->originalFunction
     callStaticFunction(reinterpret_cast<void*>(get_next_frame));
-    assembler.mov(tempReg1, returnReg); // Save returned sharp_function* frame
+    assembler->mov(tempReg1, returnReg); // Save returned sharp_function* frame
     
     // Call invoke_next_frame(frame, false)
-    assembler.mov(a64::x0, tempReg1);  // First parameter: frame
-    assembler.mov(a64::x1, 0);         // Second parameter: false
+    assembler->mov(a64::x0, tempReg1);  // First parameter: frame
+    assembler->mov(a64::x1, 0);         // Second parameter: false
     callStaticFunction(reinterpret_cast<void*>(invoke_next_frame));
 
     // Jump to state check
-    assembler.b(stateCheckLabel);
+    assembler->b(stateCheckLabel);
 
-    assembler.bind(skipFrameRebuild);
+    assembler->bind(skipFrameRebuild);
     
     return true;
 }
@@ -563,36 +566,36 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     generateGrowStackSection();
     
     // Section separator for debugging
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
     
     generateStackOverflowSection();
     
     // Section separator for debugging
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
     
     // Generate state check section
     generateStateCheckSection();
     
     // Section separator for debugging
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
     
     // Generate exception handler section
     generateExceptionHandlerSection();
     
     // Section separator for debugging
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
-    assembler.nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
     
     // Generate centralized return section
     generateReturnSection();
@@ -602,12 +605,14 @@ bool Arm64Compiler::setupFunctionEpilogue() {
 
 void Arm64Compiler::resetCodeHolder() {
     code.reset();
-    code.init(runtime.environment(), runtime.cpuFeatures());
+    // Explicitly set ARM64 architecture for cross-compilation
+    Environment arm64Env(Arch::kAArch64);
+    code.init(arm64Env);
     
     // Reinitialize labels after reset
-    stateCheckLabel = assembler.newLabel();
-    catchExceptionLabel = assembler.newLabel();
-    returnFromFunctionLabel = assembler.newLabel();
+    stateCheckLabel = assembler->newLabel();
+    catchExceptionLabel = assembler->newLabel();
+    returnFromFunctionLabel = assembler->newLabel();
 }
 
 // Helper functions and section implementations are now in separate files

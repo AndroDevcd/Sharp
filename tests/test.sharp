@@ -130,6 +130,6 @@ def main(args: string[]) {
 }
 
 def jit_func_test() {
-    for(i : var = 0; i < 10_000_000; i++) {
+    for(i : var = 0; i < 100_000_000; i++) {
     }
 }

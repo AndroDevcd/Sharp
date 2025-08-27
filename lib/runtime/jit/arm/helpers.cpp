@@ -18,19 +18,19 @@ using namespace asmjit;
 void Arm64Compiler::loadRegisterValue(a64::Vec dest, _register vmReg) {
     // Load registers[vmReg] into dest (floating point register)
     // Each register is 16 bytes (long double), so offset = vmReg * 16
-    assembler.ldr(dest, a64::ptr(registersPtr, vmReg * 16));
+    assembler->ldr(dest, a64::ptr(registersPtr, vmReg * 16));
 }
 
 void Arm64Compiler::storeRegisterValue(_register vmReg, a64::Vec src) {
     // Store src into registers[vmReg] (floating point register)
-    assembler.str(src, a64::ptr(registersPtr, vmReg * 16));
+    assembler->str(src, a64::ptr(registersPtr, vmReg * 16));
 }
 
 void Arm64Compiler::addRegisters(_register destReg, _register leftReg, _register rightReg) {
     // registers[destReg] = registers[leftReg] + registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);   // tempVec1 = registers[leftReg]
     loadRegisterValue(tempVec2, rightReg);  // tempVec2 = registers[rightReg]
-    assembler.fadd(tempVec1, tempVec1, tempVec2);  // tempVec1 = tempVec1 + tempVec2
+    assembler->fadd(tempVec1, tempVec1, tempVec2);  // tempVec1 = tempVec1 + tempVec2
     storeRegisterValue(destReg, tempVec1);  // registers[destReg] = tempVec1
 }
 
@@ -38,7 +38,7 @@ void Arm64Compiler::subRegisters(_register destReg, _register leftReg, _register
     // registers[destReg] = registers[leftReg] - registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);
     loadRegisterValue(tempVec2, rightReg);
-    assembler.fsub(tempVec1, tempVec1, tempVec2);
+    assembler->fsub(tempVec1, tempVec1, tempVec2);
     storeRegisterValue(destReg, tempVec1);
 }
 
@@ -46,7 +46,7 @@ void Arm64Compiler::mulRegisters(_register destReg, _register leftReg, _register
     // registers[destReg] = registers[leftReg] * registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);
     loadRegisterValue(tempVec2, rightReg);
-    assembler.fmul(tempVec1, tempVec1, tempVec2);
+    assembler->fmul(tempVec1, tempVec1, tempVec2);
     storeRegisterValue(destReg, tempVec1);
 }
 
@@ -54,7 +54,7 @@ void Arm64Compiler::divRegisters(_register destReg, _register leftReg, _register
     // registers[destReg] = registers[leftReg] / registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);
     loadRegisterValue(tempVec2, rightReg);
-    assembler.fdiv(tempVec1, tempVec1, tempVec2);
+    assembler->fdiv(tempVec1, tempVec1, tempVec2);
     storeRegisterValue(destReg, tempVec1);
 }
 
@@ -66,8 +66,8 @@ void Arm64Compiler::moveRegister(_register destReg, _register srcReg) {
 
 void Arm64Compiler::setRegisterImmediate(_register vmReg, int64_t value) {
     // registers[vmReg] = immediate value
-    assembler.mov(tempReg1, value);
-    assembler.scvtf(tempVec1, tempReg1);  // Convert int to double
+    assembler->mov(tempReg1, value);
+    assembler->scvtf(tempVec1, tempReg1);  // Convert int to double
     storeRegisterValue(vmReg, tempVec1);
 }
 
@@ -76,29 +76,29 @@ void Arm64Compiler::setRegisterImmediate(_register vmReg, int64_t value) {
 void Arm64Compiler::popStackNumber(a64::Vec destVec) {
     // Implements: pop_stack_number macro - (task->sp--)->var
     // Load task pointer from thread->task
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load task->sp (stack pointer)
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
     
     // Pop value from stack: load (task->sp)->var, then decrement sp
-    assembler.ldr(destVec, a64::ptr(tempReg2, offsetof(stack_item, var))); // Load stack top value
-    assembler.sub(tempReg2, tempReg2, sizeof(stack_item)); // Decrement sp (pop operation)
-    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store decremented sp back
+    assembler->ldr(destVec, a64::ptr(tempReg2, offsetof(stack_item, var))); // Load stack top value
+    assembler->sub(tempReg2, tempReg2, sizeof(stack_item)); // Decrement sp (pop operation)
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store decremented sp back
 }
 
 void Arm64Compiler::pushStackNumber(a64::Vec srcVec) {
     // Implements: push_stack_number macro - (++task->sp)->var
     // Load task pointer from thread->task
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load task->sp (stack pointer)
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
     
     // Push value to stack: increment sp, then store value
-    assembler.add(tempReg2, tempReg2, sizeof(stack_item)); // Increment sp (push operation)
-    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store incremented sp back
-    assembler.str(srcVec, a64::ptr(tempReg2, offsetof(stack_item, var))); // Store value at new stack top
+    assembler->add(tempReg2, tempReg2, sizeof(stack_item)); // Increment sp (push operation)
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store incremented sp back
+    assembler->str(srcVec, a64::ptr(tempReg2, offsetof(stack_item, var))); // Store value at new stack top
 }
 
 // External function call helpers
@@ -106,8 +106,8 @@ void Arm64Compiler::pushStackNumber(a64::Vec srcVec) {
 void Arm64Compiler::callStaticFunction(void* functionPtr) {
     // Call external C function with no parameters
     // Load function address into temp register and call
-    assembler.mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
-    assembler.blr(tempReg1);
+    assembler->mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
+    assembler->blr(tempReg1);
 }
 
 void Arm64Compiler::callStaticFunction(void* functionPtr, a64::Gp param1, a64::Gp param2) {
@@ -115,12 +115,12 @@ void Arm64Compiler::callStaticFunction(void* functionPtr, a64::Gp param1, a64::G
     // ARM64 calling convention: x0 = first param, x1 = second param
     
     // Move parameters to ARM64 calling convention registers
-    assembler.mov(a64::x0, param1);  // First parameter
-    assembler.mov(a64::x1, param2);  // Second parameter
+    assembler->mov(a64::x0, param1);  // First parameter
+    assembler->mov(a64::x1, param2);  // Second parameter
     
     // Load function address and call
-    assembler.mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
-    assembler.blr(tempReg1);
+    assembler->mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
+    assembler->blr(tempReg1);
 }
 
 void Arm64Compiler::callInstanceFunction(void* functionPtr, a64::Gp instance, a64::Gp param1) {
@@ -128,12 +128,12 @@ void Arm64Compiler::callInstanceFunction(void* functionPtr, a64::Gp instance, a6
     // ARM64 calling convention: x0 = this pointer, x1 = first param
     
     // Move parameters to ARM64 calling convention registers
-    assembler.mov(a64::x0, instance);  // 'this' pointer
-    assembler.mov(a64::x1, param1);    // First parameter
+    assembler->mov(a64::x0, instance);  // 'this' pointer
+    assembler->mov(a64::x1, param1);    // First parameter
     
     // Load function address and call
-    assembler.mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
-    assembler.blr(tempReg1);
+    assembler->mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
+    assembler->blr(tempReg1);
 }
 
 // Jump table helpers
@@ -145,14 +145,14 @@ void Arm64Compiler::initializeJumpTable(size_t opcodeCount) {
     
     // Create labels for each opcode position
     for (size_t i = 0; i < opcodeCount; ++i) {
-        opcodeLabels[i] = assembler.newLabel();
+        opcodeLabels[i] = assembler->newLabel();
     }
 }
 
 void Arm64Compiler::setJumpTableEntry(size_t pc, Label opcodeLabel) {
     // Bind the label at this PC position
     if (pc < opcodeLabels.size()) {
-        assembler.bind(opcodeLabels[pc]);
+        assembler->bind(opcodeLabels[pc]);
     }
 }
 
@@ -162,58 +162,58 @@ void Arm64Compiler::generateJumpDispatch(int targetPCRegister) {
     // jumpTablePtr should contain the base address of the jump table
     
     // Calculate offset: targetPC * 8 (each pointer is 8 bytes)
-    assembler.lsl(tempReg1, a64::Gp::fromTypeAndId(asmjit::RegType::kGp64, targetPCRegister), 3);  // targetPC << 3
+    assembler->lsl(tempReg1, a64::Gp::fromTypeAndId(asmjit::RegType::kGp64, targetPCRegister), 3);  // targetPC << 3
     
     // Load jump table address and add offset
-    assembler.add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (targetPC * 8)
+    assembler->add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (targetPC * 8)
     
     // Load target address from jump table
-    assembler.ldr(tempReg3, a64::ptr(tempReg2));      // Load jumpTable[targetPC]
+    assembler->ldr(tempReg3, a64::ptr(tempReg2));      // Load jumpTable[targetPC]
     
     // Jump to target address
-    assembler.br(tempReg3);                           // Jump to the target opcode
+    assembler->br(tempReg3);                           // Jump to the target opcode
 }
 
 // PC management helpers
 void Arm64Compiler::storePC() {
     // Update task->pc = base + pcReg
     // Load task pointer
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load base bytecode address from task->rom (bytecode[0])
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, rom))); // Load task->rom
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, rom))); // Load task->rom
     
     // Calculate PC pointer: base + (pcReg * sizeof(uint32_t))
-    assembler.lsl(tempReg3, pcReg, 2);               // pcReg * 4 (shift left by 2)
-    assembler.add(tempReg2, tempReg2, tempReg3);     // bytecode + (pcReg * 4)
+    assembler->lsl(tempReg3, pcReg, 2);               // pcReg * 4 (shift left by 2)
+    assembler->add(tempReg2, tempReg2, tempReg3);     // bytecode + (pcReg * 4)
     
     // Store updated PC back to task->pc
-    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
 }
 
 void Arm64Compiler::loadPC() {
     // Load numeric PC from task->pc pointer based on relation to base pointer
     // Load task pointer
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load current PC pointer from task->pc
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
     
     // Load base bytecode address from task->rom (bytecode[0])
-    assembler.ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, rom)));
+    assembler->ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, rom)));
     
     // Calculate PC offset: (task->pc - base)
-    assembler.sub(tempReg2, tempReg2, tempReg3);     // PC pointer - base
+    assembler->sub(tempReg2, tempReg2, tempReg3);     // PC pointer - base
     
     // Convert to instruction index: offset / sizeof(uint32_t)
-    assembler.lsr(pcReg, tempReg2, 2);               // (PC pointer - base) / 4
+    assembler->lsr(pcReg, tempReg2, 2);               // (PC pointer - base) / 4
 }
 
 // Exception handling helpers
 
 void Arm64Compiler::emitExceptionHandle() {
     // Jump to centralized exception handler section
-    assembler.b(catchExceptionLabel);
+    assembler->b(catchExceptionLabel);
 }
 
 // VM Stack Operation Helpers - Centralized Sections
@@ -227,16 +227,16 @@ void Arm64Compiler::emitGrowStackCheck(int n, Label returnLabel) {
      */
     
     // Store n parameter in tempReg1
-    assembler.mov(tempReg1, n);
+    assembler->mov(tempReg1, n);
     
     // Store return label address in tempReg2
-    assembler.adr(tempReg2, returnLabel);
+    assembler->adr(tempReg2, returnLabel);
     
     // Jump to centralized grow stack section
-    assembler.b(growStackLabel);
+    assembler->b(growStackLabel);
     
     // Bind the return label immediately after the call
-    assembler.bind(returnLabel);
+    assembler->bind(returnLabel);
 }
 
 void Arm64Compiler::emitStackOverflowCheck(int n, Label returnLabel) {
@@ -248,16 +248,16 @@ void Arm64Compiler::emitStackOverflowCheck(int n, Label returnLabel) {
      */
     
     // Store n parameter in tempReg1
-    assembler.mov(tempReg1, n);
+    assembler->mov(tempReg1, n);
     
     // Store return label address in tempReg2
-    assembler.adr(tempReg2, returnLabel);
+    assembler->adr(tempReg2, returnLabel);
     
     // Jump to centralized stack overflow section
-    assembler.b(stackOverflowLabel);
+    assembler->b(stackOverflowLabel);
     
     // Bind the return label immediately after the call
-    assembler.bind(returnLabel);
+    assembler->bind(returnLabel);
 }
 
 void Arm64Compiler::generateGrowStackSection() {
@@ -272,38 +272,38 @@ void Arm64Compiler::generateGrowStackSection() {
      * - tempReg2: return address to jump back to
      */
     
-    assembler.bind(growStackLabel);
+    assembler->bind(growStackLabel);
     
     // Get task pointer: task = thread->task
-    assembler.ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load task->sp and task->stack  
-    assembler.ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
-    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
+    assembler->ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
+    assembler->ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
     
     // Calculate current stack depth: (task->sp - task->stack)
-    assembler.sub(tempReg4, tempReg4, returnReg);
+    assembler->sub(tempReg4, tempReg4, returnReg);
     
     // Convert to item count: depth / sizeof(stack_item)
-    assembler.mov(returnReg, sizeof(stack_item));
-    assembler.udiv(tempReg4, tempReg4, returnReg);
+    assembler->mov(returnReg, sizeof(stack_item));
+    assembler->udiv(tempReg4, tempReg4, returnReg);
     
     // Add n to current depth: (current_depth + n) [n is in tempReg1]
-    assembler.add(tempReg4, tempReg4, tempReg1);
+    assembler->add(tempReg4, tempReg4, tempReg1);
     
     // Load task->stackSize
-    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackSize)));
+    assembler->ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackSize)));
     
     // Compare: if ((current_depth + n) >= stackSize)
-    Label growStackOk = assembler.newLabel();
-    assembler.cmp(tempReg4, returnReg);
-    assembler.b_lt(growStackOk);
+    Label growStackOk = assembler->newLabel();
+    assembler->cmp(tempReg4, returnReg);
+    assembler->b_lt(growStackOk);
     storePC();
     
     // Need to grow stack - call task->growStack(n)
     // Set up parameters: x0 = task, x1 = n
-    assembler.mov(a64::x0, tempReg3);    // task pointer
-    assembler.mov(a64::x1, tempReg1);    // n parameter
+    assembler->mov(a64::x0, tempReg3);    // task pointer
+    assembler->mov(a64::x1, tempReg1);    // n parameter
     
     // Call task->growStack(n) using the wrapper function
     // We have: task instance in tempReg3, parameter n in tempReg1
@@ -313,8 +313,8 @@ void Arm64Compiler::generateGrowStackSection() {
     // todo: validate no exception happened
     
     // Stack growth is OK - return to caller
-    assembler.bind(growStackOk);
-    assembler.br(tempReg2);  // Jump back to return address
+    assembler->bind(growStackOk);
+    assembler->br(tempReg2);  // Jump back to return address
 }
 
 void Arm64Compiler::generateStackOverflowSection() {
@@ -329,49 +329,49 @@ void Arm64Compiler::generateStackOverflowSection() {
      * - tempReg2: return address to jump back to
      */
     
-    assembler.bind(stackOverflowLabel);
+    assembler->bind(stackOverflowLabel);
     
     // Get task pointer: task = thread->task
-    assembler.ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load task->sp and task->stack
-    assembler.ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
-    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
+    assembler->ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
+    assembler->ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
     
     // Calculate current stack depth: (task->sp - task->stack)
-    assembler.sub(tempReg4, tempReg4, returnReg);
+    assembler->sub(tempReg4, tempReg4, returnReg);
     
     // Convert to item count: depth / sizeof(stack_item)
-    assembler.mov(returnReg, sizeof(stack_item));
-    assembler.udiv(tempReg4, tempReg4, returnReg);
+    assembler->mov(returnReg, sizeof(stack_item));
+    assembler->udiv(tempReg4, tempReg4, returnReg);
     
     // Add n to current depth: (current_depth + n) [n is in tempReg1]
-    assembler.add(tempReg4, tempReg4, tempReg1);
+    assembler->add(tempReg4, tempReg4, tempReg1);
     
     // Load task->stackLimit
-    assembler.ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackLimit)));
+    assembler->ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackLimit)));
     
     // Compare: if ((current_depth + n) >= stackLimit) throw exception
-    Label stackOverflowOk = assembler.newLabel();
-    assembler.cmp(tempReg4, returnReg);
-    assembler.b_lt(stackOverflowOk);
+    Label stackOverflowOk = assembler->newLabel();
+    assembler->cmp(tempReg4, returnReg);
+    assembler->b_lt(stackOverflowOk);
     storePC();
     
     // Stack overflow - create vm_exception(vm.stack_overflow_except, "")
     // Load vm.stack_overflow_except class pointer (it's already a sharp_class*)
-    assembler.mov(tempReg4, reinterpret_cast<uint64_t>(vm.stack_overflow_except));
+    assembler->mov(tempReg4, reinterpret_cast<uint64_t>(vm.stack_overflow_except));
     
     // Call jit_throwException(vm.stack_overflow_except, "")
-    assembler.mov(a64::x0, tempReg4);  // exception class
-    assembler.mov(a64::x1, reinterpret_cast<uint64_t>(""));  // empty message
+    assembler->mov(a64::x0, tempReg4);  // exception class
+    assembler->mov(a64::x1, reinterpret_cast<uint64_t>(""));  // empty message
     callStaticFunction(reinterpret_cast<void*>(jit_throwException), a64::x0, a64::x1);
     
     // After exception is created, jump to exception handler
     emitExceptionHandle();
     
     // Stack is OK - return to caller
-    assembler.bind(stackOverflowOk);
-    assembler.br(tempReg2);  // Jump back to return address
+    assembler->bind(stackOverflowOk);
+    assembler->br(tempReg2);  // Jump back to return address
 }
 
 void Arm64Compiler::emitPushStackNumber(double value) {
@@ -382,22 +382,22 @@ void Arm64Compiler::emitPushStackNumber(double value) {
      */
     
     // Get task pointer: task = thread->task
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load current stack pointer: sp = task->sp
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
     
     // Increment stack pointer: ++task->sp
-    assembler.add(tempReg2, tempReg2, sizeof(stack_item));
+    assembler->add(tempReg2, tempReg2, sizeof(stack_item));
     
     // Store incremented sp back to task->sp
-    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
     
     // Convert double value to vector register and store in stack_item.var
-    assembler.fmov(tempVec1, value);  // Load immediate double value
+    assembler->fmov(tempVec1, value);  // Load immediate double value
     
     // Store the double value in stack_item.var field (offset 0)
-    assembler.str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+    assembler->str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
 }
 
 void Arm64Compiler::emitPushStackNumberImmediate(int32_t intValue) {
@@ -408,21 +408,21 @@ void Arm64Compiler::emitPushStackNumberImmediate(int32_t intValue) {
      */
     
     // Get task pointer: task = thread->task
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load current stack pointer: sp = task->sp
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
     
     // Increment stack pointer: ++task->sp
-    assembler.add(tempReg2, tempReg2, sizeof(stack_item));
+    assembler->add(tempReg2, tempReg2, sizeof(stack_item));
     
     // Store incremented sp back to task->sp
-    assembler.str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
     
     // Convert int32 immediate to double and store in stack_item.var
-    assembler.mov(tempReg3, intValue);        // Load immediate int value
-    assembler.scvtf(tempVec1, tempReg3);      // Convert int to double
+    assembler->mov(tempReg3, intValue);        // Load immediate int value
+    assembler->scvtf(tempVec1, tempReg3);      // Convert int to double
     
     // Store the double value in stack_item.var field (offset 0)
-    assembler.str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+    assembler->str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
 }

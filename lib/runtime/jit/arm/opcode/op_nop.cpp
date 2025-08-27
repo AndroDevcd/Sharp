@@ -4,6 +4,6 @@
 #include "../arm64_compiler.h"
 
 bool Arm64Compiler::emit_nop() {
-    assembler.nop();
+    assembler->nop();
     return true;
 }

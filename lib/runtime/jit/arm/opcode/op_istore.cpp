@@ -21,12 +21,12 @@ bool Arm64Compiler::emit_istore(int value) {
     
     // Step 1: grow_stack - Check if we need to grow the stack before pushing
     // This ensures the stack has enough space for the new item
-    Label growStackReturn = assembler.newLabel();
+    Label growStackReturn = assembler->newLabel();
     emitGrowStackCheck(1, growStackReturn);
     
     // Step 2: stack_overflow_check - Check if we would exceed the stack limit
     // This throws an exception if we're about to overflow
-    Label stackOverflowReturn = assembler.newLabel();
+    Label stackOverflowReturn = assembler->newLabel();
     emitStackOverflowCheck(1, stackOverflowReturn);
     
     // Step 3: push_stack_number = raw_arg2 - Push the immediate value onto stack

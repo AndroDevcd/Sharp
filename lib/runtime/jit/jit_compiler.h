@@ -47,7 +47,7 @@ enum jit_target_arch {
 class JitCompiler {
 public:
     virtual ~JitCompiler() = default;
-    
+
     virtual bool compileFunction(sharp_function* function, jit_compiled_function* output) = 0;
     virtual void releaseCompiledFunction(jit_compiled_function* compiledFunc) = 0;
     
@@ -185,8 +185,9 @@ protected:
 };
 
 extern JitCompiler* jitCompiler;
+extern jit_target_arch arch;
 
-void init_jit_compiler(jit_target_arch targetArch = JIT_ARM64);
+void init_jit_compiler();
 void shutdown_jit_compiler();
 bool should_compile_function(sharp_function* function);
 

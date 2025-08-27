@@ -20,28 +20,28 @@ bool Arm64Compiler::emit_iaddl(int value, int relFrameAddress) {
      */
     
     // Load task pointer from thread->task
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Load task->fp (frame pointer)
-    assembler.ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, fp)));
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, fp)));
     
     // Calculate target address: task->fp + relFrameAddress
     // Each stack_item is sizeof(stack_item) bytes
-    assembler.mov(tempReg3, relFrameAddress);
-    assembler.mov(tempReg4, sizeof(stack_item));
-    assembler.mul(tempReg3, tempReg3, tempReg4); // relFrameAddress * sizeof(stack_item)
-    assembler.add(tempReg2, tempReg2, tempReg3); // fp + offset
+    assembler->mov(tempReg3, relFrameAddress);
+    assembler->mov(tempReg4, sizeof(stack_item));
+    assembler->mul(tempReg3, tempReg3, tempReg4); // relFrameAddress * sizeof(stack_item)
+    assembler->add(tempReg2, tempReg2, tempReg3); // fp + offset
     
     // Load current value from (task->fp + relFrameAddress)->var
-    assembler.ldr(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+    assembler->ldr(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
     
     // Convert immediate value to floating point and add
-    assembler.mov(tempReg3, value);  // Load immediate value
-    assembler.scvtf(tempVec2, tempReg3);  // Convert int to double
-    assembler.fadd(tempVec1, tempVec1, tempVec2);  // tempVec1 += tempVec2
+    assembler->mov(tempReg3, value);  // Load immediate value
+    assembler->scvtf(tempVec2, tempReg3);  // Convert int to double
+    assembler->fadd(tempVec1, tempVec1, tempVec2);  // tempVec1 += tempVec2
     
     // Store result back to (task->fp + relFrameAddress)->var
-    assembler.str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+    assembler->str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
     
     return true;
 }

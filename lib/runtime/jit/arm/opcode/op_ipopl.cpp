@@ -18,18 +18,18 @@ bool Arm64Compiler::emit_ipopl(int relFrameAddress) {
     popStackNumber(tempVec1);
     
     // Load task pointer and frame pointer (reload task after helper function)
-    assembler.ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
-    assembler.ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, fp)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, fp)));
     
     // Calculate target address: task->fp + relFrameAddress
     // Each stack_item is sizeof(stack_item) bytes
-    assembler.mov(tempReg4, relFrameAddress);
-    assembler.mov(tempReg1, sizeof(stack_item));
-    assembler.mul(tempReg4, tempReg4, tempReg1); // relFrameAddress * sizeof(stack_item)
-    assembler.add(tempReg3, tempReg3, tempReg4); // fp + offset
+    assembler->mov(tempReg4, relFrameAddress);
+    assembler->mov(tempReg1, sizeof(stack_item));
+    assembler->mul(tempReg4, tempReg4, tempReg1); // relFrameAddress * sizeof(stack_item)
+    assembler->add(tempReg3, tempReg3, tempReg4); // fp + offset
     
     // Store the popped value to (task->fp + relFrameAddress)->var
-    assembler.str(tempVec1, a64::ptr(tempReg3, offsetof(stack_item, var)));
+    assembler->str(tempVec1, a64::ptr(tempReg3, offsetof(stack_item, var)));
     
     return true;
 }
