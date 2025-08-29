@@ -823,14 +823,14 @@ void prepare_method(Int address) {
     
     function->callCount++;
     if(c_options.jit && function->callCount >= 10 && !function->isHighFrequency
-        && function != task->main ) {
-        function->isHighFrequency = true;
+        && function != task->main) {
+        guard_mutex(jit_mutex)
+
         if(function->jfunc == nullptr) {
             function->jfunc = calloc_mem<jit_compiled_function>(1, sizeof(jit_compiled_function));
-        }
-
-        if(!jitCompiler->compileFunction(function, function->jfunc)) {
-            function->isHighFrequency = false; // keep trying to compile until succeed... shouldn't happen often
+            if(jitCompiler->compileFunction(function, function->jfunc)) {
+                function->isHighFrequency = true; // keep trying to compile until succeed... shouldn't happen often
+            }
         }
     }
 

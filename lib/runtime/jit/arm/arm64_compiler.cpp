@@ -698,12 +698,12 @@ void Arm64Compiler::resetCodeHolder() {
     // AsmJit recommended approach: Reset CodeHolder with soft policy (preserves memory allocation)
     // This automatically detaches all emitters and clears the code content for reuse
     code->reset(ResetPolicy::kSoft);
-    
+
     // Delete the old assembler since it's now detached
-//    if(assembler) {
-//        delete assembler;
-//        assembler = nullptr;
-//    }
+    if(assembler) {
+        delete assembler;
+        assembler = nullptr;
+    }
 
     // Re-initialize with ARM64 environment (required after reset)
     Environment arm64Env(Arch::kAArch64);

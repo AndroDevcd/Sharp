@@ -186,6 +186,7 @@ protected:
 
 extern JitCompiler* jitCompiler;
 extern jit_target_arch arch;
+extern recursive_mutex jit_mutex;
 
 void init_jit_compiler();
 void shutdown_jit_compiler();

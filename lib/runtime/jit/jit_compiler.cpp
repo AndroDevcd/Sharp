@@ -10,6 +10,7 @@
 
 JitCompiler* jitCompiler = nullptr;
 jit_target_arch arch;
+recursive_mutex jit_mutex;
 
 void init_jit_compiler() {
     if(jitCompiler != nullptr) {
