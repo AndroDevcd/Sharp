@@ -1,0 +1,102 @@
+mod serialization;
+
+import (
+    std,
+    std.io
+)
+
+/**
+ * Main API for serialization and deserialization
+ */
+class SerializationManager {
+    private serializer: Serializer;
+    private deserializer: Deserializer;
+    
+    SerializationManager() {
+        serializer = new Serializer();
+        deserializer = new Deserializer();
+    }
+    
+    /**
+     * Serialize an object to a byte array
+     */
+    def serialize(obj: object) : _int8[] {
+        if (obj == null)
+            return new _int8[0];
+            
+        return serializer.serialize(obj);
+    }
+    
+    /**
+     * Deserialize a byte array back to an object
+     */
+    def deserialize(data: _int8[]) : object? {
+        if (data == null || data.size == 0)
+            return null;
+            
+        return deserializer.deserialize(data);
+    }
+    
+    /**
+     * Serialize an object to a byte array and create a string
+     */
+    def serialize_to_string(obj: object) : string {
+        data := serialize(obj);
+        
+        if (data == null || data.size == 0)
+            return "";
+            
+        // Convert byte array to hex string for readability
+        builder := new std.string_builder();
+        for (i := 0; i < data.size; i++) {
+            byte_val := data[i] & 0xFF;
+            hex_digits := "0123456789ABCDEF";
+            builder.append(hex_digits.char_at((byte_val >> 4) & 0xF));
+            builder.append(hex_digits.char_at(byte_val & 0xF));
+            
+            if (i < data.size - 1) {
+                builder.append(' ');
+            }
+        }
+        
+        return builder.to_string();
+    }
+    
+    /**
+     * Deserialize a hex string back to an object
+     */
+    def deserialize_from_string(data: string) : object? {
+        if (data == null || data.length() == 0)
+            return null;
+            
+        // Parse hex string
+        tokens := data.split(' ');
+        bytes := new _int8[tokens.size()];
+        
+        for (i := 0; i < tokens.size(); i++) {
+            token := tokens.get(i);
+            
+            if (token.length() != 2) {
+                throw new exception("Invalid hex string format at position " + i);
+            }
+            
+            high := parse_hex_digit(token.char_at(0));
+            low := parse_hex_digit(token.char_at(1));
+            
+            bytes[i] = (high << 4) | low;
+        }
+        
+        return deserialize(bytes);
+    }
+    
+    private def parse_hex_digit(c: char) : _int8 {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        else if (c >= 'A' && c <= 'F')
+            return (c - 'A') + 10;
+        else if (c >= 'a' && c <= 'f')
+            return (c - 'a') + 10;
+        else
+            throw new exception("Invalid hex digit: " + c);
+    }
+}

@@ -1,0 +1,54 @@
+mod std.io.coroutines.observable;
+
+import (
+    std.io,
+    std.io.coroutines
+)
+
+public class observable<t base _object_> : emitter<t>, receiver<t> {
+
+	public observable(initial : t?) {
+		data = initial;
+	}
+
+	public override def post(data : t?) {
+	    lock(self) {
+            self->data = data;
+            notify_all();
+		}
+	}
+
+	public override def observe(on_update: (observer<t>, t?)()): observer<t> {
+	    o := new observer<t>(self, on_update, null);
+	    observers.add(o);
+	    return o;
+	}
+
+	public override def observe_on(on_update: (observer<t>, t?)(), th: thread): observer<t> {
+	    o := new observer<t>(self, on_update, th);
+	    observers.add(o);
+	    return o;
+	}
+
+	public override def dispose(o: observer<t>) {
+        observers.remove(o, {it, it2 -> return it == it2; });
+	}
+
+	private def notify_all() {
+        foreach(obs in observers) {
+           coroutine.builder()
+              .with_host(obs.on_thread)
+              .with_args(new object[] { get_data(), obs }) = { args: object[] ->
+                  data : t? = args[1] == null ? null : args[1] as t;
+                  obs := args[2] as observer<t>;
+                  obs.callback(obs, data);
+           };
+        }
+	}
+
+	public override def get_data() : t? = data;
+
+	protected data : t?;
+	protected observers := new synced_list<observer<t> >();
+}
+

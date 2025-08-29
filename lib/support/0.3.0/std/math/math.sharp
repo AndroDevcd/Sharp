@@ -1,0 +1,200 @@
+mod std.math;
+
+/**
+ * E for processing natural logarithms.
+ */
+public const E := 2.7182818284590452;
+
+/**
+ * PI holds the ratio of the circumference of a circle to its
+ * diameter.
+ */
+public const PI := 3.1415926535897932;
+
+/**
+ * A constant holding the positive infinity of type
+ * {@code float}. It is equal to the value returned by
+ * {@code Float.intBitsToFloat(0x7f800000)}.
+ */
+public const POSITIVE_INFINITY := 1.0 / 0.0;
+
+/**
+ * A constant holding the negative infinity of type
+ * {@code float}. It is equal to the value returned by
+ * {@code Float.intBitsToFloat(0xff800000)}.
+ */
+public const NEGATIVE_INFINITY := -1.0 / 0.0;
+
+/**
+ * A constant holding a Not-a-Number (NaN) value of type
+ * {@code float}.  It is equivalent to the value returned by
+ * {@code Float.intBitsToFloat(0x7fc00000)}.
+ */
+public const NaN := 0.0 / 0.0;
+
+
+/**
+ * Returns {@code true} if the specified number is a
+ * Not-a-Number (NaN) value, {@code false} otherwise.
+ *
+ * @param   v   the value to be tested.
+ * @return  {@code true} if the argument is NaN;
+ *          {@code false} otherwise.
+ */
+public def is_nan(v: double): bool {
+    return (v != v);
+}
+
+/**
+ * Returns {@code true} if the specified number is infinitely
+ * large in magnitude, {@code false} otherwise.
+ *
+ * @param   v   the value to be tested.
+ * @return  {@code true} if the argument is positive infinity or
+ *          negative infinity; {@code false} otherwise.
+ */
+public def is_infinite(v: double): bool {
+    return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
+}
+
+def sin(num: double) : double {
+    return math_proc(num, 0x0);
+}
+
+def cos(num: double) : double {
+    return math_proc(num, 0x1);
+}
+
+def tan(num: double) : double {
+    return math_proc(num, 0x2);
+}
+
+def sinh(num: double) : double {
+    return math_proc(num, 0x3);
+}
+
+def cosh(num: double) : double {
+    return math_proc(num, 0x4);
+}
+
+def tanh(num: double) : double {
+    return math_proc(num, 0x5);
+}
+
+def asin(num: double) : double {
+    return math_proc(num, 0x6);
+}
+
+def acos(num: double) : double {
+    return math_proc(num, 0x7);
+}
+
+def atan(num: double) : double {
+    return math_proc(num, 0x8);
+}
+
+def atan(num1: double, num2: double) : double {
+    return math_proc(num1, num2, 0x9);
+}
+
+def exp(num: double) : double {
+    return math_proc(num, 0xa);
+}
+
+def log(num: double) : double {
+    return math_proc(num, 0xb);
+}
+
+def log10(num: double) : double {
+    return math_proc(num, 0xc);
+}
+
+def pow(num: double, exp: double) : double {
+    return math_proc(num, exp, 0xd);
+}
+
+def sqrt(num: double) : double {
+    return math_proc(num, 0xe);
+}
+
+def ceil(num: double) : double {
+    return math_proc(num, 0xf);
+}
+
+def floor(num: double) : double {
+    return math_proc(num, 0x10);
+}
+
+def abs(num: double) : double {
+    return fabs(num);
+}
+
+def abs(num: int) : int {
+    return fabs(num.to_double()).to_int();
+}
+
+def abs(num: long) : long {
+    return fabs(num.to_double()).to_long();
+}
+
+def abs(num: short) : short {
+    return fabs(num.to_double()).to_short();
+}
+
+def abs(num: char) : char {
+    return fabs(num.to_double()).to_char();
+}
+
+def abs(num: byte) : byte {
+    return fabs(num.to_double()).to_byte();
+}
+
+local def fabs(num: double) : double {
+    return math_proc(num, 0x11);
+}
+
+def ldexp(num: double, num2: double) : double {
+    return math_proc(num, num2, 0x12);
+}
+
+def fmod(num: double, num2: double) : double {
+    return math_proc(num, num2, 0x13);
+}
+
+def round(num: double) : double {
+    int_val := num.to_long();
+    num -= int_val;
+
+    if(num >= 0.5) return (int_val + 1).to_double();
+    else return int_val.to_double();
+}
+
+local def math_proc(num: double, proc: double) : double {
+    _num := num.value;
+    _proc := proc.value;
+    result : var = 0;
+    asm {
+        loadl ebx, [_num]
+        loadl ecx, [_proc]
+        int 0x18
+        smovr2 [result], cmt
+    }
+
+    return result;
+}
+
+local def math_proc(num: double, num2: double, proc: double) : double {
+    _num := num.value;
+    _num2 := num2.value;
+    _proc := proc.value;
+    result : var = 0;
+    asm {
+        loadl ebx, [_num]
+        loadl egx, [_num2]
+        loadl ecx, [_proc]
+        int 0x18
+        smovr2 [result], cmt
+    }
+
+    return result;
+}

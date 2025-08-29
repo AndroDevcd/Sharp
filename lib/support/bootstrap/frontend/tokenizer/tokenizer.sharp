@@ -1,8 +1,10 @@
 mod frontend.tokenizer;
 
-import frontend.parser;
-import frontend;
-import main;
+import (
+    frontend.parser
+    frontend
+    main
+)
 
 /**                          
 * Created by bknun on 6/13/2018            

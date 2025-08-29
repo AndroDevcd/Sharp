@@ -1,0 +1,100 @@
+mod frontend.tokenizer;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+class token {
+
+    line: var;
+    col: var;
+    id: token_id;
+    type: token_type;
+    tok : string = "";
+
+    public token() {
+        type = token_type.none;
+        id = token_id.noentity;
+    }
+
+    public token(tok: string, id: token_id, type: token_type, col: var, line: var) {
+        self->tok = tok;
+        self->type = type;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
+
+    public token(tok: string, id: token_id, col: var, line: var) {
+        self->tok = tok;
+        self->type = token_type.none;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
+    public def operator!=(id: token_id) : bool {
+        return self->id != id;
+    }
+
+    public def operator!=(type: token_type) : bool {
+        return self->type != type;
+    }
+
+    public def operator==(tok: string) : bool {
+        return self->tok == tok;
+    }
+
+    public def operator!=(tok: string) : bool {
+        return self->tok != tok;
+    }
+
+    public def operator==(entity: token) : bool {
+        return id==entity.id && tok == entity.tok;
+    }
+
+    public def operator==(id: token_id) : bool {
+        return self->id == id;
+    }
+
+    public def operator==(type: token_type) : bool {
+        return self->type == type;
+    }
+
+    public def get_id() : token_id {
+        return id;
+    }
+
+    public def get_token() : string {
+        return tok;
+    }
+
+    public def get_col() : int {
+        return self->col;
+    }
+
+    public def get_line() : int {
+        return self->line;
+    }
+
+    public def get_type() : token_type {
+        return self->type;
+    }
+
+    public def to_string() : string {
+        return tok + ": " + line + "," + col + " { $type , $id }";
+    }
+}
+
+enum token_id
+{
+    identifier,
+    integer_literal,
+    hex_literal,
+    string_literal,
+    char_literal,
+
+    _single, // single token
+    noentity // not an entity
+}

@@ -1,6 +1,8 @@
 mod frontend.parser;
 
-import frontend.tokenizer;
+import (
+    frontend.tokenizer
+)
 
 /**
  * Created by BraxtonN on 6/14/2018.
@@ -107,7 +109,7 @@ class ast {
             sb+='\t';
     }
 
-    thread_local recurs := 0;
+    localized recurs := 0;
     public def to_string(sb: string_builder) {
         add_tabs(sb);
         sb += "ast: " + type + " ;" + line + "," + col + "\n";

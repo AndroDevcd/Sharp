@@ -84,6 +84,10 @@ global scope and translate it to ``var result = $anonymous1(x, y);``
     for 100: { // operator < is assumed to be the poerator
        print("multi-line");
     }
+
+    for i := 0; i < 10; i++: {
+
+    }   
 ```
 - [X] (Fuckin donne!!!!!) fix bug that deadlocks lock statements due to return and goto
 ```javascript
@@ -495,6 +499,7 @@ class mario base player {
 // in main.sharp
 mod main;
 
+
 native def add(var x, var y) : var;
 
 def main() {
@@ -541,26 +546,144 @@ def main() {
 }
 ```
 
+Add ai module to support ai in the language
+- DataNeuralNet: takes in string data outputs string data
+- MathNeuralNet: takes in math problems outputs an answer, allow user to add custom math operations
+- ObjectNeuralNet: Takes an object that must inherit ai_object class and set_value(string name, object data)
+   - and outputs data into another object with expected values on function call and get_value(string name)
+
+# Revised import syntax
+internally these will be treated as an import_group which will have a list of modules
+when processing via files import groups get priority over non import groups for resolving
+members 
+
+```javascript
+mod main;
+
+import (
+    std,
+    std.io.*
+) as test
+
+import ( 
+    std
+)
+
+
+def main() {
+    f := new test#file("test.txt");
+}
+
+```
+
+Support dependency injection into the language
+```javascript
+// global Model
+x := 9;
+component {
+    single { MyClass(get(), get("named")) } // attach these single types to a variable thats static in the lang to be accessed later
+    single("named") { MyClass2(get(), get(modelName)) } // named item are only used when requested
+
+    factory { string("") } // miltiple definitions of a factory is not allowed
+    factory("string vers 2") { string("hi") } // named factory
+    
+    factory("string vers 3") { string("hi" + x) } // static vars are to be proicessed first and then the di stuff
+    // create ctx with struct that holds the *DependencyManager type & check if it is anywhere in the ctx whjen resolve is called!
+    // struct DependencyManager will contain a list of the global model & list of named models as well as the global factory
+    // struct Model will contain a list of named/non-named factories & singles
+    
+    factory {  } // factories and singles cannot be empty
+} // multiple definitions of global models are allowed
+
+// hosting the same type of a single and factory will not be allowed
+// Fir=rst try to go through and process the type of items but if the first time fails come back a second time for another pass and if it can be resolved print an error message
+get namedType: string
+get namedType: string, modelName, identifier
+get modelName: identifier
+multiple definitions of the same type will not be supported, user must make one of them named
+if there is multiple types with the same name that will not be allowed 
+
+you cannot have a named factory and a named single within the same model 
+
+// named model
+// htese models just like named fingles and factories will only be used when requested
+component modelName {
+
+}
+
+// multipler defenitions of the model with a specific name will not be allowed
+
+ // using the system
+// this ast will only go before fields and will be called injection Ast
+inject message : string // global model injection
+inject(modelName) message : string // named model injection
+
+class Apple {
+    
+    inject my_class: MyClass
+}
+
+fun main() {
+    
+    apple := new Apple(); // all the code for setting up apple will be injected into a private init function
+}
+```
+
+s - scratch
+ip - in progress
+
 #### Offical 0.3.0 features
-* Nullable types (true null type safety)
+* [X] Nullable types (true null type safety)
 * [X] Revised import syntax
-* elvis operator & then operator
-* Support for new class inlining 
-* Several high perf optimizations
+* [X] elvis operator
+* Support for new class inlining - s
+* Several high perf optimizations - ip
 * [X] File caching
-* Faster compile times
+* Faster compile times - ip
 * [X] More compiler settings
-* Offical support for closures
-* Template functions
-* Generic base classes generic< t base some_class >
-* Revised for loop syntax
+* Offical support for closures - ip
+* Template functions - s
+* [X] Generic base classes generic< t base some_class >
+* Revised for loop syntax - s
 * [X] Semicolons are no longer required
-* Parenthesis are no longer required
-* Trailing function pointers lst.sort { -> ... } -> def sort(sort_fun: ()()) { ... } after dot not & after ref ptr in dot not check for trailing lambda
-* dynamic args via '...' referenced as object[]
+* Parenthesis are no longer required - s
+* Trailing function pointers lst.sort { -> ... } -> def sort(sort_fun: ()()) { ... } after dot not & after ref ptr in dot not check for trailing lambda - s
+* dynamic args via '...' referenced as object[] - s
 * [X] Nesting block comments
-* Live code compiling using the `--watch` compiler option to update changed project files in real time
-* New async functionality
-* deferr keyword added
-* \u0000 unicode strings
-* paramaterized array access i.e 'str[0, 5]' returns a substring from pos 0 to 5
+* Live code compiling using the `--watch` compiler option to update changed project files in real time - ip
+* New async functionality - s
+* deferr keyword added - s
+* [X] \u0000 unicode strings
+* [X] paramaterized array access i.e 'str[0, 5]' returns a substring from pos 0 to 5
+
+
+# Welcome to the v0.3.0 revision PR!
+This PR represents an overhaul of the programming language platform and the **4th generation** of the compiler.  Version 0.3.0 of the language aims to fix a wide range of bugs within the platform as well as put the language up to par with more mainstream programming languages.
+
+## Feature List
+Below is a list of all the new features included in the PR.
+
+- Built-in Dependancy injection framework
+- Base class definition for generics
+> **class** home_screen< T **base** view > { ... }
+- New package import format
+> **import** ( std, std.io );
+- Import groups added
+
+       import (
+            std,
+            std.io
+      ) as file_imports;
+
+       import (
+            std,
+            ducuments.builder
+      ) as doc_imports;
+
+       def foo() {
+            file :=  new file_imports#file("hello.txt");
+            doc :=  new doc_imports#file("hello.docx");
+      }
+
+- support base generic typing only restrict this as a hard type task as task<* base _object_>();
+

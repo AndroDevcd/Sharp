@@ -1,0 +1,93 @@
+mod serialization;
+
+import (
+    std,
+    std.io
+)
+
+/**
+ * Holds information about a serialized object reference
+ */
+class ObjectReference {
+    // The object being referenced
+    object: object;
+    
+    // Unique ID assigned during serialization
+    id: int;
+    
+    ObjectReference(object: object, id: int) {
+        self->object = object;
+        self->id = id;
+    }
+}
+
+/**
+ * Manages object references during serialization/deserialization
+ */
+class ReferenceTracker {
+    private objectMap: std.hash_map<object, int>;
+    private objectList: std.list<object>;
+    private nextId: int = 0;
+    
+    ReferenceTracker() {
+        objectMap = new std.hash_map<object, int>();
+        objectList = new std.list<object>();
+    }
+    
+    /**
+     * Checks if an object has already been serialized
+     */
+    def has_object(obj: object) : bool {
+        return objectMap.contains_key(obj);
+    }
+    
+    /**
+     * Gets the ID of a previously serialized object
+     */
+    def get_id(obj: object) : int {
+        if (!has_object(obj))
+            return -1;
+        
+        return objectMap.get(obj);
+    }
+    
+    /**
+     * Registers a new object in the reference tracker
+     */
+    def add_object(obj: object) : int {
+        if (has_object(obj))
+            return get_id(obj);
+        
+        id := nextId++;
+        objectMap.put(obj, id);
+        objectList.add(obj);
+        
+        return id;
+    }
+    
+    /**
+     * Gets the object at a specific ID
+     */
+    def get_object(id: int) : object? {
+        if (id < 0 || id >= objectList.size())
+            return null;
+        
+        return objectList.get(id);
+    }
+    
+    /**
+     * Gets the number of tracked objects
+     */
+    def count() : int {
+        return objectList.size();
+    }
+    
+    /**
+     * Resets the tracker state
+     */
+    def reset() {
+        objectMap.clear();
+        objectList.clear();
+        nextId = 0;
+    }
+}

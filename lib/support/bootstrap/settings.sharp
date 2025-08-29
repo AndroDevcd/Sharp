@@ -1,6 +1,8 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
 def enable_compile_only(enable: var) {
    options.compile = enable;
@@ -101,7 +103,7 @@ def add_library_path(libpath: string) {
    library_dir := new file(libpath);
 
    if(!library_dir.exists()) {
-      warning("library path: library_dir dosen't exist!");
+      warning("library path: $library_dir dosen't exist!");
       return;
    }
 

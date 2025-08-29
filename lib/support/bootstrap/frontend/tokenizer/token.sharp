@@ -95,6 +95,6 @@ enum token_id
     string_literal,
     char_literal,
 
-    single, // single token
+    _single, // single token
     noentity // not an entity
-};
+}

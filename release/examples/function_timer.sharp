@@ -1,6 +1,8 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
 def timed_func() { // perform a computation for a random amount of time
     for(i := 0; i < 1_000_000; i++) {}

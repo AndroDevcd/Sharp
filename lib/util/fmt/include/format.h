@@ -2271,7 +2271,7 @@ class arg_formatter:
 };
 
 /**
- An error returned by an operating system or a language runtime,
+ An error returned by an operating system or a language runtime_old,
  for example a file opening error.
 */
 class system_error : public std::runtime_error {
@@ -2315,7 +2315,7 @@ class system_error : public std::runtime_error {
 
 /**
   \rst
-  Formats an error returned by an operating system or a language runtime,
+  Formats an error returned by an operating system or a language runtime_old,
   for example a file opening error, and writes it to *out* in the following
   form:
 

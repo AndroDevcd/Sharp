@@ -1,0 +1,45 @@
+mod std.io.coroutines;
+
+import (
+    std.io.*
+);
+
+class deferred<t> base observable<t> {
+
+    response : t?;
+        get {
+            return await();
+        }
+        private set value -> {}
+
+    private deferred() {}
+
+	deferred(scheduled_job : job) {
+		self->scheduled_job = scheduled_job;
+	}
+
+	public override def post(data : t?) {
+	    base->post(data);
+	    changed = true;
+	}
+
+	private def await(): t? {
+	    if(scheduled_job == null)
+	        return data;
+
+		while(true) {
+			if(changed.read() || scheduled_job.is_finished()) {
+		        changed = false;
+				return data;
+			} else
+				delay(0);
+		}
+
+		return data;
+	}
+
+	def get_job() := scheduled_job;
+
+    private changed := new atomic<bool>(false);
+	private scheduled_job : job;
+}

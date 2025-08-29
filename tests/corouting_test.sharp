@@ -1,0 +1,85 @@
+mod main;
+
+import std.io.*;
+import platform;
+import platform.kernel;
+
+chan := new channel<var>(UNLIMITED);
+task_count := 100_000;
+counter := new atomic<var>{ 0 };
+
+def foo() : var {
+    //set_thread_max(2);
+    for(i := 0; i < task_count; i++) {
+        if((i % 10000) == 0)
+           println(i);
+        coroutine.builder()
+        = { ->
+             for( ;; ) {
+              counter++;
+              delay(1000);
+             }
+        };
+    }
+
+//    scheduler_main(null);
+    return 0;
+}
+
+def loop() {
+   for(i := 0; i < 100_000_000; i++) {}
+}
+
+def modnum(num: var) {
+   asm {
+      nop
+      int 0x10
+      movi ebx, 1000
+      newVarArray ebx, 1
+      cast ebx
+      varCast 1, 1
+      movu8 ebx, ebx
+      mov8 ebx, ebx
+   }
+}
+
+def main(args: string[]) {
+    for(i := 0; i < 10; i++) {
+   }
+//    println("took: ${time.measure(milliseconds, { ->
+//        for(i := 0; i < 100; i++) {
+//            delay(10);
+//        }
+//    })}");
+//    println("loop took: ${time.measure(milliseconds, { ->
+//        loop();
+//    })}");
+//
+//    msg := "testing\n me";
+//    println(msg);
+//
+//    slice({ args ->
+//        for(i := 0; i < 10000; i++) {
+//            chan.send(i);
+//        }
+//
+//        return 0;
+//    }, thread.current());
+//    slice({ args ->
+//        for(i := 0; i < 10000; i++) {
+//            chan.send(i);
+//        }
+//
+//        return 0;
+//    }, thread.current());
+//
+//    for(i := 0; i < 10000; i++) {
+//       chan.send(i);
+//    }
+
+//   past := time.mills_time();
+//   foo();
+//   delay(1000);
+//   println(time.mills_time()-past);
+//   println(" counter + " + counter++);
+}

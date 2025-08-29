@@ -1,0 +1,70 @@
+mod platform;
+
+import (
+    platform.kernel,
+    std.io.fiber,
+    std.io,
+    std.reflect
+)
+
+/**
+* Dependency preservation for code obfuscation
+*/
+
+/*
+* Required modules
+*/
+obfuscate -keep {
+    "std",
+    "std.io",
+    "std.io.fiber",
+    "platform.kernel",
+    "std.reflect"
+}
+
+/*
+* Required classes
+*/
+obfuscate -keep_inclusive {
+    throwable,
+    exception,
+    error,
+    _enum_,
+    illegal_argument_exception,
+    illegal_state_exception,
+    out_of_bounds_exception,
+    invalid_operation_exception,
+    nullptr_exception,
+    runtime_exception,
+    stack_overflow_exception,
+    thread_stack_exception,
+    class_cast_exception,
+    out_of_memory_exception,
+    invalid_operation_exception,
+    incompatible_class_exception,
+    unsatisfied_link_error,
+    object_import_error,
+    stack_state,
+    thread,
+    string,
+    char_array,
+    int,
+    char,
+    bool,
+    short,
+    long,
+    uint,
+    uchar,
+    ushort,
+    ulong,
+    byte,
+    double,
+    number<_int32, int>, // int base class
+    fiber,
+    _class_,
+    _field_,
+    _function_,
+    data_type,
+    _function_param_,
+    description
+}

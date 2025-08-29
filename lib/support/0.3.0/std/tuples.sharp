@@ -1,0 +1,53 @@
+mod std;
+
+class pair<A,B> {
+    first : A;
+    second : B;
+
+    pair(first : A, second : B) {
+        self->first = first;
+        self->second = second;
+    }
+}
+
+class triplet<A,B,C> {
+    first : A;
+    second : B;
+    third : C;
+
+    triplet(first : A, second : B, third : C) {
+        self->first = first;
+        self->second = second;
+        self->third = third;
+    }
+}
+
+class quad<A,B,C,D> {
+    first : A;
+    second : B;
+    third : C;
+    fourth : D;
+
+    quad(first : A, second : B, third : C, fourth : D) {
+        self->first = first;
+        self->second = second;
+        self->third = third;
+        self->fourth = fourth;
+    }
+}
+
+class quint<A,B,C,D,E> {
+    first : A;
+    second : B;
+    third : C;
+    fourth : D;
+    fifth : E;
+
+    quint(first : A, second : B, third : C, fourth : D, fifth : E) {
+        self->first = first;
+        self->second = second;
+        self->third = third;
+        self->fourth = fourth;
+        self->fifth = fifth;
+    }
+}

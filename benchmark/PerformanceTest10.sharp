@@ -1,8 +1,10 @@
 mod app;
 
 
-import std;
-import std.io;
+import (
+    std,
+    std.io
+)
 
 
 /**

@@ -1,6 +1,8 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
 // Here we create a class to be called if there was an exception thrown
 // that was not caught

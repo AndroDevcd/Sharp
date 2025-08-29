@@ -7,7 +7,7 @@
 
 enum token_type
 {
-    NUMBER,
+    NUMBER=0,
     LETTER,
     UNDERSCORE,
     LEFTPAREN,
@@ -40,6 +40,10 @@ enum token_type
     XOREQ,
     MODEQ,
     NOTEQ,              // !=
+    ELVIS,              // ?:
+    SAFEDOT,            // ?.
+    FORCEDOT,           // !!.
+    DOUBLEBANG,           // !!
     SHL,                // <<
     SHR,                // >>
     LESSTHAN,
@@ -60,9 +64,9 @@ enum token_type
     _INC,               // ++
     _DEC,               // --
     DOLLAR,             // $
-    _EOF = 0xfff9,      // end of file
 
-    NONE                // not a type
+    NONE,                // not a type
+    _EOF = 0xfff9,      // end of file
 };
 
 #endif //SHARP_TOKENTYPE_H

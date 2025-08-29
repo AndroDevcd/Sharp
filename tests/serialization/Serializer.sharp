@@ -1,0 +1,236 @@
+mod serialization;
+
+import (
+    std,
+    std.io,
+    std.reflect
+)
+
+/**
+ * Constants for serialization
+ */
+enum SerializeConstants {
+    SERIALIZE_START = 0x3b,
+    SERIALIZE_END = 0x3d,
+    REFERENCE_OBJECT = 0xf,
+    DATA_BEGIN = 0xe,
+    DATA_END = 0x2e,
+    CLASS_SECTION_BEGIN = 0x002,
+    CLASS_SECTION_END = 0x1c,
+    NULL_OBJECT = 0x008,
+    OBJECT_ID_START = 0x0,
+    STANDARD_OBJECT = 0x009,
+    NUMERIC_OBJECT = 0x3a,
+    CLASS_OBJECT = 0x1a,
+    CLASS_ARRAY_OBJECT = 0x1b
+}
+
+/**
+ * Main serializer class that handles serializing objects to bytes
+ */
+class Serializer {
+    // Buffer for object data
+    private body: Buffer;
+    
+    // Buffer for header data (metadata)
+    private header: Buffer;
+    
+    // Reference tracker for detecting circular references
+    private references: ReferenceTracker;
+    
+    // Class tracker for class information
+    private classTracker: ClassTracker;
+    
+    Serializer() {
+        body = new Buffer();
+        header = new Buffer();
+        references = new ReferenceTracker();
+        classTracker = new ClassTracker();
+    }
+    
+    /**
+     * Reset the serializer state
+     */
+    def reset() {
+        body.reset();
+        header.reset();
+        references.reset();
+        classTracker.reset();
+    }
+    
+    /**
+     * Main method to serialize an object to a byte array
+     */
+    def serialize(obj: object) : _int8[] {
+        if (obj == null)
+            return new _int8[0];
+            
+        // Reset state
+        reset();
+        
+        // Start serialization
+        header.write_byte(SerializeConstants.SERIALIZE_START);
+        
+        // Serialize object
+        serialize_object(obj);
+        
+        // Write metadata
+        header.write_int32(references.count());
+        
+        // Write class information
+        write_class_section();
+        
+        // End serialization
+        body.write_byte(SerializeConstants.SERIALIZE_END);
+        
+        // Combine header and body into final byte array
+        result := new _int8[header.used_size() + body.used_size()];
+        memcopy(header.data, result, 0, 0, header.used_size());
+        memcopy(body.data, result, header.used_size(), 0, body.used_size());
+        
+        return result;
+    }
+    
+    /**
+     * Write the class section to the header
+     */
+    private def write_class_section() {
+        classes := classTracker.get_classes();
+        
+        header.write_byte(SerializeConstants.CLASS_SECTION_BEGIN);
+        header.write_int32(classes.size());
+        
+        for (i := 0; i < classes.size(); i++) {
+            cls := classes.get(i);
+            header.write_int32(cls.hash);
+            header.write_int32(cls.field_count);
+            header.write_byte(cls.full_name.length());
+            
+            // Write the class name
+            for (j := 0; j < cls.full_name.length(); j++) {
+                header.write_byte(cls.full_name.char_at(j));
+            }
+        }
+        
+        header.write_byte(SerializeConstants.CLASS_SECTION_END);
+    }
+    
+    /**
+     * Recursively serialize an object
+     */
+    private def serialize_object(obj: object) {
+        if (obj == null) {
+            body.write_byte(SerializeConstants.NULL_OBJECT);
+            return;
+        }
+        
+        // Check if we've already processed this object
+        if (references.has_object(obj)) {
+            // Reference to previously processed object
+            body.write_byte(SerializeConstants.REFERENCE_OBJECT);
+            body.write_int32(references.get_id(obj));
+            return;
+        }
+        
+        // Add to processed objects
+        id := references.add_object(obj);
+        
+        // Get reflection info
+        obj_info := std.reflect.reflection.get_info(obj);
+        obj_type := obj_info.get_type();
+        
+        // Serialize based on object type
+        if (obj_type.is_class()) {
+            // Class object
+            cls := obj_info.get_class();
+            
+            // Check if it's an array
+            is_array := obj_info.is_array();
+            
+            if (is_array) {
+                body.write_byte(SerializeConstants.CLASS_ARRAY_OBJECT);
+                body.write_int32(id);
+                body.write_int32(obj_info.get_array_length());
+            } else {
+                body.write_byte(SerializeConstants.CLASS_OBJECT);
+                body.write_int32(id);
+            }
+            
+            // Write class hash
+            body.write_int32(cls.hash());
+            
+            // Track class
+            classTracker.add_class(cls);
+            
+            // Serialize fields or array elements
+            if (is_array) {
+                // Array elements
+                for (i := 0; i < obj_info.get_array_length(); i++) {
+                    element := obj_info.get_array_element(i);
+                    serialize_object(element);
+                }
+            } else {
+                // Class fields
+                fields := cls.get_fields();
+                for (i := 0; i < fields.size(); i++) {
+                    field := fields.get(i);
+                    value := field.get_value(obj);
+                    serialize_object(value);
+                }
+            }
+        } 
+        else if (obj_type.is_primitive()) {
+            // Primitive type (number, etc.)
+            body.write_byte(SerializeConstants.NUMERIC_OBJECT);
+            body.write_int32(id);
+            
+            // Determine primitive type and length
+            if (obj_type.is_number()) {
+                num_size := 1;
+                
+                // Determine size based on type
+                if (obj_type.equals(double.class_type()) || obj_type.equals(long.class_type())) {
+                    num_size = 8;
+                } else if (obj_type.equals(int.class_type())) {
+                    num_size = 4;
+                } else if (obj_type.equals(short.class_type())) {
+                    num_size = 2;
+                }
+                
+                body.write_int32(1); // Always single value for now
+                body.write_byte(obj_type.get_code());
+                
+                // Write the value based on type
+                if (obj_type.equals(double.class_type())) {
+                    body.write_double(obj as double);
+                } else if (obj_type.equals(long.class_type())) {
+                    body.write_int64(obj as long);
+                } else if (obj_type.equals(int.class_type())) {
+                    body.write_int32(obj as int);
+                } else if (obj_type.equals(short.class_type())) {
+                    body.write_int32(obj as short);
+                } else if (obj_type.equals(byte.class_type())) {
+                    body.write_byte(obj as byte);
+                }
+            }
+            else if (obj_type.equals(string.class_type())) {
+                // Strings are handled as byte arrays
+                str := obj as string;
+                body.write_int32(str.length());
+                body.write_byte(obj_type.get_code());
+                
+                for (i := 0; i < str.length(); i++) {
+                    body.write_byte(str.char_at(i));
+                }
+            }
+        }
+        else {
+            // Standard object (not a class or primitive)
+            body.write_byte(SerializeConstants.STANDARD_OBJECT);
+            body.write_int32(id);
+            
+            // For now, we consider it has no fields
+            body.write_int32(0);
+        }
+    }
+}

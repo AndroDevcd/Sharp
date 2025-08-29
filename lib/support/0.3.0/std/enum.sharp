@@ -1,0 +1,52 @@
+mod std;
+
+import (
+    std.io
+)
+
+/**
+ * Created by braxtonn on 11/19/2019.
+ *
+ * This class acts as the base level
+ * support class for enums in the language.
+ * This class provides  core functionality and is
+ * required to compile you sharp program if you utilize
+ * enums.
+ */
+stable ext class _enum_ {
+    public name : _int8[]?;
+        private set value -> { name = value; }
+    public ordinal : var;
+        private set value -> { ordinal = value; }
+
+    _enum_(n: _int8[], ord : var) {
+        ordinal = ord;
+        name = n;
+    }
+
+    _enum_(e : _enum_) {
+        ordinal = e.ordinal;
+        name = copy(e.name!!, 0, sizeof(e.name));
+    }
+
+    // TODO: add <, > and other math operators for enums and vars
+    def operator!=(e : _enum_) : bool {
+        return ordinal!=e.ordinal;
+    }
+
+    def operator!=(num : int) : bool {
+        return ordinal!=num.value;
+    }
+
+    def operator==(e : _enum_) : bool {
+        return ordinal==e.ordinal;
+    }
+
+    def operator==(num : int) : bool {
+        return ordinal==num.value;
+    }
+
+    override def to_string() : string {
+        return name;
+    }
+}

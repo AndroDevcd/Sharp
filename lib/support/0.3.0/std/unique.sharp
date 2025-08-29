@@ -1,0 +1,13 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 9/2/2022.
+ *
+ * Unique serves as a way to uniquely
+ * identify your objects whether it be through a hash value or
+ * a ever-changing unique id
+ */
+interface unique {
+    def hash() : int;
+    def guid() : int;
+}

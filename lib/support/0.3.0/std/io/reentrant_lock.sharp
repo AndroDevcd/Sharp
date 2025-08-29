@@ -1,0 +1,40 @@
+mod std.io;
+
+import (
+    std.io.fiber
+)
+
+/**
+* Created by bknun on 4/23/2023
+* 
+* @class recursive_lock
+*
+* Description:
+* Allows for recursive licks on objects
+*/
+class reentrant_lock {
+    private data: _object_;
+    private recursiveLocks: var;
+    private fib: fiber? = null;
+
+    reentrant_lock(data: _object_) {
+        self->data = data;
+    }
+
+    def enter() {
+        data.lock_object();
+        recursiveLocks++;
+        fib = fiber.current();
+    }
+
+    def exit() {
+        if(recursiveLocks >= 1 && fib == fiber.current()) {
+            recursiveLocks--;
+
+            if(recursiveLocks == 0) {
+                fib = null;
+                data.unlock_object();
+            }
+        }
+    }
+}

@@ -10,7 +10,6 @@
 #ifdef WIN32_
 
 #include "../../../runtime/List.h"
-#include "../../../runtime/symbols/string.h"
 #include <Windows.h>
 #include <vector>
 #include <mutex>
@@ -72,7 +71,7 @@ struct Window {
 class Gui {
 public:
     int setupMain();
-    wnd_id createDefaultWindow(native_string winName, native_string winTitle, long width, long height);
+    wnd_id createDefaultWindow(std::string winName, std::string winTitle, long width, long height);
 
     int show(wnd_id wnd, int cmd);
     _Message getMessage(wnd_id wnd);

@@ -1,0 +1,25 @@
+mod std.io.coroutines.observable;
+
+import (
+    std.io
+);
+
+/**
+* Created by bknun on 6/18/2023
+* 
+* @class observer
+*
+* Description:
+*
+*/
+class observer<t> {
+    callback: (observer<t>, t?)();
+    on_thread: thread?;
+    listener: receiver<t>;
+
+    observer(l: receiver<t>, fun: (observer<t>, t?)(), th: thread?) {
+        callback = fun;
+        on_thread = th;
+        listener = l;
+    }
+}

@@ -1,6 +1,8 @@
 mod main;
 
-import frontend.json;
+import (
+   frontend.json
+)
 
 settings_file_name : string = "settings.json";
 project_name : string = "";
@@ -183,9 +185,9 @@ def process_settings() {
 
          if((member = obj["target_api"]) != null) {
             require_type(member, jtype_string);
-            add_library_files(member.value.string_value);
+            set_target_platform(member.value.string_value);
          } else
-            add_library_files(program_vers);
+            set_target_platform(program_vers);
       } else {
          settings_error("format is incorrect, initial type must be of type object");
       }

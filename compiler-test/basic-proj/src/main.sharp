@@ -1,0 +1,6 @@
+mod main;
+
+def main() {
+  println("hello, world!");
+  tokens.add(new token(")", token_id._single, token_type.right_paren, col, line));
+}

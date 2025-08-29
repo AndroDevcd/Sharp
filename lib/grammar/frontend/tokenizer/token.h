@@ -9,6 +9,8 @@
 #include "../../../../stdimports.h"
 #include "tokentype.h"
 
+class json_value;
+
 enum token_id
 {
     IDENTIFIER=0,
@@ -55,6 +57,28 @@ public:
             line(0)
     {
     }
+
+    Token(const Token &t)
+            :
+            tok(t.tok),
+            type(t.type),
+            id(t.id),
+            col(t.col),
+            line(t.line)
+    {
+    }
+
+    Token(json_value *jv)
+            :
+            tok(""),
+            type(NONE),
+            id(NOENTITY),
+            col(0),
+            line(0)
+    {
+        importData(jv);
+    }
+
     ~Token()
     {
         tok.clear();
@@ -90,6 +114,9 @@ public:
         return this->tok != s;
     }
 
+    json_value* exportData();
+    void importData(json_value*);
+
     token_id getId();
     void setId(token_id id);
     string &getValue();
@@ -99,8 +126,8 @@ public:
     token_type getType();
 
 private:
-    int line;
-    int col;
+    Int line;
+    Int col;
     token_id id;
     token_type type;
     string tok;

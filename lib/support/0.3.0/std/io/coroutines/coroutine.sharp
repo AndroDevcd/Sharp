@@ -1,0 +1,61 @@
+mod std.io.coroutines;
+
+launcher : job_master = new job_master();
+
+def finish() {
+    throw new cancellation_exception();
+}
+
+class coroutine {
+    static def schedule(future : long) : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder.schedule(future);
+    }
+
+    static def with_name(job_name : string) : coroutine_builder {
+        scheduled_job := launcher.create_job(job_name);
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder.with_name(job_name);
+    }
+
+    static def with_tag(tag_id : int) : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder.with_tag(tag_id);
+    }
+
+    static def with_args(args : object[]) : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder.with_args(args);
+    }
+
+	static def recurring(tm : long, interval: time_unit) : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder.recurring(tm, interval);
+	}
+
+	static def block() : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+		return builder.block();
+	}
+
+	static def long_term() : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+		return builder.long_term();
+	}
+
+    static def builder() : coroutine_builder {
+        scheduled_job := launcher.create_job();
+        builder := new coroutine_builder(scheduled_job, launcher);
+        return builder;
+    }
+
+	public static def cancel_all_jobs_by_name(tag_id: int) {
+	   launcher.cancel_jobs_by_tag(tag_id);
+	}
+}

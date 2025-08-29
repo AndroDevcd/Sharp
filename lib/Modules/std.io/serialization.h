@@ -1,30 +1,62 @@
 //
 // Created by BNunnally on 9/14/2020.
+// Optimized by Claude on 3/26/2025
+// Further performance optimizations by Claude on 4/4/2025
 //
 
 #ifndef SHARP_SERIALIZATION_H
 #define SHARP_SERIALIZATION_H
 
-#include "../../runtime/symbols/Object.h"
+#include "../../runtime/memory/sharp_object.h"
 
-#define EXPORT_VERS 1
-#define EXPORT_SECRET 0x20
-#define EXPORT_DATA 0x5F
-#define EXPORT_FIELD 0xD
-#define EXPORT_CLASS 0x2B
-#define EXPORT_END 0x2E
-#define EXPORT_EMPTY 0x6C
-#define EXPORT_REFERENCE 0x4B
-#define DATA_END 0x0
-#define DATA_SIZE 0xca
+#define BUFFER_ALLOC_CHUNK_SIZE_STANDARD KB_TO_BYTES(24)
+#define BUFFER_ALLOC_CHUNK_SIZE_LARGE MB_TO_BYTES(2)
+#define SERIALIZE_START (0x3b)
+#define SERIALIZE_END (0x3d)
+#define REFERENCE_OBJECT (0xf)
+#define DATA_BEGIN (0xe)
+#define DATA_END (0x2e)
+#define CLASS_SECTION_BEGIN (0x002)
+#define CLASS_SECTION_END (0x1c)
+#define NULL_OBJECT (0x008)
+#define OBJECT_ID_START (0x0)
+#define STANDARD_OBJECT (0x009)
+#define NUMERIC_OBJECT (0x3a)
+#define CLASS_OBJECT (0x1a)
+#define CLASS_ARRAY_OBJECT (0x1b)
 
-#define STREAM_SIZE_START KB_TO_BYTES(250) // 16Mb limit per object
-#define STREAM_SIZE_MAX MB_TO_BYTES(16)
-#define STREAM_SIZE_ALLOC_CHUNK KB_TO_BYTES(50)
+struct serialize_buffer_t
+{
+    char *buf = nullptr;
+    int32_t size = 0;
+    int32_t pos = -1;
+};
 
-extern recursive_mutex exportMutex;
-string export_obj(SharpObject* obj);
-void import_obj(SharpObject* obj);
-void cleanup();
+struct deserialize_buffer_t
+{
+    long double *buf = nullptr;
+    int32_t size = 0;
+    int32_t pos = -1;
+    sharp_object **references = nullptr;
+};
+
+struct serialized_classes_t
+{
+    sharp_class **serialized = nullptr;
+    int32_t size = 0;
+    int32_t count = 0;
+};
+
+// Main serialization functions
+void serialize(object *from, object *to);
+void deserialize(object *from, object *to);
+
+// Helper functions for buffer management
+void init_serialization();
+void reset_serialization_state();
+void clean_serialization_resources();
+
+// For debugging and profiling
+void print_serialization_stats();
 
 #endif //SHARP_SERIALIZATION_H

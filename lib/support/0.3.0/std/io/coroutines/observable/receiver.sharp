@@ -1,0 +1,20 @@
+mod std.io.coroutines.observable;
+
+import (
+    std.io
+);
+
+/**
+* Created by bknun on 6/18/2023
+* 
+* @class receiver
+*
+* Description:
+*
+*/
+interface receiver<t> {
+	public def observe(on_update: (observer<t>, t?)()): observer<t>;
+	public def observe_on(on_update: (observer<t>, t?)(), t: thread): observer<t>;
+	public def dispose(o: observer<t>);
+	public def get_data() : t?;
+}

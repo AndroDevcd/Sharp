@@ -1,7 +1,9 @@
 mod main;
 
-import std.io.task; // import the task scheduling api
-import std.io; // import the standard threading api
+import (
+    std.io.task, // import the task scheduling api
+    std.io // import the standard threading api
+)
 
 /**
  *

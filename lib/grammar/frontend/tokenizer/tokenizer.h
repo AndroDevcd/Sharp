@@ -14,17 +14,24 @@
 class tokenizer
 {
 public:
-    tokenizer(const string tokens, const string file)
+    tokenizer(const string tokens, const string file,
+            bool dynamicStrings = true)
             :
             toks(""),
             empty(""),
+            errors(NULL),
+            EOF_token(NULL),
             len(tokens.size()),
             cursor(0),
+            start(0),
             col(0),
             line(1),
             file(file),
+            printTokens(false),
             dynamicString(false),
-            brackets(0)
+            brackets(0),
+            is_end(false),
+            dynamicStringSupport(dynamicStrings)
     {
         this->tokens.init();
         lines.init();
@@ -39,6 +46,11 @@ public:
         }
 
         parse();
+        print();
+    }
+
+    ~tokenizer() {
+        free();
     }
 
     unsigned long getEntityCount();
@@ -50,15 +62,21 @@ public:
 
     string file;
     Token* EOF_token;
+    bool dynamicStringSupport;
     void free();
 
     static string tokenTypeToString(token_type);
+    static string tokenIdToString(token_id id);
+    static string from_escaped_string(string msg);
+    static string to_escaped_string(string msg);
 
 private:
     void parse();
     void parse_lines();
     bool ismatch(char i, char current);
-    string get_escaped_string(string msg) const;
+    bool match(char current);
+    void add_token(token_id id);
+    void add_token(token_type type);
 
     List<Token> tokens;
     ErrorManager* errors;
@@ -67,14 +85,20 @@ private:
     const char* data;
     uInt len;
     uInt cursor;
+    uInt start;
     int line;
     int col;
+    unsigned char current;
+    bool is_end;
     bool dynamicString;
     long brackets;
-
-    CXX11_INLINE void saveString(const stringstream &message, bool escaped_found);
+    bool printTokens;
 
     CXX11_INLINE void parseIdentifier();
+    bool parseString();
+    void parseChar();
+    void parseNumber();
+    void print();
 };
 
 #endif //SHARP_TOKENIZER_H

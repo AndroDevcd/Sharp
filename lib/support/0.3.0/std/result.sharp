@@ -1,0 +1,24 @@
+mod std;
+
+/**
+* Created by bknun on 9/3/2022
+* 
+* @class result
+*
+* Description:
+* This class serves as a data class to hold the result of
+* a particular computation with possible error information
+*/
+class result<T, E> {
+    data : T;
+	error : E?;
+
+	is_success : bool; // todo: when enforcing non null value setting if a getter is provided we dont need to set the initial value so long as we dont access the field in the getter before its initialized
+	    get return error == null;
+	    private set v -> {}
+
+	public result(data: T, err: E) {
+	   self->data = data;
+	   self->error = err;
+	}
+}

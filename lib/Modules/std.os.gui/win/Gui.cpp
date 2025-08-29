@@ -26,7 +26,7 @@ void Gui::shutdown() {
     windows.free();
 }
 
-wnd_id Gui::createDefaultWindow(native_string winName, native_string winTitle, long width, long height) {
+wnd_id Gui::createDefaultWindow(std::string winName, std::string winTitle, long width, long height) {
     WNDCLASSEX wcex;
     HINSTANCE hInstance = (HINSTANCE)GetModuleHandle(NULL);
     memset(&wcex,0,sizeof(wcex));
@@ -49,8 +49,8 @@ wnd_id Gui::createDefaultWindow(native_string winName, native_string winTitle, l
         return -1;
     }
 
-    string name = string(winName.chars, winName.len);
-    string title = string(winTitle.chars, winTitle.len);
+    string name = string(winName.c_str(), winName.size());
+    string title = string(winTitle.c_str(), winTitle.size());
     HWND hWnd = CreateWindow(
             _T(defaultWindowClass),
             _T(title.c_str()),
@@ -220,8 +220,11 @@ void Gui::winGuiIntf(long long proc) {
 
             if(name && title) {
 
-                _64CMT = createDefaultWindow(native_string(name->HEAD, name->size),
-                        native_string(title->HEAD, title->size), _64ECX, _64EGX);
+                string _name, _title;
+                populateString(_name, name->HEAD, name->size);
+                populateString(_title, title->HEAD, title->size);
+
+                _64CMT = createDefaultWindow(_name, _title, _64ECX, _64EGX);
             } else _64CMT = GUI_ERR;
             break;
         }
@@ -244,7 +247,7 @@ void Gui::winGuiIntf(long long proc) {
         default: {
             // unsupported
             stringstream ss;
-            ss << "unsupported signal to gui pipe: " << signal;
+            ss << "unsupported signal to gui pipe: " << proc;
             throw Exception(ss.str());
         }
     }
@@ -256,8 +259,9 @@ void Gui::winPaint(long long proc) {
         case _pt_text: {
             SharpObject* str = (self->this_fiber->sp--)->object.object;
             if(str) {
-                native_string msg(str->HEAD, str->size);
-                string wMsg = msg.str();
+                std::string msg;
+                populateString(msg, str->HEAD, str->size);
+                string wMsg = msg;
                 TextOut(ctx->hdc,
                         (int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var,
                         wMsg.c_str(), _tcslen(wMsg.c_str()));
@@ -350,7 +354,7 @@ void Gui::winPaint(long long proc) {
         default: {
             // unsupported
             stringstream ss;
-            ss << "unsupported signal to gui-pt pipe: " << signal;
+            ss << "unsupported signal to gui-pt pipe: " << proc;
             throw Exception(ss.str());
         }
     }

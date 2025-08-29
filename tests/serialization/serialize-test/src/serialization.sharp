@@ -1,0 +1,179 @@
+mod serialization;
+
+import (
+    std.reflect
+)
+
+localized body: output_buffer = new output_buffer();
+localized header: output_buffer = new output_buffer();
+localized references := new list<object>();
+localized classes := new hash_map<_class_, _nil>();
+
+/**
+ * Constants for serialization
+ */
+enum SerializeConstants {
+    SERIALIZE_START = 0x3b,
+    SERIALIZE_END = 0x3d,
+    REFERENCE_OBJECT = 0xf,
+    DATA_BEGIN = 0xe,
+    DATA_END = 0x2e,
+    CLASS_SECTION_BEGIN = 0x002,
+    CLASS_SECTION_END = 0x1c,
+    NULL_OBJECT = 0x008,
+    OBJECT_ID_START = 0x0,
+    STANDARD_OBJECT = 0x009,
+    NUMERIC_OBJECT = 0x3a,
+    CLASS_OBJECT = 0x1a,
+    CLASS_ARRAY_OBJECT = 0x1b
+}
+
+def reset_state() {
+    body.reset();
+    header.reset();
+    references.clear();
+    classes.clear();
+}
+
+def serialize_primitive(data: object) {
+    if(data is _object_) {
+        if(data is bool) {
+            body.write_byte((data as bool).value);
+        } else if(data is short) {
+            body.write_int32((data as short).value);
+        } else if(data is short) {
+            body.write_int32((data as short).value);
+        } else if(data is ushort) {
+            body.write_int32((data as ushort).value);
+        } else if(data is byte) {
+            body.write_int32((data as byte).value);
+        } else if(data is int) {
+            body.write_int32((data as int).value);
+        } else if(data is long) {
+            body.write_int64((data as long).value);
+        } else if(data is ulong) {
+            body.write_int32((data as ulong).value);
+        }
+    } else {
+        if(data is _int8[]) {
+            value := data as _int8[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_byte(value[i]);
+            }
+        } else if(data is _int16[]) {
+            value1 := data as _int16[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_int32(value1[i]);
+            }
+        } else if(data is _int32[]) {
+            value2 := data as _int32[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_int32(value2[i]);
+            }
+        } else if(data is _int64[]) {
+            value3 := data as _int64[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_int64(value3[i]);
+            }
+        } else if(data is _uint8[]) {
+            value4 := data as _uint8[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_byte(value4[i]);
+            }
+        } else if(data is _uint16[]) {
+            value5 := data as _uint16[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_int32(value5[i]);
+            }
+        } else if(data is _uint32[]) {
+            value6 := data as _uint32[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_int32(value6[i]);
+            }
+        } else if(data is _uint64[]) {
+            value7 := data as _uint64[];
+            for(i := 0; i < sizeof(data); i++) {
+                body.write_int64(value7[i]);
+            }
+        }
+    }
+}
+
+def serialize_object(o: object?) {
+    if (o == null) {
+        body.write_byte(NULL_OBJECT.ordinal);
+        return;
+    }
+
+    id := references.indexof(o!!);
+    if(id != -1) {
+        // Reference to previously processed object
+        body.write_byte(REFERENCE_OBJECT.ordinal);
+        body.write_int32(id);
+        return;
+    }
+
+    id = references.size();
+    references.add(o!!);
+
+    description := describe(o)!!;
+
+    if(description.is_class()) {
+        if(description.is_array) {
+            body.write_byte(CLASS_ARRAY_OBJECT.ordinal);
+        } else {
+            body.write_byte(CLASS_OBJECT.ordinal);
+        }
+
+        body.write_int32(id);
+
+        if(description.is_array) {
+            body.write_int32(sizeof(o));
+        }
+
+        sc := description.type.type_class!!;
+        body.write_int32(sc!!.hash);
+        classes.put(sc, nothing);
+
+        for(i := 0; i < sizeof(sc!!.fields); i++) {
+            field := sc!!.fields[i];
+
+            if(field.type.type <= _type_var) {
+                // serialize raw value
+                serialize_primitive(field.get_value(o as _object_)!!.data);
+            } else {
+                serialize_object(field.get_value(o as _object_)!!.data);
+            }
+        }
+    }
+    else if(description.is_object()) {
+        body.write_byte(STANDARD_OBJECT.ordinal);
+        body.write_int32(id);
+        body.write_int32(sizeof(o));
+
+        data := o as object[];
+        for(i := 0; i < sizeof(data); i++) {
+            serialize_object(data[i]);
+        }
+    }
+    else if(description.is_primitive()) {
+        body.write_byte(NUMERIC_OBJECT.ordinal);
+        body.write_int32(id);
+        body.write_int32(sizeof(o));
+        body.write_byte(description.type.type.value);
+
+        serialize_primitive(o);
+    }
+}
+
+def __serialize__(o: object?): _int8[]? {
+    if(o == null) {
+        return null;
+    }
+
+    reset_state();
+    header.write_byte(SERIALIZE_START.ordinal);
+    serialize_object(o);
+
+    return null;
+}

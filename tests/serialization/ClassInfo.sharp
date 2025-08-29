@@ -1,0 +1,111 @@
+mod serialization;
+
+import (
+    std,
+    std.io,
+    std.reflect
+)
+
+/**
+ * Holds information about a serialized class
+ */
+class ClassInfo {
+    // Class reflection data
+    class_type: std.reflect.class;
+    
+    // Hash code of the class (for verification)
+    hash: int;
+    
+    // Full name of the class
+    full_name: string;
+    
+    // Field count
+    field_count: int;
+    
+    ClassInfo(cls: std.reflect.class) {
+        class_type = cls;
+        hash = cls.hash();
+        full_name = cls.get_full_name();
+        field_count = cls.get_fields().size();
+    }
+    
+    /**
+     * Check if this class equals another class info
+     */
+    def equals(other: ClassInfo) : bool {
+        if (other == null)
+            return false;
+            
+        return hash == other.hash && 
+               full_name == other.full_name && 
+               field_count == other.field_count;
+    }
+}
+
+/**
+ * Manages class information during serialization/deserialization
+ */
+class ClassTracker {
+    private classMap: std.hash_map<int, ClassInfo>;
+    private classList: std.list<ClassInfo>;
+    
+    ClassTracker() {
+        classMap = new std.hash_map<int, ClassInfo>();
+        classList = new std.list<ClassInfo>();
+    }
+    
+    /**
+     * Checks if a class has already been tracked
+     */
+    def has_class(hash: int) : bool {
+        return classMap.contains_key(hash);
+    }
+    
+    /**
+     * Gets class info by hash
+     */
+    def get_class(hash: int) : ClassInfo? {
+        if (!has_class(hash))
+            return null;
+            
+        return classMap.get(hash);
+    }
+    
+    /**
+     * Registers a new class in the tracker
+     */
+    def add_class(cls: std.reflect.class) : ClassInfo {
+        hash := cls.hash();
+        
+        if (has_class(hash))
+            return classMap.get(hash);
+            
+        info := new ClassInfo(cls);
+        classMap.put(hash, info);
+        classList.add(info);
+        
+        return info;
+    }
+    
+    /**
+     * Gets the number of tracked classes
+     */
+    def count() : int {
+        return classList.size();
+    }
+    
+    /**
+     * Gets the list of tracked classes
+     */
+    def get_classes() : std.list<ClassInfo> {
+        return classList;
+    }
+    
+    /**
+     * Resets the tracker state
+     */
+    def reset() {
+        classMap.clear();
+        classList.clear();
+    }
+}

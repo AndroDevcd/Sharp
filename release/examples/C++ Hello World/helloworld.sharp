@@ -1,6 +1,8 @@
 mod main;
 
-import platform;
+import (
+    platform
+)
 
 native def print_message();
 

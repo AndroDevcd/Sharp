@@ -1,0 +1,42 @@
+mod std;
+
+import (
+    std.io,
+    platform.kernel
+)
+
+/**
+* Created by bknun on 9/4/2022
+* 
+* @class object
+*
+* Description:
+*
+*/
+stable class _object_ : printable, unique {
+
+    public override def to_string() : string? = null;
+
+    def lock_object() {
+        vm.lock_object(self);
+    }
+
+    def unlock_object() {
+        vm.unlock_object(self);
+    }
+
+    def equals(obj: _object_) := (self as object) == (obj as object);
+
+    override def hash() : int {
+        /* must be implemented at a higher level */
+        return 1;
+    }
+
+    override def guid() : int {
+        return global_guid++;
+    }
+}
+
+// we dont want to bloat up our objects so we put this variable outside the object class
+local global_guid := new atomic<int>(0);
+

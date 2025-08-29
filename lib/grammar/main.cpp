@@ -1,194 +1,178 @@
 //
-// Created by BraxtonN on 10/6/2019.
+// Created by BNunnally on 8/26/2021.
 //
+
 
 #include <cmath>
 #include <sys/stat.h>
 #include <dirent.h>
-#include "main.h"
+#include <unistd.h>
 #include "frontend/tokenizer/tokenizer.h"
-#include "frontend/parser/Parser.h"
-#include "backend/Compiler.h"
-#include "../runtime/symbols/string.h"
 #include "../util/zip/zlib.h"
+#include "../util/File.h"
+#include "settings/settings.h"
+#include "settings/settings_processor.h"
+#include "sharp_file.h"
+#include "taskdelegator/task_delegator.h"
+#include "../util/time.h"
+#include "backend/finalizer/finalizer.h"
 
-
-/**
- * This array represents the map of all the warning types that are enabled/disabled
- * once a warning is fired it will refrence this map to check if it should fired
- *
- * all warnings will always be enabled by default
- */
-bool warning_map[] = {
-        true,    // general warnings
-        true,    // waccess
-        true,   // wambig
-        true,   // wdecl
-        true,   // wmain
-        true,   // wcast
-        true    // winit
-};
-
-options c_options;
-int compile(List<native_string>&);
-
-bool ends_with(std::string value, std::string ending)
-{
-    if (ending.size() > value.size()) return false;
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
-struct stat result;
-void get_full_file_list(native_string &path, List<native_string> &files) {
-    DIR *dir;
-    struct dirent *ent;
-    if ((dir = opendir (path.str().c_str())) != NULL) {
-        /* print all the files and directories within directory */
-        while ((ent = readdir (dir)) != NULL) {
-            if (!ent->d_name || ent->d_name[0] == '.') continue;
-            native_string file;
-            file = path.str() + "/" + string(ent->d_name);
-
-            if(stat(file.str().c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
-                native_string folder(file.str() + "/");
-                get_full_file_list(folder, files);
-                continue;
-            }
-
-            if(ends_with(file.str(), ".sharp")) {
-                files.__new().init();
-                files.last() = file;
-            }
-        }
-        closedir (dir);
-    } else {
-        /* could not open directory */
-        cout << "warning: could not find library files in path `" << path.str() << "`" << endl;
-    }
-}
+int compile();
 
 void help() {
-    cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)" << std::endl;
-    cout << "Source file must have a .sharp extion to be compiled.\n" << endl;
-    cout << "[-options]\n\n    -V                print compiler version and exit"                       << endl;
-    cout <<               "    -showversion      print compiler version and continue"                   << endl;
-    cout <<               "    -o<file>          set the output object file"                            << endl;
-    cout <<               "    -c                compile only and do not generate exe"                  << endl;
-    cout <<               "    -a                enable aggressive error reporting"                     << endl;
-    cout <<               "    -s                strip debugging info and unused classes"               << endl;
-    cout <<               "    -O                optimize the output code"                              << endl;
-    cout <<               "    -obf              obfuscate user code"                                   << endl;
-    cout <<               "    -L<path>          library directory path"                                << endl;
-    cout <<               "    -w                disable all warnings"                                  << endl;
-    cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;
-    cout <<               "    -v<version>       set the application version"                           << endl;
-    cout <<               "    -unsafe -u        allow unsafe code"                                     << endl;
-    cout <<               "    -nativedir -nd <dir> set output native code directory"                   << endl;
-    cout <<               "    -target           target the specified platform of sharp to run on"      << endl;
-    cout <<               "    -release -r       generate a release build exe"                          << endl;
-    cout <<               "    --hw              display help message for warning options"              << endl;
-    cout <<               "    --h -?            display this help message"                             << endl;
+    cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)"                                                     << endl;
+    cout << "Source file must have a .sharp extension to be compiled.\n"                                       << endl;
+    cout << "[-options]\n\n    -V                   print compiler version and exit"                           << endl;
+    cout <<               "    -showversion         print compiler version and continue"                       << endl;
+    cout <<               "    -o<file>             set the output object file"                                << endl;
+    cout <<               "    -c                   compile only and do not generate exe"                      << endl;
+    cout <<               "    -a                   enable aggressive error reporting"                                << endl;
+    cout <<               "    -L<path>             library directory path"                                    << endl;
+    cout <<               "    -j<amount>           specify how many threads to run compiler"                  << endl;
+    cout <<               "    -w                   disable all warnings"                                      << endl;
+    cout <<               "    -g -green            run compiler in \"green\" mode to consume less power"      << endl;
+    cout <<               "    -dbg -debug          enables debugging in source code (enabled by default)"     << endl;
+    cout <<               "    -ignoredir<dir>      include a directory to ignore"                             << endl;
+    cout <<               "    -nativedir -nd <dir> set output native code directory"                          << endl;
+    cout <<               "    -ignore<file>        include a file to ignore"                                  << endl;
+    cout <<               "    -p                   enable project mode compilation"                           << endl;
+    cout <<               "    -obf                 obfuscate user code"                                       << endl;
+    cout <<               "    -P<path>             enable project mode compilation on a specific path"        << endl;
+    cout <<               "    --new-project<name>  create a new sharp project"                                << endl;
+    cout <<               "    -errlmt<count>       set max errors the compiler allows before quitting"        << endl;
+    cout <<               "    -v<version>          set the application version"                               << endl;
+    cout <<               "    -target              target the specified platform of sharp to run on"          << endl;
+    cout <<               "    -release -r          generate a release build exe"                              << endl;
+    cout <<               "    --hw                 display help message for warning options"                  << endl;
+    cout <<               "    --h -?               display this help message"                                 << endl;
 }
 
 void help_warn() {
-    cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)" << std::endl;
-    cout << "Source file must have a .sharp extion to be compiled.\n" << endl;
-    cout << "Please note that not all warnings will be able to be disabled individually.\n" << endl;
-    cout << "[-options]\n\n    -w                disable all warnings"                                  << endl;
-    cout <<               "    -winit            disable class initialization warnings"                 << endl;
-    cout <<               "    -waccess          disable access modifier warnings (public, static, etc.)" << endl;
-    cout <<               "    -wambig           disable ambiguous symbol warnings"                     << endl;
-    cout <<               "    -wdecl            disable object declaration warnings"                   << endl;
-    cout <<               "    -wmain            disable multiple main method warnings"                 << endl;
-    cout <<               "    -wcast            disable type cast warnings"                            << endl;
-    cout <<               "    -werror           enable warnings as errors"                             << endl;
-    cout <<               "    --hw              display this help message"                             << endl;
+    cout << "Usage: sharpc {OPTIONS} SOURCE FILE(S)"                                                       << endl;
+    cout << "Source file must have a .sharp extion to be compiled.\n"                                      << endl;
+    cout << "Please note that general warnings can only be disabled via disabling all warnings.\n"                << endl;
+    cout << "[-options]\n\n    -w                disable all warnings"                                     << endl;
+    cout <<               "    -winit            disable class initialization warnings"                    << endl;
+    cout <<               "    -waccess          disable access modifier warnings (public, static, etc.)"  << endl;
+    cout <<               "    -wambig           disable ambiguous symbol warnings"                        << endl;
+    cout <<               "    -wdecl            disable object declaration warnings"                      << endl;
+    cout <<               "    -wmain            disable multiple main method warnings"                    << endl;
+    cout <<               "    -wcast            disable type cast warnings"                               << endl;
+    cout <<               "    -wnull            disable null/nullable type warnings"                               << endl;
+    cout <<               "    -wdep             disable dependency injection warnings"                    << endl;
+    cout <<               "    -werror           enable warnings as errors"                                << endl;
+    cout <<               "    --hw              display this help message"                                << endl;
 }
 
-void error(string message) {
-    cout << "sharpc:  error: " << message << endl;
-    exit(1);
-}
+void create_project() {
+    string dir = options.new_project_dir;
+    options.project_name = File::name(dir);
+    string div;
 
-void printVersion() {
-    cout << progname << " " << progvers;
-}
+#ifdef __WIN32
+    div = "\\";
+#else
+    div = "/";
+#endif
 
-std::string to_lower(string s) {
-    string newstr = "";
-    for(char c : s) {
-        newstr += tolower(c);
+    if(File::exists(dir.c_str())) {
+        cout << "could not create project, a " << ((File::getFileAttrs(dir) & FILE_DIRECTORY) ? "directory" : "file") << " with the name " << dir << " already exists!" << endl;
+        exit(1);
     }
-    return newstr;
-}
 
-bool all_integers(string int_string) {
-    for(char c : int_string) {
-        if(!isdigit(c))
-            return false;
+    if(File::makeDir(dir) != 0) {
+        cout << "failed to create project directory: " << dir << endl;
+        exit(1);
     }
-    return true;
-}
 
-bool startsWith(string &str, string prefix)
-{
-    if(prefix.size() > str.size())
-        return false;
+    // project files
+    string srcDir = dir + div + "src";
+    string buildDir = dir + div + "build";
+    string outputsDir = dir + div + "build" + div + "outputs";
+    string main_file = dir + div + "src" + div + "main.sharp";
+    string settings_file = dir + div + SETTINGS_FILE;
 
-    long index = 0;
-    for(char ch : prefix) {
-        if(ch != str.at(index++))
-            return false;
+    // template files
+    string main_template_file;
+    string settings_template_file;
+
+    if(File::makeDir(srcDir) || File::makeDir(buildDir)
+        || File::makeDir(outputsDir)) {
+        cout << "failed to create all necessary directories for project: " << options.project_name << endl;
+        exit(1);
     }
-    return true;
+
+#ifdef __WIN32
+    main_template_file = "C:\\Program Files\\Sharp\\proj-template\\main.sharp";
+    settings_template_file = "C:\\Program Files\\Sharp\\proj-template\\"; settings_template_file += SETTINGS_FILE;
+#else
+    main_template_file = "/usr/include/sharp/proj-template/main.sharp";
+    settings_template_file = "/usr/include/sharp/$settings_file_name";
+#endif
+
+    string data;
+    File::buffer out;
+    if(File::exists(main_template_file.c_str())) {
+        File::read_alltext(main_template_file.c_str(), out);
+        data = out.to_str();
+        out.end();
+    } else {
+        data = "mod main;\n\ndef main() {\n  println(\"hello, world!\");\n}\n";
+    }
+
+    if(File::write(main_file.c_str(), data) != 0) {
+        cout << "failed to create the main file for project: " << dir << endl;
+        exit(1);
+    }
+
+    if(File::exists(settings_template_file.c_str())) {
+        File::read_alltext(settings_template_file.c_str(), out);
+        data = out.to_str();
+        out.end();
+    } else {
+        data = "{\n  \"name\": \"" + options.project_name + "\",\n  \"version\": \"1.0\",\n  \"output\": \"" + options.project_name + "\",\n"
+               + "  \"ignore_folders\": [\n     \"build\"\n  ]\n}\n";
+    }
+
+    if(File::write(settings_file.c_str(), data) != 0) {
+        cout << "failed to create the main file for project: " + options.project_name << endl;
+        exit(1);
+    }
+
+    cout << "Project: \"" << options.project_name << "\" successfully created!" << endl;
 }
 
-int _bootstrap(int argc, const char* argv[])
+int _bootstrap(int argc, const char* args[])
 {
     if(argc < 2) {
         help();
         return 1;
     }
 
-
-    initalizeErrors();
-    List<native_string> files;
     for (int i = 1; i < argc; ++i) {
         args_:
-        string arg(argv[i]);
+        string arg(args[i]);
         if(opt("-a")){
-            c_options.aggressive_errors = true;
+            enable_show_all_errors(true);
         }
         else if(opt("-c")){
-            c_options.compile = true;
+            enable_compile_only(true);
         }
         else if(opt("-o")){
             if(i+1 >= argc)
                 error("output file required after option `-o`");
             else
-                c_options.out = string(argv[++i]);
-        }
-        else if(opt("-nativedir") || opt("-nd")){
-            if(i+1 >= argc)
-                error("output directory required after option `" + arg + "`");
-            else
-                c_options.nativeCodeDir  = string(argv[++i]);
+                set_output_file(string(args[++i]));
         }
         else if(opt("-L")){
             if(i+1 >= argc)
                 error("library directory required after option `-L`");
             else
-                c_options.libraries.add(string(argv[++i]));
+                add_library_path(string(args[++i]));
         }
         else if(opt("-V")){
             printVersion();
             exit(0);
-        }
-        else if(opt("-O")){
-            c_options.optimize = true;
-        }
-        else if(opt("-obf")){
-            c_options.obfuscate = true;
         }
         else if(opt("--h") || opt("-?")){
             help();
@@ -199,19 +183,23 @@ int _bootstrap(int argc, const char* argv[])
             exit(0);
         }
         else if(opt("-R") || opt("-release")){
-            c_options.optimize = true;
-            c_options.debug = false;
-            c_options.strip = true;
-        }
-        else if(opt("-s")){
-            c_options.strip = true;
-            c_options.debug = false;
+            enable_app_debugging(false);
         }
         else if(opt("-magic")){
-            c_options.magic = true;
+            enable_magic_mode(true);
         }
-        else if(opt("-debug")) {
-            c_options.debugMode = true;
+        else if(opt("-d")){
+            enable_debug_mode(true);
+        }
+        else if(opt("-j")){
+            if(i+1 >= argc)
+                error("file version required after option `-target`");
+            else {
+                set_target_threads(string(args[++i]));
+            }
+        }
+        else if(opt("-dbg") | opt("-debug")) {
+            enable_app_debugging(true);
         }
         else if(opt("-showversion")){
             printVersion();
@@ -221,226 +209,267 @@ int _bootstrap(int argc, const char* argv[])
             if(i+1 >= argc)
                 error("file version required after option `-target`");
             else {
-                std::string x = std::string(argv[++i]);
-                if(all_integers(x))
-                    c_options.target = strtol(x.c_str(), NULL, 0);
-                else {
-                    if(to_lower(x) == "base") {
-                        c_options.target = versions.BASE;
-                    } else if(to_lower(x) == "alpha") {
-                        c_options.target = versions.ALPHA;
-                    }
-                    else {
-                        error("unknown target " + x);
-                    }
-                }
+                set_target_platform(string(args[++i]));
             }
         }
         else if(opt("-w")){
-            warning_map[__WGENERAL] = false;
+            enable_warnings(false);
         }
-        else if(opt("-waccess")){
-            warning_map[__WACCESS] = false;
+        else if(opt("-waccess") || opt("-wambig") || opt("-wdecl")
+                 || opt("-wmain") || opt("-wcast") || opt("-winit")
+                 || opt("-wnull")){
+            enable_warning_type(arg, false);
         }
-        else if(opt("-wambig")){
-            warning_map[__WAMBIG] = false;
+        else if(opt("-p")){
+            set_compilation_mode(project_mode);
         }
-        else if(opt("-wdecl")){
-            warning_map[__WDECL] = false;
+        else if(opt("-g") || opt("-green")){
+            enable_green_mode(true);
         }
-        else if(opt("-wmain")){
-            warning_map[__WMAIN] = false;
-        }
-        else if(opt("-wcast")){
-            warning_map[__WCAST] = false;
-        }
-        else if(opt("-winit")){
-            warning_map[__WINIT] = false;
+        else if(opt("--new-project") || opt("--create-project")){
+            if(i+1 >= argc)
+                error("project directory required after option `" + arg + "`");
+            else
+                set_new_project_path(string(args[++i]));
         }
         else if(opt("-v")){
             if(i+1 >= argc)
                 error("file version required after option `-v`");
             else
-                c_options.vers = string(argv[++i]);
+                set_source_version(string(args[++i]));
+        }
+        else if(opt("-ignore")){
+            if(i+1 >= argc)
+                error("file path required after option `-ignore`");
+            else
+                add_ignored_file(string(args[++i]));
+        }
+        else if(opt("-ignoredir")){
+            if(i+1 >= argc)
+                error("directory path required after option `-ignoredir`");
+            else
+                add_ignored_directory(string(args[++i]));
+        }
+        else if(opt("-P")){
+            if(i+1 >= argc)
+                error("project path required after option `-P`");
+            else
+                set_project_directory(string(args[++i]));
         }
         else if(opt("-werror")){
-            c_options.werrors = true;
-            warning_map[__WGENERAL] = true;
+            enable_warnings_as_errors();
         }
         else if(opt("-errlmt")) {
             if(i+1 >= argc)
                 error("error limit required after option `-errlmt`");
             else {
-                std::string lmt = std::string(argv[++i]);
-                if (all_integers(lmt)) {
-                    c_options.error_limit = strtoul(lmt.c_str(), NULL, 0);
-
-                    if (c_options.error_limit > 100000) {
-                        error("cannot set the max errors allowed higher than (100,000) - " + lmt);
-                    } else if (c_options.error_limit <= 10) {
-                        error("cannot have an error limit less than 10 ");
-                    }
-                } else {
-                    error("invalid error limit set " + lmt);
-                }
+                set_error_limit(string(args[++i]));
             }
         }
-        else if(string(argv[i]).at(0) == '-'){
-            error("invalid option `" + string(argv[i]) + "`, try bootstrap --h");
+        else if(opt("-nativedir") || opt("-nd")){
+            if(i+1 >= argc)
+                error("output directory required after option `" + arg + "`");
+            else
+                set_native_code_directory(string(args[++i]));
+        }
+        else if(opt("-obf")){
+            enable_source_obfuscation(true);
+        }
+        else if(string(args[i]).at(0) == '-'){
+            error("invalid option `" + string(args[i]) + "`, try bootstrap --h");
         }
         else {
             // add the source files
             do {
-                if(string(argv[i]).at(0) == '-')
+                if(string(args[i]).at(0) == '-')
                     goto args_;
 
 
-                files.addif(string(argv[i++]));
+                options.source_files.addif(string(args[i++]));
             }while(i<argc);
             break;
         }
     }
 
-#ifdef WIN32_
-    native_string path("C:/Program Files/Sharp/include");
-#endif
-#ifdef POSIX_
-    native_string path("/usr/include/sharp/");
-#endif
-
-    List<native_string> includes;
-    get_full_file_list(path, includes);
-
-    for(long i = 0; i < c_options.libraries.size(); i++) {
-        path = c_options.libraries.get(i);
-        get_full_file_list(path, includes);
+    if(options.new_project_dir != "") {
+        create_project();
     }
 
-    for(long i = 0; i < includes.size(); i++)
-        files.add(includes.get(i).str());
+    if(options.source_files.size() == 0 && options.compile_mode == file_mode){
+        if(options.new_project_dir != "") return 0;
 
-    if(files.size() == 0){
         help();
         return 1;
     }
 
-    for(unsigned int i = 0; i < files.size(); i++) {
-        string file = files.get(i).str();
+    initalizeErrors();
+    if(options.compile_mode == project_mode) {
+        if(options.project_dir == "") {
+            string currDir;
+            File::currentDirectory(currDir);
+            options.project_dir = currDir;
+        }
 
-        if(!File::exists(file.c_str())){
-            error("file `" + file + "` doesnt exist!");
-        }
-        if(!File::endswith(".sharp", file)){
-            error("file `" + file + "` is not a sharp file!");
-        }
+        options.project_name = File::name(options.project_dir);
+        validate_and_add_source_files(options.project_dir);
+        process_settings();
+    } else {
+        process_library_files(PROG_VERS);
     }
 
-    return compile(files);
+    for(uInt i = 0; i < options.source_files.size(); i++) {
+        string sourceFile = options.source_files.get(i);
+
+        if(!File::exists(sourceFile.c_str()))
+            error("file `" + sourceFile + "` doesnt exist!");\
+
+        if(!File::endswith(".sharp", sourceFile))
+            error("file `" +sourceFile + "` is not a sharp file!");
+
+        options.source_files.get(i).clear();
+        File::resolvePath(sourceFile, options.source_files.get(i));
+    }
+
+    remove_ignored_files();
+    return compile();
 }
 
-int compile(List<native_string> &files)
+bool isFileLarger(sharp_file *f1, sharp_file *f2) {
+    return File::length(f1->name.c_str()) < File::length(f2->name.c_str());
+}
+
+void run_pre_processing_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_tokenize_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+
+        t.type = task_parse_;
+        submit_task(t);
+
+//        if(i == 0) break; // remove
+    }
+
+    wait_for_tasks();
+
+    if(all_files_parsed()) {
+        for (Int i = 0; i < sharpFiles.size(); i++) {
+            t.file = sharpFiles.get(i);
+            t.type = task_preprocess_;
+            submit_task(t);
+        }
+
+        wait_for_tasks();
+    }
+}
+
+void run_post_processing_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_imports;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_post_process_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_generics_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_global_mutations_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_mutations_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_global_members_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_global_members_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compile_classes_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_classes_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+void run_compilation_tasks() {
+
+    task t;
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_compile_components_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+
+    for(Int i = 0; i < sharpFiles.size(); i++) {
+        t.type = task_process_delegates_;
+        t.file = sharpFiles.get(i);
+        submit_task(t);
+    }
+
+    wait_for_tasks();
+}
+
+int compile()
 {
-    List<parser*> parsers;
-    parser* currParser = NULL;
-    tokenizer* currTokenizer = NULL;
-    File::buffer buf;
-    size_t errors=0, unfilteredErrors=0;
-    long succeeded=0, failed=0, panic=0;
-
-    for(unsigned int i = 0; i < files.size(); i++)
-    {
-        string file = files.get(i).str();
-        buf.begin();
-
-        File::read_alltext(file.c_str(), buf);
-        if(buf.empty()) {
-            error("file `" + file + "` is empty.");
-        } else
-        {
-            if(c_options.debugMode)
-                cout << "tokenizing " << file << endl;
-
-            currTokenizer = new tokenizer(buf.to_str(), file);
-            if(currTokenizer->getErrors()->hasErrors())
-            {
-                currTokenizer->getErrors()->printErrors();
-
-                errors+= currTokenizer->getErrors()->getErrorCount();
-                unfilteredErrors+= currTokenizer->getErrors()->getUnfilteredErrorCount();
-
-                currTokenizer->free();
-                delete currTokenizer;
-                failed++;
-            } else {
-                if(c_options.debugMode)
-                    cout << "parsing " << file << endl;
-
-                currParser = new parser(currTokenizer);
-                if(currParser->getErrors()->hasErrors())
-                {
-                    currParser->getErrors()->printErrors();
-
-                    errors+= currParser->getErrors()->getErrorCount() == 0 ? currParser->getErrors()->getUnfilteredErrorCount() : currParser->getErrors()->getErrorCount();
-                    unfilteredErrors+= currParser->getErrors()->getUnfilteredErrorCount();
-                    failed++;
-
-                    if(currParser->panic) {
-                        currParser->free();
-                        delete currParser;
-                        panic = 1;
-                        goto end;
-                    }
-
-                    currParser->free();
-                    delete currParser;
-                } else {
-                    parsers.push_back(currParser);
-                    succeeded++;
-                }
-            }
-
-            end:
-            buf.end();
-
-            if(panic==1) {
-                cout << "Detected more than " << c_options.error_limit << "+ errors, quitting.";
-                break;
-            }
-        }
+    for(Int i = 0; i < options.source_files.size(); i++) {
+        sharpFiles.add(
+                new sharp_file(options.source_files.get(i), uniqueId++));
     }
 
-    if(!panic && errors == 0 && unfilteredErrors == 0) {
-        if(c_options.debugMode)
-            cout << "performing syntax analysis on project files"<< endl;
+    sharpFiles.linearSort(isFileLarger);
+    start_task_delegator();
+    run_pre_processing_tasks();
 
-        Compiler engine(c_options.out, parsers);
-
-        failed += engine.failedParsers.size();
-        succeeded = files.size() - failed;
-
-        errors+=engine.errors->getErrorCount();
-        unfilteredErrors+=engine.errors->getUnfilteredErrorCount();
-        if(errors == 0 && unfilteredErrors == 0) {
-            if(!c_options.compile)
-                engine.generate();
-        }
-
-        engine.cleanup();
-    }
-    else {
-        for(unsigned long i = 0; i < parsers.size(); i++) {
-            parser* parser = parsers.get(i);
-            parser->getTokenizer()->free();
-            delete parser->getTokenizer();
-            parser->free();
-            delete(parser);
-        }
-        parsers.free();
+    if(all_files_parsed()) {
+        run_post_processing_tasks();
+        run_compilation_tasks();
+        run_compile_global_mutations_tasks();
+        run_compile_global_members_tasks();
+        run_compile_classes_tasks();
+        setup_core_functions();
+        finalize_compilation();
     }
 
-    cout << endl << "==========================================================\n" ;
-    cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
-         << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
-    cout << std::flush << std::flush;
-    return (failed == 0 && (c_options.aggressive_errors ? unfilteredErrors : errors) == 0) ? 0 : 1;
+    cout << "done" << endl;
+    return 0;
 }

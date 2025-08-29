@@ -1,0 +1,186 @@
+mod serialization;
+
+import (
+    std.io
+)
+
+/**
+ * Buffer class for serialization
+ * Represents a dynamically growing byte buffer
+ */
+class output_buffer {
+    data: _int8[]?;
+    position: var = -1;
+    size: _int32 = 0;
+    initial_size : _int32 = 0;
+    
+    // Initial chunk size for allocations
+    static const INITIAL_SIZE: var = 512;
+    static const SMALL_BUFFER_THRESHOLD: var = 4096;
+    
+    output_buffer() {
+        data = new _int8[INITIAL_SIZE];
+        size = INITIAL_SIZE;
+    }
+    
+    output_buffer(initialSize: int) {
+        if (initialSize <= 0)
+            initialSize = INITIAL_SIZE;
+        
+        data = new _int8[initialSize];
+        size = initialSize.value;
+        initial_size = initialSize.value;
+    }
+    
+    /**
+     * Ensures the buffer has enough capacity
+     */
+    private def ensure_capacity(requiredSpace: int) {
+        if (position + requiredSpace >= size) {
+            newSize: var;
+
+            if (size == 0) {
+                // Initialize with appropriate size
+                newSize = initial_size;
+            } else if (size < SMALL_BUFFER_THRESHOLD &&
+                ((size + requiredSpace) < SMALL_BUFFER_THRESHOLD)) {
+                // For small buffers, double the size
+                newSize = (size + requiredSpace) * 2;
+            } else {
+                // For larger buffers, increase by 50% to reduce allocation frequency
+                newSize = (size + requiredSpace) + (size >> 1);
+            }
+
+            realloc(data!!, newSize);
+            size = newSize;
+        }
+    }
+    
+    /**
+     * Writes a byte to the buffer
+     */
+    def write_byte(value: _int8) {
+        try {
+            data[++position] = value;
+        } catch(e: throwable) {
+            ensure_capacity(1);
+            data[position] = value;
+        }
+    }
+    
+    /**
+     * Writes a 32-bit integer to the buffer
+     */
+    def write_int32(value: int) {
+        try {
+            data[position+4] = value.value & 0xFF;
+            data[++position] = (value.value >> 24);
+            data[++position] = (value.value >> 16) & 0xFF;
+            data[++position] = (value.value >> 8) & 0xFF;
+            ++position;
+        } catch(e: throwable) {
+            ensure_capacity(4);
+            data[++position] = (value.value >> 24);
+            data[++position] = (value.value >> 16) & 0xFF;
+            data[++position] = (value.value >> 8) & 0xFF;
+            data[++position] = value.value & 0xFF;
+        }
+    }
+    
+    /**
+     * Writes a 64-bit integer to the buffer
+     */
+    def write_int64(value: long) {
+        ensure_capacity(8);
+        data[++position] = (value.value >> 56) & 0xFF;
+        data[++position] = (value.value >> 48) & 0xFF;
+        data[++position] = (value.value >> 40) & 0xFF;
+        data[++position] = (value.value >> 32) & 0xFF;
+        data[++position] = (value.value >> 24) & 0xFF;
+        data[++position] = (value.value >> 16) & 0xFF;
+        data[++position] = (value.value >> 8) & 0xFF;
+        data[++position] = value.value & 0xFF;
+    }
+    
+    /**
+     * Writes a floating point value to the buffer
+     */
+    def write_double(value: double) {
+        // This implementation assumes we have a way to get the bytes of a double
+        // Since we don't have direct bit manipulation in Sharp, we'd typically
+        // use a native function or convert to a long and write that
+        
+        // For now, we'll convert it to a string and write that
+        str := value.to_string();
+        write_string(str);
+    }
+    
+    /**
+     * Writes a string to the buffer
+     */
+    def write_string(value: string?) {
+        if (value == null) {
+            write_int32(0);
+            return;
+        }
+        
+        write_int32(value!!.size());
+        
+        for (i : var = 0; i < value!!.size(); i++) {
+            write_byte(value[i].value);
+        }
+    }
+    
+    /**
+     * Writes raw bytes to the buffer
+     */
+    def write_bytes(bytes: _int8[]?) {
+        if (bytes != null) {
+            ensure_capacity(sizeof(bytes));
+
+            // Use bulk memcopy for efficiency
+            memcopy(bytes!!, data!!, position + 1, 0, sizeof(bytes));
+            position += sizeof(bytes);
+        }
+    }
+    
+    /**
+     * Resets the buffer position
+     */
+    def reset() {
+        position = -1;
+    }
+    
+    /**
+     * Creates a new buffer with current data
+     */
+    def to_array() : _int8[]? {
+        if (position < 0)
+            return null;
+            
+        result := new _int8[position + 1];
+        memcopy(data!!, result, 0, 0, position + 1);
+        return result;
+    }
+    
+    /**
+     * Get current used size
+     */
+    def used_size() : int = position + 1;
+    
+    /**
+     * String representation for debugging
+     */
+    override def to_string() : string {
+        return "output_buffer(size: " + size + ", data-size: " + used_size() + ")";
+    }
+    
+    /**
+     * Clean up resources
+     */
+    def close() {
+        data = null;
+        size = 0;
+        position = -1;
+    }
+}

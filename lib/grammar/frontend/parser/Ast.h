@@ -8,6 +8,7 @@
 #include <list>
 #include "../tokenizer/token.h"
 #include "../../List.h"
+#include "../../json/json.h"
 
 enum ast_type
 {
@@ -18,10 +19,12 @@ enum ast_type
     ast_interface_decl,
     ast_obfuscate_decl,
     ast_import_decl,
+    ast_import_item,
     ast_module_decl,
     ast_method_decl,
     ast_enum_decl,
     ast_init_decl,
+    ast_init_func_decl,
     ast_delegate_decl,
     ast_construct_decl,
     ast_label_decl,
@@ -43,6 +46,8 @@ enum ast_type
     ast_reference_pointer_list,
     ast_utype_list,
     ast_identifier_list,
+    ast_generic_identifier_list,
+    ast_generic_identifier,
     ast_enum_identifier_list,
     ast_vector_array,
     ast_dictionary_array,
@@ -57,6 +62,7 @@ enum ast_type
     ast_primary_expr,
     ast_dotnotation_call_expr,
     ast_obfuscate_element,
+    ast_function_signature,
     ast_base_class_constructor,
     ast_utype,
     ast_block,
@@ -88,17 +94,34 @@ enum ast_type
     ast_do_while_statement,
     ast_assembly_statement,
     ast_alias_decl,
-    ast_for_statement,
+    ast_component_decl,
+    ast_component_type_list,
+    ast_single_definition,
+    ast_factory_definition,
+    ast_get_component,
+    ast_component_name,
+    ast_inject_request,
+    ast_for_statement,        // for i := 0; i < 10; i++ {}
+    ast_for_style_2_statement, // for {}
     ast_for_expresion_cond,
     ast_for_expresion_iter,
     ast_foreach_statement,
     ast_type_identifier,
+    ast_native_type,
     ast_enum_identifier,
     ast_func_ptr,
     ast_refrence_pointer,
+    ast_operator_reference,
+    ast_base_class,
+    ast_module_reference,
+    ast_generic_reference,
+    ast_reference_item,
     ast_modulename,
     ast_literal,
     ast_access_type,
+    ast_array_index_items,
+    ast_asm_member_item,
+    ast_asm_class_item,
 
     /**
      * Encapsulated ast's to make processing expressions easier
@@ -115,6 +138,7 @@ enum ast_type
     ast_arry_e,
     ast_dot_fn_e,
     ast_cast_e,
+    ast_force_non_null_e,
     ast_is_e,
     ast_pre_inc_e,
     ast_paren_e,
@@ -128,6 +152,7 @@ enum ast_type
     ast_equal_e,
     ast_and_e,
     ast_ques_e,
+    ast_elvis_e,
     ast_assign_e,
     ast_sizeof_e,
 
@@ -140,30 +165,41 @@ public:
     :
         type(type),
         line(line),
-        col(col)
+        col(col),
+        sub_asts(),
+        tokens()
     {
-        sub_asts.init();
-        tokens.init();
     }
 
     Ast()
             :
             type(ast_none),
             line(0),
-            col(0)
+            col(0),
+            sub_asts(),
+            tokens()
     {
-        sub_asts.init();
-        tokens.init();
+    }
+
+    Ast(json_value *jv)
+            :
+            type(ast_none),
+            line(0),
+            col(0),
+            sub_asts(),
+            tokens()
+    {
+        importData(jv);
     }
 
     Ast(Ast *cpy)
             :
             type(ast_none),
             line(0),
-            col(0)
+            col(0),
+            sub_asts(),
+            tokens()
     {
-        sub_asts.init();
-        tokens.init();
         copy(cpy);
     }
 
@@ -177,23 +213,27 @@ public:
     bool hasSubAst(ast_type at);
     bool hasToken(token_type t);
     bool hasToken(string s);
+    long tokenCount(string s);
     void freeSubAsts();
     long getTokenCount();
     Token &getToken(long at);
-    Token getToken(token_type t);
+    Token* getToken(token_type t);
+    Token* getToken(token_id t);
     static string astTypeToString(ast_type type);
 
     void addToken(Token entity);
     void addAst(Ast* _ast);
     void copy(Ast *ast);
     void free();
+    json_value* exportData();
+    void importData(json_value*);
 
     void freeTokens();
     void freeLastToken();
     void freeLastSub();
     string toString();
 
-    int line, col;
+    Int line, col;
 
     void setAstType(ast_type types);
 
