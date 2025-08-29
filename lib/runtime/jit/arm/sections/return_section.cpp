@@ -68,7 +68,7 @@ void Arm64Compiler::generateReturnSection() {
     assembler->ldp(tempVec1, tempVec2, a64::ptr(stackPtr, 16).post());
     
     // Restore general purpose callee-saved registers: x27, x26, x25, x24, x23, x22, x21, x20, x19 (reverse order)
-    assembler->ldp(pcReg, a64::x28, a64::ptr(stackPtr, 16).post());  // Restore x27, x28 together (x28 unused but paired)
+    assembler->ldp(pcReg, tempReg5, a64::ptr(stackPtr, 16).post());  // Restore x27, x28 together
     assembler->ldp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, 16).post());  // Restore x25, x26 together
     assembler->ldp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, 16).post());
     assembler->ldp(tempReg1, tempReg2, a64::ptr(stackPtr, 16).post());

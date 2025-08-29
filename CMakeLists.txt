@@ -4,24 +4,33 @@ project(Sharp)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(POSIX "os")
-if (POSIX)
-
-    set(BUILD_SHARED_LIBS OFF)
-#-fsanitize=address -fno-omit-frame-pointer
-    set(CMAKE_CXX_FLAGS_DEBUG  " -fsanitize=address -fPIE -pie -fno-omit-frame-pointer -mno-red-zone -std=c++11 -O0 -Werror -pthread -lstdc++ -g ${CMAKE_CXX_FLAGS_DEBUG}")
-    set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -mno-red-zone -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO   "-fsanitize=address  -mno-red-zone -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-mno-red-zone  -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
+# Detect OS (matching build.sh logic)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # macOS-specific flags (no -lrt and no --no-as-needed)
+    set(CXX_COMPILER "g++-15")
+    set(PLATFORM_FLAGS "")
+    set(STDLIB_FLAG "")
+    set(REDZONE_FLAG "")
 else()
-
-    set(BUILD_SHARED_LIBS OFF)
+    # Default flags (Linux/other)
+    set(CXX_COMPILER "g++")
+    set(PLATFORM_FLAGS "-Wl,--no-as-needed -lrt -mno-red-zone -fsanitize=address")
+    set(STDLIB_FLAG "-lstdc++")
+    set(REDZONE_FLAG "-mno-red-zone")
     set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
+endif()
 
-    set(CMAKE_CXX_FLAGS_DEBUG  "-std=c++17 -Werror  -g -lstdc++ -DASMJIT_STATIC  ${CMAKE_C_FLAGS_DEBUG}")
-    set(CMAKE_CXX_FLAGS_MINSIZEREL  "-std=c++17 -mno-red-zone -Werror -lstdc++ -DASMJIT_STATIC -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++17  -mno-red-zone -Werror -lstdc++ -DASMJIT_STATIC -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
-endif ()
+set(BUILD_SHARED_LIBS OFF)
+
+# Set compiler flags using platform-specific variables
+set(CMAKE_CXX_FLAGS_DEBUG  "-fno-omit-frame-pointer -DASMJIT_STATIC ${REDZONE_FLAG} -std=c++17 -O0 -pthread ${STDLIB_FLAG} -g -gdwarf-4 ${CMAKE_CXX_FLAGS_DEBUG}")
+set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror ${STDLIB_FLAG} ${REDZONE_FLAG} -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO   "-fsanitize=address ${REDZONE_FLAG} -pthread ${STDLIB_FLAG} -O3 -Ofast ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+set(CMAKE_CXX_FLAGS_RELEASE   "${REDZONE_FLAG} -pthread ${STDLIB_FLAG} -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
+
+# For runtime builds, also set DASMJIT_STATIC flag
+#set(CMAKE_RUNTIME_CXX_FLAGS_DEBUG  "-std=c++17 -g ${STDLIB_FLAG} -DASMJIT_STATIC ${PLATFORM_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
+#set(CMAKE_RUNTIME_CXX_FLAGS_RELEASE   "-std=c++17 ${REDZONE_FLAG} -Werror ${STDLIB_FLAG} -DASMJIT_STATIC ${PLATFORM_FLAGS} -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 
 #set(SHARPC "build")
 #set(LEGACY "build")
@@ -108,6 +117,13 @@ if (SHARPC)
     set(SOURCE_FILES main.cpp stdimports.h ${compiler_SRC})
 
     add_executable(Sharpc ${SOURCE_FILES})
+    
+    # Link libraries based on platform
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        target_link_libraries(Sharpc stdc++)
+    else()
+        target_link_libraries(Sharpc stdc++ rt)
+    endif()
 elseif(LEGACY)
     add_definitions(-DMAKE_COMPILER)
 
@@ -203,13 +219,12 @@ else()
     set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC}
             lib/runtime/reflect/reflection.cpp
             lib/runtime/reflect/reflection.h)
-    if (POSIX)
-        set(LRT_LIB -lrt -ldl)
-    endif ()
-
     add_executable(Sharp ${SOURCE_FILES})
 
-    if (POSIX)
-        target_link_libraries(Sharp ${LRT_LIB})
-    endif ()
+    # Link libraries based on platform  
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        target_link_libraries(Sharp stdc++ m dl)
+    else()
+        target_link_libraries(Sharp stdc++ rt m dl)
+    endif()
 endif ()

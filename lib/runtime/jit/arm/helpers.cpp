@@ -156,13 +156,25 @@ void Arm64Compiler::setJumpTableEntry(size_t pc, Label opcodeLabel) {
     }
 }
 
-void Arm64Compiler::generateJumpDispatch(int targetPCRegister) {
-    // Generate jump to target PC using jump table
+void Arm64Compiler::generateJumpDispatch(int targetPc) {
+    // Generate jump to target PC using jump table with bounds checking
     // jumpTable[targetPC] contains the address to jump to
-    // jumpTablePtr should contain the base address of the jump table
+    // jumpTableSize equals currentFunction->bytecodeSize (number of opcodes)
     
+    // Load targetPC into register for bounds checking
+    assembler->mov(tempReg1, targetPc);
+    
+    // Bounds check: if (targetPC < 0) goto illegal_branch
+    assembler->cmp(tempReg1, 0);
+    assembler->b_lt(illegalBranchLabel);
+    
+    // Bounds check: if (targetPC >= bytecodeSize) goto illegal_branch
+    assembler->cmp(tempReg1, currentFunction->bytecodeSize);
+    assembler->b_ge(illegalBranchLabel);
+    
+    // Bounds check passed - proceed with jump dispatch
     // Calculate offset: targetPC * 8 (each pointer is 8 bytes)
-    assembler->lsl(tempReg1, a64::Gp::fromTypeAndId(asmjit::RegType::kGp64, targetPCRegister), 3);  // targetPC << 3
+    assembler->lsl(tempReg1, tempReg1, 3);  // targetPC << 3
     
     // Load jump table address and add offset
     assembler->add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (targetPC * 8)
@@ -191,7 +203,7 @@ void Arm64Compiler::storePC() {
     assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
 }
 
-void Arm64Compiler::loadPC() {
+void Arm64Compiler::loadPC() { // [x]
     // Load numeric PC from task->pc pointer based on relation to base pointer
     // Load task pointer
     assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
@@ -218,7 +230,7 @@ void Arm64Compiler::emitExceptionHandle() {
 
 // VM Stack Operation Helpers - Centralized Sections
 
-void Arm64Compiler::emitGrowStackCheck(int n, Label returnLabel) {
+void Arm64Compiler::emitGrowStackCheck(int n, Label &returnLabel) { // [x]
     /*
      * Emit jump to centralized grow stack section
      * Parameters passed in registers:
@@ -239,7 +251,7 @@ void Arm64Compiler::emitGrowStackCheck(int n, Label returnLabel) {
     assembler->bind(returnLabel);
 }
 
-void Arm64Compiler::emitStackOverflowCheck(int n, Label returnLabel) {
+void Arm64Compiler::emitStackOverflowCheck(int n, Label &returnLabel) {
     /*
      * Emit jump to centralized stack overflow section  
      * Parameters passed in registers:
@@ -273,6 +285,7 @@ void Arm64Compiler::generateGrowStackSection() {
      */
     
     assembler->bind(growStackLabel);
+    assembler->mov(tempReg5, tempReg2);
     
     // Get task pointer: task = thread->task
     assembler->ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
@@ -298,23 +311,33 @@ void Arm64Compiler::generateGrowStackSection() {
     Label growStackOk = assembler->newLabel();
     assembler->cmp(tempReg4, returnReg);
     assembler->b_lt(growStackOk);
+    assembler->mov(tempReg4, tempReg1); // preserve stack growth size
     storePC();
     
     // Need to grow stack - call task->growStack(n)
     // Set up parameters: x0 = task, x1 = n
-    assembler->mov(a64::x0, tempReg3);    // task pointer
-    assembler->mov(a64::x1, tempReg1);    // n parameter
+    assembler->ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
     // Call task->growStack(n) using the wrapper function
     // We have: task instance in tempReg3, parameter n in tempReg1
     
     // Call the wrapper function: jit_growStack(task, n)
-    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg3, tempReg1);
-    // todo: validate no exception happened
+    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg3, tempReg4);
+    
+    // Check for exception after growStack call
+    // Load thread->signal and check tsig_except (bit 0)
+    assembler->ldr(tempReg4, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
+    assembler->tbz(tempReg4, 0, growStackOk);  // Test bit 0, jump to growStackOk if no exception
+    
+    // Exception occurred during growStack - jump to exception handler
+    emitExceptionHandle();
+
+    // should never get here but just a saftey measure
+    emitReturn(JIT_OK);
     
     // Stack growth is OK - return to caller
     assembler->bind(growStackOk);
-    assembler->br(tempReg2);  // Jump back to return address
+    assembler->br(tempReg5);  // Jump back to return address
 }
 
 void Arm64Compiler::generateStackOverflowSection() {
@@ -359,15 +382,16 @@ void Arm64Compiler::generateStackOverflowSection() {
     
     // Stack overflow - create vm_exception(vm.stack_overflow_except, "")
     // Load vm.stack_overflow_except class pointer (it's already a sharp_class*)
-    assembler->mov(tempReg4, reinterpret_cast<uint64_t>(vm.stack_overflow_except));
-    
     // Call jit_throwException(vm.stack_overflow_except, "")
-    assembler->mov(a64::x0, tempReg4);  // exception class
+    assembler->mov(a64::x0, reinterpret_cast<uint64_t>(vm.stack_overflow_except));
     assembler->mov(a64::x1, reinterpret_cast<uint64_t>(""));  // empty message
     callStaticFunction(reinterpret_cast<void*>(jit_throwException), a64::x0, a64::x1);
     
     // After exception is created, jump to exception handler
     emitExceptionHandle();
+
+    // should never get here but just a saftey measure
+    emitReturn(JIT_OK);
     
     // Stack is OK - return to caller
     assembler->bind(stackOverflowOk);

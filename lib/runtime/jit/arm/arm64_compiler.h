@@ -19,6 +19,7 @@ private:
     JitRuntime runtime;
     CodeHolder code;
     a64::Assembler *assembler;
+    sharp_function *currentFunction;  // Current function being compiled
     
     /*
      * ARM64 Register Usage Map for JIT Compiler
@@ -33,6 +34,7 @@ private:
      * - x24 (jumpTablePtr)     : Points to jump table array for PC dispatch
      * - x25 (jitFunctionPtr)   : Points to jit_compiled_function structure
      * - x26 (tempReg4)         : General purpose temporary register
+     * - x28 (tempReg5)         : General purpose temporary register
      * - d8  (tempVec1)         : Vector register for long double operations
      * - d9  (tempVec2)         : Vector register for long double operations
      * 
@@ -51,8 +53,9 @@ private:
      * -16: x21, x22 (tempReg1, tempReg2)
      * -32: x23, x24 (tempReg3, jumpTablePtr)
      * -48: x25, x26 (jitFunctionPtr, tempReg4)
-     * -64: d8, d9   (tempVec1, tempVec2)
-     * -80: [reserved stack space]
+     * -64: x27, x28 (pcReg, tempReg5)
+     * -80: d8, d9   (tempVec1, tempVec2)
+     * -96: [reserved stack space]
      * [Low Address]
      * 
      * NOTE: When adding new registers, update both prologue/epilogue save/restore code!
@@ -68,6 +71,7 @@ private:
     a64::Gp tempReg2;         // x22 - General purpose temp register  
     a64::Gp tempReg3;         // x23 - General purpose temp register
     a64::Gp tempReg4;         // x26 - General purpose temp register
+    a64::Gp tempReg5;         // x28 - General purpose temp register
     a64::Gp jumpTablePtr;     // x24 - Pointer to jump table array
     a64::Gp pcReg;            // x27 - Current PC register (tracks current Sharp PC during compilation)
     
@@ -83,6 +87,7 @@ private:
     Label returnFromFunctionLabel; // Label for centralized function return
     Label growStackLabel;     // Label for centralized grow stack section
     Label stackOverflowLabel; // Label for centralized stack overflow section
+    Label illegalBranchLabel; // Label for illegal branch handler section
     
     // Jump table management
     std::vector<Label> opcodeLabels;   // Labels for each opcode (indexed by PC)
@@ -261,8 +266,8 @@ private:
     // Jump table helpers
     void initializeJumpTable(size_t opcodeCount);                    // Initialize jump table for function
     void setJumpTableEntry(size_t pc, Label opcodeLabel);            // Set jump table entry for PC
-    void generateJumpDispatch(int targetPCRegister);                 // Generate jump to PC using jump table
-    
+    void generateJumpDispatch(int targetPc);                 // Generate jump to PC using jump table
+
     // PC management helpers
     void storePC();                                                  // Store pcReg value to task->pc
     void loadPC();                                                   // Load numeric PC from task->pc to pcReg
@@ -271,9 +276,12 @@ private:
     void emitExceptionHandle();                                      // Jump to exception handler
     void generateExceptionHandlerSection();                          // Generate exception handling code section
     
+    // Illegal branch handling helpers
+    void generateIllegalBranchSection();                             // Generate illegal branch handling code section
+    
     // VM Stack Operation Helpers - Centralized Sections
-    void emitGrowStackCheck(int n, Label returnLabel);               // Jump to grow stack section with return label
-    void emitStackOverflowCheck(int n, Label returnLabel);               // Jump to stack overflow section
+    void emitGrowStackCheck(int n, Label &returnLabel);               // Jump to grow stack section with return label
+    void emitStackOverflowCheck(int n, Label &returnLabel);               // Jump to stack overflow section
     void generateGrowStackSection();                                 // Generate centralized grow stack section
     void generateStackOverflowSection();                             // Generate centralized stack overflow section
     

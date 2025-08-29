@@ -18,6 +18,7 @@ Arm64Compiler::Arm64Compiler() {
     Environment arm64Env(Arch::kAArch64);
     code.init(arm64Env);
     assembler = new a64::Assembler(&code);
+    currentFunction = nullptr;
     
     // Initialize labeled ARM64 registers
     threadPtr = a64::x19;     // Callee-saved register for thread context pointer
@@ -29,6 +30,7 @@ Arm64Compiler::Arm64Compiler() {
     tempReg2 = a64::x22;      // Callee-saved temp register 2
     tempReg3 = a64::x23;      // Callee-saved temp register 3
     tempReg4 = a64::x26;      // Callee-saved temp register 4
+    tempReg5 = a64::x28;      // Callee-saved temp register 5
     jumpTablePtr = a64::x24;  // Callee-saved register for jump table pointer
     pcReg = a64::x27;         // Callee-saved register for current PC tracking
     
@@ -42,6 +44,7 @@ Arm64Compiler::Arm64Compiler() {
     stateCheckLabel = assembler->newLabel();
     catchExceptionLabel = assembler->newLabel();
     returnFromFunctionLabel = assembler->newLabel();
+    illegalBranchLabel = assembler->newLabel();
     growStackLabel = assembler->newLabel();
     stackOverflowLabel = assembler->newLabel();
     
@@ -59,7 +62,8 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     }
     
     resetCodeHolder();
-    
+
+    currentFunction = function;
     // Initialize jump table for this function
     initializeJumpTable(function->bytecodeSize);
     
@@ -105,9 +109,17 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     output->jumpTable = new void*[output->jumpTableSize];
     
     // Get the actual addresses of each opcode label
+    size_t illegalBranchOffset = code.labelOffset(illegalBranchLabel);
+    void* illegalBranchAddress = static_cast<char*>(func) + illegalBranchOffset;
+    
     for (size_t i = 0; i < output->jumpTableSize; ++i) {
-        size_t offset = code.labelOffset(opcodeLabels[i]);
-        output->jumpTable[i] = static_cast<char*>(func) + offset;
+        if (code.isLabelBound(opcodeLabels[i])) {
+            size_t offset = code.labelOffset(opcodeLabels[i]);
+            output->jumpTable[i] = static_cast<char*>(func) + offset;
+        } else {
+            // Label not bound (multi-slot opcode), point to illegal branch handler
+            output->jumpTable[i] = illegalBranchAddress;
+        }
     }
     
     output->compiledCode = reinterpret_cast<jit_function_ptr>(func);
@@ -490,7 +502,7 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler->stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
     assembler->stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
     assembler->stp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, -16).pre());  // Save x25, x26 together
-    assembler->stp(pcReg, a64::x28, a64::ptr(stackPtr, -16).pre());  // Save x27, x28 together (x28 unused but paired)
+    assembler->stp(pcReg, tempReg5, a64::ptr(stackPtr, -16).pre());  // Save x27, x28 together
     
     // Save vector callee-saved registers: d8, d9
     assembler->stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
@@ -599,20 +611,46 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     
     // Generate centralized return section
     generateReturnSection();
+
+    // Section separator for debugging
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+
+    generateIllegalBranchSection();
+
+    // Section separator for debugging
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
     
     return true;
 }
 
 void Arm64Compiler::resetCodeHolder() {
+    // Delete the old assembler to ensure clean state
+    delete assembler;
+    
+    // Reset the code holder completely
     code.reset();
+    
     // Explicitly set ARM64 architecture for cross-compilation
     Environment arm64Env(Arch::kAArch64);
     code.init(arm64Env);
     
-    // Reinitialize labels after reset
+    // Create a fresh assembler with the reset code holder
+    assembler = new a64::Assembler(&code);
+    
+    // Recreate all labels with the new assembler for fresh start
     stateCheckLabel = assembler->newLabel();
     catchExceptionLabel = assembler->newLabel();
     returnFromFunctionLabel = assembler->newLabel();
+    illegalBranchLabel = assembler->newLabel();
+    growStackLabel = assembler->newLabel();
+    stackOverflowLabel = assembler->newLabel();
+    currentFunction = nullptr;
 }
 
 // Helper functions and section implementations are now in separate files
