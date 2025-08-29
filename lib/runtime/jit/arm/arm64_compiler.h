@@ -17,9 +17,10 @@ using namespace asmjit;
 class Arm64Compiler : public JitCompiler {
 private:
     JitRuntime runtime;
-    CodeHolder code;
+    CodeHolder *code;
     a64::Assembler *assembler;
     sharp_function *currentFunction;  // Current function being compiled
+    long count = 0;
     
     /*
      * ARM64 Register Usage Map for JIT Compiler
@@ -34,14 +35,21 @@ private:
      * - x24 (jumpTablePtr)     : Points to jump table array for PC dispatch
      * - x25 (jitFunctionPtr)   : Points to jit_compiled_function structure
      * - x26 (tempReg4)         : General purpose temporary register
+     * - x27 (pcReg)            : Current PC register (tracks current Sharp PC during compilation)
      * - x28 (tempReg5)         : General purpose temporary register
      * - d8  (tempVec1)         : Vector register for long double operations
      * - d9  (tempVec2)         : Vector register for long double operations
      * 
-     * CALLER-SAVED REGISTERS (used temporarily, not preserved):
-     * - x0  (returnReg)        : Function parameter 1 (sharp_thread*), return value
+     * CALLER-SAVED REGISTERS (used temporarily, not preserved by function calls):
+     * - x0  (returnReg)        : Function parameter 1 (sharp_thread*), return value (64-bit)
      * - x1                     : Function parameter 2 (jit_compiled_function*)
      * - x2                     : Function parameter 3 (long double* registers)
+     * - w10 (tempReg32_1)      : 32-bit temporary register
+     * - w11 (tempReg32_2)      : 32-bit temporary register
+     * - x12 (tempReg6)         : General purpose temporary register
+     * - x13 (tempReg7)         : General purpose temporary register
+     * - x14 (tempReg8)         : General purpose temporary register
+     * - x15 (tempReg9)         : General purpose temporary register
      * - x29 (framePtr)         : Frame pointer (saved/restored by prologue/epilogue)
      * - x30 (linkReg)          : Link register (saved/restored by prologue/epilogue)
      * - sp  (stackPtr)         : Stack pointer
@@ -54,8 +62,11 @@ private:
      * -32: x23, x24 (tempReg3, jumpTablePtr)
      * -48: x25, x26 (jitFunctionPtr, tempReg4)
      * -64: x27, x28 (pcReg, tempReg5)
-     * -80: d8, d9   (tempVec1, tempVec2)
-     * -96: [reserved stack space]
+     * -80: x12, x13 (tempReg6, tempReg7)
+     * -96: x14, x15 (tempReg8, tempReg9)
+     * -112: x10, x11 (tempReg32_1, tempReg32_2 - saved as full 64-bit)
+     * -128: d8, d9   (tempVec1, tempVec2)
+     * -144: [reserved stack space]
      * [Low Address]
      * 
      * NOTE: When adding new registers, update both prologue/epilogue save/restore code!
@@ -72,11 +83,17 @@ private:
     a64::Gp tempReg3;         // x23 - General purpose temp register
     a64::Gp tempReg4;         // x26 - General purpose temp register
     a64::Gp tempReg5;         // x28 - General purpose temp register
+    a64::Gp tempReg6;         // x12 - General purpose temp register
+    a64::Gp tempReg7;         // x13 - General purpose temp register
+    a64::Gp tempReg8;         // x14 - General purpose temp register
+    a64::Gp tempReg9;         // x15 - General purpose temp register
+    a64::Gp tempReg32_1;      // w10 - 32-bit temp register
+    a64::Gp tempReg32_2;      // w11 - 32-bit temp register
     a64::Gp jumpTablePtr;     // x24 - Pointer to jump table array
     a64::Gp pcReg;            // x27 - Current PC register (tracks current Sharp PC during compilation)
     
     // Standard ARM64 registers (for clarity and consistency)
-    a64::Gp returnReg;        // w0/x0 - Function return value register
+    a64::Gp returnReg;        // x0 - Function return value register (64-bit)
     a64::Gp framePtr;         // x29 - Frame pointer
     a64::Gp linkReg;          // x30 - Link register  
     a64::Gp stackPtr;         // sp - Stack pointer
@@ -88,6 +105,8 @@ private:
     Label growStackLabel;     // Label for centralized grow stack section
     Label stackOverflowLabel; // Label for centralized stack overflow section
     Label illegalBranchLabel; // Label for illegal branch handler section
+    Label objectValueCheckLabel; // Label for centralized object value check section
+    Label numericObjectCheckLabel; // Label for centralized numeric object check section
     
     // Jump table management
     std::vector<Label> opcodeLabels;   // Labels for each opcode (indexed by PC)
@@ -260,6 +279,7 @@ private:
     
     // External function call helpers
     void callStaticFunction(void* functionPtr);                      // Call external C function with no parameters
+    void callStaticFunction(void* functionPtr, a64::Gp param1);      // Call external C function with 1 parameter
     void callStaticFunction(void* functionPtr, a64::Gp param1, a64::Gp param2); // Call external C function with 2 parameters
     void callInstanceFunction(void* functionPtr, a64::Gp instance, a64::Gp param1); // Call C++ instance method with 1 parameter
     
@@ -274,6 +294,7 @@ private:
     
     // Exception handling helpers
     void emitExceptionHandle();                                      // Jump to exception handler
+    void emitFastExceptionCheck(a64::Gp checkReg);                   // Fast exception check using specified register
     void generateExceptionHandlerSection();                          // Generate exception handling code section
     
     // Illegal branch handling helpers
@@ -288,6 +309,14 @@ private:
     // VM Stack Operation Helpers - Direct Operations
     void emitPushStackNumber(double value);                          // VM macro: push_stack_number = value
     void emitPushStackNumberImmediate(int32_t intValue);             // VM macro: push_stack_number = raw_arg2
+    void emitPushStackObject(a64::Gp destReg);                       // VM macro: push_stack_object - returns address of (++task->sp)->obj in destReg
+    void emitPopStackObject(a64::Gp destReg);                        // VM macro: pop_stack_object - returns address of (task->sp--)->obj in destReg
+    
+    // Object validation helpers
+    void emitRequireObjectWithValue(Label &returnLabel);             // Jump to centralized object value check section with return label
+    void generateObjectValueCheckSection();                          // Generate centralized object value check section
+    void emitRequireNumericObjectWithValue(Label &returnLabel);      // Jump to centralized numeric object check section with return label
+    void generateNumericObjectCheckSection();                        // Generate centralized numeric object check section
 };
 
 #endif //SHARP_ARM64_COMPILER_H

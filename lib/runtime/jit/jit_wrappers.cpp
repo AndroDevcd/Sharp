@@ -9,6 +9,8 @@
 #include "../virtual_machine.h"
 #include "../multitasking/thread/thread_controller.h"
 #include "../multitasking/thread/sharp_thread.h"
+#include "../memory/sharp_object.h"
+#include "../../core/opcode/opcode_macros.h"
 
 
 #pragma GCC push_options
@@ -46,6 +48,56 @@ void jit_suspendSelf() {
         suspend_self();
     } catch(vm_exception &e) {
         enable_exception_flag(thread_self, true);
+    }
+}
+
+// Object creation and manipulation wrapper functions
+void* jit_createObject(sharp_class* sc) {
+    try {
+        return create_object(sc);
+    } catch(vm_exception &e) {
+        enable_exception_flag(thread_self, true);
+        return nullptr;
+    }
+}
+
+void jit_copyObject1(object* dest, sharp_object* src) {
+    try {
+        copy_object(dest, src);
+    } catch(vm_exception &e) {
+        enable_exception_flag(thread_self, true);
+    }
+}
+
+void jit_copyObject2(object* dest, object* src) {
+    try {
+        copy_object(dest, src);
+    } catch(vm_exception &e) {
+        enable_exception_flag(thread_self, true);
+    }
+}
+
+int jit_getObjectType(sharp_object* obj) {
+    if (obj == nullptr) {
+        return -1;  // Invalid type for null objects
+    }
+    return (int)obj->type;  // Access bit-field through C++ member access
+}
+
+// Function call wrapper functions
+void jit_prepareMethod(int address) {
+    try {
+        prepare_method(address);
+    } catch(vm_exception &e) {
+        enable_exception_flag(thread_self, true);
+    }
+}
+
+// Debug wrapper functions
+void jit_instructionStart(opcode_instr opcode, int pc) {
+    if(pc == 3) {
+        int i = 0;
+        // Debug checkpoint for ISTORE instruction
     }
 }
 #pragma GCC pop_options

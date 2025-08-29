@@ -13,11 +13,12 @@ void init_struct(stack_item *item) {
     item->var=0;
 }
 
-void init_struct(frame *f, int32_t raddr, opcode_instr *ip, Int sp, Int fp) {
+void init_struct(frame *f, int32_t raddr, opcode_instr *ip, Int sp, Int fp, bool native) {
     f->returnAddress=raddr;
     f->pc=ip;
     f->sp=sp;
     f->fp=fp;
+    f->native = native;
 }
 
 std::list<KeyPair<Int, Int>> get_frame_info(fiber *task) {

@@ -9,15 +9,17 @@
 #include "../../virtual_machine.h"
 #include "../../multitasking/thread/sharp_thread.h"
 #include "../../memory/vm_stack.h"
+#include "../jit_wrappers.h"
 #include <cstddef>  // For offsetof
 
 using namespace asmjit;
 
 Arm64Compiler::Arm64Compiler() {
     // Explicitly set ARM64 architecture for cross-compilation
+    code = new CodeHolder();
     Environment arm64Env(Arch::kAArch64);
-    code.init(arm64Env);
-    assembler = new a64::Assembler(&code);
+    code->init(arm64Env);
+    assembler = new a64::Assembler(code);
     currentFunction = nullptr;
     
     // Initialize labeled ARM64 registers
@@ -31,11 +33,17 @@ Arm64Compiler::Arm64Compiler() {
     tempReg3 = a64::x23;      // Callee-saved temp register 3
     tempReg4 = a64::x26;      // Callee-saved temp register 4
     tempReg5 = a64::x28;      // Callee-saved temp register 5
+    tempReg6 = a64::x12;      // Caller-saved temp register 6
+    tempReg7 = a64::x13;      // Caller-saved temp register 7  
+    tempReg8 = a64::x14;      // Caller-saved temp register 8
+    tempReg9 = a64::x15;      // Caller-saved temp register 9
+    tempReg32_1 = a64::w10;   // Caller-saved 32-bit temp register 1
+    tempReg32_2 = a64::w11;   // Caller-saved 32-bit temp register 2
     jumpTablePtr = a64::x24;  // Callee-saved register for jump table pointer
     pcReg = a64::x27;         // Callee-saved register for current PC tracking
     
     // Initialize standard ARM64 registers for consistency
-    returnReg = a64::w0;      // Function return value register (32-bit)
+    returnReg = a64::x0;      // Function return value register (64-bit)
     framePtr = a64::x29;      // Frame pointer
     linkReg = a64::x30;       // Link register
     stackPtr = a64::sp;       // Stack pointer
@@ -47,22 +55,32 @@ Arm64Compiler::Arm64Compiler() {
     illegalBranchLabel = assembler->newLabel();
     growStackLabel = assembler->newLabel();
     stackOverflowLabel = assembler->newLabel();
-    
+    objectValueCheckLabel = assembler->newLabel();
+    numericObjectCheckLabel = assembler->newLabel();
+
     // Initialize PC tracking
     currentPC = 0;
 }
 
 Arm64Compiler::~Arm64Compiler() {
-    
+    if(assembler) {
+        delete assembler;
+        assembler = nullptr;
+    }
+    if(code) {
+        delete code;
+        code = nullptr;
+    }
 }
 
 bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_function* output) {
     if(!should_compile_function(function)) {
         return false;
     }
-    
+
     resetCodeHolder();
 
+    count++;
     currentFunction = function;
     // Initialize jump table for this function
     initializeJumpTable(function->bytecodeSize);
@@ -77,16 +95,27 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     currentPC = 0;
     
     while(pc < endPc) {
+        currentPC = pc - function->bytecode;
         // Bind the label for this PC position
         setJumpTableEntry(currentPC, opcodeLabels[currentPC]);
-        
+
+        // Section separator for debugging
+        assembler->nop();
+        assembler->nop();
+        assembler->nop();
+        assembler->nop();
         // Set pcReg to current PC for this instruction
         assembler->mov(pcReg, currentPC);
+
+//        // Call debug wrapper function
+//        assembler->mov(a64::x0, *pc);  // First parameter: opcode instruction
+//        assembler->mov(a64::x1, currentPC);  // Second parameter: current PC
+//        callStaticFunction(reinterpret_cast<void*>(jit_instructionStart));
+
         if(!translateOpcode(*pc, &pc, function)) {
             return false;
         }
         pc++;
-        currentPC++;
     }
 
     // Safety measure in case the ret instruction is skipped or fails for some reason
@@ -99,7 +128,7 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     
     // Finalize and get the compiled code
     void* func;
-    Error err = runtime.add(&func, &code);
+    Error err = runtime.add(&func, code);
     if(err) {
         return false;
     }
@@ -109,12 +138,12 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     output->jumpTable = new void*[output->jumpTableSize];
     
     // Get the actual addresses of each opcode label
-    size_t illegalBranchOffset = code.labelOffset(illegalBranchLabel);
+    size_t illegalBranchOffset = code->labelOffset(illegalBranchLabel);
     void* illegalBranchAddress = static_cast<char*>(func) + illegalBranchOffset;
     
     for (size_t i = 0; i < output->jumpTableSize; ++i) {
-        if (code.isLabelBound(opcodeLabels[i])) {
-            size_t offset = code.labelOffset(opcodeLabels[i]);
+        if (code->isLabelBound(opcodeLabels[i])) {
+            size_t offset = code->labelOffset(opcodeLabels[i]);
             output->jumpTable[i] = static_cast<char*>(func) + offset;
         } else {
             // Label not bound (multi-slot opcode), point to illegal branch handler
@@ -123,10 +152,10 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
     }
     
     output->compiledCode = reinterpret_cast<jit_function_ptr>(func);
-    output->codeSize = code.codeSize();
+    output->codeSize = code->codeSize();
     output->isCompiled = true;
     output->originalFunction = function;
-    
+
     return true;
 }
 
@@ -497,12 +526,17 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler->mov(framePtr, stackPtr);
     
     // Save all callee-saved registers we use (ARM64 requires this)
-    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25, x26, x27
+    // Save general purpose callee-saved registers: x19, x20, x21, x22, x23, x24, x25, x26, x27, x28
     assembler->stp(threadPtr, registersPtr, a64::ptr(stackPtr, -16).pre());
     assembler->stp(tempReg1, tempReg2, a64::ptr(stackPtr, -16).pre());
     assembler->stp(tempReg3, jumpTablePtr, a64::ptr(stackPtr, -16).pre());
     assembler->stp(jitFunctionPtr, tempReg4, a64::ptr(stackPtr, -16).pre());  // Save x25, x26 together
     assembler->stp(pcReg, tempReg5, a64::ptr(stackPtr, -16).pre());  // Save x27, x28 together
+    
+    // Save additional caller-saved registers we use: x12, x13, x14, x15, w10, w11 (tempReg6, tempReg7, tempReg8, tempReg9, tempReg32_1, tempReg32_2)
+    assembler->stp(tempReg6, tempReg7, a64::ptr(stackPtr, -16).pre());
+    assembler->stp(tempReg8, tempReg9, a64::ptr(stackPtr, -16).pre());  // Save x14, x15 together, maintain 16-byte alignment
+    assembler->stp(a64::x10, a64::x11, a64::ptr(stackPtr, -16).pre());  // Save x10, x11 together (full 64-bit registers for 32-bit temps)
     
     // Save vector callee-saved registers: d8, d9
     assembler->stp(tempVec1, tempVec2, a64::ptr(stackPtr, -16).pre());
@@ -564,6 +598,7 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler->mov(a64::x0, tempReg1);  // First parameter: frame
     assembler->mov(a64::x1, 0);         // Second parameter: false
     callStaticFunction(reinterpret_cast<void*>(invoke_next_frame));
+    loadPC();
 
     // Jump to state check
     assembler->b(stateCheckLabel);
@@ -574,6 +609,31 @@ bool Arm64Compiler::setupFunctionPrologue() {
 }
 
 bool Arm64Compiler::setupFunctionEpilogue() {
+
+    // Section separator for debugging
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->hint(1);
+    generateNumericObjectCheckSection();
+
+    // Section separator for debugging
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->hint(2);
+
+    generateObjectValueCheckSection();
+
+    // Section separator for debugging
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->nop();
+    assembler->hint(3);
+
     // Generate stack operation sections first (most commonly used)
     generateGrowStackSection();
     
@@ -582,6 +642,7 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     assembler->nop();
     assembler->nop();
     assembler->nop();
+    assembler->hint(4);
     
     generateStackOverflowSection();
     
@@ -590,6 +651,7 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     assembler->nop();
     assembler->nop();
     assembler->nop();
+    assembler->hint(5);
     
     // Generate state check section
     generateStateCheckSection();
@@ -599,6 +661,7 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     assembler->nop();
     assembler->nop();
     assembler->nop();
+    assembler->hint(6);
     
     // Generate exception handler section
     generateExceptionHandlerSection();
@@ -608,6 +671,7 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     assembler->nop();
     assembler->nop();
     assembler->nop();
+    assembler->hint(7);
     
     // Generate centralized return section
     generateReturnSection();
@@ -617,6 +681,7 @@ bool Arm64Compiler::setupFunctionEpilogue() {
     assembler->nop();
     assembler->nop();
     assembler->nop();
+    assembler->hint(8);
 
     generateIllegalBranchSection();
 
@@ -630,18 +695,22 @@ bool Arm64Compiler::setupFunctionEpilogue() {
 }
 
 void Arm64Compiler::resetCodeHolder() {
-    // Delete the old assembler to ensure clean state
-    delete assembler;
+    // AsmJit recommended approach: Reset CodeHolder with soft policy (preserves memory allocation)
+    // This automatically detaches all emitters and clears the code content for reuse
+    code->reset(ResetPolicy::kSoft);
     
-    // Reset the code holder completely
-    code.reset();
-    
-    // Explicitly set ARM64 architecture for cross-compilation
+    // Delete the old assembler since it's now detached
+//    if(assembler) {
+//        delete assembler;
+//        assembler = nullptr;
+//    }
+
+    // Re-initialize with ARM64 environment (required after reset)
     Environment arm64Env(Arch::kAArch64);
-    code.init(arm64Env);
-    
-    // Create a fresh assembler with the reset code holder
-    assembler = new a64::Assembler(&code);
+    code->init(arm64Env);
+
+    // Create a fresh assembler and attach it to the reset code holder
+    assembler = new a64::Assembler(code);
     
     // Recreate all labels with the new assembler for fresh start
     stateCheckLabel = assembler->newLabel();
@@ -650,6 +719,8 @@ void Arm64Compiler::resetCodeHolder() {
     illegalBranchLabel = assembler->newLabel();
     growStackLabel = assembler->newLabel();
     stackOverflowLabel = assembler->newLabel();
+    objectValueCheckLabel = assembler->newLabel();
+    numericObjectCheckLabel = assembler->newLabel();
     currentFunction = nullptr;
 }
 

@@ -21,6 +21,8 @@ struct frame {
     opcode_instr *pc;
     Int sp;
     Int fp;
+    bool native;
+    // todo: add bool for is call is native
 };
 
 void init_struct(stack_item *item);
@@ -29,7 +31,8 @@ void init_struct(
         int32_t raddr,
         opcode_instr *ip,
         Int sp,
-        Int fp
+        Int fp,
+        bool native
 );
 
 std::list<KeyPair<Int, Int>> get_frame_info(fiber *task);

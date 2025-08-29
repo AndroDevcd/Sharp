@@ -15,17 +15,42 @@ using namespace asmjit;
 
 // High-level helper functions for VM register operations
 
+/**
+ * Load VM register value into ARM64 vector register
+ * 
+ * REGISTERS USED: registersPtr
+ * 
+ * @param dest Target ARM64 vector register
+ * @param vmReg VM register index
+ */
 void Arm64Compiler::loadRegisterValue(a64::Vec dest, _register vmReg) {
     // Load registers[vmReg] into dest (floating point register)
     // Each register is 16 bytes (long double), so offset = vmReg * 16
     assembler->ldr(dest, a64::ptr(registersPtr, vmReg * 16));
 }
 
+/**
+ * Store ARM64 vector register value into VM register
+ * 
+ * REGISTERS USED: registersPtr
+ * 
+ * @param vmReg VM register index
+ * @param src Source ARM64 vector register  
+ */
 void Arm64Compiler::storeRegisterValue(_register vmReg, a64::Vec src) {
     // Store src into registers[vmReg] (floating point register)
     assembler->str(src, a64::ptr(registersPtr, vmReg * 16));
 }
 
+/**
+ * Add two VM registers and store result
+ * 
+ * REGISTERS USED: tempVec1, tempVec2
+ * 
+ * @param destReg Destination VM register
+ * @param leftReg Left operand VM register
+ * @param rightReg Right operand VM register
+ */
 void Arm64Compiler::addRegisters(_register destReg, _register leftReg, _register rightReg) {
     // registers[destReg] = registers[leftReg] + registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);   // tempVec1 = registers[leftReg]
@@ -34,6 +59,15 @@ void Arm64Compiler::addRegisters(_register destReg, _register leftReg, _register
     storeRegisterValue(destReg, tempVec1);  // registers[destReg] = tempVec1
 }
 
+/**
+ * Subtract two VM registers and store result
+ * 
+ * REGISTERS USED: tempVec1, tempVec2
+ * 
+ * @param destReg Destination VM register
+ * @param leftReg Left operand VM register
+ * @param rightReg Right operand VM register
+ */
 void Arm64Compiler::subRegisters(_register destReg, _register leftReg, _register rightReg) {
     // registers[destReg] = registers[leftReg] - registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);
@@ -42,6 +76,15 @@ void Arm64Compiler::subRegisters(_register destReg, _register leftReg, _register
     storeRegisterValue(destReg, tempVec1);
 }
 
+/**
+ * Multiply two VM registers and store result
+ * 
+ * REGISTERS USED: tempVec1, tempVec2
+ * 
+ * @param destReg Destination VM register
+ * @param leftReg Left operand VM register
+ * @param rightReg Right operand VM register
+ */
 void Arm64Compiler::mulRegisters(_register destReg, _register leftReg, _register rightReg) {
     // registers[destReg] = registers[leftReg] * registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);
@@ -50,6 +93,15 @@ void Arm64Compiler::mulRegisters(_register destReg, _register leftReg, _register
     storeRegisterValue(destReg, tempVec1);
 }
 
+/**
+ * Divide two VM registers and store result
+ * 
+ * REGISTERS USED: tempVec1, tempVec2
+ * 
+ * @param destReg Destination VM register
+ * @param leftReg Left operand VM register
+ * @param rightReg Right operand VM register
+ */
 void Arm64Compiler::divRegisters(_register destReg, _register leftReg, _register rightReg) {
     // registers[destReg] = registers[leftReg] / registers[rightReg]
     loadRegisterValue(tempVec1, leftReg);
@@ -58,12 +110,28 @@ void Arm64Compiler::divRegisters(_register destReg, _register leftReg, _register
     storeRegisterValue(destReg, tempVec1);
 }
 
+/**
+ * Copy VM register value to another VM register
+ * 
+ * REGISTERS USED: tempVec1
+ * 
+ * @param destReg Destination VM register
+ * @param srcReg Source VM register
+ */
 void Arm64Compiler::moveRegister(_register destReg, _register srcReg) {
     // registers[destReg] = registers[srcReg]
     loadRegisterValue(tempVec1, srcReg);
     storeRegisterValue(destReg, tempVec1);
 }
 
+/**
+ * Set VM register to immediate integer value
+ * 
+ * REGISTERS USED: tempReg1, tempVec1
+ * 
+ * @param vmReg Target VM register
+ * @param value Immediate integer value
+ */
 void Arm64Compiler::setRegisterImmediate(_register vmReg, int64_t value) {
     // registers[vmReg] = immediate value
     assembler->mov(tempReg1, value);
@@ -73,6 +141,13 @@ void Arm64Compiler::setRegisterImmediate(_register vmReg, int64_t value) {
 
 // Stack operation helpers
 
+/**
+ * Pop number value from VM stack
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2
+ * 
+ * @param destVec Vector register to receive popped value
+ */
 void Arm64Compiler::popStackNumber(a64::Vec destVec) {
     // Implements: pop_stack_number macro - (task->sp--)->var
     // Load task pointer from thread->task
@@ -87,6 +162,13 @@ void Arm64Compiler::popStackNumber(a64::Vec destVec) {
     assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp))); // Store decremented sp back
 }
 
+/**
+ * Push number value to VM stack
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2
+ * 
+ * @param srcVec Vector register containing value to push
+ */
 void Arm64Compiler::pushStackNumber(a64::Vec srcVec) {
     // Implements: push_stack_number macro - (++task->sp)->var
     // Load task pointer from thread->task
@@ -103,6 +185,13 @@ void Arm64Compiler::pushStackNumber(a64::Vec srcVec) {
 
 // External function call helpers
 
+/**
+ * Call external C function with no parameters
+ * 
+ * REGISTERS USED: tempReg1
+ * 
+ * @param functionPtr Pointer to C function
+ */
 void Arm64Compiler::callStaticFunction(void* functionPtr) {
     // Call external C function with no parameters
     // Load function address into temp register and call
@@ -110,6 +199,35 @@ void Arm64Compiler::callStaticFunction(void* functionPtr) {
     assembler->blr(tempReg1);
 }
 
+/**
+ * Call external C function with 1 parameter
+ * 
+ * REGISTERS USED: tempReg1, returnReg (x0 for parameter passing)
+ * 
+ * @param functionPtr Pointer to C function
+ * @param param1 First parameter register
+ */
+void Arm64Compiler::callStaticFunction(void* functionPtr, a64::Gp param1) {
+    // Call external C function with 1 parameter
+    // ARM64 calling convention: x0 = first param
+    
+    // Move parameter to ARM64 calling convention register
+    assembler->mov(a64::x0, param1);  // First parameter
+    
+    // Load function address and call
+    assembler->mov(tempReg1, reinterpret_cast<uint64_t>(functionPtr));
+    assembler->blr(tempReg1);
+}
+
+/**
+ * Call external C function with 2 parameters
+ * 
+ * REGISTERS USED: tempReg1, returnReg (x0), a64::x1 (for parameter passing)
+ * 
+ * @param functionPtr Pointer to C function
+ * @param param1 First parameter register
+ * @param param2 Second parameter register
+ */
 void Arm64Compiler::callStaticFunction(void* functionPtr, a64::Gp param1, a64::Gp param2) {
     // Call external C function with 2 parameters
     // ARM64 calling convention: x0 = first param, x1 = second param
@@ -123,6 +241,15 @@ void Arm64Compiler::callStaticFunction(void* functionPtr, a64::Gp param1, a64::G
     assembler->blr(tempReg1);
 }
 
+/**
+ * Call C++ instance method with 1 parameter
+ * 
+ * REGISTERS USED: tempReg1, returnReg (x0), a64::x1 (for parameter passing)
+ * 
+ * @param functionPtr Pointer to C++ method
+ * @param instance This pointer register
+ * @param param1 First parameter register
+ */
 void Arm64Compiler::callInstanceFunction(void* functionPtr, a64::Gp instance, a64::Gp param1) {
     // Call C++ instance method with 1 parameter
     // ARM64 calling convention: x0 = this pointer, x1 = first param
@@ -156,6 +283,13 @@ void Arm64Compiler::setJumpTableEntry(size_t pc, Label opcodeLabel) {
     }
 }
 
+/**
+ * Generate jump to target PC using jump table with bounds checking
+ * 
+ * REGISTERS USED: tempReg1, tempReg2, tempReg3, jumpTablePtr
+ * 
+ * @param targetPc Target PC to jump to
+ */
 void Arm64Compiler::generateJumpDispatch(int targetPc) {
     // Generate jump to target PC using jump table with bounds checking
     // jumpTable[targetPC] contains the address to jump to
@@ -187,7 +321,13 @@ void Arm64Compiler::generateJumpDispatch(int targetPc) {
 }
 
 // PC management helpers
-void Arm64Compiler::storePC() {
+/**
+ * Store current PC value to task->pc
+ * 
+ * REGISTERS USED: threadPtr, pcReg, tempReg1, tempReg2, tempReg3
+ * 
+ */
+void Arm64Compiler::storePC() { // [x]
     // Update task->pc = base + pcReg
     // Load task pointer
     assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
@@ -203,6 +343,12 @@ void Arm64Compiler::storePC() {
     assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));
 }
 
+/**
+ * Load numeric PC from task->pc pointer
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2, tempReg3, pcReg
+ * 
+ */
 void Arm64Compiler::loadPC() { // [x]
     // Load numeric PC from task->pc pointer based on relation to base pointer
     // Load task pointer
@@ -228,8 +374,59 @@ void Arm64Compiler::emitExceptionHandle() {
     assembler->b(catchExceptionLabel);
 }
 
+/**
+ * Fast exception check after function calls
+ * 
+ * REGISTERS USED: threadPtr, checkReg (parameter)
+ * 
+ * @param checkReg Register to use for exception checking
+ */
+void Arm64Compiler::emitFastExceptionCheck(a64::Gp checkReg) {
+    /*
+     * Fast exception check after function calls
+     * Based on growStack exception checking pattern:
+     * 
+     * // Load thread->signal and check tsig_except (bit 0)
+     * assembler->ldr(checkReg, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
+     * assembler->tbz(checkReg, 0, exceptionOk);  // Test bit 0, jump to exceptionOk if no exception
+     * 
+     * // Exception occurred - jump to exception handler
+     * emitExceptionHandle();
+     * 
+     * // Safety measure in case exception handler returns
+     * emitReturn(JIT_OK);
+     * 
+     * // No exception - continue execution
+     * assembler->bind(exceptionOk);
+     */
+    
+    // Create label for successful (no exception) case
+    Label exceptionOk = assembler->newLabel();
+    
+    // Load thread->signal and check tsig_except (bit 0)
+    assembler->ldr(checkReg, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
+    assembler->tbz(checkReg, 0, exceptionOk);  // Test bit 0, jump to exceptionOk if no exception
+    
+    // Exception occurred - jump to exception handler
+    emitExceptionHandle();
+    
+    // Safety measure in case exception handler returns (should never get here)
+    emitReturn(JIT_OK);
+    
+    // No exception - continue execution
+    assembler->bind(exceptionOk);
+}
+
 // VM Stack Operation Helpers - Centralized Sections
 
+/**
+ * Emit jump to centralized grow stack section
+ * 
+ * REGISTERS USED: tempReg1, tempReg2
+ * 
+ * @param n Number of items to check for stack growth
+ * @param returnLabel Label to return to after stack check
+ */
 void Arm64Compiler::emitGrowStackCheck(int n, Label &returnLabel) { // [x]
     /*
      * Emit jump to centralized grow stack section
@@ -251,6 +448,14 @@ void Arm64Compiler::emitGrowStackCheck(int n, Label &returnLabel) { // [x]
     assembler->bind(returnLabel);
 }
 
+/**
+ * Emit jump to centralized stack overflow section
+ * 
+ * REGISTERS USED: tempReg1, tempReg2
+ * 
+ * @param n Number of items to check for stack overflow
+ * @param returnLabel Label to return to after stack check
+ */
 void Arm64Compiler::emitStackOverflowCheck(int n, Label &returnLabel) {
     /*
      * Emit jump to centralized stack overflow section  
@@ -272,6 +477,12 @@ void Arm64Compiler::emitStackOverflowCheck(int n, Label &returnLabel) {
     assembler->bind(returnLabel);
 }
 
+/**
+ * Generate centralized grow stack section with exception checking
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2, tempReg3, tempReg4, tempReg5, tempReg6, tempReg7, tempReg8, returnReg
+ * 
+ */
 void Arm64Compiler::generateGrowStackSection() {
     /*
      * Centralized grow stack section
@@ -285,61 +496,58 @@ void Arm64Compiler::generateGrowStackSection() {
      */
     
     assembler->bind(growStackLabel);
-    assembler->mov(tempReg5, tempReg2);
+    
+    // Preserve input registers immediately using new temp registers to avoid conflicts
+    assembler->mov(tempReg6, tempReg2);     // Save return address in tempReg6
+    assembler->mov(tempReg7, tempReg1);     // Save n parameter in tempReg7
     
     // Get task pointer: task = thread->task
-    assembler->ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
     
-    // Load task->sp and task->stack  
-    assembler->ldr(tempReg4, a64::ptr(tempReg3, offsetof(fiber, sp)));
-    assembler->ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stack)));
+    // Load task->sp and task->stack using separate registers
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));     // task->sp
+    assembler->ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, stack)));  // task->stack
     
     // Calculate current stack depth: (task->sp - task->stack)
-    assembler->sub(tempReg4, tempReg4, returnReg);
+    assembler->sub(tempReg4, tempReg2, tempReg3);
     
     // Convert to item count: depth / sizeof(stack_item)
-    assembler->mov(returnReg, sizeof(stack_item));
-    assembler->udiv(tempReg4, tempReg4, returnReg);
+    assembler->mov(tempReg5, sizeof(stack_item));
+    assembler->udiv(tempReg4, tempReg4, tempReg5);
     
-    // Add n to current depth: (current_depth + n) [n is in tempReg1]
-    assembler->add(tempReg4, tempReg4, tempReg1);
+    // Add n to current depth: (current_depth + n) [n is in tempReg7]
+    assembler->add(tempReg4, tempReg4, tempReg7);
     
     // Load task->stackSize
-    assembler->ldr(returnReg, a64::ptr(tempReg3, offsetof(fiber, stackSize)));
+    assembler->ldr(tempReg8, a64::ptr(tempReg1, offsetof(fiber, stackSize)));
     
     // Compare: if ((current_depth + n) >= stackSize)
     Label growStackOk = assembler->newLabel();
-    assembler->cmp(tempReg4, returnReg);
+    assembler->cmp(tempReg4, tempReg8);
     assembler->b_lt(growStackOk);
-    assembler->mov(tempReg4, tempReg1); // preserve stack growth size
+    
+    // Need to grow stack - first store PC
     storePC();
     
-    // Need to grow stack - call task->growStack(n)
-    // Set up parameters: x0 = task, x1 = n
-    assembler->ldr(tempReg3, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    // Set up parameters for jit_growStack(task, n)
+    // x0 = task (already in tempReg1)
+    // x1 = n (in tempReg7)
+    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg1, tempReg7);
     
-    // Call task->growStack(n) using the wrapper function
-    // We have: task instance in tempReg3, parameter n in tempReg1
-    
-    // Call the wrapper function: jit_growStack(task, n)
-    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg3, tempReg4);
-    
-    // Check for exception after growStack call
-    // Load thread->signal and check tsig_except (bit 0)
-    assembler->ldr(tempReg4, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
-    assembler->tbz(tempReg4, 0, growStackOk);  // Test bit 0, jump to growStackOk if no exception
-    
-    // Exception occurred during growStack - jump to exception handler
-    emitExceptionHandle();
-
-    // should never get here but just a saftey measure
-    emitReturn(JIT_OK);
+    // Fast exception check after growStack call using fresh register
+    emitFastExceptionCheck(tempReg2);
     
     // Stack growth is OK - return to caller
     assembler->bind(growStackOk);
-    assembler->br(tempReg5);  // Jump back to return address
+    assembler->br(tempReg6);  // Jump back to return address (saved in tempReg6)
 }
 
+/**
+ * Generate centralized stack overflow check section
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2, tempReg3, tempReg4, tempReg5, returnReg
+ * 
+ */
 void Arm64Compiler::generateStackOverflowSection() {
     /*
      * Centralized stack overflow check section
@@ -365,8 +573,8 @@ void Arm64Compiler::generateStackOverflowSection() {
     assembler->sub(tempReg4, tempReg4, returnReg);
     
     // Convert to item count: depth / sizeof(stack_item)
-    assembler->mov(returnReg, sizeof(stack_item));
-    assembler->udiv(tempReg4, tempReg4, returnReg);
+    assembler->mov(tempReg5, sizeof(stack_item));
+    assembler->udiv(tempReg4, tempReg4, tempReg5);
     
     // Add n to current depth: (current_depth + n) [n is in tempReg1]
     assembler->add(tempReg4, tempReg4, tempReg1);
@@ -398,6 +606,13 @@ void Arm64Compiler::generateStackOverflowSection() {
     assembler->br(tempReg2);  // Jump back to return address
 }
 
+/**
+ * Push immediate double value to VM stack
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2, tempReg3, tempVec1
+ * 
+ * @param value Double value to push
+ */
 void Arm64Compiler::emitPushStackNumber(double value) {
     /*
      * VM Interpreter Macro:
@@ -424,6 +639,13 @@ void Arm64Compiler::emitPushStackNumber(double value) {
     assembler->str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
 }
 
+/**
+ * Push immediate integer value to VM stack (converted to double)
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2, tempReg3, tempVec1
+ * 
+ * @param intValue Integer value to convert and push
+ */
 void Arm64Compiler::emitPushStackNumberImmediate(int32_t intValue) {
     /*
      * VM Interpreter Macro:
@@ -449,4 +671,119 @@ void Arm64Compiler::emitPushStackNumberImmediate(int32_t intValue) {
     
     // Store the double value in stack_item.var field (offset 0)
     assembler->str(tempVec1, a64::ptr(tempReg2, offsetof(stack_item, var)));
+}
+
+/**
+ * Push stack object and return address for assignment
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2
+ * 
+ * @param destReg Register to receive address of new stack object
+ */
+void Arm64Compiler::emitPushStackObject(a64::Gp destReg) {
+    /*
+     * VM Interpreter Macro:
+     * #define push_stack_object (++task->sp)->obj
+     * 
+     * This function:
+     * 1. Increments task->sp (push operation)
+     * 2. Returns the address of the obj field in destReg: &((++task->sp)->obj)
+     */
+    
+    // Get task pointer: task = thread->task
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load current stack pointer: sp = task->sp
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Increment stack pointer: ++task->sp
+    assembler->add(tempReg2, tempReg2, sizeof(stack_item));
+    
+    // Store incremented sp back to task->sp
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Calculate address of obj field: &(task->sp)->obj
+    assembler->add(destReg, tempReg2, offsetof(stack_item, obj));
+}
+
+/**
+ * Pop stack object and return address of popped object
+ * 
+ * REGISTERS USED: threadPtr, tempReg1, tempReg2
+ * 
+ * @param destReg Register to receive address of popped stack object
+ */
+void Arm64Compiler::emitPopStackObject(a64::Gp destReg) {
+    /*
+     * VM Interpreter Macro:
+     * #define pop_stack_object (task->sp--)->obj
+     * 
+     * This function:
+     * 1. Gets the address of the current stack top's obj field
+     * 2. Decrements task->sp (pop operation)
+     * 3. Returns the address of the obj field before decrement: &((task->sp--)->obj)
+     */
+    
+    // Get task pointer: task = thread->task
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    
+    // Load current stack pointer: sp = task->sp
+    assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+    
+    // Calculate address of current obj field before decrement: &(task->sp)->obj
+    assembler->add(destReg, tempReg2, offsetof(stack_item, obj));
+    
+    // Decrement stack pointer: task->sp--
+    assembler->sub(tempReg2, tempReg2, sizeof(stack_item));
+    
+    // Store decremented sp back to task->sp
+    assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));
+}
+
+/**
+ * Jump to centralized object value check section
+ * 
+ * REGISTERS USED: tempReg2
+ * 
+ * @param returnLabel Label to return to after successful validation
+ */
+void Arm64Compiler::emitRequireObjectWithValue(Label &returnLabel) {
+    /*
+     * Jump to centralized object value check section
+     * Parameters passed in registers:
+     * - tempReg2: return address (label address)
+     */
+    
+    // Store return label address in tempReg2
+    assembler->adr(tempReg2, returnLabel);
+    
+    // Jump to centralized object value check section
+    assembler->b(objectValueCheckLabel);
+    
+    // Bind the return label immediately after the call
+    assembler->bind(returnLabel);
+}
+
+/**
+ * Jump to centralized numeric object check section
+ * 
+ * REGISTERS USED: tempReg2
+ * 
+ * @param returnLabel Label to return to after successful validation
+ */
+void Arm64Compiler::emitRequireNumericObjectWithValue(Label &returnLabel) {
+    /*
+     * Jump to centralized numeric object check section
+     * Parameters passed in registers:
+     * - tempReg2: return address (label address)
+     */
+    
+    // Store return label address in tempReg2
+    assembler->adr(tempReg2, returnLabel);
+    
+    // Jump to centralized numeric object check section
+    assembler->b(numericObjectCheckLabel);
+    
+    // Bind the return label immediately after the call
+    assembler->bind(returnLabel);
 }

@@ -822,8 +822,8 @@ void prepare_method(Int address) {
     auto function = vm.methods + address;
     
     function->callCount++;
-    if(c_options.jit && function->callCount >= 0 && !function->isHighFrequency
-        && function != task->main && function->name == "jit_func_test") {
+    if(c_options.jit && function->callCount >= 10 && !function->isHighFrequency
+        && function != task->main ) {
         function->isHighFrequency = true;
         if(function->jfunc == nullptr) {
             function->jfunc = calloc_mem<jit_compiled_function>(1, sizeof(jit_compiled_function));
@@ -851,7 +851,8 @@ void prepare_method(Int address) {
     task->calls++;
     if(task->calls > 1) {
         init_struct(task->frames + ++task->callFramePtr, task->current->address,
-                    task->pc, (task->sp - function->spOffset) - task->stack, task->fp - task->stack);
+                    task->pc, (task->sp - function->spOffset) - task->stack,
+                    task->fp - task->stack, inNative);
     }
 
     task->current = function;
@@ -953,7 +954,7 @@ bool return_method() {
     task->sp = task->stack + frame->sp;
     task->fp = task->stack + frame->fp;
 
-    if(task->current->nativeFunc)
+    if(frame->native)
         return true;
 //    cout << " pc now: " << current_pc;
 //    cout << endl;
