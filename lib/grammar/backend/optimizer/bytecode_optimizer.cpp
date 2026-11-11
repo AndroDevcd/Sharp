@@ -236,6 +236,13 @@ void optimize_bytecode() {
                     any = true;
                     run_local_passes(*ir, level);
                 }
+
+                // inlining is what brings "create a number object" and "read the
+                // number back out" into the same function
+                if(pass_box_elimination(*ir, program)) {
+                    any = true;
+                    run_local_passes(*ir, level);
+                }
             }
 
             if(!any) break;
@@ -279,7 +286,8 @@ void optimize_bytecode() {
                  << " times, removed " << passes[p].instructionsRemoved << " instructions\n";
         }
         if(level >= INLINE_LEVEL)
-            cout << "  pass inline calls: " << program.callsInlined << " calls replaced by the callee's body\n";
+            cout << "  pass inline calls: " << program.callsInlined << " calls replaced by the callee's body\n"
+                 << "  pass box elimination: " << program.boxesRemoved << " number objects replaced by a local\n";
 
         if(!skipped.empty()) {
             cout << "functions left untouched:\n";

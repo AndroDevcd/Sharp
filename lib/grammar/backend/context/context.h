@@ -201,6 +201,7 @@ bool inside_block(block_info *info, block_type type);
 void retrieve_lock_expressions(block_info *info, List<Ast*> &expressions);
 stored_block_info* retrieve_block(block_info *info, block_type type);
 sharp_label* retrieve_next_finally_label(block_info *info);
+void retrieve_finally_labels(block_info *info, List<sharp_label*> &labels, bool stopAtLoop);
 
 sharp_class *get_primary_class(context*);
 sharp_function *get_primary_function(context*);

@@ -135,26 +135,30 @@ void main_vm_loop(sharp_function *frame)
                     cast_numeric_array(task->ptr, dual_arg1);
                 )
                 branch
+            // Narrowing casts go through a 64-bit integer first, so a value that does not fit
+            // wraps around (like an integer cast in C or Java). Converting the long double
+            // straight to a small type is undefined for out of range values (x87 gives
+            // INT_MIN) and would not match what the JIT does (emit_mov8.. in jit/x64/opcode).
             MOV8:
-                regs[dual_arg1] = (int8_t)regs[dual_arg2];
+                regs[dual_arg1] = (int8_t)(int64_t)regs[dual_arg2];
                 branch
             MOV16:
-                regs[dual_arg1] = (int16_t)regs[dual_arg2];
+                regs[dual_arg1] = (int16_t)(int64_t)regs[dual_arg2];
                 branch
             MOV32:
-                regs[dual_arg1] = (int32_t)regs[dual_arg2];
+                regs[dual_arg1] = (int32_t)(int64_t)regs[dual_arg2];
                 branch
             MOV64:
                 regs[dual_arg1] = (int64_t)regs[dual_arg2];
                 branch
             MOVU8:
-                regs[dual_arg1] = (uint8_t)regs[dual_arg2];
+                regs[dual_arg1] = (uint8_t)(int64_t)regs[dual_arg2];
                 branch
             MOVU16:
-                regs[dual_arg1] = (uint16_t)regs[dual_arg2];
+                regs[dual_arg1] = (uint16_t)(int64_t)regs[dual_arg2];
                 branch
             MOVU32:
-                regs[dual_arg1] = (uint32_t)regs[dual_arg2];
+                regs[dual_arg1] = (uint32_t)(int64_t)regs[dual_arg2];
                 branch
             MOVU64:
                 regs[dual_arg1] = (uint64_t)regs[dual_arg2];
@@ -694,7 +698,11 @@ bool catch_exception() {
      *
      * Here we look for a possible caught exception of a given class
      */
-    for(Int i = 0; i < task->current->tryCatchTable.size; i++) {
+    // Try tables are emitted in source order, so of the tables covering this pc the
+    // innermost try is the one that starts last: walk them from last to first. For each
+    // try its own catch clauses are checked first, then its finally block, so an outer
+    // catch is never picked ahead of an inner finally (the finally re-throws when done).
+    for(Int i = (Int)task->current->tryCatchTable.size - 1; i >= 0; i--) {
         try_catch_data *table = &task->current->tryCatchTable.node_at(i)->data;
         if(pc >= table->blockStartPc && pc <= table->blockEndPc) {
             for(catch_data &caughtException : table->catchTable) {
@@ -717,11 +725,8 @@ bool catch_exception() {
                 }
             }
         }
-    }
 
-    // Since we couldn't catch it we must jump to the first finally block (if applicable)
-    for(Int i = 0; i < task->current->tryCatchTable.size; i++) {
-        try_catch_data *table = &task->current->tryCatchTable.node_at(i)->data;
+        // This try couldn't catch it, so jump to its finally block (if applicable)
         if(table->tryStartPc <= pc && table->tryEndPc >= pc && table->finallyData)
         {
             task->pc = task->rom + table->finallyData->startPc;

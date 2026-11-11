@@ -52,6 +52,7 @@
 //     optimizer refuses to decode
 //   - recursive calls, native functions, delegates (`invoke_delegate`: the
 //     target is only known at run time)
+//   - constructors that just store a number in their object (see can_inline)
 //
 // VISIBLE DIFFERENCE
 //   An inlined function has no frame of its own, so it does not appear in
@@ -75,7 +76,7 @@ static int slots_of(function_ir &fn) {
     return fn.frameSlots > 0 ? fn.frameSlots : 1; // slot 0 always exists: it is the return slot
 }
 
-static bool can_inline(function_ir &callee, function_ir &caller) {
+static bool can_inline(function_ir &callee, function_ir &caller, program_ir &program) {
     if(&callee == &caller) return false;
     if(!callee.failure.empty() || callee.code.empty()) return false;
     if(callee.code.size() > MAX_INLINE_INSTRUCTIONS) return false;
@@ -85,6 +86,11 @@ static bool can_inline(function_ir &callee, function_ir &caller) {
     if(type == delegate_function || type == native_function || type == blueprint_function
        || type == undefined_function)
         return false;
+
+    // A constructor that only stores a number in its object stays a call: the box
+    // elimination pass recognizes exactly that call and removes it together with
+    // the object. Inlined, it would be a pile of instructions nobody recognizes.
+    if(summarize_box_call(program, callee.ci->address).effect == box_stores_value) return false;
 
     // must end in a plain `ret` so "the end of the body" is a single place
     ir_instruction &last = callee.code.back();
@@ -236,7 +242,7 @@ bool pass_inline_calls(function_ir &caller, program_ir &program) {
         if(found == program.byAddress.end()) continue;
 
         function_ir &callee = *found->second;
-        if(!can_inline(callee, caller)) continue;
+        if(!can_inline(callee, caller, program)) continue;
         if(caller.frameSlots + slots_of(callee) > MAX_CALLER_FRAME_SLOTS) continue;
 
         // Do not re-scan what was just inserted in this round: calls inside it are

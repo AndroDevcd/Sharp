@@ -12,7 +12,8 @@ sharp_class* compile_catch_clause(
         Ast *ast,
         operation_schema *scheme,
         sharp_tc_data *tc_data,
-        bool *controlPaths) {
+        bool *controlPaths,
+        sharp_label *finallyLabel) {
     catch_data_info *catchData = create_catch_data_tracker(tc_data, scheme);
     sharp_class *exceptionClass = NULL;
 
@@ -53,7 +54,7 @@ sharp_class* compile_catch_clause(
 
     exceptionClass = get_class_type(handlingClass);
     create_catch_start_operation(scheme, catchData);
-    if(!compile_block(ast->getSubAst(ast_block), scheme, catch_block)) {
+    if(!compile_block(ast->getSubAst(ast_block), scheme, catch_block, NULL, NULL, NULL, finallyLabel)) {
         controlPaths[CATCH_CONTROL_PATH] = false;
     }
 
@@ -110,7 +111,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
 
     controlPaths[TRY_CONTROL_PATH] =
             compile_block(ast->getSubAst(ast_block), subScheme, try_block,
-                          NULL, NULL, NULL, ast->hasSubAst(ast_finally_block) ? finallyBeginLabel : NULL);
+                          NULL, NULL, NULL, ast->hasSubAst(ast_finally_block) ? endLabel : NULL);
     create_try_catch_block_end_operation(subScheme, tc_data);
 
     if(hasCatchBlock)
@@ -126,7 +127,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
                 operation_schema *catchScheme = new operation_schema(scheme_catch_clause);
 
                 create_block(&current_context, normal_block);
-                sharp_class *klass = compile_catch_clause(branch, catchScheme, tc_data, controlPaths);
+                sharp_class *klass = compile_catch_clause(branch, catchScheme, tc_data, controlPaths, hasFinallyBlock ? endLabel : NULL);
                 delete_block();
 
                 if(klass != NULL && !catchedClasses.addif(klass)) {
@@ -150,7 +151,10 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
                 operation_schema *finallyScheme = new operation_schema();
                 create_try_catch_end_operation(finallyScheme, tc_data);
 
-                sharp_label *nextFinallyLabel = retrieve_next_finally_label(&current_context.blockInfo);
+                // A finally block never jumps straight into the enclosing finally any more: a pending exception is
+                // re-thrown (so the vm can offer it to the enclosing catch clauses first) and break/continue/return
+                // visit each finally themselves. Every finally clause is therefore generated as a "last" one.
+                sharp_label *nextFinallyLabel = NULL;
                 finally_data_info *finallyData = create_finally_data_tracker(tc_data, finallyScheme);
 
                 create_set_label_operation(finallyScheme, endLabel);
@@ -168,7 +172,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
 
                     create_local_field_access_operation(finallyScheme, exceptionObject);
                     create_push_to_stack_operation(finallyScheme);
-                    create_return_with_error_operation(finallyScheme); // it will only return of exception object still has not been handled
+                    finallyScheme->steps.add(new operation_step(operation_throw_exception)); // re-throw: only reached if the exception object still has not been handled
 
                     finallyScheme->schemeType =  scheme_last_finally_clause;
                 } else {

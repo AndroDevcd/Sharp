@@ -15,6 +15,7 @@
 #define SHARP_OPT_PASSES_H
 
 #include "../function_ir.h"
+#include "../analysis/box_constructors.h"
 #include <map>
 
 /** Every function the optimizer could decode, for the passes that look across functions */
@@ -22,10 +23,15 @@ struct program_ir {
     std::vector<function_ir*> functions;
     std::map<Int, function_ir*> byAddress;   // function address (the operand of `call`) -> function
     Int callsInlined = 0;
+    Int boxesRemoved = 0;
+    std::map<Int, box_summary> boxSummaries;  // cache of analysis/box_constructors.h, by function address
 };
 
 /** push/pop pairs on the operand stack become direct moves, or disappear   (pass_stack_forwarding.cpp) */
 bool pass_stack_forwarding(function_ir &ir);
+/** values known at compile time are computed at compile time, branches on
+ *  known conditions are decided                                             (pass_constant_propagation.cpp) */
+bool pass_constant_propagation(function_ir &ir);
 /** computations and variables whose value is never read are removed        (pass_dead_stores.cpp) */
 bool pass_dead_stores(function_ir &ir);
 /** everything that contributes to nothing observable: self-feeding variables,
@@ -39,9 +45,12 @@ bool pass_unreachable_code(function_ir &ir);
 // ---- passes that work across functions (run by the driver at -O3, not part of the list below) ----
 /** small callees are copied into their callers                             (pass_inline_calls.cpp) */
 bool pass_inline_calls(function_ir &caller, program_ir &program);
+/** number objects that never leave the function are replaced by a plain local (pass_box_elimination.cpp) */
+bool pass_box_elimination(function_ir &ir, program_ir &program);
 
 #define OPTIMIZER_PASS_LIST(X) \
     X("stack forwarding", 1, pass_stack_forwarding) \
+    X("constant propagation", 2, pass_constant_propagation) \
     X("dead stores",      1, pass_dead_stores) \
     X("dead code",        2, pass_dead_code) \
     X("jump clean-up",    1, pass_jump_cleanup) \

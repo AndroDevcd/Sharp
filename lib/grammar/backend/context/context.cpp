@@ -177,6 +177,31 @@ sharp_label* retrieve_next_finally_label(block_info *info) {
     return NULL;
 }
 
+static bool is_loop_block(block_type type) {
+    return type == for_block || type == for_each_block
+        || type == while_block || type == do_while_block;
+}
+
+// Collects the finally blocks a jump has to run on its way out, innermost first.
+// stopAtLoop: used by break/continue, which only leave the nearest enclosing loop and
+// therefore must not run the finally block of a try that encloses that loop.
+void retrieve_finally_labels(block_info *info, List<sharp_label*> &labels, bool stopAtLoop) {
+    // (a block opened with create_block() alone inherits the label of the block around it,
+    //  so the same label can show up on consecutive levels: only take it once)
+    if(info->finallyLabel != NULL)
+        labels.add(info->finallyLabel);
+    if(stopAtLoop && is_loop_block(info->type))
+        return;
+
+    for(Int i = (Int)info->storedItems.size() - 1; i >= 0; i--) {
+        sharp_label *label = info->storedItems.get(i)->finallyLabel;
+        if(label != NULL && (labels.empty() || labels.last() != label))
+            labels.add(label);
+        if(stopAtLoop && is_loop_block(info->storedItems.get(i)->type))
+            return;
+    }
+}
+
 void restore_block(block_info *info) {
     // we preserve any carry-over items from the block were exiting
     info->copy(*info->storedItems.last());

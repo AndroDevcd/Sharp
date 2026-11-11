@@ -46,7 +46,7 @@ void process_last_finally_scheme(operation_schema *scheme) {
 
     process_get_local_field_value(next_step);
     process_push_value_to_stack(next_step);
-    process_return_with_error_state(next_step);
+    process_throw_exception(next_step);
 
     process_set_label(next_step);
 

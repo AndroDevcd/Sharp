@@ -235,7 +235,9 @@ void pop_machine_data_from_stack() {
             }
 
             case numeric_local_field: {
-                if(cc.machineData.field->type.type < type_function_ptr) {
+                // field == NULL: not a declared local but a compiler temporary (an expression deep
+                // enough to run out of registers spills into stack slots, see allocate_register): no cast
+                if(cc.machineData.field != NULL && cc.machineData.field->type.type < type_function_ptr) {
                     add_instruction(Opcode::Builder::loadValue(EGX));
                     cast_machine_data(EGX, cc.machineData.field->type.type);
                     add_instruction(Opcode::Builder::smovr2(EGX, cc.machineData.dataAddress));
@@ -377,14 +379,14 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
                 }
                 case numeric_local_field: {
                     if (internalRegister->type == normal_register) {
-                        if(cc.machineData.field->type.type < type_function_ptr) {
+                        if(cc.machineData.field != NULL && cc.machineData.field->type.type < type_function_ptr) {
                             cast_machine_data((_register) internalRegister->address, cc.machineData.field->type.type);
                         }
 
                         add_instruction(Opcode::Builder::smovr2(
                                 (_register) internalRegister->address, cc.machineData.dataAddress));
                     } else {
-                        if(cc.machineData.field->type.type < type_function_ptr) {
+                        if(cc.machineData.field != NULL && cc.machineData.field->type.type < type_function_ptr) {
                             add_instruction(Opcode::Builder::loadl(
                                     EGX, internalRegister->address));
 

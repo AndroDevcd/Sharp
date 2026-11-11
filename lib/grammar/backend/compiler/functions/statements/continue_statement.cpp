@@ -9,13 +9,17 @@
 
 
 stored_block_info* retrieve_loop_block() {
-    stored_block_info* info;
-
-    if((info = retrieve_block(&current_context.blockInfo, while_block)) != NULL
-       || (info = retrieve_block(&current_context.blockInfo, do_while_block)) != NULL
-       || (info = retrieve_block(&current_context.blockInfo, for_each_block)) != NULL
-       || (info = retrieve_block(&current_context.blockInfo, for_block)) != NULL) {
+    // the nearest enclosing loop, whatever kind it is
+    block_info *info = &current_context.blockInfo;
+    if(info->type == while_block || info->type == do_while_block
+       || info->type == for_each_block || info->type == for_block)
         return info;
+
+    for(Int i = (Int)info->storedItems.size() - 1; i >= 0; i--) {
+        block_type type = info->storedItems.get(i)->type;
+        if(type == while_block || type == do_while_block
+           || type == for_each_block || type == for_block)
+            return info->storedItems.get(i);
     }
 
     return NULL;
@@ -37,9 +41,10 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
 
     set_internal_label_name(ss, "continue_begin", uniqueId++)
     continueStartLabel = create_label(ss.str(), &current_context, ast, subScheme);
-    sharp_label *finallyLabel = retrieve_next_finally_label(&current_context.blockInfo);
+    List<sharp_label*> finallyLabels; // every finally block this jump has to run, innermost first
+    retrieve_finally_labels(&current_context.blockInfo, finallyLabels, true);
 
-    if(finallyLabel != NULL) {
+    if(!finallyLabels.empty()) {
         uInt flags = flag_public;
         set_internal_variable_name(ss, "return_address", 0)
         if ((returnAddressField = resolve_local_field(ss.str(), &current_context)) == NULL) {
@@ -50,26 +55,40 @@ void compile_continue_statement(Ast *ast, operation_schema *scheme) {
         }
 
 
-        APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_assign_value, *subScheme,
-               operation_schema *addressValueScheme = new operation_schema(scheme_get_value);
-               operation_schema *addressVariableScheme = new operation_schema();
-               create_retain_label_value_operation(addressValueScheme, continueStartLabel);
-               create_get_value_operation(&scheme_0, addressValueScheme, false, false);
-               create_push_to_stack_operation(&scheme_0);
+        // run the finally blocks one at a time: each one branches back here (through return_address)
+        // when it is done, and we then move on to the next enclosing one.
+        for(Int i = 0; i < finallyLabels.size(); i++) {
+            sharp_label *resumeLabel = continueStartLabel;
+            if(i + 1 < finallyLabels.size()) {
+                set_internal_label_name(ss, "finally_resume", uniqueId++)
+                resumeLabel = create_label(ss.str(), &current_context, ast, subScheme);
+            }
 
-               create_local_field_access_operation(addressVariableScheme, returnAddressField);
-               create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
-               create_pop_value_from_stack_operation(&scheme_0);
-               create_unused_data_operation(&scheme_0);
+            APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_assign_value, *subScheme,
+                   operation_schema *addressValueScheme = new operation_schema(scheme_get_value);
+                   operation_schema *addressVariableScheme = new operation_schema();
+                   create_retain_label_value_operation(addressValueScheme, resumeLabel);
+                   create_get_value_operation(&scheme_0, addressValueScheme, false, false);
+                   create_push_to_stack_operation(&scheme_0);
 
-               delete addressVariableScheme;
-               delete addressValueScheme;
-        )
+                   create_local_field_access_operation(addressVariableScheme, returnAddressField);
+                   create_get_value_operation(&scheme_0, addressVariableScheme, false, false);
+                   create_pop_value_from_stack_operation(&scheme_0);
+                   create_unused_data_operation(&scheme_0);
 
-        create_jump_operation(subScheme, finallyLabel);
+                   delete addressVariableScheme;
+                   delete addressValueScheme;
+            )
+
+            create_jump_operation(subScheme, finallyLabels.get(i));
+            if(resumeLabel != continueStartLabel)
+                create_set_label_operation(subScheme, resumeLabel);
+        }
     }
 
     create_set_label_operation(subScheme, continueStartLabel);
+    if(!finallyLabels.empty())
+        create_setup_local_field_operation(subScheme, returnAddressField); // the pending jump has been taken, clear it
     retrieve_lock_expressions(&current_context.blockInfo, lockExpressions);
     for(Int i = 0; i < lockExpressions.size(); i++) {
         operation_schema* tmp = new operation_schema();
