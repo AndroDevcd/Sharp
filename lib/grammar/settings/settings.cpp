@@ -134,8 +134,10 @@ void set_target_platform(string target) {
 
 void set_target_threads(string target) {
     if(isNumber(target)) {
-        options.target = stoi(target, nullptr, 0);
-        if(options.target <= 0 || options.target >= 10) {
+        // -j <threads>: this used to assign options.target (the platform target) by mistake,
+        // so the thread count was never applied.
+        options.target_threads = stoi(target, nullptr, 0);
+        if(options.target_threads <= 0 || options.target_threads >= 10) {
             stringstream ss;
             ss << "invalid target threads amount" << target;
             error(ss.str());

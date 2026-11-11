@@ -9,7 +9,6 @@
 #include "field_injector.h"
 #include "obfuscator.h"
 #include "../../../settings/settings.h"
-#include "codemotion/code_motion.h"
 #include "../generation/generator.h"
 #include "initialization_validator.h"
 
@@ -27,13 +26,6 @@ void optimize() {
         pre_generate_addresses();
         validate_required_dependencies();
 
-//        if(options.optimize_level == high_performance_optimization) {
-//            optimize_code_motion();
-//        }
-//
-//        if(options.optimize_level >= basic_optimization) {
-//            // todo:
-//        }
     } else {
         create_new_error(INTERNAL_ERROR, sharpFiles.get(0)->p->astAt(0),
                                              "could not locate genesis/main method!");

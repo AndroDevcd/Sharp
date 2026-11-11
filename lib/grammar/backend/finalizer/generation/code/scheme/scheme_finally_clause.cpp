@@ -27,7 +27,9 @@ void process_finally_scheme(operation_schema *scheme) {
     process_master_scheme(next_step->scheme);
 
     process_get_local_field_value(next_step);
-    consume_machine_data();
+    // (no consume_machine_data() here: process_check_null consumes the value itself.
+    //  Consuming it twice made every try/finally nested inside another try/finally
+    //  fail with "attempting to consume empty machine data!")
 
     process_check_null(next_step);
     process_jump_if_true(next_step);

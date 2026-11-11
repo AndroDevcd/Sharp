@@ -3299,8 +3299,16 @@ sharp_type resolve(
     return resolvedType;
 }
 
+// Dependency lists hang off classes, files, functions and fields that several
+// compiler worker threads work on at the same time (two files being compiled in
+// parallel both add to the same class's or file's list). Without this lock two
+// threads grow the same List at once and corrupt the heap. Recursive because
+// the functions below call each other.
+static std::recursive_mutex dependencyLock;
+
 void create_dependency(sharp_class* depender, sharp_class* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
@@ -3309,6 +3317,7 @@ void create_dependency(sharp_class* depender, sharp_class* dependee) {
 
 void create_dependency(sharp_file* depender, sharp_file* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
@@ -3316,6 +3325,7 @@ void create_dependency(sharp_file* depender, sharp_file* dependee) {
 
 void create_dependency(sharp_function* depender, sharp_function* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));
@@ -3324,6 +3334,7 @@ void create_dependency(sharp_function* depender, sharp_function* dependee) {
 
 void create_dependency(sharp_function* depender, sharp_class* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee);
@@ -3331,6 +3342,7 @@ void create_dependency(sharp_function* depender, sharp_class* dependee) {
 
 void create_dependency(sharp_function* depender, sharp_field* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
@@ -3338,6 +3350,7 @@ void create_dependency(sharp_function* depender, sharp_field* dependee) {
 
 void create_dependency(sharp_field* depender, sharp_function* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee->owner);
@@ -3345,6 +3358,7 @@ void create_dependency(sharp_field* depender, sharp_function* dependee) {
 
 void create_dependency(sharp_field* depender, sharp_class* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     depender->dependencies.addif(dependency(dependee));
     create_dependency(depender->owner, dependee);
@@ -3352,6 +3366,7 @@ void create_dependency(sharp_field* depender, sharp_class* dependee) {
 
 void create_dependency(sharp_field* depender, sharp_field* dependee) {
     if(depender == NULL || dependee == NULL) return;
+    GUARD(dependencyLock)
 
     if(depender != dependee)
         depender->dependencies.addif(dependency(dependee));

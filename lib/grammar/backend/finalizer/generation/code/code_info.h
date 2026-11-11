@@ -214,6 +214,18 @@ struct code_info {
     List<opcode_instr> code;
     int address;
     Int uuid;
+
+    // ---- information for the bytecode optimizer (backend/optimizer) ----
+    // Word indexes of instructions whose operand is a CODE ADDRESS stored as a
+    // plain number (e.g. `movi <label>, adx` remembering where to continue
+    // after a finally block). In the finished code such a value looks like any
+    // other integer, so it has to be marked here or it could not be updated
+    // when instructions move. Branches (jmp/je/jne) are not listed, their
+    // operand is always an address.
+    List<Int> labelOperands;
+    // The function contains hand written asm { }. asm may compute code
+    // addresses at run time, so the optimizer leaves such functions alone.
+    bool hasAsm = false;
 };
 
 string code_to_string(code_info *info);

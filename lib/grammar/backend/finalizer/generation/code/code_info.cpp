@@ -21,6 +21,8 @@ void code_info::copy(const code_info &ci) {
     spOffset = ci.spOffset;
     frameStackOffset = ci.frameStackOffset;
     code.addAll(ci.code);
+    labelOperands.addAll(ci.labelOperands);
+    hasAsm = ci.hasAsm;
 
     for(Int i = 0; i < ci.lineTable.size(); i++) {
         lineTable.add(new line_info(*ci.lineTable.get(i)));

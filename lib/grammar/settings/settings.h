@@ -132,6 +132,17 @@ struct settings {
     bool magic = false;
 
     /*
+     * How hard the bytecode optimizer works (-O0 .. -O3), see
+     * backend/optimizer/bytecode_optimizer.h. 0 = off.
+     */
+    int optimize_level = 0;
+
+    /*
+     * Print what the bytecode optimizer did (-Oreport)
+     */
+    bool optimize_report = false;
+
+    /*
      * Easter egg to enable debug mode
      *
      * Allows you to see a little information

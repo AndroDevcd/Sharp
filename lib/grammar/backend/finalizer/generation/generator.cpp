@@ -13,6 +13,7 @@
 #include "../../../../util/File.h"
 #include "native_generator.h"
 #include "obfuscation/obfuscator.h"
+#include "../../optimizer/bytecode_optimizer.h"
 
 Int UUIDGenerator = 0;
 const int range_from  = 0;
@@ -69,6 +70,10 @@ void generate() {
     for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
         generate(compressedCompilationFunctions.get(i));
     }
+
+    // Every function now has its bytecode. Optimize it (sharpc -O1..-O3, does
+    // nothing at -O0) before the .aout listing and the executable are written.
+    optimize_bytecode();
 
     application_id = abs(distr(generator));
 //    remove_delegate_functions();

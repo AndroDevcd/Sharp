@@ -43,6 +43,8 @@ void help() {
     cout <<               "    -v<version>          set the application version"                               << endl;
     cout <<               "    -target              target the specified platform of sharp to run on"          << endl;
     cout <<               "    -release -r          generate a release build exe"                              << endl;
+    cout <<               "    -O<0-3>              bytecode optimization level (default -O0, no optimization)"    << endl;
+    cout <<               "    -Oreport             print what the bytecode optimizer did"                         << endl;
     cout <<               "    --hw                 display help message for warning options"                  << endl;
     cout <<               "    --h -?               display this help message"                                 << endl;
 }
@@ -184,6 +186,15 @@ int _bootstrap(int argc, const char* args[])
         }
         else if(opt("-R") || opt("-release")){
             enable_app_debugging(false);
+        }
+        else if(opt("-O0") || opt("-O1") || opt("-O2") || opt("-O3")){
+            options.optimize_level = arg[2] - '0';
+        }
+        else if(opt("-O")){
+            options.optimize_level = 1;
+        }
+        else if(opt("-Oreport")){
+            options.optimize_report = true;
         }
         else if(opt("-magic")){
             enable_magic_mode(true);

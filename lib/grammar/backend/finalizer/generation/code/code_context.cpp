@@ -90,6 +90,19 @@ void flush_context() {
     }
 
     resolve_dynamic_instructions();
+
+    // Tag for the bytecode optimizer: remember which non-branch instructions
+    // were given a label (a code address) as an operand. Nothing about the
+    // generated code changes, see code_info::labelOperands.
+    for(Int i = 0; i < cc.dynamicInstructions.size(); i++) {
+        dynamic_instruction *di = cc.dynamicInstructions.get(i);
+        bool usesLabel = di->arg1.type == label_argument || di->arg2.type == label_argument
+                || di->arg3.type == label_argument;
+
+        if(usesLabel && di->opcode != Opcode::JMP && di->opcode != Opcode::JE && di->opcode != Opcode::JNE)
+            cc.ci->labelOperands.add(di->ip);
+    }
+
     cc.ci->stackSize = (check_flag(cc.container->flags, flag_static) ? 0 : 1) +
             cc.container->locals.size() + (cc.registers.size() - MIN_REGISTERS);
     set_fp_offset();
