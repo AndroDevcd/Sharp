@@ -16,6 +16,7 @@ using namespace asmjit;
 
 class Arm64Compiler : public JitCompiler {
 private:
+    JitErrorHandler errorHandler;
     JitRuntime runtime;
     CodeHolder *code;
     a64::Assembler *assembler;

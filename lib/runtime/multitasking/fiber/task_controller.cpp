@@ -12,10 +12,12 @@
 #include "../thread/sharp_thread.h"
 #include "../thread/thread_controller.h"
 #include "../../../util/time.h"
+#include "../../telemetry/telemetry.h"
 
 atomic<uInt> taskIds = { 0 };
 fiber* create_task(string &name, sharp_function *main, sharp_object *fibObject, sharp_object *args, sharp_thread *bindTo) {
     fiber *fib = nullptr;
+    TELEMETRY_COUNT(tm_fibers_created)
 
     try {
         fib = malloc_struct<fiber>(sizeof(fiber), 1);

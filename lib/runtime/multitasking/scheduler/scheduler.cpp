@@ -12,6 +12,7 @@
 #include "../../multitasking/fiber/fiber.h"
 #include "idle_scheduler.h"
 #include "../fiber/task_controller.h"
+#include "../../telemetry/telemetry.h"
 
 uInt schedTime = 0, clocks = 0;
 uInt taskCount = 0; /* Read-Only */
@@ -39,6 +40,7 @@ void __usleep(unsigned int usec)
 }
 
 void run_scheduler() {
+    TELEMETRY(telemetry_name_thread("scheduler (os main thread)");)
     _sched_thread *schth = nullptr;
     sched_task *scht = nullptr;
     uInt sleepTm = 0;

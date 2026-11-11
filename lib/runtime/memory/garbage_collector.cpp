@@ -11,6 +11,7 @@
 #include "../error/vm_exception.h"
 #include "../multitasking/fiber/fiber.h"
 #include "sharp_object.h"
+#include "../telemetry/telemetry.h"
 
 garbage_collector gc;
 recursive_mutex gc_lock;
@@ -168,6 +169,7 @@ void mark_memory(sharp_object *heap) {
 void sweep(sharp_object *prev, sharp_object *obj) {
     if(obj != nullptr && prev != nullptr)
     {
+        TELEMETRY_COUNT(tm_gc_objects_freed)
         if(obj->type <= type_var) {
             release_bytes(sizeof(long double) * obj->size);
             std::free(obj->HEAD);
@@ -286,6 +288,8 @@ void gc_collect(collection_policy policy) {
     collectionFlag = true;
     if(collection_allowed())
     {
+        TELEMETRY_SCOPE(tm_mode_gc)
+        TELEMETRY_COUNT(tm_gc_cycles)
         switch(policy) {
 
             case policy_partial_sweep: {
@@ -401,6 +405,7 @@ void*
 #endif
 gc_main(void *pVoid) {
     thread_self = (sharp_thread*)pVoid;
+    TELEMETRY(telemetry_name_thread("garbage collector");)
     thread_self->state = THREAD_RUNNING;
     gc.state = RUNNING;
     set_thread_priority(thread_self, THREAD_PRIORITY_LOW);

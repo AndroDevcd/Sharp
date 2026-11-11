@@ -10,6 +10,7 @@
 #include "../../multitasking/thread/sharp_thread.h"
 #include "../../memory/vm_stack.h"
 #include "../jit_wrappers.h"
+#include "../../telemetry/telemetry.h"
 #include <cstddef>  // For offsetof
 
 using namespace asmjit;
@@ -19,6 +20,7 @@ Arm64Compiler::Arm64Compiler() {
     code = new CodeHolder();
     Environment arm64Env(Arch::kAArch64);
     code->init(arm64Env);
+    code->setErrorHandler(&errorHandler);
     assembler = new a64::Assembler(code);
     currentFunction = nullptr;
     
@@ -112,7 +114,10 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
 //        assembler->mov(a64::x1, currentPC);  // Second parameter: current PC
 //        callStaticFunction(reinterpret_cast<void*>(jit_instructionStart));
 
-        if(!translateOpcode(*pc, &pc, function)) {
+        uint32_t instruction = *pc; // translateOpcode may advance pc past a two-word instruction
+        if(!translateOpcode(instruction, &pc, function)) {
+            // this opcode is not implemented by the jit yet: the function stays interpreted
+            TELEMETRY(telemetry_jit_blocked(function, GET_OP(instruction));)
             return false;
         }
         pc++;
@@ -126,6 +131,12 @@ bool Arm64Compiler::compileFunction(sharp_function* function, jit_compiled_funct
         return false;
     }
     
+    // If AsmJit rejected any instruction it emitted nothing for it, so the
+    // function would be silently broken. Fall back to the interpreter instead.
+    if(errorHandler.failed) {
+        return false;
+    }
+
     // Finalize and get the compiled code
     void* func;
     Error err = runtime.add(&func, code);
@@ -201,7 +212,7 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
         case Opcode::NEWOBJARRAY:
             return emit_newobjarray(GET_Da(opcode));
         case Opcode::NEWCLASSARRAY: {
-            bool result = emit_newclassarray(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_newclassarray(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -261,7 +272,7 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
         case Opcode::SMOVR_3:
             return emit_smovr_3(GET_Da(opcode));
         case Opcode::SMOVR_4: {
-            bool result = emit_smovr_4(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)));
+            bool result = emit_smovr_4(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -277,7 +288,7 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
             return result;
         }
         case Opcode::ISTOREL: {
-            bool result = emit_istorel(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)));
+            bool result = emit_istorel(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -296,37 +307,37 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
             
         // Arithmetic operations
         case Opcode::ADD:
-            return emit_add(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_add(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::SUB:
-            return emit_sub(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_sub(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::MUL:
-            return emit_mul(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_mul(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::DIV:
-            return emit_div(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_div(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::MOD:
-            return emit_mod(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_mod(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::IADD: {
-            bool result = emit_iadd(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_iadd(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
         case Opcode::ISUB: {
-            bool result = emit_isub(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_isub(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
         case Opcode::IMUL: {
-            bool result = emit_imul(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_imul(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
         case Opcode::IDIV: {
-            bool result = emit_idiv(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_idiv(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
         case Opcode::IMOD: {
-            bool result = emit_imod(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_imod(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -372,9 +383,9 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
         case Opcode::NEG:
             return emit_neg(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::EXP:
-            return emit_exp(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_exp(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::ISADD: {
-            bool result = emit_isadd(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)));
+            bool result = emit_isadd(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -395,9 +406,9 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
         case Opcode::XORL:
             return emit_xorl(GET_Ca(opcode), GET_Cb(opcode));
         case Opcode::SHL:
-            return emit_shl(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_shl(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::SHR:
-            return emit_shr(GET_Ba(opcode), GET_Bb(opcode), GET_Bc(opcode));
+            return emit_shr(GET_Bc(opcode), GET_Ba(opcode), GET_Bb(opcode)) /* encoded as left, right, out */;
         case Opcode::NOT:
             return emit_not(GET_Ca(opcode), GET_Cb(opcode));
             
@@ -435,12 +446,12 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
         case Opcode::ITEST:
             return emit_itest(GET_Da(opcode));
         case Opcode::CMP: {
-            bool result = emit_cmp(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_cmp(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
         case Opcode::IS: {
-            bool result = emit_is(GET_Ca(opcode), *(*pc + 1));
+            bool result = emit_is(GET_Da(opcode), (int32_t)*(*pc + 1));
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -471,7 +482,7 @@ bool Arm64Compiler::translateOpcode(uint32_t opcode, uint32_t** pc, sharp_functi
         case Opcode::CALLD:
             return emit_calld(GET_Da(opcode));
         case Opcode::INVOKE_DELEGATE: {
-            bool result = emit_invoke_delegate(GET_Ca(*(*pc + 1)), GET_Cb(*(*pc + 1)), GET_Ca(opcode));
+            bool result = emit_invoke_delegate(GET_Da(opcode), GET_Cb(*(*pc + 1)), GET_Ca(*(*pc + 1)) != 0);
             (*pc)++; // Two-word instruction - increment PC for consumed word
             return result;
         }
@@ -604,6 +615,14 @@ bool Arm64Compiler::setupFunctionPrologue() {
     assembler->b(stateCheckLabel);
 
     assembler->bind(skipFrameRebuild);
+
+    // If we are being re-entered part way through the function (task->pc != rom)
+    // resume at that pc through the state check / jump table instead of
+    // falling through and re-running the function from instruction 0.
+    Label startAtBeginning = assembler->newLabel();
+    assembler->cbz(pcReg, startAtBeginning);
+    assembler->b(stateCheckLabel);
+    assembler->bind(startAtBeginning);
     
     return true;
 }
@@ -708,6 +727,9 @@ void Arm64Compiler::resetCodeHolder() {
     // Re-initialize with ARM64 environment (required after reset)
     Environment arm64Env(Arch::kAArch64);
     code->init(arm64Env);
+
+    errorHandler.failed = false;
+    code->setErrorHandler(&errorHandler);
 
     // Create a fresh assembler and attach it to the reset code holder
     assembler = new a64::Assembler(code);

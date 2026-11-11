@@ -21,8 +21,8 @@ void Arm64Compiler::generateExceptionHandlerSection() {
     
     // Check if thread->state == THREAD_KILLED
     Label skipKilledCheck = assembler->newLabel();
-    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, state))); // Load thread->state
-    assembler->cmp(tempReg1, THREAD_KILLED);  // Compare with THREAD_KILLED
+    assembler->ldr(tempReg1.w(), a64::ptr(threadPtr, offsetof(sharp_thread, state))); // state is a 32-bit field
+    assembler->cmp(tempReg1.w(), THREAD_KILLED);  // Compare with THREAD_KILLED
     assembler->b_ne(skipKilledCheck);  // Branch if not equal
     
     // Thread is killed - enable exception flag and return
@@ -43,12 +43,9 @@ void Arm64Compiler::generateExceptionHandlerSection() {
     // Load the updated PC from task->pc into pcReg using existing helper
     loadPC();  // This loads task->pc into pcReg as instruction index
     
-    // Use jump table dispatch with pcReg to continue execution at the catch handler
-    assembler->lsl(tempReg1, pcReg, 3);                                    // pcReg * 8 (pointer size)
-    assembler->add(tempReg2, jumpTablePtr, tempReg1);                      // jumpTablePtr + offset
-    assembler->ldr(tempReg1, a64::ptr(tempReg2));                          // Load jumpTable[pcReg]
-    assembler->br(tempReg1);                                               // Jump to catch handler
-    
+    // Continue at the handler through the shared state check / bounds-checked dispatch
+    assembler->b(stateCheckLabel);
+
     assembler->bind(exceptionNotCaught);
     
     // Exception was not caught - return with JIT_EXCEPTION

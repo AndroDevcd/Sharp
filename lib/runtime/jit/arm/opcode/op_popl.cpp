@@ -46,9 +46,8 @@ bool Arm64Compiler::emit_popl(int relFrameAddress) {
     assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, fp)));
     
     // Calculate frame slot address: task->fp + (relFrameAddress * sizeof(stack_item))
-    assembler->mov(tempReg5, relFrameAddress);
-    assembler->mov(tempReg32_1, sizeof(stack_item));
-    assembler->mul(tempReg5, tempReg5, tempReg32_1);  // relFrameAddress * sizeof(stack_item)
+    // offset is known at compile time: relFrameAddress * sizeof(stack_item)
+    assembler->mov(tempReg5, (int64_t)relFrameAddress * (int64_t)sizeof(stack_item));
     assembler->add(tempReg2, tempReg2, tempReg5);   // task->fp + offset
     
     // Get address of obj field: &(task->fp + relFrameAddress)->obj

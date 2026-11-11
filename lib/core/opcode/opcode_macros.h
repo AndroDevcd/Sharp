@@ -56,7 +56,9 @@
 #define GET_Bb(i) (int32_t)(((i >> 9u) & POSITIVE) ? (i >> 18u & BA_MAX) : (-1 * (i >> 18u & BA_MAX)))
 #define GET_Bc(i) (int32_t)(((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
 
-#define DISPATCH() goto *opcode_table[GET_OP(*task->pc)];
+// TELEMETRY_OPCODE counts the instruction about to run when SHARP_TELEMETRY is
+// defined and expands to nothing otherwise (see lib/runtime/telemetry/telemetry.h)
+#define DISPATCH() TELEMETRY_OPCODE(GET_OP(*task->pc)) goto *opcode_table[GET_OP(*task->pc)];
 #ifdef VM_DEBUG
 #define branch task->pc++; goto run;
 #define branch_for(x) task->pc+=x; goto run;

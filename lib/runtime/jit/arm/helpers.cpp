@@ -26,7 +26,9 @@ using namespace asmjit;
 void Arm64Compiler::loadRegisterValue(a64::Vec dest, _register vmReg) {
     // Load registers[vmReg] into dest (floating point register)
     // Each register is 16 bytes (long double), so offset = vmReg * 16
-    assembler->ldr(dest, a64::ptr(registersPtr, vmReg * 16));
+    // NOTE: the stride must be the real size of a VM register. It is not always
+    // 16: on Apple arm64 long double is 8 bytes (same as double).
+    assembler->ldr(dest, a64::ptr(registersPtr, vmReg * sizeof(long double)));
 }
 
 /**
@@ -39,7 +41,7 @@ void Arm64Compiler::loadRegisterValue(a64::Vec dest, _register vmReg) {
  */
 void Arm64Compiler::storeRegisterValue(_register vmReg, a64::Vec src) {
     // Store src into registers[vmReg] (floating point register)
-    assembler->str(src, a64::ptr(registersPtr, vmReg * 16));
+    assembler->str(src, a64::ptr(registersPtr, vmReg * sizeof(long double)));
 }
 
 /**
@@ -388,7 +390,8 @@ void Arm64Compiler::emitFastExceptionCheck(a64::Gp checkReg) {
      * 
      * // Load thread->signal and check tsig_except (bit 0)
      * assembler->ldr(checkReg, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
-     * assembler->tbz(checkReg, 0, exceptionOk);  // Test bit 0, jump to exceptionOk if no exception
+     * // hasSignal(sig, t) is ((sig >> t) & 1): the enum VALUE is the bit index
+    assembler->tbz(checkReg, tsig_except, exceptionOk);
      * 
      * // Exception occurred - jump to exception handler
      * emitExceptionHandle();
@@ -405,7 +408,8 @@ void Arm64Compiler::emitFastExceptionCheck(a64::Gp checkReg) {
     
     // Load thread->signal and check tsig_except (bit 0)
     assembler->ldr(checkReg, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
-    assembler->tbz(checkReg, 0, exceptionOk);  // Test bit 0, jump to exceptionOk if no exception
+    // hasSignal(sig, t) is ((sig >> t) & 1): the enum VALUE is the bit index
+    assembler->tbz(checkReg, tsig_except, exceptionOk);
     
     // Exception occurred - jump to exception handler
     emitExceptionHandle();
@@ -487,59 +491,52 @@ void Arm64Compiler::generateGrowStackSection() {
     /*
      * Centralized grow stack section
      * VM Interpreter Macro:
-     * #define grow_stack_for(n) 
+     * #define grow_stack_for(n)
      *     if(((task->sp-task->stack)+(n)) >= task->stackSize) task->growStack((n));
-     * 
+     *
      * Input registers:
      * - tempReg1: n (number of items to grow)
      * - tempReg2: return address to jump back to
+     *
+     * The return address and n have to survive a C call (jit_growStack), so they
+     * are kept in callee-saved registers (tempReg4/tempReg5 = x26/x28). x12-x15
+     * are caller-saved: the C function is free to overwrite them.
      */
-    
     assembler->bind(growStackLabel);
-    
-    // Preserve input registers immediately using new temp registers to avoid conflicts
-    assembler->mov(tempReg6, tempReg2);     // Save return address in tempReg6
-    assembler->mov(tempReg7, tempReg1);     // Save n parameter in tempReg7
-    
-    // Get task pointer: task = thread->task
+
+    assembler->mov(tempReg4, tempReg2);     // return address
+    assembler->mov(tempReg5, tempReg1);     // n
+
+    // task = thread->task
     assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
-    
-    // Load task->sp and task->stack using separate registers
     assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, sp)));     // task->sp
     assembler->ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, stack)));  // task->stack
-    
-    // Calculate current stack depth: (task->sp - task->stack)
-    assembler->sub(tempReg4, tempReg2, tempReg3);
-    
-    // Convert to item count: depth / sizeof(stack_item)
-    assembler->mov(tempReg5, sizeof(stack_item));
-    assembler->udiv(tempReg4, tempReg4, tempReg5);
-    
-    // Add n to current depth: (current_depth + n) [n is in tempReg7]
-    assembler->add(tempReg4, tempReg4, tempReg7);
-    
-    // Load task->stackSize
-    assembler->ldr(tempReg8, a64::ptr(tempReg1, offsetof(fiber, stackSize)));
-    
-    // Compare: if ((current_depth + n) >= stackSize)
+
+    // depth = (task->sp - task->stack) / sizeof(stack_item)
+    assembler->sub(tempReg2, tempReg2, tempReg3);
+    assembler->mov(tempReg3, sizeof(stack_item));
+    assembler->sdiv(tempReg2, tempReg2, tempReg3);
+
+    // depth + n
+    assembler->add(tempReg2, tempReg2, tempReg5);
+
+    // if ((depth + n) >= task->stackSize) grow
+    assembler->ldr(tempReg3, a64::ptr(tempReg1, offsetof(fiber, stackSize)));
     Label growStackOk = assembler->newLabel();
-    assembler->cmp(tempReg4, tempReg8);
+    assembler->cmp(tempReg2, tempReg3);
     assembler->b_lt(growStackOk);
-    
-    // Need to grow stack - first store PC
+
+    // Need to grow stack - first store PC (clobbers tempReg1-3)
     storePC();
-    
-    // Set up parameters for jit_growStack(task, n)
-    // x0 = task (already in tempReg1)
-    // x1 = n (in tempReg7)
-    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg1, tempReg7);
-    
-    // Fast exception check after growStack call using fresh register
+
+    // jit_growStack(task, n)
+    assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, task)));
+    callStaticFunction(reinterpret_cast<void*>(jit_growStack), tempReg2, tempReg5);
+
     emitFastExceptionCheck(tempReg2);
-    
-    // Stack growth is OK - return to caller
+
     assembler->bind(growStackOk);
-    assembler->br(tempReg6);  // Jump back to return address (saved in tempReg6)
+    assembler->br(tempReg4);  // Jump back to return address
 }
 
 /**

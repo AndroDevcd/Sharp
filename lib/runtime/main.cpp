@@ -12,6 +12,7 @@
 #include "virtual_machine.h"
 #include "multitasking/scheduler/scheduler.h"
 #include "multitasking/thread/thread_controller.h"
+#include "telemetry/telemetry.h"
 
 options c_options;
 string executable;
@@ -81,6 +82,7 @@ uInt mem_str_to_bytes(const char *str, string option) {
 
 int run_app() {
     int result;
+    TELEMETRY(telemetry_init();)
     if ((result = initialize_virtual_machine()) != 0) {
         fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
         goto bail;
@@ -100,6 +102,7 @@ int run_app() {
 
     bail:
     shutdown();
+    TELEMETRY(telemetry_write_report();)
     return result;
 }
 

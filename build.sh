@@ -78,6 +78,10 @@ build_runtime() {
         lib/runtime/jit/arm/*.h lib/runtime/jit/arm/*.cpp \
         lib/runtime/jit/arm/opcode/*.cpp \
         lib/runtime/jit/arm/sections/*.cpp \
+        lib/runtime/jit/x64/*.h lib/runtime/jit/x64/*.cpp \
+        lib/runtime/jit/x64/opcode/*.cpp \
+        lib/runtime/jit/x64/sections/*.cpp \
+        lib/runtime/telemetry/*.h lib/runtime/telemetry/*.cpp \
         lib/runtime/*.h lib/runtime/*.cpp \
         lib/core/*.cpp lib/core/*.h \
         lib/core/opcode/*.cpp lib/core/opcode/*.h \

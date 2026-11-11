@@ -48,13 +48,19 @@ void Arm64Compiler::generateReturnSection() {
     // Call return_method()
     callStaticFunction(reinterpret_cast<void*>(return_method));
     
-    // Always increment task->pc to next instruction
-    // Since pc is opcode_instr* (unsigned int*), we need to add sizeof(opcode_instr) = 4 bytes
+    // Increment task->pc to the next instruction, unless an exception is pending:
+    // then task->pc must stay ON the CALL in the caller, catch_exception() uses
+    // that pc to find the try block the call was made from.
+    Label keepPc = assembler->newLabel();
+    assembler->cmp(tempReg4, JIT_EXCEPTION);
+    assembler->b_eq(keepPc);
+        // Since pc is opcode_instr* (unsigned int*), we need to add sizeof(opcode_instr) = 4 bytes
     assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, task)));  // tempReg1 = thread->task
     assembler->ldr(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));            // tempReg2 = task->pc
     assembler->add(tempReg2, tempReg2, sizeof(opcode_instr));                     // tempReg2 = task->pc + 4 (next instruction)
     assembler->str(tempReg2, a64::ptr(tempReg1, offsetof(fiber, pc)));            // task->pc = tempReg2
-    
+    assembler->bind(keepPc);
+
     // Restore our JIT return code before returning
     assembler->mov(returnReg, tempReg4);  // Restore JIT return code to returnReg
 

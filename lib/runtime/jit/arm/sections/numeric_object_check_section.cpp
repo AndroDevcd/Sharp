@@ -54,7 +54,7 @@ void Arm64Compiler::generateNumericObjectCheckSection() {
     callStaticFunction(reinterpret_cast<void*>(jit_getObjectType), tempReg3);
     
     // Check if type > type_var (result is in returnReg/x0)
-    assembler->cmp(returnReg, type_var);  // Compare with type_var enum constant
+    assembler->cmp(returnReg.w(), type_var);  // Compare with type_var enum constant
     assembler->b_gt(throwNullptrException);  // Jump to exception if type > type_var
     
     // All checks passed - return to caller

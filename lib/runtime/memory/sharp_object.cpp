@@ -14,6 +14,7 @@
 #include "../multitasking/thread/thread_controller.h"
 #include "../../core/thread_state.h"
 #include "../../core/access_flag.h"
+#include "../telemetry/telemetry.h"
 
 std::recursive_mutex copy_mut;
 std::recursive_mutex lock_mut;
@@ -33,6 +34,7 @@ void init_struct(sharp_object *o) {
 }
 
 void copy_object(object *to, object *from) {
+    TELEMETRY_COUNT(tm_object_copies)
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from ? from->o : nullptr;
@@ -40,6 +42,7 @@ void copy_object(object *to, object *from) {
 }
 
 void copy_object(object *to, sharp_object *from) {
+    TELEMETRY_COUNT(tm_object_copies)
     guard_mutex(copy_mut)
     if(to->o) dec_ref(to->o)
     to->o = from;
@@ -47,6 +50,7 @@ void copy_object(object *to, sharp_object *from) {
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
+    TELEMETRY_COUNT(tm_objects_created)
     auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
 
     init_struct(o);
@@ -70,6 +74,7 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
 }
 
 sharp_object* create_object(sharp_class* sc, bool unsafe) {
+    TELEMETRY_COUNT(tm_objects_created)
     auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
 
     init_struct(o);
@@ -93,6 +98,7 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
 }
 
 sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
+    TELEMETRY_COUNT(tm_objects_created)
     if(size > 0)
     {
         auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
@@ -172,6 +178,7 @@ Int sizeof_object(sharp_object *o) {
 }
 
 sharp_object* create_object(Int size, bool unsafe) {
+    TELEMETRY_COUNT(tm_objects_created)
     if(size > 0)
     {
         auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
@@ -191,6 +198,7 @@ sharp_object* create_object(Int size, bool unsafe) {
 }
 
 sharp_object* create_object(Int size, data_type type, bool unsafe) {
+    TELEMETRY_COUNT(tm_objects_created)
     if(size > 0)
     {
         auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
@@ -335,8 +343,10 @@ bool lock_object(sharp_object *o) {
         mut->id = task->id;
         task->f_lock = nullptr;
         lock_mut.unlock();
+        TELEMETRY_COUNT(tm_lock_acquired)
     } else {
         lock_mut.unlock();
+        TELEMETRY_COUNT(tm_lock_contended)
         enable_context_switch(thread, true); // todo: check if in c++ env if so throw an exception
         return true;
     }

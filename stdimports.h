@@ -59,6 +59,20 @@ using namespace std;
 
 // #define COROUTINE_DEBUGGING
 
+// Built-in VM performance telemetry (lib/runtime/telemetry). When defined the
+// runtime records where time is spent (interpreter vs jit vs gc vs waiting),
+// context switches, hot opcodes/functions, why functions could not be jit
+// compiled, etc. and writes sharp_telemetry.txt when the program exits.
+// When NOT defined none of that code is compiled in (zero cost).
+// #define SHARP_TELEMETRY
+
+// Built-in VM performance telemetry (lib/runtime/telemetry). When defined the
+// runtime records where time is spent (interpreter vs jit vs gc vs waiting),
+// context switches, hot opcodes/functions, why functions could not be jit
+// compiled, etc. and writes sharp_telemetry.txt when the program exits.
+// When NOT defined none of that code is compiled in (zero cost).
+// #define SHARP_TELEMETRY
+
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"
 #endif

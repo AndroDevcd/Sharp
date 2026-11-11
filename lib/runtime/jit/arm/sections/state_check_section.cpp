@@ -16,103 +16,87 @@ using namespace asmjit;
  * This code represent the following vm code:
  *   state_check:
  *   if(thread->signal) {
+ *       if (hasSignal(thread->signal, tsig_suspend))
+ *           suspend_self();
+ *       if(hasSignal(thread->signal, tsig_except))
+ *           goto catch_exception;
  *       if (hasSignal(thread->signal, tsig_context_switch)) {
  *           if(thread->nativeCalls == 0) {
  *               return;
  *           }
  *       }
- *       if (hasSignal(thread->signal, tsig_suspend))
- *           suspend_self();
- *       if(hasSignal(thread->signal, tsig_except))
- *           goto catch_exception;
  *       if (hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED)
  *           return;
  *   }
  *
  *   DISPATCH();
+ *
+ * IMPORTANT: hasSignal(sig, t) is ((sig >> t) & 1U) and sendSignal sets
+ * (1UL << t). The tsig_* enum VALUE is used as the bit INDEX, so
+ *   tsig_except         (0x1) lives in bit 1
+ *   tsig_suspend        (0x2) lives in bit 2
+ *   tsig_kill           (0x4) lives in bit 4
+ *   tsig_context_switch (0x8) lives in bit 8
+ * The bit numbers below are therefore the enum values themselves.
+ *
+ * REGISTERS USED: tempReg1, tempReg2, pcReg, jumpTablePtr, jitFunctionPtr
  **/
 void Arm64Compiler::generateStateCheckSection() {
-    // Bind the state check label
     assembler->bind(stateCheckLabel);
-    
-    // Use our stored thread pointer from the prologue
-    
-    // Create continue dispatch label first
+
     Label continueDispatch = assembler->newLabel();
-    
-    // Check if thread->signal is non-zero
-    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, signal))); // Load thread->signal
-    assembler->cbz(tempReg1, continueDispatch); // If signal == 0, jump directly to continue dispatch
-    
-    // Generate signal checking code
-    // Check tsig_context_switch using hasSignal(sig, sigt) logic: ((sig >> sigt) & 1U)
-    // Use ARM64 bit test instruction for efficiency
-    // tsig_context_switch = 0x008 -> bit position 3
-    Label skipContextSwitch = assembler->newLabel();
-    assembler->tbz(tempReg1, 3, skipContextSwitch);  // Test bit 3, jump if zero (bit not set)
-    
-    // Check if nativeCalls == 0
-    assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, nativeCalls))); // Load thread->nativeCalls
-    assembler->cbnz(tempReg2, skipContextSwitch); // If nativeCalls != 0, skip context switch return
-    
-    // nativeCalls == 0, return with context switch code
-    emitReturn(JIT_CONTEXT_SWITCH);
-    
-    assembler->bind(skipContextSwitch);
-    
-    // Check tsig_suspend = 0x002 -> bit position 1
+
+    // if(thread->signal == 0) dispatch
+    assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
+    assembler->cbz(tempReg2, continueDispatch);
+
+    // suspend
     Label skipSuspend = assembler->newLabel();
-    assembler->tbz(tempReg1, 1, skipSuspend);  // Test bit 1, jump if zero
-    
-    // Call suspend_self() function using wrapper for crash protection
+    assembler->tbz(tempReg2, tsig_suspend, skipSuspend);
     callStaticFunction(reinterpret_cast<void*>(jit_suspendSelf));
-    
     assembler->bind(skipSuspend);
-    
-    // Check tsig_except = 0x001 -> bit position 0
+
+    // The call above destroys tempReg1 and the signal word may have changed while
+    // we were suspended, so always re-read it (tempReg2 is callee-saved).
+    assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
+
+    // exception
     Label skipException = assembler->newLabel();
-    assembler->tbz(tempReg1, 0, skipException);  // Test bit 0, jump if zero
-    
-    // Jump to exception handler
+    assembler->tbz(tempReg2, tsig_except, skipException);
     emitExceptionHandle();
-    
     assembler->bind(skipException);
-    
-    // Check tsig_kill = 0x004 -> bit position 2
+
+    // context switch (only when not inside a native call)
+    Label skipContextSwitch = assembler->newLabel();
+    assembler->tbz(tempReg2, tsig_context_switch, skipContextSwitch);
+    assembler->ldr(tempReg1, a64::ptr(threadPtr, offsetof(sharp_thread, nativeCalls)));
+    assembler->cbnz(tempReg1, skipContextSwitch);
+    emitReturn(JIT_CONTEXT_SWITCH);
+    assembler->bind(skipContextSwitch);
+
+    // kill signal
     Label skipKillSignal = assembler->newLabel();
-    assembler->tbz(tempReg1, 2, skipKillSignal);  // Test bit 2, jump if zero
-    
-    // Kill signal detected - return with kill code
+    assembler->tbz(tempReg2, tsig_kill, skipKillSignal);
     emitReturn(JIT_KILL);
-    
     assembler->bind(skipKillSignal);
-    
-    // Also check if thread->state == THREAD_KILLED (0x005)
-    Label skipKillState = assembler->newLabel();
-    assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, state))); // Load thread->state
-    assembler->cmp(tempReg2, THREAD_KILLED);  // Compare with THREAD_KILLED (0x005)
-    assembler->b_ne(skipKillState);  // Branch if not equal
-    
-    // Thread state is THREAD_KILLED - return with kill code
+
+    // thread->state == THREAD_KILLED (state is a 32-bit field: load it as 32-bit)
+    assembler->ldr(tempReg1.w(), a64::ptr(threadPtr, offsetof(sharp_thread, state)));
+    assembler->cmp(tempReg1.w(), THREAD_KILLED);
+    assembler->b_ne(continueDispatch);
     emitReturn(JIT_KILL);
-    
-    assembler->bind(skipKillState);
-    
-    // Continue dispatch - jump back to appropriate PC using jump table
+
+    // DISPATCH(): jump to jumpTable[pcReg]
     assembler->bind(continueDispatch);
-    
-    // pcReg contains the target PC 
-    // Use jump table dispatch for O(1) PC lookup
-    
-    // Calculate offset: targetPC * 8 (each pointer is 8 bytes)
-    assembler->lsl(tempReg1, pcReg, 3);  // pcReg << 3
-    
-    // Load jump table address and add offset  
-    assembler->add(tempReg2, jumpTablePtr, tempReg1);  // jumpTablePtr + (pcReg * 8)
-    
-    // Load target address from jump table
-    assembler->ldr(tempReg1, a64::ptr(tempReg2));      // Load jumpTable[pcReg]
-    
-    // Jump to target address
-    assembler->br(tempReg1);                           // Jump to the target opcode
+
+    // Never index outside the table (e.g. state check after the last instruction,
+    // or a pc that belongs to another function).
+    assembler->ldr(tempReg1, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, jumpTableSize)));
+    assembler->cmp(pcReg, tempReg1);
+    assembler->b_hs(illegalBranchLabel);
+
+    assembler->lsl(tempReg1, pcReg, 3);                // pcReg * sizeof(void*)
+    assembler->add(tempReg2, jumpTablePtr, tempReg1);  // &jumpTable[pcReg]
+    assembler->ldr(tempReg1, a64::ptr(tempReg2));      // jumpTable[pcReg]
+    assembler->br(tempReg1);
 }

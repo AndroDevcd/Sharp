@@ -32,7 +32,9 @@ void init_struct(sharp_function *sf) {
     sf->linkAddr = 0;
     sf->bridge = nullptr;
     sf->callCount = 0;
+    sf->loopCount = 0;
     sf->isHighFrequency = false;
+    sf->jfunc = nullptr;
 }
 
 string get_info(sharp_function *sf, Int pc) {

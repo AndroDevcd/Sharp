@@ -10,6 +10,7 @@
 #include "../reflect/reflect_helpers.h"
 #include "../../core/thread_state.h"
 #include "../../core/opcode/opcode_macros.h"
+#include "../telemetry/telemetry.h"
 
 
 vm_exception::vm_exception(const char *msg, bool native)
@@ -115,6 +116,7 @@ void fill_stack_trace(string &output, std::list<KeyPair<Int, Int>> frameInfo) {
 }
 
 void vm_exception::push_exception() {
+    TELEMETRY_COUNT(tm_exceptions_thrown)
     sharp_thread *thread = thread_self;
     if(thread != NULL && !err.internal) {
 

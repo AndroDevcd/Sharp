@@ -46,10 +46,9 @@ bool Arm64Compiler::emit_movn(int address) {
     
     // Simple pointer arithmetic: task->ptr = task->ptr->o->node + address
     // Calculate: node + (address * sizeof(object*))
-    assembler->mov(tempReg32_1, address);
-    assembler->mov(tempReg6, sizeof(object*));  // sizeof(object*) = 8 bytes on 64-bit
-    assembler->mul(tempReg32_1, tempReg32_1, tempReg6);  // address * sizeof(object*)
-    assembler->add(tempReg5, tempReg5, tempReg32_1);  // node + (address * sizeof(object*))
+    // offset is known at compile time: address * sizeof(object)
+    assembler->mov(tempReg3, (int64_t)address * (int64_t)sizeof(object));
+    assembler->add(tempReg5, tempReg5, tempReg3);  // node + address
     
     // Store the new pointer back to task->ptr (tempReg1 still holds task pointer)
     assembler->str(tempReg5, a64::ptr(tempReg1, offsetof(fiber, ptr)));

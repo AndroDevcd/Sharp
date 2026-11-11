@@ -50,6 +50,7 @@ struct sharp_function {
     linkedlist<try_catch_data> tryCatchTable;
     sharp_object *reflect;
     uint32_t callCount;
+    uint32_t loopCount;      // backward jumps taken in the interpreter (hot loop detection for the jit)
     bool isHighFrequency;
     jit_compiled_function *jfunc;
 };

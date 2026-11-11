@@ -27,13 +27,25 @@
 #include "jit/jit_compiler.h"
 #include "memory/memory_helpers.h"
 #include "main.h"
+#include "telemetry/telemetry.h"
 
 virtual_machine vm;
 thread_local long double *registers;
 
+// A function is handed to the jit after this many calls...
+#define JIT_CALL_THRESHOLD 10
+// ...or every time one of its loops has gone around this many times in the
+// interpreter (must be a power of two minus one, it is used as a bit mask).
+#define JIT_LOOP_MASK 0x3ff
+
+bool jit_try_compile(sharp_function *function);
+int jit_enter_loop(Int targetPc);
+
 void main_vm_loop(sharp_function *frame)
 {
     setupOpcodeTable
+    TELEMETRY_SCOPE(tm_mode_interpreter) // everything in this loop is interpreter time unless a nested scope says otherwise
+    TELEMETRY_OPCODE_SETUP
     auto thread = thread_self;
     auto task = thread->task;
     long double *regs = registers;
@@ -41,7 +53,15 @@ void main_vm_loop(sharp_function *frame)
 
     while(frame != thread_self->task->current) {
         frame = get_next_frame(frame);
-        invoke_next_frame(frame, true);
+        if(frame == nullptr) break;
+
+        if(frame->isHighFrequency && frame->jfunc != nullptr) {
+            // The compiled frame rebuilds and runs everything above it. Once it
+            // comes back the call stack has changed, so stop walking and let the
+            // interpreter continue from wherever task->pc is now.
+            invoke_next_frame(frame, true);
+            break;
+        }
     }
 
     run:
@@ -56,7 +76,11 @@ void main_vm_loop(sharp_function *frame)
             _NOP:
                 branch
             _INT:
-                exec_interrupt(single_arg);
+                {
+                    TELEMETRY_SCOPE(tm_mode_interrupt)
+                    TELEMETRY_COUNT(tm_interrupts)
+                    exec_interrupt(single_arg);
+                }
                 if(vm.state == VM_TERMINATED) {
                     send_interrupt_signal(thread);
                     return;
@@ -76,10 +100,12 @@ void main_vm_loop(sharp_function *frame)
 
                 if(return_method()) {
                     if(data == ERR_STATE) {
+                        // Leave task->pc on the CALL in the caller: that is the pc
+                        // catch_exception() uses to find the enclosing try block.
                         enable_exception_flag(thread, true);
+                    } else {
+                        task->pc++;
                     }
-
-                    task->pc++;
                     return;
                 }
 
@@ -166,7 +192,7 @@ void main_vm_loop(sharp_function *frame)
                 regs[single_arg] /= raw_arg2;
                 branch_for(2)
             IMOD:
-                regs[single_arg] += raw_arg2;
+                regs[single_arg] = (Int)regs[single_arg] % raw_arg2;
                 branch_for(2)
             POP:
                 copy_object(&pop_stack_object, (sharp_object*)nullptr);
@@ -244,6 +270,15 @@ void main_vm_loop(sharp_function *frame)
                         }
                 )
             JMP:
+                // A backward jump is the bottom of a loop. Hot loops are worth compiling
+                // even when the function that contains them is only called once, so every
+                // JIT_LOOP_MASK+1 trips we try to continue the loop in compiled code.
+                if(single_arg <= current_pc && (++task->current->loopCount & JIT_LOOP_MASK) == 0 && c_options.jit) {
+                    data = jit_enter_loop(single_arg);
+                    if(data == 2) return;               // the function returned to a native/jit caller
+                    if(data == 1) { check_state(0) }    // compiled code ran, continue wherever task->pc is now
+                }
+
                 task->pc = task->rom + single_arg;
                 check_state(0)
             LOADPC:
@@ -259,7 +294,7 @@ void main_vm_loop(sharp_function *frame)
                 branch
             CALL:
                 prepare_method(single_arg);
-                branch_for(0)
+                check_state(0) // a jit compiled callee can come back with an exception/signal pending
             CALLD:
                 if((data = (Int)regs[single_arg]) <= 0 || data >= vm.mf.methods) {
                     stringstream ss;
@@ -268,7 +303,7 @@ void main_vm_loop(sharp_function *frame)
                 }
 
                 prepare_method(data);
-                branch_for(0)
+                check_state(0)
             NEWCLASS:
                 grow_stack
                 stack_overflow_check
@@ -288,7 +323,10 @@ void main_vm_loop(sharp_function *frame)
                 )
                 branch_for(2)
             SLEEP:
-                __os_sleep(regs[single_arg]);
+                {
+                    TELEMETRY_SCOPE(tm_mode_sleep)
+                    __os_sleep(regs[single_arg]);
+                }
                 branch
             TEST:
                 regs[BMR] = regs[dual_arg1] == regs[dual_arg2];
@@ -674,6 +712,7 @@ bool catch_exception() {
                     task->pc = task->rom + caughtException.handlerPc;
                     copy_object(&task->exceptionObject, (sharp_object*) nullptr);
                     enable_exception_flag(thread, false);
+                    TELEMETRY_COUNT(tm_exceptions_caught)
                     return true;
                 }
             }
@@ -690,6 +729,7 @@ bool catch_exception() {
                         task->exceptionObject.o);
             copy_object(&task->exceptionObject, (sharp_object*) nullptr);
             enable_exception_flag(thread, false);
+            TELEMETRY_COUNT(tm_exceptions_caught)
             return true;
         }
     }
@@ -770,6 +810,8 @@ void try_link_function(sharp_function *fun) {
 void invoke_delegate(Int address, Int argSize, bool staticCall) {
     if(staticCall) { // native calls are currently unsupported
         if(vm.methods[address].nativeFunc) {
+            TELEMETRY_SCOPE(tm_mode_native)
+            TELEMETRY_COUNT(tm_native_calls)
             if(vm.methods[address].bridge != NULL) {
                 vm.methods[address].bridge(vm.methods[address].linkAddr);
             } else {
@@ -822,16 +864,12 @@ void prepare_method(Int address) {
     auto function = vm.methods + address;
     
     function->callCount++;
-    if(c_options.jit && function->callCount >= 10 && !function->isHighFrequency
-        && function != task->main) {
-        guard_mutex(jit_mutex)
-
-        if(function->jfunc == nullptr) {
-            function->jfunc = calloc_mem<jit_compiled_function>(1, sizeof(jit_compiled_function));
-            if(jitCompiler->compileFunction(function, function->jfunc)) {
-                function->isHighFrequency = true; // keep trying to compile until succeed... shouldn't happen often
-            }
-        }
+    TELEMETRY_COUNT(tm_calls_total)
+    // jfunc != nullptr means we already tried (and possibly failed) to compile:
+    // don't take the jit lock on every single call after that.
+    if(c_options.jit && function->callCount >= JIT_CALL_THRESHOLD && !function->isHighFrequency
+        && function->jfunc == nullptr && function != task->main) {
+        jit_try_compile(function);
     }
 
     if(function->nativeFunc)
@@ -886,16 +924,117 @@ void prepare_method(Int address) {
     }
     #endif
 
-    if(!task->current->nativeFunc && inNative)
+    /*
+     * How the callee runs:
+     *
+     *  - it has compiled code: run that, no matter who the caller is. The compiled
+     *    function runs to completion and pops its own VM frame before it comes
+     *    back here (or it comes back early because of a context switch/kill, in
+     *    which case its frame is still on the VM stack and the caller unwinds).
+     *
+     *  - no compiled code, and the caller is native or compiled code: the caller
+     *    is a C++/machine code frame that expects the call to be finished when
+     *    prepare_method returns, so run a nested interpreter loop for it.
+     *
+     *  - no compiled code and the caller is the interpreter: just return, the
+     *    interpreter loop that called us continues at the callee's first
+     *    instruction (task->pc was pointed at it above).
+     */
+    if(task->current->isHighFrequency) {
+        TELEMETRY_COUNT(tm_calls_into_jit)
+        TELEMETRY_SCOPE(tm_mode_jit)
+        int jitResult = task->current->jfunc->compiledCode(thread_self, task->current->jfunc, registers);
+        (void)jitResult;
+        TELEMETRY(telemetry_jit_exit(jitResult);)
+    }
+    else if(!task->current->nativeFunc && inNative) {
+        TELEMETRY_COUNT(tm_calls_nested_interp)
         main_vm_loop(task->current);
-    else if(task->current->isHighFrequency) {
-        task->current->jfunc->compiledCode(thread_self, task->current->jfunc, registers);
     }
 }
 
+/**
+ * Makes sure `function` has been handed to the jit compiler (at most once).
+ *
+ * Returns true if compiled code is installed (function->isHighFrequency), false
+ * if the function cannot be compiled (it uses an opcode the jit does not
+ * implement yet, it is native, ...). A failed attempt is remembered through
+ * function->jfunc != nullptr so we never retry.
+ */
+bool jit_try_compile(sharp_function *function) {
+    if(function->isHighFrequency) return true;
+    if(function->jfunc != nullptr || function->nativeFunc || jitCompiler == nullptr) return false;
+
+    guard_mutex(jit_mutex)
+    if(function->jfunc == nullptr) {
+        function->jfunc = calloc_mem<jit_compiled_function>(1, sizeof(jit_compiled_function));
+        TELEMETRY_SCOPE(tm_mode_jit_compile)
+        TELEMETRY(unsigned long long compileStart = telemetry_now();)
+        if(jitCompiler->compileFunction(function, function->jfunc)) {
+            function->isHighFrequency = true; // compiled code is installed and may be called from now on
+            TELEMETRY(telemetry_jit_compiled(function, telemetry_now() - compileStart, function->jfunc->codeSize);)
+        }
+    }
+
+    return function->isHighFrequency;
+}
+
+/**
+ * "On stack replacement": called by the interpreter at the bottom of a hot loop
+ * to continue the function it is currently interpreting in compiled code.
+ *
+ * This works because compiled code keeps ALL of its state in the fiber (stack,
+ * registers, fp/sp, pc) exactly like the interpreter does, and a compiled
+ * function can be entered at any instruction: its prologue looks at task->pc
+ * and jumps there.
+ *
+ * Returns
+ *   0  compiled code was not entered, keep interpreting
+ *   1  compiled code ran and came back, the interpreter must continue at
+ *      task->pc after checking the thread state (the function may have
+ *      returned to its caller, been interrupted, or thrown)
+ *   2  the function finished and its caller is native/jit code, so
+ *      main_vm_loop has to return to that caller (same as the RET opcode does
+ *      when return_method() returns true)
+ */
+int jit_enter_loop(Int targetPc) {
+    auto thread = thread_self;
+    auto task = thread->task;
+    auto function = task->current;
+
+    // a fiber's main function is driven by vm_thread_entry and is never compiled
+    if(function == task->main || !jit_try_compile(function))
+        return 0;
+
+    // return_method() pops frames[callFramePtr]; remember now whether that frame
+    // says "the caller is native code", because compiled code does not tell us.
+    bool returnsToNative = task->calls <= 1 || task->frames[task->callFramePtr].native;
+
+    task->pc = task->rom + targetPc;
+
+    int jitResult;
+    {
+        TELEMETRY_COUNT(tm_calls_into_jit)
+        TELEMETRY_COUNT(tm_jit_loop_entries)
+        TELEMETRY_SCOPE(tm_mode_jit)
+        jitResult = function->jfunc->compiledCode(thread, function->jfunc, registers);
+        TELEMETRY(telemetry_jit_exit(jitResult);)
+    }
+
+    // JIT_OK / JIT_EXCEPTION: the function is over, its frame was popped and
+    // task->pc already points after the CALL in the caller.
+    if((jitResult == JIT_OK || jitResult == JIT_EXCEPTION) && returnsToNative)
+        return 2;
+    return 1;
+}
+
 sharp_function* get_next_frame(sharp_function *current) {
+    if(current == nullptr) return nullptr;
+
+    // frames[0..callFramePtr] are the only valid entries (one per caller). The
+    // function on top of the stack is task->current and has no entry of its own.
     auto callStack = thread_self->task->frames;
-    auto frames = thread_self->task->calls;
+    auto frames = thread_self->task->callFramePtr + 1;
 
     for(long i = 0; i < frames; i++) {
         if(callStack[i].returnAddress == current->address) {
@@ -922,7 +1061,11 @@ void invoke_next_frame(sharp_function *frame, bool isInterpreter) {
     }
 
     if(frame->isHighFrequency && frame->jfunc != nullptr) {
-        frame->jfunc->compiledCode(thread_self, frame->jfunc, registers);
+        TELEMETRY_COUNT(tm_calls_into_jit)
+        TELEMETRY_SCOPE(tm_mode_jit)
+        int jitResult = frame->jfunc->compiledCode(thread_self, frame->jfunc, registers);
+        (void)jitResult;
+        TELEMETRY(telemetry_jit_exit(jitResult);)
     } else if(!isInterpreter) {
         try {
             main_vm_loop(frame);
@@ -1026,7 +1169,7 @@ void exec_interrupt(Int interrupt)
                 string fiberName;
                 populate_string(fiberName, name);
                 fiber *fib;
-                sharp_thread *binder;
+                sharp_thread *binder = nullptr;
 
                 if(threadid != -1) {
                     if(threadid != gc_threadid && threadid != idle_threadid) {

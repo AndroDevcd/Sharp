@@ -9,6 +9,7 @@
 #include "../../memory/memory_helpers.h"
 #include "../thread/stack_limits.h"
 #include "../../virtual_machine.h"
+#include "../../telemetry/telemetry.h"
 
 void fiber::free() {
     release_all_mutexes(this);
@@ -48,6 +49,7 @@ void fiber::free() {
 }
 
 void fiber::growFrame() {
+    TELEMETRY_COUNT(tm_frame_grows)
     guard_mutex(mut)
 
     if(frameSize + FRAME_GROW_SIZE < frameLimit) {
@@ -121,6 +123,7 @@ void init_struct(fiber *fib) {
 }
 
 void fiber::growStack(Int requiredSize) {
+    TELEMETRY_COUNT(tm_stack_grows)
     guard_mutex(mut)
     if(requiredSize < STACK_GROW_SIZE)
       requiredSize = STACK_GROW_SIZE;

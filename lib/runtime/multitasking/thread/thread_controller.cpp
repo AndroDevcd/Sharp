@@ -17,6 +17,7 @@
 #include "../../reflect/reflect_helpers.h"
 #include "../scheduler/idle_scheduler.h"
 #include "../../main.h"
+#include "../../telemetry/telemetry.h"
 
 uInt lastThreadId = -1;
 sharp_thread *mainThread = NULL;
@@ -63,6 +64,7 @@ vm_thread_entry(void *arg)
     bool unboundException = false;
     sharp_thread *thread = (sharp_thread*)arg;
     thread_self = thread;
+    TELEMETRY(telemetry_thread_begin(thread);)
 
     set_thread_priority(thread, thread->priority);
 
@@ -145,6 +147,7 @@ vm_thread_entry(void *arg)
     }
 
     end:
+    TELEMETRY(telemetry_thread_end();)
 #ifdef SHARP_PROF_
     if(vm.state != VM_TERMINATED)
         thread_self->tprof->dump();
@@ -449,6 +452,9 @@ void enable_exception_flag(sharp_thread* thread, bool enable) {
 }
 
 void observe_queue(sharp_thread *thread) {
+    // a context switch: give up the current fiber and wait for the scheduler to
+    // hand us the next one. The timer records how long that took.
+    TELEMETRY_CONTEXT_SWITCH
     if(thread->task != NULL) {
         if(thread->task->finished)
             set_task_state(thread, thread->task, FIB_KILLED, 0);
@@ -921,6 +927,8 @@ void suspend_self() {
 
     if(thread)
     {
+        TELEMETRY_SCOPE(tm_mode_suspended)
+        TELEMETRY_COUNT(tm_suspends)
         thread->suspended = true;
         {
             guard_mutex(thread->mut);
@@ -962,6 +970,7 @@ sharp_thread* get_thread(uInt id) {
 }
 
 uInt create_thread(uInt methodAddr, bool daemon) {
+    TELEMETRY_COUNT(tm_threads_created)
     int32_t threadId = new_thread_id();
     registers[CMT] = false;
     if(methodAddr < 0 || methodAddr >= vm.mf.methods)

@@ -38,6 +38,22 @@ struct jit_compiled_function {
     sharp_function* originalFunction;
 };
 
+// Records that AsmJit refused to encode an instruction. Without an error handler
+// AsmJit silently drops the instruction and the rest of the function is still
+// emitted, which produces code that runs but does the wrong thing. Every backend
+// attaches one of these and refuses to install a function when `failed` is set.
+// Build with -DJIT_DEBUG to see which instruction was rejected.
+class JitErrorHandler : public asmjit::ErrorHandler {
+public:
+    bool failed = false;
+    void handleError(asmjit::Error err, const char* message, asmjit::BaseEmitter* origin) override {
+        failed = true;
+#ifdef JIT_DEBUG
+        fprintf(stderr, "jit: assembler error: %s\n", message);
+#endif
+    }
+};
+
 enum jit_target_arch {
     JIT_ARM64,
     JIT_X86_64,
