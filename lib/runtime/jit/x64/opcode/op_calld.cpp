@@ -32,6 +32,6 @@ bool X64Compiler::emit_calld(int inRegister) {
     assembler->mov(arg0.r32(), (uint32_t)inRegister);
     callFunction(reinterpret_cast<void*>(jit_prepareMethodDynamic));
 
-    emitAfterCall();
+    emitAfterCall((long)currentPC + 1);
     return true;
 }

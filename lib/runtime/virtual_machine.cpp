@@ -888,9 +888,14 @@ void prepare_method(Int address) {
 
     task->calls++;
     if(task->calls > 1) {
-        init_struct(task->frames + ++task->callFramePtr, task->current->address,
-                    task->pc, (task->sp - function->spOffset) - task->stack,
-                    task->fp - task->stack, inNative);
+        // Record how to get back to the caller (written out here instead of
+        // calling init_struct: this runs on every single call).
+        frame *callerFrame = task->frames + ++task->callFramePtr;
+        callerFrame->returnAddress = task->current->address;
+        callerFrame->pc = task->pc;
+        callerFrame->sp = (task->sp - function->spOffset) - task->stack;
+        callerFrame->fp = task->fp - task->stack;
+        callerFrame->native = inNative;
     }
 
     task->current = function;
@@ -1211,11 +1216,14 @@ void exec_interrupt(Int interrupt)
         case OP_FIBER_BIND: {
             Int fiberId = pop_stack_number;
             Int threadId = pop_stack_number;
+            auto bindTo = get_thread(threadId); // before task_mutex: thread_mutex must never be taken inside it
+
+            guard_mutex(task_mutex) // the fiber cannot be freed while we use it
             fiber *fib = locate_task(fiberId);
             registers[EBX] = 2;
 
             if(fib) {
-                registers[EBX] = bind_task(fib, get_thread(threadId));
+                registers[EBX] = bind_task(fib, bindTo);
             }
             return;
         }
@@ -1227,6 +1235,7 @@ void exec_interrupt(Int interrupt)
         }
         case OP_FIBER_STATE: {
             Int fiberId = pop_stack_number;
+            guard_mutex(task_mutex) // the fiber cannot be freed while we use it
             fiber *fib = locate_task(fiberId);
             registers[EBX] = fib ? get_state(fib) : -1;
             return;

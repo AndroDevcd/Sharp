@@ -15,7 +15,7 @@
 #include "../../telemetry/telemetry.h"
 
 atomic<uInt> taskIds = { 0 };
-fiber* create_task(string &name, sharp_function *main, sharp_object *fibObject, sharp_object *args, sharp_thread *bindTo) {
+fiber* create_task(string &name, sharp_function *main, sharp_object *fibObject, sharp_object *args, sharp_thread *bindTo, bool makeReady) {
     fiber *fib = nullptr;
     TELEMETRY_COUNT(tm_fibers_created)
 
@@ -31,7 +31,7 @@ fiber* create_task(string &name, sharp_function *main, sharp_object *fibObject, 
 
         if(args != nullptr)
             copy_object(&(++fib->sp)->obj, args); // apply args to fiber's stack
-        post(fib);
+        sched_register(fib, makeReady);
     } catch(vm_exception &e) {
         if(fib) {
             fib->free();
@@ -54,22 +54,22 @@ void delay_task(uInt time) {
 }
 
 void set_attached_thread(fiber* task, sharp_thread* thread) {
-    guard_mutex(task->mut)
+    guard_mutex(task_mutex)
     task->attachedThread = thread;
 }
 
 sharp_thread* get_bound_thread(fiber* task) {
-    guard_mutex(task->mut);
+    guard_mutex(task_mutex)
     return task->boundThread;
 }
 
 sharp_thread* get_attached_thread(fiber* task) {
-    guard_mutex(task->mut);
+    guard_mutex(task_mutex)
     return task->attachedThread;
 }
 
 Int get_state(fiber* task) {
-    guard_mutex(task->mut)
+    guard_mutex(task_mutex)
     return (Int)task->state;
 }
 
@@ -78,7 +78,7 @@ bool is_bound(fiber *fib, sharp_thread *thread) {
 }
 
 Int bind_task(fiber* task, sharp_thread* thread) {
-    guard_mutex(task->mut)
+    guard_mutex(task_mutex)
 
     if(thread != nullptr) {
         if(thread->state != THREAD_KILLED && !hasSignal(thread->signal, tsig_kill)) {
@@ -99,7 +99,7 @@ Int bind_task(fiber* task, sharp_thread* thread) {
 }
 
 void set_task_state(sharp_thread* thread, fiber* task, fiber_state newState, uInt delay) {
-    guard_mutex(task->mut)
+    guard_mutex(task_mutex)
 
     switch(newState) {
         case FIB_CREATED:
@@ -107,14 +107,14 @@ void set_task_state(sharp_thread* thread, fiber* task, fiber_state newState, uIn
             task->delayTime = -1;
             break;
         case FIB_RUNNING:
-            if(thread) thread->lastRanMicros = NANO_TOMICRO(Clock::realTimeInNSecs());
+            if(thread) thread->lastRanMicros = sched_now_micros();
             task->state = newState;
             task->delayTime = -1;
             break;
         case FIB_SUSPENDED: {
             if(task->state == FIB_KILLED) return;
             if(delay > 0) {
-                task->delayTime = NANO_TOMICRO(Clock::realTimeInNSecs()) + (delay * 1000);
+                task->delayTime = sched_now_micros() + (delay * 1000);
             } else task->delayTime = -1;
             task->state = newState;
             break;
@@ -129,19 +129,20 @@ void set_task_state(sharp_thread* thread, fiber* task, fiber_state newState, uIn
 }
 
 void set_task_wakeable(fiber* task, bool enable) {
-    guard_mutex(task->mut)
+    guard_mutex(task_mutex)
     task->wakeable = enable;
 }
 
 Int unsuspend_task(uInt id) {
+    guard_mutex(task_mutex) // held for the whole call: the fiber cannot be freed under us
     fiber *fib = locate_task(id);
     int result = 0;
 
     if(fib) {
-        guard_mutex(fib->mut)
         if(fib->state == FIB_SUSPENDED) {
             fib->delayTime = -1;
             set_task_wakeable(fib, true);
+            sched_wake(fib); // it may run again: put it on a ready queue
         } else {
             result = 1;
         }
@@ -152,11 +153,11 @@ Int unsuspend_task(uInt id) {
 }
 
 Int suspend_task(uInt id) {
+    guard_mutex(task_mutex) // held for the whole call: the fiber cannot be freed under us
     fiber *fib = locate_task(id);
     int result = 0;
 
     if(fib) {
-        guard_mutex(fib->mut)
         if(fib->state == FIB_RUNNING) {
             if(fib->attachedThread) {
                 set_task_wakeable(fib, false);
@@ -181,12 +182,14 @@ Int suspend_task(uInt id) {
 }
 
 int kill_task(uInt taskId) {
+    guard_mutex(task_mutex) // held for the whole call: the fiber cannot be freed under us
     fiber *task = locate_task(taskId);
     if(task != NULL) return kill_task(task);
     else return 0;
 }
 
 int kill_task(fiber *fib) {
+    guard_mutex(task_mutex)
     int result = 0;
 
     if(fib) {
@@ -203,8 +206,12 @@ int kill_task(fiber *fib) {
             set_task_state(NULL, fib, FIB_KILLED, NO_DELAY);
         }
 
+        // A dead fiber no thread is running is freed right here, `fib` must not
+        // be used after this call. One that a thread is still running is freed
+        // by that thread when it lets go of it (sched_next_task).
+        if(result == 0)
+            sched_reap(fib);
     }
-
     return result;
 }
 

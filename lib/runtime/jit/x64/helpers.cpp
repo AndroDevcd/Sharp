@@ -475,13 +475,22 @@ void X64Compiler::emitPopSlot(x86::Gp slot) {
  *         return JIT_CONTEXT_SWITCH;   // the callee did not finish (it was
  *                                      // interrupted): unwind, the interpreter
  *                                      // carries on from task->current/task->pc
+ *     if(thread->signal == 0)          // only when nextPc is given, see below
+ *         goto <code of instruction nextPc>;
  *     pcReg = task->pc - task->rom;
  *     goto state_check;                // catches a pending exception, then
  *                                      // dispatches to pcReg
  *
+ * nextPc is the instruction that follows the call when the callee returned
+ * normally. Pass it only for opcodes where that is certain (CALL, CALLD): if we
+ * are still the current function and no signal is pending, the callee finished
+ * without an exception, so task->pc must be nextPc and we can jump straight to
+ * its machine code instead of re-reading task->pc and going through the jump
+ * table. With nextPc = -1 the generic path is always used.
+ *
  * REGISTERS USED: tmp0, tmp1
  */
-void X64Compiler::emitAfterCall() {
+void X64Compiler::emitAfterCall(long nextPc) {
     Label calleeFinished = assembler->newLabel();
     loadTask(tmp0);
     assembler->mov(tmp1, x86::qword_ptr(tmp0, offsetof(fiber, current)));
@@ -489,6 +498,12 @@ void X64Compiler::emitAfterCall() {
     assembler->je(calleeFinished);
     emitReturn(JIT_CONTEXT_SWITCH);
     assembler->bind(calleeFinished);
+
+    if(nextPc >= 0 && (size_t)nextPc < opcodeLabels.size()) {
+        assembler->cmp(x86::qword_ptr(threadPtr, offsetof(sharp_thread, signal)), 0);
+        assembler->je(opcodeLabels[nextPc]);
+        branchTargets.push_back((size_t)nextPc);
+    }
 
     loadPC();
     assembler->jmp(stateCheckLabel);

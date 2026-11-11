@@ -9,9 +9,6 @@
 #include "../../types/sharp_function.h"
 
 bool can_dispose(_sched_thread*);
-void thread_sched_prepare(_sched_thread*);
-bool can_sched_thread(sharp_thread *thread);
-void queue_task(sharp_thread *thread, sched_task *);
 void create_main_thread();
 sharp_thread* create_gc_thread();
 sharp_thread* create_idle_handler_thread();
@@ -86,7 +83,5 @@ void __os_sleep(uInt);
 void setup_thread(sharp_thread*);
 
 
-bool ready_or_diapose(_sched_thread *scht);
-bool trigger_thread_sched(_sched_thread *scht);
 
 #endif //SHARP_THREAD_CONTROLLER_H

@@ -26,7 +26,8 @@ sharp_thread* get_bound_thread(fiber*);
 void set_attached_thread(fiber*, sharp_thread*);
 void delay_task(uInt);
 
-fiber* create_task(string &, sharp_function *, sharp_object *, sharp_object *, sharp_thread *);
+/** makeReady = false: the caller attaches the fiber to a thread itself (a thread's first fiber) */
+fiber* create_task(string &, sharp_function *, sharp_object *, sharp_object *, sharp_thread *, bool makeReady = true);
 
 
 #endif //SHARP_TASK_CONTROLLER_H

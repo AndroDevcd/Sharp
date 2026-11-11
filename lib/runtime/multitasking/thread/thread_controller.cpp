@@ -94,9 +94,7 @@ vm_thread_entry(void *arg)
                      * We only crash a thread when a bound fiber throws an exception.
                      */
                     print_thrown_exception();
-                    kill_task(thread->task);
-                    set_attached_thread(thread->task, nullptr);
-                    thread->task = nullptr;
+                    kill_task(thread->task); // stays attached, sched_next_task() below frees it
 
                     enable_context_switch(thread, true);
                     enable_exception_flag(thread, false);
@@ -114,7 +112,8 @@ vm_thread_entry(void *arg)
 
             if(hasSignal(thread->signal, tsig_context_switch)
                 && !hasSignal(thread->signal, tsig_except)) {
-                observe_queue(thread);
+                // the context switch: file the current fiber away, take the next ready one
+                sched_next_task(thread);
 
                 if(thread->state == THREAD_KILLED
                     || hasSignal(thread->signal, tsig_kill)) {
@@ -424,21 +423,33 @@ int set_thread_priority(sharp_thread* thread, int priority) {
     return RESULT_ILL_PRIORITY_SET;
 }
 
+/**
+ * Start running the fiber that was put in thread->queue (a new thread's first fiber).
+ */
 void pop_queue(sharp_thread *thread) {
-    thread->state = THREAD_RUNNING;
-    thread->task = thread->queue;
+    guard_mutex(task_mutex)
+    fiber *fib = thread->queue;
     thread->queue = nullptr;
 
-//    cout << thread->task->name << endl;
+    fib->attachedThread = thread;
+    thread->task = fib;
+    thread->state = THREAD_RUNNING;
     enable_context_switch(thread, false);
-    set_task_state(thread, thread->task, FIB_RUNNING, NO_DELAY);
+    set_task_state(thread, fib, FIB_RUNNING, NO_DELAY);
 }
 
+/**
+ * Give back a fiber that was handed to this thread but will not be run by it.
+ */
 void invalidate_queue(sharp_thread *thread) {
-    enable_context_switch(thread, false);
-    set_attached_thread(thread->queue, NULL);
-    set_task_state(NULL, thread->queue, FIB_SUSPENDED, NO_DELAY);
+    guard_mutex(task_mutex)
+    fiber *fib = thread->queue;
+    if(fib == nullptr) return;
+
     thread->queue = nullptr;
+    enable_context_switch(thread, false);
+    fib->attachedThread = nullptr;
+    sched_wake(fib);
 }
 
 void enable_context_switch(sharp_thread* thread, bool enable) {
@@ -452,41 +463,13 @@ void enable_exception_flag(sharp_thread* thread, bool enable) {
 }
 
 void observe_queue(sharp_thread *thread) {
-    // a context switch: give up the current fiber and wait for the scheduler to
-    // hand us the next one. The timer records how long that took.
-    TELEMETRY_CONTEXT_SWITCH
-    if(thread->task != NULL) {
-        if(thread->task->finished)
-            set_task_state(thread, thread->task, FIB_KILLED, 0);
-        else if(thread->task->state == FIB_RUNNING)
-            set_task_state(thread, thread->task, FIB_SUSPENDED, 0);
-        set_attached_thread(thread->task, nullptr);
-        thread->task = nullptr;
-    }
-
-    observe:
-    thread->state = THREAD_SCHED;
-#ifdef COROUTINE_DEBUGGING
-    Int start = Clock::realTimeInNSecs();
-#endif
-    wait_for_notification(&thread->queueNotification);
-
-    if(hasSignal(thread->signal, tsig_suspend))
-        suspend_self();
-
-    if(thread->queue) {
-#ifdef COROUTINE_DEBUGGING
-        thread->switched++;
-        Int time = Clock::realTimeInNSecs() - start;
-        thread->contextSwitchTime += time;
-#endif
-        pop_queue(thread);
-    } else if(hasSignal(thread->signal, tsig_kill)) {
-        return;
-    }
-    else goto observe;
+    sched_next_task(thread);
 }
 
+/**
+ * What a thread sleeping in sched_next_task() waits for: a fiber handed to it
+ * (thread->queue), or being told to die or suspend.
+ */
 bool queue_filled() {
     auto thread = thread_self;
     return thread->queue != nullptr || thread->state == THREAD_KILLED
@@ -647,7 +630,6 @@ void __os_sleep(uInt time) {
 }
 
 void shutdown_thread(sharp_thread* thread) {
-    guard_mutex(thread->mut);
     if (thread->id == main_threadid && thread->task && thread->task->stack != NULL
         && thread->task->stack[vm.mf.threadLocals].obj.o != NULL
         && thread->task->stack[vm.mf.threadLocals].obj.o->type == type_class
@@ -658,14 +640,18 @@ void shutdown_thread(sharp_thread* thread) {
 
     print_thrown_exception();
 
-    kill_task(thread->task);
-    if(thread->task) set_attached_thread(thread->task, nullptr);
-    kill_bound_tasks(thread);
-    kill_bound_idle_tasks(thread);
+    // give back anything handed to us, kill and free every fiber bound to us
+    sched_thread_exit(thread);
 
-    thread->task = nullptr;
-    thread->signal = tsig_empty;
-    thread->exited = true;
+    {
+        guard_mutex(thread->mut);
+        thread->signal = tsig_empty;
+        thread->exited = true;
+    }
+
+    // Publishing THREAD_KILLED must be the very last thing this function does,
+    // with no lock of the thread held: the scheduler monitor frees the thread
+    // struct as soon as it sees this state.
     thread->state = THREAD_KILLED;
 }
 
@@ -958,6 +944,7 @@ sharp_thread* get_thread(uInt id) {
         thread = thread->next;
     }
 
+    std::lock_guard<recursive_mutex> unschedGuard(unsched_mutex); // threads that were created but not listed yet
     _unsched_thread *unsched_t = unsched_threads;
 
     while(unsched_t != NULL)
@@ -1003,7 +990,8 @@ void setup_thread(sharp_thread *thread, string &name, uInt id, bool daemon, shar
     thread->id = id;
     thread->daemon=daemon;
     if(initializeStack) {
-        auto task = create_task(thread->name, main, nullptr, nullptr, thread);
+        // not queued: this thread runs it directly as its first fiber (pop_queue)
+        auto task = create_task(thread->name, main, nullptr, nullptr, thread, false);
         set_attached_thread(task, thread);
         thread->queue = task;
     }
@@ -1015,56 +1003,4 @@ uInt new_thread_id() {
 
 bool can_dispose(_sched_thread *scht) {
     return vm.state != VM_SHUTTING_DOWN && scht->thread->state == THREAD_KILLED;
-}
-
-/**
- * Every thread is not guaranteed to be scheduled every time.
- * We will only schedule a thread if it has ra past its allotted time slice
- * and the thread is waiting to recieve another task. Threads can ignore this
- * request however for amy reason and continue to execute the same task that they are running.
- *
- * @param scht The current thread being scheduled a task
- * @return The next thread to be
- * .
- */
-void thread_sched_prepare(_sched_thread *scht) {
-    if (can_dispose(scht)) {
-        dispose(scht);
-        return;
-    } else if(scht->thread->state != THREAD_RUNNING)
-        return;
-
-    if (is_thread_ready(scht->thread)) {
-        enable_context_switch(scht->thread, true);
-    }
-}
-
-bool can_sched_thread(sharp_thread *thread) {
-    return hasSignal(thread->signal, tsig_context_switch) && thread->state == THREAD_SCHED;
-}
-
-bool trigger_thread_sched(_sched_thread *scht) {
-    enable_context_switch(scht->thread, true);
-    std::this_thread::yield();
-    return can_sched_thread(scht->thread);
-}
-
-bool ready_or_diapose(_sched_thread *scht) {
-    if (can_dispose(scht)) {
-        dispose(scht);
-        return false;
-    } else if(scht->thread->state == THREAD_SCHED)
-        return true;
-     else if(scht->thread->state != THREAD_RUNNING)
-        return false;
-
-    return is_thread_ready(scht->thread);
-}
-
-void queue_task(sharp_thread *thread, sched_task *task) {
-    if(thread->queue == NULL) {
-        set_attached_thread(task->task, thread);
-        thread->queue = task->task;
-        send_notification(&thread->queueNotification);
-    }
 }

@@ -15,6 +15,7 @@
 #include "../../core/thread_state.h"
 #include "../../core/access_flag.h"
 #include "../telemetry/telemetry.h"
+#include "../multitasking/scheduler/scheduler.h"
 
 std::recursive_mutex copy_mut;
 std::recursive_mutex lock_mut;
@@ -33,20 +34,40 @@ void init_struct(sharp_object *o) {
     o->HEAD = nullptr;
 }
 
+/**
+ * Point the slot `to` at `from` and keep both reference counts right.
+ *
+ * The new object is counted BEFORE it is published and the old one is released
+ * AFTER it has been removed from the slot, and the slot itself is swapped
+ * atomically, so two threads writing the same slot each release a different
+ * old object (never the same one twice).
+ *
+ * WHY copy_object STILL TAKES copy_mut:
+ * The atomic count makes every individual increment/decrement safe, but
+ * copy_object(to, object *from) first READS from->o and then counts it. Without
+ * the lock another thread could overwrite `from` in between, drop the object to
+ * zero references, and the garbage collector could free it before our increment
+ * lands. The lock makes "read the slot + count it" one step relative to every
+ * other assignment. Measured cost of keeping it: about 5% on object-heavy code.
+ * Removing it safely needs the collector to wait for running threads to reach a
+ * safe point between marking and freeing.
+ */
+static inline void assign_slot(object *to, sharp_object *from) {
+    if(from) inc_ref(from)
+    sharp_object *old = __atomic_exchange_n(&to->o, from, __ATOMIC_SEQ_CST);
+    if(old) dec_ref(old)
+}
+
 void copy_object(object *to, object *from) {
     TELEMETRY_COUNT(tm_object_copies)
     guard_mutex(copy_mut)
-    if(to->o) dec_ref(to->o)
-    to->o = from ? from->o : nullptr;
-    if(to->o) inc_ref(to->o)
+    assign_slot(to, from ? from->o : nullptr);
 }
 
 void copy_object(object *to, sharp_object *from) {
     TELEMETRY_COUNT(tm_object_copies)
     guard_mutex(copy_mut)
-    if(to->o) dec_ref(to->o)
-    to->o = from;
-    if(to->o) inc_ref(to->o)
+    assign_slot(to, from);
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
@@ -324,6 +345,9 @@ void unlock_object(sharp_object *o) {
 
     if(mut->id == task->id) {
         mut->id = -1;
+
+        // fibers that failed to take this lock are waiting to be told it is free
+        sched_lock_released(mut);
     }
 }
 

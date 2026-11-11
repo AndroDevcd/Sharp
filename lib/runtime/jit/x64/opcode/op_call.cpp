@@ -32,6 +32,6 @@ bool X64Compiler::emit_call(int address) {
     callFunction(reinterpret_cast<void*>(jit_prepareMethod));
 
     // branch_for(0): continue wherever task->pc points now (see emitAfterCall)
-    emitAfterCall();
+    emitAfterCall((long)currentPC + 1);
     return true;
 }

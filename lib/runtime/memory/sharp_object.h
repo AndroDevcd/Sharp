@@ -27,7 +27,11 @@ struct sharp_object {
 
     /* info */
     uint32_t size;
-    uint32_t refCount;
+    // Number of object slots (stack, fields, array elements, ...) that point at
+    // this object. Atomic because several threads and the garbage collector
+    // change it at the same time; a plain ++/-- would lose updates and free
+    // objects that are still in use (or leak them).
+    std::atomic<uint32_t> refCount;
     unsigned short type : 5; // the type of object represents {class, var, _int64, etc}
     unsigned short arrayFlag : 1;
 
@@ -70,7 +74,7 @@ bool lock_object(sharp_object *o);
 void unlock_object(sharp_object *o);
 void populate_string(string &s, sharp_object *o);
 
-#define inc_ref(x) (x)->refCount++;
-#define dec_ref(x) (x)->refCount--;
+#define inc_ref(x) (x)->refCount.fetch_add(1, std::memory_order_relaxed);
+#define dec_ref(x) (x)->refCount.fetch_sub(1, std::memory_order_relaxed);
 
 #endif //SHARP_SHARP_OBJECT_H

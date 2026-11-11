@@ -5,14 +5,16 @@
 #ifndef SHARP_IDLE_SCHEDULER_H
 #define SHARP_IDLE_SCHEDULER_H
 
-#define MAIN_POOL_SIZE_LIMIT (1000)
-
-struct sched_task;
 struct sharp_thread;
 
+/*
+ * The idle handler thread used to hold fibers that were asleep or blocked once
+ * there were more than 1000 of them, so the scheduler did not have to scan them
+ * on every pass. The scheduler no longer scans anything (waiting fibers sit in
+ * the timer heap / lock wait list until an event wakes them, see scheduler.h),
+ * so there is no idle pool anymore. The thread itself is kept because thread id
+ * 2 (idle_threadid) is reserved for it throughout the vm.
+ */
 void idle_handler_startup();
-bool is_task_idle(sched_task *task);
-void post_idle_task(sched_task *task);
-void kill_bound_idle_tasks(sharp_thread* thread);
 
 #endif //SHARP_IDLE_SCHEDULER_H

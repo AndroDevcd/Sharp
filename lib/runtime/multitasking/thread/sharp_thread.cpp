@@ -18,7 +18,7 @@ void free_struct(sharp_thread *thread) {
 void init_struct(sharp_thread *thread) {
     thread->task = nullptr;
     new(&thread->boundFibers) atomic<Int>();
-    new(&thread->queue) atomic<sched_task*>();
+    new(&thread->queue) atomic<fiber*>(nullptr);
     new (&thread->mut) recursive_mutex();
     thread->id = 0;
     thread->stackSize = 0;
@@ -35,6 +35,26 @@ void init_struct(sharp_thread *thread) {
     init_struct(&thread->currentThread);
     init_struct(&thread->args);
     thread->lastRanMicros = 0;
+    thread->readyHead = nullptr;
+    thread->readyTail = nullptr;
+    thread->parked = false;
+    thread->pickCount = 0;
+    thread->readyHead = nullptr;
+    thread->readyTail = nullptr;
+    thread->parked = false;
+    thread->pickCount = 0;
+    thread->readyHead = nullptr;
+    thread->readyTail = nullptr;
+    thread->parked = false;
+    thread->pickCount = 0;
+    thread->readyHead = nullptr;
+    thread->readyTail = nullptr;
+    thread->parked = false;
+    thread->pickCount = 0;
+    thread->readyHead = nullptr;
+    thread->readyTail = nullptr;
+    thread->parked = false;
+    thread->pickCount = 0;
     thread->thread = 0;
     init_struct(&thread->queueNotification);
     thread->queueNotification.cond = queue_filled;

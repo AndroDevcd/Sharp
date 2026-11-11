@@ -279,7 +279,7 @@ private:
 
     // ---- shared checks ----------------------------------------------------------
     void emitStateCheck(size_t offset);                    // pcReg += offset; goto state_check
-    void emitAfterCall();                                  // after CALL-like opcodes: continue at task->pc or unwind
+    void emitAfterCall(long nextPc = -1);                  // after CALL-like opcodes: continue at task->pc or unwind
     void emitBranchTo(size_t targetPc);                    // task->pc = rom + targetPc; check_state(0)  (fast path: direct jump)
     void emitReturn(int returnCode);                       // return from the compiled function
     void emitFastExceptionCheck();                         // if(hasSignal(tsig_except)) goto catch_exception

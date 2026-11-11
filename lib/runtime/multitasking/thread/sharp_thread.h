@@ -47,7 +47,12 @@ struct sharp_thread {
     bool marked;
     std::string name;
     object currentThread, args;
-    uInt lastRanMicros;
+    uInt lastRanMicros;         // scheduler time (sched_now_micros) the current fiber started running
+
+    // ---- scheduler bookkeeping (guarded by task_mutex, see scheduler.h) ----
+    fiber *readyHead, *readyTail;   // ready fibers bound to this thread (FIFO)
+    bool parked;                    // asleep in sched_next_task() waiting for a fiber
+    uInt pickCount;                 // fibers picked so far, used to mix in unbound fibers fairly
 #ifdef COROUTINE_DEBUGGING
     Int timeSleeping, switched, skipped,
             actualSleepTime, contextSwitchTime, timeLocking;

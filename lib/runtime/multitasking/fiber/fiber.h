@@ -67,8 +67,14 @@ public:
     uInt stackSize;
     long double *registers;
     object *ptr;
-    long long delayTime;
-    bool wakeable;
+    long long delayTime;        // scheduler time (sched_now_micros) it sleeps until, -1 = not sleeping
+    bool wakeable;              // false while suspended by fiber.suspend()
+
+    // ---- scheduler bookkeeping (guarded by task_mutex, see scheduler.h) ----
+    fiber *readyNext;           // next fiber on the same ready queue
+    bool queued;                // on a ready queue right now
+    bool lockWaiting;           // listed as waiting for an object lock
+    long long timerArmed;       // the delayTime a timer heap entry exists for, -1 = none
     bool finished;
     fib_mutex *f_lock;
 };
