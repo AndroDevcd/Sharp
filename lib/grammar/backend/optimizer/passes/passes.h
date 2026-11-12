@@ -38,6 +38,8 @@ bool pass_stack_forwarding(function_ir &ir);
 bool pass_constant_propagation(function_ir &ir);
 /** register-to-register moves are folded into the instructions around them (pass_copy_propagation.cpp) */
 bool pass_copy_propagation(function_ir &ir);
+/** copies of an object reference into another slot are dropped when the original will do (pass_object_copies.cpp) */
+bool pass_object_copies(function_ir &ir);
 /** computations and variables whose value is never read are removed        (pass_dead_stores.cpp) */
 bool pass_dead_stores(function_ir &ir);
 /** everything that contributes to nothing observable: self-feeding variables,
@@ -67,6 +69,7 @@ bool pass_box_elimination(function_ir &ir, program_ir &program);
 #define OPTIMIZER_PASS_LIST(X) \
     X("stack forwarding", 1, pass_stack_forwarding) \
     X("copy propagation", 1, pass_copy_propagation) \
+    X("object copies",    1, pass_object_copies) \
     X("constant propagation", 2, pass_constant_propagation) \
     X("dead stores",      1, pass_dead_stores) \
     X("dead code",        2, pass_dead_code) \
