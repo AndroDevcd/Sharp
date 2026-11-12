@@ -210,7 +210,7 @@ void compile_binary_integer_expression(
             } else if(operand == "==") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) == get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) == get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -218,7 +218,7 @@ void compile_binary_integer_expression(
             } else if(operand == "!=") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) != get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) != get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -226,7 +226,7 @@ void compile_binary_integer_expression(
             } else if(operand == "<") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) < get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) < get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -234,7 +234,7 @@ void compile_binary_integer_expression(
             } else if(operand == ">") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) > get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) > get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -242,7 +242,7 @@ void compile_binary_integer_expression(
             } else if(operand == "<=") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) <= get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) <= get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -250,7 +250,7 @@ void compile_binary_integer_expression(
             } else if(operand == ">=") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) >= get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) >= get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -264,7 +264,7 @@ void compile_binary_integer_expression(
             } else if(operand == "-") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) - get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) - get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
@@ -272,14 +272,21 @@ void compile_binary_integer_expression(
             } else if(operand == "+") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) + get_numeric_expression_value_as_int(right)));
+                                                      result = (get_numeric_expression_value_as_decimal(left) + get_numeric_expression_value_as_decimal(right)));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
                 break;
             } else if(operand == "/") {
-                create_get_integer_constant_operation(&e->scheme,
-                                                      result = (get_numeric_expression_value_as_int(left) + get_numeric_expression_value_as_int(right)));
+                // (this used to ADD the two literals, as integers: `20 / 4` gave 24)
+                // Division keeps the fraction, exactly like dividing two variables at run time: 7 / 2 is 3.5.
+                long double result = 0;
+                create_get_decimal_constant_operation(&e->scheme,
+                                                      result = (get_numeric_expression_value_as_decimal(left) / get_numeric_expression_value_as_decimal(right)));
+
+                e->type.type = type_decimal;
+                e->type.decimal = result;
+                break;
             } else if(operand == "*") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
@@ -289,12 +296,17 @@ void compile_binary_integer_expression(
                 e->type.decimal = result;
                 break;
             } else if(operand == "%") {
+                if(get_numeric_expression_value_as_int(right) == 0) {
+                    create_new_error(GENERIC, ast->getSubAst(1), "remainder of a division by zero.");
+                    break;
+                }
+
                 create_get_integer_constant_operation(&e->scheme,
                                                       result = (get_numeric_expression_value_as_int(left) % get_numeric_expression_value_as_int(right)));
             } else if(operand == "**") {
                 long double result = 0;
                 create_get_decimal_constant_operation(&e->scheme,
-                                                      result = (pow(get_numeric_expression_value_as_int(left), get_numeric_expression_value_as_int(right))));
+                                                      result = (pow(get_numeric_expression_value_as_decimal(left), get_numeric_expression_value_as_decimal(right))));
 
                 e->type.type = type_decimal;
                 e->type.decimal = result;
