@@ -752,6 +752,10 @@ bool catch_exception() {
                                     task->exceptionObject.o);
                     }
 
+                    // the exception leaves the try block: give back the locks
+                    // of every lock(x) { } block inside it (sharp_object.cpp)
+                    release_locks_left_by_exception(task, task->callFramePtr, table->blockStartPc, table->blockEndPc);
+
                     task->pc = task->rom + caughtException.handlerPc;
                     copy_object(&task->exceptionObject, (sharp_object*) nullptr);
                     enable_exception_flag(thread, false);
@@ -764,6 +768,8 @@ bool catch_exception() {
         // This try couldn't catch it, so jump to its finally block (if applicable)
         if(table->tryStartPc <= pc && table->tryEndPc >= pc && table->finallyData)
         {
+            release_locks_left_by_exception(task, task->callFramePtr, table->tryStartPc, table->tryEndPc);
+
             task->pc = task->rom + table->finallyData->startPc;
             copy_object(&(task->fp + table->finallyData->exceptionFieldAddress)->obj,
                         task->exceptionObject.o);
@@ -774,6 +780,9 @@ bool catch_exception() {
         }
     }
 
+    // Nothing in this function handles the exception: the function is about to
+    // be unwound, and with it every lock block that was entered in it.
+    release_locks_left_by_exception(task, task->callFramePtr, 0, INT64_MAX);
     return false;
 }
 

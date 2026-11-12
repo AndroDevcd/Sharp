@@ -71,6 +71,8 @@ Int sizeof_object(sharp_object *o);
 void cast_object(object *from, Int toClass);
 void cast_numeric_array(object *from, Int toType);
 bool lock_object(sharp_object *o);
+class fiber;
+void release_locks_left_by_exception(fiber *task, Int depth, Int fromPc, Int toPc);
 void unlock_object(sharp_object *o);
 void populate_string(string &s, sharp_object *o);
 

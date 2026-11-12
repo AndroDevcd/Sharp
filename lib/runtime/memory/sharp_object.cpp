@@ -339,15 +339,111 @@ void cast_numeric_array(object *from, Int toType) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// lock(x) { ... }
+//
+//   LOCK   -> lock_object(x)       at the start of the block
+//   ULOCK  -> unlock_object(x)     at its end (the compiler also emits it in
+//                                  front of a return / break / continue that
+//                                  leaves the block)
+//
+// Two things a lock block has to get right, and did not:
+//
+//   1. Nesting. lock(x) { lock(x) { } ...rest... } - the same fiber may enter
+//      a lock it already holds. The lock counts how often (fib_mutex::count)
+//      and is only given back when the outermost block ends. It used to be
+//      released by the first ULOCK, so "rest" ran unprotected.
+//
+//   2. Exceptions. An exception that leaves the block skips its ULOCK. Every
+//      block a fiber is inside of is therefore written down (fiber::held, with
+//      the call depth and pc of its LOCK); when an exception is caught further
+//      out, or unwinds a function, the blocks it left are released by
+//      release_locks_left_by_exception(). Before this the fiber kept the lock
+//      until it ended.
+//
+// C++ comparison: std::lock_guard<std::recursive_mutex> - released by leaving
+// the scope in any way, and re-entrant for the owner.
+// ---------------------------------------------------------------------------
+
+static void note_lock_held(fiber *task, fib_mutex *mut) {
+    if(task->heldCount == task->heldCapacity) {
+        Int capacity = task->heldCapacity == 0 ? 4 : task->heldCapacity * 2;
+        held_lock *grown = (held_lock*)realloc(task->held, sizeof(held_lock) * capacity);
+        if(grown == nullptr) return;    // out of memory: this block is simply not tracked
+        task->held = grown;
+        task->heldCapacity = capacity;
+    }
+
+    held_lock &entry = task->held[task->heldCount++];
+    entry.mut = mut;
+    entry.depth = task->callFramePtr;
+    entry.pc = (Int)(task->pc - task->rom);
+}
+
+/** Forget the innermost block of `task` that holds `mut` (its ULOCK ran). */
+static void forget_lock_held(fiber *task, fib_mutex *mut) {
+    for(Int i = task->heldCount - 1; i >= 0; i--) {
+        if(task->held[i].mut == mut) {
+            for(Int j = i; j < task->heldCount - 1; j++)
+                task->held[j] = task->held[j + 1];
+            task->heldCount--;
+            return;
+        }
+    }
+}
+
+/** One block less; the lock is free again when it was the last one. */
+static void leave_lock(fiber *task, fib_mutex *mut) {
+    if(mut->id != task->id) return;
+
+    if(--mut->count > 0) return;    // still inside an outer lock(x) block
+
+    mut->count = 0;
+    mut->id = -1;
+
+    // fibers that failed to take this lock are waiting to be told it is free
+    sched_lock_released(mut);
+}
+
 void unlock_object(sharp_object *o) {
     auto mut = create_mutex(o);
     auto task = thread_self->task;
 
     if(mut->id == task->id) {
-        mut->id = -1;
+        forget_lock_held(task, mut);
+        leave_lock(task, mut);
+    }
+}
 
-        // fibers that failed to take this lock are waiting to be told it is free
-        sched_lock_released(mut);
+/**
+ * An exception is leaving code of the current fiber. Give back the locks of
+ * every lock block it leaves:
+ *
+ *   - blocks entered in functions ABOVE `depth` (those functions are gone), and
+ *   - blocks entered in the function at `depth` at a pc inside
+ *     [fromPc, toPc] - the try block whose handler is about to run. Blocks
+ *     nest, so a lock taken inside that try block also ends inside it.
+ *
+ * When the function at `depth` itself is unwound (nothing in it catches the
+ * exception) the range is the whole function: fromPc = 0, toPc = max.
+ *
+ * Called by catch_exception() (virtual_machine.cpp), which both the
+ * interpreter and the JIT use.
+ */
+void release_locks_left_by_exception(fiber *task, Int depth, Int fromPc, Int toPc) {
+    for(Int i = task->heldCount - 1; i >= 0; i--) {
+        held_lock &entry = task->held[i];
+
+        if(entry.depth > depth
+           || (entry.depth == depth && entry.pc >= fromPc && entry.pc <= toPc)) {
+            fib_mutex *mut = entry.mut;
+
+            for(Int j = i; j < task->heldCount - 1; j++)
+                task->held[j] = task->held[j + 1];
+            task->heldCount--;
+
+            leave_lock(task, mut);
+        }
     }
 }
 
@@ -357,6 +453,9 @@ bool lock_object(sharp_object *o) {
     auto thread = thread_self;
 
     if(mut->id == task->id) {
+        // already ours: one more block inside the same lock
+        mut->count++;
+        note_lock_held(task, mut);
         return false;
     } else {
         task->f_lock = mut;
@@ -365,8 +464,10 @@ bool lock_object(sharp_object *o) {
     lock_mut.lock();
     if(mut->id == -1) {
         mut->id = task->id;
+        mut->count = 1;
         task->f_lock = nullptr;
         lock_mut.unlock();
+        note_lock_held(task, mut);
         TELEMETRY_COUNT(tm_lock_acquired)
     } else {
         lock_mut.unlock();

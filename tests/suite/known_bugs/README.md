@@ -41,7 +41,6 @@ sharp /tmp/bug
 | An interface method overridden in a subclass is ignored when called through the intermediate class type, or from a method of that class. | `interfaces.sharp` |
 | A field with both `get` and `set`: assignments from outside are lost under `-O`; an assignment also runs the getter; `p.value++` gives a wrong number. | `properties.sharp` |
 | A try/finally inside a finally body drops the pending exception. | `finally.sharp` |
-| A lock is not released when an exception leaves the block; nested locks on one object are not counted. | `lib_coroutines_lock_exception.sharp` |
 | `x = x + n` on a `localized` number stores garbage. | `lib_coroutines_localized_arithmetic.sharp` |
 | `names : string[] = { "a", "b", "c" };` (no `new`) makes a 1-element array. | `lib_time_array_initializer.sharp` |
 | A local `int?` / `int[]?` declared without a value is not null; `obj.int_field = 500` overwrites the number inside a shared `int` object. | `lib_collections_language.sharp` |
@@ -100,6 +99,6 @@ Moved into `../cases/` after they started to pass: `threads.sharp` (scheduler
 deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
 `variables_multiple.sharp`, `operators_on_new.sharp`, `casts_of_expressions.sharp`,
 `new_in_condition.sharp`, `foreach_over_new.sharp`, `foreach_inherited_loopable.sharp`,
-`thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
+`thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `lock_exception_and_nesting.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
 `non_null_index*.sharp`, `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
 and the `*_fixes.sharp` files.

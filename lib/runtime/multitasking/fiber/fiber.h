@@ -25,8 +25,21 @@ enum fiber_state {
 #define STACK_GROW_SIZE 512 // ~8kb
 
 struct fib_mutex {
-    Int id;
+    Int id;             // id of the fiber that holds the lock, -1 = free
     sharp_object *o;
+    Int count;          // how many lock(o) blocks the holder is inside (see lock_object)
+};
+
+/**
+ * One lock(x) { } block a fiber is inside of right now: which lock, and where
+ * the block was entered (call depth and pc within that function). Kept so that
+ * an exception leaving the block can give the lock back - see
+ * release_locks_left_by_exception() in memory/sharp_object.cpp.
+ */
+struct held_lock {
+    fib_mutex *mut;
+    Int depth;          // task->callFramePtr when the lock was taken
+    Int pc;             // pc of the LOCK instruction in that function
 };
 
 // cost per fiber: 4.4kb
@@ -90,6 +103,12 @@ public:
     long long timerArmed;       // the delayTime a timer heap entry exists for, -1 = none
     bool finished;
     fib_mutex *f_lock;
+
+    // the lock blocks this fiber is inside of, innermost last (a plain array:
+    // fibers are allocated with malloc)
+    held_lock *held;
+    Int heldCount;
+    Int heldCapacity;
 };
 
 void init_struct(fiber*);

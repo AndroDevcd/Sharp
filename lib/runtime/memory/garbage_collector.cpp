@@ -95,6 +95,7 @@ fib_mutex* create_mutex(sharp_object *o) {
         mut = new fib_mutex();
         mut->id = -1;
         mut->o = o;
+        mut->count = 0;
         SET_LOCK(o->info, 1);
         gc.f_locks.createnode(mut);
         return mut;
@@ -108,6 +109,7 @@ void release_all_mutexes(fiber *task) {
 
         if(item->data->id == task->id) {
             item->data->id = -1;
+            item->data->count = 0;
         }
     });
 }

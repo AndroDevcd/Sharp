@@ -6,7 +6,7 @@ import (
 )
 
 /**
- * KNOWN BUGS (language / runtime) of the lock statement that shape every
+ * Formerly known bugs (runtime), fixed: of the lock statement that shape every
  * class of std.coroutines and std.concurrent:
  *
  *   1. An exception that leaves a lock(x) { } block does NOT release the lock

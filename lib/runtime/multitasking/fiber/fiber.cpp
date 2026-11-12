@@ -13,6 +13,11 @@
 
 void fiber::free() {
     release_all_mutexes(this);
+    if(held != NULL) {
+        std::free(held); held = NULL;
+    }
+    heldCount = 0;
+    heldCapacity = 0;
 
     if(stack != NULL) {
         release_bytes(sizeof(stack_item) * stackSize);
@@ -94,6 +99,9 @@ void init_struct(fiber *fib) {
     fib->callFramePtr = -1;
     fib->rebuildDepth = 0;
     fib->rebuilding = false;
+    fib->held = NULL;
+    fib->heldCount = 0;
+    fib->heldCapacity = 0;
     fib->current = NULL;
     fib->ptr = NULL;
     fib->readyNext = NULL;
