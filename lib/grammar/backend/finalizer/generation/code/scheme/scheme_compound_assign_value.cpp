@@ -21,10 +21,20 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
     process_get_value(next_step);
     machine_data asignee(cc.machineData);
 
+    // Is the variable being assigned one that a lambda captured? Then the new
+    // value is also written to the closure object (below).
+    //
+    // The field comes with the machine data, exactly as in scheme_assign_value.cpp.
+    // It used to be looked up as locals[dataAddress], but dataAddress is the
+    // frame slot, not an index into the locals list: in a method slot 0 is
+    // `self`, so the first local sits in slot 1 and the lookup read one past
+    // the end ("index out of bounds list::get() _X: 1 length: 1") and aborted
+    // the compiler on `sum += seven();`.
     if((cc.machineData.type == local_field_object_data || cc.machineData.type == numeric_local_field)
-       && cc.container->locals.get(cc.machineData.dataAddress)->closure != NULL) {
-        closureRef = cc.container->locals.get(cc.machineData.dataAddress)->closureRef;
-        closure = cc.container->locals.get(cc.machineData.dataAddress)->closure;
+       && cc.machineData.field != NULL
+       && cc.machineData.field->closure != NULL) {
+        closureRef = cc.machineData.field->closureRef;
+        closure = cc.machineData.field->closure;
     }
 
     process_retain_numeric_value(next_step);

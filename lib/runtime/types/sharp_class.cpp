@@ -25,19 +25,43 @@ CXX11_INLINE void init_struct(sharp_class *sc) {
     sc->hash = 0;
 }
 
+/**
+ * Can an object of class `base` be used where a `reference` is expected?
+ * True when `base` IS `reference`, derives from it (through any number of
+ * levels), or it - or one of its base classes - implements `reference` as an
+ * interface (or an interface derived from it).
+ *
+ * In C++ terms: dynamic_cast<reference*>(base_object) != nullptr.
+ *
+ * This is what `as` (CAST), `is` (IS), catch clauses and the instance check of
+ * a method call are decided with. It used to test each interface against
+ * `base` itself instead of `reference`, which made every class that implements
+ * an interface "related" to every other class: `a_dog as cat` raised nothing
+ * and `a_dog is cat` was true.
+ */
 bool are_classes_related(sharp_class *base, sharp_class *reference) {
     if(base == NULL || reference == NULL)
         return false;
-    if(base->hash == reference->hash)
-        return true;
 
-    for(Int i = 0; i < base->interfaceCount; i++) {
-        if(are_classes_related(base->interfaces[i], base)) {
+    for(sharp_class *c = base; c != NULL; c = c->base) {
+        if(c->guid == reference->guid)
             return true;
+
+        // Each interface, and what that interface itself derives from. This
+        // walks base chains only and does not recurse into the interface
+        // lists of interfaces: those can refer back to each other (a
+        // recursive version ran until the stack overflowed).
+        for(Int i = 0; i < c->interfaceCount; i++) {
+            for(sharp_class *in = c->interfaces[i]; in != NULL; in = in->base) {
+                if(in->guid == reference->guid)
+                    return true;
+                if(in->base == in) break;
+            }
         }
+        if(c->base == c) break;
     }
 
-    return base->base != NULL && are_classes_related(base->base, reference);
+    return false;
 }
 
 thread_local std::hash<std::string> hasher;
