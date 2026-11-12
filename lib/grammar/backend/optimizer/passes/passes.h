@@ -17,6 +17,8 @@
 #include "../function_ir.h"
 #include "../analysis/box_constructors.h"
 #include <map>
+#include <memory>
+#include <vector>
 
 /** Every function the optimizer could decode, for the passes that look across functions */
 struct program_ir {
@@ -24,6 +26,8 @@ struct program_ir {
     std::map<Int, function_ir*> byAddress;   // function address (the operand of `call`) -> function
     Int callsInlined = 0;
     Int boxesRemoved = 0;
+    Int nativeReturnVersions = 0;
+    Int nativeReturnCalls = 0;
     Int loopsAsFormula = 0;
     Int loopsUnrolled = 0;
     Int loopsRotated = 0;
@@ -65,6 +69,14 @@ bool pass_loop_registers(function_ir &ir);
 bool pass_inline_calls(function_ir &caller, program_ir &program);
 /** number objects that never leave the function are replaced by a plain local (pass_box_elimination.cpp) */
 bool pass_box_elimination(function_ir &ir, program_ir &program);
+/**
+ * calls whose number-object result is only unwrapped again go to a hidden
+ * version of the function that returns the number itself          (pass_native_returns.cpp)
+ * `storage` owns the new functions, `cleanup` runs the per-function passes.
+ * Returns the number of calls redirected.
+ */
+Int pass_native_returns(program_ir &program, std::vector<std::unique_ptr<function_ir>> &storage,
+                        void (*cleanup)(function_ir&));
 
 #define OPTIMIZER_PASS_LIST(X) \
     X("stack forwarding", 1, pass_stack_forwarding) \

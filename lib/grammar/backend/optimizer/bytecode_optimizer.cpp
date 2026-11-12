@@ -167,7 +167,8 @@ static void restore(code_info *ci, function_backup &backup) {
 
 /* the optimizations that are not part of OPTIMIZER_PASS_LIST (the driver runs them itself) */
 static const char *const driverPasses[] = {
-    "inline calls", "box elimination", "loop formula", "loop unrolling", "loop rotation", "loop registers"
+    "inline calls", "box elimination", "native returns",
+    "loop formula", "loop unrolling", "loop rotation", "loop registers"
 };
 
 const std::vector<std::string>& optimization_names() {
@@ -286,6 +287,14 @@ void optimize_bytecode() {
         }
     }
 
+    // ---- 3a. calls that only unwrap the number object they get back. After
+    // inlining (what is inlined needs no second version), before the loop passes
+    // (the new versions have loops too).
+    if(level >= INLINE_LEVEL && pass_enabled("native returns")) {
+        program.nativeReturnCalls = pass_native_returns(program, decoded,
+                [](function_ir &ir) { run_local_passes(ir, 3); });
+    }
+
     // ---- 3b. loop shaping. Last, because it duplicates the loop test: the
     // passes above should see (and shrink, or remove) each loop first.
     if(level >= LOOP_LEVEL) {
@@ -358,7 +367,9 @@ void optimize_bytecode() {
         }
         if(level >= INLINE_LEVEL)
             cout << "  pass inline calls: " << program.callsInlined << " calls replaced by the callee's body\n"
-                 << "  pass box elimination: " << program.boxesRemoved << " number objects replaced by a local\n";
+                 << "  pass box elimination: " << program.boxesRemoved << " number objects replaced by a local\n"
+                 << "  pass native returns: " << program.nativeReturnCalls << " calls now get the number directly, through "
+                 << program.nativeReturnVersions << " new function versions\n";
 
         if(level >= LOOP_LEVEL)
             cout << "  pass loop formula: " << program.loopsAsFormula << " functions had loops replaced by a formula\n";
