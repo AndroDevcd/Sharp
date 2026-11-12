@@ -94,6 +94,8 @@ if (SHARPC)
             "lib/grammar/backend/optimizer/*.cpp"
             "lib/grammar/backend/optimizer/passes/*.h"
             "lib/grammar/backend/optimizer/passes/*.cpp"
+            "lib/grammar/backend/optimizer/analysis/*.h"
+            "lib/grammar/backend/optimizer/analysis/*.cpp"
             "lib/grammar/backend/finalizer/optimization/analyzer/*.h"
             "lib/grammar/backend/finalizer/optimization/analyzer/*.cpp"
             "lib/grammar/backend/finalizer/optimization/processor/*.h"

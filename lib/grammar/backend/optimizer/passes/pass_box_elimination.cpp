@@ -75,15 +75,17 @@
 #include "passes.h"
 #include "../analysis/control_flow.h"
 #include "../analysis/liveness.h"
+#include <bitset>
 
 /* more candidates than this in one function: the rest are simply not tracked */
-#define MAX_SITES 63
+#define MAX_SITES 511
 #define MAX_FRAME_SLOTS 250
 
 namespace {
 
-typedef uint64_t site_set;                 // bit k = candidate object k (1..MAX_SITES)
-inline site_set bit(int site) { return (site_set)1 << site; }
+typedef std::bitset<MAX_SITES + 1> site_set; // bit k = candidate object k (1..MAX_SITES)
+inline site_set bit(int site) { site_set set; set.set((size_t)site); return set; }
+inline bool has(const site_set &set, int site) { return set.test((size_t)site); }
 
 /** What ptr points at, as far as this pass cares */
 enum pointer_kind : uint8_t {
@@ -102,7 +104,7 @@ struct flow_state {
     std::vector<int> locals;    // object part of each frame slot
     pointer_kind ptr = p_dead;
     int ptrValue = 0, ptrIndex = 0;
-    site_set constructed = 0;   // candidates whose value-storing constructor has run
+    site_set constructed;   // candidates whose value-storing constructor has run
 };
 
 /** What to do with one instruction if its candidate survives */
@@ -116,7 +118,7 @@ struct analysis {
 
     std::vector<int> siteOf;                // per instruction index: candidate number of a new_class, else 0
     int sites = 0;
-    site_set escaped = 0;
+    site_set escaped;
 
     std::vector<slot_set> liveObjectsIn;    // per block: object locals that may still be read
     std::vector<char> ptrLiveIn;            // per block: ptr may be read before it is set
@@ -257,7 +259,7 @@ void analysis::forget_dead(flow_state &s, int block) {
     }
 
     // forget "constructed" for objects that are gone, so paths compare equal
-    site_set present = 0;
+    site_set present;
     for(int v : s.stack) if(v > 0) present |= bit(v);
     for(int v : s.locals) if(v > 0) present |= bit(v);
     if(s.ptr == p_slot || s.ptr == p_field) present |= bit(s.ptrValue);
@@ -304,7 +306,7 @@ bool analysis::merge_into(flow_state &into, flow_state &from) {
 
     // constructed on one path only: we could not tell whether a read is valid
     site_set differs = into.constructed ^ from.constructed;
-    if(differs) {
+    if(differs.any()) {
         escaped |= differs;
         into.constructed &= from.constructed;
         changed = true;
@@ -392,7 +394,7 @@ void analysis::step(size_t index, flow_state &s, action *act) {
         }
         case Opcode::ILOAD:                             // regs[a] = *ptr (a number)
             if(s.ptr == p_field) {
-                if(!(s.constructed & bit(s.ptrValue))) escape(s.ptrValue);  // read before the value was stored
+                if(!has(s.constructed, s.ptrValue)) escape(s.ptrValue);  // read before the value was stored
                 set(a_load, s.ptrValue);
             } else {
                 escape(deref(s));
@@ -438,7 +440,7 @@ void analysis::step(size_t index, flow_state &s, action *act) {
             int below = depth >= 2 ? s.stack[depth - 2] : 0;
 
             // new C(number): the one call that gives the box its value
-            if(arguments == 2 && top == 0 && below > 0 && !(s.constructed & bit(below))) {
+            if(arguments == 2 && top == 0 && below > 0 && !has(s.constructed, below)) {
                 const box_summary &summary = summarize_box_call(program, instr.a);
                 if(summary.effect == box_stores_value) {
                     pop(s); pop(s);
@@ -579,7 +581,7 @@ bool analysis::rewrite() {
     bool needRegisters = false;
     for(size_t i = 0; i < ir.code.size(); i++) {
         action &act = actions[i];
-        if(act.kind == a_construct && !(escaped & bit(act.site)) && !constructors[act.site]->casts.empty())
+        if(act.kind == a_construct && !has(escaped, act.site) && !constructors[act.site]->casts.empty())
             needRegisters = true;
     }
 
@@ -591,7 +593,7 @@ bool analysis::rewrite() {
         static const int candidates[] = { EGX, BMR, ECX, ECF, EDF, EHF, CX };
         for(size_t i = 0; i < ir.code.size(); i++) {
             action &act = actions[i];
-            if(act.kind != a_construct || (escaped & bit(act.site)) || constructors[act.site]->casts.empty()) continue;
+            if(act.kind != a_construct || has(escaped, act.site) || constructors[act.site]->casts.empty()) continue;
 
             for(int candidate : candidates) {
                 if(!(live.registersAfter[i] & REG_BIT(candidate))) { castRegister[i] = candidate; break; }
@@ -605,7 +607,7 @@ bool analysis::rewrite() {
     int frameSlots = ir.frameSlots > 0 ? ir.frameSlots : 1;
     for(size_t i = 0; i < ir.code.size(); i++) {
         int site = siteOf[i];
-        if(site == 0 || (escaped & bit(site))) continue;
+        if(site == 0 || has(escaped, site)) continue;
         if(frameSlots >= MAX_FRAME_SLOTS) { escaped |= bit(site); continue; }
         valueSlot[site] = frameSlots++;
     }
@@ -613,7 +615,7 @@ bool analysis::rewrite() {
     bool changed = false;
     for(size_t i = ir.code.size(); i-- > 0; ) {         // back to front: indexes stay valid
         action act = actions[i];
-        if(act.kind == a_none || (escaped & bit(act.site))) continue;
+        if(act.kind == a_none || has(escaped, act.site)) continue;
         changed = true;
 
         ir_instruction &instr = ir.code[i];
@@ -669,7 +671,7 @@ bool pass_box_elimination(function_ir &ir, program_ir &program) {
     if(!a.run()) return false;
 
     // every candidate escaped?
-    site_set all = 0;
+    site_set all;
     for(int site = 1; site <= a.sites; site++) all |= bit(site);
     if((a.escaped & all) == all) return false;
 

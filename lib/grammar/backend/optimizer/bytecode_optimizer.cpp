@@ -3,6 +3,8 @@
 // See bytecode_optimizer.h.
 //
 
+#include <cstring>
+#include <cstdlib>
 #include "bytecode_optimizer.h"
 #include "function_ir.h"
 #include "passes/passes.h"
@@ -39,6 +41,8 @@ static const int passCount = sizeof(passes) / sizeof(passes[0]);
 #define MAX_INLINE_ROUNDS 4
 /* lowest -O level at which calls are inlined */
 #define INLINE_LEVEL 3
+/* loop passes that run after everything else */
+#define LOOP_LEVEL 2
 
 // ---------------------------------------------------------------------------------
 // Self check
@@ -161,13 +165,24 @@ static void restore(code_info *ci, function_backup &backup) {
 // Driver
 // ---------------------------------------------------------------------------------
 
+/**
+ * Debugging aid: the environment variable SHARP_OPT_SKIP holds pass names
+ * (as printed by -Oreport, any separator) that are not run, e.g.
+ *     SHARP_OPT_SKIP="loop rotation,box elimination" sharpc -O3 ...
+ * Use it to find which pass is behind a wrong result, or to measure one pass.
+ */
+static bool pass_enabled(const char *name) {
+    static const char *skip = getenv("SHARP_OPT_SKIP");
+    return skip == nullptr || strstr(skip, name) == nullptr;
+}
+
 /** Run the per-function passes until none of them changes the function anymore */
 static void run_local_passes(function_ir &ir, int level) {
     for(int round = 0; round < MAX_ROUNDS; round++) {
         bool changed = false;
 
         for(int p = 0; p < passCount; p++) {
-            if(passes[p].level > level) continue;
+            if(passes[p].level > level || !pass_enabled(passes[p].name)) continue;
 
             Int before = (Int)ir.code.size();
             if(passes[p].run(ir)) {
@@ -232,20 +247,43 @@ void optimize_bytecode() {
             bool any = false;
 
             for(function_ir *ir : program.functions) {
-                if(pass_inline_calls(*ir, program)) {
+                if(pass_enabled("inline calls") && pass_inline_calls(*ir, program)) {
                     any = true;
                     run_local_passes(*ir, level);
                 }
 
                 // inlining is what brings "create a number object" and "read the
                 // number back out" into the same function
-                if(pass_box_elimination(*ir, program)) {
+                if(pass_enabled("box elimination") && pass_box_elimination(*ir, program)) {
                     any = true;
                     run_local_passes(*ir, level);
                 }
             }
 
             if(!any) break;
+        }
+    }
+
+    // ---- 3b. loop shaping. Last, because it duplicates the loop test: the
+    // passes above should see (and shrink, or remove) each loop first.
+    if(level >= LOOP_LEVEL) {
+        for(function_ir *ir : program.functions) {
+            // (first: it removes loops altogether, and it wants them as the generator laid them out)
+            if(level >= INLINE_LEVEL && pass_enabled("loop unrolling") && pass_loop_unrolling(*ir)) {
+                program.loopsUnrolled++;
+                run_local_passes(*ir, level);
+            }
+
+            if(pass_enabled("loop rotation") && pass_loop_rotation(*ir)) {
+                program.loopsRotated++;
+                run_local_passes(*ir, level);
+            }
+
+            // (needs the rotated shape: one way in at the top, one way out at the bottom)
+            if(pass_enabled("loop registers") && pass_loop_registers(*ir)) {
+                program.loopsInRegisters++;
+                run_local_passes(*ir, level);
+            }
         }
     }
 
@@ -288,6 +326,12 @@ void optimize_bytecode() {
         if(level >= INLINE_LEVEL)
             cout << "  pass inline calls: " << program.callsInlined << " calls replaced by the callee's body\n"
                  << "  pass box elimination: " << program.boxesRemoved << " number objects replaced by a local\n";
+
+        if(level >= INLINE_LEVEL)
+            cout << "  pass loop unrolling: " << program.loopsUnrolled << " functions had loops unrolled\n";
+        if(level >= LOOP_LEVEL)
+            cout << "  pass loop rotation: " << program.loopsRotated << " functions had loops rotated\n"
+                 << "  pass loop registers: " << program.loopsInRegisters << " functions keep loop variables in registers\n";
 
         if(!skipped.empty()) {
             cout << "functions left untouched:\n";

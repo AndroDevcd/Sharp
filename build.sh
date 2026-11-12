@@ -46,6 +46,7 @@ build_compiler() {
         lib/grammar/backend/finalizer/optimization/*.h lib/grammar/backend/finalizer/optimization/*.cpp \
         lib/grammar/backend/optimizer/*.h lib/grammar/backend/optimizer/*.cpp \
         lib/grammar/backend/optimizer/passes/*.h lib/grammar/backend/optimizer/passes/*.cpp \
+        lib/grammar/backend/optimizer/analysis/*.h lib/grammar/backend/optimizer/analysis/*.cpp \
         lib/grammar/backend/finalizer/optimization/analyzer/*.h lib/grammar/backend/finalizer/optimization/analyzer/*.cpp \
         lib/grammar/backend/finalizer/optimization/processor/*.h lib/grammar/backend/finalizer/optimization/processor/*.cpp \
         lib/grammar/backend/finalizer/generation/*.h lib/grammar/backend/finalizer/generation/*.cpp \

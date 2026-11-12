@@ -255,6 +255,7 @@ bool executor::run(function_ir &fn, int depth) {
                 return stack.size() == stackFloor;
 
             default:
+                if(getenv("SHARP_BOX_DEBUG")) fprintf(stderr, "box: %s stops at %s\n", fn.fn->fullName.c_str(), to_string(fn, instr).c_str());
                 return false;
         }
 

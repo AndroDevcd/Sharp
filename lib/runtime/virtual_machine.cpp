@@ -41,6 +41,20 @@ thread_local long double *registers;
 bool jit_try_compile(sharp_function *function);
 int jit_enter_loop(Int targetPc);
 
+/*
+ * A backward jump is the bottom of a loop. Hot loops are worth compiling even
+ * when the function that contains them is only called once, so every
+ * JIT_LOOP_MASK+1 trips we try to continue the loop in compiled code.
+ * Used by JMP and by taken JE / JNE (a loop whose test sits at the bottom ends
+ * in a conditional backward jump).
+ */
+#define loop_back_edge(target) \
+    if((target) <= current_pc && (++task->current->loopCount & JIT_LOOP_MASK) == 0 && c_options.jit) { \
+        data = jit_enter_loop(target); \
+        if(data == 2) return;               /* the function returned to a native/jit caller */ \
+        if(data == 1) { check_state(0) }    /* compiled code ran, continue wherever task->pc is now */ \
+    }
+
 void main_vm_loop(sharp_function *frame)
 {
     setupOpcodeTable
@@ -274,15 +288,7 @@ void main_vm_loop(sharp_function *frame)
                         }
                 )
             JMP:
-                // A backward jump is the bottom of a loop. Hot loops are worth compiling
-                // even when the function that contains them is only called once, so every
-                // JIT_LOOP_MASK+1 trips we try to continue the loop in compiled code.
-                if(single_arg <= current_pc && (++task->current->loopCount & JIT_LOOP_MASK) == 0 && c_options.jit) {
-                    data = jit_enter_loop(single_arg);
-                    if(data == 2) return;               // the function returned to a native/jit caller
-                    if(data == 1) { check_state(0) }    // compiled code ran, continue wherever task->pc is now
-                }
-
+                loop_back_edge(single_arg)
                 task->pc = task->rom + single_arg;
                 check_state(0)
             LOADPC:
@@ -601,11 +607,13 @@ void main_vm_loop(sharp_function *frame)
                 branch_for(2)
             JE:
                 if(regs[CMT]) {
+                    loop_back_edge(single_arg)   // the optimizer puts the loop test at the bottom of the loop
                     task->pc = task->rom + single_arg;
                     check_state(0)
                 } else check_state(1)
             JNE:
                 if(regs[CMT] == 0) {
+                    loop_back_edge(single_arg)
                     task->pc = task->rom + single_arg;
                     check_state(0)
                 } else check_state(1)
