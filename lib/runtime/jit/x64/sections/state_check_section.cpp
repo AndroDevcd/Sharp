@@ -17,6 +17,8 @@ using namespace asmjit;
  *
  *   state_check:
  *   if(thread->signal) {
+ *       if (hasSignal(thread->signal, tsig_gc))
+ *           tgc_safepoint();
  *       if (hasSignal(thread->signal, tsig_suspend))
  *           suspend_self();
  *       if(hasSignal(thread->signal, tsig_except))
@@ -38,6 +40,7 @@ using namespace asmjit;
  *   tsig_suspend        (0x2) lives in bit 2  -> mask 0x004
  *   tsig_kill           (0x4) lives in bit 4  -> mask 0x010
  *   tsig_context_switch (0x8) lives in bit 8  -> mask 0x100
+ *   tsig_gc             (0x10) lives in bit 16 -> mask 0x10000
  * which is why the masks below are written as (1 << tsig_xxx).
  *
  * The signal word is re-read from memory for every test: other threads change
@@ -54,6 +57,16 @@ void X64Compiler::generateStateCheckSection() {
     // if(thread->signal == 0) DISPATCH();
     assembler->cmp(signal, 0);
     assembler->je(continueDispatch);
+
+    // if(hasSignal(thread->signal, tsig_gc)) tgc_safepoint();
+    // Everything compiled code knows about objects is in the fiber's stack and
+    // fields (nothing is kept in machine registers across this point), which is
+    // what makes this a safe point for the garbage collector.
+    Label skipGc = assembler->newLabel();
+    assembler->test(signal, 1 << tsig_gc);
+    assembler->jz(skipGc);
+    callFunction(reinterpret_cast<void*>(jit_gcSafepoint));
+    assembler->bind(skipGc);
 
     // if(hasSignal(thread->signal, tsig_suspend)) suspend_self();
     Label skipSuspend = assembler->newLabel();

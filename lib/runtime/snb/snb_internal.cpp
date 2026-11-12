@@ -12,13 +12,20 @@
 #include "../../core/thread_state.h"
 #include "../../core/opcode/opcode_macros.h"
 #include "../memory/garbage_collector.h"
+#include "../memory/tracing_collector.h"
 
 void ref_increment(SharpObject obj) {
-    if(obj) inc_ref(((object*)(obj))->o)
+    if(obj && ((object*)(obj))->o) {
+        inc_ref(((object*)(obj))->o)
+        tgc_pin(((object*)(obj))->o);    // native code holds it: a root for the tracing collector
+    }
 }
 
 void ref_decrement(SharpObject obj) {
-    if(obj) dec_ref(((object*)(obj))->o)
+    if(obj && ((object*)(obj))->o) {
+        dec_ref(((object*)(obj))->o)
+        tgc_unpin(((object*)(obj))->o);
+    }
 }
 
 double* get_local_number_at(int32_t address) {

@@ -25,6 +25,7 @@ void jit_enableExceptionFlag(sharp_thread* thread, bool enable);
 
 // Thread control wrapper functions
 void jit_suspendSelf();
+void jit_gcSafepoint();
 
 // Object creation and manipulation wrapper functions
 void* jit_createObject(sharp_class* sc);

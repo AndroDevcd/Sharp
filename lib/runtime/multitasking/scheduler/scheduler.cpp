@@ -13,6 +13,7 @@
 #include "../thread/thread_controller.h"
 #include "../../multitasking/fiber/fiber.h"
 #include "idle_scheduler.h"
+#include "../../memory/tracing_collector.h"
 #include "../fiber/task_controller.h"
 #include "../../telemetry/telemetry.h"
 #include <unordered_map>
@@ -77,6 +78,8 @@ static void kick_monitor() {
 
 void __usleep(unsigned int usec)
 {
+    // a sleeping thread touches no objects: the collector need not wait for it
+    gc_safe_region asleep;
 #ifdef COROUTINE_DEBUGGING
     if(thread_self)
         thread_self->timeSleeping += usec;
@@ -237,6 +240,12 @@ void sched_register(fiber *fib, bool makeReady) {
 
     if(makeReady)
         sched_wake(fib);
+}
+
+void sched_visit_fibers(void (*visit)(fiber*, void*), void *arg) {
+    guard_mutex(task_mutex)
+    for(auto &entry : tasks)
+        visit(entry.second, arg);
 }
 
 fiber *locate_task(uInt taskId) {

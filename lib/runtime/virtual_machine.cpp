@@ -11,6 +11,7 @@
 #include "multitasking/thread/thread_controller.h"
 #include "reflect/reflect_helpers.h"
 #include "memory/garbage_collector.h"
+#include "memory/tracing_collector.h"
 #include "console_helper.h"
 #include "../util/time.h"
 #include "multitasking/fiber/task_controller.h"
@@ -277,7 +278,10 @@ void main_vm_loop(sharp_function *frame)
                 printf("%c", (char)regs[single_arg]);
                 branch
             GET:
-                regs[single_arg] = (regs[CMT] != 0) ? getche() : getch();
+                {
+                    gc_safe_region waitingForKey;
+                    regs[single_arg] = (regs[CMT] != 0) ? getche() : getch();
+                }
                 branch
             CHECKLEN:
                 require_object_with_value(
@@ -663,6 +667,9 @@ void main_vm_loop(sharp_function *frame)
 
         state_check:
         if(thread->signal) {
+            // the garbage collector's safe point (memory/tracing_collector.h)
+            if (hasSignal(thread->signal, tsig_gc))
+                tgc_safepoint();
             if (hasSignal(thread->signal, tsig_suspend))
                 suspend_self();
             if(hasSignal(thread->signal, tsig_except))
@@ -1229,7 +1236,8 @@ void exec_interrupt(Int interrupt)
              * Make an explicit call to the garbage collector. This
              * does not garuntee that it will run
              */
-            send_message(policy_full_sweep);
+            if(gc_tracing) tgc_request(); // runs at the next safe point, right after this instruction
+            else send_message(policy_full_sweep);
             return;
         case OP_GC_SLEEP:
             sedate_gc();
@@ -1271,14 +1279,24 @@ void exec_interrupt(Int interrupt)
                     }
                 }
 
+                // create_task() hands the fiber to the scheduler. From that
+                // moment another thread may run it to its end and free it, so
+                // `fib` must not be used after the scheduler lock is let go:
+                // the id is read while the lock still keeps the fiber alive
+                // (freeing a fiber, sched_reap, needs the same lock). Reading
+                // fib->id afterwards was a use after free - the rare crash in
+                // start_fiber.
+                Int fiberId;
                 try {
+                    std::lock_guard<recursive_mutex> keepFiberAlive(task_mutex);
                     fib = create_task(fiberName, &vm.methods[mainFunc % vm.mf.methods], fibObj, fibArgs, binder);
+                    fiberId = fib->id;
                 } catch(vm_exception &e) {
                     fiberName.clear();
                     throw;
                 }
 
-                registers[EBX] = fib->id;
+                registers[EBX] = fiberId;
             } else {
                 throw vm_exception(vm.nullptr_except, "");
             }
@@ -1430,6 +1448,7 @@ void exec_interrupt(Int interrupt)
             if(str != NULL && str->type <= type_var) {
                 string cmd;
                 populate_string(cmd, str);
+                gc_safe_region waitingForCommand;
                 registers[CMT] = system(cmd.c_str());
             } else
                 throw vm_exception(vm.nullptr_except, "");

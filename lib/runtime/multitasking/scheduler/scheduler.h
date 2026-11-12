@@ -111,6 +111,13 @@ _sched_thread* get_sched_threads();
 void sched_register(fiber *fib, bool makeReady);
 /** Find a live fiber by id. Hold task_mutex for as long as you use the result. */
 fiber *locate_task(uInt taskId);
+
+/**
+ * Call visit(fiber, arg) for every fiber that exists (ready, running, waiting,
+ * not started). Used by the garbage collector to find what fibers refer to.
+ * task_mutex is held during the calls.
+ */
+void sched_visit_fibers(void (*visit)(fiber*, void*), void *arg);
 /** Something changed that may let `fib` run (unsuspended, timer due, lock released): queue it if it can run now. */
 void sched_wake(fiber *fib);
 /** Free a KILLED fiber that no thread is running. Safe to call in any state, does nothing if it is not time yet. */

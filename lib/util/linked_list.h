@@ -103,19 +103,25 @@ public:
 
     void delete_at(void *data, bool (*isNode)(void *, node<T> *)) {
         if(head != NULL) {
-            auto *cur = head;
+            // Removes the first node isNode() accepts. Two things this used to
+            // get wrong (both showed up as memory corruption in the lock table):
+            //   - it started at the SECOND node, so the head was never removed
+            //   - removing the last node left `tail` pointing at freed memory,
+            //     and the next createnode() wrote through it
+            node<T> *cur = head;
             node<T> *previous = NULL;
-            for (;;) {
-                previous = cur;
-                cur = cur->next;
-                if (cur == NULL)
-                    return;
-                else if(isNode(data, cur)) {
-                    if (previous)
-                        previous->next = cur->next;
+            while (cur != NULL) {
+                if(isNode(data, cur)) {
+                    if (previous) previous->next = cur->next;
+                    else head = cur->next;
+                    if (cur == tail) tail = previous;
+                    size--;
                     delete cur;
                     return;
                 }
+
+                previous = cur;
+                cur = cur->next;
             }
         }
     }
@@ -170,6 +176,7 @@ public:
             size--;
             auto *temp = head;
             head = head->next;
+            if (head == NULL) tail = NULL; // the list is empty again
             delete temp;
         }
     }

@@ -6,10 +6,11 @@
 #include "../../../core/thread_state.h"
 #include "thread_controller.h"
 #include "../../memory/garbage_collector.h"
+#include "../../memory/tracing_collector.h"
 
 
 void free_struct(sharp_thread *thread) {
-    // do nothing
+    tgc_unregister_thread(thread); // the collector must not look at it any more
     release_bytes(sizeof(sharp_thread));
     copy_object(&thread->currentThread, (sharp_object*) nullptr);
     copy_object(&thread->args, (sharp_object*) nullptr);
@@ -31,6 +32,7 @@ void init_struct(sharp_thread *thread) {
     thread->suspended = false;
     thread->exited = false;
     thread->marked = false;
+    thread->users = 0;
     new (&thread->name) string();
     init_struct(&thread->currentThread);
     init_struct(&thread->args);
@@ -58,6 +60,7 @@ void init_struct(sharp_thread *thread) {
     thread->thread = 0;
     init_struct(&thread->queueNotification);
     thread->queueNotification.cond = queue_filled;
+    tgc_register_thread(thread);   // from now on the collector knows about it (starts out "safe")
 #ifdef COROUTINE_DEBUGGING
     thread->timeSleeping = 0;
     thread->switched = 0;

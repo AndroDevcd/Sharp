@@ -75,6 +75,16 @@ int set_thread_priority(uInt, int);
 
 // util thread functions
 sharp_thread* get_thread(uInt id);
+
+/**
+ * get_thread() that also keeps the thread's struct from being freed until
+ * release_thread() is called. Use it whenever the struct is used across a wait
+ * (start, join): a thread that finishes is freed by the scheduler's monitor.
+ *
+ *      C++ comparison: a hand written shared_ptr, only for this one case.
+ */
+sharp_thread* hold_thread(uInt id);
+void release_thread(sharp_thread *thread);
 uInt wait_for_thread_start(sharp_thread*);
 void wait_for_thread_exit(sharp_thread*);
 void kill_all_threads();

@@ -15,6 +15,7 @@
 #include "../reflect/reflect_helpers.h"
 #include "../types/sharp_type.h"
 #include "../termios.h"
+#include "../memory/tracing_collector.h"
 #include <cmath>
 
 
@@ -63,6 +64,11 @@ void jit_suspendSelf() {
     } catch(vm_exception &e) {
         enable_exception_flag(thread_self, true);
     }
+}
+
+// The garbage collector's safe point: tgc_safepoint() (memory/tracing_collector.h)
+void jit_gcSafepoint() {
+    tgc_safepoint();
 }
 
 // Object creation and manipulation wrapper functions
@@ -320,6 +326,7 @@ void jit_putc(int inRegister) {
 
 // GET: regs[single_arg] = (regs[CMT] != 0) ? getche() : getch();
 void jit_get(int outRegister) {
+    gc_safe_region waitingForKey;
     registers[outRegister] = (registers[CMT] != 0) ? getche() : getch();
 }
 

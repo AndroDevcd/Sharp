@@ -17,6 +17,7 @@
 #include "../../reflect/reflect_helpers.h"
 #include "../scheduler/idle_scheduler.h"
 #include "../../main.h"
+#include "../../memory/tracing_collector.h"
 #include "../../telemetry/telemetry.h"
 
 uInt lastThreadId = -1;
@@ -64,6 +65,7 @@ vm_thread_entry(void *arg)
     bool unboundException = false;
     sharp_thread *thread = (sharp_thread*)arg;
     thread_self = thread;
+    tgc_leave_safe(thread);     // this thread touches objects from here on (waits if a collection is running)
     TELEMETRY(telemetry_thread_begin(thread);)
 
     set_thread_priority(thread, thread->priority);
@@ -312,6 +314,7 @@ uInt join_thread(sharp_thread* thread) {
         || thread->state == THREAD_SUSPENDED
         || thread->state == THREAD_SCHED)
     {
+        gc_safe_region waiting; // blocked until the other thread ends
 #ifdef WIN32_
         WaitForSingleObject(thread->thread, INFINITE);
         return RESULT_OK;
@@ -330,13 +333,14 @@ uInt join_thread(uInt id) {
     if (thread_self != NULL && (id == thread_self->id ))
         return RESULT_ILL_THREAD_JOIN;
 
-    sharp_thread* thread = get_thread(id);
+    // held: the thread ends while we wait for it, and its struct must stay
+    sharp_thread* thread = hold_thread(id);
     if (thread == NULL)
         return RESULT_ILL_THREAD_JOIN;
-    if(thread->terminated)
-        return RESULT_THREAD_TERMINATED;
 
-    return join_thread(thread);
+    uInt result = thread->terminated ? RESULT_THREAD_TERMINATED : join_thread(thread);
+    release_thread(thread);
+    return result;
 }
 
 uInt interrupt_thread(uInt id) {
@@ -533,8 +537,12 @@ uInt start_thread(sharp_thread* thread, size_t stackSize) {
 }
 
 uInt start_thread(uInt threadId, size_t stackSize) {
-    sharp_thread *thread = get_thread(threadId);
-    return start_thread(thread, stackSize);
+    // held: a short thread can finish (and be freed by the scheduler's monitor)
+    // while start_thread is still waiting for it to report that it started
+    sharp_thread *thread = hold_thread(threadId);
+    uInt result = start_thread(thread, stackSize);
+    release_thread(thread);
+    return result;
 }
 
 
@@ -662,6 +670,9 @@ void shutdown_thread(sharp_thread* thread) {
     // give back anything handed to us, kill and free every fiber bound to us
     sched_thread_exit(thread);
 
+    // done with objects for good: the garbage collector no longer waits for us
+    tgc_enter_safe(thread);
+
     {
         guard_mutex(thread->mut);
         thread->signal = tsig_empty;
@@ -699,6 +710,7 @@ void kill_all_threads() {
 }
 
 void wait_for_thread_exit(sharp_thread* thread) {
+    gc_safe_region waiting; // only waits, touches no objects
     const int sMaxRetries = 10000000;
     int retryCount = 0;
 
@@ -740,6 +752,7 @@ uInt wait_for_thread_start(sharp_thread* thread) {
 
     int spinCount = 0;
     int retryCount = 0;
+    gc_safe_region waiting; // only waits, touches no objects
 
     // Wait until the new thread has LEFT the "started" state - not until it is
     // seen in the "running" state. A thread does not stay "running": it is put
@@ -841,6 +854,7 @@ void unsuspend_and_wait(sharp_thread* thread, bool sendSignal) {
 }
 
 void wait_for_unsuspend_release(sharp_thread* thread) {
+    gc_safe_region suspended; // a suspended thread touches no objects
     const long sMaxRetries = 1000;
     uint64_t past= Clock::realTimeInNSecs(),now;
 
@@ -1027,6 +1041,22 @@ uInt new_thread_id() {
     return ++lastThreadId;
 }
 
+sharp_thread* hold_thread(uInt id) {
+    // thread_mutex: the monitor frees thread structs with this lock held, so
+    // the thread cannot disappear between finding it and counting ourselves
+    guard_mutex(thread_mutex)
+    sharp_thread *thread = get_thread(id);
+    if(thread != NULL)
+        __atomic_add_fetch(&thread->users, 1, __ATOMIC_SEQ_CST);
+    return thread;
+}
+
+void release_thread(sharp_thread *thread) {
+    if(thread != NULL)
+        __atomic_sub_fetch(&thread->users, 1, __ATOMIC_SEQ_CST);
+}
+
 bool can_dispose(_sched_thread *scht) {
-    return vm.state != VM_SHUTTING_DOWN && scht->thread->state == THREAD_KILLED;
+    return vm.state != VM_SHUTTING_DOWN && scht->thread->state == THREAD_KILLED
+        && __atomic_load_n(&scht->thread->users, __ATOMIC_SEQ_CST) == 0;
 }

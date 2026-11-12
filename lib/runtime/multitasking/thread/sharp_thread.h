@@ -45,6 +45,16 @@ struct sharp_thread {
     bool suspended;
     bool exited;
     bool marked;
+    // 1 = this thread is not touching objects right now (blocked, not started,
+    // finished, or not a thread that runs Sharp code at all) and the garbage
+    // collector may work without waiting for it. Changed only through
+    // tgc_enter_safe / tgc_leave_safe (memory/tracing_collector.h).
+    int gcSafe;
+    // How many callers are using this struct right now through hold_thread()
+    // (starting or joining the thread). The scheduler's monitor frees the struct
+    // of a finished thread, and a short thread finishes while its starter is
+    // still waiting for it: the struct is only freed when this is 0.
+    int users;
     std::string name;
     object currentThread, args;
     uInt lastRanMicros;         // scheduler time (sched_now_micros) the current fiber started running

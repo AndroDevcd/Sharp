@@ -50,7 +50,11 @@ enum tsig_t {
     tsig_except = 0x001,
     tsig_suspend = 0x002,
     tsig_kill = 0x004,
-    tsig_context_switch = 0x008
+    tsig_context_switch = 0x008,
+    // The garbage collector wants this thread at a safe point: it is about to
+    // collect (or this thread asked for a collection itself). Handled by
+    // tgc_safepoint(), see runtime/memory/tracing_collector.h.
+    tsig_gc = 0x010
 };
 
 #endif //SHARP_THREAD_STATE_H

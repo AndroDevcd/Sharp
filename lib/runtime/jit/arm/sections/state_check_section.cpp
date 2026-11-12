@@ -50,6 +50,14 @@ void Arm64Compiler::generateStateCheckSection() {
     assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
     assembler->cbz(tempReg2, continueDispatch);
 
+    // the garbage collector's safe point: if(hasSignal(signal, tsig_gc)) tgc_safepoint();
+    // (tsig_gc is bit 16, see the x64 version of this file)
+    Label skipGc = assembler->newLabel();
+    assembler->tbz(tempReg2, tsig_gc, skipGc);
+    callStaticFunction(reinterpret_cast<void*>(jit_gcSafepoint));
+    assembler->ldr(tempReg2, a64::ptr(threadPtr, offsetof(sharp_thread, signal)));
+    assembler->bind(skipGc);
+
     // suspend
     Label skipSuspend = assembler->newLabel();
     assembler->tbz(tempReg2, tsig_suspend, skipSuspend);

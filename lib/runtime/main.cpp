@@ -13,6 +13,7 @@
 #include "multitasking/scheduler/scheduler.h"
 #include "multitasking/thread/thread_controller.h"
 #include "telemetry/telemetry.h"
+#include "memory/tracing_collector.h"
 
 options c_options;
 string executable;
@@ -29,6 +30,9 @@ void help() {
     cout << "[-options]\n\n    -V                     print the version number and exit" << endl;
     cout <<               "    -showversion           print the version number and continue." << endl;
     cout <<               "    -nojit                 disable jit compilation." << endl;
+    cout <<               "    -tracegc               free objects with the tracing garbage collector." << endl;
+    cout <<               "    -gcstress <n>          collect after every n allocations (finds missing roots)." << endl;
+    cout <<               "    -gclog                 print one line per garbage collection." << endl;
     cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
@@ -113,6 +117,7 @@ int  str_start(int argc, const char* argv[]) {
         return 1;
     }
 
+    tgc_configure_from_environment(); // SHARP_GC=trace,stress=<n>,log
     set_memory_limit(DEFAULT_HEAP_SIZE);
     set_memory_threshold(DEFAULT_HEAP_THRESHOLD);
 
@@ -133,6 +138,17 @@ int  str_start(int argc, const char* argv[]) {
         }
         else if(opt("-nojit")) {
             c_options.jit = false;
+        }
+        else if(opt("-tracegc")) {
+            tgc_enable();
+        }
+        else if(opt("-gclog")) {
+            tgc_set_logging(true);
+        }
+        else if(opt("-gcstress")) {
+            if(i+1 >= argc)
+                error("number of allocations required after option `-gcstress`");
+            tgc_set_stress((Int)atoll(argv[++i]));
         }
 #ifdef SHARP_PROF_
             else if(opt("-sort") || opt("-sortby")) {

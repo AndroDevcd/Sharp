@@ -78,7 +78,7 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 
 | Bug | File |
 |---|---|
-| Rare crash (SIGSEGV inside `start_fiber`) or hang when many fibers are started on worker threads: about 1 run in 12 of `lib_coroutines_sync` on a loaded machine, not reproducible under a debugger. | - |
+| `std_serialization` check "the same object serializes to the same bytes" fails when the runtime is built with the address sanitizer (`-O1 -fsanitize=address`) AND the JIT is on. Every other combination passes, and it does not depend on the garbage collector, so it is compiled code relying on something the C++ build changes. Not reduced yet. | - |
 | JIT crash in `return_method()` when two sibling coroutines take turns and one yields twice. | `lib_coroutines_jit_fiber_frames.sharp` |
 | JIT crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). Not reduced to a small program. | - |
 | Deep recursion ends in SIGSEGV instead of a stack overflow exception. | described in `cases/recursion.sharp` |
@@ -102,3 +102,17 @@ deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
 `thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `lock_exception_and_nesting.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
 `non_null_index*.sharp`, `generics_isolated_and_nested.sharp` (a generic class seeing the caller's locals; `box<box<var>>`), `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
 and the `*_fixes.sharp` files.
+
+Found with the address sanitizer while the tracing garbage collector was tested
+(all three were in the runtime before it, and explain rare crashes):
+
+- **Crash or hang inside `start_fiber`** (about 1 run in 12 of `lib_coroutines_sync`):
+  the fiber start code read the new fiber's id after handing the fiber to the
+  scheduler, and another thread could run it to its end and free it first.
+- **Crash when a short thread is started or joined**: the scheduler freed the
+  thread's struct while the thread that started it was still waiting on it
+  (`hold_thread` / `release_thread` in `thread_controller.cpp`).
+- **Memory corruption after a locked object is freed**: `linkedlist::delete_at`
+  (`lib/util/linked_list.h`, used for the table of object locks) never removed
+  the first entry and left `tail` pointing at freed memory when it removed the
+  last one.

@@ -12,6 +12,7 @@
 #include "../multitasking/fiber/fiber.h"
 #include "sharp_object.h"
 #include "../telemetry/telemetry.h"
+#include "tracing_collector.h"
 
 garbage_collector gc;
 recursive_mutex gc_lock;
@@ -20,6 +21,14 @@ std::atomic<bool> collectionFlag(false);
 void reserve_bytes(size_t bytes, bool unsafe = false) {
 
     if(unsafe) {
+        guard_mutex(gc_lock)
+        gc.managedBytes += bytes;
+    } else if(gc_tracing) {
+        // Tracing collector: an allocation never collects, it only asks for a
+        // collection at the next safe point (tracing_collector.cpp, section 3).
+        if(!tgc_note_allocation(bytes))
+            throw vm_exception(vm.out_of_memory_except, "out of memory");
+
         guard_mutex(gc_lock)
         gc.managedBytes += bytes;
     } else {
@@ -61,6 +70,7 @@ void push_object(sharp_object *o) {
     auto old = gc.yMemHead;
     o->next = old;
     gc.yMemHead = o;
+    if(gc_tracing) tgc_note_object();
 }
 
 bool is_mutex(void *o, node<fib_mutex*> *node) {
@@ -283,8 +293,11 @@ void update_threshold() {
 }
 
 void gc_collect(collection_policy policy) {
-    if(!collectionFlag) {
-        
+    if(gc_tracing) {
+        // the old collector frees by reference count: it must not run next to
+        // the tracing collector
+        tgc_request();
+        return;
     }
 
     collectionFlag = true;
@@ -384,7 +397,11 @@ void gc_main_loop()
             if(gc.state == SLEEPING) sleep_gc();
             if(!gc.message_queue.empty()) goto message;
 
-            if(GC_COLLECT_MEM()) {
+            if(gc_tracing) {
+                // collections run on the threads that allocate; this thread
+                // only makes sure a pending request is noticed
+                tgc_nudge();
+            } else if(GC_COLLECT_MEM()) {
                 /**
                  * Attempt to collect objects based on the appropriate
                  * conditions. This call does not guarantee that any collections
