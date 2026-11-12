@@ -1,0 +1,209 @@
+mod main;
+
+import ( std.math, std.text, std.collections )
+
+/**
+ * Primes - the "primes" test of github.com/kostya/benchmarks.
+ *
+ *      sharp primes [upper bound] [prefix]        (default 5000000 and 32338)
+ *
+ * Finds the primes up to the upper bound with the sieve of Atkin, puts their
+ * decimal digits into a prefix tree (trie) whose nodes keep their children in
+ * a hash map, then collects every prime that starts with the prefix, walking
+ * the tree breadth first. The result is printed sorted.
+ *
+ * Measured: all of that. Not measured: the self test.
+ * The last line is `time: <seconds>`.
+ */
+
+class node {
+    children : hash_map<int, node> = new hash_map<int, node>();
+    terminal : var = 0;
+}
+
+class sieve {
+    limit : var;
+    prime : _int8[];
+
+    sieve(upper: var) {
+        limit = upper;
+        prime = new _int8[upper + 1];
+    }
+
+    def to_list() : list<int> {
+        result := new list<int>();
+        result.add(2);
+        result.add(3);
+        for(p : var = 5; p <= limit; p++) {
+            if(prime[p]) { result.add(p); }
+        }
+        return result;
+    }
+
+    def loop_y(x: var) {
+        max : var = limit;
+        y : var = 1;
+        while(y * y < max) {
+            // step 1
+            n : var = 4 * x * x + y * y;
+            if(n <= max) {
+                m : var = n % 12;
+                if(m == 1 || m == 5) { prime[n] = !prime[n]; }
+            }
+
+            // step 2
+            n = 3 * x * x + y * y;
+            if(n <= max && n % 12 == 7) { prime[n] = !prime[n]; }
+
+            // step 3
+            n = 3 * x * x - y * y;
+            if(x > y && n <= max && n % 12 == 11) { prime[n] = !prime[n]; }
+
+            y++;
+        }
+    }
+
+    def loop_x() {
+        x : var = 1;
+        while(x * x < limit) {
+            loop_y(x);
+            x++;
+        }
+    }
+
+    def omit_squares() {
+        r : var = 5;
+        while(r * r < limit) {
+            if(prime[r]) {
+                step : var = r * r;
+                i : var = step;
+                while(i < limit) {
+                    prime[i] = 0;
+                    i += step;
+                }
+            }
+            r++;
+        }
+    }
+
+    def calc() {
+        loop_x();
+        omit_squares();
+    }
+}
+
+def generate_trie(primes: list<int>) : node {
+    root := new node();
+    count : var = primes.size().value;
+
+    for(i : var = 0; i < count; i++) {
+        digits := number_to_fixed(primes.at(i).value, 0).to_bytes();
+        head := root;
+
+        for(d : var = 0; d < sizeof(digits); d++) {
+            key : int = digits[d];
+            next := head.children.at(key);
+            if(next == null) {
+                next = new node();
+                head.children.put(key, next);
+            }
+            head = next!!;
+        }
+        head.terminal = 1;
+    }
+    return root;
+}
+
+/** the primes up to `upper_bound` that start with the digits of `prefix`, in ascending order; null if there are none */
+def find(upper_bound: var, prefix: var) : var[]? {
+    primes := new sieve(upper_bound);
+    primes.calc();
+
+    str_prefix := number_to_fixed(prefix, 0);
+    head := generate_trie(primes.to_list());
+
+    prefix_digits := str_prefix.to_bytes();
+    for(d : var = 0; d < sizeof(prefix_digits); d++) {
+        key : int = prefix_digits[d];
+        next := head.children.at(key);
+        if(next == null) { return null; }
+        head = next!!;
+    }
+
+    // breadth first: a queue of nodes and the number each one spells
+    queue_nodes := new list<node>();
+    queue_values := new list<int>();
+    queue_nodes.add(head);
+    queue_values.add(prefix);
+    front : var = 0;
+
+    found := new list<int>();
+    while(front < queue_nodes.size().value) {
+        top := queue_nodes.at(front);
+        value : var = queue_values.at(front).value;
+        front++;
+
+        if(top.terminal) { found.add(value); }
+
+        keys := top.children.keys();
+        for(k : var = 0; k < keys.size().value; k++) {
+            digit := keys.at(k);
+            queue_nodes.add(top.children.at(digit)!!);
+            queue_values.add(value * 10 + (digit.value - '0'));
+        }
+    }
+
+    result := new var[found.size().value];
+    for(i : var = 0; i < sizeof(result); i++) {
+        result[i] = found.at(i).value;
+    }
+
+    // insertion sort: the list is short
+    for(i : var = 1; i < sizeof(result); i++) {
+        current : var = result[i];
+        j : var = i - 1;
+        while(j >= 0 && result[j] > current) {
+            result[j + 1] = result[j];
+            j--;
+        }
+        result[j + 1] = current;
+    }
+    return result;
+}
+
+def to_text(values: var[]?) : string {
+    if(values == null) { return "None"; }
+
+    text := new string_builder();
+    text += "[";
+    for(i : var = 0; i < sizeof(values); i++) {
+        if(i > 0) { text += ", "; }
+        text += number_to_fixed(values!![i], 0);
+    }
+    text += "]";
+    return text.to_string()!!;
+}
+
+def verify() {
+    right := to_text(find(100, 2));
+    if(right != "[2, 23, 29]") {
+        println("self test failed: [2, 23, 29] != " + right);
+        exit(1);
+    }
+}
+
+def main(args: string[]) {
+    upper_bound : var = 5000000;
+    prefix : var = 32338;
+    if(sizeof(args) > 0) { upper_bound = args[0].to_int(); }
+    if(sizeof(args) > 1) { prefix = args[1].to_int(); }
+
+    verify();
+
+    start : var = nano_time().value;
+    results := find(upper_bound, prefix);
+    seconds : var = (nano_time().value - start) / 1000000000;
+
+    println(to_text(results));
+    println("time: " + number_to_fixed(seconds, 3));
+}
