@@ -17,7 +17,6 @@
 #include "../telemetry/telemetry.h"
 #include "../multitasking/scheduler/scheduler.h"
 
-std::recursive_mutex copy_mut;
 std::recursive_mutex lock_mut;
 
 void init_struct(object *o) {
@@ -30,44 +29,7 @@ void init_struct(sharp_object *o) {
     o->size = 0;
     o->info = 0;
     o->arrayFlag = 0;
-    o->refCount = 0;
     o->HEAD = nullptr;
-}
-
-/**
- * Point the slot `to` at `from` and keep both reference counts right.
- *
- * The new object is counted BEFORE it is published and the old one is released
- * AFTER it has been removed from the slot, and the slot itself is swapped
- * atomically, so two threads writing the same slot each release a different
- * old object (never the same one twice).
- *
- * WHY copy_object STILL TAKES copy_mut:
- * The atomic count makes every individual increment/decrement safe, but
- * copy_object(to, object *from) first READS from->o and then counts it. Without
- * the lock another thread could overwrite `from` in between, drop the object to
- * zero references, and the garbage collector could free it before our increment
- * lands. The lock makes "read the slot + count it" one step relative to every
- * other assignment. Measured cost of keeping it: about 5% on object-heavy code.
- * Removing it safely needs the collector to wait for running threads to reach a
- * safe point between marking and freeing.
- */
-static inline void assign_slot(object *to, sharp_object *from) {
-    if(from) inc_ref(from)
-    sharp_object *old = __atomic_exchange_n(&to->o, from, __ATOMIC_SEQ_CST);
-    if(old) dec_ref(old)
-}
-
-void copy_object(object *to, object *from) {
-    TELEMETRY_COUNT(tm_object_copies)
-    guard_mutex(copy_mut)
-    assign_slot(to, from ? from->o : nullptr);
-}
-
-void copy_object(object *to, sharp_object *from) {
-    TELEMETRY_COUNT(tm_object_copies)
-    guard_mutex(copy_mut)
-    assign_slot(to, from);
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
@@ -77,7 +39,7 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
     init_struct(o);
     o->size = sc->staticFields;
     o->type = type_class;
-    SET_INFO(o->info, sc->address, gc_young);
+    SET_INFO(o->info, sc->address, gc_normal);
 
     if(o->size > 0)
     {
@@ -101,7 +63,7 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
     init_struct(o);
     o->size = sc->instanceFields;
     o->type = type_class;
-    SET_INFO(o->info, sc->address, gc_young);
+    SET_INFO(o->info, sc->address, gc_normal);
 
     if(o->size > 0)
     {
@@ -128,7 +90,7 @@ sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
         o->size = size;
         o->type = type_class;
         o->arrayFlag = 1;
-        SET_INFO(o->info, sc->address, gc_young);
+        SET_INFO(o->info, sc->address, gc_normal);
 
         o->node = calloc_mem<object>(size, sizeof(object), unsafe);
         push_object(o);
@@ -144,7 +106,6 @@ void realloc_object(sharp_object *o, Int size, bool unsafe) {
             throw vm_exception("call to realloc() with size <= 0");
         }
 
-        guard_mutex(copy_mut)
         if(o->type <= type_var) {
             o->HEAD = realloc_mem<long double>(o->HEAD, sizeof(long double) * size, o->size, unsafe);
 
@@ -155,14 +116,6 @@ void realloc_object(sharp_object *o, Int size, bool unsafe) {
             }
 
         } else {
-            if(size < o->size) {
-                for(size_t i = size; i < o->size; i++) {
-                    if(o->node[i].o != nullptr) {
-                        dec_ref(o->node[i].o)
-                    }
-                }
-            }
-
             o->node = realloc_mem<object>(o->node, sizeof(object) * size, o->size, unsafe);
 
             if(size > o->size) {
@@ -208,7 +161,7 @@ sharp_object* create_object(Int size, bool unsafe) {
         o->size = size;
         o->type = type_object;
         o->arrayFlag = 1;
-        SET_GENERATION(o->info, gc_young);
+        SET_GENERATION(o->info, gc_normal);
 
         o->node = calloc_mem<object>(size, sizeof(object), unsafe);
         push_object(o);
@@ -228,7 +181,7 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
         o->size = size;
         o->type = type;
         o->arrayFlag = 1;
-        SET_GENERATION(o->info, gc_young);
+        SET_GENERATION(o->info, gc_normal);
         o->HEAD = calloc_mem<long double>(size, sizeof(long double), unsafe);
 
         push_object(o);

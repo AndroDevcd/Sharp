@@ -1,6 +1,22 @@
 //
 // Created by bknun on 9/16/2022.
 //
+// What the garbage collector needs around it:
+//
+//   - the count of managed bytes and the memory limit     (reserve_bytes ...)
+//   - the list of every object that exists                (push_object)
+//   - the table of object locks                           (create_mutex ...)
+//   - the garbage collector's helper thread               (gc_startup ...)
+//   - the bits packed into sharp_object::info             (the macros below)
+//
+// The collector itself - deciding which objects are dead and freeing them - is
+// in tracing_collector.h/.cpp. Read the top of tracing_collector.h first.
+//
+// HISTORY: objects used to be freed by reference counting, with a mark & sweep
+// over three generations (young / adult / old) that looked for objects whose
+// count had reached zero. All of that is gone; nothing counts references any
+// more.
+//
 
 #ifndef SHARP_GARBAGE_COLLECTOR_H
 #define SHARP_GARBAGE_COLLECTOR_H
@@ -13,49 +29,40 @@
 struct fib_mutex;
 struct fiber;
 
+/**
+ * Stored in two bits of sharp_object::info (GENERATION / SET_GENERATION).
+ * Only two values are in use.
+ */
 enum collection_generation
 {
-    gc_young = 0, // collected ~50% of the time/sec
-    gc_adult = 1, // collected ~35% of the time/sec
-    gc_old   = 2, // collected ~15% of the time/sec
+    gc_normal = 0, // freed when nothing refers to it any more
 
     /**
-     * This is a permanent generation. objects promoted to this generation will live
-     * for the entirety of the program and will not be garbage collected until the end of
-     * the program. Objects in this state must be set manually
+     * A permanent object: it lives for the whole program and is never freed,
+     * and everything it refers to stays alive with it (the collector treats it
+     * as a root). The static object of every class and the reflection objects
+     * built at startup are permanent. Set with tgc_make_permanent() only - the
+     * collector keeps a list of them.
      */
     gc_perm  = 3
 };
 
+/** What OP_GC_STATE reports to the program (std library: gc state). */
 enum gc_state
 {
-    RUNNING,
-    SLEEPING,
-    SHUTDOWN
+    RUNNING,    // collections happen when memory is needed
+    SLEEPING,   // put to sleep by the program: only collects when the memory limit is reached
+    SHUTDOWN    // killed by the program or the VM is exiting: never collects
 };
 
-enum collection_policy
-{
-    policy_full_sweep,
-    policy_partial_sweep
-};
-
-// time is defined in ms
-#define COLLECTION_TIME (1000)
-#define COLLECTION_WINDOW_YOUNG(tm) ((COLLECTION_TIME - (tm % COLLECTION_TIME)) > (COLLECTION_TIME / 50))
-#define COLLECTION_WINDOW_ADULT(tm) ((COLLECTION_TIME - (tm % COLLECTION_TIME)) > (COLLECTION_TIME / 15))
-#define GC_CLOCK_CYCLE (500) // 2ms
+#define GC_CLOCK_CYCLE (500) // microseconds between two wake-ups of the helper thread
 
 struct garbage_collector {
     gc_state state;
-    uInt managedBytes;
-    uInt memoryLimit;
-    uInt memoryThreshold;
-    sharp_object *yMemHead;
-    sharp_object *aMemHead;
-    sharp_object *oMemHead;
+    uInt managedBytes;          // bytes handed out through reserve_bytes
+    uInt memoryLimit;           // the program's limit (-mem)
+    sharp_object *objects;      // every object that exists, newest first (linked through ->next)
     linkedlist<fib_mutex*> f_locks;
-    std::list<collection_policy> message_queue;
 };
 
 extern garbage_collector gc;
@@ -63,20 +70,15 @@ extern garbage_collector gc;
 void reserve_bytes(size_t bytes, bool unsafe);
 void release_bytes(size_t bytes);
 void set_memory_limit(Int limit);
-void set_memory_threshold(Int threshold);
 void push_object(sharp_object*);
-void gc_collect(collection_policy);
-void send_message(collection_policy policy);
 fib_mutex* create_mutex(sharp_object*);
+void remove_mutex(sharp_object*);
 void release_all_mutexes(fiber *task);
 void print_memory_diagnostics();
 void gc_startup();
-void sleep_gc();
 void sedate_gc();
 void wake_gc();
 void kill_gc();
-
-#define GC_COLLECT_MEM() ( gc.managedBytes >= gc.memoryThreshold )
 
 // object info macros
 #define GENERATION_MASK 0x3
@@ -105,7 +107,6 @@ void kill_gc();
 #define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
 
 #define DEFAULT_HEAP_SIZE (MB_TO_BYTES(250))
-#define DEFAULT_HEAP_THRESHOLD (MB_TO_BYTES(128))
 
 #define guard_mutex(mut) \
     std::lock_guard<recursive_mutex> guard((mut));

@@ -30,7 +30,6 @@ void help() {
     cout << "[-options]\n\n    -V                     print the version number and exit" << endl;
     cout <<               "    -showversion           print the version number and continue." << endl;
     cout <<               "    -nojit                 disable jit compilation." << endl;
-    cout <<               "    -tracegc               free objects with the tracing garbage collector." << endl;
     cout <<               "    -gcstress <n>          collect after every n allocations (finds missing roots)." << endl;
     cout <<               "    -gclog                 print one line per garbage collection." << endl;
     cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
@@ -119,7 +118,6 @@ int  str_start(int argc, const char* argv[]) {
 
     tgc_configure_from_environment(); // SHARP_GC=trace,stress=<n>,log
     set_memory_limit(DEFAULT_HEAP_SIZE);
-    set_memory_threshold(DEFAULT_HEAP_THRESHOLD);
 
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){
@@ -138,9 +136,6 @@ int  str_start(int argc, const char* argv[]) {
         }
         else if(opt("-nojit")) {
             c_options.jit = false;
-        }
-        else if(opt("-tracegc")) {
-            tgc_enable();
         }
         else if(opt("-gclog")) {
             tgc_set_logging(true);

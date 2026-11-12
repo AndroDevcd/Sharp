@@ -94,7 +94,7 @@ enum telemetry_mode {
     X(tm_exceptions_thrown,      "vm exceptions created") \
     X(tm_exceptions_caught,      "exceptions caught by a handler/finally block") \
     X(tm_objects_created,        "objects allocated") \
-    X(tm_object_copies,          "reference assignments (copy_object, takes a global lock)") \
+    X(tm_object_copies,          "reference assignments (no longer counted: copy_object is a plain store)") \
     X(tm_stack_grows,            "fiber stack grows (realloc)") \
     X(tm_frame_grows,            "fiber call-frame grows (realloc)") \
     X(tm_lock_acquired,          "object locks acquired") \

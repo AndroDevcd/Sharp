@@ -1236,8 +1236,7 @@ void exec_interrupt(Int interrupt)
              * Make an explicit call to the garbage collector. This
              * does not garuntee that it will run
              */
-            if(gc_tracing) tgc_request(); // runs at the next safe point, right after this instruction
-            else send_message(policy_full_sweep);
+            tgc_request(true); // runs at the next safe point, right after this instruction
             return;
         case OP_GC_SLEEP:
             sedate_gc();

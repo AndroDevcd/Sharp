@@ -21,16 +21,6 @@ void fiber::free() {
 
     if(stack != NULL) {
         release_bytes(sizeof(stack_item) * stackSize);
-        stack_item *p = stack;
-        for(size_t i = 0; i < stackSize; i++)
-        {
-            if(p->obj.o) {
-                dec_ref(p->obj.o);
-                p->obj.o=NULL;
-            }
-            p++;
-        }
-
         std::free(this->stack); stack = NULL;
     }
 

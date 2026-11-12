@@ -70,18 +70,21 @@
 //
 // safe without telling the collector about C++ locals.
 //
-// SWITCHING IT ON
-// ---------------
-// While it is being proven the tracing collector is opt-in and the old
-// reference counts keep being maintained next to it (they are just not used to
-// free anything):
-//
-//      sharp -tracegc program            use the tracing collector
+// TESTING IT
+// ----------
 //      sharp -gcstress <n> program       collect after every n allocations
-//                                        (implies -tracegc; n = 1 finds a
-//                                        missing root almost immediately)
+//                                        (a missing root shows up almost
+//                                        immediately; best with a runtime built
+//                                        with -fsanitize=address)
 //      sharp -gclog program              one line per collection on stderr
-//      SHARP_GC=trace,stress=1,log       the same through the environment
+//      SHARP_GC=stress=1,log             the same through the environment
+//
+// ADDING A NEW PLACE THAT HOLDS AN OBJECT
+// ---------------------------------------
+// If runtime code keeps a sharp_object* anywhere that outlives one instruction
+// (a new field of fiber, sharp_thread, the vm, a table ...), add it to
+// mark_roots() in tracing_collector.cpp. That is the whole rule, and
+// -gcstress with the sanitizer build is how to check it.
 //
 
 #ifndef SHARP_TRACING_COLLECTOR_H
@@ -92,12 +95,8 @@
 
 struct sharp_thread;
 
-/** true = objects are freed by tracing, false = by reference counts (old) */
-extern bool gc_tracing;
-
 /** Read SHARP_GC from the environment. Call once at startup. */
 void tgc_configure_from_environment();
-void tgc_enable();
 void tgc_set_stress(Int everyNAllocations);
 void tgc_set_logging(bool on);
 
@@ -105,8 +104,19 @@ void tgc_set_logging(bool on);
 void tgc_register_thread(sharp_thread *thread);
 void tgc_unregister_thread(sharp_thread *thread);
 
-/** Ask for a collection. It runs at the next safe point of a Sharp thread. */
-void tgc_request();
+/**
+ * Ask for a collection. It runs at the next safe point of a Sharp thread.
+ * Ignored while the collector is asleep (sedate_gc) unless `force` is set, and
+ * always ignored once it has been shut down.
+ */
+void tgc_request(bool force = false);
+
+/**
+ * Make an object permanent: never freed, and a root (everything it refers to
+ * stays alive too). For objects built once at startup that the runtime keeps
+ * using: the static object of each class, reflection objects.
+ */
+void tgc_make_permanent(sharp_object *o);
 bool tgc_pending();
 
 /** Called by the garbage collector thread: make sure a pending request is noticed. */

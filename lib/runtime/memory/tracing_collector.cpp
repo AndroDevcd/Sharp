@@ -34,8 +34,6 @@
 extern recursive_mutex gc_lock;
 void remove_mutex(sharp_object *o);
 
-bool gc_tracing = false;
-
 // ---------------------------------------------------------------------------------
 // 1. Configuration
 // ---------------------------------------------------------------------------------
@@ -43,18 +41,16 @@ bool gc_tracing = false;
 static Int stressEvery = 0;         // > 0: ask for a collection every N allocated objects
 static bool logging = false;        // one line per collection on stderr
 
-void tgc_enable() { gc_tracing = true; }
 void tgc_set_logging(bool on) { logging = on; }
 
 void tgc_set_stress(Int everyNAllocations) {
     stressEvery = everyNAllocations > 0 ? everyNAllocations : 1;
-    gc_tracing = true;
 }
 
 /**
- * SHARP_GC is a comma separated list:  trace   stress=<n>   log
+ * SHARP_GC is a comma separated list:  stress=<n>   log
  * It exists so a whole test run can be switched over without touching the
- * command line of every test:   SHARP_GC=trace,stress=1 bash suite.sh
+ * command line of every test:   SHARP_GC=stress=1 bash suite.sh
  */
 void tgc_configure_from_environment() {
     const char *value = getenv("SHARP_GC");
@@ -63,8 +59,7 @@ void tgc_configure_from_environment() {
     string text(value), word;
     stringstream words(text);
     while(std::getline(words, word, ',')) {
-        if(word == "trace") tgc_enable();
-        else if(word == "log") tgc_set_logging(true);
+        if(word == "log") tgc_set_logging(true);
         else if(word.rfind("stress", 0) == 0) {
             Int n = 1;
             if(word.size() > 7 && word[6] == '=') n = (Int)atoll(word.c_str() + 7);
@@ -164,7 +159,10 @@ static uInt collections = 0;
 
 bool tgc_pending() { return requested.load(std::memory_order_relaxed); }
 
-void tgc_request() {
+void tgc_request(bool force) {
+    if(gc.state == SHUTDOWN || (gc.state == SLEEPING && !force))
+        return;
+
     requested.store(true);
 
     // make the calling thread look at the request at its next safe point
@@ -215,7 +213,7 @@ bool tgc_note_allocation(size_t bytes) {
 
     uInt wanted = gc.managedBytes + bytes;
     if(wanted >= gc.memoryLimit) {
-        tgc_request();
+        tgc_request(true);  // even a sleeping collector wakes up for this
 
         if(lastCollectionLeftHeapFull.load() || wanted >= gc.memoryLimit + gc.memoryLimit / 4)
             return false;
@@ -227,6 +225,8 @@ bool tgc_note_allocation(size_t bytes) {
 // ---------------------------------------------------------------------------------
 // Pinned and permanent objects
 // ---------------------------------------------------------------------------------
+
+static std::vector<sharp_object*> permanentObjects;    // guarded by pin_mut (declared below)
 
 static std::mutex pin_mut;
 static std::unordered_map<sharp_object*, Int> pins;   // object -> how many times it is pinned
@@ -243,6 +243,14 @@ void tgc_unpin(sharp_object *o) {
     auto it = pins.find(o);
     if(it != pins.end() && --it->second <= 0)
         pins.erase(it);
+}
+
+void tgc_make_permanent(sharp_object *o) {
+    if(o == nullptr || GENERATION(o->info) == gc_perm) return;
+
+    SET_GENERATION(o->info, gc_perm);
+    std::lock_guard<std::mutex> guard(pin_mut);
+    permanentObjects.push_back(o);
 }
 
 // ---------------------------------------------------------------------------------
@@ -367,12 +375,6 @@ static void mark_fiber(fiber *fib, void *) {
     }
 }
 
-static void for_each_heap_list(void (*visit)(sharp_object **head)) {
-    visit(&gc.yMemHead);
-    visit(&gc.aMemHead);
-    visit(&gc.oMemHead);
-}
-
 /**
  * Find the objects that contain the slots collected in interiorPointers and
  * mark them. A slot belongs to object o when it lies inside o's slot array:
@@ -381,31 +383,20 @@ static void for_each_heap_list(void (*visit)(sharp_object **head)) {
  *
  * The pointers are sorted once so each object needs one binary search.
  */
-static void mark_owners_in(sharp_object **head) {
-    for(sharp_object *o = *head; o != nullptr; o = o->next) {
+static void mark_owners_of_interior_pointers() {
+    if(interiorPointers.empty()) return;
+
+    std::sort(interiorPointers.begin(), interiorPointers.end());
+
+    for(sharp_object *o = gc.objects; o != nullptr; o = o->next) {
         if(o->type <= type_var || o->node == nullptr) continue;
 
         auto first = std::lower_bound(interiorPointers.begin(), interiorPointers.end(), o->node);
         if(first != interiorPointers.end() && *first < o->node + o->size)
             mark(o);
     }
-}
-
-static void mark_owners_of_interior_pointers() {
-    if(interiorPointers.empty()) return;
-
-    std::sort(interiorPointers.begin(), interiorPointers.end());
-    for_each_heap_list(mark_owners_in);
 
     interiorPointers.clear();
-}
-
-/** Permanent objects (gc_perm) are never freed and count as roots. */
-static void mark_permanent_in(sharp_object **head) {
-    for(sharp_object *o = *head; o != nullptr; o = o->next) {
-        if(GENERATION(o->info) == gc_perm)
-            mark(o);
-    }
 }
 
 static void mark_roots() {
@@ -426,9 +417,11 @@ static void mark_roots() {
 
     mark(vm.memoryExcept.o);
 
-    // objects held by native libraries
+    // permanent objects, and objects held by native libraries
     {
         std::lock_guard<std::mutex> guard(pin_mut);
+        for(sharp_object *o : permanentObjects)
+            mark(o);
         for(auto &pin : pins)
             mark(pin.first);
     }
@@ -506,12 +499,11 @@ static void collect() {
         interiorPointers.clear();
         sweptObjects = sweptBytes = liveObjects = 0;
 
-        for_each_heap_list(mark_permanent_in);
         mark_roots();
         mark_owners_of_interior_pointers();
         mark_everything_reachable();
 
-        for_each_heap_list(sweep_list);
+        sweep_list(&gc.objects);
     }
 
     release_bytes(sweptBytes);
@@ -550,7 +542,6 @@ void tgc_safepoint() {
     if(self == nullptr) return;
 
     set_gc_signal(self, false);
-    if(!gc_tracing) return;
 
     // Safe first, lock second (rule b): if another thread is collecting it is
     // waiting for exactly this flag while holding world_mut.

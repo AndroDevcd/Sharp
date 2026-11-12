@@ -7,14 +7,13 @@
 #include "../exe/manifest.h"
 #include "../memory/sharp_object.h"
 #include "../memory/garbage_collector.h"
+#include "../memory/tracing_collector.h"
 #include "reflect_helpers.h"
 #include "../types/sharp_field.h"
 
 
 sharp_object* create_description_object() {
-    auto sc = create_object(vm.reflect_description);
-    inc_ref(sc)
-    return sc;
+    return create_object(vm.reflect_description);
 }
 
 sharp_object* describe_object(sharp_object *o) {
@@ -70,21 +69,18 @@ sharp_object* describe_object(sharp_object *o) {
         // todo: we need to look into how to handle this??
     }
 
-    dec_ref(description)
     return description;
 }
 
 void create_reflect_object(sharp_class *sc) {
     sc->reflect = create_object(vm.reflect_class);
-    SET_GENERATION(sc->reflect->info, gc_perm);
-    inc_ref(sc->reflect)
+    tgc_make_permanent(sc->reflect);
 }
 
 sharp_object* build_reflect_function(sharp_function *fun) {
     string field_name;
     auto reflect = create_object(vm.reflect_function);
-    SET_GENERATION(reflect->info, gc_perm);
-    inc_ref(reflect)
+    tgc_make_permanent(reflect);
 
     // name: string
     field_name = "name";

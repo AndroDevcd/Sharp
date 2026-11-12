@@ -53,7 +53,6 @@ void initialize_main_thread_stack(std::list<string>& appArgs) {
     copy_object(argsObject->o->node + iter++, create_object(vm.thread_class));
     sharp_object *mainThread = argsObject->o->node[iter-1].o;
     main->currentThread.o = mainThread;
-    inc_ref(mainThread)
 
     assign_numeric_field(
        resolve_field("native_handle", mainThread)->o,

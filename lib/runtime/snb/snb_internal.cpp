@@ -16,14 +16,12 @@
 
 void ref_increment(SharpObject obj) {
     if(obj && ((object*)(obj))->o) {
-        inc_ref(((object*)(obj))->o)
-        tgc_pin(((object*)(obj))->o);    // native code holds it: a root for the tracing collector
+        tgc_pin(((object*)(obj))->o);    // native code holds it: a root for the garbage collector
     }
 }
 
 void ref_decrement(SharpObject obj) {
     if(obj && ((object*)(obj))->o) {
-        dec_ref(((object*)(obj))->o)
         tgc_unpin(((object*)(obj))->o);
     }
 }

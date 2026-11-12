@@ -55,14 +55,16 @@ T* realloc_mem(void *ptr, uInt bytes, uInt prevSize, bool unsafe = true)
     void* rmap =nullptr;
     Int size = bytes - prevSize;
 
+    // shrinking: `size` is negative. It used to be passed to release_bytes as
+    // is, where it turned into a huge unsigned number.
     if(size < 0) {
-        release_bytes(size);
+        release_bytes(-size);
     } else reserve_bytes(size, unsafe);
 
     rmap=realloc(ptr, bytes);
     if(rmap == nullptr) {
         if(size < 0) {
-            reserve_bytes(size, unsafe);
+            reserve_bytes(-size, true);
         } else release_bytes(size);
         throw vm_exception(vm.out_of_memory_except, "out of memory");
     }

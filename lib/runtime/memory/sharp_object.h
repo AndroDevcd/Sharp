@@ -27,11 +27,8 @@ struct sharp_object {
 
     /* info */
     uint32_t size;
-    // Number of object slots (stack, fields, array elements, ...) that point at
-    // this object. Atomic because several threads and the garbage collector
-    // change it at the same time; a plain ++/-- would lose updates and free
-    // objects that are still in use (or leak them).
-    std::atomic<uint32_t> refCount;
+    // (There used to be a reference count here. Objects are now freed by the
+    //  tracing collector, memory/tracing_collector.h, and nothing is counted.)
     unsigned short type : 5; // the type of object represents {class, var, _int64, etc}
     unsigned short arrayFlag : 1;
 
@@ -59,8 +56,24 @@ struct sharp_object {
 
 void init_struct(object *);
 void init_struct(sharp_object *);
-void copy_object(object *to, object *from);
-void copy_object(object *to, sharp_object *from);
+
+/**
+ * Point the slot `to` at an object (or at nothing).
+ *
+ * This is ALL a reference assignment is: one pointer store. It used to take a
+ * global lock and update two atomic reference counts (about 25ns each time);
+ * the tracing collector needs neither, because it only looks at slots while
+ * every thread is stopped at a safe point.
+ *
+ *      C++ comparison: assigning a raw pointer instead of a std::shared_ptr.
+ */
+inline void copy_object(object *to, object *from) {
+    to->o = from ? from->o : nullptr;
+}
+
+inline void copy_object(object *to, sharp_object *from) {
+    to->o = from;
+}
 sharp_object* create_object(sharp_class* sc, bool unsafe = false);
 sharp_object* create_object(sharp_class* sc, Int size, bool unsafe = false);
 sharp_object* create_static_object(sharp_class* sc, bool unsafe = false);
@@ -76,7 +89,5 @@ void release_locks_left_by_exception(fiber *task, Int depth, Int fromPc, Int toP
 void unlock_object(sharp_object *o);
 void populate_string(string &s, sharp_object *o);
 
-#define inc_ref(x) (x)->refCount.fetch_add(1, std::memory_order_relaxed);
-#define dec_ref(x) (x)->refCount.fetch_sub(1, std::memory_order_relaxed);
 
 #endif //SHARP_SHARP_OBJECT_H

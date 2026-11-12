@@ -14,6 +14,7 @@
 #include "main.h"
 #include "reflect/reflection.h"
 #include "jit/jit_compiler.h"
+#include "memory/tracing_collector.h"
 
 int initialize_virtual_machine()
 {
@@ -86,7 +87,7 @@ int initialize_virtual_machine()
      */
     for(unsigned long i = 0; i < vm.mf.classes; i++) {
         copy_object(vm.staticHeap + i, create_static_object(vm.classes + i));
-        SET_GENERATION(vm.staticHeap[i].o->info, gc_perm);
+        tgc_make_permanent(vm.staticHeap[i].o);
     }
 
     return 0;
