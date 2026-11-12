@@ -1,0 +1,42 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG (compiler, parser): the character literal ')' as the LAST
+ * argument of a call that is itself the end of a method chain is not parsed.
+ * The compiler reports "expected `;`" at the end of the line:
+ *
+ *     w.put_text("(at most ").put_number(longest).put(')');
+ *                                                          ^ error S807: expected `;`
+ *
+ * Found while writing std/time/date.sharp and date_time_formatter.sharp;
+ * the library writes the character code 41 instead.
+ *
+ * This file does not compile while the bug exists, which the test runner
+ * reports as a failure. With the bug fixed it prints RESULT PASS.
+ */
+class sink {
+    count : var = 0;
+    last : var = 0;
+
+    def put(ch: _int8): sink {
+        count++;
+        last = ch;
+        return self;
+    }
+
+    def put_number(n: var): sink {
+        count++;
+        return self;
+    }
+}
+
+def main(args: string[]) {
+    s := new sink();
+    s.put('(').put_number(5).put(')');
+    expect("three calls were made", s.count, 3);
+    expect("the last character is a closing parenthesis", s.last, 41);
+
+    finish("lib_time_paren_char_literal");
+}

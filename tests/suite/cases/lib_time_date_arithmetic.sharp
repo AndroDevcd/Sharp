@@ -1,0 +1,261 @@
+mod main;
+
+import ( testing, std.time )
+
+/**
+ * std.time.date arithmetic and std.time.period: adding days, weeks, months
+ * and years (with end-of-month clamping), differences between dates, the
+ * with_... and first/last/next/previous helpers, and periods (between,
+ * normalising, text, parsing).
+ *
+ * Expected values are calendar facts written out by hand and cross-checked
+ * with an independent implementation.
+ */
+
+def text(d: date): string {
+    return d.to_string()!!;
+}
+
+def ptext(p: period): string {
+    return p.to_string()!!;
+}
+
+def on(y: var, m: var, d: var): date {
+    return date.of(y, m, d);
+}
+
+/** 1 when period.parse(s) throws a date_time_exception */
+def rejects_period(s: string): var {
+    try {
+        period.parse(s);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def between(y1: var, m1: var, d1: var, y2: var, m2: var, d2: var): string {
+    return period.between(date.of(y1, m1, d1), date.of(y2, m2, d2)).to_string()!!;
+}
+
+def main(args: string[]) {
+    leap_day := date.of(2024, 2, 29);
+
+    // ---- days
+    expect_str("+1 day over a month end", text(on(2024, 1, 31).plus_days(1)), "2024-02-01");
+    expect_str("+1 day over a year end", text(on(2024, 12, 31).plus_days(1)), "2025-01-01");
+    expect_str("+1 day onto the leap day", text(on(2024, 2, 28).plus_days(1)), "2024-02-29");
+    expect_str("+1 day off the leap day", text(leap_day.plus_days(1)), "2024-03-01");
+    expect_str("+1 day with no leap day", text(on(2023, 2, 28).plus_days(1)), "2023-03-01");
+    expect_str("-1 day from the epoch", text(on(1970, 1, 1).minus_days(1)), "1969-12-31");
+    expect_str("plus_days(-1)", text(on(1970, 1, 1).plus_days(0 - 1)), "1969-12-31");
+    expect_str("+0 days", text(leap_day.plus_days(0)), "2024-02-29");
+    expect_str("+365 days in a leap year", text(on(2024, 1, 1).plus_days(365)), "2024-12-31");
+    expect_str("+366 days in a leap year", text(on(2024, 1, 1).plus_days(366)), "2025-01-01");
+    expect_str("+10000 days", text(on(2000, 1, 1).plus_days(10000)), "2027-05-19");
+    expect_str("-100000 days", text(on(1970, 1, 1).minus_days(100000)), "1696-03-17");
+    expect_str("+36524 days = the 20th century", text(on(1900, 1, 1).plus_days(36524)), "2000-01-01");
+    expect_str("the original is unchanged", text(leap_day), "2024-02-29");
+
+    // ---- weeks
+    expect_str("+1 week", text(leap_day.plus_weeks(1)), "2024-03-07");
+    expect_str("-1 week", text(leap_day.minus_weeks(1)), "2024-02-22");
+    expect_str("+100 weeks", text(on(2000, 1, 1).plus_weeks(100)), "2001-12-01");
+    expect_true("a week later is the same weekday", leap_day.plus_weeks(7).day_of_week() == day_of_week.thursday);
+
+    // ---- months, clamped to the end of the month
+    expect_str("31 Jan + 1 month (leap year)", text(on(2024, 1, 31).plus_months(1)), "2024-02-29");
+    expect_str("31 Jan + 1 month", text(on(2023, 1, 31).plus_months(1)), "2023-02-28");
+    expect_str("31 Jan + 2 months", text(on(2023, 1, 31).plus_months(2)), "2023-03-31");
+    expect_str("31 Jan + 3 months", text(on(2023, 1, 31).plus_months(3)), "2023-04-30");
+    expect_str("31 Mar - 1 month (leap year)", text(on(2024, 3, 31).minus_months(1)), "2024-02-29");
+    expect_str("31 Mar - 1 month", text(on(2023, 3, 31).minus_months(1)), "2023-02-28");
+    expect_str("31 May + 1 month", text(on(2024, 5, 31).plus_months(1)), "2024-06-30");
+    expect_str("30 Nov + 3 months", text(on(2024, 11, 30).plus_months(3)), "2025-02-28");
+    expect_str("31 Jan + 13 months", text(on(2024, 1, 31).plus_months(13)), "2025-02-28");
+    expect_str("15th + 1 month keeps the day", text(on(2024, 1, 15).plus_months(1)), "2024-02-15");
+    expect_str("December + 1 month", text(on(2024, 12, 15).plus_months(1)), "2025-01-15");
+    expect_str("January - 1 month", text(on(2024, 1, 15).minus_months(1)), "2023-12-15");
+    expect_str("+12 months", text(on(2024, 6, 30).plus_months(12)), "2025-06-30");
+    expect_str("-24 months", text(on(2024, 6, 30).minus_months(24)), "2022-06-30");
+    expect_str("+1200 months", text(on(1924, 2, 29).plus_months(1200)), "2024-02-29");
+    expect_str("months across year 0", text(on(1, 1, 31).minus_months(11)), "0000-02-29");
+    expect_str("months into negative years", text(on(0, 1, 15).minus_months(1)), "-0001-12-15");
+
+    // ---- years
+    expect_str("29 Feb + 1 year", text(leap_day.plus_years(1)), "2025-02-28");
+    expect_str("29 Feb + 4 years", text(leap_day.plus_years(4)), "2028-02-29");
+    expect_str("29 Feb - 1 year", text(leap_day.minus_years(1)), "2023-02-28");
+    expect_str("29 Feb + 76 years (2100 is not a leap year)", text(leap_day.plus_years(76)), "2100-02-28");
+    expect_str("29 Feb + 376 years (2400 is)", text(leap_day.plus_years(376)), "2400-02-29");
+    expect_str("28 Feb + 1 year stays the 28th", text(on(2023, 2, 28).plus_years(1)), "2024-02-28");
+    expect_str("+1000 years", text(on(1024, 7, 4).plus_years(1000)), "2024-07-04");
+    expect_str("-2024 years", text(on(2024, 7, 4).minus_years(2024)), "0000-07-04");
+
+    // ---- out of range results
+    caught : var = 0;
+    try {
+        on(999999, 12, 31).plus_days(1);
+    } catch(e: date_time_exception) {
+        caught = 1;
+    }
+    expect("the day after the last supported day throws", caught, 1);
+    caught = 0;
+    try {
+        on(2024, 1, 1).plus_years(1000000);
+    } catch(e: date_time_exception) {
+        caught = 1;
+    }
+    expect("a year beyond the range throws", caught, 1);
+    caught = 0;
+    try {
+        on(2024, 1, 1).plus_days(1.5);
+    } catch(e: date_time_exception) {
+        caught = 1;
+    }
+    expect("a fraction of a day throws", caught, 1);
+
+    // ---- days between
+    expect("days_until within a leap year", on(2024, 1, 1).days_until(on(2024, 3, 1)), 60);
+    expect("days_until without a leap day", on(2023, 1, 1).days_until(on(2023, 3, 1)), 59);
+    expect("days_until 2000 -> 2024", on(2000, 1, 1).days_until(on(2024, 1, 1)), 8766);
+    expect("days_until across 1970", on(1969, 7, 20).days_until(on(2026, 11, 12)), 20934);
+    expect("days in the 20th century", on(1900, 1, 1).days_until(on(2000, 1, 1)), 36524);
+    expect("days_until backwards", on(2024, 3, 1).days_until(on(2024, 1, 1)), 0 - 60);
+    expect("days_until itself", leap_day.days_until(leap_day), 0);
+    expect("one 400 year cycle is 146097 days", on(1600, 1, 1).days_until(on(2000, 1, 1)), 146097);
+
+    // ---- with_...
+    expect_str("with_year clamps the leap day", text(leap_day.with_year(2023)), "2023-02-28");
+    expect_str("with_year", text(on(2024, 7, 4).with_year(1776)), "1776-07-04");
+    expect_str("with_month clamps", text(on(2024, 1, 31).with_month(4)), "2024-04-30");
+    expect_str("with_month", text(on(2024, 1, 15).with_month(12)), "2024-12-15");
+    expect_str("with_day", text(on(2024, 1, 15).with_day(31)), "2024-01-31");
+    expect_str("with_day_of_year", text(on(2024, 1, 15).with_day_of_year(366)), "2024-12-31");
+    caught = 0;
+    try {
+        on(2024, 4, 15).with_day(31);
+    } catch(e: date_time_exception) {
+        caught = 1;
+    }
+    expect("with_day(31) in April throws", caught, 1);
+    caught = 0;
+    try {
+        on(2024, 4, 15).with_month(13);
+    } catch(e: date_time_exception) {
+        caught = 1;
+    }
+    expect("with_month(13) throws", caught, 1);
+
+    // ---- first / last
+    expect_str("first_day_of_month", text(leap_day.first_day_of_month()), "2024-02-01");
+    expect_str("last_day_of_month (leap February)", text(on(2024, 2, 10).last_day_of_month()), "2024-02-29");
+    expect_str("last_day_of_month (February)", text(on(2023, 2, 10).last_day_of_month()), "2023-02-28");
+    expect_str("last_day_of_month (April)", text(on(2023, 4, 1).last_day_of_month()), "2023-04-30");
+    expect_str("first_day_of_year", text(leap_day.first_day_of_year()), "2024-01-01");
+    expect_str("last_day_of_year", text(leap_day.last_day_of_year()), "2024-12-31");
+
+    // ---- next / previous weekday (2024-02-29 is a Thursday)
+    expect_str("next Monday", text(leap_day.next(day_of_week.monday)), "2024-03-04");
+    expect_str("next Thursday is a week later", text(leap_day.next(day_of_week.thursday)), "2024-03-07");
+    expect_str("next Sunday", text(leap_day.next(day_of_week.sunday)), "2024-03-03");
+    expect_str("next_or_same Thursday is the day itself", text(leap_day.next_or_same(day_of_week.thursday)), "2024-02-29");
+    expect_str("next_or_same Friday", text(leap_day.next_or_same(day_of_week.friday)), "2024-03-01");
+    expect_str("previous Monday", text(leap_day.previous(day_of_week.monday)), "2024-02-26");
+    expect_str("previous Thursday is a week earlier", text(leap_day.previous(day_of_week.thursday)), "2024-02-22");
+    expect_str("previous Sunday", text(leap_day.previous(day_of_week.sunday)), "2024-02-25");
+    expect_str("previous_or_same Thursday", text(leap_day.previous_or_same(day_of_week.thursday)), "2024-02-29");
+    expect_str("previous_or_same Wednesday", text(leap_day.previous_or_same(day_of_week.wednesday)), "2024-02-28");
+    expect_str("next Monday from a Wednesday", text(on(2024, 5, 15).next(day_of_week.monday)), "2024-05-20");
+    expect_str("previous Sunday from a Wednesday", text(on(2024, 5, 15).previous(day_of_week.sunday)), "2024-05-12");
+
+    // ---- period: fields and text
+    p := period.of(1, 2, 3);
+    expect("years", p.years(), 1);
+    expect("months", p.months(), 2);
+    expect("days", p.days(), 3);
+    expect_str("to_string", ptext(p), "P1Y2M3D");
+    expect_str("zero", ptext(period.zero), "P0D");
+    expect_str("of_days", ptext(period.of_days(10)), "P10D");
+    expect_str("of_weeks", ptext(period.of_weeks(2)), "P14D");
+    expect_str("of_months", ptext(period.of_months(14)), "P14M");
+    expect_str("of_years", ptext(period.of_years(3)), "P3Y");
+    expect_str("negative fields", ptext(period.of(0 - 1, 0, 0 - 2)), "P-1Y-2D");
+    expect_true("is_zero", period.zero.is_zero());
+    expect_false("is_zero on a period", p.is_zero());
+    expect_true("is_negative", period.of(1, 0 - 1, 0).is_negative());
+    expect_false("is_negative on a positive period", p.is_negative());
+    expect("to_total_months", p.to_total_months(), 14);
+
+    // ---- period: arithmetic
+    expect_str("plus", ptext(p.plus(period.of(1, 11, 30))), "P2Y13M33D");
+    expect_str("minus", ptext(p.minus(period.of(0, 3, 1))), "P1Y-1M2D");
+    expect_str("operator +", ptext(p + period.of_days(7)), "P1Y2M10D");
+    expect_str("operator -", ptext(p - p), "P0D");
+    expect_str("operator *", ptext(p * 3), "P3Y6M9D");
+    expect_str("multiplied_by(-1)", ptext(p.multiplied_by(0 - 1)), "P-1Y-2M-3D");
+    expect_str("negated", ptext(p.negated()), "P-1Y-2M-3D");
+    expect_str("plus_years", ptext(p.plus_years(9)), "P10Y2M3D");
+    expect_str("plus_months", ptext(p.plus_months(10)), "P1Y12M3D");
+    expect_str("plus_days", ptext(p.plus_days(0 - 3)), "P1Y2M");
+    expect_str("with_days", ptext(p.with_days(0)), "P1Y2M");
+    expect_str("with_months", ptext(p.with_months(0)), "P1Y3D");
+    expect_str("with_years", ptext(p.with_years(0)), "P2M3D");
+    expect_str("normalized 14 months", ptext(period.of_months(14).normalized()), "P1Y2M");
+    expect_str("normalized 1 year -1 month", ptext(period.of(1, 0 - 1, 0).normalized()), "P11M");
+    expect_str("normalized -1 year 3 months", ptext(period.of(0 - 1, 3, 5).normalized()), "P-9M5D");
+    expect_str("normalized 24 months", ptext(period.of(0, 24, 40).normalized()), "P2Y40D");
+    expect_str("normalized leaves a normal period alone", ptext(p.normalized()), "P1Y2M3D");
+    expect_true("== field by field", p == period.of(1, 2, 3));
+    expect_false("12 months is not == 1 year", period.of_months(12) == period.of_years(1));
+    expect_true("!=", period.of_months(12) != period.of_years(1));
+    expect_true("...but equal after normalising", period.of_months(12).normalized() == period.of_years(1));
+
+    // ---- period between two dates
+    expect_str("between 2020-01-15 and 2024-03-01", between(2020, 1, 15, 2024, 3, 1), "P4Y1M15D");
+    expect_str("between the same day", between(2024, 2, 29, 2024, 2, 29), "P0D");
+    expect_str("one day", between(2024, 2, 29, 2024, 3, 1), "P1D");
+    expect_str("one month exactly", between(2024, 1, 15, 2024, 2, 15), "P1M");
+    expect_str("one year exactly", between(2023, 6, 1, 2024, 6, 1), "P1Y");
+    expect_str("31 Jan to 1 Mar (leap year)", between(2024, 1, 31, 2024, 3, 1), "P1M1D");
+    expect_str("31 Jan to 1 Mar", between(2023, 1, 31, 2023, 3, 1), "P1M1D");
+    expect_str("leap day to 28 Feb next year", between(2020, 2, 29, 2021, 2, 28), "P11M30D");
+    expect_str("leap day to 1 Mar next year", between(2020, 2, 29, 2021, 3, 1), "P1Y1D");
+    expect_str("an age: 1990-05-20 on 2024-05-19", between(1990, 5, 20, 2024, 5, 19), "P33Y11M29D");
+    expect_str("an age: 1990-05-20 on 2024-05-20", between(1990, 5, 20, 2024, 5, 20), "P34Y");
+    expect_str("backwards", between(2024, 3, 15, 2024, 1, 10), "P-2M-5D");
+    expect_str("backwards over a year", between(2024, 3, 1, 2020, 1, 15), "P-4Y-1M-17D");
+    expect_str("across 1970", between(1969, 12, 31, 1970, 1, 1), "P1D");
+    expect_str("the 20th century", between(1900, 1, 1, 2000, 1, 1), "P100Y");
+    expect_str("until()", ptext(on(2024, 1, 1).until(on(2024, 12, 25))), "P11M24D");
+
+    // ---- date + period
+    expect_str("date.plus(period)", text(on(2020, 1, 15).plus(period.of(4, 1, 15))), "2024-03-01");
+    expect_str("date + period", text(on(2024, 1, 31) + period.of_months(1)), "2024-02-29");
+    expect_str("months first, then days", text(on(2024, 1, 31) + period.of(0, 1, 1)), "2024-03-01");
+    expect_str("date - period", text(on(2024, 3, 31) - period.of_months(1)), "2024-02-29");
+    expect_str("date.minus(period)", text(on(2024, 3, 1).minus(period.of(4, 1, 15))), "2020-01-17");
+    expect_str("plus a negative period", text(on(2024, 3, 15).plus(period.of(0, 0 - 2, 0 - 5))), "2024-01-10");
+    expect_str("start + between(start, end) is end", text(on(1999, 12, 31).plus(period.between(on(1999, 12, 31), on(2024, 2, 29)))), "2024-02-29");
+
+    // ---- parsing periods
+    expect_str("parse P1Y2M3D", ptext(period.parse("P1Y2M3D")), "P1Y2M3D");
+    expect_str("parse P14M", ptext(period.parse("P14M")), "P14M");
+    expect_str("parse weeks", ptext(period.parse("P2W")), "P14D");
+    expect_str("parse weeks and days", ptext(period.parse("P1W3D")), "P10D");
+    expect_str("parse a leading minus", ptext(period.parse("-P1Y2D")), "P-1Y-2D");
+    expect_str("parse signed fields", ptext(period.parse("P-1Y2M")), "P-1Y2M");
+    expect_str("parse lower case", ptext(period.parse("p1y2m3d")), "P1Y2M3D");
+    expect_str("parse P0D", ptext(period.parse("P0D")), "P0D");
+    expect_str("format -> parse round trip", ptext(period.parse(ptext(period.of(0 - 7, 11, 0 - 30)))), "P-7Y11M-30D");
+    expect_true("parse rejects P alone", rejects_period("P"));
+    expect_true("parse rejects the empty string", rejects_period(""));
+    expect_true("parse rejects a missing P", rejects_period("1Y2M"));
+    expect_true("parse rejects fields out of order", rejects_period("P1D2Y"));
+    expect_true("parse rejects a repeated field", rejects_period("P1Y2Y"));
+    expect_true("parse rejects a time part", rejects_period("P1DT1H"));
+    expect_true("parse rejects a fraction", rejects_period("P1.5Y"));
+    expect_true("parse rejects an unknown unit", rejects_period("P1X"));
+
+    finish("lib_time_date_arithmetic");
+}

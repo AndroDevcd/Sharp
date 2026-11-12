@@ -1,0 +1,213 @@
+mod std.time;
+
+/**
+ * A single point on the UTC time line, independent of any calendar or time
+ * zone - the thing a timestamp stores.
+ *
+ * How the value is stored - and why
+ * ---------------------------------
+ * The obvious representation, "nanoseconds since 1970", does not fit in a
+ * `var`: a `var` holds whole numbers exactly only up to 2^53 (about 9.0e15)
+ * and the present is about 1.7e18 ns after 1970, so the last digits would be
+ * rounded away (the spacing between neighbouring `var` values at that size
+ * is 256 ns). An instant therefore keeps TWO numbers, like java.time.Instant:
+ *
+ *     epoch_second   whole seconds since 1970-01-01T00:00:00Z, negative before  (exact)
+ *     nano           nanoseconds within that second, 0 .. 999,999,999           (exact)
+ *
+ * All arithmetic and comparison work on the pair and are exact to the
+ * nanosecond. Only `now()` is limited by the runtime: vm.time_in_nanoseconds
+ * hands the system clock over as one `var`, so the reading itself is already
+ * rounded to a multiple of 256 ns (and Windows clocks tick in 100 ns steps).
+ *
+ * The clock behind `now()` is the SYSTEM clock: it can jump when the
+ * operating system corrects the time. The runtime offers no monotonic clock.
+ *
+ * The supported range is the range of `date`: years -999,999 to 999,999.
+ * Instants are immutable.
+ *
+ *     t := instant.of_epoch_second(1709211600);
+ *     t.to_string()                                   // "2024-02-29T13:00:00Z"
+ *     (t + duration.of_hours(11)).to_string()         // "2024-03-01T00:00:00Z"
+ *     instant.parse("1970-01-01T00:00:01.5Z").to_epoch_milli()   // 1500
+ */
+class instant {
+    /** 1970-01-01T00:00:00Z */
+    static const epoch : instant = new instant(0, 0);
+
+    private secs : var = 0;
+    private nano_part : var = 0;
+
+    private instant(epoch_second: var, nano: var) {
+        secs = epoch_second;
+        nano_part = nano;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * The instant `epoch_second` seconds after 1970-01-01T00:00:00Z (before
+     * it when negative).
+     * @throws date_time_exception when it is not a whole number below 2^53
+     */
+    static def of_epoch_second(epoch_second: var): instant {
+        time_math.check_whole("epoch second", epoch_second);
+        return new instant(epoch_second, 0);
+    }
+
+    /**
+     * `epoch_second` seconds after the epoch plus `nano_adjustment`
+     * nanoseconds. The adjustment may be negative or larger than a second;
+     * it is carried into the seconds: (10, -1) is 9.999999999 s.
+     * @throws date_time_exception when an argument is not a whole number below 2^53
+     */
+    static def of_epoch_second(epoch_second: var, nano_adjustment: var): instant {
+        time_math.check_whole("epoch second", epoch_second);
+        time_math.check_whole("nanoseconds", nano_adjustment);
+        return new instant(epoch_second + time_math.floor_div(nano_adjustment, 1000000000),
+            time_math.floor_mod(nano_adjustment, 1000000000));
+    }
+
+    /**
+     * The instant `epoch_milli` milliseconds after the epoch (before it when
+     * negative) - the timestamp format of Java, JavaScript and `utc_mills()`.
+     * @throws date_time_exception when it is not a whole number below 2^53
+     */
+    static def of_epoch_milli(epoch_milli: var): instant {
+        time_math.check_whole("epoch millisecond", epoch_milli);
+        return new instant(time_math.floor_div(epoch_milli, 1000), time_math.floor_mod(epoch_milli, 1000) * 1000000);
+    }
+
+    /**
+     * The current moment according to the system clock (`system_clock`).
+     * See the class comment for its resolution and the fact that it can jump.
+     */
+    static def now(): instant {
+        return system_clock.instance.now();
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /** whole seconds since 1970-01-01T00:00:00Z, rounded down (negative before 1970) */
+    def epoch_second(): var { return secs; }
+
+    /** nanoseconds after `epoch_second()`: 0 .. 999,999,999 */
+    def nano(): var { return nano_part; }
+
+    /**
+     * Whole milliseconds since the epoch, rounded down:
+     * epoch_second * 1000 + nano / 1,000,000. Exact (the result stays below
+     * 2^53 for the whole supported range).
+     */
+    def to_epoch_milli(): var {
+        return secs * 1000 + time_math.trunc_div(nano_part, 1000000);
+    }
+
+    /** the UTC date and time of this instant at `offset` */
+    def at_offset(offset: zone_offset): offset_date_time {
+        return offset_date_time.of_instant(self, offset);
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic (each returns a new instant)
+    // ------------------------------------------------------------------
+
+    /** this instant moved forward by `amount` (back when it is negative) */
+    def plus(amount: duration): instant {
+        return of_epoch_second(secs + amount.seconds(), nano_part + amount.nanos());
+    }
+
+    /** this instant moved back by `amount` */
+    def minus(amount: duration): instant {
+        return of_epoch_second(secs - amount.seconds(), nano_part - amount.nanos());
+    }
+
+    def plus_seconds(seconds: var): instant {
+        time_math.check_whole("seconds", seconds);
+        return new instant(secs + seconds, nano_part);
+    }
+
+    def plus_millis(millis: var): instant { return plus(duration.of_millis(millis)); }
+    def plus_nanos(nanos: var): instant { return of_epoch_second(secs, nano_part + nanos); }
+    def minus_seconds(seconds: var): instant { return plus_seconds(0 - seconds); }
+    def minus_millis(millis: var): instant { return plus_millis(0 - millis); }
+    def minus_nanos(nanos: var): instant { return plus_nanos(0 - nanos); }
+
+    /** the time from this instant to `other`: positive when `other` is later. Exact. */
+    def until(other: instant): duration {
+        return duration.between(self, other);
+    }
+
+    /** this instant with the fraction of the second removed */
+    def truncated_to_seconds(): instant {
+        return new instant(secs, 0);
+    }
+
+    /** this instant rounded down to a whole millisecond */
+    def truncated_to_millis(): instant {
+        return new instant(secs, nano_part - (nano_part % 1000000));
+    }
+
+    // ------------------------------------------------------------------
+    //  comparing and operators
+    // ------------------------------------------------------------------
+
+    /** -1 when this instant is before `other`, 0 when it is the same moment, 1 when after */
+    def compare_to(other: instant): var {
+        if(secs != other.secs) {
+            return time_math.compare(secs, other.secs);
+        }
+        return time_math.compare(nano_part, other.nano_part);
+    }
+
+    def is_before(other: instant): var { return compare_to(other) < 0; }
+    def is_after(other: instant): var { return compare_to(other) > 0; }
+
+    def operator==(other: instant): var { return secs == other.secs && nano_part == other.nano_part; }
+    def operator!=(other: instant): var { return secs != other.secs || nano_part != other.nano_part; }
+    def operator<(other: instant): var { return compare_to(other) < 0; }
+    def operator<=(other: instant): var { return compare_to(other) <= 0; }
+    def operator>(other: instant): var { return compare_to(other) > 0; }
+    def operator>=(other: instant): var { return compare_to(other) >= 0; }
+
+    /** instant + duration, as `plus` */
+    def operator+(amount: duration): instant { return plus(amount); }
+    /** instant - duration, as `minus` */
+    def operator-(amount: duration): instant { return minus(amount); }
+
+    /** a hash that is the same for equal instants */
+    override def hash(): int {
+        return (secs * 31 + nano_part) % 2147483647;
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * ISO-8601 in UTC: "2024-02-29T13:00:00Z", with the fraction as 3, 6 or
+     * 9 digits when there is one: "1970-01-01T00:00:00.001Z".
+     */
+    override def to_string(): string? {
+        w := new time_text_writer();
+        date_time.of_epoch_second(secs, nano_part, zone_offset.utc).write_to(w);
+        w.put('Z');
+        return w.text();
+    }
+
+    /**
+     * Reads an ISO-8601 date-time with an offset and returns the moment it
+     * names: "2024-02-29T13:00:00Z", "2024-02-29T15:00:00+02:00" (the same
+     * moment), "1969-12-31T23:59:59.5Z".
+     *
+     * @throws date_time_exception when the text has another shape (the
+     *         offset is required) or a field is out of range
+     */
+    static def parse(text: string): instant {
+        return offset_date_time.parse(text).to_instant();
+    }
+}

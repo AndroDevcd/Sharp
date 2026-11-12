@@ -1,0 +1,34 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG (compiler): an array initialiser written WITHOUT `new type[]`
+ * compiles, but makes an array with a single element instead of one element
+ * per value:
+ *
+ *     names : string[] = { "a", "b", "c" };       // sizeof(names) is 1, names[1] throws
+ *     names : string[] = new string[] { "a", "b", "c" };   // correct: 3 elements
+ *
+ * Found while writing std/time/day_of_week.sharp (the table of day names);
+ * the library uses the `new string[] { ... }` form.
+ */
+class holder {
+    static names : string[] = { "a", "b", "c" };
+    static correct : string[] = new string[] { "a", "b", "c" };
+}
+
+def main(args: string[]) {
+    expect("with new: three elements", sizeof(holder.correct), 3);
+    expect("without new: three elements", sizeof(holder.names), 3);
+
+    second : string = "";
+    try {
+        second = holder.names[1];
+    } catch(e: out_of_bounds_exception) {
+        second = "out of bounds";
+    }
+    expect_str("without new: the second element", second, "b");
+
+    finish("lib_time_array_initializer");
+}

@@ -1,0 +1,50 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG (compiler, overload resolution): a class that has a constructor
+ * taking one number is treated as a match for a NUMBER argument, even when
+ * that constructor is private. Two overloads that differ only in "number or
+ * such a class" are therefore ambiguous when called with numbers:
+ *
+ *     static def of(year: var, month_number: var, day: var)
+ *     static def of(year: var, in_month: month_like, day: var)
+ *     of(2024, 2, 29);       // error S807: call to method `of` is ambiguous
+ *
+ * The first overload is an exact match and should win.
+ *
+ * Found while writing std/time/date.sharp, which had date.of(year, number,
+ * day) and date.of(year, month, day); the second is now date.of_month(...).
+ *
+ * This file does not compile while the bug exists, which the test runner
+ * reports as a failure. With the bug fixed it prints RESULT PASS.
+ */
+class month_like {
+    private number : var = 0;
+
+    private month_like(n: var) {
+        number = n;
+    }
+
+    static const february : month_like = new month_like(2);
+
+    def value(): var { return number; }
+}
+
+class picker {
+    static def of(year: var, month_number: var, day: var): var {
+        return 1;                       // the overload taking three numbers
+    }
+
+    static def of(year: var, in_month: month_like, day: var): var {
+        return 2;                       // the overload taking a month object
+    }
+}
+
+def main(args: string[]) {
+    expect("three numbers pick the number overload", picker.of(2024, 2, 29), 1);
+    expect("a month object picks the object overload", picker.of(2024, month_like.february, 29), 2);
+
+    finish("lib_time_implicit_number_to_class");
+}

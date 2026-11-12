@@ -1,0 +1,204 @@
+mod main;
+
+import ( testing, std.time )
+
+/**
+ * std.time.day_of_week and std.time.month: numbering, names, short names,
+ * plus/minus with wrap-around, month lengths, parsing names.
+ */
+
+def rejects_day(s: string): var {
+    try {
+        day_of_week.parse(s);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def rejects_month(s: string): var {
+    try {
+        month.parse(s);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def main(args: string[]) {
+    // ================= day_of_week =================
+
+    // ---- numbering: ISO, Monday = 1 .. Sunday = 7
+    expect("monday", day_of_week.monday.value(), 1);
+    expect("tuesday", day_of_week.tuesday.value(), 2);
+    expect("wednesday", day_of_week.wednesday.value(), 3);
+    expect("thursday", day_of_week.thursday.value(), 4);
+    expect("friday", day_of_week.friday.value(), 5);
+    expect("saturday", day_of_week.saturday.value(), 6);
+    expect("sunday", day_of_week.sunday.value(), 7);
+    expect_true("of(1) is the monday object", day_of_week.of(1) == day_of_week.monday);
+    expect_true("of(7) is the sunday object", day_of_week.of(7) == day_of_week.sunday);
+    expect_true("of(4) is not friday", day_of_week.of(4) != day_of_week.friday);
+    expect("values() has seven entries", sizeof(day_of_week.values()), 7);
+    expect_true("values() starts with monday", day_of_week.values()[0] == day_of_week.monday);
+    expect_true("values() ends with sunday", day_of_week.values()[6] == day_of_week.sunday);
+
+    // ---- names
+    expect_str("name of monday", day_of_week.monday.name(), "Monday");
+    expect_str("name of wednesday", day_of_week.wednesday.name(), "Wednesday");
+    expect_str("name of sunday", day_of_week.sunday.name(), "Sunday");
+    expect_str("short name of monday", day_of_week.monday.short_name(), "Mon");
+    expect_str("short name of tuesday", day_of_week.tuesday.short_name(), "Tue");
+    expect_str("short name of thursday", day_of_week.thursday.short_name(), "Thu");
+    expect_str("short name of saturday", day_of_week.saturday.short_name(), "Sat");
+    expect_str("to_string is the name", day_of_week.friday.to_string()!!, "Friday");
+
+    // ---- plus / minus wrap around the week
+    expect_true("monday + 1", day_of_week.monday.plus(1) == day_of_week.tuesday);
+    expect_true("sunday + 1", day_of_week.sunday.plus(1) == day_of_week.monday);
+    expect_true("saturday + 2", day_of_week.saturday.plus(2) == day_of_week.monday);
+    expect_true("thursday + 7", day_of_week.thursday.plus(7) == day_of_week.thursday);
+    expect_true("thursday + 0", day_of_week.thursday.plus(0) == day_of_week.thursday);
+    expect_true("friday + 100 (100 = 14 weeks + 2)", day_of_week.friday.plus(100) == day_of_week.sunday);
+    expect_true("monday + -1", day_of_week.monday.plus(0 - 1) == day_of_week.sunday);
+    expect_true("monday - 1", day_of_week.monday.minus(1) == day_of_week.sunday);
+    expect_true("wednesday - 10", day_of_week.wednesday.minus(10) == day_of_week.sunday);
+    expect_true("tuesday - 700", day_of_week.tuesday.minus(700) == day_of_week.tuesday);
+
+    // ---- distance and weekend
+    expect("monday until wednesday", day_of_week.monday.days_until(day_of_week.wednesday), 2);
+    expect("wednesday until monday", day_of_week.wednesday.days_until(day_of_week.monday), 5);
+    expect("sunday until monday", day_of_week.sunday.days_until(day_of_week.monday), 1);
+    expect("friday until friday", day_of_week.friday.days_until(day_of_week.friday), 0);
+    expect_true("saturday is weekend", day_of_week.saturday.is_weekend());
+    expect_true("sunday is weekend", day_of_week.sunday.is_weekend());
+    expect_false("friday is not weekend", day_of_week.friday.is_weekend());
+    expect_false("monday is not weekend", day_of_week.monday.is_weekend());
+
+    // ---- parsing names
+    expect_true("parse Monday", day_of_week.parse("Monday") == day_of_week.monday);
+    expect_true("parse Sun", day_of_week.parse("Sun") == day_of_week.sunday);
+    expect_true("parse lower case", day_of_week.parse("thursday") == day_of_week.thursday);
+    expect_true("parse upper case short", day_of_week.parse("WED") == day_of_week.wednesday);
+    expect_true("parse rejects a number", rejects_day("1"));
+    expect_true("parse rejects a prefix", rejects_day("Mo"));
+    expect_true("parse rejects trailing text", rejects_day("Mondays"));
+    expect_true("parse rejects the empty string", rejects_day(""));
+
+    // ---- validation
+    caught : var = 0;
+    try { day_of_week.of(0); } catch(e: date_time_exception) { caught = 1; }
+    expect("of(0) throws", caught, 1);
+    caught = 0;
+    try { day_of_week.of(8); } catch(e: date_time_exception) { caught = 1; }
+    expect("of(8) throws", caught, 1);
+    try {
+        day_of_week.of(8);
+        fail("message", "no exception");
+    } catch(e: date_time_exception) {
+        expect_str("message", e.get_message(), "day of week must be 1 to 7 but was 8");
+    }
+
+    // ================= month =================
+
+    expect("january", month.january.value(), 1);
+    expect("february", month.february.value(), 2);
+    expect("june", month.june.value(), 6);
+    expect("december", month.december.value(), 12);
+    expect_true("of(1) is the january object", month.of(1) == month.january);
+    expect_true("of(12) is the december object", month.of(12) == month.december);
+    expect_true("of(5) is may", month.of(5) == month.may);
+    expect("values() has twelve entries", sizeof(month.values()), 12);
+    expect_true("values() starts with january", month.values()[0] == month.january);
+    expect_true("values()[8] is september", month.values()[8] == month.september);
+
+    // ---- names
+    expect_str("name of january", month.january.name(), "January");
+    expect_str("name of may", month.may.name(), "May");
+    expect_str("name of september", month.september.name(), "September");
+    expect_str("name of december", month.december.name(), "December");
+    expect_str("short name of january", month.january.short_name(), "Jan");
+    expect_str("short name of may", month.may.short_name(), "May");
+    expect_str("short name of june", month.june.short_name(), "Jun");
+    expect_str("short name of september", month.september.short_name(), "Sep");
+    expect_str("to_string is the name", month.august.to_string()!!, "August");
+
+    // ---- lengths: thirty days hath September, April, June and November
+    expect("january", month.january.length(0), 31);
+    expect("february", month.february.length(0), 28);
+    expect("february in a leap year", month.february.length(1), 29);
+    expect("march", month.march.length(0), 31);
+    expect("april", month.april.length(0), 30);
+    expect("may", month.may.length(0), 31);
+    expect("june", month.june.length(0), 30);
+    expect("july", month.july.length(0), 31);
+    expect("august", month.august.length(0), 31);
+    expect("september", month.september.length(0), 30);
+    expect("october", month.october.length(0), 31);
+    expect("november", month.november.length(0), 30);
+    expect("december", month.december.length(1), 31);
+    expect("february min_length", month.february.min_length(), 28);
+    expect("february max_length", month.february.max_length(), 29);
+    expect("april max_length", month.april.max_length(), 30);
+
+    total : var = 0;
+    leap_total : var = 0;
+    for(i : var = 1; i <= 12; i++) {
+        total += month.of(i).length(0);
+        leap_total += month.of(i).length(1);
+    }
+    expect("the months add up to 365 days", total, 365);
+    expect("...and to 366 in a leap year", leap_total, 366);
+
+    // ---- first day of the year
+    expect("january starts on day 1", month.january.first_day_of_year(0), 1);
+    expect("february starts on day 32", month.february.first_day_of_year(0), 32);
+    expect("march starts on day 60", month.march.first_day_of_year(0), 60);
+    expect("march starts on day 61 in a leap year", month.march.first_day_of_year(1), 61);
+    expect("december starts on day 335", month.december.first_day_of_year(0), 335);
+    expect("december starts on day 336 in a leap year", month.december.first_day_of_year(1), 336);
+
+    // ---- quarters
+    expect("january is in Q1", month.january.quarter(), 1);
+    expect("march is in Q1", month.march.quarter(), 1);
+    expect("april is in Q2", month.april.quarter(), 2);
+    expect("september is in Q3", month.september.quarter(), 3);
+    expect("october is in Q4", month.october.quarter(), 4);
+    expect("december is in Q4", month.december.quarter(), 4);
+
+    // ---- plus / minus wrap around the year
+    expect_true("january + 1", month.january.plus(1) == month.february);
+    expect_true("december + 1", month.december.plus(1) == month.january);
+    expect_true("february + 11", month.february.plus(11) == month.january);
+    expect_true("june + 12", month.june.plus(12) == month.june);
+    expect_true("june + 0", month.june.plus(0) == month.june);
+    expect_true("march + 100 (100 = 8 years + 4)", month.march.plus(100) == month.july);
+    expect_true("january + -1", month.january.plus(0 - 1) == month.december);
+    expect_true("january - 1", month.january.minus(1) == month.december);
+    expect_true("march - 14", month.march.minus(14) == month.january);
+    expect_true("october - 120", month.october.minus(120) == month.october);
+
+    // ---- parsing names
+    expect_true("parse March", month.parse("March") == month.march);
+    expect_true("parse May", month.parse("May") == month.may);
+    expect_true("parse Mar", month.parse("Mar") == month.march);
+    expect_true("parse lower case", month.parse("december") == month.december);
+    expect_true("parse upper case short", month.parse("SEP") == month.september);
+    expect_true("parse rejects a number", rejects_month("3"));
+    expect_true("parse rejects four letters", rejects_month("Sept"));
+    expect_true("parse rejects trailing text", rejects_month("March!"));
+    expect_true("parse rejects the empty string", rejects_month(""));
+
+    // ---- validation
+    caught = 0;
+    try { month.of(0); } catch(e: date_time_exception) { caught = 1; }
+    expect("of(0) throws", caught, 1);
+    caught = 0;
+    try { month.of(13); } catch(e: date_time_exception) { caught = 1; }
+    expect("of(13) throws", caught, 1);
+    caught = 0;
+    try { month.of(2.5); } catch(e: date_time_exception) { caught = 1; }
+    expect("of(2.5) throws", caught, 1);
+
+    finish("lib_time_names");
+}

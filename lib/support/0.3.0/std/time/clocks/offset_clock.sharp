@@ -1,0 +1,33 @@
+mod std.time;
+
+/**
+ * A clock that shows another clock's time shifted by a fixed amount.
+ *
+ * Useful for running code "as if it were tomorrow" on top of the real clock,
+ * or for modelling a machine whose clock is wrong by a known amount:
+ *
+ *     tomorrow := new offset_clock(system_clock.instance, duration.of_days(1));
+ *     behind   := new offset_clock(base, duration.of_seconds(-30));
+ *
+ * It is immutable; the clock underneath keeps running (or not) as before.
+ */
+class offset_clock : clock {
+    private base_clock : clock;
+    private shift : duration;
+
+    /** a clock that shows `source` plus `shift_by` (a negative duration shows an earlier time) */
+    offset_clock(source: clock, shift_by: duration) {
+        base_clock = source;
+        shift = shift_by;
+    }
+
+    /** the underlying clock's current moment plus the shift */
+    override def now(): instant {
+        return base_clock.now().plus(shift);
+    }
+
+    /** the amount this clock is ahead of the underlying one */
+    def shift_amount(): duration {
+        return shift;
+    }
+}

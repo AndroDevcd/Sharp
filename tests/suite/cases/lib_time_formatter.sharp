@@ -1,0 +1,302 @@
+mod main;
+
+import ( testing, std.time )
+
+/**
+ * std.time.date_time_formatter (and date_time_fields): every pattern letter
+ * when formatting, quoted literals, the predefined formatters, parsing with
+ * fixed and variable width fields, names, AM/PM, offsets, redundant fields
+ * that must agree, invalid patterns and text that does not match.
+ */
+
+def fmt(pattern: string, value: date_time): string {
+    return date_time_formatter.of_pattern(pattern).format(value);
+}
+
+def fmt_offset(pattern: string, value: offset_date_time): string {
+    return date_time_formatter.of_pattern(pattern).format(value);
+}
+
+/** 1 when the pattern itself is rejected */
+def bad_pattern(pattern: string): var {
+    try {
+        date_time_formatter.of_pattern(pattern);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+/** 1 when parsing `text` as a date-time with `pattern` throws */
+def rejects(pattern: string, text: string): var {
+    f := date_time_formatter.of_pattern(pattern);
+    try {
+        f.parse_date_time(text);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def rejects_time(pattern: string, text: string): var {
+    f := date_time_formatter.of_pattern(pattern);
+    try {
+        f.parse_time(text);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def parse_date_text(pattern: string, text: string): string {
+    return date_time_formatter.of_pattern(pattern).parse_date(text).to_string()!!;
+}
+
+def parse_time_text(pattern: string, text: string): string {
+    return date_time_formatter.of_pattern(pattern).parse_time(text).to_string()!!;
+}
+
+def parse_dt_text(pattern: string, text: string): string {
+    return date_time_formatter.of_pattern(pattern).parse_date_time(text).to_string()!!;
+}
+
+def main(args: string[]) {
+    // 2024-02-29 was a Thursday, day 60 of the year, in ISO week 9 and quarter 1
+    dt := date_time.of(2024, 2, 29, 13, 5, 9, 250000000);
+    morning := date_time.of(2005, 7, 4, 7, 8, 9);
+
+    // ---- date letters
+    expect_str("yyyy-MM-dd", fmt("yyyy-MM-dd", dt), "2024-02-29");
+    expect_str("dd/MM/yy", fmt("dd/MM/yy", dt), "29/02/24");
+    expect_str("d.M.y", fmt("d.M.y", morning), "4.7.2005");
+    expect_str("dd.MM.yyyy", fmt("dd.MM.yyyy", morning), "04.07.2005");
+    expect_str("yy of 2005", fmt("yy", morning), "05");
+    expect_str("yyyy of year 5", fmt("yyyy", date_time.of(5, 1, 1, 0, 0)), "0005");
+    expect_str("y of year 5", fmt("y", date_time.of(5, 1, 1, 0, 0)), "5");
+    expect_str("yyyy of a negative year", fmt("yyyy", date_time.of(0 - 44, 3, 15, 0, 0)), "-0044");
+    expect_str("yy of 1999", fmt("yy", date_time.of(1999, 1, 1, 0, 0)), "99");
+    expect_str("MMM", fmt("d MMM yyyy", dt), "29 Feb 2024");
+    expect_str("MMMM", fmt("MMMM d, yyyy", dt), "February 29, 2024");
+    expect_str("EEE", fmt("EEE", dt), "Thu");
+    expect_str("E", fmt("E", dt), "Thu");
+    expect_str("EEEE", fmt("EEEE", dt), "Thursday");
+    expect_str("a full English date", fmt("EEEE, MMMM d, yyyy", dt), "Thursday, February 29, 2024");
+    expect_str("e", fmt("e", dt), "4");
+    expect_str("D", fmt("D", dt), "60");
+    expect_str("DDD", fmt("DDD", dt), "060");
+    expect_str("DDD in July", fmt("DDD", morning), "185");
+    expect_str("w", fmt("w", dt), "9");
+    expect_str("ww", fmt("ww", dt), "09");
+    expect_str("YYYY", fmt("YYYY", dt), "2024");
+    expect_str("Q", fmt("Q", dt), "1");
+    expect_str("Q in July", fmt("Q", morning), "3");
+    expect_str("week date of 2021-01-03", fmt("YYYY-'W'ww-e", date_time.of(2021, 1, 3, 0, 0)), "2020-W53-7");
+    expect_str("week date of 2024-12-30", fmt("YYYY-'W'ww-e", date_time.of(2024, 12, 30, 0, 0)), "2025-W01-1");
+
+    // ---- time letters
+    expect_str("HH:mm:ss", fmt("HH:mm:ss", dt), "13:05:09");
+    expect_str("H:m:s", fmt("H:m:s", morning), "7:8:9");
+    expect_str("HH:mm:ss padded", fmt("HH:mm:ss", morning), "07:08:09");
+    expect_str("h:mm a in the afternoon", fmt("h:mm a", dt), "1:05 PM");
+    expect_str("hh:mm a in the morning", fmt("hh:mm a", morning), "07:08 AM");
+    expect_str("midnight is 12 AM", fmt("h a", date_time.of(2024, 1, 1, 0, 0)), "12 AM");
+    expect_str("noon is 12 PM", fmt("h a", date_time.of(2024, 1, 1, 12, 0)), "12 PM");
+    expect_str("23:59 is 11 PM", fmt("h:mm a", date_time.of(2024, 1, 1, 23, 59)), "11:59 PM");
+    expect_str("SSS", fmt("HH:mm:ss.SSS", dt), "13:05:09.250");
+    expect_str("S", fmt("S", dt), "2");
+    expect_str("SS", fmt("SS", dt), "25");
+    expect_str("SSSSSS", fmt("SSSSSS", dt), "250000");
+    expect_str("SSSSSSSSS", fmt("SSSSSSSSS", date_time.of(2024, 1, 1, 0, 0, 0, 123456789)), "123456789");
+    expect_str("SSS with no fraction", fmt("SSS", morning), "000");
+    expect_str("n", fmt("n", dt), "250000000");
+    expect_str("n of zero", fmt("n", morning), "0");
+
+    // ---- literals
+    expect_str("quoted text", fmt("yyyy-MM-dd'T'HH:mm:ss", dt), "2024-02-29T13:05:09");
+    expect_str("a quoted word", fmt("'at' HH 'h'", dt), "at 13 h");
+    expect_str("two quotes are one quote", fmt("hh 'o''clock' a", dt), "01 o'clock PM");
+    expect_str("two quotes outside quotes", fmt("yy''MM", dt), "24'02");
+    expect_str("punctuation needs no quotes", fmt("[yyyy/MM/dd] (HH.mm)", dt), "[2024/02/29] (13.05)");
+    expect_str("digits are literal", fmt("yyyy 00 MM", dt), "2024 00 02");
+    expect_str("letters inside quotes are not pattern letters", fmt("'yyyy' yyyy", dt), "yyyy 2024");
+    expect_str("a pattern with no letters", fmt("--", dt), "--");
+    expect_str("an empty pattern", fmt("", dt), "");
+    expect_str("basic format", fmt("yyyyMMdd'T'HHmmss", dt), "20240229T130509");
+
+    // ---- offsets
+    plus2 := offset_date_time.of(dt, zone_offset.of_hours(2));
+    at_utc := offset_date_time.of(dt, zone_offset.utc);
+    india := offset_date_time.of(dt, zone_offset.of_hours_minutes(5, 30));
+    west := offset_date_time.of(dt, zone_offset.of_hours(0 - 8));
+    expect_str("X", fmt_offset("X", plus2), "+02");
+    expect_str("XX", fmt_offset("XX", plus2), "+0200");
+    expect_str("XXX", fmt_offset("XXX", plus2), "+02:00");
+    expect_str("Z", fmt_offset("Z", plus2), "+0200");
+    expect_str("x", fmt_offset("x", plus2), "+02");
+    expect_str("xxx", fmt_offset("xxx", plus2), "+02:00");
+    expect_str("X at UTC", fmt_offset("X", at_utc), "Z");
+    expect_str("XX at UTC", fmt_offset("XX", at_utc), "Z");
+    expect_str("XXX at UTC", fmt_offset("XXX", at_utc), "Z");
+    expect_str("x at UTC", fmt_offset("x", at_utc), "+00");
+    expect_str("xx at UTC", fmt_offset("xx", at_utc), "+0000");
+    expect_str("xxx at UTC", fmt_offset("xxx", at_utc), "+00:00");
+    expect_str("Z at UTC", fmt_offset("Z", at_utc), "+0000");
+    expect_str("X with minutes", fmt_offset("X", india), "+0530");
+    expect_str("XXX with minutes", fmt_offset("XXX", india), "+05:30");
+    expect_str("XXX west of UTC", fmt_offset("XXX", west), "-08:00");
+    expect_str("X west of UTC", fmt_offset("X", west), "-08");
+    expect_str("a full timestamp", fmt_offset("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", plus2), "2024-02-29T13:05:09.250+02:00");
+
+    // ---- the other value types
+    f := date_time_formatter.of_pattern("EEE d MMM yyyy");
+    expect_str("format(date)", f.format(date.of(2000, 1, 1)), "Sat 1 Jan 2000");
+    expect_str("format(time_of_day)", date_time_formatter.of_pattern("h:mm a").format(time_of_day.of(18, 30)), "6:30 PM");
+    expect_str("format(instant) is UTC", date_time_formatter.of_pattern("yyyy-MM-dd HH:mm:ss X").format(instant.of_epoch_second(1709211600)), "2024-02-29 13:00:00 Z");
+    expect_str("pattern()", f.pattern(), "EEE d MMM yyyy");
+    expect_str("to_string is the pattern", f.to_string()!!, "EEE d MMM yyyy");
+    expect_str("a formatter can be reused", f.format(date.of(1970, 1, 1)), "Thu 1 Jan 1970");
+
+    // ---- predefined formatters
+    expect_str("iso_date", date_time_formatter.iso_date().format(dt), "2024-02-29");
+    expect_str("iso_time", date_time_formatter.iso_time().format(dt), "13:05:09");
+    expect_str("iso_date_time", date_time_formatter.iso_date_time().format(dt), "2024-02-29T13:05:09");
+    expect_str("iso_offset_date_time", date_time_formatter.iso_offset_date_time().format(plus2), "2024-02-29T13:05:09+02:00");
+    expect_str("iso_offset_date_time at UTC", date_time_formatter.iso_offset_date_time().format(at_utc), "2024-02-29T13:05:09Z");
+    expect_str("iso_offset_date_time_millis", date_time_formatter.iso_offset_date_time_millis().format(at_utc), "2024-02-29T13:05:09.250Z");
+    expect_str("basic_iso_date", date_time_formatter.basic_iso_date().format(dt), "20240229");
+    expect_str("iso_ordinal_date", date_time_formatter.iso_ordinal_date().format(dt), "2024-060");
+    expect_str("iso_week_date", date_time_formatter.iso_week_date().format(dt), "2024-W09-4");
+    expect_str("rfc_1123", date_time_formatter.rfc_1123().format(instant.of_epoch_second(1709211600)), "Thu, 29 Feb 2024 13:00:00 GMT");
+    expect_str("rfc_1123 of the epoch", date_time_formatter.rfc_1123().format(instant.epoch), "Thu, 1 Jan 1970 00:00:00 GMT");
+
+    // ---- a value that lacks what the pattern asks for
+    caught : var = 0;
+    try { date_time_formatter.of_pattern("yyyy HH").format(date.of(2024, 1, 1)); } catch(e: date_time_exception) { caught = 1; }
+    expect("a time letter with a date throws", caught, 1);
+    caught = 0;
+    try { date_time_formatter.of_pattern("HH:mm dd").format(time_of_day.noon); } catch(e: date_time_exception) { caught = 1; }
+    expect("a date letter with a time throws", caught, 1);
+    caught = 0;
+    try { date_time_formatter.of_pattern("HH:mm XXX").format(dt); } catch(e: date_time_exception) { caught = 1; }
+    expect("an offset letter with a date_time throws", caught, 1);
+
+    // ---- invalid patterns
+    expect_true("an unknown letter", bad_pattern("yyyy-MM-dd q"));
+    expect_true("an unquoted word", bad_pattern("yyyy at HH"));
+    expect_true("too many d", bad_pattern("ddd"));
+    expect_true("too many M", bad_pattern("MMMMM"));
+    expect_true("too many H", bad_pattern("HHH"));
+    expect_true("too many S", bad_pattern("SSSSSSSSSS"));
+    expect_true("too many a", bad_pattern("aa"));
+    expect_true("a quote that is not closed", bad_pattern("yyyy 'T"));
+    expect_false("a quoted unknown letter is fine", bad_pattern("yyyy 'q'"));
+    try {
+        date_time_formatter.of_pattern("yyyy-MM-dd q");
+        fail("message", "no exception");
+    } catch(e: date_time_exception) {
+        expect_str("message", e.get_message(), "invalid pattern \"yyyy-MM-dd q\": unknown pattern letter 'q' (put literal text in single quotes) at index 11");
+    }
+
+    // ---- parsing dates
+    expect_str("parse yyyy-MM-dd", parse_date_text("yyyy-MM-dd", "2024-02-29"), "2024-02-29");
+    expect_str("parse without separators", parse_date_text("yyyyMMdd", "20240229"), "2024-02-29");
+    expect_str("parse dd/MM/yyyy", parse_date_text("dd/MM/yyyy", "09/03/2024"), "2024-03-09");
+    expect_str("parse one-letter fields, one digit", parse_date_text("d/M/yyyy", "9/3/2024"), "2024-03-09");
+    expect_str("parse one-letter fields, two digits", parse_date_text("d/M/yyyy", "29/12/2024"), "2024-12-29");
+    expect_str("parse yy as 20yy", parse_date_text("dd.MM.yy", "29.02.24"), "2024-02-29");
+    expect_str("parse y with any number of digits", parse_date_text("y-M-d", "987-6-5"), "0987-06-05");
+    expect_str("parse a negative year", parse_date_text("yyyy-MM-dd", "-0044-03-15"), "-0044-03-15");
+    expect_str("parse MMM", parse_date_text("d MMM yyyy", "29 Feb 2024"), "2024-02-29");
+    expect_str("parse MMM in lower case", parse_date_text("d MMM yyyy", "29 feb 2024"), "2024-02-29");
+    expect_str("parse MMMM", parse_date_text("MMMM d, yyyy", "February 29, 2024"), "2024-02-29");
+    expect_str("parse March and May apart", parse_date_text("MMMM d, yyyy", "May 1, 2024"), "2024-05-01");
+    expect_str("parse a date with its weekday", parse_date_text("EEEE, MMMM d, yyyy", "Thursday, February 29, 2024"), "2024-02-29");
+    expect_str("parse EEE", parse_date_text("EEE d MMM yyyy", "Sat 1 Jan 2000"), "2000-01-01");
+    expect_str("parse an ordinal date", parse_date_text("yyyy-DDD", "2024-060"), "2024-02-29");
+    expect_str("parse an ordinal date, last day", parse_date_text("yyyy-DDD", "2023-365"), "2023-12-31");
+    expect_str("parse with the predefined iso_date", date_time_formatter.iso_date().parse_date("2000-01-01").to_string()!!, "2000-01-01");
+    expect_str("parse with basic_iso_date", date_time_formatter.basic_iso_date().parse_date("19991231").to_string()!!, "1999-12-31");
+    expect_str("parse a quarter that agrees", parse_date_text("yyyy-MM-dd 'Q'Q", "2024-02-29 Q1"), "2024-02-29");
+    expect_str("parse a week that agrees", parse_date_text("yyyy-MM-dd 'W'ww", "2024-02-29 W09"), "2024-02-29");
+
+    // ---- parsing times
+    expect_str("parse HH:mm", parse_time_text("HH:mm", "13:05"), "13:05:00");
+    expect_str("parse HH:mm:ss", parse_time_text("HH:mm:ss", "13:05:09"), "13:05:09");
+    expect_str("parse H:m:s", parse_time_text("H:m:s", "7:8:9"), "07:08:09");
+    expect_str("parse without separators", parse_time_text("HHmmss", "130509"), "13:05:09");
+    expect_str("parse SSS", parse_time_text("HH:mm:ss.SSS", "13:05:09.250"), "13:05:09.250");
+    expect_str("parse S", parse_time_text("HH:mm:ss.S", "13:05:09.5"), "13:05:09.500");
+    expect_str("parse nine fraction digits", parse_time_text("HH:mm:ss.SSSSSSSSS", "00:00:00.000000001"), "00:00:00.000000001");
+    expect_str("parse h:mm a, PM", parse_time_text("h:mm a", "1:05 PM"), "13:05:00");
+    expect_str("parse h:mm a, AM", parse_time_text("h:mm a", "7:08 AM"), "07:08:00");
+    expect_str("parse 12 AM is midnight", parse_time_text("h:mm a", "12:00 AM"), "00:00:00");
+    expect_str("parse 12 PM is noon", parse_time_text("h:mm a", "12:30 PM"), "12:30:00");
+    expect_str("parse am in lower case", parse_time_text("hh:mm a", "11:59 pm"), "23:59:00");
+    expect_str("parse with iso_time", date_time_formatter.iso_time().parse_time("23:59:59").to_string()!!, "23:59:59");
+
+    // ---- parsing date-times, offsets and instants
+    expect_str("parse a date-time", parse_dt_text("yyyy-MM-dd HH:mm:ss", "2024-02-29 13:05:09"), "2024-02-29T13:05:09");
+    expect_str("parse a quoted T", parse_dt_text("yyyy-MM-dd'T'HH:mm", "2024-02-29T13:05"), "2024-02-29T13:05:00");
+    expect_str("a date-only pattern gives midnight", parse_dt_text("yyyy-MM-dd", "2024-02-29"), "2024-02-29T00:00:00");
+    expect_str("parse RFC 1123", date_time_formatter.rfc_1123().parse_date_time("Thu, 29 Feb 2024 13:00:00 GMT").to_string()!!, "2024-02-29T13:00:00");
+    expect_str("parse an English date and time", parse_dt_text("EEEE, MMMM d, yyyy 'at' h:mm a", "Thursday, February 29, 2024 at 1:05 PM"), "2024-02-29T13:05:00");
+    iso := date_time_formatter.iso_offset_date_time();
+    expect("parse an offset date-time", iso.parse_offset_date_time("2024-02-29T15:00:00+02:00").to_epoch_second(), 1709211600);
+    expect("its offset", iso.parse_offset_date_time("2024-02-29T15:00:00+02:00").offset().total_seconds(), 7200);
+    expect("parse Z", iso.parse_instant("2024-02-29T13:00:00Z").epoch_second(), 1709211600);
+    expect("parse a basic offset with Z", date_time_formatter.of_pattern("yyyyMMdd HHmm Z").parse_instant("20240229 0800 -0500").epoch_second(), 1709211600);
+    expect("parse millis and offset", date_time_formatter.iso_offset_date_time_millis().parse_instant("1970-01-01T00:00:01.500Z").to_epoch_milli(), 1500);
+
+    // ---- the raw fields
+    fields := date_time_formatter.of_pattern("yyyy-MM-dd").parse("2024-02-29");
+    expect_true("has_date", fields.has_date());
+    expect_false("has_time", fields.has_time());
+    expect("has_offset", fields.has_offset, 0);
+    expect("year field", fields.year, 2024);
+    expect("month field", fields.month_value, 2);
+    expect("day field", fields.day, 29);
+    time_fields := date_time_formatter.of_pattern("HH:mm").parse("13:05");
+    expect_false("a time has no date", time_fields.has_date());
+    expect_true("a time has_time", time_fields.has_time());
+    expect("hour field", time_fields.hour, 13);
+    expect("minute field", time_fields.minute, 5);
+    expect("no second field", time_fields.has_second, 0);
+
+    // ---- round trips: format -> parse gives the value back
+    round := date_time_formatter.of_pattern("EEEE d MMMM yyyy, hh:mm:ss.SSSSSSSSS a");
+    odd := date_time.of(1969, 7, 20, 20, 17, 40, 123456789);
+    expect_str("what it looks like", round.format(odd), "Sunday 20 July 1969, 08:17:40.123456789 PM");
+    expect_true("date_time round trip", round.parse_date_time(round.format(odd)) == odd);
+    expect_true("offset round trip", iso.parse_offset_date_time(iso.format(west)).same_fields(west.plus(duration.of_millis(0 - 250))));
+    expect_true("ordinal round trip", date_time_formatter.iso_ordinal_date().parse_date(date_time_formatter.iso_ordinal_date().format(date.of(2023, 12, 31))) == date.of(2023, 12, 31));
+
+    // ---- text that does not match
+    expect_true("a date that does not exist", rejects("yyyy-MM-dd", "2024-02-30"));
+    expect_true("month 13", rejects("yyyy-MM-dd", "2024-13-01"));
+    expect_true("too few digits for a two-letter field", rejects("yyyy-MM-dd", "2024-2-29"));
+    expect_true("a different separator", rejects("yyyy-MM-dd", "2024/02/29"));
+    expect_true("text after the value", rejects("yyyy-MM-dd", "2024-02-29 extra"));
+    expect_true("text that ends early", rejects("yyyy-MM-dd HH:mm", "2024-02-29"));
+    expect_true("the empty string", rejects("yyyy-MM-dd", ""));
+    expect_true("a name that is not a month", rejects("d MMM yyyy", "29 Foo 2024"));
+    expect_true("the wrong weekday for the date", rejects("EEEE, MMMM d, yyyy", "Friday, February 29, 2024"));
+    expect_true("the wrong quarter for the date", rejects("yyyy-MM-dd 'Q'Q", "2024-02-29 Q2"));
+    expect_true("the wrong week for the date", rejects("yyyy-MM-dd 'W'ww", "2024-02-29 W10"));
+    expect_true("a literal in the wrong case", rejects("yyyy-MM-dd'T'HH:mm", "2024-02-29t13:05"));
+    expect_true("no year in the pattern", rejects("MM-dd", "02-29"));
+    expect_true("hour 24", rejects_time("HH:mm", "24:00"));
+    expect_true("minute 60", rejects_time("HH:mm", "13:60"));
+    expect_true("a 12-hour value without AM/PM", rejects_time("h:mm", "1:05"));
+    expect_true("hour 13 on the 12-hour clock", rejects_time("h:mm a", "13:05 PM"));
+    expect_true("hour 0 on the 12-hour clock", rejects_time("h:mm a", "0:05 AM"));
+    expect_true("neither AM nor PM", rejects_time("h:mm a", "1:05 XM"));
+    expect_true("a time pattern without an hour", rejects_time("mm:ss", "05:09"));
+    caught = 0;
+    try { iso.parse_offset_date_time("2024-02-29T15:00:00"); } catch(e: date_time_exception) { caught = 1; }
+    expect("a missing offset throws", caught, 1);
+    caught = 0;
+    try { date_time_formatter.iso_date().parse("2024-02-29").to_offset_date_time(); } catch(e: date_time_exception) { caught = 1; }
+    expect("to_offset_date_time without an offset field throws", caught, 1);
+
+    finish("lib_time_formatter");
+}

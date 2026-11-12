@@ -1,0 +1,176 @@
+mod std.time;
+
+/**
+ * One of the twelve months of the year, numbered 1 (January) .. 12 (December).
+ *
+ * There are exactly twelve objects, reachable as `month.january` ...
+ * `month.december` or through `month.of(number)`, so two values can be
+ * compared with `==`.
+ *
+ *     m := month.of(2);
+ *     m.name()             // "February"
+ *     m.short_name()       // "Feb"
+ *     m.length(1)          // 29  (in a leap year)
+ *     m.plus(11)           // month.january
+ *     m.quarter()          // 1
+ */
+class month {
+    private static const full_names : string[] = new string[] {
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    };
+    private static const short_names : string[] = new string[] {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+
+    static const january : month = new month(1);
+    static const february : month = new month(2);
+    static const march : month = new month(3);
+    static const april : month = new month(4);
+    static const may : month = new month(5);
+    static const june : month = new month(6);
+    static const july : month = new month(7);
+    static const august : month = new month(8);
+    static const september : month = new month(9);
+    static const october : month = new month(10);
+    static const november : month = new month(11);
+    static const december : month = new month(12);
+
+    /** 1 (January) .. 12 (December) */
+    private number : var = 1;
+
+    private month(n: var) {
+        number = n;
+    }
+
+    /**
+     * The month with number `n`: 1 = January ... 12 = December.
+     * @throws date_time_exception when `n` is not 1 .. 12
+     */
+    static def of(n: var): month {
+        time_math.check_range("month", n, 1, 12);
+        if(n == 1) { return january; }
+        if(n == 2) { return february; }
+        if(n == 3) { return march; }
+        if(n == 4) { return april; }
+        if(n == 5) { return may; }
+        if(n == 6) { return june; }
+        if(n == 7) { return july; }
+        if(n == 8) { return august; }
+        if(n == 9) { return september; }
+        if(n == 10) { return october; }
+        if(n == 11) { return november; }
+        return december;
+    }
+
+    /** all twelve months in order, January first */
+    static def values(): month[] {
+        return new month[] { january, february, march, april, may, june,
+            july, august, september, october, november, december };
+    }
+
+    /**
+     * The month whose full name ("March") or three letter name ("Mar") is
+     * `text`, ignoring upper and lower case.
+     * @throws date_time_exception when it is not the name of a month
+     */
+    static def parse(text: string): month {
+        r := new time_text_reader(text, "month");
+        index : var = r.accept_word(full_names);
+        if(index < 0) {
+            index = r.accept_word(short_names);
+        }
+        if(index < 0) {
+            throw r.failure("not the name of a month");
+        }
+        r.expect_end();
+        return of(index + 1);
+    }
+
+    /** the number of the month: 1 .. 12 */
+    def value(): var {
+        return number;
+    }
+
+    /** the full English name: "January" .. "December" */
+    def name(): string {
+        return full_names[number - 1];
+    }
+
+    /** the three letter English name: "Jan" .. "Dec" */
+    def short_name(): string {
+        return short_names[number - 1];
+    }
+
+    /**
+     * How many days the month has: 31, 30, or for February 28 - or 29 when
+     * `leap_year` is not 0.
+     */
+    def length(leap_year: var): var {
+        if(number == 2) {
+            if(leap_year) {
+                return 29;
+            }
+            return 28;
+        }
+        if(number == 4 || number == 6 || number == 9 || number == 11) {
+            return 30;
+        }
+        return 31;
+    }
+
+    /** the shortest the month can be: 28 for February, otherwise its length */
+    def min_length(): var {
+        return length(0);
+    }
+
+    /** the longest the month can be: 29 for February, otherwise its length */
+    def max_length(): var {
+        return length(1);
+    }
+
+    /**
+     * The day of the year (1 .. 366) on which this month starts:
+     * 1 for January, 32 for February, 60 or (leap year) 61 for March ...
+     */
+    def first_day_of_year(leap_year: var): var {
+        day : var = 1;
+        for(m : var = 1; m < number; m++) {
+            day += of(m).length(leap_year);
+        }
+        return day;
+    }
+
+    /** the quarter of the year the month is in: 1 (Jan-Mar) .. 4 (Oct-Dec) */
+    def quarter(): var {
+        return time_math.trunc_div(number - 1, 3) + 1;
+    }
+
+    /**
+     * The month `months` months later; negative numbers go back. The year
+     * wraps around: december.plus(1) is january.
+     */
+    def plus(months: var): month {
+        return of(time_math.floor_mod(number - 1 + months, 12) + 1);
+    }
+
+    /** the month `months` months earlier (see `plus`) */
+    def minus(months: var): month {
+        return plus(0 - months);
+    }
+
+    /** the full name, as `name()` */
+    override def to_string(): string? {
+        return name();
+    }
+
+    /** the full names, January first (used by the formatter) */
+    static def names(): string[] {
+        return full_names;
+    }
+
+    /** the three letter names, January first (used by the formatter) */
+    static def abbreviations(): string[] {
+        return short_names;
+    }
+}

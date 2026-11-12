@@ -1,0 +1,24 @@
+mod std.time;
+
+/**
+ * Something that knows what time it is.
+ *
+ * Code that needs the current time should ask a `clock` it was given instead
+ * of calling instant.now() directly. In the program the clock is
+ * `system_clock.instance`; in a test it is a `manual_clock` or `fixed_clock`
+ * that the test sets and advances, so the test gives the same result every
+ * time and never has to wait.
+ *
+ *     def is_expired(c: clock, expires: instant): var {
+ *         return c.now() >= expires;
+ *     }
+ *
+ * `stopwatch`, `deadline`, `rate_limiter` and `interval_timer` all take their
+ * time from a clock for exactly this reason.
+ *
+ * Implementations: system_clock, fixed_clock, manual_clock, offset_clock.
+ */
+interface clock {
+    /** the current moment according to this clock */
+    def now(): instant;
+}

@@ -1,0 +1,604 @@
+mod std.time;
+
+/**
+ * A calendar date without a time of day and without a time zone:
+ * year, month and day, e.g. 2024-02-29.
+ *
+ * The calendar is the PROLEPTIC GREGORIAN calendar (ISO-8601): today's leap
+ * year rule is applied to every year, also to years before the calendar was
+ * introduced in 1582, and there is a year 0 (which is 1 BC) and negative
+ * years. Years from -999,999 to 999,999 are supported.
+ *
+ * Dates are immutable: every "plus", "minus" or "with" returns a new date.
+ *
+ * Epoch days
+ * ----------
+ * Much of the arithmetic works on the EPOCH DAY: the number of days since
+ * 1970-01-01, which is day 0 (1969-12-31 is -1, 2000-01-01 is 10957). The
+ * conversions between year/month/day and the epoch day are Howard Hinnant's
+ * `days_from_civil` and `civil_from_days`
+ * (http://howardhinnant.github.io/date_algorithms.html). They are exact
+ * whole-number formulas with no loops and no tables, valid for every year
+ * in the supported range.
+ *
+ *     d := date.of(2024, 2, 29);
+ *     d.day_of_week()              // day_of_week.thursday
+ *     d.plus_years(1)              // 2025-02-28   (clamped to the end of the month)
+ *     d.plus_days(1).to_string()   // "2024-03-01"
+ *     d.to_epoch_day()             // 19782
+ *     date.parse("2000-01-01") < d // 1
+ */
+class date {
+    static const min_year : var = 0 - 999999;
+    static const max_year : var = 999999;
+
+    /** 1970-01-01, epoch day 0 */
+    static const epoch : date = new date(1970, 1, 1);
+
+    private y : var = 1970;
+    private m : var = 1;
+    private d : var = 1;
+
+    /** use date.of(...); the constructor does not validate */
+    private date(year: var, month_number: var, day: var) {
+        y = year;
+        m = month_number;
+        d = day;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * The date with the given year, month (1-12) and day of the month.
+     *
+     * @throws date_time_exception when the year is outside -999,999 .. 999,999,
+     *         the month is not 1 .. 12, or the day does not exist in that
+     *         month (31 April, 29 February in a year that is not a leap year)
+     */
+    static def of(year: var, month_number: var, day: var): date {
+        time_math.check_range("year", year, min_year, max_year);
+        time_math.check_range("month", month_number, 1, 12);
+        longest : var = days_in_month(year, month_number);
+        if(day < 1 || day > longest || !time_math.is_whole(day)) {
+            w := new time_text_writer();
+            w.put_text("day ").put_text(time_math.number_text(day)).put_text(" is not valid for ");
+            write_year(w, year);
+            w.put('-').put_padded(month_number, 2).put_text(" (1 to ").put_number(longest).put(41);
+            throw new date_time_exception(w.text());
+        }
+        return new date(year, month_number, day);
+    }
+
+    /** as of(year, number, day) with the month given as a `month` object: date.of_month(2024, month.february, 29) */
+    static def of_month(year: var, in_month: month, day: var): date {
+        return of(year, in_month.value(), day);
+    }
+
+    /**
+     * The date that is `epoch_day` days after 1970-01-01 (before, when
+     * negative).
+     *
+     * Algorithm: Howard Hinnant's civil_from_days. The calendar repeats every
+     * 400 years = 146,097 days (an "era"). Shifting the day count by 719,468
+     * makes day 0 the 1st of March of year 0, so that the leap day is the
+     * LAST day of the (March-based) year and needs no special case:
+     *
+     *     z   = epoch_day + 719468
+     *     era = floor(z / 146097)
+     *     doe = z - era * 146097                                  day of era   0 .. 146096
+     *     yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365   year of era  0 .. 399
+     *     doy = doe - (365*yoe + yoe/4 - yoe/100)                 day of the March-based year 0 .. 365
+     *     mp  = (5*doy + 2) / 153                                 month, 0 = March .. 11 = February
+     *     day = doy - (153*mp + 2)/5 + 1
+     *     month = mp < 10 ? mp + 3 : mp - 9
+     *     year  = yoe + era*400, plus 1 when month is January or February
+     * (every division drops its fraction)
+     *
+     * @throws date_time_exception when the result is outside the supported years
+     */
+    static def of_epoch_day(epoch_day: var): date {
+        time_math.check_whole("epoch day", epoch_day);
+        z : var = epoch_day + 719468;
+        era : var = time_math.floor_div(z, 146097);
+        doe : var = z - era * 146097;
+        yoe : var = time_math.trunc_div(doe - time_math.trunc_div(doe, 1460) + time_math.trunc_div(doe, 36524)
+            - time_math.trunc_div(doe, 146096), 365);
+        doy : var = doe - (365 * yoe + time_math.trunc_div(yoe, 4) - time_math.trunc_div(yoe, 100));
+        mp : var = time_math.trunc_div(5 * doy + 2, 153);
+        day : var = doy - time_math.trunc_div(153 * mp + 2, 5) + 1;
+        month_number : var = mp + 3;
+        if(mp >= 10) {
+            month_number = mp - 9;
+        }
+        year : var = yoe + era * 400;
+        if(month_number <= 2) {
+            year += 1;
+        }
+        time_math.check_range("year", year, min_year, max_year);
+        return new date(year, month_number, day);
+    }
+
+    /**
+     * The date that is day number `day_of_year` of `year`: 1 is 1 January,
+     * 32 is 1 February, 365 or 366 is 31 December.
+     *
+     * @throws date_time_exception when the day is not 1 .. 365 (366 in a leap year)
+     */
+    static def of_year_day(year: var, day_of_year: var): date {
+        time_math.check_range("year", year, min_year, max_year);
+        time_math.check_range("day of year", day_of_year, 1, days_in_year(year));
+        return of(year, 1, 1).plus_days(day_of_year - 1);
+    }
+
+    /** today's date in UTC, read from the system clock */
+    static def today(): date {
+        return today(system_clock.instance, zone_offset.utc);
+    }
+
+    /** the date it is at `offset` from UTC according to `source` (a clock a test can control) */
+    static def today(source: clock, offset: zone_offset): date {
+        return date_time.of_instant(source.now(), offset).to_date();
+    }
+
+    // ------------------------------------------------------------------
+    //  calendar rules
+    // ------------------------------------------------------------------
+
+    /**
+     * 1 when `year` is a leap year (has a 29 February). Gregorian rule:
+     * divisible by 4, except the century years, unless divisible by 400.
+     * 2024 and 2000 are leap years; 2023, 1900 and 2100 are not.
+     */
+    static def is_leap_year(year: var): var {
+        if(time_math.floor_mod(year, 4) != 0) {
+            return 0;
+        }
+        if(time_math.floor_mod(year, 100) != 0) {
+            return 1;
+        }
+        return time_math.floor_mod(year, 400) == 0;
+    }
+
+    /**
+     * How many days month `month_number` (1-12) of `year` has: 28 .. 31.
+     * @throws date_time_exception when the month is not 1 .. 12
+     */
+    static def days_in_month(year: var, month_number: var): var {
+        return month.of(month_number).length(is_leap_year(year));
+    }
+
+    /** 366 for a leap year, otherwise 365 */
+    static def days_in_year(year: var): var {
+        if(is_leap_year(year)) {
+            return 366;
+        }
+        return 365;
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /** the year, e.g. 2024 (0 is 1 BC, negative years are earlier) */
+    def year(): var { return y; }
+
+    /** the month as a number: 1 (January) .. 12 (December) */
+    def month_value(): var { return m; }
+
+    /** the month as a `month` object (for its name, length ...) */
+    def month_of_year(): month { return month.of(m); }
+
+    /** the day of the month: 1 .. 31 */
+    def day(): var { return d; }
+
+    /**
+     * The day of the week. 1970-01-01 (epoch day 0) was a Thursday, so the
+     * ISO number is floor_mod(epoch_day + 3, 7) + 1.
+     */
+    def day_of_week(): day_of_week {
+        return day_of_week.of(time_math.floor_mod(to_epoch_day() + 3, 7) + 1);
+    }
+
+    /** the day of the year: 1 (1 January) .. 365, or 366 in a leap year */
+    def day_of_year(): var {
+        return month.of(m).first_day_of_year(is_leap_year(y)) + d - 1;
+    }
+
+    /** the quarter of the year: 1 (January-March) .. 4 (October-December) */
+    def quarter(): var {
+        return time_math.trunc_div(m - 1, 3) + 1;
+    }
+
+    /** 1 when this date's year is a leap year */
+    def is_leap_year(): var { return is_leap_year(y); }
+
+    /** how many days this date's month has: 28 .. 31 */
+    def length_of_month(): var { return days_in_month(y, m); }
+
+    /** how many days this date's year has: 365 or 366 */
+    def length_of_year(): var { return days_in_year(y); }
+
+    /**
+     * The ISO-8601 week number: 1 .. 53.
+     *
+     * ISO weeks start on Monday, and week 1 is the week that contains the
+     * first Thursday of the year (equivalently: the week with 4 January).
+     * The first days of January can therefore belong to week 52 or 53 of the
+     * year before, and the last days of December to week 1 of the next year;
+     * `iso_week_year()` tells which year the week belongs to.
+     *
+     * Formula: week = floor((day_of_year - weekday + 10) / 7) with weekday
+     * 1 = Monday .. 7 = Sunday. A result of 0 means the last week of the
+     * previous year; a result of 53 in a year that has only 52 weeks means
+     * week 1 of the next year.
+     *
+     *     2021-01-03 -> week 53 (of 2020)      2024-12-30 -> week 1 (of 2025)
+     */
+    def iso_week(): var {
+        week : var = time_math.floor_div(day_of_year() - day_of_week().value() + 10, 7);
+        if(week < 1) {
+            return iso_weeks_in_year(y - 1);
+        }
+        if(week > iso_weeks_in_year(y)) {
+            return 1;
+        }
+        return week;
+    }
+
+    /** the year the ISO week of this date belongs to (see `iso_week`): the year, or one before/after it */
+    def iso_week_year(): var {
+        week : var = time_math.floor_div(day_of_year() - day_of_week().value() + 10, 7);
+        if(week < 1) {
+            return y - 1;
+        }
+        if(week > iso_weeks_in_year(y)) {
+            return y + 1;
+        }
+        return y;
+    }
+
+    /**
+     * How many ISO weeks `year` has: 53 when 1 January is a Thursday, or a
+     * Wednesday in a leap year; otherwise 52.
+     */
+    static def iso_weeks_in_year(year: var): var {
+        first : var = new date(year, 1, 1).day_of_week().value();
+        if(first == 4 || (first == 3 && is_leap_year(year))) {
+            return 53;
+        }
+        return 52;
+    }
+
+    // ------------------------------------------------------------------
+    //  epoch day
+    // ------------------------------------------------------------------
+
+    /**
+     * The number of days from 1970-01-01 to this date (negative before it).
+     *
+     * Algorithm: Howard Hinnant's days_from_civil. The year is made to start
+     * in March so the leap day comes last:
+     *
+     *     y   = year, minus 1 when month is January or February
+     *     era = floor(y / 400)
+     *     yoe = y - era * 400                                    year of era 0 .. 399
+     *     doy = (153 * (month > 2 ? month - 3 : month + 9) + 2) / 5 + day - 1
+     *     doe = yoe*365 + yoe/4 - yoe/100 + doy                  day of era 0 .. 146096
+     *     result = era * 146097 + doe - 719468
+     * (every division drops its fraction; 719468 is the number of days from
+     * 0000-03-01 to 1970-01-01)
+     */
+    def to_epoch_day(): var {
+        yy : var = y;
+        if(m <= 2) {
+            yy -= 1;
+        }
+        era : var = time_math.floor_div(yy, 400);
+        yoe : var = yy - era * 400;
+        mp : var = m - 3;
+        if(m <= 2) {
+            mp = m + 9;
+        }
+        doy : var = time_math.trunc_div(153 * mp + 2, 5) + d - 1;
+        doe : var = yoe * 365 + time_math.trunc_div(yoe, 4) - time_math.trunc_div(yoe, 100) + doy;
+        return era * 146097 + doe - 719468;
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic (each returns a new date)
+    // ------------------------------------------------------------------
+
+    /**
+     * The date `days` days later (earlier when negative).
+     * @throws date_time_exception when the result leaves the supported years
+     */
+    def plus_days(days: var): date {
+        if(days == 0) {
+            return self;
+        }
+        time_math.check_whole("days", days);
+        return of_epoch_day(to_epoch_day() + days);
+    }
+
+    /** the date `weeks` weeks (7 days each) later */
+    def plus_weeks(weeks: var): date {
+        time_math.check_whole("weeks", weeks);
+        return plus_days(weeks * 7);
+    }
+
+    /**
+     * The date `months` months later (earlier when negative). The day of the
+     * month is kept when it exists in the new month, otherwise it is clamped
+     * to that month's last day: 31 January + 1 month is 28 (or 29) February.
+     *
+     * @throws date_time_exception when the result leaves the supported years
+     */
+    def plus_months(months: var): date {
+        if(months == 0) {
+            return self;
+        }
+        time_math.check_whole("months", months);
+        // count months from year 0 so one division gives the new year and month
+        total : var = y * 12 + (m - 1) + months;
+        new_year : var = time_math.floor_div(total, 12);
+        new_month : var = time_math.floor_mod(total, 12) + 1;
+        return clamped(new_year, new_month, d);
+    }
+
+    /**
+     * The date `years` years later (earlier when negative). 29 February
+     * becomes 28 February when the new year is not a leap year.
+     *
+     * @throws date_time_exception when the result leaves the supported years
+     */
+    def plus_years(years: var): date {
+        if(years == 0) {
+            return self;
+        }
+        time_math.check_whole("years", years);
+        return clamped(y + years, m, d);
+    }
+
+    def minus_days(days: var): date { return plus_days(0 - days); }
+    def minus_weeks(weeks: var): date { return plus_weeks(0 - weeks); }
+    def minus_months(months: var): date { return plus_months(0 - months); }
+    def minus_years(years: var): date { return plus_years(0 - years); }
+
+    /**
+     * This date plus a period: first the years and months are added together
+     * (with end-of-month clamping), then the days - the order java.time uses.
+     */
+    def plus(amount: period): date {
+        return plus_months(amount.to_total_months()).plus_days(amount.days());
+    }
+
+    /** this date minus a period: years and months first, then days */
+    def minus(amount: period): date {
+        return plus_months(0 - amount.to_total_months()).plus_days(0 - amount.days());
+    }
+
+    /** year/month with the day clamped to the length of that month */
+    private static def clamped(year: var, month_number: var, day: var): date {
+        time_math.check_range("year", year, min_year, max_year);
+        longest : var = days_in_month(year, month_number);
+        if(day > longest) {
+            day = longest;
+        }
+        return new date(year, month_number, day);
+    }
+
+    /**
+     * The number of days from this date to `other`: positive when `other` is
+     * later. date.of(2024, 1, 1).days_until(date.of(2024, 3, 1)) is 60.
+     */
+    def days_until(other: date): var {
+        return other.to_epoch_day() - to_epoch_day();
+    }
+
+    /** the years, months and days from this date to `other` - see period.between */
+    def until(other: date): period {
+        return period.between(self, other);
+    }
+
+    // ------------------------------------------------------------------
+    //  changing one field (each returns a new date)
+    // ------------------------------------------------------------------
+
+    /** the same month and day in another year; 29 February is clamped to 28 when needed */
+    def with_year(year: var): date {
+        return clamped(year, m, d);
+    }
+
+    /**
+     * The same year and day in another month (1-12); the day is clamped to
+     * the length of that month.
+     * @throws date_time_exception when the month is not 1 .. 12
+     */
+    def with_month(month_number: var): date {
+        time_math.check_range("month", month_number, 1, 12);
+        return clamped(y, month_number, d);
+    }
+
+    /**
+     * The same year and month with another day of the month.
+     * @throws date_time_exception when that day does not exist in the month
+     */
+    def with_day(day: var): date {
+        return of(y, m, day);
+    }
+
+    /**
+     * The same year with another day of the year (1 .. 365/366).
+     * @throws date_time_exception when the day is out of range for the year
+     */
+    def with_day_of_year(day_of_year: var): date {
+        return of_year_day(y, day_of_year);
+    }
+
+    /** the 1st of this date's month */
+    def first_day_of_month(): date { return new date(y, m, 1); }
+
+    /** the last day of this date's month (28, 29, 30 or 31) */
+    def last_day_of_month(): date { return new date(y, m, length_of_month()); }
+
+    /** 1 January of this date's year */
+    def first_day_of_year(): date { return new date(y, 1, 1); }
+
+    /** 31 December of this date's year */
+    def last_day_of_year(): date { return new date(y, 12, 31); }
+
+    /** the first date AFTER this one that falls on `target` (never this date itself) */
+    def next(target: day_of_week): date {
+        ahead : var = day_of_week().days_until(target);
+        if(ahead == 0) {
+            ahead = 7;
+        }
+        return plus_days(ahead);
+    }
+
+    /** this date when it falls on `target`, otherwise the first date after it that does */
+    def next_or_same(target: day_of_week): date {
+        return plus_days(day_of_week().days_until(target));
+    }
+
+    /** the last date BEFORE this one that falls on `target` (never this date itself) */
+    def previous(target: day_of_week): date {
+        back : var = target.days_until(day_of_week());
+        if(back == 0) {
+            back = 7;
+        }
+        return plus_days(0 - back);
+    }
+
+    /** this date when it falls on `target`, otherwise the last date before it that does */
+    def previous_or_same(target: day_of_week): date {
+        return plus_days(0 - target.days_until(day_of_week()));
+    }
+
+    // ------------------------------------------------------------------
+    //  combining
+    // ------------------------------------------------------------------
+
+    /** this date at the given time of day */
+    def at_time(time_part: time_of_day): date_time {
+        return date_time.of(self, time_part);
+    }
+
+    /**
+     * This date at hour:minute:second.
+     * @throws date_time_exception when a field is out of range
+     */
+    def at_time(hour: var, minute: var, second: var): date_time {
+        return date_time.of(self, time_of_day.of(hour, minute, second));
+    }
+
+    /** this date at 00:00:00 */
+    def at_start_of_day(): date_time {
+        return date_time.of(self, time_of_day.midnight);
+    }
+
+    // ------------------------------------------------------------------
+    //  comparing
+    // ------------------------------------------------------------------
+
+    /** -1 when this date is before `other`, 0 when it is the same day, 1 when after */
+    def compare_to(other: date): var {
+        if(y != other.y) { return time_math.compare(y, other.y); }
+        if(m != other.m) { return time_math.compare(m, other.m); }
+        return time_math.compare(d, other.d);
+    }
+
+    def is_before(other: date): var { return compare_to(other) < 0; }
+    def is_after(other: date): var { return compare_to(other) > 0; }
+
+    def operator==(other: date): var { return y == other.y && m == other.m && d == other.d; }
+    def operator!=(other: date): var { return y != other.y || m != other.m || d != other.d; }
+    def operator<(other: date): var { return compare_to(other) < 0; }
+    def operator<=(other: date): var { return compare_to(other) <= 0; }
+    def operator>(other: date): var { return compare_to(other) > 0; }
+    def operator>=(other: date): var { return compare_to(other) >= 0; }
+
+    /** date + period, as `plus` */
+    def operator+(amount: period): date { return plus(amount); }
+
+    /** date - period, as `minus` */
+    def operator-(amount: period): date { return minus(amount); }
+
+    /** a hash that is the same for equal dates */
+    override def hash(): int {
+        return y * 372 + m * 31 + d;
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * The ISO-8601 form `YYYY-MM-DD`: "2024-02-29", "0033-04-03".
+     * Years outside 0 .. 9999 follow the ISO extended form: more than four
+     * digits get a '+' ("+12345-01-01"), negative years a '-' ("-0044-03-15").
+     */
+    override def to_string(): string? {
+        w := new time_text_writer();
+        write_to(w);
+        return w.text();
+    }
+
+    /** appends the `YYYY-MM-DD` form to `w` (shared with date_time) */
+    def write_to(w: time_text_writer) {
+        write_year(w, y);
+        w.put('-').put_padded(m, 2).put('-').put_padded(d, 2);
+    }
+
+    /** the year the ISO way: at least 4 digits, '+' when more, '-' when negative */
+    static def write_year(w: time_text_writer, year: var) {
+        if(year < 0) {
+            w.put('-').put_padded(0 - year, 4);
+        } else {
+            if(year > 9999) {
+                w.put('+');
+            }
+            w.put_padded(year, 4);
+        }
+    }
+
+    /**
+     * Reads a date in the form `to_string` writes: `YYYY-MM-DD`, with an
+     * optional '+' or '-' before the year (required for years with more than
+     * four digits): "2024-02-29", "-0044-03-15", "+12345-01-01".
+     *
+     * @throws date_time_exception when the text has another shape or names a
+     *         date that does not exist ("2023-02-29")
+     */
+    static def parse(text: string): date {
+        r := new time_text_reader(text, "date");
+        result : date = read_from(r);
+        r.expect_end();
+        return result;
+    }
+
+    /** reads `YYYY-MM-DD` at the cursor of `r` and leaves the cursor after it (shared with date_time) */
+    static def read_from(r: time_text_reader): date {
+        sign : var = 1;
+        signed : var = 0;
+        if(r.accept('-')) {
+            sign = 0 - 1;
+            signed = 1;
+        } else if(r.accept('+')) {
+            signed = 1;
+        }
+        year : var = 0;
+        if(signed) {
+            year = r.read_digits(4, 6);
+        } else {
+            year = r.read_digits(4, 4);
+        }
+        r.expect('-');
+        month_number : var = r.read_digits(2, 2);
+        r.expect('-');
+        day : var = r.read_digits(2, 2);
+        return of(sign * year, month_number, day);
+    }
+}

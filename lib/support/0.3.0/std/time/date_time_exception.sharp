@@ -1,0 +1,19 @@
+mod std.time;
+
+/**
+ * Thrown by every class in std.time when a value is out of range (month 13,
+ * 30 February, hour 24 ...), when text cannot be parsed as a date, time,
+ * duration, period or offset, or when a formatter pattern is not valid.
+ *
+ *     try {
+ *         d := date.of(2023, 2, 29);
+ *     } catch(e: date_time_exception) {
+ *         println(e.get_message());   // "day 29 is not valid for 2023-02 (1-28)"
+ *     }
+ *
+ * It derives directly from `exception`, so `catch(e: exception)` catches it
+ * as well.
+ */
+class date_time_exception base exception {
+    public date_time_exception(message : string?) -> base(message) {}
+}
