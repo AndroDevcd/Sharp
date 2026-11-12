@@ -267,8 +267,12 @@ void validate_function_type(
                 create_new_error(GENERIC, ast, " cannot assign 'nullable' to non nullable type `"
                            + type_to_str(type) + "` as return value to function `" + fun->fullName + "`");
             } else if(hardType && !type.isArray) {
-                create_new_error(GENERIC, ast, " cannot assign non nullable type `"
-                    + type_to_str(type) + "` as return value to function `" + fun->fullName + "`");
+                // An explicitly declared native number (`def f(): var`, `: _int32`, ...)
+                // is returned as the raw number: no object is created. The VM
+                // returns it in the function's slot 0 (RETURNVAL), and the caller
+                // reads it as function_numeric_data.
+                // Only an INFERRED number type (`def f() := x * 2`) is still turned
+                // into its box class below, as before.
             } else if(!type.isArray) {
                 sharp_class *numberClass = nullptr;
                 string stdModule = "std";

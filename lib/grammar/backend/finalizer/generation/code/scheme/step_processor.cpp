@@ -1357,6 +1357,15 @@ void process_return_number(operation_step *step) {
         consume_machine_data(get_register(EBX));
     }
 
+    // A function declared with a sized native return type (`def f(): _int8`)
+    // returns a value of that type, exactly as assigning to a local of that
+    // type would store it:   return (int8_t) value;
+    // (`var` and function pointers are returned as they are.)
+    if(cc.container != NULL && !cc.container->returnType.isArray
+       && cc.container->returnType.type < type_function_ptr) {
+        cast_machine_data(r, cc.container->returnType.type);
+    }
+
     add_instruction(Opcode::Builder::returnValue(r));
     add_instruction(Opcode::Builder::ret(NO_ERR));
 }
