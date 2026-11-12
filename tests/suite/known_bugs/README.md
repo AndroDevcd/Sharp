@@ -79,7 +79,6 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 
 | Bug | File |
 |---|---|
-| A fiber switched out while one function is on its stack twice never continues (hang without the JIT, crash with it): `main_vm_loop` finds a frame by function, not by index. This is why coroutine scope functions cannot be nested directly. | `lib_coroutines_recursive_suspend.sharp` |
 | JIT crash in `return_method()` when two sibling coroutines take turns and one yields twice. | `lib_coroutines_jit_fiber_frames.sharp` |
 | JIT crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). Not reduced to a small program. | - |
 | Deep recursion ends in SIGSEGV instead of a stack overflow exception. | described in `cases/recursion.sharp` |
@@ -101,6 +100,6 @@ Moved into `../cases/` after they started to pass: `threads.sharp` (scheduler
 deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
 `variables_multiple.sharp`, `operators_on_new.sharp`, `casts_of_expressions.sharp`,
 `new_in_condition.sharp`, `foreach_over_new.sharp`, `foreach_inherited_loopable.sharp`,
-`thread_fiber_id.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
+`thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
 `non_null_index*.sharp`, `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
 and the `*_fixes.sharp` files.

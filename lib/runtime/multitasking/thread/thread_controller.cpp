@@ -83,6 +83,11 @@ vm_thread_entry(void *arg)
                 prepare_method(thread->task->main->address);
             }
 
+            // A fiber that already has callers on its stack is being continued:
+            // its frames are rebuilt from the bottom (see next_rebuild_frame()).
+            thread->task->rebuildDepth = 0;
+            thread->task->rebuilding = thread->task->callFramePtr >= 0;
+
             main_vm_loop(thread->task->main);
 
             _unboundExceptionThrown:

@@ -56,6 +56,19 @@ public:
     sharp_function *main;
     Int calls;
     Int callFramePtr;
+
+    // ---- picking a fiber up again after a context switch (virtual_machine.cpp,
+    //      next_rebuild_frame) ----
+    // When a thread continues a fiber, the native side of its call stack has to
+    // be built again from the bottom: every JIT compiled function on the stack
+    // gets its machine frame back. `rebuilding` is true while that walk is
+    // under way and `rebuildDepth` is the call depth it has reached (0 = the
+    // fiber's first function). The walk used to find its place by looking the
+    // current FUNCTION up in the frame list, which finds the first occurrence:
+    // with one function on the stack twice (recursion) it never got past it.
+    Int rebuildDepth = 0;
+    bool rebuilding = false;
+
     recursive_mutex mut;
     sharp_thread* attachedThread;
     sharp_thread* boundThread;

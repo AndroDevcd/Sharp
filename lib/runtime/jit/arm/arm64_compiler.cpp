@@ -596,9 +596,11 @@ bool Arm64Compiler::setupFunctionPrologue() {
     // Load fun->originalFunction (jitFunctionPtr points to jit_compiled_function)
     assembler->ldr(tempReg3, a64::ptr(jitFunctionPtr, offsetof(jit_compiled_function, originalFunction))); // tempReg3 = fun->originalFunction
     
-    // Compare thread->task->current with fun->originalFunction
-    assembler->cmp(tempReg2, tempReg3);
-    assembler->b_eq(skipFrameRebuild);  // Skip if they are equal
+    // Skip unless the fiber's stack is being rebuilt (fiber::rebuilding).
+    // (It used to compare task->current with this function, which is wrong for
+    // a recursive function - see the x64 compiler.)
+    assembler->ldrb(tempReg2.w(), a64::ptr(tempReg1, offsetof(fiber, rebuilding)));
+    assembler->cbz(tempReg2.w(), skipFrameRebuild);
     
     // Call get_next_frame(fun->originalFunction)
     assembler->mov(a64::x0, tempReg3);  // First parameter: fun->originalFunction

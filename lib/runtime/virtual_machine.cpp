@@ -65,8 +65,11 @@ void main_vm_loop(sharp_function *frame)
     long double *regs = registers;
     Int data;
 
-    while(frame != thread_self->task->current) {
-        frame = get_next_frame(frame);
+    // Continuing a fiber after a context switch: walk up its call stack and
+    // give every JIT compiled function its machine frame back. (By call depth,
+    // not by function - see next_rebuild_frame().)
+    while(thread_self->task->rebuilding) {
+        frame = next_rebuild_frame();
         if(frame == nullptr) break;
 
         if(frame->isHighFrequency && frame->jfunc != nullptr) {
@@ -1070,7 +1073,44 @@ int jit_enter_loop(Int targetPc) {
     return 1;
 }
 
+/**
+ * The next function up the call stack of the fiber that is being continued,
+ * or nullptr when the walk is over.
+ *
+ *      frames[d].returnAddress   the function at call depth d, for d <= callFramePtr
+ *      task->current             the function on top (depth callFramePtr + 1)
+ *
+ * The position is kept in the fiber (rebuildDepth), so it does not matter how
+ * often a function appears on the stack. Handing out the top function ends
+ * the walk (rebuilding = false): from there on the code simply runs.
+ *
+ * C++ picture: the call stack as an array walked with an index,
+ *      for(depth = 1; depth <= top; depth++) rebuild(function_at(depth));
+ * instead of "find the frame that belongs to this function" - which, with
+ * f -> f -> f on the stack, finds the first f every time.
+ */
+sharp_function* next_rebuild_frame() {
+    auto task = thread_self->task;
+    if(!task->rebuilding) return nullptr;
+
+    Int depth = ++task->rebuildDepth;
+    if(depth > task->callFramePtr) {
+        task->rebuilding = false;
+        return task->current;
+    }
+
+    return vm.methods + task->frames[depth].returnAddress;
+}
+
+/**
+ * Called by JIT compiled code that finds itself in the middle of the stack of
+ * a fiber that is being continued (`current` is that function; it is not used
+ * to find the place any more).
+ */
 sharp_function* get_next_frame(sharp_function *current) {
+    if(thread_self->task->rebuilding)
+        return next_rebuild_frame();
+
     if(current == nullptr) return nullptr;
 
     // frames[0..callFramePtr] are the only valid entries (one per caller). The

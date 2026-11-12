@@ -92,6 +92,8 @@ void init_struct(fiber *fib) {
     fib->f_lock = NULL;
     fib->calls = 0;
     fib->callFramePtr = -1;
+    fib->rebuildDepth = 0;
+    fib->rebuilding = false;
     fib->current = NULL;
     fib->ptr = NULL;
     fib->readyNext = NULL;

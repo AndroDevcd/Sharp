@@ -605,9 +605,12 @@ bool X64Compiler::setupFunctionPrologue() {
      */
     Label skipFrameRebuild = assembler->newLabel();
 
+    // "Am I in the middle of a stack that is being rebuilt?" is asked with the
+    // fiber's `rebuilding` flag. It used to be `task->current != me`, which is
+    // wrong for a recursive function: with f -> f on the stack the lower f saw
+    // "current is me" and continued at the pc of the upper one.
     loadTask(tmp0);
-    assembler->mov(tmp1, x86::qword_ptr(tmp0, offsetof(fiber, current)));
-    assembler->cmp(tmp1, x86::qword_ptr(jitFunctionPtr, offsetof(jit_compiled_function, originalFunction)));
+    assembler->cmp(x86::byte_ptr(tmp0, offsetof(fiber, rebuilding)), 0);
     assembler->je(skipFrameRebuild);
 
     // frame = get_next_frame(fun->originalFunction)

@@ -102,6 +102,7 @@ bool catch_exception();
 bool return_method();
 void invoke_next_frame(sharp_function *frame, bool isInterpreter);
 sharp_function* get_next_frame(sharp_function *current);
+sharp_function* next_rebuild_frame();
 
 /**
  * a % b as the VM defines it (both sides cut down to whole numbers first).

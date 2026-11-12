@@ -6,7 +6,7 @@ import (
 )
 
 /**
- * KNOWN BUG (runtime): a fiber that is switched out while one function is on
+ * Formerly a known bug (runtime), fixed: a fiber that is switched out while one function is on
  * its call stack more than once never continues. The program hangs with one
  * thread at 100% cpu (interpreter) or crashes (JIT).
  *
