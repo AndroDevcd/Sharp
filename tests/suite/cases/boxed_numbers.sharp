@@ -7,7 +7,7 @@ import ( testing )
  * short, ushort, uint, long, byte and bool.
  *
  * They are OBJECTS ("boxes") that hold one native number in `.value`.
- * `z := 1;` makes an int box; `x : var = 1;` makes a native number.
+ * `z := 1;` makes an int box; `x : decimal = 1;` makes a native number.
  *
  * Three things to keep in mind when reading the checks:
  *   - an operator between two boxes makes a NEW box of the type on the left
@@ -39,7 +39,7 @@ def main(args: string[]) {
     expect("zb := true is a bool box", zb.value, 1);
     zd := 1.5;
     expect("zd := 1.5 keeps the fraction", zd.value, 1.5);
-    plain : var = b.value;
+    plain : decimal = b.value;
     plain++;
     expect("a copy of .value is separate from the box", b.value, 7);
     expect("...the copy changed", plain, 8);
@@ -66,7 +66,7 @@ def main(args: string[]) {
     expect("the operands are unchanged", a.value + b.value, 12);
 
     // ---- a box and a native number
-    ten : var = 10;
+    ten : decimal = 10;
     expect("native - box is a native number", ten - a, 5);
     expect("box + native is a box", (a + ten).value, 15);
     expect(".value in native arithmetic", a.value + 1, 6);
@@ -82,7 +82,7 @@ def main(args: string[]) {
     expect_true("two different boxes with the same value are ==", (a == same_value).value);
 
     // ...and can be used directly as a condition
-    taken : var = 0;
+    taken : decimal = 0;
     if(a < b) { taken = 1; }
     expect("if(box < box)", taken, 1);
     taken = 0;

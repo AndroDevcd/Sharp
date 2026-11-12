@@ -16,15 +16,15 @@ import ( testing )
 
 /* getters that compute their value from another field */
 class thermometer {
-    celsius : var = 20;
+    celsius : decimal = 20;
 
-    fahrenheit : var = 0;
+    fahrenheit : decimal = 0;
         get { return celsius * 9 / 5 + 32; }
 
-    kelvin : var = 0;
+    kelvin : decimal = 0;
         get { return celsius + 273; }
 
-    is_freezing : var = 0;
+    is_freezing : decimal = 0;
         get {
             if(celsius <= 0) {
                 return 1;
@@ -33,7 +33,7 @@ class thermometer {
         }
 
     /* a getter that uses another getter */
-    fahrenheit_doubled : var = 0;
+    fahrenheit_doubled : decimal = 0;
         get { return fahrenheit * 2; }
 
     /* a method of the class reading a property */
@@ -44,38 +44,38 @@ class thermometer {
         return "not freezing";
     }
 
-    def kelvin_plus(extra: var): var {
+    def kelvin_plus(extra: decimal): decimal {
         return kelvin + extra;
     }
 }
 
 /* a getter that changes what is stored, and counts how often it runs */
 class counted {
-    value : var = 5;
+    value : decimal = 5;
         get {
             reads = reads + 1;
             return value * 2;
         }
 
-    reads : var = 0;
+    reads : decimal = 0;
 
-    def read_inside(): var {
+    def read_inside(): decimal {
         return value;
     }
 
-    def read_inside_with_self(): var {
+    def read_inside_with_self(): decimal {
         return self->value;
     }
 
     /* no setter: an assignment stores the value as it is */
-    def store(v: var) {
+    def store(v: decimal) {
         value = v;
     }
 }
 
 /* a setter that checks the value, and counts how often it runs */
 class account {
-    balance : var = 10;
+    balance : decimal = 10;
         set amount -> {
             if(amount < 0) {
                 balance = 0;
@@ -85,9 +85,9 @@ class account {
             changes = changes + 1;
         }
 
-    changes : var = 0;
+    changes : decimal = 0;
 
-    def deposit(amount: var) {
+    def deposit(amount: decimal) {
         balance = balance + amount;
     }
 
@@ -102,12 +102,12 @@ class account {
 
 /* a setter that stores something other than what it was given */
 class scaled {
-    percent : var = 0;
+    percent : decimal = 0;
         set fraction -> { percent = fraction * 100; }
 
-    last_given : var = 0;
+    last_given : decimal = 0;
 
-    doubled : var = 1;
+    doubled : decimal = 1;
         set v -> {
             last_given = v;
             doubled = v * 2;
@@ -133,44 +133,44 @@ class badge {
 
 /* a private setter: only the class itself may assign, and its setter still runs */
 class id_card {
-    number : var = 0;
+    number : decimal = 0;
         private set v -> {
             number = v;
             assigned = assigned + 1;
         }
 
-    assigned : var = 0;
+    assigned : decimal = 0;
 
-    id_card(n: var) {
+    id_card(n: decimal) {
         number = n;
     }
 
-    def renumber(n: var) {
+    def renumber(n: decimal) {
         number = n;
     }
 }
 
 /* a setter that keeps a second field in step, and a getter over an array */
 class series {
-    items : var[]?;
+    items : decimal[]?;
         set new_items -> {
             items = new_items;
             count = sizeof(new_items);
         }
 
-    count : var = 0;
+    count : decimal = 0;
 
-    total : var = 0;
+    total : decimal = 0;
         get {
-            sum : var = 0;
-            for(i : var = 0; i < count; i++) {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < count; i++) {
                 sum += items[i];
             }
             return sum;
         }
 }
 
-def fahrenheit_of(t: thermometer): var {
+def fahrenheit_of(t: thermometer): decimal {
     return t.fahrenheit;
 }
 
@@ -199,7 +199,7 @@ def main(args: string[]) {
     expect("a getter that uses another getter", t.fahrenheit_doubled, 100);
     expect("two getters in one expression", t.kelvin - t.fahrenheit, 233);
     expect("in a comparison", t.fahrenheit > t.celsius, 1);
-    copied : var = t.kelvin;
+    copied : decimal = t.kelvin;
     t.celsius = 50;
     expect("a value read earlier does not change afterwards", copied, 283);
     expect("...the property does", t.kelvin, 323);
@@ -247,7 +247,7 @@ def main(args: string[]) {
     expect("...and ran twice", a.changes, 2);
     a.balance = 75.5;
     expect("a fraction passes through", a.balance, 75.5);
-    amount : var = 40;
+    amount : decimal = 40;
     a.balance = amount * 2 + 1;
     expect("an expression is worked out before the setter gets it", a.balance, 81);
     expect("...ran four times", a.changes, 4);
@@ -300,10 +300,10 @@ def main(args: string[]) {
     list := new series();
     expect("no items yet", list.count, 0);
     expect("getter over no items", list.total, 0);
-    list.items = new var[] { 4, 8, 15, 16, 23, 42 };
+    list.items = new decimal[] { 4, 8, 15, 16, 23, 42 };
     expect("the setter kept the count in step", list.count, 6);
     expect("the getter adds up the array", list.total, 108);
-    list.items = new var[] { 1, 2 };
+    list.items = new decimal[] { 1, 2 };
     expect("a second assignment: count", list.count, 2);
     expect("a second assignment: total", list.total, 3);
 

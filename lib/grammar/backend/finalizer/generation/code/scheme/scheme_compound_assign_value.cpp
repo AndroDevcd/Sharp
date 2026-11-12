@@ -56,14 +56,14 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
     machine_data asignee(cc.machineData);
 
     // `a[i] += v`: the variable is a number array element. Reading it ends with
-    //      popobj2 / chklen adx / iaload ebx, adx
+    //      popobj2 / chklen adx / aload<size> ebx, adx
     // which leaves the array in the object pointer and the index in adx, and
-    // nothing below changes either. So when that `iaload` is the instruction
+    // nothing below changes either. So when that load is the instruction
     // that produced the value, the result is written straight back with
-    //      rmov adx, bmr        ; array[adx] = bmr
+    //      astore<size> adx, bmr        ; array[adx] = bmr
     // The array and the index expression are evaluated once, as in C++.
     bool arrayElement = !cc.instructions.empty()
-                        && cc.instructions.last() == Opcode::Builder::iaload(EBX, ADX);
+                        && is_array_load(cc.instructions.last(), EBX, ADX);
 
     // the element type, for sized arrays (`bytes[i] += 100` wraps like any
     // other store into an _int8): the type recorded on the step that read it
@@ -110,7 +110,7 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
         stepPos++;  // the assign step: done here instead
         if(elementType < type_function_ptr)
             cast_machine_data(BMR, (data_type)elementType);
-        add_instruction(Opcode::Builder::rmov(ADX, BMR));
+        add_instruction(array_store((data_type)elementType, ADX, BMR));
         // (the machine data already says "the value is in bmr": the result of
         //  the statement, like any other compound assignment)
     } else {
@@ -137,7 +137,7 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
 
         add_instruction(Opcode::Builder::movg(closureRef->owner->ci->address));
         add_instruction(Opcode::Builder::movn(closureRef->ci->address));
-        add_instruction(Opcode::Builder::movn(closure->ci->address));
+        move_to_field(closure);
 
         set_machine_data(closure, false);
         pop_machine_data_from_stack();

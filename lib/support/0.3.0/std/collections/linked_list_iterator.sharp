@@ -15,20 +15,20 @@ class linked_list_iterator<T> : iterator<T> {
     /** the node whose element next() returns, null when finished */
     private current : linked_node<T>?;
     /** 1 = walk head -> tail, 0 = walk tail -> head */
-    private forward : var;
+    private forward : decimal;
 
     /**
      * @param start   the node to begin with (the head for a forward walk,
      *                the tail for a backward walk), null for an empty list
      * @param forward 1 to follow the `next` links, 0 to follow `prev`
      */
-    linked_list_iterator(start: linked_node<T>?, forward: var) {
+    linked_list_iterator(start: linked_node<T>?, forward: decimal) {
         current = start;
         self->forward = forward;
     }
 
     /** 1 while there are elements left, otherwise 0. O(1). */
-    override def has_next() : var {
+    override def has_next() : decimal {
         if(current == null) return 0;
         return 1;
     }

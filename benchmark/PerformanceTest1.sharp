@@ -3,18 +3,18 @@ mod app;
 import std;
 
 // classic nbody test
-def main(string[] args) : var {
-    var n = string.parseInt(args[0]);
+def main(string[] args) : decimal {
+    decimal n = string.parseInt(args[0]);
 
     NBodySystem bodies = new NBodySystem();
     println(bodies.energy());
-    for (var i=0; i<n; ++i)
+    for (decimal i=0; i<n; ++i)
        bodies.advance(0.01);
     println(bodies.energy());
 }
 
 public class NBodySystem {
-   private static const var LENGTH = 5;
+   private static const decimal LENGTH = 5;
 
    private Body[] bodies;
 
@@ -27,10 +27,10 @@ public class NBodySystem {
             Body.neptune()
          };
 
-      var px = 0.0;
-      var py = 0.0;
-      var pz = 0.0;
-      for(var i=0; i < LENGTH; ++i) {
+      decimal px = 0.0;
+      decimal py = 0.0;
+      decimal pz = 0.0;
+      for(decimal i=0; i < LENGTH; ++i) {
          px += bodies[i].vx * bodies[i].mass;
          py += bodies[i].vy * bodies[i].mass;
          pz += bodies[i].vz * bodies[i].mass;
@@ -38,24 +38,24 @@ public class NBodySystem {
       bodies[0].offsetMomentum(px,py,pz);
    }
 
-   public def advance(var dt) : var {
+   public def advance(decimal dt) : decimal {
       Body[] b = bodies;
-      for(var i=0; i < LENGTH-1; ++i) {
+      for(decimal i=0; i < LENGTH-1; ++i) {
          Body iBody = b[i];
-         var iMass = iBody.mass;
-         var ix = iBody.x, iy = iBody.y, iz = iBody.z;
+         decimal iMass = iBody.mass;
+         decimal ix = iBody.x, iy = iBody.y, iz = iBody.z;
 
-         for(var j=i+1; j < LENGTH; ++j) {
+         for(decimal j=i+1; j < LENGTH; ++j) {
             Body jBody = b[j];
-            var dx = ix - jBody.x;
-            var dy = iy - jBody.y;
-            var dz = iz - jBody.z;
+            decimal dx = ix - jBody.x;
+            decimal dy = iy - jBody.y;
+            decimal dz = iz - jBody.z;
 
-            var dSquared = dx * dx + dy * dy + dz * dz;
-            var distance = Math.sqrt(dSquared);
-            var mag = dt / (dSquared * distance);
+            decimal dSquared = dx * dx + dy * dy + dz * dz;
+            decimal distance = Math.sqrt(dSquared);
+            decimal mag = dt / (dSquared * distance);
 
-            var jMass = jBody.mass;
+            decimal jMass = jBody.mass;
 
             iBody.vx -= dx * jMass * mag;
             iBody.vy -= dy * jMass * mag;
@@ -67,7 +67,7 @@ public class NBodySystem {
          }
       }
 
-      for(var i=0; i < LENGTH; ++i) {
+      for(decimal i=0; i < LENGTH; ++i) {
          Body body = b[i];
          body.x += dt * body.vx;
          body.y += dt * body.vy;
@@ -75,18 +75,18 @@ public class NBodySystem {
       }
    }
 
-   public def energy() : var {
-      var dx, dy, dz, distance;
-      var e = 0.0;
+   public def energy() : decimal {
+      decimal dx, dy, dz, distance;
+      decimal e = 0.0;
 
-      for (var i=0; i < sizeof(bodies); ++i) {
+      for (decimal i=0; i < sizeof(bodies); ++i) {
          Body iBody = bodies[i];
          e += 0.5 * iBody.mass *
             ( iBody.vx * iBody.vx
                 + iBody.vy * iBody.vy
                 + iBody.vz * iBody.vz );
 
-         for (var j=i+1; j < sizeof(bodies); ++j) {
+         for (decimal j=i+1; j < sizeof(bodies); ++j) {
             Body jBody = bodies[j];
             dx = iBody.x - jBody.x;
             dy = iBody.y - jBody.y;
@@ -102,11 +102,11 @@ public class NBodySystem {
 }
 
 public class Body {
-   static const var PI = 3.141592653589793;
-   static const var SOLAR_MASS = 4 * PI * PI;
-   static const var DAYS_PER_YEAR = 365.24;
+   static const decimal PI = 3.141592653589793;
+   static const decimal SOLAR_MASS = 4 * PI * PI;
+   static const decimal DAYS_PER_YEAR = 365.24;
 
-   public var x, y, z, vx, vy, vz, mass;
+   public decimal x, y, z, vx, vy, vz, mass;
 
    public Body(){}
 
@@ -164,7 +164,7 @@ public class Body {
       return p;
    }
 
-   public def offsetMomentum(var px, var py, var pz) : Body {
+   public def offsetMomentum(decimal px, decimal py, decimal pz) : Body {
       vx = -px / SOLAR_MASS;
       vy = -py / SOLAR_MASS;
       vz = -pz / SOLAR_MASS;

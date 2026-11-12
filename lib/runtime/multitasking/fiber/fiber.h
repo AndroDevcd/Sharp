@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../../memory/sharp_object.h"
 #include "../../memory/vm_stack.h"
+#include "../../memory/type_check.h"
 
 class sharp_thread;
 class sharp_function;
@@ -91,7 +92,18 @@ public:
     uInt frameLimit;
     uInt frameSize;
     uInt stackSize;
-    long double *registers;
+    // The last slot a push can fill without growing the stack first:
+    // stack + stackSize - 1. Compiled code tests `sp >= growAt` before a push
+    // (one compare) where the interpreter's grow_stack computes it each time.
+    // Set wherever stack or stackSize change (init_struct, growStack).
+    stack_item *growAt;
+    vm_cell *registers;
+#ifdef SHARP_TYPE_CHECK
+    // the number kind checker's tags (memory/type_check.h): one per register
+    // and one per stack slot, next to the values they describe
+    unsigned char regTags[16];
+    unsigned char *slotTags;
+#endif
     object *ptr;
     long long delayTime;        // scheduler time (sched_now_micros) it sleeps until, -1 = not sleeping
     bool wakeable;              // false while suspended by fiber.suspend()

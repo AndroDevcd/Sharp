@@ -7,8 +7,8 @@ mod std.util;
  * or, with a prefix, "order-1", "order-2" ...
  *
  *     ids := new id_generator();
- *     first : var = ids.next_id();            // 1
- *     second : var = ids.next_id();           // 2
+ *     first : decimal = ids.next_id();            // 1
+ *     second : decimal = ids.next_id();           // 2
  *
  *     tickets := new id_generator("T-", 1000);
  *     name := tickets.next_text();            // "T-1000"
@@ -23,8 +23,8 @@ mod std.util;
  */
 class id_generator {
     private prefix : string = "";
-    private following : var = 1;
-    private first_id : var = 1;
+    private following : decimal = 1;
+    private first_id : decimal = 1;
 
     /** a generator whose first id is 1 */
     id_generator() {
@@ -34,7 +34,7 @@ class id_generator {
      * A generator whose first id is `first_id`.
      * Throws illegal_argument_exception when first_id is not a whole number.
      */
-    id_generator(first_id: var) {
+    id_generator(first_id: decimal) {
         check_whole(first_id);
         following = first_id;
         self->first_id = first_id;
@@ -45,21 +45,21 @@ class id_generator {
      * starting at `first_id`.
      * Throws illegal_argument_exception when first_id is not a whole number.
      */
-    id_generator(prefix: string, first_id: var) {
+    id_generator(prefix: string, first_id: decimal) {
         check_whole(first_id);
         self->prefix = prefix;
         following = first_id;
         self->first_id = first_id;
     }
 
-    private static def check_whole(n: var) {
+    private static def check_whole(n: decimal) {
         if(n != (n as _int64))
             throw new illegal_argument_exception("id_generator: the first id must be a whole number");
     }
 
     /** the next id as a number; every call returns a number one higher than the call before */
-    def next_id(): var {
-        id : var = following;
+    def next_id(): decimal {
+        id : decimal = following;
         following = following + 1;
         return id;
     }
@@ -70,17 +70,17 @@ class id_generator {
     }
 
     /** the id the next call will return, without using it up */
-    def peek(): var {
+    def peek(): decimal {
         return following;
     }
 
     /** the id handed out most recently; first id - 1 when none has been handed out */
-    def last_id(): var {
+    def last_id(): decimal {
         return following - 1;
     }
 
     /** how many ids have been handed out since the generator was made or reset */
-    def issued(): var {
+    def issued(): decimal {
         return following - first_id;
     }
 

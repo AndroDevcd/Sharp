@@ -30,7 +30,7 @@ class tokenizer {
 
     private tokenizer(){ /* Dont call */ }
 
-    public tokenizer(text: string, file: string, start_parser: var)
+    public tokenizer(text: string, file: string, start_parser: decimal)
     {
         line = 1;
         self->file = file;
@@ -582,7 +582,7 @@ class tokenizer {
                     advance();
                     if('{' == current) {
                         advance();
-                        // we gotta tokenize the rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
+                        // we gotta tokenize the rest of the data set  decimal to check the state where once we encounter a '}' we jump back to parsing a string
                         dynamic_string = true;
                         brackets = 1;
 
@@ -735,7 +735,7 @@ class tokenizer {
         else is_end = true;
     }
 
-    def peek_end(chars: var) : bool {
+    def peek_end(chars: decimal) : bool {
         return (cursor+chars) >= sizeof(data);
     }
 

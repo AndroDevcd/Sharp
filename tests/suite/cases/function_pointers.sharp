@@ -7,57 +7,57 @@ import ( testing )
  * elements that hold a function.
  *
  * The type is written (parameter types)(return type):
- *     (var)(var)         takes a number, returns a number
+ *     (decimal)(decimal)         takes a number, returns a number
  *     ()()               takes nothing, returns nothing
  *     (int, int)(bool)   takes two int objects, returns a bool object
  */
 
-calls : var = 0;
+calls : decimal = 0;
 
-def twice(x: var) : var { return x * 2; }
-def add_one(x: var) : var { return x + 1; }
-def subtract(a: var, b: var) : var { return a - b; }
+def twice(x: decimal) : decimal { return x * 2; }
+def add_one(x: decimal) : decimal { return x + 1; }
+def subtract(a: decimal, b: decimal) : decimal { return a - b; }
 def count_call() { calls++; }
 def bigger(a: int, b: int) : bool { return a > b; }
-def length(s: string) : var { return s.size().value; }
+def length(s: string) : decimal { return s.size().value; }
 def join(a: string, b: string) : string { return a + b; }
 
 class maths {
-    static def triple(x: var) : var { return x * 3; }
+    static def triple(x: decimal) : decimal { return x * 3; }
     static def count_hundred() { calls += 100; }
 }
 
 /** a class with function pointer fields */
 class button {
     on_press : ()();
-    scale : (var)(var);
+    scale : (decimal)(decimal);
 
     def press() { on_press(); }
-    def scaled(x: var) : var { return scale(x); }
+    def scaled(x: decimal) : decimal { return scale(x); }
 }
 
 // ---- functions that take and return function pointers
-def apply(f: (var)(var), x: var) : var { return f(x); }
-def apply_twice(f: (var)(var), x: var) : var { return apply(f, apply(f, x)); }
-def hand_back(f: (var)(var)) : (var)(var) { return f; }
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def apply_twice(f: (decimal)(decimal), x: decimal) : decimal { return apply(f, apply(f, x)); }
+def hand_back(f: (decimal)(decimal)) : (decimal)(decimal) { return f; }
 def run(work: ()()) { work(); }
-def run_times(work: ()(), n: var) {
-    for(i : var = 0; i < n; i++) {
+def run_times(work: ()(), n: decimal) {
+    for(i : decimal = 0; i < n; i++) {
         work();
     }
 }
-def choose(which: var) : (var)(var) {
+def choose(which: decimal) : (decimal)(decimal) {
     if(which == 0) { return twice; }
     return add_one;
 }
-def fold(f: (var, var)(var), a: var, b: var, c: var) : var { return f(f(a, b), c); }
+def fold(f: (decimal, decimal)(decimal), a: decimal, b: decimal, c: decimal) : decimal { return f(f(a, b), c); }
 
 /** a function pointer kept in a global variable */
-stored : (var)(var);
+stored : (decimal)(decimal);
 
 def main(args: string[]) {
     // ---- pointing at a global function
-    f : (var)(var) = twice;
+    f : (decimal)(decimal) = twice;
     expect("f(4)", f(4), 8);
     expect("f(0)", f(0), 0);
     expect("f(2.5)", f(2.5), 5);
@@ -67,7 +67,7 @@ def main(args: string[]) {
     // ---- the result of one call as the argument of the next
     expect("f(f(4))", f(f(4)), 16);
     expect("f(f(f(1)))", f(f(f(1))), 8);
-    g : (var)(var) = add_one;
+    g : (decimal)(decimal) = add_one;
     expect("f(g(1))", f(g(1)), 4);
     expect("g(f(1))", g(f(1)), 3);
     expect("g(g(g(g(0))))", g(g(g(g(0)))), 4);
@@ -96,7 +96,7 @@ def main(args: string[]) {
     expect("()() called three times", calls, 3);
 
     // ---- two parameters
-    sub : (var, var)(var) = subtract;
+    sub : (decimal, decimal)(decimal) = subtract;
     expect("sub(10, 4)", sub(10, 4), 6);
     expect("sub(4, 10): the order of the arguments is kept", sub(4, 10), 0 - 6);
     expect("sub(sub(10, 4), 1)", sub(sub(10, 4), 1), 5);
@@ -106,14 +106,14 @@ def main(args: string[]) {
     expect_true("cmp(3, 2)", cmp(3, 2).value);
     expect_false("cmp(2, 3)", cmp(2, 3).value);
     expect_false("cmp(2, 2)", cmp(2, 2).value);
-    len : (string)(var) = length;
+    len : (string)(decimal) = length;
     expect("len(\"hello\")", len("hello"), 5);
     glue : (string, string)(string) = join;
     expect_str("glue(\"ab\", \"cd\")", glue("ab", "cd"), "abcd");
     expect("len(glue(...))", len(glue("abc", "de")), 5);
 
     // ---- static methods
-    s : (var)(var) = maths.triple;
+    s : (decimal)(decimal) = maths.triple;
     expect("static method", s(7), 21);
     expect("s(s(2))", s(s(2)), 18);
     calls = 0;
@@ -169,7 +169,7 @@ def main(args: string[]) {
     expect("each object has its own pointer", b.scaled(2) + other.scaled(2), 9);
 
     // ---- arrays of function pointers
-    table := new (var)(var)[3];
+    table := new (decimal)(decimal)[3];
     expect("sizeof", sizeof(table), 3);
     table[0] = twice;
     table[1] = add_one;
@@ -179,15 +179,15 @@ def main(args: string[]) {
     last := table[2];
     expect("table[2] is maths.triple", last(10), 30);
 
-    total : var = 0;
-    for(i : var = 0; i < 3; i++) {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 3; i++) {
         entry := table[i];
         total += entry(10);
     }
     expect("20 + 11 + 30", total, 61);
 
     // run a value through every function in turn: ((1 * 2) + 1) * 3
-    value : var = 1;
+    value : decimal = 1;
     foreach(step in table) {
         value = step(value);
     }

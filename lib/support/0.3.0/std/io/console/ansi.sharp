@@ -26,34 +26,34 @@ import ( std.io )
  */
 class ansi {
     /* the eight basic colours */
-    static const black   : var = 0;
-    static const red     : var = 1;
-    static const green   : var = 2;
-    static const yellow  : var = 3;
-    static const blue    : var = 4;
-    static const magenta : var = 5;
-    static const cyan    : var = 6;
-    static const white   : var = 7;
+    static const black   : decimal = 0;
+    static const red     : decimal = 1;
+    static const green   : decimal = 2;
+    static const yellow  : decimal = 3;
+    static const blue    : decimal = 4;
+    static const magenta : decimal = 5;
+    static const cyan    : decimal = 6;
+    static const white   : decimal = 7;
 
     /* their bright variants */
-    static const bright_black   : var = 8;
-    static const bright_red     : var = 9;
-    static const bright_green   : var = 10;
-    static const bright_yellow  : var = 11;
-    static const bright_blue    : var = 12;
-    static const bright_magenta : var = 13;
-    static const bright_cyan    : var = 14;
-    static const bright_white   : var = 15;
+    static const bright_black   : decimal = 8;
+    static const bright_red     : decimal = 9;
+    static const bright_green   : decimal = 10;
+    static const bright_yellow  : decimal = 11;
+    static const bright_blue    : decimal = 12;
+    static const bright_magenta : decimal = 13;
+    static const bright_cyan    : decimal = 14;
+    static const bright_white   : decimal = 15;
 
     /* styles for styled() */
-    static const bold      : var = 1;
-    static const dim       : var = 2;
-    static const italic    : var = 3;
-    static const underline : var = 4;
-    static const inverse   : var = 7;
+    static const bold      : decimal = 1;
+    static const dim       : decimal = 2;
+    static const italic    : decimal = 3;
+    static const underline : decimal = 4;
+    static const inverse   : decimal = 7;
 
     /** 1 while codes are produced, 0 when they are switched off */
-    private static enabled : var = 1;
+    private static enabled : decimal = 1;
 
     /** produce codes (true, the default) or plain text only (false) from now on */
     static def set_enabled(on: bool) {
@@ -81,7 +81,7 @@ class ansi {
         return buf.to_string()!!;
     }
 
-    private static def check_color(color: var) {
+    private static def check_color(color: decimal) {
         if(color < 0 || color > 15 || (color as _int32) != color) {
             throw new illegal_argument_exception("ansi: not a colour (0..15): " + io_strings.number_to_string(color));
         }
@@ -93,7 +93,7 @@ class ansi {
      * reset().
      * Throws illegal_argument_exception when color is not 0..15.
      */
-    static def foreground(color: var) : string {
+    static def foreground(color: decimal) : string {
         check_color(color);
         if(color < 8) {
             return sequence(io_strings.int_to_string(30 + color) + "m");
@@ -105,7 +105,7 @@ class ansi {
      * The code that switches the background colour to `color` (0..15).
      * Throws illegal_argument_exception when color is not 0..15.
      */
-    static def background(color: var) : string {
+    static def background(color: decimal) : string {
         check_color(color);
         if(color < 8) {
             return sequence(io_strings.int_to_string(40 + color) + "m");
@@ -114,7 +114,7 @@ class ansi {
     }
 
     /** the code that switches a style on: one of bold, dim, italic, underline, inverse */
-    static def style(which: var) : string {
+    static def style(which: decimal) : string {
         return sequence(io_strings.int_to_string(which) + "m");
     }
 
@@ -128,7 +128,7 @@ class ansi {
      * reset code. Throws illegal_argument_exception when color is not
      * 0..15.
      */
-    static def colored(text: string, color: var) : string {
+    static def colored(text: string, color: decimal) : string {
         return wrap(foreground(color), text);
     }
 
@@ -136,12 +136,12 @@ class ansi {
      * `text` in the colour `color` on the background `back`.
      * Throws illegal_argument_exception when a colour is not 0..15.
      */
-    static def colored(text: string, color: var, back: var) : string {
+    static def colored(text: string, color: decimal, back: decimal) : string {
         return wrap(foreground(color) + background(back), text);
     }
 
     /** `text` in the style `which` (bold, dim, italic, underline, inverse), followed by the reset code */
-    static def styled(text: string, which: var) : string {
+    static def styled(text: string, which: decimal) : string {
         return wrap(style(which), text);
     }
 
@@ -178,7 +178,7 @@ class ansi {
      * 1 at the top left corner.
      * Throws illegal_argument_exception when one of them is below 1.
      */
-    static def move_to(row: var, column: var) : string {
+    static def move_to(row: decimal, column: decimal) : string {
         if(row < 1 || column < 1) {
             throw new illegal_argument_exception("ansi: rows and columns count from 1");
         }
@@ -198,9 +198,9 @@ class ansi {
      * to a log file, or measuring how wide a text is on screen).
      */
     static def strip(text: string) : string {
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         buf := new char_buffer(n);
-        i : var = 0;
+        i : decimal = 0;
         while(i < n) {
             if(text.data[i] == 27 && i + 1 < n && text.data[i + 1] == '[') {
                 // skip to the letter that ends the sequence

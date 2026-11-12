@@ -52,7 +52,7 @@ class deadline {
     }
 
     /** 1 once the clock has reached the deadline (now >= the deadline moment) */
-    def has_passed(): var {
+    def has_passed(): decimal {
         return source.now() >= expires;
     }
 
@@ -69,7 +69,7 @@ class deadline {
     }
 
     /** `remaining()` in whole milliseconds, for APIs that take a timeout in ms */
-    def remaining_millis(): var {
+    def remaining_millis(): decimal {
         return remaining().to_millis();
     }
 

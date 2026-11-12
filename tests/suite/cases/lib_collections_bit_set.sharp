@@ -124,9 +124,9 @@ def test_ranges_and_scans() {
     expect("full words cardinality", full.cardinality(), 60);
 
     // the documented loop over all set bits
-    visited : var = 0;
-    sum : var = 0;
-    for(i : var = b.next_set_bit(0); i >= 0; i = b.next_set_bit(i + 1)) {
+    visited : decimal = 0;
+    sum : decimal = 0;
+    for(i : decimal = b.next_set_bit(0); i >= 0; i = b.next_set_bit(i + 1)) {
         visited++;
         sum += i;
     }
@@ -205,18 +205,18 @@ def test_combining() {
 
 /** the sieve of Eratosthenes: a classic use, and a larger scale check */
 def test_sieve() {
-    limit : var = 10000;
+    limit : decimal = 10000;
     composite := new bit_set(limit + 1);
-    for(i : var = 2; i * i <= limit; i++) {
+    for(i : decimal = 2; i * i <= limit; i++) {
         if(!composite.test(i)) {
-            for(multiple : var = i * i; multiple <= limit; multiple += i)
+            for(multiple : decimal = i * i; multiple <= limit; multiple += i)
                 composite.set_bit(multiple);
         }
     }
 
-    primes : var = 0;
-    last_prime : var = 0;
-    for(i : var = 2; i <= limit; i++) {
+    primes : decimal = 0;
+    last_prime : decimal = 0;
+    for(i : decimal = 2; i <= limit; i++) {
         if(!composite.test(i)) { primes++; last_prime = i; }
     }
     expect("sieve: primes below 10000", primes, 1229);
@@ -228,12 +228,12 @@ def test_sieve() {
 
     // every third bit of 6000, counted three ways
     thirds := new bit_set();
-    for(i : var = 0; i < 6000; i += 3) thirds.set_bit(i);
+    for(i : decimal = 0; i < 6000; i += 3) thirds.set_bit(i);
     expect("thirds: cardinality", thirds.cardinality(), 2000);
     expect("thirds: length", thirds.length(), 5998);
     expect("thirds: to_list", thirds.to_list().size().value, 2000);
-    wrong : var = 0;
-    for(i : var = 0; i < 6000; i++) {
+    wrong : decimal = 0;
+    for(i : decimal = 0; i < 6000; i++) {
         if(thirds.test(i) != (i % 3 == 0)) wrong++;
     }
     expect("thirds: every bit is as expected", wrong, 0);

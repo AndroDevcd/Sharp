@@ -35,15 +35,15 @@ mutate string {
      * is negative.
      */
     def split(delimiter: string, limit: int): string[] {
-        m : var = sizeof(delimiter.data);
-        max_parts : var = limit.value;
+        m : decimal = sizeof(delimiter.data);
+        max_parts : decimal = limit.value;
         if(m == 0) throw new ill_arg_except("split: the delimiter cannot be empty");
         if(max_parts < 0) throw new ill_arg_except("split: the limit cannot be negative: $limit");
 
         // pass 1: how many parts will there be?
-        n : var = sizeof(data);
-        parts : var = 1;
-        at : var = string_support.find_forward(data, delimiter.data, 0);
+        n : decimal = sizeof(data);
+        parts : decimal = 1;
+        at : decimal = string_support.find_forward(data, delimiter.data, 0);
         while(at >= 0 && (max_parts == 0 || parts < max_parts)) {
             parts++;
             at = string_support.find_forward(data, delimiter.data, at + m);
@@ -51,8 +51,8 @@ mutate string {
 
         // pass 2: cut them out
         result := new string[parts];
-        start : var = 0;
-        for(i : var = 0; i < parts - 1; i++) {
+        start : decimal = 0;
+        for(i : decimal = 0; i < parts - 1; i++) {
             at = string_support.find_forward(data, delimiter.data, start);
             result[i] = string_support.slice(data, start, at);
             start = at + m;
@@ -71,16 +71,16 @@ mutate string {
         if(sizeof(delimiters.data) == 0)
             throw new ill_arg_except("split_any: the set of delimiters cannot be empty");
 
-        n : var = sizeof(data);
-        parts : var = 1;
-        for(i : var = 0; i < n; i++) {
+        n : decimal = sizeof(data);
+        parts : decimal = 1;
+        for(i : decimal = 0; i < n; i++) {
             if(string_support.in_set(data[i], delimiters.data)) parts++;
         }
 
         result := new string[parts];
-        start : var = 0;
-        used : var = 0;
-        for(i : var = 0; i < n; i++) {
+        start : decimal = 0;
+        used : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(string_support.in_set(data[i], delimiters.data)) {
                 result[used++] = string_support.slice(data, start, i);
                 start = i + 1;
@@ -96,12 +96,12 @@ mutate string {
      * An empty or blank string gives an array of length 0.
      */
     def split_whitespace(): string[] {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
 
         // pass 1: count the words (a word starts where a non-space follows a space or the start)
-        words : var = 0;
-        in_word : var = 0;
-        for(i : var = 0; i < n; i++) {
+        words : decimal = 0;
+        in_word : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(string_support.is_space(data[i])) {
                 in_word = 0;
             } else if(!in_word) {
@@ -112,9 +112,9 @@ mutate string {
 
         // pass 2: cut them out
         result := new string[words];
-        used : var = 0;
-        start : var = -1;           // start of the word being read, -1 = between words
-        for(i : var = 0; i < n; i++) {
+        used : decimal = 0;
+        start : decimal = -1;           // start of the word being read, -1 = between words
+        for(i : decimal = 0; i < n; i++) {
             if(string_support.is_space(data[i])) {
                 if(start >= 0) {
                     result[used++] = string_support.slice(data, start, i);
@@ -136,11 +136,11 @@ mutate string {
      * "".lines() is [""].
      */
     def lines(): string[] {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
 
-        total_lines : var = 1;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        total_lines : decimal = 1;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c == '\n') {
                 total_lines++;
             } else if(c == '\r') {
@@ -150,10 +150,10 @@ mutate string {
         }
 
         result := new string[total_lines];
-        used : var = 0;
-        start : var = 0;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        used : decimal = 0;
+        start : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c == '\n') {
                 result[used++] = string_support.slice(data, start, i);
                 start = i + 1;
@@ -174,17 +174,17 @@ mutate string {
      * Throws illegal_argument_exception if size is not at least 1.
      */
     def chunked(chunk_size: int): string[] {
-        step : var = chunk_size.value;
+        step : decimal = chunk_size.value;
         if(step < 1) throw new ill_arg_except("chunked: the size must be at least 1: $chunk_size");
 
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         // n / step rounded up (the remainder decides whether there is a last, shorter piece)
-        rest : var = n % step;
-        pieces : var = (n - rest) / step;
+        rest : decimal = n % step;
+        pieces : decimal = (n - rest) / step;
         if(rest > 0) pieces++;
         result := new string[pieces];
-        for(i : var = 0; i < pieces; i++) {
-            end : var = (i + 1) * step;
+        for(i : decimal = 0; i < pieces; i++) {
+            end : decimal = (i + 1) * step;
             if(end > n) end = n;
             result[i] = string_support.slice(data, i * step, end);
         }
@@ -199,27 +199,27 @@ mutate string {
      * The result is built in one buffer of the final size.
      */
     static def join(separator: string, parts: string[]): string {
-        count : var = sizeof(parts);
+        count : decimal = sizeof(parts);
         if(count == 0) return new string();
 
-        sep : var = sizeof(separator.data);
-        total : var = sep * (count - 1);
-        for(i : var = 0; i < count; i++) {
+        sep : decimal = sizeof(separator.data);
+        total : decimal = sep * (count - 1);
+        for(i : decimal = 0; i < count; i++) {
             part := parts[i];
             if((part as object) != null) total += sizeof(part.data);
         }
         if(total == 0) return new string();
 
         out := new _int8[total];
-        at : var = 0;
-        for(i : var = 0; i < count; i++) {
+        at : decimal = 0;
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0 && sep > 0) {
                 memcopy(separator.data!!, out, at, 0, sep);
                 at += sep;
             }
             part := parts[i];
             if((part as object) != null) {
-                len : var = sizeof(part.data);
+                len : decimal = sizeof(part.data);
                 if(len > 0) {
                     memcopy(part.data!!, out, at, 0, len);
                     at += len;

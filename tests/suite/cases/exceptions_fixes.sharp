@@ -14,18 +14,18 @@ class number_error base parse_error {
     public number_error(message: string) -> base(message) {}
 }
 
-class shape { sides : var = 0; }
-class dog { legs : var = 4; }
-class cat { lives : var = 9; }
+class shape { sides : decimal = 0; }
+class dog { legs : decimal = 4; }
+class cat { lives : decimal = 9; }
 
-def remainder(a: var, b: var): var {
+def remainder(a: decimal, b: decimal): decimal {
     return a % b;
 }
 
 def main(args: string[]) {
     // ---- a catch clause for a user-defined base class catches its subclasses
     // (used to be wrong: a clause only matched the EXACT class of the exception)
-    where : var = 0;
+    where : decimal = 0;
     try {
         try {
             throw new number_error("x");
@@ -88,7 +88,7 @@ def main(args: string[]) {
     // (used to be wrong: it killed the whole VM with SIGFPE)
     where = 0;
     try {
-        r : var = remainder(5, 0);
+        r : decimal = remainder(5, 0);
         where = 1;
     } catch(e: exception) {
         where = 2;

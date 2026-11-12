@@ -33,21 +33,21 @@ mod std.text;
  */
 class text_table {
     /** align(column, text_table.left): the cell text starts at the left edge of the column (the default). */
-    static const left : var = 0;
+    static const left : decimal = 0;
     /** align(column, text_table.right): the cell text ends at the right edge of the column (for numbers). */
-    static const right : var = 1;
+    static const right : decimal = 1;
     /** align(column, text_table.center): the cell text is in the middle of the column. */
-    static const center : var = 2;
+    static const center : decimal = 2;
 
-    private columns : var = 0;
+    private columns : decimal = 0;
     private headers : string[]? = null;
-    private alignment : var[]? = null;
+    private alignment : decimal[]? = null;
 
     /* all cells, row after row: the cell of row r, column c is cells.at(r * columns + c) */
     private cells : list<string> = new list<string>();
-    private rows : var = 0;
+    private rows : decimal = 0;
 
-    private bordered : var = 1;
+    private bordered : decimal = 1;
 
     /**
      * A table with one column per header.
@@ -59,8 +59,8 @@ class text_table {
             throw new ill_arg_except("text_table: a table needs at least one column");
 
         self->headers = new string[columns];
-        alignment = new var[columns];
-        for(c : var = 0; c < columns; c++) {
+        alignment = new decimal[columns];
+        for(c : decimal = 0; c < columns; c++) {
             self->headers[c] = clean(headers[c]);
         }
     }
@@ -99,12 +99,12 @@ class text_table {
      * Throws illegal_argument_exception if the row has MORE cells than columns.
      */
     def add_row(row: string[]): text_table {
-        given : var = sizeof(row);
+        given : decimal = sizeof(row);
         if(given > columns)
             throw new ill_arg_except("add_row: the row has " + number_format.integer(given)
                 + " cells but the table has only " + number_format.integer(columns) + " columns");
 
-        for(c : var = 0; c < columns; c++) {
+        for(c : decimal = 0; c < columns; c++) {
             if(c < given) cells.add(clean(row[c]));
             else cells.add("");
         }
@@ -113,12 +113,12 @@ class text_table {
     }
 
     /** The number of rows added so far (the header row is not counted). */
-    def row_count(): var {
+    def row_count(): decimal {
         return rows;
     }
 
     /** The number of columns. */
-    def column_count(): var {
+    def column_count(): decimal {
         return columns;
     }
 
@@ -140,14 +140,14 @@ class text_table {
     }
 
     /** The width of every column: the length of its longest cell or header. */
-    private def measure(): var[] {
-        widths := new var[columns];
-        for(c : var = 0; c < columns; c++) {
+    private def measure(): decimal[] {
+        widths := new decimal[columns];
+        for(c : decimal = 0; c < columns; c++) {
             widths[c] = sizeof(headers[c].data);
         }
-        for(r : var = 0; r < rows; r++) {
-            for(c : var = 0; c < columns; c++) {
-                len : var = sizeof(cells.at(r * columns + c).data);
+        for(r : decimal = 0; r < rows; r++) {
+            for(c : decimal = 0; c < columns; c++) {
+                len : decimal = sizeof(cells.at(r * columns + c).data);
                 if(len > widths[c]) widths[c] = len;
             }
         }
@@ -155,26 +155,26 @@ class text_table {
     }
 
     /** Appends `text` in a field of `width` characters, aligned by `mode`. */
-    private static def append_cell(out: text_buffer, text: string, width: var, mode: var) {
-        missing : var = width - sizeof(text.data);
-        before : var = 0;
+    private static def append_cell(out: text_buffer, text: string, width: decimal, mode: decimal) {
+        missing : decimal = width - sizeof(text.data);
+        before : decimal = 0;
         if(mode == right) before = missing;
         else if(mode == center) before = (missing - missing % 2) / 2;
 
-        for(i : var = 0; i < before; i++) {
+        for(i : decimal = 0; i < before; i++) {
             out.append_char(' ');
         }
         out.append(text);
-        for(i : var = before; i < missing; i++) {
+        for(i : decimal = before; i < missing; i++) {
             out.append_char(' ');
         }
     }
 
     /** Appends a frame line such as "+-----+----+" and a line end. */
-    private def append_rule(out: text_buffer, widths: var[]) {
+    private def append_rule(out: text_buffer, widths: decimal[]) {
         out.append_char('+');
-        for(c : var = 0; c < columns; c++) {
-            for(i : var = 0; i < widths[c] + 2; i++) {
+        for(c : decimal = 0; c < columns; c++) {
+            for(i : decimal = 0; i < widths[c] + 2; i++) {
                 out.append_char('-');
             }
             out.append_char('+');
@@ -183,9 +183,9 @@ class text_table {
     }
 
     /** Appends one line of cells (`row` < 0 = the headers) and a line end. */
-    private def append_row(out: text_buffer, widths: var[], row: var) {
+    private def append_row(out: text_buffer, widths: decimal[], row: decimal) {
         if(bordered) out.append_char('|');
-        for(c : var = 0; c < columns; c++) {
+        for(c : decimal = 0; c < columns; c++) {
             text : string = "";
             if(row < 0) text = headers[c];
             else text = cells.at(row * columns + c);
@@ -223,20 +223,20 @@ class text_table {
             append_rule(out, widths);
             append_row(out, widths, -1);
             append_rule(out, widths);
-            for(r : var = 0; r < rows; r++) {
+            for(r : decimal = 0; r < rows; r++) {
                 append_row(out, widths, r);
             }
             append_rule(out, widths);
         } else {
             append_row(out, widths, -1);
-            for(c : var = 0; c < columns; c++) {
+            for(c : decimal = 0; c < columns; c++) {
                 if(c > 0) out.append("  ");
-                for(i : var = 0; i < widths[c]; i++) {
+                for(i : decimal = 0; i < widths[c]; i++) {
                     out.append_char('-');
                 }
             }
             out.append_char('\n');
-            for(r : var = 0; r < rows; r++) {
+            for(r : decimal = 0; r < rows; r++) {
                 append_row(out, widths, r);
             }
         }

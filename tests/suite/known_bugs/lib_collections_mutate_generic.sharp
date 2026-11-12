@@ -19,10 +19,10 @@ import ( testing )
  * helpers (lists<T>) instead of adding them to list with mutate.
  */
 
-class card { rank : var; }
+class card { rank : decimal; }
 
 mutate list {
-    def is_blank() : var { return size().value == 0; }
+    def is_blank() : decimal { return size().value == 0; }
 }
 
 def main(args: string[]) {

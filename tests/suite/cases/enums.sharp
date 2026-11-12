@@ -49,7 +49,7 @@ enum lonely {
 /* an enum as a field, a parameter and a return value */
 class traffic_light {
     showing : color = color.red;
-    changes : var = 0;
+    changes : decimal = 0;
 
     def next() {
         if(showing == color.red) {
@@ -62,7 +62,7 @@ class traffic_light {
         changes++;
     }
 
-    def is_showing(wanted: color): var {
+    def is_showing(wanted: color): decimal {
         if(showing == wanted) {
             return 1;
         }
@@ -75,14 +75,14 @@ class traffic_light {
 }
 
 /* 1 when both are the same member */
-def same(a: color, b: color): var {
+def same(a: color, b: color): decimal {
     if(a == b) {
         return 1;
     }
     return 0;
 }
 
-def different(a: color, b: color): var {
+def different(a: color, b: color): decimal {
     if(a != b) {
         return 1;
     }
@@ -100,7 +100,7 @@ def letter_of(c: color): string {
 }
 
 /* when: several members on one branch, and an else branch */
-def is_vertical(d: direction): var {
+def is_vertical(d: direction): decimal {
     when(d) {
         north, south -> { return 1; }
         else -> { return 0; }
@@ -109,7 +109,7 @@ def is_vertical(d: direction): var {
 }
 
 /* when: members written with the enum's name */
-def percent_of(l: level): var {
+def percent_of(l: level): decimal {
     when(l) {
         level.low -> { return 25; }
         level.medium -> { return 50; }
@@ -145,7 +145,7 @@ def turn_right(d: direction): direction {
     return d;
 }
 
-def level_for(score: var): level {
+def level_for(score: decimal): level {
     if(score >= 90) {
         return level.high;
     }
@@ -256,7 +256,7 @@ def main(args: string[]) {
     expect_str("return from a when", turn_right(direction.north).to_string(), "east");
     expect_str("return from a when's else", turn_right(direction.west).to_string(), "north");
     facing := direction.north;
-    for(i : var = 0; i < 6; i++) {
+    for(i : decimal = 0; i < 6; i++) {
         facing = turn_right(facing);
     }
     expect_str("six right turns from north", facing.to_string(), "south");
@@ -289,13 +289,13 @@ def main(args: string[]) {
     route[3] = direction.south;
     expect_str("array element 0", route[0].to_string(), "north");
     expect_str("array element 2", route[2].to_string(), "east");
-    vertical_steps : var = 0;
-    for(i : var = 0; i < sizeof(route); i++) {
+    vertical_steps : decimal = 0;
+    for(i : decimal = 0; i < sizeof(route); i++) {
         vertical_steps += is_vertical(route[i]);
     }
     expect("a loop over an array of members", vertical_steps, 3);
-    north_steps : var = 0;
-    for(i : var = 0; i < sizeof(route); i++) {
+    north_steps : decimal = 0;
+    for(i : decimal = 0; i < sizeof(route); i++) {
         if(route[i] == direction.north) {
             north_steps++;
         }

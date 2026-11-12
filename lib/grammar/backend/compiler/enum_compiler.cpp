@@ -73,6 +73,14 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
             create_get_integer_constant_operation(paramOperations.last(), lastEnumValue++);
         }
 
+        // The ordinal is a whole number, and _enum_'s constructor takes it as a
+        // `var`: it is passed as a decimal. (This call is put together by hand,
+        // so the conversion compile_function_call does for arguments is done here.)
+        {
+            sharp_type ordinalType(type_int64), parameterType(type_var);
+            convert_scheme_for(paramOperations.last(), ordinalType, parameterType);
+        }
+
         name = "value";
         type = sharp_type(type_var);
         params.add(new sharp_field(name, NULL, enum_field->implLocation, type, flag_public, normal_field, enum_field->ast));

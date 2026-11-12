@@ -23,8 +23,8 @@ mod std.text;
  */
 class string_similarity {
 
-    private static def min3(a: var, b: var, c: var): var {
-        m : var = a;
+    private static def min3(a: decimal, b: decimal, c: decimal): decimal {
+        m : decimal = a;
         if(b < m) m = b;
         if(c < m) m = c;
         return m;
@@ -36,26 +36,26 @@ class string_similarity {
      * levenshtein("kitten", "sitting") is 3. Equal strings give 0; the
      * distance to "" is the length of the other string.
      */
-    static def levenshtein(a: string, b: string): var {
+    static def levenshtein(a: string, b: string): decimal {
         x := a.data;
         y := b.data;
-        n : var = sizeof(x);
-        m : var = sizeof(y);
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
         if(n == 0) return m;
         if(m == 0) return n;
 
         // previous[j] = distance between the first i-1 characters of a and the first j of b
-        previous := new var[m + 1];
-        current := new var[m + 1];
-        for(j : var = 0; j <= m; j++) {
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        for(j : decimal = 0; j <= m; j++) {
             previous[j] = j;
         }
 
-        for(i : var = 1; i <= n; i++) {
+        for(i : decimal = 1; i <= n; i++) {
             current[0] = i;
-            ca : var = x[i - 1];
-            for(j : var = 1; j <= m; j++) {
-                cost : var = ca == y[j - 1] ? 0 : 1;
+            ca : decimal = x[i - 1];
+            for(j : decimal = 1; j <= m; j++) {
+                cost : decimal = ca == y[j - 1] ? 0 : 1;
                 current[j] = min3(previous[j] + 1,          // delete from a
                                   current[j - 1] + 1,       // insert into a
                                   previous[j - 1] + cost);  // replace (or keep)
@@ -72,29 +72,29 @@ class string_similarity {
      * edit instead of two (the "optimal string alignment" distance): the
      * typical typing mistake. damerau_levenshtein("form", "from") is 1.
      */
-    static def damerau_levenshtein(a: string, b: string): var {
+    static def damerau_levenshtein(a: string, b: string): decimal {
         x := a.data;
         y := b.data;
-        n : var = sizeof(x);
-        m : var = sizeof(y);
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
         if(n == 0) return m;
         if(m == 0) return n;
 
         // three rows: two back (for the swap), previous and current
-        older := new var[m + 1];
-        previous := new var[m + 1];
-        current := new var[m + 1];
-        for(j : var = 0; j <= m; j++) {
+        older := new decimal[m + 1];
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        for(j : decimal = 0; j <= m; j++) {
             previous[j] = j;
         }
 
-        for(i : var = 1; i <= n; i++) {
+        for(i : decimal = 1; i <= n; i++) {
             current[0] = i;
-            for(j : var = 1; j <= m; j++) {
-                cost : var = x[i - 1] == y[j - 1] ? 0 : 1;
-                best : var = min3(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
+            for(j : decimal = 1; j <= m; j++) {
+                cost : decimal = x[i - 1] == y[j - 1] ? 0 : 1;
+                best : decimal = min3(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
                 if(i > 1 && j > 1 && x[i - 1] == y[j - 2] && x[i - 2] == y[j - 1]) {
-                    swapped : var = older[j - 2] + 1;
+                    swapped : decimal = older[j - 2] + 1;
                     if(swapped < best) best = swapped;
                 }
                 current[j] = best;
@@ -112,14 +112,14 @@ class string_similarity {
      * different character. hamming("karolin", "kathrin") is 3.
      * Throws illegal_argument_exception if the strings do not have the same length.
      */
-    static def hamming(a: string, b: string): var {
-        n : var = sizeof(a.data);
+    static def hamming(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
         if(n != sizeof(b.data))
             throw new ill_arg_except("hamming: the strings must have the same length ("
                 + number_format.integer(n) + " and " + number_format.integer(sizeof(b.data)) + ")");
 
-        different : var = 0;
-        for(i : var = 0; i < n; i++) {
+        different : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(a.data[i] != b.data[i]) different++;
         }
         return different;
@@ -130,20 +130,20 @@ class string_similarity {
      * (equal): 1 - levenshtein / length of the longer string.
      * similarity("kitten", "sitting") is about 0.571. Two empty strings give 1.
      */
-    static def similarity(a: string, b: string): var {
-        n : var = sizeof(a.data);
-        m : var = sizeof(b.data);
-        longest : var = n > m ? n : m;
+    static def similarity(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        longest : decimal = n > m ? n : m;
         if(longest == 0) return 1;
         return 1 - levenshtein(a, b) / longest;
     }
 
     /** The number of characters both strings start with: common_prefix_length("interstellar", "internet") is 5. */
-    static def common_prefix_length(a: string, b: string): var {
-        n : var = sizeof(a.data);
-        m : var = sizeof(b.data);
-        shared : var = n < m ? n : m;
-        i : var = 0;
+    static def common_prefix_length(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        shared : decimal = n < m ? n : m;
+        i : decimal = 0;
         while(i < shared && a.data[i] == b.data[i]) {
             i++;
         }
@@ -151,11 +151,11 @@ class string_similarity {
     }
 
     /** The number of characters both strings end with: common_suffix_length("walking", "talking") is 6. */
-    static def common_suffix_length(a: string, b: string): var {
-        n : var = sizeof(a.data);
-        m : var = sizeof(b.data);
-        shared : var = n < m ? n : m;
-        i : var = 0;
+    static def common_suffix_length(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        shared : decimal = n < m ? n : m;
+        i : decimal = 0;
         while(i < shared && a.data[n - 1 - i] == b.data[m - 1 - i]) {
             i++;
         }
@@ -177,13 +177,13 @@ class string_similarity {
      * "flight"] it is "fl". An empty array gives ""; one string gives that string.
      */
     static def common_prefix_of(items: string[]): string {
-        count : var = sizeof(items);
+        count : decimal = sizeof(items);
         if(count == 0) return new string();
 
         first := items[0];
-        length : var = sizeof(first.data);
-        for(i : var = 1; i < count; i++) {
-            shared : var = common_prefix_length(first, items[i]);
+        length : decimal = sizeof(first.data);
+        for(i : decimal = 1; i < count; i++) {
+            shared : decimal = common_prefix_length(first, items[i]);
             if(shared < length) length = shared;
         }
         return first.take(length);
@@ -198,19 +198,19 @@ class string_similarity {
     static def longest_common_substring(a: string, b: string): string {
         x := a.data;
         y := b.data;
-        n : var = sizeof(x);
-        m : var = sizeof(y);
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
         if(n == 0 || m == 0) return new string();
 
         // previous[j] = length of the common run that ends at a[i-2] and b[j-1]
-        previous := new var[m + 1];
-        current := new var[m + 1];
-        best : var = 0;
-        best_end : var = 0;             // position in a just after the best run
-        for(i : var = 1; i <= n; i++) {
-            for(j : var = 1; j <= m; j++) {
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        best : decimal = 0;
+        best_end : decimal = 0;             // position in a just after the best run
+        for(i : decimal = 1; i <= n; i++) {
+            for(j : decimal = 1; j <= m; j++) {
                 if(x[i - 1] == y[j - 1]) {
-                    run : var = previous[j - 1] + 1;
+                    run : decimal = previous[j - 1] + 1;
                     current[j] = run;
                     if(run > best) {
                         best = run;
@@ -233,17 +233,17 @@ class string_similarity {
      * appear in both strings in the same order, not necessarily next to each
      * other. lcs_length("AGGTAB", "GXTXAYB") is 4 ("GTAB").
      */
-    static def lcs_length(a: string, b: string): var {
+    static def lcs_length(a: string, b: string): decimal {
         x := a.data;
         y := b.data;
-        n : var = sizeof(x);
-        m : var = sizeof(y);
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
         if(n == 0 || m == 0) return 0;
 
-        previous := new var[m + 1];
-        current := new var[m + 1];
-        for(i : var = 1; i <= n; i++) {
-            for(j : var = 1; j <= m; j++) {
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        for(i : decimal = 1; i <= n; i++) {
+            for(j : decimal = 1; j <= m; j++) {
                 if(x[i - 1] == y[j - 1]) {
                     current[j] = previous[j - 1] + 1;
                 } else {
@@ -263,28 +263,28 @@ class string_similarity {
      * how many of those are out of order. jaro("MARTHA", "MARHTA") is about
      * 0.944. Two empty strings give 1; one empty string gives 0.
      */
-    static def jaro(a: string, b: string): var {
+    static def jaro(a: string, b: string): decimal {
         x := a.data;
         y := b.data;
-        n : var = sizeof(x);
-        m : var = sizeof(y);
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
         if(n == 0 && m == 0) return 1;
         if(n == 0 || m == 0) return 0;
 
         // characters count as matching only if they are at most `window` positions apart
-        longest : var = n > m ? n : m;
-        window : var = (longest - longest % 2) / 2 - 1;
+        longest : decimal = n > m ? n : m;
+        window : decimal = (longest - longest % 2) / 2 - 1;
         if(window < 0) window = 0;
 
-        matched_a := new var[n];
-        matched_b := new var[m];
-        matches : var = 0;
-        for(i : var = 0; i < n; i++) {
-            low : var = i - window;
+        matched_a := new decimal[n];
+        matched_b := new decimal[m];
+        matches : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            low : decimal = i - window;
             if(low < 0) low = 0;
-            high : var = i + window + 1;
+            high : decimal = i + window + 1;
             if(high > m) high = m;
-            for(j : var = low; j < high; j++) {
+            for(j : decimal = low; j < high; j++) {
                 if(!matched_b[j] && x[i] == y[j]) {
                     matched_a[i] = 1;
                     matched_b[j] = 1;
@@ -296,9 +296,9 @@ class string_similarity {
         if(matches == 0) return 0;
 
         // matched characters that are not in the same order count as half a transposition each
-        out_of_order : var = 0;
-        k : var = 0;
-        for(i : var = 0; i < n; i++) {
+        out_of_order : decimal = 0;
+        k : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(matched_a[i]) {
                 while(!matched_b[k]) {
                     k++;
@@ -307,7 +307,7 @@ class string_similarity {
                 k++;
             }
         }
-        transpositions : var = out_of_order / 2;
+        transpositions : decimal = out_of_order / 2;
         return (matches / n + matches / m + (matches - transpositions) / matches) / 3;
     }
 
@@ -316,9 +316,9 @@ class string_similarity {
      * same (up to 4 characters), which suits names and words.
      * jaro_winkler("MARTHA", "MARHTA") is about 0.961.
      */
-    static def jaro_winkler(a: string, b: string): var {
-        base_score : var = jaro(a, b);
-        prefix : var = common_prefix_length(a, b);
+    static def jaro_winkler(a: string, b: string): decimal {
+        base_score : decimal = jaro(a, b);
+        prefix : decimal = common_prefix_length(a, b);
         if(prefix > 4) prefix = 4;
         return base_score + prefix * 0.1 * (1 - base_score);
     }

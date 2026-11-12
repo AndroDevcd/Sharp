@@ -9,7 +9,7 @@ import ( testing )
  */
 
 class item {
-    weight : var = 1;
+    weight : decimal = 1;
     name : string = "a";
 }
 
@@ -21,11 +21,11 @@ def main(args: string[]) {
     items[0].weight += 2;
     expect("field += through an array element", items[0].weight, 8);
 
-    hit : var = 0;
+    hit : decimal = 0;
     try { items[1].weight = 5; } catch(e: nullptr_exception) { hit = 1; }
     expect("field store through a null element throws", hit, 1);
 
-    a : var[] = new var[4];
+    a : decimal[] = new decimal[4];
     a[1] = 3;
     expect("a[1] = 3", a[1], 3);
     expect("nested element stores", more(), 13);
@@ -33,11 +33,11 @@ def main(args: string[]) {
 }
 
 class holder {
-    list : var[] = new var[3];
+    list : decimal[] = new decimal[3];
     things : item[] = new item[2];
 }
 
-def more() : var {
+def more() : decimal {
     hs : holder[] = new holder[2];
     hs[1] = new holder();
     hs[1].list[2] = 9;

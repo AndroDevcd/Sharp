@@ -19,7 +19,8 @@ struct internal_register;
 
 enum machine_data_type {
     no_data,
-    numeric_constant,
+    numeric_constant,       // a DECIMAL constant: dataAddress = its index in the constant table
+    integer_constant,       // an INTEGER constant: dataAddress = the value itself
     string_constant,
     numeric_instance_field,
     numeric_local_field,
@@ -221,11 +222,20 @@ struct code_context {
     List<dynamic_instruction*> dynamicInstructions;
     List<internal_label*> labels;
     List<opcode_instr> instructions;
+    // Index of the instruction add_instruction() appended last, or -1 when
+    // nothing may be assumed about it (a label was placed here, a new function
+    // was started ...). See constant_conversion.cpp.
+    Int lastInstruction = -1;
+    Int previousInstruction = -1;       // the one before it, same rules
     sharp_function *container;
     machine_data machineData;
 };
 
 void set_machine_data(internal_register *internalRegister, bool force = false);
+void move_to_field(sharp_field *field);
+opcode_instr array_load(data_type elementType, _register out, _register index);
+opcode_instr array_store(data_type elementType, _register index, _register in);
+bool is_array_load(opcode_instr instruction, _register out, _register index);  // any of the loads above, with these registers
 void set_machine_data(sharp_field *field, bool localField, bool force = false);
 void set_machine_data(machine_data_type dataType, Int dataAddr, bool force = false);
 void set_machine_data(machine_data_type dataType);

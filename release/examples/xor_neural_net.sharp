@@ -7,12 +7,12 @@ import (
 alias list<neuron> as layer;
 
 class connection {
-   weight : var;
-   delta : var;
+   weight : decimal;
+   delta : decimal;
 }
 
 class neuron {
-    neuron(n_outputs: var, n_index: var) {
+    neuron(n_outputs: decimal, n_index: decimal) {
        for(c := 0; c < n_outputs; ++c) {
           weights.add(new connection());
           weights.last().weight = rand();
@@ -30,15 +30,15 @@ class neuron {
        output = activate(sum);
     }
 
-    def activate(sum: var) : var {
+    def activate(sum: decimal) : decimal {
        return tanh(sum);
     }
 
-    def calc_derivative(x : var) : var {
+    def calc_derivative(x : decimal) : decimal {
        return 1.0 - x * x;
     }
 
-    def calc_output_gradients(target_val: var) {
+    def calc_output_gradients(target_val: decimal) {
        delta := target_val - output;
        m_gradient = delta * calc_derivative(output);
     }
@@ -48,7 +48,7 @@ class neuron {
        m_gradient = dow * calc_derivative(output);
     }
 
-    def sum_dow(next_layer: layer) : var {
+    def sum_dow(next_layer: layer) : decimal {
        sum := 0;
        for(n := 0; n < next_layer.size() - 1; ++n) {
           sum += weights[n].weight * next_layer[n].m_gradient;
@@ -72,16 +72,16 @@ class neuron {
        }
     }
 
-    output : var;
+    output : decimal;
     weights := new list<connection>();
-    index : var;
-    m_gradient: var;
-    static eta : var = 0.35;
-    static alpha : var = 0.5;
+    index : decimal;
+    m_gradient: decimal;
+    static eta : decimal = 0.35;
+    static alpha : decimal = 0.5;
 }
 
 class net {
-   net(topology: list<var>) {
+   net(topology: list<decimal>) {
       layer_count := topology.size();
       for(layer_num := 0; layer_num < layer_count; layer_num++) {
          layers.add(new layer());
@@ -95,7 +95,7 @@ class net {
       }
    }
 
-   def feed_forward(input_vals: list<var>) {
+   def feed_forward(input_vals: list<decimal>) {
       for(i := 0; i < input_vals.size(); i++) {
          layers[0][i].output = input_vals[i];
       }
@@ -109,7 +109,7 @@ class net {
       }
    }
 
-   def back_prop(target_vals: list<var>) {
+   def back_prop(target_vals: list<decimal>) {
        output_layer := layers.last();
        m_error := 0;
 
@@ -148,7 +148,7 @@ class net {
        }
    }
 
-   def get_results(result_vals: list<var>) {
+   def get_results(result_vals: list<decimal>) {
       result_vals.clear();
       for(n := 0; n < layers.last().size() - 1; ++n) {
          result_vals.add(layers.last()[n].output);
@@ -156,19 +156,19 @@ class net {
    }
 
    layers: list<layer> = new list<layer>();
-   m_error : var;
-   m_recent_average_error: var;
-  static  m_recent_average_smoothing_factor: var = 100.0;
+   m_error : decimal;
+   m_recent_average_error: decimal;
+  static  m_recent_average_smoothing_factor: decimal = 100.0;
 }
 
 def main() {
    set_seed(utc_mills_time() >> 4); // set random seed to current time in mills
-   neural_net := new net(new list<var>({ 2, 2, 1 }));
+   neural_net := new net(new list<decimal>({ 2, 2, 1 }));
 
 // train net
    for(i := 5000000; i >= 0; i--) {
-      input_data := new list<var>({ round(rand()), round(rand()) });
-      target_data := new list<var>({ input_data[0] ^ input_data[1] });
+      input_data := new list<decimal>({ round(rand()), round(rand()) });
+      target_data := new list<decimal>({ input_data[0] ^ input_data[1] });
       neural_net.feed_forward(input_data);
       neural_net.back_prop(target_data);
    }
@@ -177,9 +177,9 @@ def main() {
    println("Test Results:");
 
    for(i := 0; i < 50; i++) {
-      input_data := new list<var>();
-      target_data := new list<var>();
-      result_vals := new list<var>();
+      input_data := new list<decimal>();
+      target_data := new list<decimal>();
+      result_vals := new list<decimal>();
       n1 := round(rand());
       n2 := round(rand());
       t := n1 ^ n2;

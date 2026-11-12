@@ -23,23 +23,23 @@ mod std.text;
 class text_wrap {
 
     /** Throws illegal_argument_exception unless the width is at least 1. */
-    private static def check_width(width: var) {
+    private static def check_width(width: decimal) {
         if(width < 1)
             throw new ill_arg_except("the width must be at least 1, but was " + number_format.integer(width));
     }
 
     /** Appends the lines of one paragraph (text without paragraph breaks) to `lines`. */
-    private static def wrap_into(lines: list<string>, text: string, width: var) {
+    private static def wrap_into(lines: list<string>, text: string, width: decimal) {
         words := text.split_whitespace();
-        count : var = sizeof(words);
+        count : decimal = sizeof(words);
         line := new text_buffer();
 
-        for(w : var = 0; w < count; w++) {
+        for(w : decimal = 0; w < count; w++) {
             word := words[w];
-            len : var = sizeof(word.data);
+            len : decimal = sizeof(word.data);
 
             // does the word fit on the current line (after a space, if the line has words)?
-            needed : var = line.length() == 0 ? len : line.length() + 1 + len;
+            needed : decimal = line.length() == 0 ? len : line.length() + 1 + len;
             if(needed <= width) {
                 if(line.length() > 0) line.append_char(' ');
                 line.append(word);
@@ -49,7 +49,7 @@ class text_wrap {
                     line.clear();
                 }
                 // a word wider than a whole line is cut into full-width pieces
-                start : var = 0;
+                start : decimal = 0;
                 while(len - start > width) {
                     lines.add(new string(word.data!!, start, start + width));
                     start += width;
@@ -89,13 +89,13 @@ class text_wrap {
         check_width(width.value);
         lines := new list<string>();
         source := text.lines();
-        count : var = sizeof(source);
+        count : decimal = sizeof(source);
 
         paragraph := new text_buffer();
-        pending_break : var = 0;            // an empty line was seen since the last paragraph
-        for(i : var = 0; i <= count; i++) {
+        pending_break : decimal = 0;            // an empty line was seen since the last paragraph
+        for(i : decimal = 0; i <= count; i++) {
             // (i == count is one extra round to write the last paragraph)
-            at_break : var = 1;
+            at_break : decimal = 1;
             if(i < count) at_break = source[i].is_blank();
 
             if(!at_break) {
@@ -133,16 +133,16 @@ class text_wrap {
      * character of room after the longer prefix.
      */
     static def fill(text: string, width: int, first_prefix: string, rest_prefix: string): string {
-        first_len : var = sizeof(first_prefix.data);
-        rest_len : var = sizeof(rest_prefix.data);
-        longest : var = first_len > rest_len ? first_len : rest_len;
-        room : var = width.value - longest;
+        first_len : decimal = sizeof(first_prefix.data);
+        rest_len : decimal = sizeof(rest_prefix.data);
+        longest : decimal = first_len > rest_len ? first_len : rest_len;
+        room : decimal = width.value - longest;
         check_width(room);
 
         lines := wrap(text, room);
-        count : var = sizeof(lines);
+        count : decimal = sizeof(lines);
         out := new text_buffer();
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0) out.append_char('\n');
             if(i == 0) out.append(first_prefix);
             else out.append(rest_prefix);
@@ -158,9 +158,9 @@ class text_wrap {
      */
     static def indent(text: string, prefix: string): string {
         lines := text.lines();
-        count : var = sizeof(lines);
+        count : decimal = sizeof(lines);
         out := new text_buffer();
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0) out.append_char('\n');
             if(sizeof(lines[i].data) > 0) {
                 out.append(prefix);
@@ -187,21 +187,21 @@ class text_wrap {
      */
     static def dedent(text: string): string {
         lines := text.lines();
-        count : var = sizeof(lines);
+        count : decimal = sizeof(lines);
 
         // the smallest indentation of any non-blank line
-        shared : var = -1;
-        for(i : var = 0; i < count; i++) {
+        shared : decimal = -1;
+        for(i : decimal = 0; i < count; i++) {
             line := lines[i];
             if(!line.is_blank()) {
-                depth : var = line.index_of_none(" \t");
+                depth : decimal = line.index_of_none(" \t");
                 if(shared < 0 || depth < shared) shared = depth;
             }
         }
         if(shared < 0) shared = 0;
 
         out := new text_buffer();
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0) out.append_char('\n');
             line := lines[i];
             if(!line.is_blank()) out.append(line.drop(shared));
@@ -210,11 +210,11 @@ class text_wrap {
     }
 
     /** The length of the longest line of the text (0 for ""). */
-    static def max_line_length(text: string): var {
+    static def max_line_length(text: string): decimal {
         lines := text.lines();
-        count : var = sizeof(lines);
-        longest : var = 0;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = sizeof(lines);
+        longest : decimal = 0;
+        for(i : decimal = 0; i < count; i++) {
             if(sizeof(lines[i].data) > longest) longest = sizeof(lines[i].data);
         }
         return longest;

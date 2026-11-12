@@ -8,7 +8,7 @@ import (
     frontend.parser
 )
 
-ufid := new atomic<var>(0);
+ufid := new atomic<decimal>(0);
 file_info : cache_info;
 cache_file_size_limit := 1024 * 250; // 250kb/file limit for caching files
 
@@ -51,7 +51,7 @@ class cache_info {
 }
 
 class file_data {
-   file_data(name: string, modified_time: var, id: var) {
+   file_data(name: string, modified_time: decimal, id: decimal) {
       self->name = name;
       self->last_update = modified_time;
       self->parser_cache = "/build/cache/files/file_${id}_a.data";
@@ -61,7 +61,7 @@ class file_data {
    name : string;
    parser_cache : string;
    compiler_cache : string;
-   last_update: var;
+   last_update: decimal;
 }
 
 cache_file_path := "/build/cache/files/cache_info.data";

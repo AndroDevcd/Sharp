@@ -66,14 +66,14 @@ import ( std.io )
  * 4 run_blocking, 8 with_timeout, 16 with_timeout_or_null,
  * 32 mutex.with_lock, 64 semaphore.with_permit.
  */
-localized scope_marks : var;
+localized scope_marks : decimal;
 
 /**
  * Throw illegal_state_exception if the calling fiber is already inside the
  * scope function with this bit (THE NESTING RULE). Changes nothing.
  */
-def check_scope_nesting(bit: var, name: string) {
-    marks : var = scope_marks;
+def check_scope_nesting(bit: decimal, name: string) {
+    marks : decimal = scope_marks;
     if((marks & bit) != 0) {
         throw new illegal_state_exception("$name { } cannot be used directly inside another $name { } on the same fiber"
             + " (a runtime bug stops a fiber from continuing when a function is on its call stack twice)."
@@ -82,17 +82,17 @@ def check_scope_nesting(bit: var, name: string) {
 }
 
 /** remember that the calling fiber is inside the scope function with this bit */
-def mark_scope(bit: var) {
+def mark_scope(bit: decimal) {
     // through a local on purpose: `scope_marks = scope_marks + bit` on a localized
     // number stores garbage (tests/suite/known_bugs/lib_coroutines_localized_arithmetic.sharp)
-    marks : var = scope_marks;
+    marks : decimal = scope_marks;
     marks = marks + bit;
     scope_marks = marks;
 }
 
 /** the calling fiber left the scope function with this bit */
-def unmark_scope(bit: var) {
-    marks : var = scope_marks;
+def unmark_scope(bit: decimal) {
+    marks : decimal = scope_marks;
     marks = marks - bit;
     scope_marks = marks;
 }
@@ -115,7 +115,7 @@ def coroutine_scope(block: ()()) {
 
     outer := current_job();
     error : throwable? = null;
-    cancellation : var = 0;
+    cancellation : decimal = 0;
 
     mark_scope(1);
     set_current_job(scope_job);
@@ -150,7 +150,7 @@ def supervisor_scope(block: ()()) {
 
     outer := current_job();
     error : throwable? = null;
-    cancellation : var = 0;
+    cancellation : decimal = 0;
 
     mark_scope(2);
     set_current_job(scope_job);
@@ -173,7 +173,7 @@ def supervisor_scope(block: ()()) {
  * root when there is none). For the scope functions of this module.
  * A cancellation point: throws when the current coroutine is cancelled.
  */
-def open_scope(supervising: var) : job {
+def open_scope(supervising: decimal) : job {
     ensure_active();
 
     outer := current_job();
@@ -209,7 +209,7 @@ def open_scope(supervising: var) : job {
  * @param error        what the block threw, or null
  * @param cancellation 1 when `error` is a cancellation_exception
  */
-def close_scope(scope_job: job, error: throwable?, cancellation: var) {
+def close_scope(scope_job: job, error: throwable?, cancellation: decimal) {
     scope_job.finish_body(error, cancellation);
 
     // not interruptible on purpose: a cancellation of the caller arrives through

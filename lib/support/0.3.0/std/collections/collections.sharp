@@ -14,7 +14,7 @@ mod std.collections;
  *     numbers := new list<int>();        // 1, 2, 3, 4, 5, 6
  *     ...
  *     even  := collections<int>.filter(numbers, { n: int -> (bool) return n.value % 2 == 0; });
- *     total := collections<int>.sum_of(numbers, { n: int -> (var) return n.value; });
+ *     total := collections<int>.sum_of(numbers, { n: int -> (decimal) return n.value; });
  *     text  := collections<int>.join_to_string(numbers, ", ");       // "1, 2, 3, 4, 5, 6"
  *
  * Helpers that turn elements into a DIFFERENT type (map, fold, group_by,
@@ -24,13 +24,13 @@ mod std.collections;
  *   - the source is never changed; functions that produce elements return a
  *     new `list<T>` in the order of the source
  *   - a predicate is a function `(T)(bool)`: "does this element qualify?"
- *   - a selector is a function `(T)(var)`: "the number to judge this element by"
- *   - a comparison is a function `(T, T)(var)`: negative / zero / positive
+ *   - a selector is a function `(T)(decimal)`: "the number to judge this element by"
+ *   - a comparison is a function `(T, T)(decimal)`: negative / zero / positive
  *     when the first argument sorts before / the same as / after the second
  *   - equality (contains, index_of, distinct) uses `==`, and distinct
  *     additionally hash()
  *
- * Limitation: T has to be an object type; native `var` cannot be used.
+ * Limitation: T has to be an object type; native `decimal` cannot be used.
  */
 class collections<T base _object_> {
 
@@ -43,7 +43,7 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.add(items[i]);
         return result;
     }
@@ -53,13 +53,13 @@ class collections<T base _object_> {
         items := source.get_elements();
         if(items == null) return new T[0];
         result := new T[sizeof(items)];
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result[i] = items[i];
         return result;
     }
 
     /** Number of elements in the source. O(n) for collections that have to build their element array. */
-    static def size(source: loopable<T>) : var {
+    static def size(source: loopable<T>) : decimal {
         items := source.get_elements();
         if(items == null) return 0;
         return sizeof(items);
@@ -74,7 +74,7 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(predicate(items[i])) result.add(items[i]);
         }
         return result;
@@ -85,7 +85,7 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(!predicate(items[i])) result.add(items[i]);
         }
         return result;
@@ -101,7 +101,7 @@ class collections<T base _object_> {
         others := new list<T>();
         items := source.get_elements();
         if(items != null) {
-            for(i : var = 0; i < sizeof(items); i++) {
+            for(i : decimal = 0; i < sizeof(items); i++) {
                 if(predicate(items[i])) matching.add(items[i]);
                 else others.add(items[i]);
             }
@@ -120,7 +120,7 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items) && i < count.value; i++)
+        for(i : decimal = 0; i < sizeof(items) && i < count.value; i++)
             result.add(items[i]);
         return result;
     }
@@ -137,7 +137,7 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = count.value; i < sizeof(items); i++)
+        for(i : decimal = count.value; i < sizeof(items); i++)
             result.add(items[i]);
         return result;
     }
@@ -153,9 +153,9 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        start : var = sizeof(items) - count.value;
+        start : decimal = sizeof(items) - count.value;
         if(start < 0) start = 0;
-        for(i : var = start; i < sizeof(items); i++)
+        for(i : decimal = start; i < sizeof(items); i++)
             result.add(items[i]);
         return result;
     }
@@ -165,7 +165,7 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(!predicate(items[i])) break;
             result.add(items[i]);
         }
@@ -177,8 +177,8 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        dropping : var = 1;
-        for(i : var = 0; i < sizeof(items); i++) {
+        dropping : decimal = 1;
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(dropping) {
                 if(!predicate(items[i])) dropping = 0;
             }
@@ -197,7 +197,7 @@ class collections<T base _object_> {
         items := source.get_elements();
         if(items == null) return result;
         seen := new hash_set<T>();
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(seen.add(items[i])) result.add(items[i]);
         }
         return result;
@@ -208,61 +208,61 @@ class collections<T base _object_> {
     // ------------------------------------------------------------------
 
     /** 1 when the predicate answers true for at least one element (0 for an empty source). O(n), stops at the first hit. */
-    static def any(source: loopable<T>, predicate: (T)(bool)) : var {
+    static def any(source: loopable<T>, predicate: (T)(bool)) : decimal {
         items := source.get_elements();
         if(items == null) return 0;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(predicate(items[i])) return 1;
         }
         return 0;
     }
 
     /** 1 when the predicate answers true for every element (1 for an empty source). O(n), stops at the first miss. */
-    static def all(source: loopable<T>, predicate: (T)(bool)) : var {
+    static def all(source: loopable<T>, predicate: (T)(bool)) : decimal {
         items := source.get_elements();
         if(items == null) return 1;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(!predicate(items[i])) return 0;
         }
         return 1;
     }
 
     /** 1 when the predicate answers true for no element (1 for an empty source). O(n). */
-    static def none(source: loopable<T>, predicate: (T)(bool)) : var {
+    static def none(source: loopable<T>, predicate: (T)(bool)) : decimal {
         return !any(source, predicate);
     }
 
     /** How many elements the predicate answers true for. O(n). */
-    static def count(source: loopable<T>, predicate: (T)(bool)) : var {
+    static def count(source: loopable<T>, predicate: (T)(bool)) : decimal {
         items := source.get_elements();
         if(items == null) return 0;
-        total : var = 0;
-        for(i : var = 0; i < sizeof(items); i++) {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(predicate(items[i])) total++;
         }
         return total;
     }
 
     /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
-    static def contains(source: loopable<T>, element: T) : var {
+    static def contains(source: loopable<T>, element: T) : decimal {
         return index_of(source, element) >= 0;
     }
 
     /** Position of the first element that equals `element`, or -1. O(n). */
-    static def index_of(source: loopable<T>, element: T) : var {
+    static def index_of(source: loopable<T>, element: T) : decimal {
         items := source.get_elements();
         if(items == null) return -1;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(items[i] == element) return i;
         }
         return -1;
     }
 
     /** Position of the first element the predicate answers true for, or -1. O(n). */
-    static def index_of_first(source: loopable<T>, predicate: (T)(bool)) : var {
+    static def index_of_first(source: loopable<T>, predicate: (T)(bool)) : decimal {
         items := source.get_elements();
         if(items == null) return -1;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(predicate(items[i])) return i;
         }
         return -1;
@@ -276,7 +276,7 @@ class collections<T base _object_> {
     static def find(source: loopable<T>, predicate: (T)(bool)) : T? {
         items := source.get_elements();
         if(items == null) return null;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(predicate(items[i])) return items[i];
         }
         return null;
@@ -286,7 +286,7 @@ class collections<T base _object_> {
     static def find_last(source: loopable<T>, predicate: (T)(bool)) : T? {
         items := source.get_elements();
         if(items == null) return null;
-        for(i : var = sizeof(items) - 1; i >= 0; i--) {
+        for(i : decimal = sizeof(items) - 1; i >= 0; i--) {
             if(predicate(items[i])) return items[i];
         }
         return null;
@@ -336,14 +336,14 @@ class collections<T base _object_> {
      *
      * @throws no_such_element_exception when the source is empty
      */
-    static def max_by(source: loopable<T>, selector: (T)(var)) : T {
+    static def max_by(source: loopable<T>, selector: (T)(decimal)) : T {
         items := source.get_elements();
         if(items == null)
             throw new no_such_element_exception("collections.max_by: the collection is empty");
         best := items[0];
-        best_value : var = selector(best);
-        for(i : var = 1; i < sizeof(items); i++) {
-            value : var = selector(items[i]);
+        best_value : decimal = selector(best);
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            value : decimal = selector(items[i]);
             if(value > best_value) { best = items[i]; best_value = value; }
         }
         return best;
@@ -355,14 +355,14 @@ class collections<T base _object_> {
      *
      * @throws no_such_element_exception when the source is empty
      */
-    static def min_by(source: loopable<T>, selector: (T)(var)) : T {
+    static def min_by(source: loopable<T>, selector: (T)(decimal)) : T {
         items := source.get_elements();
         if(items == null)
             throw new no_such_element_exception("collections.min_by: the collection is empty");
         best := items[0];
-        best_value : var = selector(best);
-        for(i : var = 1; i < sizeof(items); i++) {
-            value : var = selector(items[i]);
+        best_value : decimal = selector(best);
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            value : decimal = selector(items[i]);
             if(value < best_value) { best = items[i]; best_value = value; }
         }
         return best;
@@ -373,11 +373,11 @@ class collections<T base _object_> {
     // ------------------------------------------------------------------
 
     /** The selector values of all elements added up (0 for an empty source). O(n). */
-    static def sum_of(source: loopable<T>, selector: (T)(var)) : var {
+    static def sum_of(source: loopable<T>, selector: (T)(decimal)) : decimal {
         items := source.get_elements();
         if(items == null) return 0;
-        total : var = 0;
-        for(i : var = 0; i < sizeof(items); i++)
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(items); i++)
             total += selector(items[i]);
         return total;
     }
@@ -387,13 +387,13 @@ class collections<T base _object_> {
      *
      * @throws no_such_element_exception when the source is empty
      */
-    static def max_of(source: loopable<T>, selector: (T)(var)) : var {
+    static def max_of(source: loopable<T>, selector: (T)(decimal)) : decimal {
         items := source.get_elements();
         if(items == null)
             throw new no_such_element_exception("collections.max_of: the collection is empty");
-        best : var = selector(items[0]);
-        for(i : var = 1; i < sizeof(items); i++) {
-            value : var = selector(items[i]);
+        best : decimal = selector(items[0]);
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            value : decimal = selector(items[i]);
             if(value > best) best = value;
         }
         return best;
@@ -404,13 +404,13 @@ class collections<T base _object_> {
      *
      * @throws no_such_element_exception when the source is empty
      */
-    static def min_of(source: loopable<T>, selector: (T)(var)) : var {
+    static def min_of(source: loopable<T>, selector: (T)(decimal)) : decimal {
         items := source.get_elements();
         if(items == null)
             throw new no_such_element_exception("collections.min_of: the collection is empty");
-        best : var = selector(items[0]);
-        for(i : var = 1; i < sizeof(items); i++) {
-            value : var = selector(items[i]);
+        best : decimal = selector(items[0]);
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            value : decimal = selector(items[i]);
             if(value < best) best = value;
         }
         return best;
@@ -421,12 +421,12 @@ class collections<T base _object_> {
      *
      * @throws no_such_element_exception when the source is empty
      */
-    static def average_of(source: loopable<T>, selector: (T)(var)) : var {
+    static def average_of(source: loopable<T>, selector: (T)(decimal)) : decimal {
         items := source.get_elements();
         if(items == null)
             throw new no_such_element_exception("collections.average_of: the collection is empty");
-        total : var = 0;
-        for(i : var = 0; i < sizeof(items); i++)
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(items); i++)
             total += selector(items[i]);
         return total / sizeof(items);
     }
@@ -440,13 +440,13 @@ class collections<T base _object_> {
         result := new list<T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = sizeof(items) - 1; i >= 0; i--)
+        for(i : decimal = sizeof(items) - 1; i >= 0; i--)
             result.add(items[i]);
         return result;
     }
 
     /** The elements sorted with a comparison function. Stable merge sort, O(n log n). */
-    static def sorted_with(source: loopable<T>, compare: (T, T)(var)) : list<T> {
+    static def sorted_with(source: loopable<T>, compare: (T, T)(decimal)) : list<T> {
         items := to_array(source);
         arrays<T>.sort(items, compare);
         return arrays<T>.to_list(items);
@@ -454,16 +454,16 @@ class collections<T base _object_> {
 
     /**
      * The elements sorted by a number taken from each of them, smallest
-     * first: collections<person>.sorted_by(people, { p: person -> (var) return p.age; }).
+     * first: collections<person>.sorted_by(people, { p: person -> (decimal) return p.age; }).
      * Elements with the same number keep their order. O(n log n); the
      * selector is called once per element.
      */
-    static def sorted_by(source: loopable<T>, selector: (T)(var)) : list<T> {
+    static def sorted_by(source: loopable<T>, selector: (T)(decimal)) : list<T> {
         return sort_by_key(source, selector, 0);
     }
 
     /** Like sorted_by, but largest number first. Elements with the same number keep their order. */
-    static def sorted_by_descending(source: loopable<T>, selector: (T)(var)) : list<T> {
+    static def sorted_by_descending(source: loopable<T>, selector: (T)(decimal)) : list<T> {
         return sort_by_key(source, selector, 1);
     }
 
@@ -472,27 +472,27 @@ class collections<T base _object_> {
      * computed once into a native array, then keys and elements are merge
      * sorted together (bottom-up, no recursion).
      */
-    private static def sort_by_key(source: loopable<T>, selector: (T)(var), descending: var) : list<T> {
+    private static def sort_by_key(source: loopable<T>, selector: (T)(decimal), descending: decimal) : list<T> {
         items := to_array(source);
-        n : var = sizeof(items);
-        keys := new var[n];
-        for(i : var = 0; i < n; i++) {
+        n : decimal = sizeof(items);
+        keys := new decimal[n];
+        for(i : decimal = 0; i < n; i++) {
             keys[i] = selector(items[i]);
             if(descending) keys[i] = 0 - keys[i];       // ascending by the negated key = descending by the key
         }
 
         spare_items := new T[n];
-        spare_keys := new var[n];
-        for(width : var = 1; width < n; width = width * 2) {
-            for(low : var = 0; low < n; low = low + width * 2) {
-                middle : var = low + width;
+        spare_keys := new decimal[n];
+        for(width : decimal = 1; width < n; width = width * 2) {
+            for(low : decimal = 0; low < n; low = low + width * 2) {
+                middle : decimal = low + width;
                 if(middle > n) middle = n;
-                high : var = low + width * 2;
+                high : decimal = low + width * 2;
                 if(high > n) high = n;
 
-                left : var = low;
-                right : var = middle;
-                out : var = low;
+                left : decimal = low;
+                right : decimal = middle;
+                out : decimal = low;
                 while(left < middle && right < high) {
                     if(keys[left] <= keys[right]) {
                         spare_keys[out] = keys[left];
@@ -532,7 +532,7 @@ class collections<T base _object_> {
         result := to_list(first);
         items := second.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.add(items[i]);
         return result;
     }
@@ -542,10 +542,10 @@ class collections<T base _object_> {
         result := new list<T>();
         outer := lists.get_elements();
         if(outer == null) return result;
-        for(i : var = 0; i < sizeof(outer); i++) {
+        for(i : decimal = 0; i < sizeof(outer); i++) {
             inner := outer[i];
-            n : var = inner.size().value;
-            for(j : var = 0; j < n; j++)
+            n : decimal = inner.size().value;
+            for(j : decimal = 0; j < n; j++)
                 result.add(inner.at(j));
         }
         return result;
@@ -566,7 +566,7 @@ class collections<T base _object_> {
         if(items == null) return result;
 
         chunk := new list<T>();
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             chunk.add(items[i]);
             if(chunk.size().value == size.value) {
                 result.add(chunk);
@@ -592,9 +592,9 @@ class collections<T base _object_> {
         items := source.get_elements();
         if(items == null) return result;
 
-        for(start : var = 0; start + size.value <= sizeof(items); start++) {
+        for(start : decimal = 0; start + size.value <= sizeof(items); start++) {
             window := new list<T>();
-            for(i : var = 0; i < size.value; i++)
+            for(i : decimal = 0; i < size.value; i++)
                 window.add(items[start + i]);
             result.add(window);
         }
@@ -613,7 +613,7 @@ class collections<T base _object_> {
         if(items == null)
             throw new no_such_element_exception("collections.reduce: the collection is empty");
         result := items[0];
-        for(i : var = 1; i < sizeof(items); i++)
+        for(i : decimal = 1; i < sizeof(items); i++)
             result = operation(result, items[i]);
         return result;
     }
@@ -622,7 +622,7 @@ class collections<T base _object_> {
     static def for_each(source: loopable<T>, action: (T)()) {
         items := source.get_elements();
         if(items == null) return;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             action(items[i]);
     }
 
@@ -646,7 +646,7 @@ class collections<T base _object_> {
         text = glue(text, prefix);
         items := source.get_elements();
         if(items != null) {
-            for(i : var = 0; i < sizeof(items); i++) {
+            for(i : decimal = 0; i < sizeof(items); i++) {
                 if(i > 0) text = glue(text, separator);
                 text = glue(text, items[i].to_string());
             }

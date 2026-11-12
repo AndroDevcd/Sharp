@@ -7,7 +7,7 @@ import ( testing, std.time )
  * plus/minus with wrap-around, month lengths, parsing names.
  */
 
-def rejects_day(s: string): var {
+def rejects_day(s: string): decimal {
     try {
         day_of_week.parse(s);
         return 0;
@@ -16,7 +16,7 @@ def rejects_day(s: string): var {
     }
 }
 
-def rejects_month(s: string): var {
+def rejects_month(s: string): decimal {
     try {
         month.parse(s);
         return 0;
@@ -86,7 +86,7 @@ def main(args: string[]) {
     expect_true("parse rejects the empty string", rejects_day(""));
 
     // ---- validation
-    caught : var = 0;
+    caught : decimal = 0;
     try { day_of_week.of(0); } catch(e: date_time_exception) { caught = 1; }
     expect("of(0) throws", caught, 1);
     caught = 0;
@@ -141,9 +141,9 @@ def main(args: string[]) {
     expect("february max_length", month.february.max_length(), 29);
     expect("april max_length", month.april.max_length(), 30);
 
-    total : var = 0;
-    leap_total : var = 0;
-    for(i : var = 1; i <= 12; i++) {
+    total : decimal = 0;
+    leap_total : decimal = 0;
+    for(i : decimal = 1; i <= 12; i++) {
         total += month.of(i).length(0);
         leap_total += month.of(i).length(1);
     }

@@ -116,7 +116,7 @@ typedef void (*_ref_decrement)(SharpObject obj);
 typedef double* (*_get_local_number_at)(int32_t address);
 typedef SharpObject (*_get_local_object_at)(int32_t address);
 typedef SharpObject (*_get_field)(SharpObject obj, const char* name);
-typedef long double* (*_get_raw_number_data)(SharpObject obj);
+typedef double* (*_get_raw_number_data)(SharpObject obj);
 typedef double (*_pop_number)();
 typedef SharpObject (*_pop_object)();
 typedef uint32_t (*_get_size)(SharpObject obj);

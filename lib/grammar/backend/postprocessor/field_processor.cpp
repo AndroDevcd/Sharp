@@ -221,7 +221,7 @@ void create_static_init_flag_field(sharp_class *owner, Ast *ast) {
         check_decl_conflicts(ast, owner, "field", name);
         create_field(
                 currThread->currTask->file,
-                owner, name, flags, sharp_type(type_var),
+                owner, name, flags, sharp_type(type_int8),     // 0 or 1
                 ft, ast
         );
     }

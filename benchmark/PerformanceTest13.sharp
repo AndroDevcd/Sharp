@@ -3,7 +3,7 @@ mod app;
 
 import std;
 
-def foo(var a, var b, var c, var d) {
+def foo(decimal a, decimal b, decimal c, decimal d) {
     // 20 calls
     bar(a, b, c);
     bar(a, b, c);
@@ -27,7 +27,7 @@ def foo(var a, var b, var c, var d) {
     bar(a, b, c);
 }
 
-def bar(var a, var b, var c) {
+def bar(decimal a, decimal b, decimal c) {
     // 20 calls
     baz(a, b);
     baz(a, b);
@@ -51,7 +51,7 @@ def bar(var a, var b, var c) {
     baz(a, b);
 }
 
-def baz(var a, var b) {
+def baz(decimal a, decimal b) {
     // 20 calls
     quux(a);
     quux(a);
@@ -75,7 +75,7 @@ def baz(var a, var b) {
     quux(a);
 }
 
-def quux(var a) {
+def quux(decimal a) {
     // 20 calls
     qux();
     qux();
@@ -102,9 +102,9 @@ def quux(var a) {
 def qux() {}
 
 
-def test_calls(var loops) {
+def test_calls(decimal loops) {
 
-    for (var i = 0; i < loops; i++) {
+    for (decimal i = 0; i < loops; i++) {
         // 20 calls
         foo(1, 2, 3, 4);
         foo(1, 2, 3, 4);
@@ -135,8 +135,8 @@ def test_calls(var loops) {
  * This program was created to illustrate the speed of calling functions in sharp
  *
  */
-def main(string[] args) : var {
-    var past = getUtcTimeInMills(), now;
+def main(string[] args) : decimal {
+    decimal past = getUtcTimeInMills(), now;
     test_calls(100);
 
     label:

@@ -91,6 +91,45 @@ typedef uint64_t uInt;
 #define _INT_MAX INT64_MAX
 #endif
 
+/**
+ * A number as the virtual machine stores it: in a register, in a stack slot, in
+ * a number array or a numeric field.
+ *
+ * It is 64 bits that are EITHER an integer OR a decimal. Nothing in the cell
+ * says which: the compiler knows the kind of every value and emits the
+ * instruction that reads the right member (ADD reads .i, DADD reads .d, see
+ * lib/core/opcode/opcode.h). Moving a number copies the whole cell and never
+ * looks inside.
+ *
+ *      C++ comparison: a union with no tag. Reading the member that was not
+ *      written is exactly the mistake the kind checker
+ *      (runtime/memory/type_check.h) exists to find.
+ *
+ * There is deliberately no arithmetic on the cell itself: code that wants a
+ * number has to say .i or .d, so the C++ compiler points at every place that
+ * has not decided.
+ *
+ * History: every number used to be a `long double` (80-bit x87, 16 bytes),
+ * then a double; whole numbers were only exact up to 2^53.
+ */
+union vm_cell {
+    int64_t i;      // an integer: wraps around on overflow
+    double d;       // a decimal
+};
+
+/**
+ * decimal -> integer, the conversion the D2I instruction does: the fraction is
+ * dropped (2.9 -> 2, -2.9 -> -2). A plain C++ cast is undefined for values
+ * that do not fit and for NaN, so those are given fixed results here:
+ * NaN -> 0, too large -> the largest integer, too small -> the smallest.
+ */
+inline int64_t decimal_to_integer(double value) {
+    if(value != value) return 0;
+    if(value >= 9223372036854775807.0) return INT64_MAX;
+    if(value <= -9223372036854775808.0) return INT64_MIN;
+    return (int64_t)value;
+}
+
 #define CXX11_INLINE inline
 
 

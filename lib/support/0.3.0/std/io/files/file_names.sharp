@@ -21,14 +21,14 @@ mod std.io;
 mutate file {
 
     /** the character between the parts of a path on this system: '/' or '\' (as a character code) */
-    static def separator_char() : var {
+    static def separator_char() : decimal {
         return file_natives.separator();
     }
 
     /** the index of the last separator in the path, or -1 */
-    private def last_separator() : var {
-        sep : var = file_natives.separator();
-        for(i : var = sizeof(path.data) - 1; i >= 0; i--) {
+    private def last_separator() : decimal {
+        sep : decimal = file_natives.separator();
+        for(i : decimal = sizeof(path.data) - 1; i >= 0; i--) {
             if(path.data[i] == sep) {
                 return i;
             }
@@ -42,8 +42,8 @@ mutate file {
      * "a.txt" gives "a.txt". For a root ("/") the path itself is returned.
      */
     def name() : string {
-        at : var = last_separator();
-        n : var = sizeof(path.data);
+        at : decimal = last_separator();
+        n : decimal = sizeof(path.data);
         if(at < 0 || at + 1 >= n) {
             return path;
         }
@@ -76,7 +76,7 @@ mutate file {
      */
     def extension() : string {
         own := name();
-        dot : var = io_strings.last_index_of(own, '.');
+        dot : decimal = io_strings.last_index_of(own, '.');
         if(dot <= 0) {
             return "";
         }
@@ -90,7 +90,7 @@ mutate file {
      */
     def name_without_extension() : string {
         own := name();
-        dot : var = io_strings.last_index_of(own, '.');
+        dot : decimal = io_strings.last_index_of(own, '.');
         if(dot <= 0) {
             return own;
         }

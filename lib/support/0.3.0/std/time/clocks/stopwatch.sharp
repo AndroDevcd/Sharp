@@ -30,12 +30,12 @@ class stopwatch {
     private started_at : instant;
     /** the total of all finished runs */
     private accumulated : duration;
-    private running : var = 0;
+    private running : decimal = 0;
 
     /** the elapsed() value at the moment of the last lap (or zero) */
     private last_lap_mark : duration;
     private lap_times : duration[];
-    private lap_total : var = 0;
+    private lap_total : decimal = 0;
 
     /** a stopped stopwatch on the system clock, showing zero */
     stopwatch() {
@@ -111,7 +111,7 @@ class stopwatch {
     }
 
     /** 1 while the stopwatch is measuring */
-    def is_running(): var {
+    def is_running(): decimal {
         return running;
     }
 
@@ -127,7 +127,7 @@ class stopwatch {
     }
 
     /** `elapsed()` in whole milliseconds */
-    def elapsed_millis(): var {
+    def elapsed_millis(): decimal {
         return elapsed().to_millis();
     }
 
@@ -153,7 +153,7 @@ class stopwatch {
 
         if(lap_total >= sizeof(lap_times)) {
             bigger : duration[] = new duration[sizeof(lap_times) * 2];
-            for(i : var = 0; i < lap_total; i++) {
+            for(i : decimal = 0; i < lap_total; i++) {
                 bigger[i] = lap_times[i];
             }
             lap_times = bigger;
@@ -164,7 +164,7 @@ class stopwatch {
     }
 
     /** how many laps have been recorded since the last reset */
-    def lap_count(): var {
+    def lap_count(): decimal {
         return lap_total;
     }
 
@@ -172,7 +172,7 @@ class stopwatch {
      * The time of lap number `index` (0 is the first lap).
      * @throws out_of_bounds_exception when there is no such lap
      */
-    def lap_at(index: var): duration {
+    def lap_at(index: decimal): duration {
         if(index < 0 || index >= lap_total) {
             throw new out_of_bounds_exception("lap " + time_math.whole_text(index) + " does not exist, there are "
                 + time_math.whole_text(lap_total) + " laps");
@@ -183,7 +183,7 @@ class stopwatch {
     /** all recorded lap times in order, as a new array (empty when there are none) */
     def laps(): duration[] {
         result : duration[] = new duration[lap_total];
-        for(i : var = 0; i < lap_total; i++) {
+        for(i : decimal = 0; i < lap_total; i++) {
             result[i] = lap_times[i];
         }
         return result;

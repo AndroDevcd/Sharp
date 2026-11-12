@@ -13,9 +13,9 @@ import ( std.io )
 mutate string {
 
     /** INTERNAL (shared helper, not part of the API). Position of the first character that is not whitespace (length if there is none). */
-    private def first_non_space(): var {
-        n : var = sizeof(data);
-        i : var = 0;
+    private def first_non_space(): decimal {
+        n : decimal = sizeof(data);
+        i : decimal = 0;
         while(i < n && string_support.is_space(data[i])) {
             i++;
         }
@@ -23,8 +23,8 @@ mutate string {
     }
 
     /** INTERNAL (shared helper, not part of the API). Position just after the last character that is not whitespace, never below `low`. */
-    private def end_non_space(low: var): var {
-        i : var = sizeof(data);
+    private def end_non_space(low: decimal): decimal {
+        i : decimal = sizeof(data);
         while(i > low && string_support.is_space(data[i - 1])) {
             i--;
         }
@@ -37,7 +37,7 @@ mutate string {
      * A string of only whitespace gives "".
      */
     def trim(): string {
-        from : var = first_non_space();
+        from : decimal = first_non_space();
         return string_support.slice(data, from, end_non_space(from));
     }
 
@@ -57,12 +57,12 @@ mutate string {
      * An empty set removes nothing.
      */
     def trim_chars(chars: string): string {
-        n : var = sizeof(data);
-        from : var = 0;
+        n : decimal = sizeof(data);
+        from : decimal = 0;
         while(from < n && string_support.in_set(data[from], chars.data)) {
             from++;
         }
-        to : var = n;
+        to : decimal = n;
         while(to > from && string_support.in_set(data[to - 1], chars.data)) {
             to--;
         }
@@ -71,8 +71,8 @@ mutate string {
 
     /** Like trim_chars(chars), but only at the start. */
     def trim_start_chars(chars: string): string {
-        n : var = sizeof(data);
-        from : var = 0;
+        n : decimal = sizeof(data);
+        from : decimal = 0;
         while(from < n && string_support.in_set(data[from], chars.data)) {
             from++;
         }
@@ -81,7 +81,7 @@ mutate string {
 
     /** Like trim_chars(chars), but only at the end. */
     def trim_end_chars(chars: string): string {
-        to : var = sizeof(data);
+        to : decimal = sizeof(data);
         while(to > 0 && string_support.in_set(data[to - 1], chars.data)) {
             to--;
         }
@@ -93,14 +93,14 @@ mutate string {
      * whitespace at the ends: "  a \t\n b  ".collapse_whitespace() is "a b".
      */
     def collapse_whitespace(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        used : var = 0;
-        pending_space : var = 0;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        used : decimal = 0;
+        pending_space : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(string_support.is_space(c)) {
                 // remember the gap; it is only written when a word follows
                 if(used > 0) pending_space = 1;
@@ -116,17 +116,17 @@ mutate string {
     }
 
     /** INTERNAL (shared helper, not part of the API). `left` copies of pad, the string, `right` copies of pad. */
-    private def padded(left: var, right: var, pad: var): string {
-        n : var = sizeof(data);
-        total : var = left + n + right;
+    private def padded(left: decimal, right: decimal, pad: decimal): string {
+        n : decimal = sizeof(data);
+        total : decimal = left + n + right;
         if(total == 0) return new string();
 
         out := new _int8[total];
-        for(i : var = 0; i < left; i++) {
+        for(i : decimal = 0; i < left; i++) {
             out[i] = pad;
         }
         if(n > 0) memcopy(data!!, out, left, 0, n);
-        for(i : var = left + n; i < total; i++) {
+        for(i : decimal = left + n; i < total; i++) {
             out[i] = pad;
         }
         return string_support.of_buffer(out, total);
@@ -144,9 +144,9 @@ mutate string {
 
     /** pad_start with the character to pad with: "42".pad_start(5, '0') is "00042". */
     def pad_start(width: int, pad: char): string {
-        w : var = width.value;
+        w : decimal = width.value;
         if(w < 0) throw new ill_arg_except("pad_start: width cannot be negative: $width");
-        missing : var = w - sizeof(data);
+        missing : decimal = w - sizeof(data);
         if(missing < 0) missing = 0;
         return padded(missing, 0, pad.value);
     }
@@ -162,9 +162,9 @@ mutate string {
 
     /** pad_end with the character to pad with: "ab".pad_end(4, '.') is "ab..". */
     def pad_end(width: int, pad: char): string {
-        w : var = width.value;
+        w : decimal = width.value;
         if(w < 0) throw new ill_arg_except("pad_end: width cannot be negative: $width");
-        missing : var = w - sizeof(data);
+        missing : decimal = w - sizeof(data);
         if(missing < 0) missing = 0;
         return padded(0, missing, pad.value);
     }
@@ -181,11 +181,11 @@ mutate string {
 
     /** center with the character to pad with: "ab".center(6, '*') is "**ab**". */
     def center(width: int, pad: char): string {
-        w : var = width.value;
+        w : decimal = width.value;
         if(w < 0) throw new ill_arg_except("center: width cannot be negative: $width");
-        missing : var = w - sizeof(data);
+        missing : decimal = w - sizeof(data);
         if(missing < 0) missing = 0;
-        left : var = (missing - (missing % 2)) / 2;
+        left : decimal = (missing - (missing % 2)) / 2;
         return padded(left, missing - left, pad.value);
     }
 }

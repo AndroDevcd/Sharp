@@ -6,7 +6,7 @@ mod std;
  * a `mutate` declaration so that std/primatives.sharp itself stays as it is
  * (the compiler and the optimizer rely on its fields and constructors).
  *
- * T is the native type the box holds (_int32 for int, var for double ...)
+ * T is the native type the box holds (_int32 for int, decimal for double ...)
  * and NT is the box class itself, so a method declared as returning NT
  * returns an int when called on an int and a double when called on a double.
  *
@@ -29,7 +29,7 @@ mutate number {
      * smaller, 1 when it is larger, 0 when they are equal (the convention
      * of comparators and of Kotlin's compareTo).
      */
-    def compare_to(other: NT): var {
+    def compare_to(other: NT): decimal {
         if(value < other.value) return 0 - 1;
         if(value > other.value) return 1;
         return 0;
@@ -61,7 +61,7 @@ mutate number {
     }
 
     /** -1, 0 or 1 as a native number: the sign of the value */
-    def sign(): var {
+    def sign(): decimal {
         if(value > 0) return 1;
         if(value < 0) return 0 - 1;
         return 0;
@@ -127,12 +127,12 @@ mutate number {
      * Throws illegal_argument_exception when radix is outside 2 .. 36, or
      * the value is too large to hold exactly (above 2^53).
      */
-    def to_string_radix(radix: var): string {
+    def to_string_radix(radix: decimal): string {
         if(radix < 2 || radix > 36 || radix != (radix as _int64))
             throw new illegal_argument_exception("to_string_radix: the radix must be a whole number in 2 .. 36");
 
-        size : var = value;
-        negative : var = 0;
+        size : decimal = value;
+        negative : decimal = 0;
         if(size < 0) {
             size = 0 - size;
             negative = 1;
@@ -142,8 +142,8 @@ mutate number {
         size = size as _int64;          // drop the fraction of a double
 
         // count the digits first, then fill the text from the right
-        digits : var = 1;
-        rest : var = size;
+        digits : decimal = 1;
+        rest : decimal = size;
         while(rest >= radix) {
             rest = (rest / radix) as _int64;
             digits++;
@@ -151,9 +151,9 @@ mutate number {
 
         text := new _int8[digits + negative];
         rest = size;
-        for(i : var = digits + negative - 1; i >= negative; i--) {
-            high : var = (rest / radix) as _int64;
-            digit : var = rest - high * radix;
+        for(i : decimal = digits + negative - 1; i >= negative; i--) {
+            high : decimal = (rest / radix) as _int64;
+            digit : decimal = rest - high * radix;
             if(digit < 10) {
                 text[i] = '0' + digit;
             } else {
@@ -187,18 +187,18 @@ mutate number {
      * to at least `width` characters: 7 with width 3 is "007", -7 is "-07",
      * 1234 with width 3 stays "1234".
      */
-    def to_padded_string(width: var): string {
+    def to_padded_string(width: decimal): string {
         plain := to_string_radix(10);
-        length : var = plain.size().value;
+        length : decimal = plain.size().value;
         if(length >= width) return plain;
 
-        negative : var = value < 0;
+        negative : decimal = value < 0;
         text := new _int8[width];
         // the digits go to the right end, zeros fill the gap, a sign stays first
-        for(i : var = 0; i < width; i++) {
+        for(i : decimal = 0; i < width; i++) {
             text[i] = '0';
         }
-        for(i : var = negative; i < length; i++) {
+        for(i : decimal = negative; i < length; i++) {
             text[width - length + i] = plain.at(i).value;
         }
         if(negative) {
@@ -216,13 +216,13 @@ mutate number {
      * character that is not a digit of that base, and
      * illegal_argument_exception when radix is outside 2 .. 36.
      */
-    static def parse_radix(text: string, radix: var): NT {
+    static def parse_radix(text: string, radix: decimal): NT {
         if(radix < 2 || radix > 36 || radix != (radix as _int64))
             throw new illegal_argument_exception("parse_radix: the radix must be a whole number in 2 .. 36");
 
-        length : var = text.size().value;
-        position : var = 0;
-        negative : var = 0;
+        length : decimal = text.size().value;
+        position : decimal = 0;
+        negative : decimal = 0;
 
         if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {
             negative = text.at(0).value == '-';
@@ -231,10 +231,10 @@ mutate number {
         if(position >= length)
             throw new number_format_exception("not a number: " + text);
 
-        result : var = 0;
+        result : decimal = 0;
         while(position < length) {
-            ch : var = text.at(position).value;
-            digit : var = 99;
+            ch : decimal = text.at(position).value;
+            digit : decimal = 99;
             if(ch >= '0' && ch <= '9') {
                 digit = ch - '0';
             } else if(ch >= 'a' && ch <= 'z') {
@@ -267,8 +267,8 @@ mutate number {
 
     /** true when the text is an optional + or - followed by one or more decimal digits */
     static def is_parsable(text: string): bool {
-        length : var = text.size().value;
-        position : var = 0;
+        length : decimal = text.size().value;
+        position : decimal = 0;
 
         if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {
             position = 1;
@@ -276,7 +276,7 @@ mutate number {
         if(position >= length) return false;
 
         while(position < length) {
-            ch : var = text.at(position).value;
+            ch : decimal = text.at(position).value;
             if(ch < '0' || ch > '9') return false;
             position++;
         }

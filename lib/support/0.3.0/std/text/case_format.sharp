@@ -29,12 +29,12 @@ mod std.text;
  */
 class case_format {
 
-    private static def is_upper(c: var): var { return c >= 'A' && c <= 'Z'; }
-    private static def is_lower(c: var): var { return c >= 'a' && c <= 'z'; }
-    private static def is_digit(c: var): var { return c >= '0' && c <= '9'; }
+    private static def is_upper(c: decimal): decimal { return c >= 'A' && c <= 'Z'; }
+    private static def is_lower(c: decimal): decimal { return c >= 'a' && c <= 'z'; }
+    private static def is_digit(c: decimal): decimal { return c >= '0' && c <= '9'; }
 
     /** 1 if `c` separates words and is not part of any word. */
-    private static def is_separator(c: var): var {
+    private static def is_separator(c: decimal): decimal {
         return c == '_' || c == '-' || c == '.' || c == ' ' || (c >= 9 && c <= 13);
     }
 
@@ -42,9 +42,9 @@ class case_format {
      * 1 if a new word starts at position `i` of `d` (which is not a separator
      * and not the first character of a word run).
      */
-    private static def starts_word(d: _int8[]?, n: var, i: var): var {
-        c : var = d[i];
-        previous : var = d[i - 1];
+    private static def starts_word(d: _int8[]?, n: decimal, i: decimal): decimal {
+        c : decimal = d[i];
+        previous : decimal = d[i - 1];
         if(!is_upper(c)) return 0;
         // aB or 2B
         if(is_lower(previous) || is_digit(previous)) return 1;
@@ -60,12 +60,12 @@ class case_format {
      */
     static def split_words(name: string): string[] {
         d := name.data;
-        n : var = sizeof(d);
+        n : decimal = sizeof(d);
 
         // pass 1: count the words
-        count : var = 0;
-        in_word : var = 0;
-        for(i : var = 0; i < n; i++) {
+        count : decimal = 0;
+        in_word : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(is_separator(d[i])) {
                 in_word = 0;
             } else if(!in_word) {
@@ -78,9 +78,9 @@ class case_format {
 
         // pass 2: cut them out, in small letters
         result := new string[count];
-        used : var = 0;
-        start : var = -1;               // start of the word being read, -1 = between words
-        for(i : var = 0; i < n; i++) {
+        used : decimal = 0;
+        start : decimal = -1;               // start of the word being read, -1 = between words
+        for(i : decimal = 0; i < n; i++) {
             if(is_separator(d[i])) {
                 if(start >= 0) {
                     result[used++] = lower_copy(d, start, i);
@@ -98,10 +98,10 @@ class case_format {
     }
 
     /** The characters from..to-1 of `d` as a string in small letters. */
-    private static def lower_copy(d: _int8[]?, from: var, to: var): string {
+    private static def lower_copy(d: _int8[]?, from: decimal, to: decimal): string {
         buffer := new _int8[to - from];
-        for(i : var = from; i < to; i++) {
-            c : var = d[i];
+        for(i : decimal = from; i < to; i++) {
+            c : decimal = d[i];
             if(is_upper(c)) c = c + 32;
             buffer[i - from] = c;
         }
@@ -114,16 +114,16 @@ class case_format {
      *   first_style  how the first word is written, rest_style how the others are:
      *                0 = small letters, 1 = Capitalised, 2 = ALL CAPITALS
      */
-    private static def assemble(words: string[], separator: var, first_style: var, rest_style: var): string {
-        count : var = sizeof(words);
+    private static def assemble(words: string[], separator: decimal, first_style: decimal, rest_style: decimal): string {
+        count : decimal = sizeof(words);
         out := new text_buffer();
-        for(w : var = 0; w < count; w++) {
+        for(w : decimal = 0; w < count; w++) {
             if(w > 0 && separator != 0) out.append_char(separator);
-            style : var = w == 0 ? first_style : rest_style;
+            style : decimal = w == 0 ? first_style : rest_style;
             word := words[w];
-            len : var = sizeof(word.data);
-            for(i : var = 0; i < len; i++) {
-                c : var = word.data[i];
+            len : decimal = sizeof(word.data);
+            for(i : decimal = 0; i < len; i++) {
+                c : decimal = word.data[i];
                 if(is_lower(c)) {
                     if(style == 2) c = c - 32;
                     else if(style == 1 && i == 0) c = c - 32;
@@ -175,7 +175,7 @@ class case_format {
     }
 
     /** How many words the name has: word_count("parseHTTPRequest") is 3. */
-    static def word_count(name: string): var {
+    static def word_count(name: string): decimal {
         return sizeof(split_words(name));
     }
 }

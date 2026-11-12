@@ -38,13 +38,13 @@ class calendar {
      *
      * @throws date_time_exception when year or month is out of range
      */
-    static def month_grid(year: var, month_number: var, week_start: day_of_week): var[] {
+    static def month_grid(year: decimal, month_number: decimal, week_start: day_of_week): decimal[] {
         first : date = date.of(year, month_number, 1);
         // how many blank cells come before the 1st
-        lead : var = week_start.days_until(first.day_of_week());
-        length : var = first.length_of_month();
-        grid : var[] = new var[42];
-        for(day : var = 1; day <= length; day++) {
+        lead : decimal = week_start.days_until(first.day_of_week());
+        length : decimal = first.length_of_month();
+        grid : decimal[] = new decimal[42];
+        for(day : decimal = 1; day <= length; day++) {
             grid[lead + day - 1] = day;
         }
         return grid;
@@ -54,9 +54,9 @@ class calendar {
      * How many rows of `month_grid` are actually used by the month: 4
      * (a 28-day February starting on the first column), 5 or 6.
      */
-    static def weeks_in_month(year: var, month_number: var, week_start: day_of_week): var {
+    static def weeks_in_month(year: decimal, month_number: decimal, week_start: day_of_week): decimal {
         first : date = date.of(year, month_number, 1);
-        cells : var = week_start.days_until(first.day_of_week()) + first.length_of_month();
+        cells : decimal = week_start.days_until(first.day_of_week()) + first.length_of_month();
         return time_math.floor_div(cells + 6, 7);
     }
 
@@ -77,21 +77,21 @@ class calendar {
      *
      * @throws date_time_exception when year or month is out of range
      */
-    static def month_text(year: var, month_number: var, week_start: day_of_week): string {
+    static def month_text(year: decimal, month_number: decimal, week_start: day_of_week): string {
         w := new time_text_writer();
 
         // title, centred over the 20 characters the day columns take
         title := new time_text_writer();
         title.put_text(month.of(month_number).name()).put(' ');
         date.write_year(title, year);
-        padding : var = time_math.floor_div(20 - title.size(), 2);
-        for(i : var = 0; i < padding; i++) {
+        padding : decimal = time_math.floor_div(20 - title.size(), 2);
+        for(i : decimal = 0; i < padding; i++) {
             w.put(' ');
         }
         w.put_text(title.text()).put('\n');
 
         // day names: the first two letters of each short name
-        for(column : var = 0; column < 7; column++) {
+        for(column : decimal = 0; column < 7; column++) {
             if(column > 0) {
                 w.put(' ');
             }
@@ -99,22 +99,22 @@ class calendar {
             w.put(name.data[0]).put(name.data[1]);
         }
 
-        grid : var[] = month_grid(year, month_number, week_start);
-        rows : var = weeks_in_month(year, month_number, week_start);
-        for(row : var = 0; row < rows; row++) {
+        grid : decimal[] = month_grid(year, month_number, week_start);
+        rows : decimal = weeks_in_month(year, month_number, week_start);
+        for(row : decimal = 0; row < rows; row++) {
             w.put('\n');
             // the last column of this row that holds a day, so nothing is printed after it
-            last_used : var = 0 - 1;
-            for(column : var = 0; column < 7; column++) {
+            last_used : decimal = 0 - 1;
+            for(column : decimal = 0; column < 7; column++) {
                 if(grid[row * 7 + column] != 0) {
                     last_used = column;
                 }
             }
-            for(column : var = 0; column <= last_used; column++) {
+            for(column : decimal = 0; column <= last_used; column++) {
                 if(column > 0) {
                     w.put(' ');
                 }
-                day : var = grid[row * 7 + column];
+                day : decimal = grid[row * 7 + column];
                 if(day == 0) {
                     w.put(' ').put(' ');
                 } else {
@@ -141,7 +141,7 @@ class calendar {
      * @throws date_time_exception when n is 0, or the month has no such day
      *         (a 5th Monday in a month with four Mondays), or year/month are out of range
      */
-    static def nth_weekday_of_month(year: var, month_number: var, weekday: day_of_week, n: var): date {
+    static def nth_weekday_of_month(year: decimal, month_number: decimal, weekday: day_of_week, n: decimal): date {
         if(n == 0 || !time_math.is_whole(n) || n > 5 || n < (0 - 5)) {
             throw new date_time_exception("n must be 1 to 5 or -1 to -5 but was " + time_math.number_text(n));
         }
@@ -160,12 +160,12 @@ class calendar {
     }
 
     /** the last `weekday` of a month: nth_weekday_of_month(year, month, weekday, -1) */
-    static def last_weekday_of_month(year: var, month_number: var, weekday: day_of_week): date {
+    static def last_weekday_of_month(year: decimal, month_number: decimal, weekday: day_of_week): date {
         return nth_weekday_of_month(year, month_number, weekday, 0 - 1);
     }
 
     /** how many times `weekday` occurs in a month: 4 or 5 */
-    static def count_weekday_in_month(year: var, month_number: var, weekday: day_of_week): var {
+    static def count_weekday_in_month(year: decimal, month_number: decimal, weekday: day_of_week): decimal {
         first : date = date.of(year, month_number, 1).next_or_same(weekday);
         // days left in the month after the first occurrence, in whole weeks, plus the first one
         return time_math.floor_div(first.length_of_month() - first.day(), 7) + 1;
@@ -199,21 +199,21 @@ class calendar {
      * @throws date_time_exception when `year` is before 1583 (the first
      *         Easter of the Gregorian calendar) or after 999,999
      */
-    static def easter(year: var): date {
+    static def easter(year: decimal): date {
         time_math.check_range("year", year, 1583, date.max_year);
-        a : var = year % 19;
-        b : var = time_math.trunc_div(year, 100);
-        c : var = year % 100;
-        d : var = time_math.trunc_div(b, 4);
-        e : var = b % 4;
-        f : var = time_math.trunc_div(b + 8, 25);
-        g : var = time_math.trunc_div(b - f + 1, 3);
-        h : var = (19 * a + b - d - g + 15) % 30;
-        i : var = time_math.trunc_div(c, 4);
-        k : var = c % 4;
-        l : var = (32 + 2 * e + 2 * i - h - k) % 7;
-        m : var = time_math.trunc_div(a + 11 * h + 22 * l, 451);
-        n : var = h + l - 7 * m + 114;
+        a : decimal = year % 19;
+        b : decimal = time_math.trunc_div(year, 100);
+        c : decimal = year % 100;
+        d : decimal = time_math.trunc_div(b, 4);
+        e : decimal = b % 4;
+        f : decimal = time_math.trunc_div(b + 8, 25);
+        g : decimal = time_math.trunc_div(b - f + 1, 3);
+        h : decimal = (19 * a + b - d - g + 15) % 30;
+        i : decimal = time_math.trunc_div(c, 4);
+        k : decimal = c % 4;
+        l : decimal = (32 + 2 * e + 2 * i - h - k) % 7;
+        m : decimal = time_math.trunc_div(a + 11 * h + 22 * l, 451);
+        n : decimal = h + l - 7 * m + 114;
         return date.of(year, time_math.trunc_div(n, 31), (n % 31) + 1);
     }
 
@@ -239,19 +239,19 @@ class calendar {
      *
      * @throws date_time_exception when `year` is before 1583 or after 999,999
      */
-    static def orthodox_easter(year: var): date {
+    static def orthodox_easter(year: decimal): date {
         time_math.check_range("year", year, 1583, date.max_year);
-        a : var = year % 4;
-        b : var = year % 7;
-        c : var = year % 19;
-        d : var = (19 * c + 15) % 30;
-        e : var = (2 * a + 4 * b - d + 34) % 7;
-        n : var = d + e + 114;
-        julian_month : var = time_math.trunc_div(n, 31);
-        julian_day : var = (n % 31) + 1;
+        a : decimal = year % 4;
+        b : decimal = year % 7;
+        c : decimal = year % 19;
+        d : decimal = (19 * c + 15) % 30;
+        e : decimal = (2 * a + 4 * b - d + 34) % 7;
+        n : decimal = d + e + 114;
+        julian_month : decimal = time_math.trunc_div(n, 31);
+        julian_day : decimal = (n % 31) + 1;
         // Easter falls in March or April (Julian), well after the leap day, so the
         // difference between the calendars for this year is simply:
-        shift : var = time_math.trunc_div(year, 100) - time_math.trunc_div(year, 400) - 2;
+        shift : decimal = time_math.trunc_div(year, 100) - time_math.trunc_div(year, 400) - 2;
         return date.of(year, julian_month, julian_day).plus_days(shift);
     }
 
@@ -260,17 +260,17 @@ class calendar {
     // ------------------------------------------------------------------
 
     /** 1 when `day` is a Saturday or Sunday */
-    static def is_weekend(day: date): var {
+    static def is_weekend(day: date): decimal {
         return day.day_of_week().is_weekend();
     }
 
     /** 1 when `day` is Monday to Friday */
-    static def is_business_day(day: date): var {
+    static def is_business_day(day: date): decimal {
         return !day.day_of_week().is_weekend();
     }
 
     /** 1 when `day` is Monday to Friday and is not one of `holidays` */
-    static def is_business_day(day: date, holidays: date[]): var {
+    static def is_business_day(day: date, holidays: date[]): decimal {
         if(day.day_of_week().is_weekend()) {
             return 0;
         }
@@ -278,8 +278,8 @@ class calendar {
     }
 
     /** 1 when `day` is in `days` */
-    private static def contains(days: date[], day: date): var {
-        for(i : var = 0; i < sizeof(days); i++) {
+    private static def contains(days: date[], day: date): decimal {
+        for(i : decimal = 0; i < sizeof(days); i++) {
             if(days[i] == day) {
                 return 1;
             }
@@ -297,15 +297,15 @@ class calendar {
      * Whole weeks are skipped arithmetically (5 business days = 7 calendar
      * days), the remaining 0-4 days are stepped one at a time.
      */
-    static def plus_business_days(start: date, count: var): date {
+    static def plus_business_days(start: date, count: decimal): date {
         time_math.check_whole("business days", count);
-        direction : var = 1;
+        direction : decimal = 1;
         if(count < 0) {
             direction = 0 - 1;
             count = 0 - count;
         }
         result : date = start.plus_weeks(direction * time_math.trunc_div(count, 5));
-        left : var = count % 5;
+        left : decimal = count % 5;
         while(left > 0) {
             result = result.plus_days(direction);
             if(!result.day_of_week().is_weekend()) {
@@ -319,9 +319,9 @@ class calendar {
      * As plus_business_days(start, count), also skipping every date in
      * `holidays`. Steps one day at a time, so the cost grows with `count`.
      */
-    static def plus_business_days(start: date, count: var, holidays: date[]): date {
+    static def plus_business_days(start: date, count: decimal, holidays: date[]): date {
         time_math.check_whole("business days", count);
-        direction : var = 1;
+        direction : decimal = 1;
         if(count < 0) {
             direction = 0 - 1;
             count = 0 - count;
@@ -354,13 +354,13 @@ class calendar {
      *
      * Whole weeks count 5 each; the remaining 0-6 days are checked one by one.
      */
-    static def business_days_between(start: date, end: date): var {
+    static def business_days_between(start: date, end: date): decimal {
         if(end < start) {
             return 0 - business_days_between(end, start);
         }
-        days : var = start.days_until(end);
-        weeks : var = time_math.trunc_div(days, 7);
-        count : var = weeks * 5;
+        days : decimal = start.days_until(end);
+        weeks : decimal = time_math.trunc_div(days, 7);
+        count : decimal = weeks * 5;
         day : date = start.plus_weeks(weeks);
         while(day < end) {
             if(!day.day_of_week().is_weekend()) {
@@ -376,17 +376,17 @@ class calendar {
      * `holidays`. A holiday that falls on a weekend, lies outside the range,
      * or is listed twice makes no difference.
      */
-    static def business_days_between(start: date, end: date, holidays: date[]): var {
+    static def business_days_between(start: date, end: date, holidays: date[]): decimal {
         if(end < start) {
             return 0 - business_days_between(end, start, holidays);
         }
-        count : var = business_days_between(start, end);
-        for(i : var = 0; i < sizeof(holidays); i++) {
+        count : decimal = business_days_between(start, end);
+        for(i : decimal = 0; i < sizeof(holidays); i++) {
             holiday : date = holidays[i];
             if(holiday >= start && holiday < end && !holiday.day_of_week().is_weekend()) {
                 // count each holiday once even when the array lists it twice
-                seen_before : var = 0;
-                for(j : var = 0; j < i; j++) {
+                seen_before : decimal = 0;
+                for(j : decimal = 0; j < i; j++) {
                     if(holidays[j] == holiday) {
                         seen_before = 1;
                     }
@@ -409,7 +409,7 @@ class calendar {
      * birthday on 1 March in years that are not leap years. Negative when
      * `on` is before `from`.
      */
-    static def full_years_between(from: date, on: date): var {
+    static def full_years_between(from: date, on: date): decimal {
         return period.between(from, on).years();
     }
 
@@ -420,7 +420,7 @@ class calendar {
      *
      * @throws date_time_exception when that year has no such week
      */
-    static def date_of_iso_week(week_year: var, week: var, weekday: day_of_week): date {
+    static def date_of_iso_week(week_year: decimal, week: decimal, weekday: day_of_week): date {
         time_math.check_range("ISO week", week, 1, date.iso_weeks_in_year(week_year));
         // the Monday of week 1 is the Monday on or before 4 January
         week_one : date = date.of(week_year, 1, 4).previous_or_same(day_of_week.monday);

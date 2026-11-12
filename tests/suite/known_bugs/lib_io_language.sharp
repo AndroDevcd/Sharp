@@ -9,14 +9,14 @@ import ( testing )
  * can be removed.
  */
 
-calls : var = 0;
+calls : decimal = 0;
 
 def counted_true(): bool {
     calls++;
     return true;
 }
 
-def boxed(v: var): int {
+def boxed(v: decimal): int {
     return v;
 }
 
@@ -30,12 +30,12 @@ def main(args: string[]) {
     if(counted_true() || counted_true()) { }
     expect("|| with an object on the left skips the right side", calls, 1);
 
-    // 2. a number above 127 stored from a `var` into an _int8 array element is kept as it
+    // 2. a number above 127 stored from a `decimal` into an _int8 array element is kept as it
     //    is (128, 129 ...) instead of wrapping to -128, -127 ..., so the element no longer
     //    compares equal to the same byte read from a file.
     //    Workaround: byte_buffer converts by hand, readers compare with `& 0xff`.
     bytes := new _int8[2];
-    v : var = 128;
+    v : decimal = 128;
     bytes[0] = v;
     v = 129;
     bytes[1] = v;

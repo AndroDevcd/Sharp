@@ -9,7 +9,7 @@ import ( testing )
  *           `_int64` cut the fraction off (towards zero) and then keep only
  *           the low bits, exactly like a cast in C.
  * Objects:  `thing as dog` views an object through another class of its
- *           hierarchy; `value as var[]` gets an array back out of an `object`.
+ *           hierarchy; `value as decimal[]` gets an array back out of an `object`.
  */
 
 class animal {
@@ -18,15 +18,15 @@ class animal {
 }
 
 class dog base animal {
-    tricks : var = 3;
+    tricks : decimal = 3;
     dog(n: string) -> base(n) {}
-    def fetch() : var { return 1; }
+    def fetch() : decimal { return 1; }
 }
 
 class puppy base dog {
-    age : var = 2;
+    age : decimal = 2;
     puppy(n: string) -> base(n) {}
-    def chew() : var { return 7; }
+    def chew() : decimal { return 7; }
 }
 
 class sized_fields {
@@ -35,12 +35,12 @@ class sized_fields {
 }
 
 def name_of(a: animal) : string { return a.name; }
-def give(x: var) : var { return x; }
-def as_tiny(x: var) : _int8 { return x; }
-def as_small(x: var) : _int16 { return x; }
+def give(x: decimal) : decimal { return x; }
+def as_tiny(x: decimal) : _int8 { return x; }
+def as_small(x: decimal) : _int16 { return x; }
 
 def main(args: string[]) {
-    x : var = 0;
+    x : decimal = 0;
 
     // ---- _int8: -128 .. 127
     x = 127;
@@ -127,7 +127,7 @@ def main(args: string[]) {
     x = 1000.5;
     expect("1000.5 as _int8: 1000 is cut to 8 bits", x as _int8, 0 - 24);
     x = 5.5;
-    expect("5.5 as var changes nothing", x as var, 5.5);
+    expect("5.5 as var changes nothing", x as decimal, 5.5);
 
     // ---- _int64 holds large whole numbers
     x = 1099511627776;
@@ -147,7 +147,7 @@ def main(args: string[]) {
     expect("the result used in arithmetic", (x as _int8) + 1000, 1044);
     tiny_local : _int8 = 100;
     expect("widening keeps the value", (tiny_local as _int16) * 400, 40000);
-    kept : var = x as _int8;
+    kept : decimal = x as _int8;
     expect("the result stored in a var", kept, 44);
     expect("the variable that was cast is unchanged", x, 300);
 
@@ -213,11 +213,11 @@ def main(args: string[]) {
     anything = new int(12);
     number := anything as int;
     expect("object as int", number.value, 12);
-    anything = new var[3];
-    numbers := anything as var[];
+    anything = new decimal[3];
+    numbers := anything as decimal[];
     expect("object as var[]", sizeof(numbers), 3);
     numbers[2] = 8;
-    expect("...is the same array", (anything as var[])[2], 8);
+    expect("...is the same array", (anything as decimal[])[2], 8);
 
     // ---- a cast that cannot work raises an exception
     try {
@@ -227,7 +227,7 @@ def main(args: string[]) {
         pass("var[] as dog");
     }
     // ...and the program carries on
-    expect("after the failed cast", (anything as var[])[2], 8);
+    expect("after the failed cast", (anything as decimal[])[2], 8);
 
     finish("casts");
 }

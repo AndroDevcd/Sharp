@@ -14,10 +14,10 @@ import (
 class parser {
 
     public source_file: string;
-    private panic: var;
-    private cursor: var;
-    private parsed: var;
-    private cached: var;
+    private panic: decimal;
+    private cursor: decimal;
+    private parsed: decimal;
+    private cached: decimal;
     private tree: list<ast>;
     private lines: list<string>;
     private current: token;
@@ -274,7 +274,7 @@ class parser {
        }
     }
 
-    def parse_statement(_ast : ast) : var{
+    def parse_statement(_ast : ast) : decimal{
        branch := get_branch(_ast, ast_statement);
 
        if(is_access_decl()) {
@@ -371,11 +371,11 @@ class parser {
     def parse_for_statement(_ast : ast) {
        branch := get_branch(_ast, ast_for_statement);
 
-//       for val in array { // iterated loop with typed var
+//       for val in array { // iterated loop with typed decimal
 //
 //       }
 //
-//       for val,i in array { // iterated lop with typed var & index var
+//       for val,i in array { // iterated lop with typed decimal & index decimal
 //
 //       }
 //
@@ -383,7 +383,7 @@ class parser {
 //
 //       }
 //
-//       for >= 100 { // dynamic iterated array without index var
+//       for >= 100 { // dynamic iterated array without index decimal
 //
 //       }
 //
@@ -395,7 +395,7 @@ class parser {
        expect_semicolon();
     }
 
-    def parse_expression(_ast : ast) : var {
+    def parse_expression(_ast : ast) : decimal {
        branch := get_branch(_ast, ast_expression);
 
        return true;
@@ -688,7 +688,7 @@ class parser {
        expect(branch, ";", false);
     }
 
-    def parse_variable_decl(_ast: ast, first_variable: var) {
+    def parse_variable_decl(_ast: ast, first_variable: decimal) {
        branch := get_branch(_ast, ast_variable_decl);
 
        if(first_variable) {
@@ -1029,16 +1029,16 @@ class parser {
        parse_class_block(branch);
     }
 
-    def is_variable_decl(tok : token) : var {
+    def is_variable_decl(tok : token) : decimal {
        return !is_keyword(tok.tok) && tok.id == identifier;
     }
 
-    def is_constructor_decl() : var {
+    def is_constructor_decl() : decimal {
         return current.id == identifier && !is_keyword(current.tok) &&
                peek(1).type == token_type.left_paren;
     }
 
-    def parse_utype_arg(_ast : ast, require_name: var) : var {
+    def parse_utype_arg(_ast : ast, require_name: decimal) : decimal {
        branch := get_branch(_ast, ast_utype_arg);
 
         if(require_name) {
@@ -1058,7 +1058,7 @@ class parser {
         }
     }
 
-    def parse_utype_arg_list(_ast : ast, require_name: var) : var {
+    def parse_utype_arg_list(_ast : ast, require_name: decimal) : decimal {
        branch := get_branch(_ast, ast_utype_arg_list_opt);
        expect(branch, "(", false);
 
@@ -1109,7 +1109,7 @@ class parser {
        }
     }
 
-    def parse_reference_ptr(_ast : ast) : var {
+    def parse_reference_ptr(_ast : ast) : decimal {
        branch := get_branch(_ast, ast_reference_pointer);
        if(peek(1).tok == keywords[KEYWORD_OPERATOR]) {
            expect(branch, keywords[KEYWORD_OPERATOR], false);
@@ -1185,7 +1185,7 @@ class parser {
        return true;
     }
 
-    def parse_function_ptr(_ast : ast) : var {
+    def parse_function_ptr(_ast : ast) : decimal {
        branch := get_branch(_ast, ast_func_pointer);
 
        if(peek(1).type == token_type.left_paren) {
@@ -1222,7 +1222,7 @@ class parser {
        parse_utype(branch);
     }
 
-    def is_native_type(tok: token) : var {
+    def is_native_type(tok: token) : decimal {
        type := tok.tok;
        return type == keywords[KEYWORD_VAR] || type == keywords[KEYWORD_OBJECT]
                   || type == keywords[KEYWORD_INT8] || type == keywords[KEYWORD_INT16]
@@ -1231,7 +1231,7 @@ class parser {
                   || type == keywords[KEYWORD_UINT32] || type == keywords[KEYWORD_UINT64];
     }
 
-    def try_parse(branch: ast, parse_fn: (ast, parser)(var)) : var {
+    def try_parse(branch: ast, parse_fn: (ast, parser)(decimal)) : decimal {
        errors.enable_protected_mode();
        old := cursor;
        if(parse_fn(branch, self)) {
@@ -1245,7 +1245,7 @@ class parser {
        }
     }
 
-    def parse_type_identifier(_ast: ast) : var {
+    def parse_type_identifier(_ast: ast) : decimal {
        branch := get_branch(_ast, ast_type_identifier);
 
        advance();
@@ -1259,7 +1259,7 @@ class parser {
        else return parse_reference_ptr(branch);
     }
 
-    def parse_utype(_ast : ast) : var {
+    def parse_utype(_ast : ast) : decimal {
        branch := get_branch(_ast, ast_utype);
 
        if(parse_type_identifier(branch)) {
@@ -1331,7 +1331,7 @@ class parser {
         }
     }
 
-    def peek(amount: var) : token {
+    def peek(amount: decimal) : token {
        if(amount == 1)
           return tokens[cursor];
        else if(amount > 1)
@@ -1415,11 +1415,11 @@ class parser {
        expect(_ast, token, true, null);
     }
 
-    def expect(_ast: ast, token: string, add_token: var) {
+    def expect(_ast: ast, token: string, add_token: decimal) {
        expect(_ast, token, add_token, null);
     }
 
-    def expect(_ast: ast, token: string, add_token: var, expectedstr: _int8[]) {
+    def expect(_ast: ast, token: string, add_token: decimal, expectedstr: _int8[]) {
         advance();
 
         if(current.tok == token)
@@ -1472,7 +1472,7 @@ class parser {
        // end of overrideable operators
     };
 
-    def is_override_op(tok : token) : var {
+    def is_override_op(tok : token) : decimal {
        foreach(op in operators) {
           if(tok.tok == op)
              return true;
@@ -1481,7 +1481,7 @@ class parser {
        return false;
     }
 
-    def expect_override_op(_ast: ast) : var {
+    def expect_override_op(_ast: ast) : decimal {
        advance();
 
        if(is_override_op(current))
@@ -1502,7 +1502,7 @@ class parser {
        return false;
     }
 
-    def expect_identifier(_ast: ast) : var {
+    def expect_identifier(_ast: ast) : decimal {
         advance();
 
         if(current.id == identifier && !is_keyword(current.tok))
@@ -1517,7 +1517,7 @@ class parser {
         return false;
     }
 
-    def is_access_decl() : var {
+    def is_access_decl() : decimal {
        return ((current.tok == keywords[KEYWORD_PROTECTED]) ||
             (current.tok == keywords[KEYWORD_PRIVATE]) ||
             (current.tok == keywords[KEYWORD_STATIC]) ||
@@ -1603,7 +1603,7 @@ class parser {
         "init"
     };
 
-    private def is_keyword(key: string) : var {
+    private def is_keyword(key: string) : decimal {
         for(i := 0; i < sizeof(keywords); i++) {
             if(key == keywords[i])
                 return true;

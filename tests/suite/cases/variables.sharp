@@ -10,25 +10,25 @@ import ( testing )
  */
 
 // ---- globals
-counter : var = 0;
-start : var = 100;
-twice_start : var = start * 2;
-ratio : var = 0.75;
+counter : decimal = 0;
+start : decimal = 100;
+twice_start : decimal = start * 2;
+ratio : decimal = 0.75;
 title := "global title";
 boxed_count : int = 40;
-table : var[] = new var[3];
-hidden : var = 7;
-unset_number : var;
-first : var = 1, second = 2, third = 3;
+table : decimal[] = new decimal[3];
+hidden : decimal = 7;
+unset_number : decimal;
+first : decimal = 1, second = 2, third = 3;
 
-const LIMIT : var = 10;
+const LIMIT : decimal = 10;
 const GREETING := "hello";
 const DOZEN := 12;
 
 /** `localized` gives every thread its own copy (Sharp's thread-local storage) */
-localized per_thread : var = 5;
+localized per_thread : decimal = 5;
 
-def next(): var {
+def next(): decimal {
     counter++;
     return counter;
 }
@@ -37,9 +37,9 @@ def reset() {
     counter = 0;
 }
 
-def read_start(): var { return start; }
-def read_hidden(): var { return hidden; }
-def read_per_thread(): var { return per_thread; }
+def read_start(): decimal { return start; }
+def read_hidden(): decimal { return hidden; }
+def read_per_thread(): decimal { return per_thread; }
 
 def change_globals() {
     start = 150;
@@ -50,54 +50,54 @@ def change_globals() {
 }
 
 /** assigning to a parameter changes only the function's own copy */
-def add_one(n: var): var {
+def add_one(n: decimal): decimal {
     n = n + 1;
     return n;
 }
 
 /** a parameter with the name of a global hides the global */
-def use_parameter(hidden: var): var {
+def use_parameter(hidden: decimal): decimal {
     return hidden * 2;
 }
 
 /** every call starts with new locals */
-def fresh_local(): var {
-    n : var;
+def fresh_local(): decimal {
+    n : decimal;
     n += 3;
     return n;
 }
 
-def area(width: var, height: var): var {
-    result : var = width * height;
+def area(width: decimal, height: decimal): decimal {
+    result : decimal = width * height;
     return result;
 }
 
 def main(args: string[]) {
     // ---- a local with a type
-    x : var = 1;
+    x : decimal = 1;
     expect("x : var = 1", x, 1);
     x = 2;
     expect("assigned again", x, 2);
     x = x + 10;
     expect("x = x + 10", x, 12);
-    fraction : var = 2.5;
+    fraction : decimal = 2.5;
     expect("a fraction", fraction, 2.5);
-    negative : var = 0 - 8;
+    negative : decimal = 0 - 8;
     expect("a negative number", negative, 0 - 8);
-    from_expression : var = x * 2 + 1;
+    from_expression : decimal = x * 2 + 1;
     expect("declared from an expression", from_expression, 25);
-    from_call : var = area(3, 4);
+    from_call : decimal = area(3, 4);
     expect("declared from a function call", from_call, 12);
 
     // ---- a local without a value starts at 0
-    empty : var;
+    empty : decimal;
     expect("x : var; is 0", empty, 0);
     empty = 9;
     expect("...and can be assigned later", empty, 9);
 
     // ---- one variable does not follow another
-    a : var = 5;
-    b : var = a;
+    a : decimal = 5;
+    b : decimal = a;
     a = 6;
     expect("a after a = 6", a, 6);
     expect("b still has the old value", b, 5);
@@ -134,7 +134,7 @@ def main(args: string[]) {
     expect("bool", flag.value, 0);
     i = 43;
     expect("int assigned again", i.value, 43);
-    back : var = i.value;
+    back : decimal = i.value;
     expect("an object's number in a var", back, 43);
 
     // ---- globals: read in main
@@ -178,18 +178,18 @@ def main(args: string[]) {
     expect("a const in arithmetic", LIMIT * 2 + 1, 21);
     expect_str("a const string", GREETING, "hello");
     expect("a const made with :=", DOZEN.value, 12);
-    const local_limit : var = 4;
+    const local_limit : decimal = 4;
     expect("a local const", local_limit, 4);
     const local_dozen := 12;
     expect("a local const made with :=", local_dozen.value, 12);
-    total : var = 0;
-    for(n : var = 0; n < LIMIT; n++) {
+    total : decimal = 0;
+    for(n : decimal = 0; n < LIMIT; n++) {
         total += local_limit;
     }
     expect("consts in a loop", total, 40);
 
     // ---- a local hides a global with the same name
-    hidden : var = 99;
+    hidden : decimal = 99;
     expect("the local", hidden, 99);
     expect("functions still see the global", read_hidden(), 7);
     hidden = 100;
@@ -198,7 +198,7 @@ def main(args: string[]) {
     expect("a parameter hides the global too", use_parameter(4), 8);
 
     // ---- parameters are copies
-    original : var = 1;
+    original : decimal = 1;
     expect("add_one(original)", add_one(original), 2);
     expect("original did not change", original, 1);
 
@@ -211,23 +211,23 @@ def main(args: string[]) {
     // ---- blocks: a variable lives until the end of its block, so two
     //      blocks side by side can use the same name
     {
-        inner : var = 1;
+        inner : decimal = 1;
         expect("first block", inner, 1);
     }
     {
-        inner : var = 2;
+        inner : decimal = 2;
         expect("second block", inner, 2);
     }
     if(x == 12) {
-        branch : var = 3;
+        branch : decimal = 3;
         expect("in an if branch", branch, 3);
     } else {
-        branch : var = 4;
+        branch : decimal = 4;
         fail("in an else branch", "the else branch ran");
     }
 
     // ---- a block can read and change the variables around it
-    outside : var = 1;
+    outside : decimal = 1;
     {
         outside = outside + 1;
         {
@@ -238,11 +238,11 @@ def main(args: string[]) {
 
     // ---- a variable declared in a loop body is new every time round
     total = 0;
-    for(n : var = 0; n < 3; n++) {
-        fresh : var;
+    for(n : decimal = 0; n < 3; n++) {
+        fresh : decimal;
         fresh++;
         total += fresh;
-        ten : var = 10;
+        ten : decimal = 10;
         ten += n;
         total += ten;
     }
@@ -255,7 +255,7 @@ def main(args: string[]) {
     expect("...assigned in main", read_per_thread(), 7);
     per_thread += 3;
     expect("...with +=", per_thread, 10);
-    localized own : var = 3;
+    localized own : decimal = 3;
     own++;
     expect("a localized local", own, 4);
 
@@ -263,7 +263,7 @@ def main(args: string[]) {
     expect("first of three globals", first, 1);
     expect("second of three globals", second, 2);
     expect("third of three globals", third, 3);
-    p : var = 1, q;
+    p : decimal = 1, q;
     expect("p : var = 1, q; gives p its value", p, 1);
     expect("...and q starts at 0", q, 0);
     q = 2;
@@ -271,44 +271,44 @@ def main(args: string[]) {
     expect("p unchanged", p, 1);
 
     // ---- assignment is an expression
-    m : var = 0;
-    n : var = 0;
+    m : decimal = 0;
+    n : decimal = 0;
     m = n = 5;
     expect("m = n = 5 sets m", m, 5);
     expect("m = n = 5 sets n", n, 5);
-    k : var = (m = 7) + 1;
+    k : decimal = (m = 7) + 1;
     expect("(m = 7) + 1", k, 8);
     expect("...and m is 7", m, 7);
 
     // ---- swapping through a third variable
-    left : var = 1;
-    right : var = 2;
-    keep : var = left;
+    left : decimal = 1;
+    right : decimal = 2;
+    keep : decimal = left;
     left = right;
     right = keep;
     expect("left after the swap", left, 2);
     expect("right after the swap", right, 1);
 
     // ---- names
-    with_underscore : var = 1;
-    camelCase : var = 2;
-    name2 : var = 3;
-    UPPER : var = 4;
+    with_underscore : decimal = 1;
+    camelCase : decimal = 2;
+    name2 : decimal = 3;
+    UPPER : decimal = 4;
     expect("names with _, capitals and digits", with_underscore + camelCase + name2 + UPPER, 10);
 
     // ---- many locals at once
-    v1 : var = 1;
-    v2 : var = 2;
-    v3 : var = 3;
-    v4 : var = 4;
-    v5 : var = 5;
-    v6 : var = 6;
-    v7 : var = 7;
-    v8 : var = 8;
-    v9 : var = 9;
-    v10 : var = 10;
-    v11 : var = 11;
-    v12 : var = 12;
+    v1 : decimal = 1;
+    v2 : decimal = 2;
+    v3 : decimal = 3;
+    v4 : decimal = 4;
+    v5 : decimal = 5;
+    v6 : decimal = 6;
+    v7 : decimal = 7;
+    v8 : decimal = 8;
+    v9 : decimal = 9;
+    v10 : decimal = 10;
+    v11 : decimal = 11;
+    v12 : decimal = 12;
     expect("twelve locals", v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12, 78);
     expect("the first and the last", v1 * 100 + v12, 112);
 

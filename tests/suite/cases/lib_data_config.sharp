@@ -277,7 +277,7 @@ def test_xml() {
     doc := new xml_writer();
     doc.set_indent(4);
     doc.start("items");
-    for(i : var = 0; i < 3; i++) {
+    for(i : decimal = 0; i < 3; i++) {
         doc.start("item").attribute_number("n", i).end();
     }
     doc.end();

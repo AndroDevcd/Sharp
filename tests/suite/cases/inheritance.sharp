@@ -21,7 +21,7 @@ import ( testing )
 
 class animal {
     name : string = "";
-    legs : var = 4;
+    legs : decimal = 4;
     order : string = "";            // every constructor adds a letter: shows the order they ran in
 
     animal(name: string) {
@@ -33,12 +33,12 @@ class animal {
         return "...";
     }
 
-    def kind(): var {
+    def kind(): decimal {
         return 1;
     }
 
     /* not overridden anywhere: every animal inherits it as it is */
-    def leg_count(): var {
+    def leg_count(): decimal {
         return legs;
     }
 
@@ -47,13 +47,13 @@ class animal {
         return name + " says " + speak();
     }
 
-    def kind_times_100(): var {
+    def kind_times_100(): decimal {
         return kind() * 100;
     }
 }
 
 class dog base animal {
-    tricks : var = 0;
+    tricks : decimal = 0;
 
     dog(name: string) -> base(name) {
         order = order + "D";
@@ -64,7 +64,7 @@ class dog base animal {
         return "woof";
     }
 
-    def kind(): var {
+    def kind(): decimal {
         return 2;
     }
 
@@ -73,14 +73,14 @@ class dog base animal {
     }
 
     /* uses a field and a method that are declared in animal */
-    def legs_and_tricks(): var {
+    def legs_and_tricks(): decimal {
         return leg_count() * 10 + tricks;
     }
 }
 
 /* third level: a puppy is a dog is an animal */
 class puppy base dog {
-    age_in_weeks : var = 8;
+    age_in_weeks : decimal = 8;
 
     puppy(name: string) -> base(name) {
         order = order + "P";
@@ -92,7 +92,7 @@ class puppy base dog {
     }
 
     /* base-> runs the version of the class above */
-    def kind(): var {
+    def kind(): decimal {
         return base->kind() * 10 + 3;
     }
 
@@ -124,56 +124,56 @@ class cat base animal {
 
 // ---- behaviour that follows the object: declared in an interface, written with `override`
 interface has_area {
-    def area(): var;
+    def area(): decimal;
 }
 
 class shape : has_area {
-    sides : var = 0;
+    sides : decimal = 0;
 
-    shape(sides: var) {
+    shape(sides: decimal) {
         self->sides = sides;
     }
 
-    override def area(): var {
+    override def area(): decimal {
         return 0;
     }
 }
 
 class rectangle base shape {
-    width : var = 0;
-    height : var = 0;
+    width : decimal = 0;
+    height : decimal = 0;
 
     /* the base constructor gets an argument worked out here */
-    rectangle(w: var, h: var) -> base(4) {
+    rectangle(w: decimal, h: decimal) -> base(4) {
         width = w;
         height = h;
     }
 
-    override def area(): var {
+    override def area(): decimal {
         return width * height;
     }
 
-    def perimeter(): var {
+    def perimeter(): decimal {
         return 2 * (width + height);
     }
 }
 
 /* two base constructors in a row; area() is inherited from rectangle */
 class square base rectangle {
-    square(side: var) -> base(side, side) {
+    square(side: decimal) -> base(side, side) {
     }
 }
 
 class triangle base shape {
-    base_length : var = 0;
-    height : var = 0;
+    base_length : decimal = 0;
+    height : decimal = 0;
 
-    triangle(b: var, h: var) -> base(3) {
+    triangle(b: decimal, h: decimal) -> base(3) {
         base_length = b;
         height = h;
     }
 
-    override def area(): var {
+    override def area(): decimal {
         return base_length * height / 2;
     }
 }
@@ -181,7 +181,7 @@ class triangle base shape {
 // ---- a base class with two constructors: the class below picks one
 class labelled {
     label : string = "none";
-    number : var = 0;
+    number : decimal = 0;
 
     labelled() {
         number = 1;
@@ -207,15 +207,15 @@ def speak_for(a: animal): string {
     return a.speak();
 }
 
-def area_of(s: has_area): var {
+def area_of(s: has_area): decimal {
     return s.area();
 }
 
-def legs_of(a: animal): var {
+def legs_of(a: animal): decimal {
     return a.leg_count();
 }
 
-def make_animal(which: var): animal {
+def make_animal(which: decimal): animal {
     if(which == 1) {
         return new dog("made dog");
     }
@@ -326,8 +326,8 @@ def main(args: string[]) {
     expect_str("array element 1", zoo[1].name, "tweety");
     expect_str("array element 2", zoo[2].name, "bit");
     expect_str("array element 3", zoo[3].name, "generic");
-    legs : var = 0;
-    for(i : var = 0; i < sizeof(zoo); i++) {
+    legs : decimal = 0;
+    for(i : decimal = 0; i < sizeof(zoo); i++) {
         legs += zoo[i].leg_count();
     }
     expect("sum of leg_count() over the array: 3 + 2 + 4 + 4", legs, 13);
@@ -360,8 +360,8 @@ def main(args: string[]) {
     shapes[0] = r;
     shapes[1] = s;
     shapes[2] = t;
-    total_area : var = 0;
-    for(i : var = 0; i < 3; i++) {
+    total_area : decimal = 0;
+    for(i : decimal = 0; i < 3; i++) {
         total_area += shapes[i].area();
     }
     expect("total area of three different shapes", total_area, 52);

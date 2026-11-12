@@ -31,8 +31,8 @@ def check_sequences() {
     // the same seed gives the same sequence; seed() restarts it
     a := new seeded_random(2024);
     b := new seeded_random(2024);
-    same : var = 1;
-    for(i : var = 0; i < 50; i++) {
+    same : decimal = 1;
+    for(i : decimal = 0; i < 50; i++) {
         if(a.next_u32() != b.next_u32()) same = 0;
     }
     expect_true("two generators with one seed agree for 50 values", same);
@@ -42,8 +42,8 @@ def check_sequences() {
     // continuing from a saved state
     a.seed(1);
     a.next_u32();
-    saved : var = a.get_state();
-    following : var = a.next_u32();
+    saved : decimal = a.get_state();
+    following : decimal = a.next_u32();
     resumed := new seeded_random(saved);
     expect("a saved state continues the sequence", resumed.next_u32(), following);
 
@@ -63,16 +63,16 @@ def check_derived() {
 
     // ten die rolls from seed 42: 1 4 1 6 6 3 6 4 5 2
     rng.seed(42);
-    rolls : var = 0;
-    for(i : var = 0; i < 10; i++) {
+    rolls : decimal = 0;
+    for(i : decimal = 0; i < 10; i++) {
         rolls = rolls * 10 + rng.next_int(1, 6);
     }
     expect("ten die rolls", rolls, 1416636452);
 
     // ten digits from seed 42: 0 6 1 8 8 3 8 5 7 2
     rng.seed(42);
-    digits : var = 0;
-    for(i : var = 0; i < 10; i++) {
+    digits : decimal = 0;
+    for(i : decimal = 0; i < 10; i++) {
         digits = digits * 10 + rng.next_int(10);
     }
     expect("ten digits", digits, 618838572);
@@ -82,8 +82,8 @@ def check_derived() {
 
     // eight coin flips from seed 9: T T T F F T F F
     rng.seed(9);
-    flips : var = 0;
-    for(i : var = 0; i < 8; i++) {
+    flips : decimal = 0;
+    for(i : decimal = 0; i < 8; i++) {
         flips = flips * 2 + rng.next_bool().value;
     }
     expect("eight coin flips", flips, 228);          // 11100100
@@ -105,22 +105,22 @@ def check_derived() {
     // shuffling 0 .. 9 with seed 42 gives 7 2 4 3 1 6 8 9 5 0
     rng.seed(42);
     order := rng.permutation(10);
-    shuffled : var = 0;
-    for(i : var = 0; i < 10; i++) {
+    shuffled : decimal = 0;
+    for(i : decimal = 0; i < 10; i++) {
         shuffled = shuffled * 10 + order[i];
     }
     expect("permutation(10)", shuffled, 7243168950);
 
     rng.seed(42);
-    cards := new var[10];
-    for(i : var = 0; i < 10; i++) { cards[i] = i; }
+    cards := new decimal[10];
+    for(i : decimal = 0; i < 10; i++) { cards[i] = i; }
     rng.shuffle(cards);
     expect("shuffle: first", cards[0], 7);
     expect("shuffle: last", cards[9], 0);
 
     rng.seed(42);
     words := new string[10];
-    for(i : var = 0; i < 10; i++) {
+    for(i : decimal = 0; i < 10; i++) {
         number : int = i;
         prefix : string = "w";
         words[i] = prefix + number;
@@ -131,7 +131,7 @@ def check_derived() {
     expect_str("shuffle_objects: last", words[9], "w0");
 
     rng.seed(42);
-    tens := new var[] { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90 };
+    tens := new decimal[] { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90 };
     expect("pick 1", rng.pick(tens), 0);
     expect("pick 2", rng.pick(tens), 60);
     expect("pick 3", rng.pick(tens), 10);
@@ -154,11 +154,11 @@ def check_derived() {
 
 def check_properties() {
     rng := new seeded_random(123456);
-    in_range : var = 1;
-    lowest : var = 6;
-    highest : var = 1;
-    for(i : var = 0; i < 2000; i++) {
-        roll : var = rng.next_int(1, 6);
+    in_range : decimal = 1;
+    lowest : decimal = 6;
+    highest : decimal = 1;
+    for(i : decimal = 0; i < 2000; i++) {
+        roll : decimal = rng.next_int(1, 6);
         if(roll < 1 || roll > 6 || roll != (roll as _int64)) in_range = 0;
         if(roll < lowest) lowest = roll;
         if(roll > highest) highest = roll;
@@ -168,9 +168,9 @@ def check_properties() {
     expect("every high face appears", highest, 6);
 
     in_range = 1;
-    total : var = 0;
-    for(i : var = 0; i < 2000; i++) {
-        d : var = rng.next_double();
+    total : decimal = 0;
+    for(i : decimal = 0; i < 2000; i++) {
+        d : decimal = rng.next_double();
         if(d < 0 || d >= 1) in_range = 0;
         total += d;
     }
@@ -178,9 +178,9 @@ def check_properties() {
     expect_near("their mean is about one half", total / 2000, 0.5, 0.05);
 
     total = 0;
-    squares : var = 0;
-    for(i : var = 0; i < 4000; i++) {
-        g : var = rng.next_gaussian();
+    squares : decimal = 0;
+    for(i : decimal = 0; i < 4000; i++) {
+        g : decimal = rng.next_gaussian();
         total += g;
         squares += g * g;
     }
@@ -188,14 +188,14 @@ def check_properties() {
     expect_near("gaussian variance is about 1", squares / 4000, 1, 0.15);
 
     // a shuffle keeps every element exactly once
-    deck := new var[52];
-    for(i : var = 0; i < 52; i++) { deck[i] = i; }
+    deck := new decimal[52];
+    for(i : decimal = 0; i < 52; i++) { deck[i] = i; }
     rng.shuffle(deck);
-    seen := new var[52];
-    for(i : var = 0; i < 52; i++) { seen[deck[i]] = seen[deck[i]] + 1; }
-    complete : var = 1;
-    moved : var = 0;
-    for(i : var = 0; i < 52; i++) {
+    seen := new decimal[52];
+    for(i : decimal = 0; i < 52; i++) { seen[deck[i]] = seen[deck[i]] + 1; }
+    complete : decimal = 1;
+    moved : decimal = 0;
+    for(i : decimal = 0; i < 52; i++) {
         if(seen[i] != 1) complete = 0;
         if(deck[i] != i) moved++;
     }
@@ -204,34 +204,34 @@ def check_properties() {
     expect("permutation(0) is empty", sizeof(rng.permutation(0)), 0);
     expect("next_string length", rng.next_string(40).size().value, 40);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { rng.next_int(0); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.next_int(6, 1); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.next_double(2, 1); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.next_bool(1.5); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.next_gaussian(0, 0 - 1); } catch(e: illegal_argument_exception) { caught++; }
-    try { rng.pick(new var[0]); } catch(e: illegal_argument_exception) { caught++; }
+    try { rng.pick(new decimal[0]); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.pick_object(new string[0]); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.pick(new list<string>()); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.permutation(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.next_string(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { rng.next_string(3, ""); } catch(e: illegal_argument_exception) { caught++; }
-    try { nan : var = 0; nan = nan / nan; rng.seed(nan); } catch(e: illegal_argument_exception) { caught++; }
+    try { nan : decimal = 0; nan = nan / nan; rng.seed(nan); } catch(e: illegal_argument_exception) { caught++; }
     expect("misuse throws", caught, 12);
 }
 
 /* the functions on the runtime's generator: only what is true for every outcome */
 def check_runtime_generator() {
-    in_range : var = 1;
-    for(i : var = 0; i < 500; i++) {
-        u : var = rand_unit();
+    in_range : decimal = 1;
+    for(i : decimal = 0; i < 500; i++) {
+        u : decimal = rand_unit();
         if(u < 0 || u >= 1) in_range = 0;
     }
     expect_true("rand_unit is in 0 <= u < 1", in_range);
 
     in_range = 1;
-    for(i : var = 0; i < 500; i++) {
-        roll : var = rand_range(1, 6);
+    for(i : decimal = 0; i < 500; i++) {
+        roll : decimal = rand_range(1, 6);
         if(roll < 1 || roll > 6 || roll != (roll as _int64)) in_range = 0;
     }
     expect_true("rand_range(1, 6) gives whole numbers in 1 .. 6", in_range);
@@ -239,24 +239,24 @@ def check_runtime_generator() {
     expect("rand_range with negative bounds", rand_range(0 - 3, 0 - 3), 0 - 3);
 
     in_range = 1;
-    for(i : var = 0; i < 500; i++) {
-        index : var = rand_index(7);
+    for(i : decimal = 0; i < 500; i++) {
+        index : decimal = rand_index(7);
         if(index < 0 || index > 6 || index != (index as _int64)) in_range = 0;
     }
     expect_true("rand_index(7) is in 0 .. 6", in_range);
     expect("rand_index(1)", rand_index(1), 0);
 
-    flip : var = rand_bool().value;
+    flip : decimal = rand_bool().value;
     expect_true("rand_bool is 0 or 1", flip == 0 || flip == 1);
     expect_false("rand_bool(0) is never true", rand_bool(0).value);
     expect_true("rand_bool(1) is always true", rand_bool(1).value);
 
-    g : var = rand_gaussian();
+    g : decimal = rand_gaussian();
     expect_true("rand_gaussian is a finite number", (g - g) == 0);
     expect("rand_gaussian with deviation 0 is the mean", rand_gaussian(5, 0), 5);
 
-    tens := new var[] { 10, 20, 30 };
-    picked : var = rand_pick(tens);
+    tens := new decimal[] { 10, 20, 30 };
+    picked : decimal = rand_pick(tens);
     expect_true("rand_pick returns an element", picked == 10 || picked == 20 || picked == 30);
     names := new list<string>();
     names.add("only");
@@ -265,17 +265,17 @@ def check_runtime_generator() {
     lonely[0] = new string("alone");
     expect_str("rand_pick_object", rand_pick_object(lonely) as string, "alone");
 
-    deck := new var[20];
-    for(i : var = 0; i < 20; i++) { deck[i] = i; }
+    deck := new decimal[20];
+    for(i : decimal = 0; i < 20; i++) { deck[i] = i; }
     rand_shuffle(deck);
-    sum : var = 0;
-    seen := new var[20];
-    for(i : var = 0; i < 20; i++) {
+    sum : decimal = 0;
+    seen := new decimal[20];
+    for(i : decimal = 0; i < 20; i++) {
         sum += deck[i];
         seen[deck[i]] = 1;
     }
-    present : var = 0;
-    for(i : var = 0; i < 20; i++) { present += seen[i]; }
+    present : decimal = 0;
+    for(i : decimal = 0; i < 20; i++) { present += seen[i]; }
     expect("rand_shuffle keeps the sum", sum, 190);
     expect("rand_shuffle keeps every element", present, 20);
 
@@ -290,14 +290,14 @@ def check_runtime_generator() {
 
     order := rand_permutation(10);
     sum = 0;
-    for(i : var = 0; i < 10; i++) { sum += order[i]; }
+    for(i : decimal = 0; i < 10; i++) { sum += order[i]; }
     expect("rand_permutation holds 0 .. 9", sum, 45);
     expect("rand_permutation(0)", sizeof(rand_permutation(0)), 0);
 
     token := rand_string(24);
     expect("rand_string length", token.size().value, 24);
-    alphanumeric : var = 1;
-    for(i : var = 0; i < 24; i++) {
+    alphanumeric : decimal = 1;
+    for(i : decimal = 0; i < 24; i++) {
         if(!char.is_alpha_num(token.at(i)).value) alphanumeric = 0;
     }
     expect_true("rand_string is alphanumeric", alphanumeric);
@@ -305,21 +305,21 @@ def check_runtime_generator() {
     expect_str("rand_string(0)", rand_string(0), "");
 
     // the functions that were already in std/random.sharp still work
-    r : var = rand().value;
+    r : decimal = rand().value;
     expect_true("rand()", r >= 0 && r <= 1);
-    n : var = rand_int(3, 9).value;
+    n : decimal = rand_int(3, 9).value;
     expect_true("rand_int(3, 9)", n >= 3 && n <= 9);
-    x : var = rand_double(2, 4).value;
+    x : decimal = rand_double(2, 4).value;
     expect_true("rand_double(2, 4)", x >= 2 && x <= 4);
     set_seed(7);
     pass("set_seed");
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { rand_range(6, 1); } catch(e: illegal_argument_exception) { caught++; }
     try { rand_index(0); } catch(e: illegal_argument_exception) { caught++; }
     try { rand_bool(2); } catch(e: illegal_argument_exception) { caught++; }
     try { rand_gaussian(0, 0 - 1); } catch(e: illegal_argument_exception) { caught++; }
-    try { rand_pick(new var[0]); } catch(e: illegal_argument_exception) { caught++; }
+    try { rand_pick(new decimal[0]); } catch(e: illegal_argument_exception) { caught++; }
     try { rand_pick(new list<string>()); } catch(e: illegal_argument_exception) { caught++; }
     try { rand_pick_object(new string[0]); } catch(e: illegal_argument_exception) { caught++; }
     try { rand_permutation(0 - 1); } catch(e: illegal_argument_exception) { caught++; }

@@ -128,7 +128,7 @@ def set_error_limit(lmt: string) {
    }
 }
 
-def enable_warning_type(wtype : string, enable: var) {
+def enable_warning_type(wtype : string, enable: decimal) {
    when(wtype) {
       "-waccess" -> warning_options[__w_access] = enable;
       "-wambig" -> warning_options[__w_ambig] = enable;

@@ -69,15 +69,15 @@ def check_hashing() {
     expect("combine wraps", hashing.combine(4294967295, 4294967295), 4294967264);
     expect("combine ignores the sign of the value", hashing.combine(17, 0 - 5), 532);
     expect_true("combine depends on the order", hashing.combine(hashing.combine(17, 1), 2) != hashing.combine(hashing.combine(17, 2), 1));
-    expect("combine_all", hashing.combine_all(new var[] { 1, 2, 3 }), 507473);
-    expect("combine_all of nothing", hashing.combine_all(new var[0]), 17);
+    expect("combine_all", hashing.combine_all(new decimal[] { 1, 2, 3 }), 507473);
+    expect("combine_all of nothing", hashing.combine_all(new decimal[0]), 17);
 
     expect_str("to_hex", hashing.to_hex(3421780262), "cbf43926");
     expect_str("to_hex pads with zeros", hashing.to_hex(255), "000000ff");
     expect_str("to_hex(0)", hashing.to_hex(0), "00000000");
     expect_str("to_hex of the largest word", hashing.to_hex(4294967295), "ffffffff");
     expect_str("to_hex of a crc", hashing.to_hex(hashing.crc32("The quick brown fox jumps over the lazy dog")), "414fa339");
-    caught : var = 0;
+    caught : decimal = 0;
     try { hashing.to_hex(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { hashing.to_hex(4294967296); } catch(e: illegal_argument_exception) { caught++; }
     try { hashing.to_hex(1.5); } catch(e: illegal_argument_exception) { caught++; }
@@ -110,8 +110,8 @@ def check_uuid() {
     expect_str("to_bytes is a copy", id.to_string()!!, "123e4567-e89b-42d3-a456-426614174000");
     rebuilt := uuid.from_bytes(id.to_bytes());
     expect_true("from_bytes", (rebuilt == id).value);
-    counting := new var[16];
-    for(i : var = 0; i < 16; i++) { counting[i] = i * 17; }
+    counting := new decimal[16];
+    for(i : decimal = 0; i < 16; i++) { counting[i] = i * 17; }
     expect_str("from_bytes text", uuid.from_bytes(counting).to_string()!!, "00112233-4455-6677-8899-aabbccddeeff");
 
     same := uuid.parse("123E4567-E89B-42D3-A456-426614174000");
@@ -135,14 +135,14 @@ def check_uuid() {
     expect_false("is_valid: empty", uuid.is_valid("").value);
     expect_null("parse_or_null of bad text", uuid.parse_or_null("nope"));
     expect_not_null("parse_or_null of good text", uuid.parse_or_null("123e4567-e89b-42d3-a456-426614174000"));
-    caught : var = 0;
+    caught : decimal = 0;
     try { uuid.parse("nope"); } catch(e: parse_exception) { caught++; }
     try { uuid.parse("123e4567-e89b-42d3-a456_426614174000"); } catch(e: parse_exception) { caught++; }
     try { uuid.parse("z23e4567-e89b-42d3-a456-426614174000"); } catch(e: parse_exception) { caught++; }
     expect("bad text throws parse_exception", caught, 3);
     caught = 0;
-    try { uuid.from_bytes(new var[15]); } catch(e: illegal_argument_exception) { caught++; }
-    wrong := new var[16];
+    try { uuid.from_bytes(new decimal[15]); } catch(e: illegal_argument_exception) { caught++; }
+    wrong := new decimal[16];
     wrong[5] = 256;
     try { uuid.from_bytes(wrong); } catch(e: illegal_argument_exception) { caught++; }
     expect("bad bytes throw", caught, 2);
@@ -156,8 +156,8 @@ def check_uuid() {
     expect_str("seeded uuid 2, seed 42", uuid.random(rng).to_string()!!, "2002cfa1-c090-4f92-b615-c18390452656");
 
     // random uuids from the runtime's generator: only what always holds
-    well_formed : var = 1;
-    for(i : var = 0; i < 50; i++) {
+    well_formed : decimal = 1;
+    for(i : decimal = 0; i < 50; i++) {
         made := uuid.random();
         text := made.to_string()!!;
         if(made.version_number() != 4 || made.variant() != 2) well_formed = 0;
@@ -173,7 +173,7 @@ def v(text: string): version {
 }
 
 /* -1, 0 or 1 for a pair of version texts */
-def order(a: string, b: string): var {
+def order(a: string, b: string): decimal {
     return v(a).compare_to(v(b));
 }
 
@@ -273,8 +273,8 @@ def check_version() {
     bad[11] = new string("1.2.3-beta!");
     bad[12] = new string("1.2.3 ");
     bad[13] = new string("-1.2.3");
-    rejected : var = 0;
-    for(i : var = 0; i < 14; i++) {
+    rejected : decimal = 0;
+    for(i : decimal = 0; i < 14; i++) {
         if(!version.is_valid(bad[i]).value) {
             rejected++;
         } else {
@@ -286,7 +286,7 @@ def check_version() {
     expect_true("a leading zero is fine in the build part", version.is_valid("1.2.3+001").value);
     expect_true("a single zero is a valid number", version.is_valid("1.2.3-0").value);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { version.parse("1.2"); } catch(e: parse_exception) { caught++; }
     try { new version(1, 0, 0, "a..b"); } catch(e: parse_exception) { caught++; }
     expect("parse_exception", caught, 2);

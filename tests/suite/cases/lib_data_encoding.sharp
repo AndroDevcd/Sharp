@@ -8,7 +8,7 @@ import ( testing, std.io, std.data )
  */
 
 /** a string of the given byte values */
-def bytes3(a: var, b: var, c: var): string {
+def bytes3(a: decimal, b: decimal, c: decimal): string {
     raw := new _int8[3];
     raw[0] = a; raw[1] = b; raw[2] = c;
     return new string(raw);
@@ -17,18 +17,18 @@ def bytes3(a: var, b: var, c: var): string {
 /** all 256 byte values in order */
 def all_bytes(): string {
     buf := new char_buffer(256);
-    for(i : var = 0; i < 256; i++) {
+    for(i : decimal = 0; i < 256; i++) {
         buf.append_char(i);
     }
     return buf.to_string()!!;
 }
 
 /** true when both strings hold the same bytes (compared as 0..255) */
-def same_bytes(a: string, b: string): var {
+def same_bytes(a: string, b: string): decimal {
     if(io_strings.length(a) != io_strings.length(b)) {
         return 0;
     }
-    for(i : var = 0; i < io_strings.length(a); i++) {
+    for(i : decimal = 0; i < io_strings.length(a); i++) {
         if((a.data[i] & 0xff) != (b.data[i] & 0xff)) {
             return 0;
         }

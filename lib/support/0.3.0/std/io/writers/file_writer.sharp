@@ -29,9 +29,9 @@ class file_writer : text_writer {
     private target : file;
     /** the complete content the file will have */
     private buf : char_buffer;
-    private closed : var = 0;
+    private closed : decimal = 0;
     /** something was written (or the writer is new) since the last flush */
-    private dirty : var = 1;
+    private dirty : decimal = 1;
 
     /**
      * A writer that replaces the content of `target`.
@@ -75,7 +75,7 @@ class file_writer : text_writer {
     }
 
     /** add one character given as its code. Throws io_exception when closed. */
-    override def write_char(ch: var) {
+    override def write_char(ch: decimal) {
         check_open();
         buf.append_char(ch);
         dirty = 1;
@@ -97,14 +97,14 @@ class file_writer : text_writer {
     }
 
     /** add a whole number in decimal ("42", "-7"). Throws io_exception when closed. */
-    def write_int(value: var) {
+    def write_int(value: decimal) {
         check_open();
         buf.append_int(value);
         dirty = 1;
     }
 
     /** add a number the short way ("3", "0.5" - see io_strings.number_to_string). Throws io_exception when closed. */
-    def write_number(value: var) {
+    def write_number(value: decimal) {
         check_open();
         buf.append_number(value);
         dirty = 1;
@@ -155,7 +155,7 @@ class file_writer : text_writer {
     }
 
     /** the number of characters the file will have when it is written now (in append mode that includes what was there before) */
-    def length() : var {
+    def length() : decimal {
         return buf.length();
     }
 }

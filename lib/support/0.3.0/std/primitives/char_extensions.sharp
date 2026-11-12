@@ -77,7 +77,7 @@ mutate char {
      * the letters a .. z / A .. Z give 10 .. 35 (so the result is usable for
      * any base up to 36). -1 for every other character.
      */
-    def digit_value(): var {
+    def digit_value(): decimal {
         if(value >= '0' && value <= '9') return value - '0';
         if(value >= 'a' && value <= 'z') return value - 'a' + 10;
         if(value >= 'A' && value <= 'Z') return value - 'A' + 10;
@@ -89,7 +89,7 @@ mutate char {
      * give 'a' .. 'z' (the opposite of digit_value()).
      * Throws illegal_argument_exception when digit is outside 0 .. 35.
      */
-    static def from_digit(digit: var): char {
+    static def from_digit(digit: decimal): char {
         if(digit < 0 || digit > 35 || digit != (digit as _int64))
             throw new illegal_argument_exception("char.from_digit: the digit must be a whole number in 0 .. 35");
 

@@ -34,22 +34,22 @@ import ( testing )
  */
 
 class both {
-    value : var = 5;
+    value : decimal = 5;
         get { return value; }
         set v -> { value = v; }
 }
 
 class both_counted {
-    value : var = 5;
+    value : decimal = 5;
         get { reads = reads + 1; return value; }
         set v -> { writes = writes + 1; value = v; }
 
-    reads : var = 0;
-    writes : var = 0;
+    reads : decimal = 0;
+    writes : decimal = 0;
 }
 
 class getter_only {
-    value : var = 5;
+    value : decimal = 5;
         get { return value; }
 }
 

@@ -131,7 +131,7 @@ const __w_init := 6;
 const __w_null := 7;
 const __w_dep := 8;
 
-warning_options := new var[]
+warning_options := new decimal[]
 {
     true,    // general warnings
     true,    // waccess

@@ -37,7 +37,7 @@ class ast {
         tokens.add(token);
     }
 
-    public def token_at(pos: var) : token {
+    public def token_at(pos: decimal) : token {
         return tokens.at(pos);
     }
 
@@ -72,7 +72,7 @@ class ast {
         return false;
     }
 
-    public def get_child(pos: var) : ast {
+    public def get_child(pos: decimal) : ast {
         return children.at(pos);
     }
 

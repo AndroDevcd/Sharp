@@ -28,7 +28,7 @@ class interval_timer {
     /** the next grid point at which the timer becomes due */
     private next_due : instant;
     /** total number of periods reported by poll() so far */
-    private fired : var = 0;
+    private fired : decimal = 0;
 
     /**
      * A timer on the system clock that first becomes due one `every` from now.
@@ -54,7 +54,7 @@ class interval_timer {
     }
 
     /** 1 when at least one period has passed since the last successful `poll()`; does not change the timer */
-    def is_due(): var {
+    def is_due(): decimal {
         return source.now() >= next_due;
     }
 
@@ -63,14 +63,14 @@ class interval_timer {
      * 0 when it is not time yet, otherwise 1 or more. A non-zero result
      * moves the next due time to the first grid point after "now".
      */
-    def poll(): var {
+    def poll(): decimal {
         now : instant = source.now();
         if(now < next_due) {
             return 0;
         }
         // one period is due at next_due itself, plus one for every further whole period up to now
         behind : duration = duration.between(next_due, now);
-        extra : var = time_math.trunc(behind.to_fractional_seconds() / period_length.to_fractional_seconds());
+        extra : decimal = time_math.trunc(behind.to_fractional_seconds() / period_length.to_fractional_seconds());
         // correct the floating point estimate with exact comparisons
         while(extra > 0 && period_length.multiplied_by(extra) > behind) {
             extra--;
@@ -78,7 +78,7 @@ class interval_timer {
         while(period_length.multiplied_by(extra + 1) <= behind) {
             extra++;
         }
-        count : var = extra + 1;
+        count : decimal = extra + 1;
         next_due = next_due.plus(period_length.multiplied_by(count));
         fired += count;
         return count;
@@ -104,7 +104,7 @@ class interval_timer {
     }
 
     /** the total number of periods `poll()` has reported since the timer was created or reset */
-    def fired_count(): var {
+    def fired_count(): decimal {
         return fired;
     }
 

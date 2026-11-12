@@ -58,19 +58,19 @@ class base64 {
      * the end.
      * Throws illegal_argument_exception when line_length is below 4.
      */
-    static def encode_lines(data: string, line_length: var) : string {
+    static def encode_lines(data: string, line_length: _int64) : string {
         if(line_length < 4) {
             throw new illegal_argument_exception("encode_lines: the line length must be at least 4");
         }
         flat := encode(data);
-        n : var = sizeof(flat.data);
+        n : _int64 = sizeof(flat.data);
         buf := new char_buffer(n + n / line_length * 2 + 4);
-        for(start : var = 0; start < n; start += line_length) {
+        for(start : _int64 = 0; start < n; start += line_length) {
             if(start > 0) {
                 buf.append_char('\r');
                 buf.append_char('\n');
             }
-            end : var = start + line_length;
+            end : _int64 = start + line_length;
             if(end > n) {
                 end = n;
             }
@@ -79,51 +79,65 @@ class base64 {
         return buf.to_string()!!;
     }
 
-    private static def encode_with(bytes: _int8[]?, alphabet: string, pad: var) : string {
-        n : var = sizeof(bytes);
+    /**
+     * The work of every encode function. The result is written straight into
+     * a byte array of the right size - no call per character - and the array
+     * becomes the string.
+     */
+    private static def encode_with(bytes: _int8[]?, alphabet: string, pad: _int64) : string {
+        n : _int64 = sizeof(bytes);
         if(n == 0) {
             return "";
         }
         letters := alphabet.data!!;
-        buf := new char_buffer((n + 2) / 3 * 4 + 4);
+        source := bytes!!;
+
+        // four characters for every three bytes, rounded up: never too small
+        capacity : _int64 = (n + 2) / 3 * 4 + 4;
+        out := new _int8[capacity];
+        count : _int64 = 0;
 
         // three bytes (24 bits) become four characters (6 bits each)
-        i : var = 0;
+        i : _int64 = 0;
+        b0 : _int64 = 0;
+        b1 : _int64 = 0;
+        b2 : _int64 = 0;
         while(i + 2 < n) {
-            b0 : var = bytes[i] & 0xff;
-            b1 : var = bytes[i + 1] & 0xff;
-            b2 : var = bytes[i + 2] & 0xff;
-            buf.append_char(letters[b0 >> 2]);
-            buf.append_char(letters[((b0 & 3) << 4) | (b1 >> 4)]);
-            buf.append_char(letters[((b1 & 15) << 2) | (b2 >> 6)]);
-            buf.append_char(letters[b2 & 63]);
+            b0 = source[i] & 0xff;
+            b1 = source[i + 1] & 0xff;
+            b2 = source[i + 2] & 0xff;
+            out[count] = letters[b0 >> 2];
+            out[count + 1] = letters[((b0 & 3) << 4) | (b1 >> 4)];
+            out[count + 2] = letters[((b1 & 15) << 2) | (b2 >> 6)];
+            out[count + 3] = letters[b2 & 63];
+            count += 4;
             i += 3;
         }
 
         // one or two bytes are left over
         if(n - i == 1) {
-            b0 : var = bytes[i] & 0xff;
-            buf.append_char(letters[b0 >> 2]);
-            buf.append_char(letters[(b0 & 3) << 4]);
+            b0 = source[i] & 0xff;
+            out[count++] = letters[b0 >> 2];
+            out[count++] = letters[(b0 & 3) << 4];
             if(pad) {
-                buf.append_char('=');
-                buf.append_char('=');
+                out[count++] = '=';
+                out[count++] = '=';
             }
         } else if(n - i == 2) {
-            b0 : var = bytes[i] & 0xff;
-            b1 : var = bytes[i + 1] & 0xff;
-            buf.append_char(letters[b0 >> 2]);
-            buf.append_char(letters[((b0 & 3) << 4) | (b1 >> 4)]);
-            buf.append_char(letters[(b1 & 15) << 2]);
+            b0 = source[i] & 0xff;
+            b1 = source[i + 1] & 0xff;
+            out[count++] = letters[b0 >> 2];
+            out[count++] = letters[((b0 & 3) << 4) | (b1 >> 4)];
+            out[count++] = letters[(b1 & 15) << 2];
             if(pad) {
-                buf.append_char('=');
+                out[count++] = '=';
             }
         }
-        return buf.to_string()!!;
+        return new string(out, 0, count);
     }
 
     /** the 6-bit value of a Base64 character of either alphabet, or -1 when it is not one */
-    private static def value_of(ch: var) : var {
+    private static def value_of(ch: _int64) : _int64 {
         if(ch >= 'A' && ch <= 'Z') return ch - 'A';
         if(ch >= 'a' && ch <= 'z') return ch - 'a' + 26;
         if(ch >= '0' && ch <= '9') return ch - '0' + 52;
@@ -155,36 +169,60 @@ class base64 {
      * bytes at all. Accepts and throws like decode().
      */
     static def decode_bytes(text: string) : _int8[]? {
-        n : var = sizeof(text.data);
-        buf := new char_buffer(n / 4 * 3 + 4);
+        n : _int64 = sizeof(text.data);
+        if(n == 0) {
+            return null;
+        }
+        chars := text.data!!;
 
-        bits : var = 0;      // the bits collected so far
-        have : var = 0;      // how many 6-bit groups are in `bits` (0..3)
-        padding : var = 0;   // '=' characters seen
-        for(i : var = 0; i < n; i++) {
-            ch : var = text.data[i];
-            if(ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
-                continue;
-            }
-            if(ch == '=') {
-                padding++;
-                continue;
+        // What each of the 256 possible characters stands for, looked up
+        // instead of worked out with comparisons for every character:
+        //      0..63   its 6-bit value (both alphabets)
+        //      -1      not a Base64 character
+        //      -2      white space: skipped
+        //      -3      '=' padding
+        table := new _int8[256];
+        for(c : _int64 = 0; c < 256; c++) {
+            table[c] = value_of(c);
+        }
+        table[' '] = 0 - 2;
+        table['\t'] = 0 - 2;
+        table['\n'] = 0 - 2;
+        table['\r'] = 0 - 2;
+        table['='] = 0 - 3;
+
+        // three bytes for every four characters: never too small
+        out := new _int8[(n >> 2) * 3 + 4];
+        count : _int64 = 0;
+
+        bits : _int64 = 0;      // the bits collected so far
+        have : _int64 = 0;      // how many 6-bit groups are in `bits` (0..3)
+        padding : _int64 = 0;   // '=' characters seen
+        value : _int64 = 0;
+        for(i : _int64 = 0; i < n; i++) {
+            value = table[chars[i] & 0xff];
+            if(value < 0) {
+                if(value == 0 - 2) {
+                    continue;
+                }
+                if(value == 0 - 3) {
+                    padding++;
+                    continue;
+                }
+                throw new parse_exception("base64: illegal character with code " + io_strings.int_to_string(chars[i] & 0xff)
+                    + " at position " + io_strings.int_to_string(i));
             }
             if(padding > 0) {
                 throw new parse_exception("base64: data after the padding at character " + io_strings.int_to_string(i));
-            }
-            value : var = value_of(ch);
-            if(value < 0) {
-                throw new parse_exception("base64: illegal character with code " + io_strings.int_to_string(ch & 0xff)
-                    + " at position " + io_strings.int_to_string(i));
             }
 
             bits = bits * 64 + value;
             have++;
             if(have == 4) {
-                buf.append_char((bits >> 16) & 0xff);
-                buf.append_char((bits >> 8) & 0xff);
-                buf.append_char(bits & 0xff);
+                out[count] = (bits >> 16) & 0xff;
+                out[count + 1] = (bits >> 8) & 0xff;
+                out[count + 2] = bits & 0xff;
+                count += 3;
                 bits = 0;
                 have = 0;
             }
@@ -198,18 +236,23 @@ class base64 {
             if((bits & 15) != 0) {
                 throw new parse_exception("base64: the last character has bits set that belong to no byte");
             }
-            buf.append_char((bits >> 4) & 0xff);
+            out[count++] = (bits >> 4) & 0xff;
         } else if(have == 3) {
             if((bits & 3) != 0) {
                 throw new parse_exception("base64: the last character has bits set that belong to no byte");
             }
-            buf.append_char((bits >> 10) & 0xff);
-            buf.append_char((bits >> 2) & 0xff);
+            out[count++] = (bits >> 10) & 0xff;
+            out[count++] = (bits >> 2) & 0xff;
         }
         if(padding > 2 || (padding > 0 && have == 0) || (padding > 0 && have + padding != 4)) {
             throw new parse_exception("base64: wrong padding");
         }
-        return buf.to_array();
+        if(count == 0) {
+            return null;
+        }
+        result := new _int8[count];
+        memcopy(out, result, 0, 0, count);
+        return result;
     }
 
     /** true when decode(text) would succeed */

@@ -62,7 +62,7 @@ def main(args: string[]) {
 
     // ---- growing far beyond the first buffer
     big := new string_builder();
-    for(i : var = 0; i < 5000; i++) {
+    for(i : decimal = 0; i < 5000; i++) {
         big.append("0123456789");
     }
     expect("50000 characters appended", big.length(), 50000);

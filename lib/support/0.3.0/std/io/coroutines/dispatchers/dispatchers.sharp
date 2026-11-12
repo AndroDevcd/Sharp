@@ -31,7 +31,7 @@ class dispatchers {
     private static pool : pool_dispatcher?;
     private static loose : unconfined_dispatcher?;
     private static timer_thread : thread_dispatcher?;
-    private static wanted_parallelism : var = 0;
+    private static wanted_parallelism : decimal = 0;
 
     /**
      * The shared pool of worker threads: coroutines run in parallel on
@@ -59,7 +59,7 @@ class dispatchers {
      * first coroutine is started on the pool, afterwards it has no effect.
      * @return true when the value was taken
      */
-    static def set_parallelism(threads: var) : bool {
+    static def set_parallelism(threads: decimal) : bool {
         if(threads < 1) {
             return false;
         }
@@ -136,7 +136,7 @@ class dispatchers {
             // created outside the lock (starting a thread takes a while); if two
             // fibers race here the thread that lost is closed again
             created := new thread_dispatcher("coroutine-timers");
-            surplus : var = 0;
+            surplus : decimal = 0;
             lock(guard) {
                 if(timer_thread == null) {
                     timer_thread = created;

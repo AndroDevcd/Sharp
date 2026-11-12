@@ -36,7 +36,7 @@ import ( std.io, platform )
  */
 class process {
     private command_line : string;
-    private code : var = 0;
+    private code : decimal = 0;
     private out_text : string = "";
     private err_text : string = "";
 
@@ -77,7 +77,7 @@ class process {
         return run_internal(command, "", 0, 1);
     }
 
-    private static def run_internal(command: string, input: string, has_input: var, merged: var) : process {
+    private static def run_internal(command: string, input: string, has_input: decimal, merged: decimal) : process {
         result := new process(command);
         out_file := new file(temp_files.new_path("sharp_proc_", ".out"));
         err_file := new file(temp_files.new_path("sharp_proc_", ".err"));
@@ -120,13 +120,13 @@ class process {
      * input coming from the keyboard), wait for it, and return its exit
      * code.
      */
-    static def execute(command: string) : var {
+    static def execute(command: string) : decimal {
         status := sys(command);
         return decode_status(status.value);
     }
 
     /** what sys() returns, turned into the exit code of the command */
-    private static def decode_status(status: var) : var {
+    private static def decode_status(status: decimal) : decimal {
         if(build.is_windows()) {
             return status; // cmd.exe hands the exit code through as it is
         }
@@ -134,7 +134,7 @@ class process {
             return status; // the shell could not be started
         }
         // unix "wait status": the low 7 bits are the signal that ended the command, the next 8 the exit code
-        signal : var = status & 0x7f;
+        signal : decimal = status & 0x7f;
         if(signal != 0) {
             return 128 + signal;
         }
@@ -151,7 +151,7 @@ class process {
     }
 
     /** the exit code of the command: 0 for success */
-    def exit_code() : var {
+    def exit_code() : decimal {
         return code;
     }
 
@@ -219,10 +219,10 @@ class process {
      * but letters, digits and '_'.
      */
     static def environment(name: string) : string? {
-        n : var = sizeof(name.data);
-        valid : var = n > 0;
-        for(i : var = 0; i < n; i++) {
-            ch : var = name.data[i];
+        n : decimal = sizeof(name.data);
+        valid : decimal = n > 0;
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = name.data[i];
             if(!(io_strings.is_letter(ch) || io_strings.is_digit(ch) || ch == '_')) {
                 valid = 0;
             }

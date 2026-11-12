@@ -6,8 +6,8 @@ mod frontend.tokenizer;
 */
 class token {
 
-    line: var;
-    col: var;
+    line: decimal;
+    col: decimal;
     id: token_id;
     type: token_type;
     tok : string = "";
@@ -17,7 +17,7 @@ class token {
         id = token_id.noentity;
     }
 
-    public token(tok: string, id: token_id, type: token_type, col: var, line: var) {
+    public token(tok: string, id: token_id, type: token_type, col: decimal, line: decimal) {
         self->tok = tok;
         self->type = type;
         self->id = id;
@@ -26,7 +26,7 @@ class token {
     }
 
 
-    public token(tok: string, id: token_id, col: var, line: var) {
+    public token(tok: string, id: token_id, col: decimal, line: decimal) {
         self->tok = tok;
         self->type = token_type.none;
         self->id = id;
@@ -34,31 +34,31 @@ class token {
         self->line = line;
     }
 
-    public def operator!=(id: token_id) : var {
+    public def operator!=(id: token_id) : decimal {
         return self->id != id;
     }
 
-    public def operator!=(type: token_type) : var {
+    public def operator!=(type: token_type) : decimal {
         return self->type != type;
     }
 
-    public def operator==(tok: string) : var {
+    public def operator==(tok: string) : decimal {
         return self->tok == tok;
     }
 
-    public def operator!=(tok: string) : var {
+    public def operator!=(tok: string) : decimal {
         return self->tok != tok;
     }
 
-    public def operator==(entity: token) : var {
+    public def operator==(entity: token) : decimal {
         return id==entity.id && tok == entity.tok;
     }
 
-    public def operator==(id: token_id) : var {
+    public def operator==(id: token_id) : decimal {
         return self->id == id;
     }
 
-    public def operator==(type: token_type) : var {
+    public def operator==(type: token_type) : decimal {
         return self->type == type;
     }
 
@@ -70,11 +70,11 @@ class token {
         return tok;
     }
 
-    public def get_col() : var {
+    public def get_col() : decimal {
         return self->col;
     }
 
-    public def get_line() : var {
+    public def get_line() : decimal {
         return self->line;
     }
 

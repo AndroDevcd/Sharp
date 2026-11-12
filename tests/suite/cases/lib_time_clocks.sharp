@@ -13,7 +13,7 @@ import ( testing, std.time )
  */
 
 /** a function that takes any clock: the point of the interface */
-def seconds_on(c: clock): var {
+def seconds_on(c: clock): decimal {
     return c.now().epoch_second();
 }
 
@@ -87,7 +87,7 @@ def main(args: string[]) {
     expect_true("date.today() is 2020 or later", date.today().year() >= 2020);
     expect_true("date_time.now() is 2020 or later", date_time.now().year() >= 2020);
     expect_true("offset_date_time.now() is at UTC", offset_date_time.now().offset().is_utc());
-    hour_now : var = time_of_day.now().hour();
+    hour_now : decimal = time_of_day.now().hour();
     expect_true("time_of_day.now() is a valid time", hour_now >= 0 && hour_now <= 23);
 
     // ---- "now" through an injected clock is exact
@@ -140,7 +140,7 @@ def main(args: string[]) {
     wc.advance_millis(7);
     expect("...and measures again", watch.elapsed().to_millis(), 7);
 
-    // nanosecond exactness at a present-day clock value (1.7e18 ns since 1970 does not fit a var)
+    // nanosecond exactness at a present-day clock value (1.7e18 ns since 1970 does not fit a decimal)
     precise_clock := new manual_clock(instant.of_epoch_second(1700000000, 123456789));
     precise := stopwatch.started(precise_clock);
     expect_true("started(clock) is running", precise.is_running());
@@ -157,7 +157,7 @@ def main(args: string[]) {
     expect("...also from stop()", back.stop().to_nanos(), 0);
 
     // wrong use
-    caught : var = 0;
+    caught : decimal = 0;
     try { new stopwatch(wc).stop(); } catch(e: illegal_state_exception) { caught = 1; }
     expect("stop() when not running throws", caught, 1);
     caught = 0;
@@ -182,7 +182,7 @@ def main(args: string[]) {
     expect("laps()[1]", laps.laps()[1].to_millis(), 250);
     expect("the laps add up to elapsed", laps.elapsed().to_millis(), 400);
     expect("a lap with no time passed", laps.lap().to_millis(), 0);
-    for(i : var = 0; i < 20; i++) {
+    for(i : decimal = 0; i < 20; i++) {
         lc.advance_millis(1);
         laps.lap();
     }
@@ -248,8 +248,8 @@ def main(args: string[]) {
     expect("permits_per_window", limiter.permits_per_window(), 5);
     expect("one permit comes back every 200 ms", limiter.interval().to_millis(), 200);
     expect("starts full", limiter.available(), 5);
-    granted : var = 0;
-    for(i : var = 0; i < 8; i++) {
+    granted : decimal = 0;
+    for(i : decimal = 0; i < 8; i++) {
         if(limiter.try_acquire()) {
             granted++;
         }
@@ -284,8 +284,8 @@ def main(args: string[]) {
     // long run: at 5 per second, 10 seconds polled every 10 ms let through the burst of 5 plus 50
     steady_clock := new manual_clock(start);
     steady := new rate_limiter(5, duration.of_seconds(1), steady_clock);
-    passed_through : var = 0;
-    for(i : var = 0; i < 1000; i++) {
+    passed_through : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) {
         if(steady.try_acquire()) {
             passed_through++;
         }
@@ -356,8 +356,8 @@ def main(args: string[]) {
 
     fast_clock := new manual_clock(start);
     fast := new interval_timer(duration.of_millis(30), fast_clock);
-    fired : var = 0;
-    for(i : var = 0; i < 100; i++) {
+    fired : decimal = 0;
+    for(i : decimal = 0; i < 100; i++) {
         fast_clock.advance_millis(10);
         fired += fast.poll();
     }

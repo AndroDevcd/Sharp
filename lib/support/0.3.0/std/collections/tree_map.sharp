@@ -15,7 +15,7 @@ mod std.collections;
  *     compare(a, b) == 0    a and b are the same key
  *     compare(a, b) > 0     a sorts after b
  *
- *     prices := new tree_map<int, string>({ a: int, b: int -> (var) return a.value - b.value; });
+ *     prices := new tree_map<int, string>({ a: int, b: int -> (decimal) return a.value - b.value; });
  *     prices.put(30, "c");  prices.put(10, "a");  prices.put(20, "b");
  *     prices.first_key();          // 10
  *     prices.floor_key(25);        // 20  (largest key <= 25)
@@ -33,38 +33,38 @@ mod std.collections;
  * of the call stack does not grow with the size of the map.
  *
  * Limitation: key and value types have to be object types; native types
- * such as `var` cannot be used.
+ * such as `decimal` cannot be used.
  */
 class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     /** top of the tree, null when the map is empty */
     private root : tree_node<K, V>?;
     /** number of key/value pairs */
-    private count : var;
+    private count : decimal;
     /** the ordering of the keys, see the class comment */
-    private compare : (K, K)(var);
+    private compare : (K, K)(decimal);
 
     /**
      * Create an empty map.
      *
      * @param compare the ordering of the keys, see the class comment
      */
-    tree_map(compare: (K, K)(var)) {
+    tree_map(compare: (K, K)(decimal)) {
         self->compare = compare;
         count = 0;
     }
 
     /** Number of key/value pairs. O(1). */
-    def size() : var {
+    def size() : decimal {
         return count;
     }
 
     /** 1 when the map has no pairs, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return count == 0;
     }
 
     /** The comparison function this map orders its keys with. */
-    def comparison() : (K, K)(var) {
+    def comparison() : (K, K)(decimal) {
         return compare;
     }
 
@@ -72,7 +72,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      * Number of levels of the tree (0 for an empty map). Only interesting
      * for tests and diagnostics: it never exceeds about 1.44 * log2(size + 2).
      */
-    def height() : var {
+    def height() : decimal {
         if(root == null) return 0;
         return root!!.height;
     }
@@ -82,7 +82,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      *
      * @return 1 when the key is new, 0 when an existing value was replaced
      */
-    def put(key: K, value: V) : var {
+    def put(key: K, value: V) : decimal {
         if(root == null) {
             root = new tree_node<K, V>(key, value);
             count = 1;
@@ -92,7 +92,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
         // walk down to the place where the key belongs
         node := root!!;
         while(true) {
-            order : var = compare(key, node.key);
+            order : decimal = compare(key, node.key);
             if(order == 0) {
                 node.value = value;
                 return 0;
@@ -127,7 +127,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      *
      * @return 1 when the pair was added, 0 when the key already existed
      */
-    def put_if_absent(key: K, value: V) : var {
+    def put_if_absent(key: K, value: V) : decimal {
         if(find_node(key) != null) return 0;
         return put(key, value);
     }
@@ -147,7 +147,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     }
 
     /** 1 when the map has the key, otherwise 0. O(log n). */
-    def contains_key(key: K) : var {
+    def contains_key(key: K) : decimal {
         if(find_node(key) == null) return 0;
         return 1;
     }
@@ -161,7 +161,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      * the function that uses it, where a parameter named `value` hides the
      * field `value` that operator reads.)
      */
-    def contains_value(wanted: V) : var {
+    def contains_value(wanted: V) : decimal {
         node := first_node();
         while(node != null) {
             current := node!!;
@@ -176,7 +176,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      *
      * @return 1 when the key was removed, 0 when the map did not have it
      */
-    def remove(key: K) : var {
+    def remove(key: K) : decimal {
         node := find_node(key);
         if(node == null) return 0;
         remove_node(node!!);
@@ -308,7 +308,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     /** A new array with all keys in ascending order (length 0 when empty). O(n). */
     def key_array() : K[] {
         result := new K[count];
-        i : var = 0;
+        i : decimal = 0;
         node := first_node();
         while(node != null) {
             current := node!!;
@@ -407,7 +407,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     override def get_elements() : map_entry<K, V>[]? {
         if(count == 0) return null;
         result := new map_entry<K, V>[count];
-        i : var = 0;
+        i : decimal = 0;
         node := first_node();
         while(node != null) {
             current := node!!;
@@ -457,7 +457,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
         node := root;
         while(node != null) {
             current := node!!;
-            order : var = compare(key, current.key);
+            order : decimal = compare(key, current.key);
             if(order == 0) return current;
             if(order < 0) node = current.left;
             else node = current.right;
@@ -471,12 +471,12 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      * @param inclusive 1: a node equal to `key` counts (floor),
      *                  0: it does not (lower)
      */
-    private def floor_node(key: K, inclusive: var) : tree_node<K, V>? {
+    private def floor_node(key: K, inclusive: decimal) : tree_node<K, V>? {
         best : tree_node<K, V>? = null;
         node := root;
         while(node != null) {
             current := node!!;
-            order : var = compare(key, current.key);
+            order : decimal = compare(key, current.key);
             if(order == 0 && inclusive) return current;
 
             if(order > 0) {
@@ -495,12 +495,12 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
      * @param inclusive 1: a node equal to `key` counts (ceiling),
      *                  0: it does not (higher)
      */
-    private def ceiling_node(key: K, inclusive: var) : tree_node<K, V>? {
+    private def ceiling_node(key: K, inclusive: decimal) : tree_node<K, V>? {
         best : tree_node<K, V>? = null;
         node := root;
         while(node != null) {
             current := node!!;
-            order : var = compare(key, current.key);
+            order : decimal = compare(key, current.key);
             if(order == 0 && inclusive) return current;
 
             if(order < 0) {
@@ -559,15 +559,15 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     }
 
     /** Height of a sub tree; an empty sub tree has height 0. */
-    private def height_of(node: tree_node<K, V>?) : var {
+    private def height_of(node: tree_node<K, V>?) : decimal {
         if(node == null) return 0;
         return node!!.height;
     }
 
     /** Recompute the height of a node from its two sub trees. */
     private def update_height(node: tree_node<K, V>) {
-        l : var = height_of(node.left);
-        r : var = height_of(node.right);
+        l : decimal = height_of(node.left);
+        r : decimal = height_of(node.right);
         if(l > r) node.height = l + 1;
         else node.height = r + 1;
     }
@@ -581,7 +581,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
         while(walk != null) {
             node := walk!!;
             update_height(node);
-            balance : var = height_of(node.left) - height_of(node.right);
+            balance : decimal = height_of(node.left) - height_of(node.right);
 
             if(balance > 1) {
                 // left side too deep; a left-right shape needs a first rotation to become left-left

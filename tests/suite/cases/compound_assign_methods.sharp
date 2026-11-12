@@ -9,20 +9,20 @@ import ( testing )
 
 class node {
     left : node;
-    number : var = 3;
+    number : decimal = 3;
 
-    def seven(): var {
+    def seven(): decimal {
         return 7;
     }
 
-    def one_plus_seven(): var {
-        sum : var = 1;
+    def one_plus_seven(): decimal {
+        sum : decimal = 1;
         sum += seven();
         return sum;
     }
 
-    def total(): var {
-        sum : var = number;
+    def total(): decimal {
+        sum : decimal = number;
         if(left != null) { sum += left!!.total(); }
         sum -= seven();
         sum *= seven();
@@ -30,18 +30,18 @@ class node {
     }
 
     /* a captured local that is changed with += inside a method */
-    def captured(): var {
+    def captured(): decimal {
         count : int = 5;
         count += seven();
-        read := { -> (var) return count.value; };
+        read := { -> (decimal) return count.value; };
         return read();
     }
 }
 
-def global_captured(): var {
+def global_captured(): decimal {
     count : int = 5;
     count += 4;
-    read := { -> (var) return count.value; };
+    read := { -> (decimal) return count.value; };
     return read();
 }
 

@@ -90,17 +90,17 @@ class time {
      * timing see std.time (stopwatch, duration, instant).
      */
     static def measure(tm_unit: time_unit, block: ()()) : long {
-        start : var = vm.time_in_nanoseconds().value;
+        start : decimal = vm.time_in_nanoseconds().value;
         block();
-        elapsed : var = vm.time_in_nanoseconds().value - start;
+        elapsed : decimal = vm.time_in_nanoseconds().value - start;
         return nano_to_unit(elapsed, tm_unit);
     }
 
     /** as measure(tm_unit, block) for a block that takes arguments */
     static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : long {
-        start : var = vm.time_in_nanoseconds().value;
+        start : decimal = vm.time_in_nanoseconds().value;
         block(args);
-        elapsed : var = vm.time_in_nanoseconds().value - start;
+        elapsed : decimal = vm.time_in_nanoseconds().value - start;
         return nano_to_unit(elapsed, tm_unit);
     }
 
@@ -108,8 +108,8 @@ class time {
      * Converts a number of nanoseconds (a difference, not an absolute time)
      * to whole `tm_unit`s, dropping the fraction: 1,999,999 ns is 1 ms.
      */
-    static def nano_to_unit(nanos: var, tm_unit: time_unit) : long {
-        divisor : var = 1;
+    static def nano_to_unit(nanos: decimal, tm_unit: time_unit) : long {
+        divisor : decimal = 1;
         if(tm_unit == time_unit.seconds) {
             divisor = 1000000000;
         } else if(tm_unit == time_unit.milliseconds) {

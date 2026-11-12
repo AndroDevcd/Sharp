@@ -10,7 +10,7 @@
 
 void init_struct(stack_item *item) {
     item->obj.o = NULL;
-    item->var=0;
+    item->var.i=0;
 }
 
 void init_struct(frame *f, int32_t raddr, opcode_instr *ip, Int sp, Int fp, bool native) {

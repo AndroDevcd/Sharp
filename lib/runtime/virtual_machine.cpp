@@ -12,6 +12,8 @@
 #include "reflect/reflect_helpers.h"
 #include "memory/garbage_collector.h"
 #include "memory/tracing_collector.h"
+#include "memory/type_check.h"
+#include "types/sharp_field.h"
 #include "console_helper.h"
 #include "../util/time.h"
 #include "multitasking/fiber/task_controller.h"
@@ -31,7 +33,7 @@
 #include "telemetry/telemetry.h"
 
 virtual_machine vm;
-thread_local long double *registers;
+thread_local vm_cell *registers;
 
 // A function is handed to the jit after this many calls...
 #define JIT_CALL_THRESHOLD 10
@@ -63,7 +65,7 @@ void main_vm_loop(sharp_function *frame)
     TELEMETRY_OPCODE_SETUP
     auto thread = thread_self;
     auto task = thread->task;
-    long double *regs = registers;
+    vm_cell *regs = registers;
     Int data;
 
     // Continuing a fiber after a context switch: walk up its call stack and
@@ -94,18 +96,21 @@ void main_vm_loop(sharp_function *frame)
             _NOP:
                 branch
             _INT:
+                TC(Int interruptFlag = single_arg; tc_before_interrupt(task, interruptFlag);)
                 {
                     TELEMETRY_SCOPE(tm_mode_interrupt)
                     TELEMETRY_COUNT(tm_interrupts)
                     exec_interrupt(single_arg);
                 }
+                TC(tc_after_interrupt(task, interruptFlag);)
                 if(vm.state == VM_TERMINATED) {
                     send_interrupt_signal(thread);
                     return;
                 }
                 check_state(1)
             _MOVI:
-                regs[single_arg] = raw_arg2;
+                TC(TC_RT(single_arg) = tk_int;)
+                regs[single_arg].i = raw_arg2;
                 branch_for(2)
             RET:
                 data = single_arg;
@@ -136,11 +141,12 @@ void main_vm_loop(sharp_function *frame)
                 send_interrupt_signal(thread);
                 return;
             NEWARRAY:
+                TC(TC_REG_INT(dual_arg1))
                 grow_stack
                 stack_overflow_check
                 copy_object(
                     &push_stack_object,
-                    create_object(regs[dual_arg1], (data_type)dual_arg2)
+                    create_object(regs[dual_arg1].i, (data_type)dual_arg2)
                 );
                 check_state(1)
             CAST:
@@ -154,104 +160,133 @@ void main_vm_loop(sharp_function *frame)
                 )
                 branch
             // Narrowing casts go through a 64-bit integer first, so a value that does not fit
-            // wraps around (like an integer cast in C or Java). Converting the long double
+            // wraps around (like an integer cast in C or Java). Converting the vm_cell
             // straight to a small type is undefined for out of range values (x87 gives
             // INT_MIN) and would not match what the JIT does (emit_mov8.. in jit/x64/opcode).
             MOV8:
-                regs[dual_arg1] = (int8_t)(int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (int8_t)(int64_t)regs[dual_arg2].i;
                 branch
             MOV16:
-                regs[dual_arg1] = (int16_t)(int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (int16_t)(int64_t)regs[dual_arg2].i;
                 branch
             MOV32:
-                regs[dual_arg1] = (int32_t)(int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (int32_t)(int64_t)regs[dual_arg2].i;
                 branch
             MOV64:
-                regs[dual_arg1] = (int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (int64_t)regs[dual_arg2].i;
                 branch
             MOVU8:
-                regs[dual_arg1] = (uint8_t)(int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (uint8_t)(int64_t)regs[dual_arg2].i;
                 branch
             MOVU16:
-                regs[dual_arg1] = (uint16_t)(int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (uint16_t)(int64_t)regs[dual_arg2].i;
                 branch
             MOVU32:
-                regs[dual_arg1] = (uint32_t)(int64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (uint32_t)(int64_t)regs[dual_arg2].i;
                 branch
             MOVU64:
-                regs[dual_arg1] = (uint64_t)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = (uint64_t)regs[dual_arg2].i;
                 branch
             RSTORE:
+                TC(TC_ST(task->sp + 1) = TC_RT(single_arg);)
                 grow_stack
                 stack_overflow_check
                 push_stack_number = regs[single_arg];
                 branch
             ADD:
-                regs[triple_arg3] = regs[triple_arg1] + regs[triple_arg2];
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = regs[triple_arg1].i + regs[triple_arg2].i;
                 branch
             SUB:
-                regs[triple_arg3] = regs[triple_arg1] - regs[triple_arg2];
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = regs[triple_arg1].i - regs[triple_arg2].i;
                 branch
             MUL:
-                regs[triple_arg3] = regs[triple_arg1] * regs[triple_arg2];
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = regs[triple_arg1].i * regs[triple_arg2].i;
                 branch
-            DIV:
-                regs[triple_arg3] = regs[triple_arg1] / regs[triple_arg2];
+            DDIV:
+                TC(TC_REG_DEC(triple_arg1) TC_REG_DEC(triple_arg2) TC_RT(triple_arg3) = tk_dec;)
+                regs[triple_arg3].d = regs[triple_arg1].d / regs[triple_arg2].d;
                 branch
             MOD:
-                regs[triple_arg3] = vm_remainder((Int)regs[triple_arg1], (Int)regs[triple_arg2]);
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = vm_remainder((Int)regs[triple_arg1].i, (Int)regs[triple_arg2].i);
                 branch
             IADD:
-                regs[single_arg] += raw_arg2;
+                TC(TC_REG_INT(single_arg))
+                regs[single_arg].i += raw_arg2;
                 branch_for(2)
             ISUB:
-                regs[single_arg] -= raw_arg2;
+                TC(TC_REG_INT(single_arg))
+                regs[single_arg].i -= raw_arg2;
                 branch_for(2)
             IMUL:
-                regs[single_arg] *= raw_arg2;
+                TC(TC_REG_INT(single_arg))
+                regs[single_arg].i *= raw_arg2;
                 branch_for(2)
-            IDIV:
-                regs[single_arg] /= raw_arg2;
+            DIDIV:
+                TC(TC_REG_DEC(single_arg))
+                regs[single_arg].d /= raw_arg2;
                 branch_for(2)
             IMOD:
-                regs[single_arg] = vm_remainder((Int)regs[single_arg], (Int)raw_arg2);
+                TC(TC_REG_INT(single_arg))
+                regs[single_arg].i = vm_remainder((Int)regs[single_arg].i, (Int)raw_arg2);
                 branch_for(2)
             POP:
                 copy_object(&pop_stack_object, (sharp_object*)nullptr);
                 branch
             INC:
-                regs[single_arg]++;
+                TC(TC_REG_INT(single_arg))
+                regs[single_arg].i++;
                 branch
             DEC:
-                regs[single_arg]--;
+                TC(TC_REG_INT(single_arg))
+                regs[single_arg].i--;
                 branch
             MOVR:
+                TC(TC_RT(dual_arg1) = TC_RT(dual_arg2);)
                 regs[dual_arg1] = regs[dual_arg2];
                 branch
             BRH:
-                task->pc = task->rom + (Int)regs[ADX];
+                TC(TC_REG_INT(ADX))
+                task->pc = task->rom + (Int)regs[ADX].i;
                 check_state(0)
             IFE:
-                if(regs[CMT]) {
-                    task->pc = task->rom + (Int)regs[ADX];
+                TC(TC_REG_INT(CMT) TC_REG_INT(ADX))
+                if(regs[CMT].i) {
+                    task->pc = task->rom + (Int)regs[ADX].i;
                     check_state(0)
                 } else check_state(1)
             IFNE:
-                if(regs[CMT] == 0) {
-                    task->pc = task->rom + (Int)regs[ADX];
+                TC(TC_REG_INT(CMT) TC_REG_INT(ADX))
+                if(regs[CMT].i == 0) {
+                    task->pc = task->rom + (Int)regs[ADX].i;
                     check_state(0)
                 } else check_state(1)
             LT:
-                regs[CMT] = regs[dual_arg1] < regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].i < regs[dual_arg2].i;
                 branch
             GT:
-                regs[CMT] = regs[dual_arg1] > regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].i > regs[dual_arg2].i;
                 branch
             LTE:
-                regs[CMT] = regs[dual_arg1] <= regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].i <= regs[dual_arg2].i;
                 branch
             GTE:
-                regs[CMT] = regs[dual_arg1] >= regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].i >= regs[dual_arg2].i;
                 branch
             MOVL:
                 task->ptr = &(task->fp+single_arg)->obj;
@@ -263,34 +298,39 @@ void main_vm_loop(sharp_function *frame)
                 );
                 branch
             IPOPL:
+                TC(TC_ST(task->fp + single_arg) = TC_ST(task->sp);)
                 (task->fp+single_arg)->var = pop_stack_number;
                 branch
             MOVSL:
                 task->ptr = &((task->sp+single_arg)->obj);
                 branch
             SIZEOF:
-                regs[single_arg]= ( task->ptr!=NULL && task->ptr->o != NULL) ? task->ptr->o->size : 0;
+                TC(TC_RT(single_arg) = tk_int;)
+                regs[single_arg].i= ( task->ptr!=NULL && task->ptr->o != NULL) ? task->ptr->o->size : 0;
                 branch
             PUT:
-                cout << regs[single_arg];
+                cout << regs[single_arg].i;
                 branch
             PUTC:
-                printf("%c", (char)regs[single_arg]);
+                TC(TC_REG_INT(single_arg))
+                printf("%c", (char)regs[single_arg].i);
                 branch
             GET:
+                TC(TC_REG_INT(CMT) TC_RT(single_arg) = tk_int;)
                 {
                     gc_safe_region waitingForKey;
-                    regs[single_arg] = (regs[CMT] != 0) ? getche() : getch();
+                    regs[single_arg].i = (regs[CMT].i != 0) ? getche() : getch();
                 }
                 branch
             CHECKLEN:
+                TC(TC_REG_INT(single_arg))
                 require_object_with_value(
-                        if(regs[single_arg] < task->ptr->o->size && regs[single_arg] >= 0) {
+                        if(regs[single_arg].i < task->ptr->o->size && regs[single_arg].i >= 0) {
                             branch
                         }
                         else {
                             stringstream ss;
-                            ss << "Access to Object at: " << regs[single_arg] << " size is " << task->ptr->o->size;
+                            ss << "Access to Object at: " << regs[single_arg].i << " size is " << task->ptr->o->size;
                             throw vm_exception(vm.bounds_except, ss.str());
                         }
                 )
@@ -299,7 +339,8 @@ void main_vm_loop(sharp_function *frame)
                 task->pc = task->rom + single_arg;
                 check_state(0)
             LOADPC:
-                regs[single_arg] = current_pc;
+                TC(TC_RT(single_arg) = tk_int;)
+                regs[single_arg].i = current_pc;
                 branch
             PUSHOBJ:
                 grow_stack
@@ -313,7 +354,8 @@ void main_vm_loop(sharp_function *frame)
                 prepare_method(single_arg);
                 check_state(0) // a jit compiled callee can come back with an exception/signal pending
             CALLD:
-                if((data = (Int)regs[single_arg]) <= 0 || data >= vm.mf.methods) {
+                TC(TC_REG_INT(single_arg))
+                if((data = (Int)regs[single_arg].i) <= 0 || data >= vm.mf.methods) {
                     stringstream ss;
                     ss << "invalid call to method (@" << data << ") out of range!";
                     throw vm_exception(ss.str());
@@ -340,16 +382,19 @@ void main_vm_loop(sharp_function *frame)
                 )
                 branch_for(2)
             SLEEP:
+                TC(TC_REG_INT(single_arg))
                 {
                     TELEMETRY_SCOPE(tm_mode_sleep)
-                    __os_sleep(regs[single_arg]);
+                    __os_sleep(regs[single_arg].i);
                 }
                 branch
             TEST:
-                regs[BMR] = regs[dual_arg1] == regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = regs[dual_arg1].i == regs[dual_arg2].i;
                 branch
             TNE:
-                regs[BMR] = regs[dual_arg1] != regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = regs[dual_arg1].i != regs[dual_arg2].i;
                 branch
             LOCK:
                 require_object_with_value(
@@ -367,6 +412,7 @@ void main_vm_loop(sharp_function *frame)
                 task->ptr = vm.staticHeap + single_arg;
                 branch
             MOVND:
+                TC(TC_REG_INT(single_arg))
                 require_object_with_value(
                     #ifdef SAFE_EXECUTION
                      if(task->ptr->o->type <= type_var) {
@@ -376,70 +422,84 @@ void main_vm_loop(sharp_function *frame)
                      }
                     #endif
 
-                    task->ptr = task->ptr->o->node + (Int)regs[single_arg];
+                    task->ptr = task->ptr->o->node + (Int)regs[single_arg].i;
                 )
                 branch
             NEWOBJARRAY:
+                TC(TC_REG_INT(single_arg))
                 grow_stack
                 stack_overflow_check
-                copy_object(&push_stack_object, create_object(regs[single_arg]));
+                copy_object(&push_stack_object, create_object(regs[single_arg].i));
                 check_state(1)
             NOT:
-                regs[dual_arg1] = !regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = !regs[dual_arg2].i;
                 branch
             SKIP: // todo: phase out
                 task->pc += single_arg;
                 branch
             LOADVAL:
+                TC(TC_RT(single_arg) = TC_ST(task->sp);)
                 regs[single_arg] = pop_stack_number;
                 branch
             SHL:
-                regs[triple_arg3] = (Int)regs[triple_arg1] << (Int)regs[triple_arg2];
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = (Int)regs[triple_arg1].i << (Int)regs[triple_arg2].i;
                 branch
             SHR:
-                regs[triple_arg3] = (Int)regs[triple_arg1] >> (Int)regs[triple_arg2];
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = (Int)regs[triple_arg1].i >> (Int)regs[triple_arg2].i;
                 branch
             SKPE: // todo: phase out
-                if((Int)regs[dual_arg1] != 0) {
+                TC(TC_REG_INT(dual_arg1))
+                if((Int)regs[dual_arg1].i != 0) {
                     task->pc = task->pc + dual_arg2;
                     check_state(0)
                 } else check_state(1)
             SKNE: // todo: phase out
-                if((Int)regs[dual_arg1] == 0) {
+                TC(TC_REG_INT(dual_arg1))
+                if((Int)regs[dual_arg1].i == 0) {
                     task->pc = task->pc + dual_arg2;
                     check_state(0)
                 } else check_state(1)
             CMP:
-                regs[CMT] = regs[single_arg] == raw_arg2;
+                TC(TC_REG_INT(single_arg) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[single_arg].i == raw_arg2;
                 branch_for(2)
             AND:
-                regs[BMR] = regs[dual_arg1] && regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = regs[dual_arg1].i && regs[dual_arg2].i;
                 branch
             UAND:
-                regs[BMR] = (Int)regs[dual_arg1] & (Int)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = (Int)regs[dual_arg1].i & (Int)regs[dual_arg2].i;
                 branch
             OR:
-                regs[BMR] = (Int)regs[dual_arg1] | (Int)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = (Int)regs[dual_arg1].i | (Int)regs[dual_arg2].i;
                 branch
             XOR:
-                regs[BMR] = (Int)regs[dual_arg1] ^ (Int)regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg1) TC_REG_INT(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = (Int)regs[dual_arg1].i ^ (Int)regs[dual_arg2].i;
                 branch
             THROW:
                 copy_object(&task->exceptionObject, pop_stack_object.o);
                 enable_exception_flag(thread, true);
                 check_state(0)
             CHECKNULL:
-                regs[single_arg] = task->ptr == nullptr || task->ptr->o == nullptr;
+                TC(TC_RT(single_arg) = tk_int;)
+                regs[single_arg].i = task->ptr == nullptr || task->ptr->o == nullptr;
                 branch
             RETURNOBJ:
                 copy_object(&task->fp->obj, task->ptr);
                 branch
             NEWCLASSARRAY:
+                TC(TC_REG_INT(single_arg))
                 grow_stack
                 stack_overflow_check
                 copy_object(
                         &push_stack_object,
-                        create_object(vm.classes + raw_arg2, (Int)regs[single_arg])
+                        create_object(vm.classes + raw_arg2, (Int)regs[single_arg].i)
                 );
                 check_state(2)
             NEWSTRING:
@@ -458,63 +518,48 @@ void main_vm_loop(sharp_function *frame)
                     assign_string_field(task->sp->obj.o, vm.strings[data]);
                 check_state(1)
             ADDL:
-                (task->fp + dual_arg2)->var += regs[dual_arg1];
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i += regs[dual_arg1].i;
                 branch
             SUBL:
-                (task->fp + dual_arg2)->var -= regs[dual_arg1];
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i -= regs[dual_arg1].i;
                 branch
             MULL:
-                (task->fp + dual_arg2)->var *= regs[dual_arg1];
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i *= regs[dual_arg1].i;
                 branch
-            DIVL:
-                (task->fp + dual_arg2)->var /= regs[dual_arg1];
+            DDIVL:
+                TC(TC_REG_DEC(dual_arg1) TC_SLOT_DEC(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.d /= regs[dual_arg1].d;
                 branch
             MODL:
-                (task->fp + dual_arg2)->var = vm_remainder((Int)(task->fp + dual_arg2)->var, (Int)regs[dual_arg1]);
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i = vm_remainder((Int)(task->fp + dual_arg2)->var.i, (Int)regs[dual_arg1].i);
                 branch
             IADDL:
-                (task->fp + single_arg)->var += raw_arg2;
+                TC(TC_SLOT_INT(task->fp + single_arg))
+                (task->fp + single_arg)->var.i += raw_arg2;
                 branch_for(2)
             ISUBL:
-                (task->fp + single_arg)->var -= raw_arg2;
+                TC(TC_SLOT_INT(task->fp + single_arg))
+                (task->fp + single_arg)->var.i -= raw_arg2;
                 branch_for(2)
             IMULL:
-                (task->fp + single_arg)->var *= raw_arg2;
+                TC(TC_SLOT_INT(task->fp + single_arg))
+                (task->fp + single_arg)->var.i *= raw_arg2;
                 branch_for(2)
-            IDIVL:
-                (task->fp + single_arg)->var /= raw_arg2;
+            DIDIVL:
+                TC(TC_SLOT_DEC(task->fp + single_arg))
+                (task->fp + single_arg)->var.d /= raw_arg2;
                 branch_for(2)
             IMODL:
-                (task->fp + single_arg)->var = vm_remainder((Int)(task->fp + single_arg)->var, (Int)raw_arg2);
+                TC(TC_SLOT_INT(task->fp + single_arg))
+                (task->fp + single_arg)->var.i = vm_remainder((Int)(task->fp + single_arg)->var.i, (Int)raw_arg2);
                 branch_for(2)
             LOADL:
+                TC(TC_RT(dual_arg1) = TC_ST(task->fp + dual_arg2);)
                 regs[dual_arg1] = (task->fp + dual_arg2)->var;
-                branch
-            IALOAD:
-                require_numeric_object_with_value(
-                    #ifdef SAFE_EXECUTION
-                    if(task->ptr->o->type > type_var) {
-                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
-                        enable_exception_flag(thread, true);
-                        goto catch_exception;
-                    }
-                    #endif
-
-                    regs[dual_arg1] = task->ptr->o->HEAD[(Int)regs[dual_arg2]];
-                )
-                branch
-            ILOAD:
-                require_numeric_object_with_value(
-                    #ifdef SAFE_EXECUTION
-                    if(task->ptr->o->type > type_var) {
-                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
-                        enable_exception_flag(thread, true);
-                        goto catch_exception;
-                    }
-                    #endif
-
-                    regs[single_arg] = task->ptr->o->HEAD[0];
-                )
                 branch
             POPOBJ:
                 require_object(
@@ -522,70 +567,53 @@ void main_vm_loop(sharp_function *frame)
                 )
                 branch
             SMOVR:
+                TC(TC_ST(task->sp + dual_arg2) = TC_RT(dual_arg1);)
                 (task->sp + dual_arg2)->var = regs[dual_arg1];
                 branch
             SMOVR_2:
+                TC(TC_ST(task->fp + dual_arg2) = TC_RT(dual_arg1);)
                 (task->fp + dual_arg2)->var = regs[dual_arg1];
                 branch
             SMOVR_3:
                 copy_object(&(task->fp + single_arg)->obj, task->ptr);
                 branch
             SMOVR_4:
+                TC(TC_ST(task->fp + single_arg) = TC_ST(task->fp + raw_arg2);)
                 (task->fp + single_arg)->var = (task->fp + raw_arg2)->var;
                 branch_for(2)
             ANDL:
-                (task->fp + dual_arg2)->var = (Int)(task->fp + dual_arg2)->var & (Int)regs[dual_arg1];
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i = (Int)(task->fp + dual_arg2)->var.i & (Int)regs[dual_arg1].i;
                 branch
             ORL:
-                (task->fp + dual_arg2)->var = (Int)(task->fp + dual_arg2)->var | (Int)regs[dual_arg1];
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i = (Int)(task->fp + dual_arg2)->var.i | (Int)regs[dual_arg1].i;
                 branch
             XORL:
-                (task->fp + dual_arg2)->var = (Int)(task->fp + dual_arg2)->var ^ (Int)regs[dual_arg1];
-                branch
-            RMOV:
-                require_numeric_object_with_value(
-                    #ifdef SAFE_EXECUTION
-                    if(task->ptr->o->type > type_var) {
-                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
-                        enable_exception_flag(thread, true);
-                        goto catch_exception;
-                    }
-                    #endif
-
-                    task->ptr->o->HEAD[(Int)regs[dual_arg1]] =
-                            regs[dual_arg2];
-                )
-                branch
-            IMOV:
-                require_numeric_object_with_value(
-                    #ifdef SAFE_EXECUTION
-                    if(task->ptr->o->type > type_var) {
-                        vm_exception err(vm.ill_state_except, "numeric access on data structure");
-                        enable_exception_flag(thread, true);
-                        goto catch_exception;
-                    }
-                    #endif
-
-                    task->ptr->o->HEAD[0] =
-                            regs[single_arg];
-                )
+                TC(TC_REG_INT(dual_arg1) TC_SLOT_INT(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.i = (Int)(task->fp + dual_arg2)->var.i ^ (Int)regs[dual_arg1].i;
                 branch
             NEG:
-                regs[dual_arg1] = -regs[dual_arg2];
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = -regs[dual_arg2].i;
                 branch
             SMOV:
+                TC(TC_RT(dual_arg1) = TC_ST(task->sp + dual_arg2);)
                 regs[dual_arg1] = (task->sp + dual_arg2)->var;
                 branch
             RETURNVAL:
+                TC(TC_ST(task->fp) = TC_RT(single_arg);)
                 task->fp->var = regs[single_arg];
                 branch
             ISTORE:
+                TC(TC_ST(task->sp + 1) = tk_int;)
                 grow_stack
                 stack_overflow_check
-                push_stack_number = raw_arg2;
+                push_stack_number.i = raw_arg2;
                 branch_for(2)
             ISTOREL:
-                (task->fp + single_arg)->var = raw_arg2;
+                TC(TC_ST(task->fp + single_arg) = tk_int;)
+                (task->fp + single_arg)->var.i = raw_arg2;
                 branch_for(2)
             PUSHNULL:
                 grow_stack
@@ -593,6 +621,7 @@ void main_vm_loop(sharp_function *frame)
                 copy_object(&push_stack_object, (sharp_object*) nullptr);
                 branch
             IPUSHL:
+                TC(TC_ST(task->sp + 1) = TC_ST(task->fp + single_arg);)
                 grow_stack
                 stack_overflow_check
                 push_stack_number = (task->fp + single_arg)->var;
@@ -603,23 +632,27 @@ void main_vm_loop(sharp_function *frame)
                 copy_object(&push_stack_object, (task->fp + single_arg)->obj.o);
                 branch
             ITEST:
+                TC(TC_RT(single_arg) = tk_int;)
                 data = (Int)pop_stack_object.o;
-                regs[single_arg] = (sharp_object*)data == pop_stack_object.o;
+                regs[single_arg].i = (sharp_object*)data == pop_stack_object.o;
                 branch
             INVOKE_DELEGATE:
                 invoke_delegate(single_arg, dual_raw_arg2, dual_raw_arg1);
                 check_state(0)
             ISADD:
-                (task->sp + single_arg)->var += raw_arg2;
+                TC(TC_SLOT_INT(task->sp + single_arg))
+                (task->sp + single_arg)->var.i += raw_arg2;
                 branch_for(2)
             JE:
-                if(regs[CMT]) {
+                TC(TC_REG_INT(CMT))
+                if(regs[CMT].i) {
                     loop_back_edge(single_arg)   // the optimizer puts the loop test at the bottom of the loop
                     task->pc = task->rom + single_arg;
                     check_state(0)
                 } else check_state(1)
             JNE:
-                if(regs[CMT] == 0) {
+                TC(TC_REG_INT(CMT))
+                if(regs[CMT].i == 0) {
                     loop_back_edge(single_arg)
                     task->pc = task->rom + single_arg;
                     check_state(0)
@@ -628,24 +661,35 @@ void main_vm_loop(sharp_function *frame)
                 task->ptr = &(task->stack + single_arg)->obj;
                 branch
             MOV_ABS:
+                TC(TC_ST(task->stack + single_arg) = TC_RT(EBX);)
                 (task->stack + single_arg)->var = regs[EBX];
                 branch
             LOAD_ABS:
+                TC(TC_RT(EBX) = TC_ST(task->stack + single_arg);)
                 regs[EBX] = (task->stack + single_arg)->var;
                 branch
             DUP:
-                data = (Int)&task->sp->obj;
-                copy_object(&push_stack_object, (object*)data);
+                // Like every other push: make room first. (This was the one push
+                // without the check - with the stack exactly full it wrote one
+                // slot past the end of the stack's memory.) The slot to copy is
+                // looked up afterwards: growing may move the stack.
+                grow_stack
+                stack_overflow_check
+                {
+                    object *top = &task->sp->obj;
+                    copy_object(&push_stack_object, top);
+                }
                 branch
             POPOBJ_2:
                 task->ptr = &pop_stack_object;
                 branch
             SWAP:
+                TC({ unsigned char tcSwap = TC_ST(task->sp); TC_ST(task->sp) = TC_ST(task->sp - 1); TC_ST(task->sp - 1) = tcSwap; })
                 if((task->sp-task->stack) >= 2) {
                     auto swappedObj = task->sp->obj.o;
                     (task->sp)->obj.o = (task->sp-1)->obj.o;
                     (task->sp-1)->obj.o = swappedObj;
-                    double swappedVar = task->sp->var;
+                    vm_cell swappedVar = task->sp->var;
                     (task->sp)->var = (task->sp-1)->var;
                     (task->sp-1)->var = swappedVar;
                 } else {
@@ -654,17 +698,235 @@ void main_vm_loop(sharp_function *frame)
                     throw vm_exception(vm.thread_stack_except, ss.str());
                 }
                 branch
-            EXP:
-                regs[triple_arg3]=pow(regs[triple_arg1], regs[triple_arg2]);
+            DEXP:
+                TC(TC_REG_DEC(triple_arg1) TC_REG_DEC(triple_arg2) TC_RT(triple_arg3) = tk_dec;)
+                regs[triple_arg3].d=pow(regs[triple_arg1].d, regs[triple_arg2].d);
                 branch
             LDC: // tested
-                regs[dual_arg1]=vm.constants[dual_arg2];
+                TC(TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d=vm.constants[dual_arg2];
                 branch
             IS:
-                regs[single_arg] = is_type(task->ptr, raw_arg2);
+                TC(TC_RT(single_arg) = tk_int;)
+                regs[single_arg].i = is_type(task->ptr, raw_arg2);
                 branch_for(2)
         }
 
+            // ---- typed numbers: the decimal twins and the conversions --------------
+            // (see the opcode list in lib/core/opcode/opcode.h). A register holds
+            // either a 64-bit integer (.i) or a 64-bit double (.d); the plain
+            // instructions above work on .i, the D twins below on .d.
+            DADD:
+                TC(TC_REG_DEC(triple_arg1) TC_REG_DEC(triple_arg2) TC_RT(triple_arg3) = tk_dec;)
+                regs[triple_arg3].d = regs[triple_arg1].d + regs[triple_arg2].d;
+                branch
+            DSUB:
+                TC(TC_REG_DEC(triple_arg1) TC_REG_DEC(triple_arg2) TC_RT(triple_arg3) = tk_dec;)
+                regs[triple_arg3].d = regs[triple_arg1].d - regs[triple_arg2].d;
+                branch
+            DMUL:
+                TC(TC_REG_DEC(triple_arg1) TC_REG_DEC(triple_arg2) TC_RT(triple_arg3) = tk_dec;)
+                regs[triple_arg3].d = regs[triple_arg1].d * regs[triple_arg2].d;
+                branch
+            DNEG:
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d = -regs[dual_arg2].d;
+                branch
+            DINC:
+                TC(TC_REG_DEC(single_arg))
+                regs[single_arg].d++;
+                branch
+            DDEC:
+                TC(TC_REG_DEC(single_arg))
+                regs[single_arg].d--;
+                branch
+            DLT:
+                TC(TC_REG_DEC(dual_arg1) TC_REG_DEC(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].d < regs[dual_arg2].d;
+                branch
+            DGT:
+                TC(TC_REG_DEC(dual_arg1) TC_REG_DEC(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].d > regs[dual_arg2].d;
+                branch
+            DLTE:
+                TC(TC_REG_DEC(dual_arg1) TC_REG_DEC(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].d <= regs[dual_arg2].d;
+                branch
+            DGTE:
+                TC(TC_REG_DEC(dual_arg1) TC_REG_DEC(dual_arg2) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[dual_arg1].d >= regs[dual_arg2].d;
+                branch
+            DTEST:
+                TC(TC_REG_DEC(dual_arg1) TC_REG_DEC(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = regs[dual_arg1].d == regs[dual_arg2].d;
+                branch
+            DTNE:
+                TC(TC_REG_DEC(dual_arg1) TC_REG_DEC(dual_arg2) TC_RT(BMR) = tk_int;)
+                regs[BMR].i = regs[dual_arg1].d != regs[dual_arg2].d;
+                branch
+            DNOT:
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = regs[dual_arg2].d == 0;    // 1 when the decimal is 0.0
+                branch
+            DCMP:
+                TC(TC_REG_DEC(single_arg) TC_RT(CMT) = tk_int;)
+                regs[CMT].i = regs[single_arg].d == raw_arg2;
+                branch_for(2)
+            DIADD:
+                TC(TC_REG_DEC(single_arg))
+                regs[single_arg].d += raw_arg2;
+                branch_for(2)
+            DISUB:
+                TC(TC_REG_DEC(single_arg))
+                regs[single_arg].d -= raw_arg2;
+                branch_for(2)
+            DIMUL:
+                TC(TC_REG_DEC(single_arg))
+                regs[single_arg].d *= raw_arg2;
+                branch_for(2)
+            DADDL:
+                TC(TC_REG_DEC(dual_arg1) TC_SLOT_DEC(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.d += regs[dual_arg1].d;
+                branch
+            DSUBL:
+                TC(TC_REG_DEC(dual_arg1) TC_SLOT_DEC(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.d -= regs[dual_arg1].d;
+                branch
+            DMULL:
+                TC(TC_REG_DEC(dual_arg1) TC_SLOT_DEC(task->fp + dual_arg2))
+                (task->fp + dual_arg2)->var.d *= regs[dual_arg1].d;
+                branch
+            DIADDL:
+                TC(TC_SLOT_DEC(task->fp + single_arg))
+                (task->fp + single_arg)->var.d += raw_arg2;
+                branch_for(2)
+            DISUBL:
+                TC(TC_SLOT_DEC(task->fp + single_arg))
+                (task->fp + single_arg)->var.d -= raw_arg2;
+                branch_for(2)
+            DIMULL:
+                TC(TC_SLOT_DEC(task->fp + single_arg))
+                (task->fp + single_arg)->var.d *= raw_arg2;
+                branch_for(2)
+            DISADD:
+                TC(TC_SLOT_DEC(task->sp + single_arg))
+                (task->sp + single_arg)->var.d += raw_arg2;
+                branch_for(2)
+            DISTORE:
+                TC(TC_ST(task->sp + 1) = tk_dec;)
+                grow_stack
+                stack_overflow_check
+                push_stack_number.d = raw_arg2;
+                branch_for(2)
+            DISTOREL:
+                TC(TC_ST(task->fp + single_arg) = tk_dec;)
+                (task->fp + single_arg)->var.d = raw_arg2;
+                branch_for(2)
+            DMOVI:
+                TC(TC_RT(single_arg) = tk_dec;)
+                regs[single_arg].d = raw_arg2;
+                branch_for(2)
+            DPUT:
+                TC(TC_REG_DEC(single_arg))
+                cout << regs[single_arg].d;
+                branch
+            I2D:    // integer -> decimal (nothing to do while both are stored as doubles)
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d = (double)regs[dual_arg2].i;
+                branch
+            D2I:    // decimal -> integer: the fraction is dropped (2.9 -> 2, -2.9 -> -2)
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_int;)
+                regs[dual_arg1].i = decimal_to_integer(regs[dual_arg2].d);
+                branch
+            // ---- number fields of the object in the object pointer --------------
+            // (see "THE SLOTS OF A CLASS INSTANCE" in memory/sharp_object.h)
+            // The whole cell is copied: the compiler knows whether the field is an
+            // integer or a decimal and uses the register accordingly.
+            GETF:   // regs[a] = ptr->o.<number field b>
+                require_object_with_value(
+                    TC(TC_RT(dual_arg1) = TC_FIELD_KIND(dual_arg2);)
+                    regs[dual_arg1] = number_slot(task->ptr->o, dual_arg2);
+                )
+                branch
+            PUTF:   // ptr->o.<number field b> = regs[a]
+                require_object_with_value(
+                    TC(TC_NEED(TC_RT(dual_arg1), TC_FIELD_KIND(dual_arg2), "register", dual_arg1))
+                    number_slot(task->ptr->o, dual_arg2) = regs[dual_arg1];
+                )
+                branch
+            // ---- typed number array elements -----------------------------------
+            // The array is in the object pointer, the index in an integer register.
+            // The instruction says how wide an element is and whether it is signed;
+            // the compiler picks it from the array's type (see element_size() in
+            // memory/sharp_object.h). ALOAD64 / ASTORE64 copy 8 bytes as they are:
+            // that is _int64, _uint64, a function pointer, or a decimal.
+            //      C++ comparison: the cast in  (int64_t)((int8_t*)data)[i]
+            ALOAD8:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((int8_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ALOADU8:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((uint8_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ALOAD16:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((int16_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ALOADU16:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((uint16_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ALOAD32:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((int32_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ALOADU32:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((uint32_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ALOAD64:   // regs[a] = array[regs[b]]
+                TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = TC_PTR_KIND();)
+                require_numeric_object_with_value(
+                    regs[dual_arg1].i = ((int64_t*)task->ptr->o->data)[regs[dual_arg2].i];
+                )
+                branch
+            ASTORE8:   // array[regs[a]] = regs[b]
+                TC(TC_REG_INT(dual_arg1) TC_NEED(TC_RT(dual_arg2), TC_PTR_KIND(), "register", dual_arg2))
+                require_numeric_object_with_value(
+                    ((int8_t*)task->ptr->o->data)[regs[dual_arg1].i] = (int8_t)regs[dual_arg2].i;
+                )
+                branch
+            ASTORE16:   // array[regs[a]] = regs[b]
+                TC(TC_REG_INT(dual_arg1) TC_NEED(TC_RT(dual_arg2), TC_PTR_KIND(), "register", dual_arg2))
+                require_numeric_object_with_value(
+                    ((int16_t*)task->ptr->o->data)[regs[dual_arg1].i] = (int16_t)regs[dual_arg2].i;
+                )
+                branch
+            ASTORE32:   // array[regs[a]] = regs[b]
+                TC(TC_REG_INT(dual_arg1) TC_NEED(TC_RT(dual_arg2), TC_PTR_KIND(), "register", dual_arg2))
+                require_numeric_object_with_value(
+                    ((int32_t*)task->ptr->o->data)[regs[dual_arg1].i] = (int32_t)regs[dual_arg2].i;
+                )
+                branch
+            ASTORE64:   // array[regs[a]] = regs[b]
+                TC(TC_REG_INT(dual_arg1) TC_NEED(TC_RT(dual_arg2), TC_PTR_KIND(), "register", dual_arg2))
+                require_numeric_object_with_value(
+                    ((int64_t*)task->ptr->o->data)[regs[dual_arg1].i] = (int64_t)regs[dual_arg2].i;
+                )
+                branch
         state_check:
         if(thread->signal) {
             // the garbage collector's safe point (memory/tracing_collector.h)
@@ -956,7 +1218,10 @@ void prepare_method(Int address) {
 
     task->current = function;
     task->fp = task->sp - function->fpOffset;
+    TC(stack_item *firstLocal = task->sp + 1;)
     task->sp += function->frameStackOffset;
+    // the callee's own locals start out as "not known" for the kind checker
+    TC(if(task->sp >= firstLocal) tc_forget_slots(&TC_ST(firstLocal), &TC_ST(task->sp));)
     task->rom = function->bytecode;
     task->pc = function->bytecode;
 
@@ -1203,11 +1468,6 @@ bool return_method() {
 }
 
 
-void populate_string(string& s, long double* arry, uInt len) {
-    for(Int i = 0; i < len; i++)
-        s += (unsigned char)arry[i];
-}
-
 void exec_interrupt(Int interrupt)
 {
     auto task = thread_self->task;
@@ -1216,20 +1476,20 @@ void exec_interrupt(Int interrupt)
         case OP_NOP:
             return;
         case OP_PRINTF:
-            dbl_printf((int)registers[EGX], registers[EBX], (int)registers[ECX]);
+            dbl_printf((int)registers[EGX].i, registers[EBX].d, (int)registers[ECX].i);   // the number printed is a decimal
             return;
         case OP_STRTOD: {
             auto strObject = pop_stack_object.o;
-            if (strObject != NULL && strObject->type <= type_var && strObject->HEAD != NULL) {
+            if (strObject != NULL && strObject->type <= type_var && strObject->data != NULL) {
                 string num_str;
                 populate_string(num_str, strObject);
-                registers[EBX] = strtod(num_str.c_str(), NULL);
+                registers[EBX].d = strtod(num_str.c_str(), NULL);
             } else
                 throw vm_exception(vm.nullptr_except, "");
             return;
         }
         case OP_OS_TIME:
-            registers[BMR] = Clock::__os_time((int)registers[EBX]);
+            registers[BMR].i = Clock::__os_time((int)registers[EBX].i);
             return;
         case OP_GC_EXPLICIT:
             /**
@@ -1248,18 +1508,18 @@ void exec_interrupt(Int interrupt)
             kill_gc();
             break;
         case OP_GC_STATE:
-            registers[CMT] = gc.state;
+            registers[CMT].i = gc.state;
             break;
         case OP_NAN_TIME:
-            registers[BMR] = Clock::realTimeInNSecs();
+            registers[BMR].i = Clock::realTimeInNSecs();
             return;
         case OP_DELAY:
-            delay_task(registers[EBX]);
+            delay_task(registers[EBX].i);
             return;
         case OP_FIBER_START: {
             auto *name = pop_stack_object.o;
-            Int mainFunc = pop_stack_number;
-            Int threadid = pop_stack_number;
+            Int mainFunc = pop_stack_number.i;
+            Int threadid = pop_stack_number.i;
             auto fibObj = pop_stack_object.o;
             auto fibArgs = pop_stack_object.o;
 
@@ -1273,7 +1533,7 @@ void exec_interrupt(Int interrupt)
                     if(threadid != gc_threadid && threadid != idle_threadid) {
                         binder = get_thread(threadid);
                     } else {
-                        registers[EBX] = -1;
+                        registers[EBX].i = -1;
                         return;
                     }
                 }
@@ -1295,52 +1555,52 @@ void exec_interrupt(Int interrupt)
                     throw;
                 }
 
-                registers[EBX] = fiberId;
+                registers[EBX].i = fiberId;
             } else {
                 throw vm_exception(vm.nullptr_except, "");
             }
             return;
         }
         case OP_FIBER_SUSPEND: {
-            Int fiberId = pop_stack_number;
-            registers[EBX] = suspend_task(fiberId);
+            Int fiberId = pop_stack_number.i;
+            registers[EBX].i = suspend_task(fiberId);
             return;
         }
         case OP_FIBER_UNSUSPEND: {
-            Int fiberId = pop_stack_number;
-            registers[EBX] = unsuspend_task(fiberId);
+            Int fiberId = pop_stack_number.i;
+            registers[EBX].i = unsuspend_task(fiberId);
             return;
         }
         case OP_FIBER_KILL: {
-            Int fiberId = pop_stack_number;
-            registers[EBX] = kill_task(fiberId);
+            Int fiberId = pop_stack_number.i;
+            registers[EBX].i = kill_task(fiberId);
             return;
         }
         case OP_FIBER_BIND: {
-            Int fiberId = pop_stack_number;
-            Int threadId = pop_stack_number;
+            Int fiberId = pop_stack_number.i;
+            Int threadId = pop_stack_number.i;
             auto bindTo = get_thread(threadId); // before task_mutex: thread_mutex must never be taken inside it
 
             guard_mutex(task_mutex) // the fiber cannot be freed while we use it
             fiber *fib = locate_task(fiberId);
-            registers[EBX] = 2;
+            registers[EBX].i = 2;
 
             if(fib) {
-                registers[EBX] = bind_task(fib, bindTo);
+                registers[EBX].i = bind_task(fib, bindTo);
             }
             return;
         }
         case OP_FIBER_BOUND_COUNT: {
-            Int threadId = pop_stack_number;
+            Int threadId = pop_stack_number.i;
             auto thread = get_thread(threadId);
-            registers[EBX] = thread ? thread->boundFibers.load() : 0;
+            registers[EBX].i = thread ? thread->boundFibers.load() : 0;
             return;
         }
         case OP_FIBER_STATE: {
-            Int fiberId = pop_stack_number;
+            Int fiberId = pop_stack_number.i;
             guard_mutex(task_mutex) // the fiber cannot be freed while we use it
             fiber *fib = locate_task(fiberId);
-            registers[EBX] = fib ? get_state(fib) : -1;
+            registers[EBX].i = fib ? get_state(fib) : -1;
             return;
         }
         case OP_FIBER_CURRENT: {
@@ -1350,21 +1610,18 @@ void exec_interrupt(Int interrupt)
             return;
         }
         case OP_THREAD_START: {
-            auto thread = get_thread((int32_t )registers[ADX]);
+            auto thread = get_thread((int32_t )registers[ADX].i);
 
             if(thread != NULL) {
                 copy_object(&thread->currentThread, pop_stack_object.o);
                 copy_object(&thread->args, pop_stack_object.o);
 
                 auto priorityEnum = resolve_field("priority", thread->currentThread.o);
-                if(priorityEnum != NULL) {
-                    thread->priority = (int) read_numeric_value(resolve_field("ordinal", priorityEnum->o)->o, 0);
+                if(priorityEnum != NULL && priorityEnum->o != NULL) {
+                    thread->priority = (int) number_field(priorityEnum->o, "ordinal");
                 }
 
-                auto stackSize = resolve_field("stack_size", thread->currentThread.o);
-                if(stackSize != NULL) {
-                    thread->stackSize = (int) read_numeric_value(stackSize->o, 0);
-                }
+                thread->stackSize = (int) number_field(thread->currentThread.o, "stack_size");
 
                 auto name = resolve_field("name", thread->currentThread.o);
                 if(name != NULL) {
@@ -1378,38 +1635,38 @@ void exec_interrupt(Int interrupt)
                     }
                 }
             }
-            registers[CMT]=start_thread((int32_t )registers[ADX], (size_t )registers[EBX]);
+            registers[CMT].i=start_thread((int32_t )registers[ADX].i, (size_t )registers[EBX].i);
             return;
         }
         case OP_STRTOL: {
-            Int baseNum = pop_stack_number;
+            Int baseNum = pop_stack_number.i;
             auto str = pop_stack_object.o;
             if(str != NULL && str->type <= type_var) {
                 string numStr;
                 populate_string(numStr, str);
-                registers[EBX] = strtoll(numStr.c_str(), NULL, baseNum);
+                registers[EBX].i = strtoll(numStr.c_str(), NULL, baseNum);
             } else {
                 throw vm_exception(vm.nullptr_except, "");
             }
             return;
         }
         case OP_THREAD_JOIN:
-            registers[CMT]=join_thread((int32_t )registers[ADX]);
+            registers[CMT].i=join_thread((int32_t )registers[ADX].i);
             return;
         case OP_THREAD_INTERRUPT:
-            registers[CMT]=interrupt_thread((int32_t )registers[ADX]);
+            registers[CMT].i=interrupt_thread((int32_t )registers[ADX].i);
             return;
         case OP_THREAD_CREATE:
-            registers[EBX]=create_thread((int32_t )registers[ADX], (bool)registers[EBX]);
+            registers[EBX].i=create_thread((int32_t )registers[ADX].i, (bool)registers[EBX].i);
             return;
         case OP_THREAD_PRIORITY:
-            registers[CMT]=set_thread_priority((int32_t )registers[ADX], (int)registers[EGX]);
+            registers[CMT].i=set_thread_priority((int32_t )registers[ADX].i, (int)registers[EGX].i);
             return;
         case OP_THREAD_SUSPEND:
-            registers[CMT]=suspend_thread((int32_t )registers[ADX]);
+            registers[CMT].i=suspend_thread((int32_t )registers[ADX].i);
             return;
         case OP_THREAD_UNSUSPEND:
-            registers[CMT]=unsuspend_thread((int32_t )registers[ADX], (int32_t )registers[EBX]);
+            registers[CMT].i=unsuspend_thread((int32_t )registers[ADX].i, (int32_t )registers[EBX].i);
             return;
         case OP_THREAD_CURRENT: // native getCurrentThread()
             grow_stack
@@ -1425,22 +1682,22 @@ void exec_interrupt(Int interrupt)
             copy_object(&thread_self->currentThread, pop_stack_object.o);
             return;
         case OP_MATH:
-            registers[CMT]=__cmath(registers[EBX], registers[EGX], (int)registers[ECX]);
+            registers[CMT].d=__cmath(registers[EBX].d, registers[EGX].d, (int)registers[ECX].i);
             return;
         case OP_RANDOM_INT:
-            registers[EBX] = randInt();
+            registers[EBX].i = randInt();
             return;
         case OP_RANDOM_DOUBLE:
-            registers[EBX] = randDouble();
+            registers[EBX].d = randDouble();
             return;
         case OP_RANDOM_INT_RANGED:
-            registers[EBX] = randInt((Int)registers[EBX], (Int)registers[EGX]);
+            registers[EBX].i = randInt((Int)registers[EBX].i, (Int)registers[EGX].i);
             return;
         case OP_RANDOM_DOUBLE_RANGED:
-            registers[EBX] = randDouble(registers[EBX], registers[EGX]);
+            registers[EBX].d = randDouble(registers[EBX].d, registers[EGX].d);
             return;
         case OP_RANDOM_SEED:
-            setSeed(registers[ADX]);
+            setSeed(registers[ADX].i);
             return;
         case OP_SYSTEM_EXE: {
             auto str = pop_stack_object.o;
@@ -1448,13 +1705,13 @@ void exec_interrupt(Int interrupt)
                 string cmd;
                 populate_string(cmd, str);
                 gc_safe_region waitingForCommand;
-                registers[CMT] = system(cmd.c_str());
+                registers[CMT].i = system(cmd.c_str());
             } else
                 throw vm_exception(vm.nullptr_except, "");
             return;
         }
         case OP_KBHIT:
-            registers[CMT] = _kbhit();
+            registers[CMT].i = _kbhit();
             return;
         case OP_YIELD:
             std::this_thread::yield();
@@ -1466,14 +1723,14 @@ void exec_interrupt(Int interrupt)
             thread_self->tprof->dump();
 
 #endif
-            task->exitVal = (int)pop_stack_number;
+            task->exitVal = (int)pop_stack_number.i;
             shutdown();
             return;
         case OP_MEMORY_LIMIT:
-            registers[CMT] = gc.memoryLimit;
+            registers[CMT].i = gc.memoryLimit;
             return;
         case OP_MEMORY:
-            registers[CMT] = gc.managedBytes;
+            registers[CMT].i = gc.managedBytes;
             return;
         case OP_ABS_PATH: {
             auto *relPath = &task->sp->obj;
@@ -1501,7 +1758,7 @@ void exec_interrupt(Int interrupt)
             return;
         }
         case OP_REALLOC: {
-            size_t len = pop_stack_number;
+            size_t len = pop_stack_number.i;
             auto array = task->sp->obj.o;
 
             if(array != NULL) {
@@ -1537,17 +1794,17 @@ void exec_interrupt(Int interrupt)
                 populate_string(path, arry->o);
 
                 if(interrupt==OP_FILE_ACCESS)
-                    registers[EBX] = check_access(path, (int)registers[EBX]);
+                    registers[EBX].i = check_access(path, (int)registers[EBX].i);
                 else if(interrupt==OP_FILE_ATTRS)
-                    registers[EBX] = get_file_attrs(path);
+                    registers[EBX].i = get_file_attrs(path);
                 else if(interrupt==OP_FILE_UPDATE_TM)
-                    registers[EBX] = last_update(path, (int)registers[EBX]);
+                    registers[EBX].i = last_update(path, (int)registers[EBX].i);
                 else if(interrupt==OP_FILE_SIZE)
-                    registers[EBX] = file_size(path);
+                    registers[EBX].i = file_size(path);
                 else if(interrupt==OP_FILE_CREATE)
                     create_file(path);
                 else if(interrupt==OP_FILE_DELETE)
-                    registers[EBX] = delete_file(path);
+                    registers[EBX].i = delete_file(path);
                 else if(interrupt==OP_GET_FILES) {
                     std::list<string> files;
                     get_file_list(path, files);
@@ -1571,13 +1828,13 @@ void exec_interrupt(Int interrupt)
                     }
                 }
                 else if(interrupt==OP_CREATE_DIR)
-                    registers[EBX] = File::makeDir(path);
+                    registers[EBX].i = File::makeDir(path);
                 else if(interrupt==OP_DELETE_DIR)
-                    registers[EBX] = delete_dir(path);
+                    registers[EBX].i = delete_dir(path);
                 else if(interrupt==OP_UPDATE_FILE_TM)
-                    registers[EBX] = update_time(path, (time_t)registers[EBX]);
+                    registers[EBX].i = update_time(path, (time_t)registers[EBX].i);
                 else if(interrupt==OP_CHMOD)
-                    registers[EBX] = __chmod(path, (mode_t)registers[EBX], (bool)registers[EGX], (bool)registers[ECX]);
+                    registers[EBX].i = __chmod(path, (mode_t)registers[EBX].i, (bool)registers[EGX].i, (bool)registers[ECX].i);
                 else if(interrupt==OP_READ_FILE) {
                     arry = &push_stack_object;
                     string str;
@@ -1611,11 +1868,11 @@ void exec_interrupt(Int interrupt)
                 populate_string(rename, newNameObj);
 
                 if(interrupt==OP_RENAME_FILE)
-                    registers[EBX] = rename_file(path, rename);
+                    registers[EBX].i = rename_file(path, rename);
                 else if(interrupt==OP_WRITE_FILE) {
                     File::buffer buf;
                     buf.operator<<(rename); // rename will contain our actual unicode data
-                    registers[EBX] = File::write(path.c_str(), buf);
+                    registers[EBX].i = File::write(path.c_str(), buf);
                     buf.end();
                 }
             } else {
@@ -1630,7 +1887,7 @@ void exec_interrupt(Int interrupt)
             if (libNameObj != NULL && libNameObj->type <= type_var) {
                 string name;
 
-                populate_string(name, libNameObj->HEAD, libNameObj->size);
+                populate_string(name, libNameObj);
                 guard_mutex(library_mutex)
 
                 if(locate_lib(name) == NULL) {
@@ -1684,9 +1941,9 @@ void exec_interrupt(Int interrupt)
 
             if (libNameObj != NULL && libNameObj->type <= type_var) {
                 string name;
-                populate_string(name, libNameObj->HEAD, libNameObj->size);
+                populate_string(name, libNameObj);
                 guard_mutex(library_mutex)
-                registers[EBX] = release_lib(name);
+                registers[EBX].i = release_lib(name);
             }
             return;
         }
@@ -1698,22 +1955,22 @@ void exec_interrupt(Int interrupt)
                 && funcNameObj != NULL && funcNameObj->type <= type_var) {
                 string libname, funcname;
 
-                populate_string(libname, libNameObj->HEAD, libNameObj->size);
-                populate_string(funcname, funcNameObj->HEAD, funcNameObj->size);
+                populate_string(libname, libNameObj);
+                populate_string(funcname, funcNameObj);
                 guard_mutex(library_mutex)
                 sharp_function *sf;
 
                 if((sf = locate_function(funcname.c_str())))
-                    registers[EBX] = link(locate_lib(libname), sf);
-                else registers[EBX] = 0;
+                    registers[EBX].i = link(locate_lib(libname), sf);
+                else registers[EBX].i = 0;
             }
             return;
         }
         case OP_DISK_SPACE:
-            registers[EBX]=disk_space((int32_t )registers[EBX]);
+            registers[EBX].i=disk_space((int32_t )registers[EBX].i);
             return;
         case OP_SIZEOF:
-            registers[EBX] = sizeof_object(pop_stack_object.o);
+            registers[EBX].i = sizeof_object(pop_stack_object.o);
             return;
         case OP_FLUSH:
             cout << std::flush;
@@ -1730,8 +1987,8 @@ void exec_interrupt(Int interrupt)
             copy_object(methodsField, create_object(info.size(), type_int64));
             copy_object(pcField, create_object(info.size(), type_int64));
             for(KeyPair<Int, Int> &frameInfo : info) {
-                methodsField->o->HEAD[iter] = frameInfo.key;
-                pcField->o->HEAD[iter++] = frameInfo.value;
+                set_integer_at(methodsField->o, iter, frameInfo.key);
+                set_integer_at(pcField->o, iter++, frameInfo.value);
             }
 
             copy_object(&push_stack_object, stackState);
@@ -1746,7 +2003,7 @@ void exec_interrupt(Int interrupt)
             return;
         }
         case OP_CORES: {
-            registers[EBX]=std::thread::hardware_concurrency();
+            registers[EBX].i=std::thread::hardware_concurrency();
             return;
         }
         case OP_SERIALIZE: {
@@ -1765,19 +2022,23 @@ void exec_interrupt(Int interrupt)
         }
         case OP_REFLECT_FIELD_VALUE: {
             auto instance = (task->sp--)->obj.o;
-            auto index = (Int)(task->sp)->var;
+            auto index = (Int)(task->sp)->var.i;
 
             if(instance && IS_CLASS(instance) && index < vm.classes[CLASS(instance->info)].instanceFields) {
-                auto field = instance->node[index].o;
-                if(field) {
-                    if (field->type == type_object || field->type == type_class
-                            || field->arrayFlag == 1) {
+                // what the slot holds is decided by the field's declaration
+                sharp_field &declared = vm.classes[CLASS(instance->info)].fields[index];
+                bool isNumber = declared.type->type <= type_var && !declared.isArray;
+                auto field = isNumber ? nullptr : instance->node[index].o;
+                if(isNumber || field) {
+                    if (!isNumber) {
                         copy_object(&task->sp->obj, field);
                     } else {
+                        // a number field: hand out a number object (int, double ...) holding it
                         string field_name = "value";
-                        double value = field->HEAD[0];
+                        vm_cell cell = number_slot(instance, index);
+                        double value = declared.type->type == type_var ? cell.d : (double)cell.i;
 
-                        switch(field->type) {
+                        switch(declared.type->type) {
                             case type_int8: {
                                 // char
                                 auto obj = create_object(vm.char_class);

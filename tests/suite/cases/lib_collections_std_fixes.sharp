@@ -10,31 +10,31 @@ import ( testing )
  * std/hash_map.sharp, std/hash_table.sharp and std/dictionary.sharp.
  */
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
 
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : var = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
     return text;
 }
 
-def list_of(a: var, b: var, c: var, d: var) : list<int> {
+def list_of(a: decimal, b: decimal, c: decimal, d: decimal) : list<int> {
     result := new list<int>();
     result.add(new int(a)); result.add(new int(b)); result.add(new int(c)); result.add(new int(d));
     return result;
 }
 
 class card {
-    rank : var;
+    rank : decimal;
     label : string;
-    card(rank: var, label: string) { self->rank = rank; self->label = label; }
+    card(rank: decimal, label: string) { self->rank = rank; self->label = label; }
 }
 
-def by_rank(a: card, b: card) : var { return a.rank - b.rank; }
+def by_rank(a: card, b: card) : decimal { return a.rank - b.rank; }
 
 def test_list() {
     empty := new list<int>();
@@ -75,24 +75,24 @@ def test_list() {
     cards.add(new card(2, "a")); cards.add(new card(1, "b")); cards.add(new card(2, "c")); cards.add(new card(1, "d"));
     cards.sort(by_rank);
     order := "";
-    for(i : var = 0; i < 4; i++) order = order + cards.at(i).label;
+    for(i : decimal = 0; i < 4; i++) order = order + cards.at(i).label;
     expect_str("list sort is stable", order, "bdac");
     expect("list<card> contains is by identity", cards.contains(new card(1, "b")), 0);
     expect("list<card> contains itself", cards.contains(cards.at(2)), 1);
 
     // 5000 pseudo random numbers
     big := new list<int>();
-    seed : var = 4242;
-    sum_before : var = 0;
-    for(i : var = 0; i < 5000; i++) {
+    seed : decimal = 4242;
+    sum_before : decimal = 0;
+    for(i : decimal = 0; i < 5000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         big.add(new int(seed));
         sum_before += seed;
     }
     big.sort(ascending);
-    in_order : var = 1;
-    sum_after : var = big.at(0).value;
-    for(i : var = 1; i < 5000; i++) {
+    in_order : decimal = 1;
+    sum_after : decimal = big.at(0).value;
+    for(i : decimal = 1; i < 5000; i++) {
         if(big.at(i - 1).value > big.at(i).value) in_order = 0;
         sum_after += big.at(i).value;
     }
@@ -133,7 +133,7 @@ def test_synced_list() {
     snapshot.clear();
     expect("synced to_list is a copy", s.size().value, 6);
     // past the first storage array (10 slots)
-    for(i : var = 0; i < 300; i++) s.add(i);
+    for(i : decimal = 0; i < 300; i++) s.add(i);
     expect("synced grown size", s.size().value, 306);
     expect("synced grown last", s.last().value, 299);
 }
@@ -155,7 +155,7 @@ def test_hash_map() {
 
     expect("map keys", m.keys().size().value, 2);
     expect("map values", m.values().size().value, 2);
-    sum : var = 0;
+    sum : decimal = 0;
     foreach(x in m.values()) { sum += x.value; }
     expect("map values sum", sum, 4);
     entries := m.entries();
@@ -187,18 +187,18 @@ def test_hash_map() {
     // growth: 4 buckets, 2000 entries; every key must still be found
     capacity : int = 4;
     big := new hash_map<int, int>(capacity);
-    for(i : var = 0; i < 2000; i++) big.put(i * 3, i);
+    for(i : decimal = 0; i < 2000; i++) big.put(i * 3, i);
     expect("map growth: size", big.size, 2000);
     expect_true("map growth: the bucket array grew", sizeof(big.data) > 2000);
-    wrong : var = 0;
-    for(i : var = 0; i < 2000; i++) {
+    wrong : decimal = 0;
+    for(i : decimal = 0; i < 2000; i++) {
         found := big.at(i * 3);
         if(found == null) wrong++;
         else if(found!!.value != i) wrong++;
     }
     expect("map growth: every key found", wrong, 0);
     expect_null("map growth: a key between", big.at(4));
-    for(i : var = 0; i < 2000; i += 2) big.remove(i * 3);
+    for(i : decimal = 0; i < 2000; i += 2) big.remove(i * 3);
     expect("map growth: size after 1000 removes", big.size, 1000);
     expect_null("map growth: a removed key", big.at(6));
     expect("map growth: a kept key", big.at(9)!!.value, 3);
@@ -219,7 +219,7 @@ def test_hash_table() {
     expect_false("table contains_key missing", t.contains_key("bob").value);
     t.put("bob", 45);
     expect("table keys", t.keys().size().value, 2);
-    sum : var = 0;
+    sum : decimal = 0;
     foreach(x in t.values()) { sum += x.value; }
     expect("table values", sum, 77);
     expect_true("table remove", t.remove("ann").value);
@@ -228,10 +228,10 @@ def test_hash_table() {
     expect("table size after remove", t.size, 1);
 
     numbers := new hash_table<int, int>();
-    for(i : var = 0; i < 1000; i++) numbers.put(i, i * 2);
+    for(i : decimal = 0; i < 1000; i++) numbers.put(i, i * 2);
     expect("table 1000: size", numbers.size, 1000);
-    wrong : var = 0;
-    for(i : var = 0; i < 1000; i++) {
+    wrong : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) {
         if(numbers.at(i)!!.value != i * 2) wrong++;
     }
     expect("table 1000: every key found", wrong, 0);
@@ -245,7 +245,7 @@ def test_dictionary() {
     expect("dict is_empty", ages.is_empty(), 0);
 
     names := "";
-    total : var = 0;
+    total : decimal = 0;
     foreach(entry in ages) {
         names = names + entry.first + " ";
         total += entry.second;
@@ -257,7 +257,7 @@ def test_dictionary() {
     none := { as <string, int> : };
     expect("empty dict size", none.size(), 0);
     expect("empty dict is_empty", none.is_empty(), 1);
-    visited : var = 0;
+    visited : decimal = 0;
     foreach(entry in none) { visited++; }
     expect("empty dict foreach", visited, 0);
     // the old way to reach the pairs still works

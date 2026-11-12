@@ -204,7 +204,7 @@ def test_logger() {
     sink := new string_writer();
     log := new logger("server");
     log.add_writer(sink);
-    log.set_clock({ -> (var) return 1762939800123; });      // 2025-11-12 09:30:00.123 UTC
+    log.set_clock({ -> (decimal) return 1762939800123; });      // 2025-11-12 09:30:00.123 UTC
     expect_str("name", log.name(), "server");
     expect("default level is info", log.get_level(), logger.level_info);
     expect("one target", log.target_count(), 1);

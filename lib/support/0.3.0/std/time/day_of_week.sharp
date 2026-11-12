@@ -35,9 +35,9 @@ class day_of_week {
     static const sunday : day_of_week = new day_of_week(7);
 
     /** ISO number of the day: 1 (Monday) .. 7 (Sunday) */
-    private number : var = 1;
+    private number : decimal = 1;
 
-    private day_of_week(n: var) {
+    private day_of_week(n: decimal) {
         number = n;
     }
 
@@ -45,7 +45,7 @@ class day_of_week {
      * The day with ISO number `n`: 1 = Monday ... 7 = Sunday.
      * @throws date_time_exception when `n` is not 1 .. 7
      */
-    static def of(n: var): day_of_week {
+    static def of(n: decimal): day_of_week {
         time_math.check_range("day of week", n, 1, 7);
         if(n == 1) { return monday; }
         if(n == 2) { return tuesday; }
@@ -68,7 +68,7 @@ class day_of_week {
      */
     static def parse(text: string): day_of_week {
         r := new time_text_reader(text, "day of week");
-        index : var = r.accept_word(full_names);
+        index : decimal = r.accept_word(full_names);
         if(index < 0) {
             index = r.accept_word(short_names);
         }
@@ -80,7 +80,7 @@ class day_of_week {
     }
 
     /** the ISO number: 1 (Monday) .. 7 (Sunday) */
-    def value(): var {
+    def value(): decimal {
         return number;
     }
 
@@ -98,12 +98,12 @@ class day_of_week {
      * The day `days` days later; negative numbers go back. The week wraps
      * around: sunday.plus(1) is monday, monday.plus(-1) is sunday.
      */
-    def plus(days: var): day_of_week {
+    def plus(days: decimal): day_of_week {
         return of(time_math.floor_mod(number - 1 + days, 7) + 1);
     }
 
     /** the day `days` days earlier (see `plus`) */
-    def minus(days: var): day_of_week {
+    def minus(days: decimal): day_of_week {
         return plus(0 - days);
     }
 
@@ -111,12 +111,12 @@ class day_of_week {
      * How many days forward it is from this day to the next `other`:
      * 0 .. 6. monday.days_until(wednesday) is 2, wednesday.days_until(monday) is 5.
      */
-    def days_until(other: day_of_week): var {
+    def days_until(other: day_of_week): decimal {
         return time_math.floor_mod(other.number - number, 7);
     }
 
     /** 1 for Saturday and Sunday */
-    def is_weekend(): var {
+    def is_weekend(): decimal {
         return number >= 6;
     }
 

@@ -7,13 +7,13 @@ import ( testing, std.collections )
  * through 2000 pseudo random inserts and removes.
  */
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
-def descending(a: int, b: int) : var { return b.value - a.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
 
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : var = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -23,7 +23,7 @@ def join(items: list<int>) : string {
 /** "1,2,3" for the keys an entry iterator still has to give */
 def drain_keys(it: iterator<map_entry<int, string> >) : string {
     text := "";
-    first : var = 1;
+    first : decimal = 1;
     while(it.has_next()) {
         if(!first) text = text + ",";
         first = 0;
@@ -33,33 +33,33 @@ def drain_keys(it: iterator<map_entry<int, string> >) : string {
 }
 
 /** the value of a nullable int, or -1 for null */
-def or_minus_one(value: int?) : var {
+def or_minus_one(value: int?) : decimal {
     if(value == null) return 0 - 1;
     return value!!.value;
 }
 
 /** 2000 pseudo random inserts and removes, checked against a plain array of flags */
 def test_tree_map_against_reference() {
-    present := new var[500];        // the reference: present[k] = 1 when key k is in the map
-    stored := new var[500];         // ... and the value stored for it
-    count : var = 0;
+    present := new decimal[500];        // the reference: present[k] = 1 when key k is in the map
+    stored := new decimal[500];         // ... and the value stored for it
+    count : decimal = 0;
 
     m := new tree_map<int, int>(ascending);
-    seed : var = 2024;
-    agree : var = 1;
-    for(step : var = 0; step < 2000; step++) {
+    seed : decimal = 2024;
+    agree : decimal = 1;
+    for(step : decimal = 0; step < 2000; step++) {
         seed = (seed * 7919 + 104729) % 1000003;
-        key : var = seed % 500;
+        key : decimal = seed % 500;
         seed = (seed * 7919 + 104729) % 1000003;
 
         if(seed % 3 == 0) {
             // remove
-            was_there : var = present[key];
+            was_there : decimal = present[key];
             if(was_there) { present[key] = 0; count--; }
             if(m.remove(key) != was_there) agree = 0;
         } else {
             // insert or replace
-            was_new : var = !present[key];
+            was_new : decimal = !present[key];
             if(was_new) { present[key] = 1; count++; }
             stored[key] = step;
             if(m.put(key, step) != was_new) agree = 0;
@@ -71,7 +71,7 @@ def test_tree_map_against_reference() {
     expect_true("tree random height is logarithmic", m.height() <= 12);
 
     // every key: contains, value
-    for(key : var = 0; key < 500; key++) {
+    for(key : decimal = 0; key < 500; key++) {
         if(m.contains_key(key) != present[key]) agree = 0;
         if(present[key]) {
             if(m.at(key)!!.value != stored[key]) agree = 0;
@@ -80,8 +80,8 @@ def test_tree_map_against_reference() {
     expect("tree random contents agree with the reference", agree, 1);
 
     // the iteration is exactly the present keys in ascending order
-    expected_key : var = 0;
-    walked : var = 0;
+    expected_key : decimal = 0;
+    walked : decimal = 0;
     foreach(entry in m) {
         while(expected_key < 500 && !present[expected_key]) expected_key++;
         if(entry.key.value != expected_key) agree = 0;
@@ -92,15 +92,15 @@ def test_tree_map_against_reference() {
     expect("tree random iteration count", walked, count);
 
     // floor / ceiling / lower / higher for every possible key, against a linear scan
-    for(key : var = 0; key < 500; key++) {
-        floor : var = 0 - 1;
-        for(k : var = key; k >= 0; k--) { if(present[k]) { floor = k; break; } }
-        ceiling : var = 0 - 1;
-        for(k : var = key; k < 500; k++) { if(present[k]) { ceiling = k; break; } }
-        lower : var = 0 - 1;
-        for(k : var = key - 1; k >= 0; k--) { if(present[k]) { lower = k; break; } }
-        higher : var = 0 - 1;
-        for(k : var = key + 1; k < 500; k++) { if(present[k]) { higher = k; break; } }
+    for(key : decimal = 0; key < 500; key++) {
+        floor : decimal = 0 - 1;
+        for(k : decimal = key; k >= 0; k--) { if(present[k]) { floor = k; break; } }
+        ceiling : decimal = 0 - 1;
+        for(k : decimal = key; k < 500; k++) { if(present[k]) { ceiling = k; break; } }
+        lower : decimal = 0 - 1;
+        for(k : decimal = key - 1; k >= 0; k--) { if(present[k]) { lower = k; break; } }
+        higher : decimal = 0 - 1;
+        for(k : decimal = key + 1; k < 500; k++) { if(present[k]) { higher = k; break; } }
 
         if(or_minus_one(m.floor_key(key)) != floor) agree = 0;
         if(or_minus_one(m.ceiling_key(key)) != ceiling) agree = 0;
@@ -110,8 +110,8 @@ def test_tree_map_against_reference() {
     expect("tree random neighbours agree with a linear scan", agree, 1);
 
     // a range, counted both ways
-    in_range : var = 0;
-    for(k : var = 100; k < 300; k++) in_range += present[k];
+    in_range : decimal = 0;
+    for(k : decimal = 100; k < 300; k++) in_range += present[k];
     expect("tree random range_keys", m.range_keys(100, 300).size().value, in_range);
     it := m.range_iterator(100, 300);
     walked = 0;
@@ -119,9 +119,9 @@ def test_tree_map_against_reference() {
     expect("tree random range_iterator", walked, in_range);
 
     // empty it from the front: keys must come out ascending
-    previous : var = 0 - 1;
+    previous : decimal = 0 - 1;
     while(!m.is_empty()) {
-        key : var = m.poll_first().key.value;
+        key : decimal = m.poll_first().key.value;
         if(key <= previous) agree = 0;
         previous = key;
     }
@@ -169,7 +169,7 @@ def test_tree_set() {
     expect_str("tset tail between", join(s.tail(8)), "9");
     expect_str("tset tail of nothing", join(s.tail(10)), "");
 
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in s) { digits = digits * 10 + x.value; }
     expect("tset foreach", digits, 13579);
     it := s.iterator();
@@ -195,18 +195,18 @@ def test_tree_set() {
     expect("tset clear", s.size(), 0);
 
     // scale: 3000 pseudo random numbers; the set must hold each once, sorted
-    seen := new var[2000];
-    distinct : var = 0;
-    seed : var = 99;
-    for(i : var = 0; i < 3000; i++) {
+    seen := new decimal[2000];
+    distinct : decimal = 0;
+    seed : decimal = 99;
+    for(i : decimal = 0; i < 3000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
-        value : var = seed % 2000;
+        value : decimal = seed % 2000;
         if(!seen[value]) { seen[value] = 1; distinct++; }
         s.add(value);
     }
     expect("tset big size", s.size(), distinct);
-    sorted : var = 1;
-    previous : var = 0 - 1;
+    sorted : decimal = 1;
+    previous : decimal = 0 - 1;
     foreach(x in s) {
         if(x.value <= previous) sorted = 0;
         if(!seen[x.value]) sorted = 0;

@@ -26,9 +26,9 @@ mod std.util;
 class either<L, R> {
     private left_item : L?;
     private right_item : R?;
-    private holds_right : var = 0;
+    private holds_right : decimal = 0;
 
-    private either(left_item: L?, right_item: R?, holds_right: var) {
+    private either(left_item: L?, right_item: R?, holds_right: decimal) {
         self->left_item = left_item;
         self->right_item = right_item;
         self->holds_right = holds_right;

@@ -45,7 +45,7 @@ class csv_row {
     }
 
     /** the number of fields */
-    def size() : var {
+    def size() : decimal {
         return values.size().value;
     }
 
@@ -53,12 +53,12 @@ class csv_row {
      * The field at position `index` (0 is the first).
      * Throws out_of_bounds_exception when the row has no such field.
      */
-    def at(index: var) : string {
+    def at(index: decimal) : string {
         return values.at(index);
     }
 
     /** the field at position `index`, or `fallback` when the row is shorter than that */
-    def at_or(index: var, fallback: string) : string {
+    def at_or(index: decimal, fallback: string) : string {
         if(index < 0 || index >= values.size().value) {
             return fallback;
         }
@@ -66,12 +66,12 @@ class csv_row {
     }
 
     /** the position of the column called `name` in the header, or -1 (also when there is no header) */
-    def column_index(name: string) : var {
+    def column_index(name: string) : decimal {
         if(names == null) {
             return 0 - 1;
         }
-        total : var = names!!.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = names!!.size().value;
+        for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(names!!.at(i), name)) {
                 return i;
             }
@@ -81,7 +81,7 @@ class csv_row {
 
     /** true when the header has a column `name` and this row is long enough to have a field in it */
     def has_field(name: string) : bool {
-        index : var = column_index(name);
+        index : decimal = column_index(name);
         return index >= 0 && index < values.size().value;
     }
 
@@ -94,7 +94,7 @@ class csv_row {
         if(names == null) {
             throw new csv_exception("csv: no header was read, so there is no column \"" + name + "\"");
         }
-        index : var = column_index(name);
+        index : decimal = column_index(name);
         if(index < 0) {
             throw new csv_exception("csv: there is no column \"" + name + "\"");
         }

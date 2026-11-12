@@ -215,6 +215,17 @@ struct machine_instruction {
     machine_argument *arg3;
 };
 
+/**
+ * What has to happen to a number before (or after) an operation uses it.
+ * See operation_step::leftConversion and is_decimal_type().
+ */
+enum numeric_conversion {
+    convert_nothing,        // it already is what the operation needs
+    convert_to_decimal,     // an integer used in a decimal operation   (I2D)
+    convert_to_integer,     // a decimal used in an integer operation   (D2I, drops the fraction)
+    convert_to_truth        // a decimal used as a condition: 0 when it is 0.0, else 1
+};
+
 enum operation_type {
     operation_none,
     operation_step_scheme,
@@ -352,6 +363,7 @@ enum operation_type {
     operation_check_null,
     operation_no_op,
     operation_machine_instruction,
+    operation_convert_number,       // I2D / D2I on the current value, see compiler/expressions/numeric_conversion.h
 };
 
 enum _operation_scheme {
@@ -813,6 +825,9 @@ struct operation_step {
         _class = step._class;
         field = step.field;
         nativeType = step.nativeType;
+        leftConversion = step.leftConversion;
+        rightConversion = step.rightConversion;
+        resultConversion = step.resultConversion;
         secondRegister = step.secondRegister;
         thirdRegister = step.thirdRegister;
 
@@ -834,6 +849,19 @@ struct operation_step {
     char _char;
     bool _bool;
     data_type nativeType;
+
+    // ---- typed numbers (see is_decimal_type in types/sharp_type.h) ----
+    // For a step that calculates with numbers (add, compare, negate, ...):
+    //   nativeType       type_var = a decimal operation (DADD, DLT, ...),
+    //                    anything else = an integer operation (ADD, LT, ...)
+    //   leftConversion   what has to be done to the left operand first
+    //   rightConversion  the same for the right operand
+    //   resultConversion what has to be done to the result afterwards
+    // Filled in by set_numeric_operation() where the step is created, because
+    // that is the last place the types of the two expressions are known.
+    numeric_conversion leftConversion = convert_nothing;
+    numeric_conversion rightConversion = convert_nothing;
+    numeric_conversion resultConversion = convert_nothing;
     machine_instruction *instruction;
     string _string;
     operation_type type;
@@ -842,6 +870,23 @@ struct operation_step {
 };
 
 extern operation_step *currentStep;
+
+/**
+ * Describe the number operation that was just added to `scheme` (its last
+ * step): the kind of operation and the conversions its operands need.
+ *
+ *      decimalOperation   true: both operands must be decimals (DADD ...)
+ *                         false: both must be integers (ADD ...)
+ *      leftIsDecimal / rightIsDecimal   what the operands are
+ *
+ * Example: `count * 1.5` with count: _int32 is a decimal operation whose left
+ * operand is an integer, so the left operand gets convert_to_decimal.
+ */
+void set_numeric_operation(
+        operation_schema *scheme,
+        bool decimalOperation,
+        bool leftIsDecimal,
+        bool rightIsDecimal);
 string operation_scheme_to_str(operation_schema *schema);
 
 void create_machine_instruction_operation(
@@ -967,9 +1012,14 @@ void create_line_record_operation(
         operation_schema *scheme,
         Int line);
 
-void create_negate_operation(operation_schema *scheme);
+// -x and !x. decimalOperand: the value is a decimal (DNEG / DNOT), else an
+// integer (NEG / NOT). !x always gives an integer: 1 when x is zero, else 0.
+void create_negate_operation(operation_schema *scheme, bool decimalOperand = false);
 
-void create_not_operation(operation_schema *scheme);
+// convert the value the scheme has produced so far (operation_convert_number)
+void create_convert_number_operation(operation_schema *scheme, numeric_conversion conversion);
+
+void create_not_operation(operation_schema *scheme, bool decimalOperand = false);
 
 void create_post_access_operation(operation_schema *scheme);
 
@@ -1360,10 +1410,13 @@ void create_pop_value_from_stack_operation(
 void create_unused_data_operation(
         operation_schema *scheme);
 
+// elementType: for a number array, the type of its elements (it picks the store
+// instruction, see array_store in finalizer/generation/code/code_context.cpp)
 void create_assign_array_element_operation(
         operation_schema *scheme,
         Int index,
-        bool isNumeric);
+        bool isNumeric,
+        data_type elementType = type_undefined);
 
 void create_access_array_element_operation(
         operation_schema *scheme,

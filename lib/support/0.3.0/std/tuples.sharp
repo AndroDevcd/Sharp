@@ -12,7 +12,7 @@ mod std;
  *
  * The fields are public and can be assigned. Each class is generic in the
  * type of every field; the types have to be object types (int, string,
- * your own classes), not native `var`.
+ * your own classes), not native `decimal`.
  */
 
 /**

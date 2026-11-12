@@ -39,18 +39,18 @@ import ( std.io )
  */
 class csv_reader {
     private chars : _int8[]?;
-    private count : var = 0;
-    private pos : var = 0;
+    private count : decimal = 0;
+    private pos : decimal = 0;
 
-    private separator : var = ',';
-    private quote : var = '"';
-    private skip_empty : var = 1;
-    private trim : var = 0;
+    private separator : decimal = ',';
+    private quote : decimal = '"';
+    private skip_empty : decimal = 1;
+    private trim : decimal = 0;
 
     /** the names read by read_header(), or null */
     private header : list<string>?;
     /** how many rows next_row() has returned (the header counts) */
-    private rows_read : var = 0;
+    private rows_read : decimal = 0;
 
     /** a reader for the CSV text `text` (null or "" is a text without rows) */
     csv_reader(text: string) {
@@ -66,7 +66,7 @@ class csv_reader {
     }
 
     /** all rows of `text` with the fields separated by `separator`. Throws csv_exception for malformed text or an impossible separator. */
-    static def parse(text: string, separator: var) : list<csv_row> {
+    static def parse(text: string, separator: decimal) : list<csv_row> {
         reader := new csv_reader(text);
         reader.set_separator(separator);
         return reader.read_all();
@@ -86,7 +86,7 @@ class csv_reader {
      * this reader.
      * Throws csv_exception when `ch` is the quote character or a line end.
      */
-    def set_separator(ch: var) : csv_reader {
+    def set_separator(ch: decimal) : csv_reader {
         if(ch == quote || ch == '\n' || ch == '\r') {
             throw new csv_exception("the separator cannot be the quote character or a line end");
         }
@@ -99,7 +99,7 @@ class csv_reader {
      * (the single quote is sometimes used). Returns this reader.
      * Throws csv_exception when `ch` is the separator or a line end.
      */
-    def set_quote(ch: var) : csv_reader {
+    def set_quote(ch: decimal) : csv_reader {
         if(ch == separator || ch == '\n' || ch == '\r') {
             throw new csv_exception("the quote character cannot be the separator or a line end");
         }
@@ -172,11 +172,11 @@ class csv_reader {
             }
 
             if(pos < count && chars[pos] == quote) {
-                opening : var = pos;
+                opening : decimal = pos;
                 pos++;
-                closed : var = 0;
+                closed : decimal = 0;
                 while(pos < count) {
-                    ch : var = chars[pos];
+                    ch : decimal = chars[pos];
                     if(ch == quote) {
                         if(pos + 1 < count && chars[pos + 1] == quote) {
                             buf.append_char(quote); // a doubled quote is one quote
@@ -204,11 +204,11 @@ class csv_reader {
                 }
                 row.add(buf.to_string()!!);
             } else {
-                start : var = pos;
+                start : decimal = pos;
                 while(pos < count && chars[pos] != separator && chars[pos] != '\n' && chars[pos] != '\r') {
                     pos++;
                 }
-                end : var = pos;
+                end : decimal = pos;
                 if(trim) {
                     while(end > start && (chars[end - 1] == ' ' || chars[end - 1] == '\t')) {
                         end--;
@@ -271,12 +271,12 @@ class csv_reader {
      * compared exactly (case matters).
      * Throws illegal_state_exception when read_header() was not called.
      */
-    def column_index(name: string) : var {
+    def column_index(name: string) : decimal {
         if(header == null) {
             throw new illegal_state_exception("csv_reader: column_index() needs read_header() first");
         }
-        total : var = header!!.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = header!!.size().value;
+        for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(header!!.at(i), name)) {
                 return i;
             }
@@ -285,15 +285,15 @@ class csv_reader {
     }
 
     /** how many rows have been read so far (the header counts as one) */
-    def get_rows_read() : var {
+    def get_rows_read() : decimal {
         return rows_read;
     }
 
     /** throw a csv_exception about the character at index `at` */
-    private def fail(what: string, at: var) {
-        line : var = 1;
-        column : var = 1;
-        for(i : var = 0; i < at && i < count; i++) {
+    private def fail(what: string, at: decimal) {
+        line : decimal = 1;
+        column : decimal = 1;
+        for(i : decimal = 0; i < at && i < count; i++) {
             if(chars[i] == '\n') {
                 line++;
                 column = 1;

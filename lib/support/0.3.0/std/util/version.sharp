@@ -29,15 +29,15 @@ mod std.util;
  */
 class version {
     /** incremented for incompatible changes (read only) */
-    major : var = 0;
+    major : decimal = 0;
         private set v -> { major = v; }
 
     /** incremented for new, backward compatible functionality (read only) */
-    minor : var = 0;
+    minor : decimal = 0;
         private set v -> { minor = v; }
 
     /** incremented for backward compatible bug fixes (read only) */
-    patch : var = 0;
+    patch : decimal = 0;
         private set v -> { patch = v; }
 
     /** the part after "-", e.g. "rc.1"; empty for a release version (read only) */
@@ -52,7 +52,7 @@ class version {
      * The release version major.minor.patch.
      * Throws illegal_argument_exception when a number is negative or not whole.
      */
-    version(major: var, minor: var, patch: var) {
+    version(major: decimal, minor: decimal, patch: decimal) {
         check_number(major);
         check_number(minor);
         check_number(patch);
@@ -68,7 +68,7 @@ class version {
      * whole, and parse_exception when the pre-release text is malformed
      * (see parse()).
      */
-    version(major: var, minor: var, patch: var, pre_release: string) {
+    version(major: decimal, minor: decimal, patch: decimal, pre_release: string) {
         check_number(major);
         check_number(minor);
         check_number(patch);
@@ -79,7 +79,7 @@ class version {
         self->pre_release = pre_release;
     }
 
-    private static def check_number(n: var) {
+    private static def check_number(n: decimal) {
         if(n < 0 || n != (n as _int64))
             throw new illegal_argument_exception("version: major, minor and patch must be whole numbers >= 0");
     }
@@ -97,12 +97,12 @@ class version {
      * "1.2.x", "1.2.3-", "1.2.3-a..b", "v1.2.3", "".
      */
     static def parse(text: string): version {
-        length : var = text.size().value;
+        length : decimal = text.size().value;
 
         // find where the numbers end: at the first '-' or '+'
-        numbers_end : var = length;
-        for(i : var = 0; i < length; i++) {
-            ch : var = text.at(i).value;
+        numbers_end : decimal = length;
+        for(i : decimal = 0; i < length; i++) {
+            ch : decimal = text.at(i).value;
             if(ch == '-' || ch == '+') {
                 numbers_end = i;
                 break;
@@ -110,8 +110,8 @@ class version {
         }
 
         // the build part starts at the first '+', the pre-release part lies between
-        plus : var = length;
-        for(i : var = numbers_end; i < length; i++) {
+        plus : decimal = length;
+        for(i : decimal = numbers_end; i < length; i++) {
             if(text.at(i).value == '+') {
                 plus = i;
                 break;
@@ -119,9 +119,9 @@ class version {
         }
 
         // three numbers separated by exactly two dots
-        first_dot : var = 0 - 1;
-        second_dot : var = 0 - 1;
-        for(i : var = 0; i < numbers_end; i++) {
+        first_dot : decimal = 0 - 1;
+        second_dot : decimal = 0 - 1;
+        for(i : decimal = 0; i < numbers_end; i++) {
             if(text.at(i).value == '.') {
                 if(first_dot < 0) {
                     first_dot = i;
@@ -170,17 +170,17 @@ class version {
     }
 
     /** the characters text[from .. to) as a new string ("" when the interval is empty) */
-    private static def slice(text: string, from: var, to: var): string {
+    private static def slice(text: string, from: decimal, to: decimal): string {
         if(to <= from) return "";
         result := new _int8[to - from];
-        for(i : var = from; i < to; i++) {
+        for(i : decimal = from; i < to; i++) {
             result[i - from] = text.at(i).value;
         }
         return new string(result);
     }
 
     /** read the number in text[from .. to): digits only, at least one, no leading zero */
-    private static def parse_number(text: string, from: var, to: var): var {
+    private static def parse_number(text: string, from: decimal, to: decimal): decimal {
         if(to <= from)
             throw new parse_exception("version: not a semantic version: " + text);
         if(to - from > 1 && text.at(from).value == '0')
@@ -188,9 +188,9 @@ class version {
         if(to - from > 15)
             throw new parse_exception("version: a number is too long: " + text);
 
-        result : var = 0;
-        for(i : var = from; i < to; i++) {
-            digit : var = text.at(i).value - '0';
+        result : decimal = 0;
+        for(i : decimal = from; i < to; i++) {
+            digit : decimal = text.at(i).value - '0';
             if(digit < 0 || digit > 9)
                 throw new parse_exception("version: not a semantic version: " + text);
             result = result * 10 + digit;
@@ -205,16 +205,16 @@ class version {
      * An empty interval is accepted only when the whole text is empty (the
      * "no pre-release" case of the constructor).
      */
-    private static def check_identifiers(text: string, from: var, to: var, numeric_rule: bool, whole: string) {
+    private static def check_identifiers(text: string, from: decimal, to: decimal, numeric_rule: bool, whole: string) {
         if(to <= from) {
             if(text.size() == 0) return;
             throw new parse_exception("version: an empty pre-release or build part: " + whole);
         }
 
-        start : var = from;
-        for(i : var = from; i <= to; i++) {
-            at_end : var = i == to;
-            ch : var = 0;
+        start : decimal = from;
+        for(i : decimal = from; i <= to; i++) {
+            at_end : decimal = i == to;
+            ch : decimal = 0;
             if(!at_end) ch = text.at(i).value;
 
             if(at_end || ch == '.') {
@@ -225,17 +225,17 @@ class version {
                     throw new parse_exception("version: a numeric identifier has a leading zero: " + whole);
                 start = i + 1;
             } else {
-                letter : var = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
-                digit : var = ch >= '0' && ch <= '9';
+                letter : decimal = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+                digit : decimal = ch >= '0' && ch <= '9';
                 if(!letter && !digit && ch != '-')
                     throw new parse_exception("version: an illegal character in an identifier: " + whole);
             }
         }
     }
 
-    private static def all_digits(text: string, from: var, to: var): bool {
-        for(i : var = from; i < to; i++) {
-            ch : var = text.at(i).value;
+    private static def all_digits(text: string, from: decimal, to: decimal): bool {
+        for(i : decimal = from; i < to; i++) {
+            ch : decimal = text.at(i).value;
             if(ch < '0' || ch > '9') return false;
         }
         return true;
@@ -292,13 +292,13 @@ class version {
      * comment): -1 when this version is older than `other`, 1 when it is
      * newer, 0 when they have the same precedence (build parts may differ).
      */
-    def compare_to(other: version): var {
+    def compare_to(other: version): decimal {
         if(major != other.major) return direction(major - other.major);
         if(minor != other.minor) return direction(minor - other.minor);
         if(patch != other.patch) return direction(patch - other.patch);
 
-        mine : var = pre_release.size().value;
-        theirs : var = other.pre_release.size().value;
+        mine : decimal = pre_release.size().value;
+        theirs : decimal = other.pre_release.size().value;
         if(mine == 0 && theirs == 0) return 0;
         if(mine == 0) return 1;             // a release is newer than its pre-releases
         if(theirs == 0) return 0 - 1;
@@ -306,27 +306,27 @@ class version {
         return compare_pre_release(pre_release, other.pre_release);
     }
 
-    private static def direction(difference: var): var {
+    private static def direction(difference: decimal): decimal {
         if(difference < 0) return 0 - 1;
         if(difference > 0) return 1;
         return 0;
     }
 
     /** compare two non-empty pre-release texts identifier by identifier (rule 3 of the class comment) */
-    private static def compare_pre_release(a: string, b: string): var {
-        size_a : var = a.size().value;
-        size_b : var = b.size().value;
-        start_a : var = 0;
-        start_b : var = 0;
+    private static def compare_pre_release(a: string, b: string): decimal {
+        size_a : decimal = a.size().value;
+        size_b : decimal = b.size().value;
+        start_a : decimal = 0;
+        start_b : decimal = 0;
 
         while(start_a <= size_a && start_b <= size_b) {
             // the identifier of each side runs up to the next dot
-            end_a : var = start_a;
+            end_a : decimal = start_a;
             while(end_a < size_a && a.at(end_a).value != '.') { end_a++; }
-            end_b : var = start_b;
+            end_b : decimal = start_b;
             while(end_b < size_b && b.at(end_b).value != '.') { end_b++; }
 
-            order : var = compare_identifier(a, start_a, end_a, b, start_b, end_b);
+            order : decimal = compare_identifier(a, start_a, end_a, b, start_b, end_b);
             if(order != 0) return order;
 
             start_a = end_a + 1;
@@ -339,9 +339,9 @@ class version {
         return 0;
     }
 
-    private static def compare_identifier(a: string, from_a: var, to_a: var, b: string, from_b: var, to_b: var): var {
-        numeric_a : var = all_digits(a, from_a, to_a).value;
-        numeric_b : var = all_digits(b, from_b, to_b).value;
+    private static def compare_identifier(a: string, from_a: decimal, to_a: decimal, b: string, from_b: decimal, to_b: decimal): decimal {
+        numeric_a : decimal = all_digits(a, from_a, to_a).value;
+        numeric_b : decimal = all_digits(b, from_b, to_b).value;
 
         if(numeric_a && numeric_b) {
             // no leading zeros, so the longer number is the larger; equal lengths compare digit by digit below
@@ -352,13 +352,13 @@ class version {
             return 1;
         }
 
-        length_a : var = to_a - from_a;
-        length_b : var = to_b - from_b;
-        shared : var = length_a;
+        length_a : decimal = to_a - from_a;
+        length_b : decimal = to_b - from_b;
+        shared : decimal = length_a;
         if(length_b < shared) shared = length_b;
 
-        for(i : var = 0; i < shared; i++) {
-            difference : var = a.at(from_a + i).value - b.at(from_b + i).value;
+        for(i : decimal = 0; i < shared; i++) {
+            difference : decimal = a.at(from_a + i).value - b.at(from_b + i).value;
             if(difference != 0) return direction(difference);
         }
         return direction(length_a - length_b);
@@ -411,8 +411,8 @@ class version {
      * part, so versions that compare equal have equal hashes).
      */
     override def hash(): int {
-        result : var = ((major * 31 + minor) * 31 + patch) % 2147483647;
-        for(i : var = 0; i < pre_release.size().value; i++) {
+        result : decimal = ((major * 31 + minor) * 31 + patch) % 2147483647;
+        for(i : decimal = 0; i < pre_release.size().value; i++) {
             result = (result * 31 + pre_release.at(i).value) % 2147483647;
         }
         return result;

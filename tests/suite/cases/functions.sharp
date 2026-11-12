@@ -10,76 +10,76 @@ import ( testing )
  */
 
 class pair_of_numbers {
-    first : var = 0;
-    second : var = 0;
+    first : decimal = 0;
+    second : decimal = 0;
 
-    pair_of_numbers(a: var, b: var) {
+    pair_of_numbers(a: decimal, b: decimal) {
         first = a;
         second = b;
     }
 }
 
 // ---- parameters
-def no_parameters(): var { return 42; }
-def one_parameter(a: var): var { return a + 1; }
-def two_parameters(a: var, b: var): var { return a * 10 + b; }
-def six_parameters(a: var, b: var, c: var, d: var, e: var, f: var): var {
+def no_parameters(): decimal { return 42; }
+def one_parameter(a: decimal): decimal { return a + 1; }
+def two_parameters(a: decimal, b: decimal): decimal { return a * 10 + b; }
+def six_parameters(a: decimal, b: decimal, c: decimal, d: decimal, e: decimal, f: decimal): decimal {
     return a * 100000 + b * 10000 + c * 1000 + d * 100 + e * 10 + f;
 }
-def string_parameter(s: string): var { return s.size().value; }
-def boxed_parameter(n: int): var { return n.value * 2; }
-def object_parameter(p: pair_of_numbers): var { return p.first + p.second; }
-def array_parameter(numbers: var[]): var {
-    total : var = 0;
-    for(i : var = 0; i < sizeof(numbers); i++) {
+def string_parameter(s: string): decimal { return s.size().value; }
+def boxed_parameter(n: int): decimal { return n.value * 2; }
+def object_parameter(p: pair_of_numbers): decimal { return p.first + p.second; }
+def array_parameter(numbers: decimal[]): decimal {
+    total : decimal = 0;
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
         total += numbers[i];
     }
     return total;
 }
-def mixed_parameters(scale: var, label: string, p: pair_of_numbers, numbers: var[]): var {
+def mixed_parameters(scale: decimal, label: string, p: pair_of_numbers, numbers: decimal[]): decimal {
     return scale * (label.size().value + p.first + numbers[0]);
 }
 
 // ---- a parameter is a copy of a number, but the same object
-def change_number(a: var): var {
+def change_number(a: decimal): decimal {
     a = a + 100;
     return a;
 }
 def change_object(p: pair_of_numbers) {
     p.first = 99;
 }
-def change_array(numbers: var[]) {
+def change_array(numbers: decimal[]) {
     numbers[0] = 77;
 }
 
 // ---- return values
-def returns_var(): var { return 2.5; }
-def returns_int8(a: var): _int8 { return a; }
-def returns_uint8(a: var): _uint8 { return a; }
-def returns_int16(a: var): _int16 { return a; }
-def returns_int32(a: var): _int32 { return a; }
-def returns_boxed_int(a: var): int { return new int(a); }
-def returns_boxed_double(a: var): double { return new double(a); }
-def returns_string(times: var): string {
+def returns_var(): decimal { return 2.5; }
+def returns_int8(a: decimal): _int8 { return a; }
+def returns_uint8(a: decimal): _uint8 { return a; }
+def returns_int16(a: decimal): _int16 { return a; }
+def returns_int32(a: decimal): _int32 { return a; }
+def returns_boxed_int(a: decimal): int { return new int(a); }
+def returns_boxed_double(a: decimal): double { return new double(a); }
+def returns_string(times: decimal): string {
     s : string = "";
-    for(i : var = 0; i < times; i++) {
+    for(i : decimal = 0; i < times; i++) {
         s = s + "ab";
     }
     return s;
 }
-def returns_object(a: var, b: var): pair_of_numbers { return new pair_of_numbers(a, b); }
-def returns_array(length: var): var[] {
-    numbers : var[] = new var[length];
-    for(i : var = 0; i < length; i++) {
+def returns_object(a: decimal, b: decimal): pair_of_numbers { return new pair_of_numbers(a, b); }
+def returns_array(length: decimal): decimal[] {
+    numbers : decimal[] = new decimal[length];
+    for(i : decimal = 0; i < length; i++) {
         numbers[i] = i * i;
     }
     return numbers;
 }
 def returns_null(): pair_of_numbers? { return null; }
 
-calls_made : var = 0;
+calls_made : decimal = 0;
 def returns_nothing() { calls_made++; }
-def returns_nothing_early(stop: var) {
+def returns_nothing_early(stop: decimal) {
     if(stop) {
         return;
     }
@@ -87,22 +87,22 @@ def returns_nothing_early(stop: var) {
 }
 
 // ---- overloads chosen by the number of parameters
-def count_of(): var { return 0; }
-def count_of(a: var): var { return 1; }
-def count_of(a: var, b: var): var { return 2; }
-def count_of(a: var, b: var, c: var): var { return 3; }
+def count_of(): decimal { return 0; }
+def count_of(a: decimal): decimal { return 1; }
+def count_of(a: decimal, b: decimal): decimal { return 2; }
+def count_of(a: decimal, b: decimal, c: decimal): decimal { return 3; }
 
 // ---- overloads chosen by the types of the parameters
-def kind_of(a: var): var { return 1; }
-def kind_of(s: string): var { return 10; }
-def kind_of(p: pair_of_numbers): var { return 20; }
-def kind_of(s: string, a: var): var { return 30; }
-def kind_of(a: var, s: string): var { return 40; }
-def kind_of(numbers: var[]): var { return 50; }
-def kind_of(p: pair_of_numbers, q: pair_of_numbers): var { return 60; }
+def kind_of(a: decimal): decimal { return 1; }
+def kind_of(s: string): decimal { return 10; }
+def kind_of(p: pair_of_numbers): decimal { return 20; }
+def kind_of(s: string, a: decimal): decimal { return 30; }
+def kind_of(a: decimal, s: string): decimal { return 40; }
+def kind_of(numbers: decimal[]): decimal { return 50; }
+def kind_of(p: pair_of_numbers, q: pair_of_numbers): decimal { return 60; }
 
 // ---- early return
-def sign(a: var): var {
+def sign(a: decimal): decimal {
     if(a < 0) {
         return 0 - 1;
     }
@@ -111,15 +111,15 @@ def sign(a: var): var {
     }
     return 1;
 }
-def first_index_of(numbers: var[], wanted: var): var {
-    for(i : var = 0; i < sizeof(numbers); i++) {
+def first_index_of(numbers: decimal[], wanted: decimal): decimal {
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
         if(numbers[i] == wanted) {
             return i;
         }
     }
     return 0 - 1;
 }
-def grade(score: var): string {
+def grade(score: decimal): string {
     if(score >= 90) { return "A"; }
     else if(score >= 80) { return "B"; }
     else if(score >= 70) { return "C"; }
@@ -127,25 +127,25 @@ def grade(score: var): string {
 }
 
 // ---- functions calling functions
-def square(a: var): var { return a * a; }
-def sum_of_squares(a: var, b: var): var { return square(a) + square(b); }
-def hypotenuse_squared(a: var, b: var): var { return sum_of_squares(a, b); }
-def largest(a: var, b: var): var {
+def square(a: decimal): decimal { return a * a; }
+def sum_of_squares(a: decimal, b: decimal): decimal { return square(a) + square(b); }
+def hypotenuse_squared(a: decimal, b: decimal): decimal { return sum_of_squares(a, b); }
+def largest(a: decimal, b: decimal): decimal {
     if(a > b) { return a; }
     return b;
 }
-def largest_of_three(a: var, b: var, c: var): var { return largest(largest(a, b), c); }
-def used_before_declared(a: var): var { return declared_later(a) + 1; }
-def declared_later(a: var): var { return a * 3; }
+def largest_of_three(a: decimal, b: decimal, c: decimal): decimal { return largest(largest(a, b), c); }
+def used_before_declared(a: decimal): decimal { return declared_later(a) + 1; }
+def declared_later(a: decimal): decimal { return a * 3; }
 
 // ---- expression-bodied functions
 //      `:=` works the result type out from the expression, and a number worked
 //      out that way is an int OBJECT (the same as `z := 1;`), read with .value
-def twice(x: var) := x * 2;
-def thrice(x: var): var = x * 3;
-def twice_plus_thrice(x: var): var = twice(x).value + thrice(x);
+def twice(x: decimal) := x * 2;
+def thrice(x: decimal): decimal = x * 3;
+def twice_plus_thrice(x: decimal): decimal = twice(x).value + thrice(x);
 def greeting(name: string): string = "hello " + name;
-def make_pair(a: var): pair_of_numbers = new pair_of_numbers(a, a + 1);
+def make_pair(a: decimal): pair_of_numbers = new pair_of_numbers(a, a + 1);
 
 def main(args: string[]) {
     // ---- parameters
@@ -157,26 +157,26 @@ def main(args: string[]) {
     expect("an empty string parameter", string_parameter(""), 0);
     expect("a boxed int parameter", boxed_parameter(new int(21)), 42);
     expect("an object parameter", object_parameter(new pair_of_numbers(30, 12)), 42);
-    expect("an array parameter", array_parameter(new var[] { 1, 2, 3, 4 }), 10);
+    expect("an array parameter", array_parameter(new decimal[] { 1, 2, 3, 4 }), 10);
     expect("parameters of four different types",
-        mixed_parameters(2, "abc", new pair_of_numbers(10, 0), new var[] { 7 }), 40);
+        mixed_parameters(2, "abc", new pair_of_numbers(10, 0), new decimal[] { 7 }), 40);
 
     // ---- an expression as an argument is evaluated before the call
-    x : var = 5;
+    x : decimal = 5;
     expect("an expression as an argument", one_parameter(x * 2 + 1), 12);
     expect("a call as an argument", one_parameter(one_parameter(one_parameter(0))), 3);
     expect("a negative argument", one_parameter(0 - 8), 0 - 7);
     expect("a fraction as an argument", one_parameter(0.5), 1.5);
 
     // ---- numbers are copied into a parameter, objects and arrays are shared
-    n : var = 1;
+    n : decimal = 1;
     expect("the function sees its own copy", change_number(n), 101);
     expect("...and the caller's variable is unchanged", n, 1);
     shared := new pair_of_numbers(1, 2);
     change_object(shared);
     expect("a function can change the caller's object", shared.first, 99);
     expect("...only the field it assigned", shared.second, 2);
-    numbers : var[] = new var[] { 1, 2, 3 };
+    numbers : decimal[] = new decimal[] { 1, 2, 3 };
     change_array(numbers);
     expect("a function can change the caller's array", numbers[0], 77);
     expect("...only the element it assigned", numbers[1], 2);
@@ -218,7 +218,7 @@ def main(args: string[]) {
     expect("return an object: first field", made.first, 3);
     expect("return an object: second field", made.second, 4);
     expect("use a returned object without a variable", returns_object(8, 9).second, 9);
-    squares : var[] = returns_array(5);
+    squares : decimal[] = returns_array(5);
     expect("return an array: its length", sizeof(squares), 5);
     expect("return an array: first element", squares[0], 0);
     expect("return an array: last element", squares[4], 16);
@@ -242,7 +242,7 @@ def main(args: string[]) {
     expect("overload with three numbers", count_of(5, 6, 7), 3);
 
     // ---- overloads: chosen by the types of the arguments
-    y : var = 3;
+    y : decimal = 3;
     word : string = "word";
     expect("overload with a number", kind_of(y), 1);
     expect("overload with a string", kind_of(word), 10);
@@ -250,14 +250,14 @@ def main(args: string[]) {
     expect("overload with an object", kind_of(new pair_of_numbers(1, 2)), 20);
     expect("overload with (string, number)", kind_of(word, y), 30);
     expect("overload with (number, string)", kind_of(y, word), 40);
-    expect("overload with an array", kind_of(new var[] { 1, 2 }), 50);
+    expect("overload with an array", kind_of(new decimal[] { 1, 2 }), 50);
     expect("overload with two objects", kind_of(shared, made), 60);
 
     // ---- early return
     expect("sign of a negative number", sign(0 - 12), 0 - 1);
     expect("sign of zero", sign(0), 0);
     expect("sign of a positive number", sign(12), 1);
-    haystack : var[] = new var[] { 4, 8, 15, 16, 23, 42 };
+    haystack : decimal[] = new decimal[] { 4, 8, 15, 16, 23, 42 };
     expect("return from inside a loop: first element", first_index_of(haystack, 4), 0);
     expect("return from inside a loop: in the middle", first_index_of(haystack, 16), 3);
     expect("return from inside a loop: last element", first_index_of(haystack, 42), 5);
@@ -287,8 +287,8 @@ def main(args: string[]) {
     expect("short functions nest like any other", twice(thrice(twice(1).value)).value, 12);
 
     // ---- the same function called many times
-    total : var = 0;
-    for(i : var = 1; i <= 100; i++) {
+    total : decimal = 0;
+    for(i : decimal = 1; i <= 100; i++) {
         total += twice(i).value;
     }
     expect("100 calls in a loop", total, 10100);

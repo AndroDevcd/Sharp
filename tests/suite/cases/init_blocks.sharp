@@ -9,7 +9,7 @@ import ( testing )
  * class's own init blocks, its own constructor.
  *
  * `static init { }` runs once for the class, before main() starts.
- * `init(x: var) { }` is something else: it lets a variable of the class be
+ * `init(x: decimal) { }` is something else: it lets a variable of the class be
  * declared with a number as its value (`m : money = 250;`).
  *
  * To show the order, every block and constructor here appends a digit to
@@ -21,8 +21,8 @@ import ( testing )
  */
 
 class steps {
-    trace : var;
-    ready : var;
+    trace : decimal;
+    ready : decimal;
 
     init {
         trace = trace * 10 + 1;
@@ -33,12 +33,12 @@ class steps {
         trace = trace * 10 + 3;
     }
 
-    steps(extra: var) {
+    steps(extra: decimal) {
         trace = trace * 10 + 4;
         ready = ready + extra;
     }
 
-    steps(a: var, b: var) {
+    steps(a: decimal, b: decimal) {
         trace = trace * 10 + 5;
         ready = ready * a + b;
     }
@@ -50,7 +50,7 @@ class steps {
 }
 
 class lower_steps base steps {
-    lower_ready : var;
+    lower_ready : decimal;
 
     init {
         trace = trace * 10 + 6;
@@ -61,7 +61,7 @@ class lower_steps base steps {
         trace = trace * 10 + 7;
     }
 
-    lower_steps(extra: var) -> base(extra) {
+    lower_steps(extra: decimal) -> base(extra) {
         trace = trace * 10 + 8;
     }
 }
@@ -78,8 +78,8 @@ class lowest_steps base lower_steps {
 
 /* an init block and no constructor at all */
 class only_init {
-    value : var;
-    half : var;
+    value : decimal;
+    half : decimal;
 
     init {
         value = 42;
@@ -89,15 +89,15 @@ class only_init {
 
 /* init blocks can do anything a method can */
 class table {
-    cells : var[]?;
-    total : var;
-    size : var;
+    cells : decimal[]?;
+    total : decimal;
+    size : decimal;
     origin : marker?;
 
     init {
         size = 5;
-        cells = new var[5];
-        for(i : var = 0; i < 5; i++) {
+        cells = new decimal[5];
+        for(i : decimal = 0; i < 5; i++) {
             cells[i] = (i + 1) * (i + 1);
         }
         fill_total();
@@ -106,7 +106,7 @@ class table {
 
     /* a method called from an init block */
     def fill_total() {
-        for(i : var = 0; i < size; i++) {
+        for(i : decimal = 0; i < size; i++) {
             total = total + cells[i];
         }
     }
@@ -116,14 +116,14 @@ class table {
 }
 
 class marker {
-    number : var;
-    doubled : var;
+    number : decimal;
+    doubled : decimal;
 
     init {
         doubled = 0 - 1;
     }
 
-    marker(n: var) {
+    marker(n: decimal) {
         number = n;
         doubled = n * 2;
     }
@@ -131,8 +131,8 @@ class marker {
 
 /* a constructor sees what the init block left, and can replace it */
 class defaults {
-    width : var;
-    height : var;
+    width : decimal;
+    height : decimal;
 
     init {
         width = 80;
@@ -142,19 +142,19 @@ class defaults {
     defaults() {
     }
 
-    defaults(w: var) {
+    defaults(w: decimal) {
         width = w;
     }
 
-    def area(): var {
+    def area(): decimal {
         return width * height;
     }
 }
 
 /* init blocks run once per object: this one counts them in a static field */
 class counted {
-    static made : var = 0;
-    serial : var;
+    static made : decimal = 0;
+    serial : decimal;
 
     init {
         made++;
@@ -167,20 +167,20 @@ class counted {
 
 /* static init: once for the class, before main */
 class settings {
-    static level : var;
-    static squares : var[]?;
-    static runs : var;
+    static level : decimal;
+    static squares : decimal[]?;
+    static runs : decimal;
 
     static init {
         level = 3;
-        squares = new var[4];
-        for(i : var = 0; i < 4; i++) {
+        squares = new decimal[4];
+        for(i : decimal = 0; i < 4; i++) {
             squares[i] = i * i;
         }
         runs = runs + 1;
     }
 
-    value : var;
+    value : decimal;
 
     settings() {
         value = level * 10;
@@ -189,8 +189,8 @@ class settings {
 
 /* a static init block and an init block in one class */
 class both_kinds {
-    static shared : var;
-    own : var;
+    static shared : decimal;
+    own : decimal;
 
     static init {
         shared = 100;
@@ -207,20 +207,20 @@ class both_kinds {
 
 /* init(x): a money variable can be declared with a number as its value */
 class money {
-    cents : var;
-    made_from_number : var;
+    cents : decimal;
+    made_from_number : decimal;
 
-    init(c: var) {
+    init(c: decimal) {
         cents = c;
         made_from_number = 1;
     }
 
-    def dollars(): var {
+    def dollars(): decimal {
         return cents / 100;
     }
 }
 
-def cents_of(m: money): var {
+def cents_of(m: money): decimal {
     return m.cents;
 }
 
@@ -283,7 +283,7 @@ def main(args: string[]) {
     expect("first object's number", c1.serial, 1);
     expect("second object's number", c2.serial, 2);
     expect("third object's number", c3.serial, 3);
-    for(i : var = 0; i < 10; i++) {
+    for(i : decimal = 0; i < 10; i++) {
         extra := new counted();
     }
     expect("ten more in a loop", counted.made, 13);
@@ -317,7 +317,7 @@ def main(args: string[]) {
     n : money = 100 + 23;
     expect("from an expression", n.cents, 123);
     expect("the two are separate objects", m.cents, 250);
-    amount : var = 75;
+    amount : decimal = 75;
     from_variable : money = amount;
     expect("from a var variable", from_variable.cents, 75);
     expect("the object passed on like any other", cents_of(from_variable), 75);

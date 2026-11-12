@@ -8,8 +8,8 @@ import ( testing )
  * that constructor is private. Two overloads that differ only in "number or
  * such a class" are therefore ambiguous when called with numbers:
  *
- *     static def of(year: var, month_number: var, day: var)
- *     static def of(year: var, in_month: month_like, day: var)
+ *     static def of(year: decimal, month_number: decimal, day: decimal)
+ *     static def of(year: decimal, in_month: month_like, day: decimal)
  *     of(2024, 2, 29);       // error S807: call to method `of` is ambiguous
  *
  * The first overload is an exact match and should win.
@@ -21,23 +21,23 @@ import ( testing )
  * reports as a failure. With the bug fixed it prints RESULT PASS.
  */
 class month_like {
-    private number : var = 0;
+    private number : decimal = 0;
 
-    private month_like(n: var) {
+    private month_like(n: decimal) {
         number = n;
     }
 
     static const february : month_like = new month_like(2);
 
-    def value(): var { return number; }
+    def value(): decimal { return number; }
 }
 
 class picker {
-    static def of(year: var, month_number: var, day: var): var {
+    static def of(year: decimal, month_number: decimal, day: decimal): decimal {
         return 1;                       // the overload taking three numbers
     }
 
-    static def of(year: var, in_month: month_like, day: var): var {
+    static def of(year: decimal, in_month: month_like, day: decimal): decimal {
         return 2;                       // the overload taking a month object
     }
 }

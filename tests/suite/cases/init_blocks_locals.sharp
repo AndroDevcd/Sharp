@@ -3,11 +3,11 @@ mod main;
 import ( testing )
 
 class c {
-    a : var;
-    b : var;
-    total : var = 10;
-    init { i : var = 4; a = i; for(k : var = 0; k < 3; k++) { total += k; } }
-    init { b = 2; j : var = a + b; total += j; }
+    a : decimal;
+    b : decimal;
+    total : decimal = 10;
+    init { i : decimal = 4; a = i; for(k : decimal = 0; k < 3; k++) { total += k; } }
+    init { b = 2; j : decimal = a + b; total += j; }
     c() { }
 }
 

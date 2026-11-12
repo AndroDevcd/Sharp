@@ -18,7 +18,7 @@ def fmt_offset(pattern: string, value: offset_date_time): string {
 }
 
 /** 1 when the pattern itself is rejected */
-def bad_pattern(pattern: string): var {
+def bad_pattern(pattern: string): decimal {
     try {
         date_time_formatter.of_pattern(pattern);
         return 0;
@@ -28,7 +28,7 @@ def bad_pattern(pattern: string): var {
 }
 
 /** 1 when parsing `text` as a date-time with `pattern` throws */
-def rejects(pattern: string, text: string): var {
+def rejects(pattern: string, text: string): decimal {
     f := date_time_formatter.of_pattern(pattern);
     try {
         f.parse_date_time(text);
@@ -38,7 +38,7 @@ def rejects(pattern: string, text: string): var {
     }
 }
 
-def rejects_time(pattern: string, text: string): var {
+def rejects_time(pattern: string, text: string): decimal {
     f := date_time_formatter.of_pattern(pattern);
     try {
         f.parse_time(text);
@@ -170,7 +170,7 @@ def main(args: string[]) {
     expect_str("rfc_1123 of the epoch", date_time_formatter.rfc_1123().format(instant.epoch), "Thu, 1 Jan 1970 00:00:00 GMT");
 
     // ---- a value that lacks what the pattern asks for
-    caught : var = 0;
+    caught : decimal = 0;
     try { date_time_formatter.of_pattern("yyyy HH").format(date.of(2024, 1, 1)); } catch(e: date_time_exception) { caught = 1; }
     expect("a time letter with a date throws", caught, 1);
     caught = 0;

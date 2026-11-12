@@ -9,7 +9,7 @@ mod std;
  *     short.min_value         // -32768
  *     double.max_value        // 1.7976931348623157e308
  *
- * The constants are native numbers (var), added to the classes of
+ * The constants are native numbers (decimal), added to the classes of
  * std/primatives.sharp with `mutate` declarations.
  *
  * long AND ulong: a native number is a 64-bit float and holds whole numbers
@@ -24,87 +24,87 @@ mod std;
  */
 
 /** 0 - v, computed at run time (see the note at the top of the file) */
-local def negate_limit(v: var): var {
+local def negate_limit(v: decimal): decimal {
     return 0 - v;
 }
 
 mutate int {
     /** the smallest int: -(2^31) = -2147483648 */
-    static const min_value : var = negate_limit(2147483648);
+    static const min_value : decimal = negate_limit(2147483648);
 
     /** the largest int: 2^31 - 1 = 2147483647 */
-    static const max_value : var = 2147483647;
+    static const max_value : decimal = 2147483647;
 }
 
 mutate uint {
     /** the smallest uint: 0 */
-    static const min_value : var = 0;
+    static const min_value : decimal = 0;
 
     /** the largest uint: 2^32 - 1 = 4294967295 */
-    static const max_value : var = 4294967295;
+    static const max_value : decimal = 4294967295;
 }
 
 mutate short {
     /** the smallest short: -(2^15) = -32768 */
-    static const min_value : var = negate_limit(32768);
+    static const min_value : decimal = negate_limit(32768);
 
     /** the largest short: 2^15 - 1 = 32767 */
-    static const max_value : var = 32767;
+    static const max_value : decimal = 32767;
 }
 
 mutate ushort {
     /** the smallest ushort: 0 */
-    static const min_value : var = 0;
+    static const min_value : decimal = 0;
 
     /** the largest ushort: 2^16 - 1 = 65535 */
-    static const max_value : var = 65535;
+    static const max_value : decimal = 65535;
 }
 
 mutate char {
     /** the smallest char code: -(2^7) = -128 (a char holds a signed 8-bit value) */
-    static const min_value : var = negate_limit(128);
+    static const min_value : decimal = negate_limit(128);
 
     /** the largest char code: 2^7 - 1 = 127 */
-    static const max_value : var = 127;
+    static const max_value : decimal = 127;
 }
 
 mutate uchar {
     /** the smallest uchar (and byte): 0 */
-    static const min_value : var = 0;
+    static const min_value : decimal = 0;
 
     /** the largest uchar (and byte): 2^8 - 1 = 255 */
-    static const max_value : var = 255;
+    static const max_value : decimal = 255;
 }
 
 mutate long {
     /** the most negative whole number a long can take part in exact arithmetic with: -(2^53 - 1) */
-    static const min_exact_value : var = negate_limit(9007199254740991);
+    static const min_exact_value : decimal = negate_limit(9007199254740991);
 
     /** the largest whole number a long can take part in exact arithmetic with: 2^53 - 1 = 9007199254740991 */
-    static const max_exact_value : var = 9007199254740991;
+    static const max_exact_value : decimal = 9007199254740991;
 }
 
 mutate ulong {
     /** the smallest ulong: 0 */
-    static const min_value : var = 0;
+    static const min_value : decimal = 0;
 
     /** the largest whole number a ulong can take part in exact arithmetic with: 2^53 - 1 = 9007199254740991 */
-    static const max_exact_value : var = 9007199254740991;
+    static const max_exact_value : decimal = 9007199254740991;
 }
 
 mutate double {
     /** the largest finite double: about 1.7976931348623157 * 10^308 */
-    static const max_value : var = 1.7976931348623157e308;
+    static const max_value : decimal = 1.7976931348623157e308;
 
     /** the most negative finite double: -max_value */
-    static const min_value : var = negate_limit(1.7976931348623157e308);
+    static const min_value : decimal = negate_limit(1.7976931348623157e308);
 
     /** the smallest double above 0 (a subnormal number): about 4.9 * 10^-324 */
-    static const min_positive_value : var = 4.9e-324;
+    static const min_positive_value : decimal = 4.9e-324;
 
     /** the gap between 1 and the next larger double: 2^-52, about 2.22 * 10^-16 */
-    static const epsilon : var = 0.0000000000000002220446049250313;
+    static const epsilon : decimal = 0.0000000000000002220446049250313;
 
     /** the largest whole number n for which n and n + 1 are both exact: 2^53 - 1 = 9007199254740991 */
-    static const max_exact_value : var = 9007199254740991;
+    static const max_exact_value : decimal = 9007199254740991;
 }

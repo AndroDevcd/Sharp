@@ -1,6 +1,6 @@
 mod main;
 
-def main(args: string[]) : var {
+def main(args: string[]) : decimal {
     println("Hello, world!");
     return 0;
 }

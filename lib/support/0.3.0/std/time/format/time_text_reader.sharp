@@ -9,9 +9,9 @@ mod std.time;
  * short and all report errors the same way:
  *
  *     r := new time_text_reader("2024-02-29", "date");
- *     year : var = r.read_digits(4, 4);      // 2024
+ *     year : decimal = r.read_digits(4, 4);      // 2024
  *     r.expect('-');
- *     month : var = r.read_digits(2, 2);     // 2
+ *     month : decimal = r.read_digits(2, 2);     // 2
  *     ...
  *     r.expect_end();
  */
@@ -19,9 +19,9 @@ class time_text_reader {
     /** the characters being read (null for an empty string) */
     private source : _int8[]?;
     /** how many characters there are */
-    private count : var = 0;
+    private count : decimal = 0;
     /** index of the next character to read */
-    private position : var = 0;
+    private position : decimal = 0;
     /** the whole text, kept for error messages */
     private original : string;
     /** what is being parsed ("date", "duration" ...), for error messages */
@@ -35,27 +35,27 @@ class time_text_reader {
     }
 
     /** 1 when every character has been read */
-    def at_end(): var {
+    def at_end(): decimal {
         return position >= count;
     }
 
     /** index of the next character (0 at the start) */
-    def index(): var {
+    def index(): decimal {
         return position;
     }
 
     /** moves the cursor back (or forward) to an index returned by `index()` */
-    def seek(new_position: var) {
+    def seek(new_position: decimal) {
         position = new_position;
     }
 
     /** how many characters are left */
-    def remaining(): var {
+    def remaining(): decimal {
         return count - position;
     }
 
     /** the next character without consuming it, or 0 at the end */
-    def peek(): var {
+    def peek(): decimal {
         if(position >= count) {
             return 0;
         }
@@ -63,7 +63,7 @@ class time_text_reader {
     }
 
     /** the character `ahead` places after the next one without consuming, or 0 past the end */
-    def peek_at(ahead: var): var {
+    def peek_at(ahead: decimal): decimal {
         if(position + ahead >= count) {
             return 0;
         }
@@ -74,17 +74,17 @@ class time_text_reader {
      * Consumes and returns the next character.
      * @throws date_time_exception at the end of the text
      */
-    def next(): var {
+    def next(): decimal {
         if(position >= count) {
             throw failure("unexpected end of text");
         }
-        ch : var = source[position];
+        ch : decimal = source[position];
         position++;
         return ch;
     }
 
     /** consumes the next character when it is `ch`; returns 1 when it did */
-    def accept(ch: var): var {
+    def accept(ch: decimal): decimal {
         if(position < count && source[position] == ch) {
             position++;
             return 1;
@@ -96,7 +96,7 @@ class time_text_reader {
      * Like `accept` but upper and lower case letters are the same
      * (`ch` may be given in either case).
      */
-    def accept_ignore_case(ch: var): var {
+    def accept_ignore_case(ch: decimal): decimal {
         if(position < count && lower(source[position]) == lower(ch)) {
             position++;
             return 1;
@@ -108,7 +108,7 @@ class time_text_reader {
      * The next character must be `ch`.
      * @throws date_time_exception when it is something else or the text has ended
      */
-    def expect(ch: var) {
+    def expect(ch: decimal) {
         if(!accept(ch)) {
             w := new time_text_writer();
             w.put_text("expected '").put(ch).put('\'');
@@ -127,13 +127,13 @@ class time_text_reader {
     }
 
     /** 1 when the next character is a digit 0-9 */
-    def at_digit(): var {
+    def at_digit(): decimal {
         return is_digit(peek());
     }
 
     /** how many digits follow from the cursor on, without consuming them */
-    def count_digits(): var {
-        n : var = 0;
+    def count_digits(): decimal {
+        n : decimal = 0;
         while(position + n < count && is_digit(source[position + n])) {
             n++;
         }
@@ -147,9 +147,9 @@ class time_text_reader {
      *
      * @throws date_time_exception when fewer than `min_digits` digits are found
      */
-    def read_digits(min_digits: var, max_digits: var): var {
-        value : var = 0;
-        digits : var = 0;
+    def read_digits(min_digits: decimal, max_digits: decimal): decimal {
+        value : decimal = 0;
+        digits : decimal = 0;
         while(digits < max_digits && position < count && is_digit(source[position])) {
             value = value * 10 + (source[position] - '0');
             position++;
@@ -171,10 +171,10 @@ class time_text_reader {
      *
      * @throws date_time_exception when fewer than `min_digits` digits are found
      */
-    def read_fraction_as_nanos(min_digits: var, max_digits: var): var {
-        value : var = 0;
-        digits : var = 0;
-        scale : var = 100000000;
+    def read_fraction_as_nanos(min_digits: decimal, max_digits: decimal): decimal {
+        value : decimal = 0;
+        digits : decimal = 0;
+        scale : decimal = 100000000;
         while(digits < max_digits && position < count && is_digit(source[position])) {
             value += (source[position] - '0') * scale;
             scale = scale / 10;
@@ -193,8 +193,8 @@ class time_text_reader {
      * none matches (nothing is consumed then). Put longer words first when
      * one is the start of another.
      */
-    def accept_word(words: string[]): var {
-        for(i : var = 0; i < sizeof(words); i++) {
+    def accept_word(words: string[]): decimal {
+        for(i : decimal = 0; i < sizeof(words); i++) {
             if(matches_word(words[i])) {
                 position += sizeof(words[i].data);
                 return i;
@@ -204,12 +204,12 @@ class time_text_reader {
     }
 
     /** 1 when the characters at the cursor spell `word`, ignoring case */
-    private def matches_word(word: string): var {
-        length : var = sizeof(word.data);
+    private def matches_word(word: string): decimal {
+        length : decimal = sizeof(word.data);
         if(length == 0 || position + length > count) {
             return 0;
         }
-        for(i : var = 0; i < length; i++) {
+        for(i : decimal = 0; i < length; i++) {
             if(lower(source[position + i]) != lower(word.data[i])) {
                 return 0;
             }
@@ -229,17 +229,17 @@ class time_text_reader {
     }
 
     /** 1 when `ch` is one of the characters '0' .. '9' */
-    static def is_digit(ch: var): var {
+    static def is_digit(ch: decimal): decimal {
         return ch >= '0' && ch <= '9';
     }
 
     /** 1 when `ch` is a letter a-z or A-Z */
-    static def is_letter(ch: var): var {
+    static def is_letter(ch: decimal): decimal {
         return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
     }
 
     /** the lower case form of an upper case letter A-Z; anything else unchanged */
-    static def lower(ch: var): var {
+    static def lower(ch: decimal): decimal {
         if(ch >= 'A' && ch <= 'Z') {
             return ch + ('a' - 'A');
         }

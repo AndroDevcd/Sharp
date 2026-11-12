@@ -129,6 +129,9 @@ void compile_return_statement(Ast *ast, operation_schema *scheme, bool *controlP
         delete tmp;
     } else if(is_match_normal(match_result)) {
         if(is_numeric_type(returnVal.type) && !get_real_type(returnVal.type).isArray) {
+            // `return count;` from a function that returns a var: the caller
+            // reads the result as what the function says it returns
+            convert_number_for(returnVal, current_context.functionCxt->returnType);
             create_numeric_return_operation(subScheme, &returnVal.scheme);
         }
         else if(returnVal.type.type == type_nil) {

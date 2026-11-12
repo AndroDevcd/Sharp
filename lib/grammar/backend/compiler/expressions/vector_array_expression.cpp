@@ -66,6 +66,8 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
 
             if(matchResult != no_match_found) {
                 if(is_match_normal(matchResult)) {
+                    // { 1, 2.5 }: each item becomes the kind of the elements
+                    convert_number_for(*expr, arrayType);
                     setArrayItem->steps.add(new operation_step(operation_get_value, &expr->scheme));
                 } else { // match_constructor
                     operation_schema *arrayItemScheme = new operation_schema(), resultScheme;
@@ -88,7 +90,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
                 }
 
                 create_push_to_stack_operation(setArrayItem);
-                create_assign_array_element_operation(setArrayItem, i, isNumeric);
+                create_assign_array_element_operation(setArrayItem, i, isNumeric, arrayType.type);
             }
 
             e->scheme.steps.add(new operation_step(operation_assign_array_value, setArrayItem));

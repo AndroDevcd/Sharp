@@ -33,8 +33,8 @@
 //         pushl  fp+1        ; p           pushl  fp+1          ; p
 //         call   get_x                     popl   fp+base+0     ; self = pop
 //         loadval ecx                      movl   base+0        ; body of get_x,
-//                                          movn   #0            ; locals moved
-//                                          iload  ebx           ; by +base
+//                                          getf   ebx, slot 0   ; locals moved
+//                                                               ; by +base
 //                                          smovr_2 ebx, fp+base+0   ; (was returnval)
 //                                          ipushl base+0        ; result on the stack
 //                                          loadval ecx

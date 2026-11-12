@@ -5,14 +5,14 @@ import std;
 /**
  * Created by BraxtonN on 7/20/2018.
  */
-def main(string[] args) : var {
+def main(string[] args) : decimal {
   if (sizeof(args) != 1) {
     System.println("Usage: sharp particle <count>");
     System.exit();
   }
 
-  var timeDelta = 0.0001;
-  var count = string.parseInt(args[0]);
+  decimal timeDelta = 0.0001;
+  decimal count = string.parseInt(args[0]);
 
   Particle p1 = new Particle(new Vector(0.3, 0), -1);
   Particle p2 = new Particle(new Vector(-0.3, 1), 1);

@@ -26,23 +26,23 @@ import ( std.math )
  * Steps and bounds need not be whole numbers (new range(0, 1, 0.25) is
  * 0, 0.25, 0.5, 0.75, 1), but then the usual floating point caveats apply.
  */
-class range : loopable<var> {
+class range : loopable<decimal> {
     /** the first value (read only) */
-    first : var = 0;
+    first : decimal = 0;
         private set v -> { first = v; }
 
     /** the last value the range reaches (read only); meaningless when the range is empty */
-    last : var = 0;
+    last : decimal = 0;
         private set v -> { last = v; }
 
     /** the distance between two neighbouring values; never 0, negative for a falling range (read only) */
-    step : var = 1;
+    step : decimal = 1;
         private set v -> { step = v; }
 
-    private count : var = 0;
+    private count : decimal = 0;
 
     /** the range first, first + 1, ... last (empty when first > last) */
-    range(first: var, last: var) {
+    range(first: decimal, last: decimal) {
         setup(first, last, 1);
     }
 
@@ -51,46 +51,46 @@ class range : loopable<var> {
      * step counts down.
      * Throws illegal_argument_exception when step is 0.
      */
-    range(first: var, last: var, step: var) {
+    range(first: decimal, last: decimal, step: decimal) {
         if(step == 0)
             throw new illegal_argument_exception("range: the step cannot be 0");
         setup(first, last, step);
     }
 
-    private def setup(first: var, last: var, step: var) {
+    private def setup(first: decimal, last: decimal, step: decimal) {
         self->first = first;
         self->step = step;
 
         // how many values fit: floor((last - first) / step) + 1, or none
         // when `last` lies on the wrong side of `first`
-        steps : var = (last - first) / step;
+        steps : decimal = (last - first) / step;
         if(steps < 0) {
             count = 0;
             self->last = last;
         } else {
-            whole_steps : var = floor_of(steps);
+            whole_steps : decimal = floor_of(steps);
             count = whole_steps + 1;
             self->last = first + whole_steps * step;
         }
     }
 
     /** the range first .. end - 1: the end is NOT included (Kotlin `until`). Empty when first >= end. */
-    static def until(first: var, end: var): range {
+    static def until(first: decimal, end: decimal): range {
         return new range(first, end - 1);
     }
 
     /** the falling range first, first - 1, ... last (Kotlin `downTo`). Empty when first < last. */
-    static def down_to(first: var, last: var): range {
+    static def down_to(first: decimal, last: decimal): range {
         return new range(first, last, 0 - 1);
     }
 
     /** the range 0 .. count - 1: the valid indexes of something with `count` elements */
-    static def indices(count: var): range {
+    static def indices(count: decimal): range {
         return new range(0, count - 1);
     }
 
     /** how many values the range has */
-    def size(): var {
+    def size(): decimal {
         return count;
     }
 
@@ -103,10 +103,10 @@ class range : loopable<var> {
      * True when `value` is one of the values of the range: inside the
      * bounds AND on the step grid. new range(1, 9, 2).contains(4) is false.
      */
-    def contains(value: var): bool {
+    def contains(value: decimal): bool {
         if(count == 0) return false;
 
-        position : var = (value - first) / step;
+        position : decimal = (value - first) / step;
         if(position < 0 || position > count - 1) return false;
         return floor_of(position) == position && first + position * step == value;
     }
@@ -115,7 +115,7 @@ class range : loopable<var> {
      * The value at position `index` (0 is the first): first + index * step.
      * Throws out_of_bounds_exception when index is outside 0 .. size() - 1.
      */
-    def at(index: var): var {
+    def at(index: decimal): decimal {
         if(index < 0 || index >= count)
             throw new out_of_bounds_exception("range: index outside the range");
         return first + index * step;
@@ -125,7 +125,7 @@ class range : loopable<var> {
      * The position of `value` in the range (0 for the first value), or -1
      * when the range does not contain it.
      */
-    def index_of(value: var): var {
+    def index_of(value: decimal): decimal {
         if(!contains(value).value) return 0 - 1;
         return (value - first) / step;
     }
@@ -142,7 +142,7 @@ class range : loopable<var> {
      * and range.down_to(10, 1).stepped(3) is 10, 7, 4, 1.
      * Throws illegal_argument_exception when new_step is not positive.
      */
-    def stepped(new_step: var): range {
+    def stepped(new_step: decimal): range {
         if(new_step <= 0)
             throw new illegal_argument_exception("range: the step must be positive");
         if(step < 0) return new range(first, last, 0 - new_step);
@@ -150,15 +150,15 @@ class range : loopable<var> {
     }
 
     /** the sum of all values: size * (first + last) / 2 (0 for an empty range) */
-    def sum(): var {
+    def sum(): decimal {
         if(count == 0) return 0;
         return count * (first + last) / 2;
     }
 
     /** all values as a new array (of length 0 for an empty range) */
-    def to_array(): var[] {
-        result := new var[count];
-        for(i : var = 0; i < count; i++) {
+    def to_array(): decimal[] {
+        result := new decimal[count];
+        for(i : decimal = 0; i < count; i++) {
             result[i] = first + i * step;
         }
         return result;
@@ -168,13 +168,13 @@ class range : loopable<var> {
      * The values for a foreach loop: `foreach(i in some_range) { ... }`.
      * (The loopable interface; the same array as to_array().)
      */
-    override def get_elements(): var[]? {
+    override def get_elements(): decimal[]? {
         return to_array();
     }
 
     /** call `action` with every value, in order */
-    def for_each(action: (var)()) {
-        for(i : var = 0; i < count; i++) {
+    def for_each(action: (decimal)()) {
+        for(i : decimal = 0; i < count; i++) {
             action(first + i * step);
         }
     }

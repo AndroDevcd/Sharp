@@ -7,13 +7,13 @@ import ( testing, std.collections )
  * objects and var_arrays for arrays of native numbers.
  */
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
-def descending(a: int, b: int) : var { return b.value - a.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
 
 /** "1,2,3" for an array of ints */
 def join(items: int[]) : string {
     text := "";
-    for(i : var = 0; i < sizeof(items); i++) {
+    for(i : decimal = 0; i < sizeof(items); i++) {
         if(i > 0) text = text + ",";
         text = text + items[i];
     }
@@ -21,9 +21,9 @@ def join(items: int[]) : string {
 }
 
 /** "1,2,3" for an array of whole native numbers */
-def join_vars(items: var[]) : string {
+def join_vars(items: decimal[]) : string {
     text := "";
-    for(i : var = 0; i < sizeof(items); i++) {
+    for(i : decimal = 0; i < sizeof(items); i++) {
         if(i > 0) text = text + ",";
         text = text + new int(items[i]);
     }
@@ -31,25 +31,25 @@ def join_vars(items: var[]) : string {
 }
 
 /** an int[] from native numbers */
-def ints(a: var, b: var, c: var, d: var, e: var) : int[] {
+def ints(a: decimal, b: decimal, c: decimal, d: decimal, e: decimal) : int[] {
     return new int[] { new int(a), new int(b), new int(c), new int(d), new int(e) };
 }
 
-/** a var[] from native numbers */
-def vars(a: var, b: var, c: var, d: var, e: var) : var[] {
-    result := new var[5];
+/** a decimal[] from native numbers */
+def vars(a: decimal, b: decimal, c: decimal, d: decimal, e: decimal) : decimal[] {
+    result := new decimal[5];
     result[0] = a; result[1] = b; result[2] = c; result[3] = d; result[4] = e;
     return result;
 }
 
 /** something to sort by one field while watching the order of the other */
 class card {
-    rank : var;
+    rank : decimal;
     label : string;
-    card(rank: var, label: string) { self->rank = rank; self->label = label; }
+    card(rank: decimal, label: string) { self->rank = rank; self->label = label; }
 }
 
-def by_rank(a: card, b: card) : var { return a.rank - b.rank; }
+def by_rank(a: card, b: card) : decimal { return a.rank - b.rank; }
 
 def test_object_arrays() {
     a := ints(5, 3, 9, 1, 4);
@@ -90,7 +90,7 @@ def test_object_arrays() {
     };
     arrays<card>.sort(cards, by_rank);
     order := "";
-    for(i : var = 0; i < sizeof(cards); i++) order = order + cards[i].label;
+    for(i : decimal = 0; i < sizeof(cards); i++) order = order + cards[i].label;
     expect_str("sort is stable", order, "fbdace");
 
     // binary_search on 1,2,3,4,5
@@ -152,9 +152,9 @@ def test_object_arrays() {
     expect("min", arrays<int>.min(d, ascending).value, 3);
     expect("max", arrays<int>.max(d, ascending).value, 7);
     expect("min with the comparison turned around", arrays<int>.min(d, descending).value, 7);
-    expect_str("max by length", arrays<string>.max(words, { x: string, y: string -> (var) return x.size().value - y.size().value; }), "apple");
-    expect("sum_of", arrays<int>.sum_of(d, { n: int -> (var) return n.value; }), 25);
-    expect("sum_of empty", arrays<int>.sum_of(none, { n: int -> (var) return n.value; }), 0);
+    expect_str("max by length", arrays<string>.max(words, { x: string, y: string -> (decimal) return x.size().value - y.size().value; }), "apple");
+    expect("sum_of", arrays<int>.sum_of(d, { n: int -> (decimal) return n.value; }), 25);
+    expect("sum_of empty", arrays<int>.sum_of(none, { n: int -> (decimal) return n.value; }), 0);
     try { arrays<int>.min(none, ascending); fail("min of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("min of empty"); }
     try { arrays<int>.max(none, ascending); fail("max of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("max of empty"); }
 
@@ -173,28 +173,28 @@ def test_object_arrays() {
     expect("from_list of an empty list", sizeof(arrays<int>.from_list(new list<int>())), 0);
 
     // scale: 5000 pseudo random numbers
-    n : var = 5000;
+    n : decimal = 5000;
     big := new int[n];
-    seed : var = 31337;
-    sum_before : var = 0;
-    for(i : var = 0; i < n; i++) {
+    seed : decimal = 31337;
+    sum_before : decimal = 0;
+    for(i : decimal = 0; i < n; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         big[i] = new int(seed);
         sum_before += seed;
     }
     arrays<int>.sort(big, ascending);
-    in_order : var = 1;
-    sum_after : var = big[0].value;
-    for(i : var = 1; i < n; i++) {
+    in_order : decimal = 1;
+    sum_after : decimal = big[0].value;
+    for(i : decimal = 1; i < n; i++) {
         if(big[i - 1].value > big[i].value) in_order = 0;
         sum_after += big[i].value;
     }
     expect("sort 5000: ascending", in_order, 1);
     expect("sort 5000: nothing lost or invented", sum_after, sum_before);
     expect("sort 5000: is_sorted", arrays<int>.is_sorted(big, ascending), 1);
-    found : var = 1;
-    for(i : var = 0; i < n; i += 97) {
-        at : var = arrays<int>.binary_search(big, big[i], ascending);
+    found : decimal = 1;
+    for(i : decimal = 0; i < n; i += 97) {
+        at : decimal = arrays<int>.binary_search(big, big[i], ascending);
         if(at < 0) found = 0;
         else if(big[at].value != big[i].value) found = 0;
     }
@@ -216,11 +216,11 @@ def test_var_arrays() {
     expect_str("var sort_descending", join_vars(a), "9,5,4,3,1");
     expect("var is_sorted after descending", var_arrays.is_sorted(a), 0);
 
-    none := new var[0];
+    none := new decimal[0];
     var_arrays.sort(none);
     expect("var sort empty", sizeof(none), 0);
     expect("var is_sorted empty", var_arrays.is_sorted(none), 1);
-    three := new var[3];
+    three := new decimal[3];
     three[0] = 3; three[1] = 1; three[2] = 2;
     var_arrays.sort(three);
     expect_str("var sort of three (odd number of merge passes)", join_vars(three), "1,2,3");
@@ -249,7 +249,7 @@ def test_var_arrays() {
 
     var_arrays.reverse(c);
     expect_str("var reverse", join_vars(c), "5,4,3,2,1");
-    filled := new var[3];
+    filled := new decimal[3];
     var_arrays.fill(filled, 7);
     expect_str("var fill", join_vars(filled), "7,7,7");
 
@@ -285,18 +285,18 @@ def test_var_arrays() {
     expect("var to_list[2]", boxed.at(2).value, 5);
 
     // scale: 5000 pseudo random numbers, checked for order and for the same sum
-    n : var = 5000;
-    big := new var[n];
-    seed : var = 777;
-    sum_before : var = 0;
-    for(i : var = 0; i < n; i++) {
+    n : decimal = 5000;
+    big := new decimal[n];
+    seed : decimal = 777;
+    sum_before : decimal = 0;
+    for(i : decimal = 0; i < n; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         big[i] = seed;
         sum_before += seed;
     }
     var_arrays.sort(big);
-    in_order : var = 1;
-    for(i : var = 1; i < n; i++) {
+    in_order : decimal = 1;
+    for(i : decimal = 1; i < n; i++) {
         if(big[i - 1] > big[i]) in_order = 0;
     }
     expect("var sort 5000: ascending", in_order, 1);

@@ -15,7 +15,7 @@ mod std.io;
  */
 class string_writer : text_writer {
     private buf : char_buffer;
-    private closed : var = 0;
+    private closed : decimal = 0;
 
     /** an empty writer */
     string_writer() {
@@ -23,7 +23,7 @@ class string_writer : text_writer {
     }
 
     /** an empty writer with room for `capacity` characters before its buffer has to grow */
-    string_writer(capacity: var) {
+    string_writer(capacity: decimal) {
         buf = new char_buffer(capacity);
     }
 
@@ -40,7 +40,7 @@ class string_writer : text_writer {
     }
 
     /** add one character given as its code. Throws io_exception when closed. */
-    override def write_char(ch: var) {
+    override def write_char(ch: decimal) {
         check_open();
         buf.append_char(ch);
     }
@@ -59,13 +59,13 @@ class string_writer : text_writer {
     }
 
     /** add a whole number in decimal ("42", "-7"). Throws io_exception when closed. */
-    def write_int(value: var) {
+    def write_int(value: decimal) {
         check_open();
         buf.append_int(value);
     }
 
     /** add a number the short way ("3", "0.5" - see io_strings.number_to_string). Throws io_exception when closed. */
-    def write_number(value: var) {
+    def write_number(value: decimal) {
         check_open();
         buf.append_number(value);
     }
@@ -85,7 +85,7 @@ class string_writer : text_writer {
     }
 
     /** the number of characters written so far */
-    def length() : var {
+    def length() : decimal {
         return buf.length();
     }
 

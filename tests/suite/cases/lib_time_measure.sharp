@@ -16,7 +16,7 @@ def nothing() {
 }
 
 def main(args: string[]) {
-    took : var = 0;
+    took : decimal = 0;
     took = time.measure(milliseconds, { -> nothing(); }).value;
     expect_true("measure(milliseconds) of nothing is not negative", took >= 0);
     expect_true("...and far below a minute", took < 60000);

@@ -17,22 +17,22 @@ import ( testing )
 
 /** a class of our own used as a key: hash() says which slot of the table it goes in */
 class badge {
-    id : var;
-    badge(i: var) { id = i; }
+    id : decimal;
+    badge(i: decimal) { id = i; }
     override def hash() : int { return id; }
 }
 
 /** a class of our own used as a value */
 class person {
     name : string;
-    age : var;
-    person(n: string, a: var) { name = n; age = a; }
+    age : decimal;
+    person(n: string, a: decimal) { name = n; age = a; }
 }
 
-def count_pairs(d: dictionary<string, int>) : var { return d.map.size().value; }
+def count_pairs(d: dictionary<string, int>) : decimal { return d.map.size().value; }
 
-def sum_values(d: dictionary<string, int>) : var {
-    total : var = 0;
+def sum_values(d: dictionary<string, int>) : decimal {
+    total : decimal = 0;
     foreach(entry in d.map) {
         total += entry.second.value;
     }
@@ -53,7 +53,7 @@ def main(args: string[]) {
     expect("second value", ages.map.at(1).second, 45);
     expect("[] on the list of pairs", ages.map[1].second, 45);
 
-    total : var = 0;
+    total : decimal = 0;
     foreach(entry in ages.map) {
         total += entry.second;
     }
@@ -70,7 +70,7 @@ def main(args: string[]) {
     expect("a single pair", one_pair.map.size().value, 1);
 
     // values can be any expression
-    x : var = 4;
+    x : decimal = 4;
     computed := { "square" : x * x, "next" : x + 1 };
     expect("expression value: 4 * 4", computed.map.at(0).second, 16);
     expect("expression value: 4 + 1", computed.map.at(1).second, 5);

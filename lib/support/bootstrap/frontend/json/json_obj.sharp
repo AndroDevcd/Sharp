@@ -3,14 +3,14 @@ mod frontend.json;
 class json_object : loopable<json_member> {
     members := new list<json_member>();
 
-    member_size : var;
+    member_size : decimal;
        get { return members.size(); }
 
     def operator[](member_name: string) : json_member {
         return get_member(member_name);
     }
 
-    def operator[](member_index: var) : json_member {
+    def operator[](member_index: decimal) : json_member {
         return members.at(member_index);
     }
 
@@ -23,7 +23,7 @@ class json_object : loopable<json_member> {
        return null;
     }
 
-    def has_member(member_name: string) : var {
+    def has_member(member_name: string) : decimal {
        return get_member(member_name) == null;
     }
 

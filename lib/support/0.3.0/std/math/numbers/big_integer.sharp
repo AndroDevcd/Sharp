@@ -33,14 +33,14 @@ mod std.math;
  * zero is never negative, so equal numbers always have equal fields.
  */
 class big_integer {
-    private static const BASE : var = 10000000;
-    private static const BASE_DIGITS : var = 7;
+    private static const BASE : decimal = 10000000;
+    private static const BASE_DIGITS : decimal = 7;
 
     /** 1 when the number is below zero, otherwise 0 */
-    private negative : var = 0;
+    private negative : decimal = 0;
 
     /** the magnitude, 7 decimal digits per element, least significant first */
-    private limbs : var[];
+    private limbs : decimal[];
 
     /**
      * The whole native number `value` as a big_integer: big_integer.of(42).
@@ -52,16 +52,16 @@ class big_integer {
      * outside -(2^53) .. 2^53, where native numbers stop being exact (pass
      * the digits as text instead).
      */
-    static def of(value: var): big_integer {
+    static def of(value: decimal): big_integer {
         if(floor_of(value) != value || absolute(value) > 9007199254740992)
             throw new illegal_argument_exception("big_integer: not an exact whole number (pass the digits as text)");
 
         // split the magnitude into at most three limbs (2^53 < 10^21)
-        remaining : var = absolute(value);
-        found := new var[3];
-        count : var = 0;
+        remaining : decimal = absolute(value);
+        found := new decimal[3];
+        count : decimal = 0;
         do {
-            high : var = floor_of(remaining / BASE);
+            high : decimal = floor_of(remaining / BASE);
             found[count++] = remaining - high * BASE;
             remaining = high;
         } while(remaining > 0);
@@ -78,8 +78,8 @@ class big_integer {
      * a decimal point, letters).
      */
     big_integer(text: string) {
-        length : var = text.size().value;
-        start : var = 0;
+        length : decimal = text.size().value;
+        start : decimal = 0;
 
         if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {
             negative = text.at(0).value == '-';
@@ -89,24 +89,24 @@ class big_integer {
         if(start >= length)
             throw new number_format_exception("big_integer: not a whole number: " + text);
 
-        for(i : var = start; i < length; i++) {
-            ch : var = text.at(i).value;
+        for(i : decimal = start; i < length; i++) {
+            ch : decimal = text.at(i).value;
             if(ch < '0' || ch > '9')
                 throw new number_format_exception("big_integer: not a whole number: " + text);
         }
 
         // take the digits in groups of 7, starting at the END of the text
-        digits : var = length - start;
-        count : var = ceil_of(digits / BASE_DIGITS);
-        result := new var[count];
-        group_end : var = length;
+        digits : decimal = length - start;
+        count : decimal = ceil_of(digits / BASE_DIGITS);
+        result := new decimal[count];
+        group_end : decimal = length;
 
-        for(limb : var = 0; limb < count; limb++) {
-            group_start : var = group_end - BASE_DIGITS;
+        for(limb : decimal = 0; limb < count; limb++) {
+            group_start : decimal = group_end - BASE_DIGITS;
             if(group_start < start) group_start = start;
 
-            value : var = 0;
-            for(i : var = group_start; i < group_end; i++) {
+            value : decimal = 0;
+            for(i : decimal = group_start; i < group_end; i++) {
                 value = value * 10 + (text.at(i).value - '0');
             }
             result[limb] = value;
@@ -126,7 +126,7 @@ class big_integer {
     }
 
     /** internal: build directly from a sign and a magnitude (the magnitude is trimmed here) */
-    private big_integer(is_negative: var, magnitude: var[]) {
+    private big_integer(is_negative: decimal, magnitude: decimal[]) {
         limbs = trimmed(magnitude);
         negative = is_negative;
         if(sizeof(limbs) == 1 && limbs[0] == 0) {
@@ -153,12 +153,12 @@ class big_integer {
      * 15511210043330985984000000.
      * Throws illegal_argument_exception when n is negative or not whole.
      */
-    static def factorial(n: var): big_integer {
+    static def factorial(n: decimal): big_integer {
         if(n < 0 || floor_of(n) != n)
             throw new illegal_argument_exception("big_integer: factorial needs a whole number >= 0");
 
         result := of(1);
-        for(i : var = 2; i <= n; i++) {
+        for(i : decimal = 2; i <= n; i++) {
             result = result * i;
         }
         return result;
@@ -169,7 +169,7 @@ class big_integer {
      * fibonacci(1) == 1): fibonacci(100) is 354224848179261915075.
      * Throws illegal_argument_exception when n is negative or not whole.
      */
-    static def fibonacci(n: var): big_integer {
+    static def fibonacci(n: decimal): big_integer {
         if(n < 0 || floor_of(n) != n)
             throw new illegal_argument_exception("big_integer: fibonacci needs a whole number >= 0");
 
@@ -177,7 +177,7 @@ class big_integer {
         current := of(1);
         if(n == 0) return previous;
 
-        for(i : var = 1; i < n; i++) {
+        for(i : decimal = 1; i < n; i++) {
             following := previous + current;
             previous = current;
             current = following;
@@ -190,29 +190,29 @@ class big_integer {
     // ------------------------------------------------------------------
 
     /** `magnitude` without leading zero limbs (the same array when there are none); zero keeps one limb */
-    private static def trimmed(magnitude: var[]): var[] {
-        used : var = sizeof(magnitude);
+    private static def trimmed(magnitude: decimal[]): decimal[] {
+        used : decimal = sizeof(magnitude);
         while(used > 1 && magnitude[used - 1] == 0) {
             used--;
         }
 
         if(used == sizeof(magnitude)) return magnitude;
 
-        result := new var[used];
-        for(i : var = 0; i < used; i++) {
+        result := new decimal[used];
+        for(i : decimal = 0; i < used; i++) {
             result[i] = magnitude[i];
         }
         return result;
     }
 
     /** compare two trimmed magnitudes: -1, 0 or 1 */
-    private static def compare_magnitude(a: var[], b: var[]): var {
+    private static def compare_magnitude(a: decimal[], b: decimal[]): decimal {
         if(sizeof(a) != sizeof(b)) {
             if(sizeof(a) < sizeof(b)) return 0 - 1;
             return 1;
         }
 
-        for(i : var = sizeof(a) - 1; i >= 0; i--) {
+        for(i : decimal = sizeof(a) - 1; i >= 0; i--) {
             if(a[i] != b[i]) {
                 if(a[i] < b[i]) return 0 - 1;
                 return 1;
@@ -222,14 +222,14 @@ class big_integer {
     }
 
     /** a + b, limb by limb with a carry (the school method) */
-    private static def add_magnitude(a: var[], b: var[]): var[] {
-        longest : var = sizeof(a);
+    private static def add_magnitude(a: decimal[], b: decimal[]): decimal[] {
+        longest : decimal = sizeof(a);
         if(sizeof(b) > longest) longest = sizeof(b);
 
-        result := new var[longest + 1];
-        carry : var = 0;
-        for(i : var = 0; i < longest; i++) {
-            total : var = carry;
+        result := new decimal[longest + 1];
+        carry : decimal = 0;
+        for(i : decimal = 0; i < longest; i++) {
+            total : decimal = carry;
             if(i < sizeof(a)) total += a[i];
             if(i < sizeof(b)) total += b[i];
 
@@ -246,11 +246,11 @@ class big_integer {
     }
 
     /** a - b for a >= b, limb by limb with a borrow */
-    private static def subtract_magnitude(a: var[], b: var[]): var[] {
-        result := new var[sizeof(a)];
-        borrow : var = 0;
-        for(i : var = 0; i < sizeof(a); i++) {
-            difference : var = a[i] - borrow;
+    private static def subtract_magnitude(a: decimal[], b: decimal[]): decimal[] {
+        result := new decimal[sizeof(a)];
+        borrow : decimal = 0;
+        for(i : decimal = 0; i < sizeof(a); i++) {
+            difference : decimal = a[i] - borrow;
             if(i < sizeof(b)) difference -= b[i];
 
             if(difference < 0) {
@@ -268,15 +268,15 @@ class big_integer {
      * a * b by the school method: every limb of a times every limb of b,
      * added into position i + j. O(n * m) limb multiplications.
      */
-    private static def multiply_magnitude(a: var[], b: var[]): var[] {
-        result := new var[sizeof(a) + sizeof(b)];
+    private static def multiply_magnitude(a: decimal[], b: decimal[]): decimal[] {
+        result := new decimal[sizeof(a) + sizeof(b)];
 
-        for(i : var = 0; i < sizeof(a); i++) {
+        for(i : decimal = 0; i < sizeof(a); i++) {
             if(a[i] != 0) {
-                carry : var = 0;
-                for(j : var = 0; j < sizeof(b); j++) {
+                carry : decimal = 0;
+                for(j : decimal = 0; j < sizeof(b); j++) {
                     // < 10^7 + 10^14 + 10^7: exact
-                    current : var = result[i + j] + a[i] * b[j] + carry;
+                    current : decimal = result[i + j] + a[i] * b[j] + carry;
                     carry = floor_of(current / BASE);
                     result[i + j] = current - carry * BASE;
                 }
@@ -287,11 +287,11 @@ class big_integer {
     }
 
     /** a * factor for a single limb factor (0 <= factor < BASE) */
-    private static def multiply_small(a: var[], factor: var): var[] {
-        result := new var[sizeof(a) + 1];
-        carry : var = 0;
-        for(i : var = 0; i < sizeof(a); i++) {
-            current : var = a[i] * factor + carry;
+    private static def multiply_small(a: decimal[], factor: decimal): decimal[] {
+        result := new decimal[sizeof(a) + 1];
+        carry : decimal = 0;
+        for(i : decimal = 0; i < sizeof(a); i++) {
+            current : decimal = a[i] * factor + carry;
             carry = floor_of(current / BASE);
             result[i] = current - carry * BASE;
         }
@@ -304,9 +304,9 @@ class big_integer {
      * one (rounded) native number: sum of magnitude[k] * BASE^(k - from).
      * Used to estimate quotient digits.
      */
-    private static def approximate(magnitude: var[], from: var): var {
-        total : var = 0;
-        for(k : var = sizeof(magnitude) - 1; k >= from; k--) {
+    private static def approximate(magnitude: decimal[], from: decimal): decimal {
+        total : decimal = 0;
+        for(k : decimal = sizeof(magnitude) - 1; k >= from; k--) {
             total = total * BASE + magnitude[k];
         }
         return total;
@@ -323,33 +323,33 @@ class big_integer {
      * (it can be off by one in either direction) by adding or subtracting
      * the divisor. The caller guarantees the divisor is not zero.
      */
-    private static def divide_magnitude(a: var[], b: var[]): big_integer[] {
+    private static def divide_magnitude(a: decimal[], b: decimal[]): big_integer[] {
         answer := new big_integer[2];
 
         if(compare_magnitude(a, b) < 0) {
-            answer[0] = new big_integer(0, new var[1]);
+            answer[0] = new big_integer(0, new decimal[1]);
             answer[1] = new big_integer(0, a);
             return answer;
         }
 
-        quotient := new var[sizeof(a)];
-        remainder := new var[1];
+        quotient := new decimal[sizeof(a)];
+        remainder := new decimal[1];
 
         // the estimate ignores all but the three leading limbs of the divisor
-        low : var = sizeof(b) - 3;
+        low : decimal = sizeof(b) - 3;
         if(low < 0) low = 0;
-        divisor_estimate : var = approximate(b, low);
+        divisor_estimate : decimal = approximate(b, low);
 
-        for(i : var = sizeof(a) - 1; i >= 0; i--) {
+        for(i : decimal = sizeof(a) - 1; i >= 0; i--) {
             // remainder = remainder * BASE + a[i]
-            shifted := new var[sizeof(remainder) + 1];
+            shifted := new decimal[sizeof(remainder) + 1];
             shifted[0] = a[i];
-            for(k : var = 0; k < sizeof(remainder); k++) {
+            for(k : decimal = 0; k < sizeof(remainder); k++) {
                 shifted[k + 1] = remainder[k];
             }
             remainder = trimmed(shifted);
 
-            digit : var = 0;
+            digit : decimal = 0;
             if(compare_magnitude(remainder, b) >= 0) {
                 digit = floor_of(approximate(remainder, low) / divisor_estimate);
                 if(digit >= BASE) digit = BASE - 1;
@@ -390,7 +390,7 @@ class big_integer {
             return new big_integer(negative, add_magnitude(limbs, other.limbs));
         }
 
-        order : var = compare_magnitude(limbs, other.limbs);
+        order : decimal = compare_magnitude(limbs, other.limbs);
         if(order == 0) return of(0);
         if(order > 0) {
             return new big_integer(negative, subtract_magnitude(limbs, other.limbs));
@@ -399,7 +399,7 @@ class big_integer {
     }
 
     /** add a whole native number (see the constructor for its limits) */
-    def operator+(value: var): big_integer {
+    def operator+(value: decimal): big_integer {
         return operator+(of(value));
     }
 
@@ -409,7 +409,7 @@ class big_integer {
     }
 
     /** subtract a whole native number */
-    def operator-(value: var): big_integer {
+    def operator-(value: decimal): big_integer {
         return operator+(of(0 - value));
     }
 
@@ -424,7 +424,7 @@ class big_integer {
     }
 
     /** multiply by a whole native number */
-    def operator*(value: var): big_integer {
+    def operator*(value: decimal): big_integer {
         return operator*(of(value));
     }
 
@@ -441,7 +441,7 @@ class big_integer {
     }
 
     /** divide by a whole native number; throws division_by_zero_exception for 0 */
-    def operator/(value: var): big_integer {
+    def operator/(value: decimal): big_integer {
         return operator/(of(value));
     }
 
@@ -459,7 +459,7 @@ class big_integer {
     }
 
     /** remainder for a whole native divisor; throws division_by_zero_exception for 0 */
-    def operator%(value: var): big_integer {
+    def operator%(value: decimal): big_integer {
         return operator%(of(value));
     }
 
@@ -500,13 +500,13 @@ class big_integer {
      * (O(log exponent) multiplications); pow(0) is 1.
      * Throws illegal_argument_exception when exponent is negative or not whole.
      */
-    def pow(exponent: var): big_integer {
+    def pow(exponent: decimal): big_integer {
         if(exponent < 0 || floor_of(exponent) != exponent)
             throw new illegal_argument_exception("big_integer: the exponent must be a whole number >= 0");
 
         result := of(1);
         factor := self;
-        remaining : var = exponent;
+        remaining : decimal = exponent;
 
         while(remaining > 0) {
             if((remaining % 2) == 1) {
@@ -577,13 +577,13 @@ class big_integer {
     // ------------------------------------------------------------------
 
     /** three-way comparison: -1 when this < other, 0 when equal, 1 when this > other */
-    def compare_to(other: big_integer): var {
+    def compare_to(other: big_integer): decimal {
         if(negative != other.negative) {
             if(negative) return 0 - 1;
             return 1;
         }
 
-        order : var = compare_magnitude(limbs, other.limbs);
+        order : decimal = compare_magnitude(limbs, other.limbs);
         if(negative) return 0 - order;
         return order;
     }
@@ -619,12 +619,12 @@ class big_integer {
     }
 
     /** true when the value equals the whole native number `value` */
-    def equals_var(value: var): bool {
+    def equals_var(value: decimal): bool {
         return compare_to(of(value)) == 0;
     }
 
     /** -1, 0 or 1: the sign of the number */
-    def sign(): var {
+    def sign(): decimal {
         if(negative) return 0 - 1;
         if(sizeof(limbs) == 1 && limbs[0] == 0) return 0;
         return 1;
@@ -651,9 +651,9 @@ class big_integer {
     }
 
     /** the number of decimal digits, not counting the sign: 0 has 1 digit, -1000 has 4 */
-    def digit_count(): var {
-        top : var = limbs[sizeof(limbs) - 1];
-        count : var = 1;
+    def digit_count(): decimal {
+        top : decimal = limbs[sizeof(limbs) - 1];
+        count : decimal = 1;
         while(top >= 10) {
             top = floor_of(top / 10);
             count++;
@@ -672,9 +672,9 @@ class big_integer {
      * are rounded to 53 significant bits (and become infinity beyond about
      * 1.8 * 10^308).
      */
-    def to_var(): var {
-        total : var = 0;
-        for(i : var = sizeof(limbs) - 1; i >= 0; i--) {
+    def to_var(): decimal {
+        total : decimal = 0;
+        for(i : decimal = sizeof(limbs) - 1; i >= 0; i--) {
             total = total * BASE + limbs[i];
         }
         if(negative) return 0 - total;
@@ -685,7 +685,7 @@ class big_integer {
      * The value as a native number, or an exception when that would lose
      * digits. Throws overflow_exception when !fits_in_var().
      */
-    def to_var_exact(): var {
+    def to_var_exact(): decimal {
         if(!fits_in_var().value)
             throw new overflow_exception("big_integer: the value does not fit in a native number");
         return to_var();
@@ -697,16 +697,16 @@ class big_integer {
      * padded with zeros to 7 digits.
      */
     override def to_string(): string? {
-        digits : var = digit_count();
-        length : var = digits + negative;
+        digits : decimal = digit_count();
+        length : decimal = digits + negative;
         text := new _int8[length];
-        position : var = length - 1;
+        position : decimal = length - 1;
 
-        for(i : var = 0; i < sizeof(limbs); i++) {
-            value : var = limbs[i];
+        for(i : decimal = 0; i < sizeof(limbs); i++) {
+            value : decimal = limbs[i];
             // every limb gives 7 digits, except the top one which stops at the sign
-            for(d : var = 0; d < BASE_DIGITS && position >= negative; d++) {
-                high : var = floor_of(value / 10);
+            for(d : decimal = 0; d < BASE_DIGITS && position >= negative; d++) {
+                high : decimal = floor_of(value / 10);
                 text[position--] = '0' + (value - high * 10);
                 value = high;
             }
@@ -720,8 +720,8 @@ class big_integer {
 
     /** a hash code built from the sign and all limbs (equal numbers have equal hashes) */
     override def hash(): int {
-        result : var = 17 + negative;
-        for(i : var = 0; i < sizeof(limbs); i++) {
+        result : decimal = 17 + negative;
+        for(i : decimal = 0; i < sizeof(limbs); i++) {
             result = (result * 31 + limbs[i]) % 2147483647;
         }
         return result;

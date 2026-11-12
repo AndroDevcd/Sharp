@@ -6,7 +6,7 @@ import (
 
 def strtod(str: string) : double {
     data := str.data;
-    result : var;
+    result : decimal;
 
     asm {
         pushl [data]
@@ -19,7 +19,7 @@ def strtod(str: string) : double {
 
 def strtol(str: string, base_num: int) : long {
     data := str.data;
-    result := base_num.value;
+    result : _int64 = base_num.value;
 
     asm {
         pushl [data]
@@ -33,9 +33,9 @@ def strtol(str: string, base_num: int) : long {
 
 def snprintf(fmt: int, num: double, precision: int) : string {
     result : _int8[]? = null;
-    _fmt := fmt.value;
-    _num := num.value;
-    _precision := precision.value;
+    _fmt : _int64 = fmt.value;
+    _num : decimal = num.value;
+    _precision : _int64 = precision.value;
     asm {
         loadl egx, [_fmt]
         loadl ebx, [_num]
@@ -49,7 +49,7 @@ def snprintf(fmt: int, num: double, precision: int) : string {
 
 def sys(str: string) : int {
     cmd := str.data;
-    result : var;
+    result : _int64;
     asm {
         pushl [cmd]
         int 0x1a
@@ -67,7 +67,7 @@ def print(str: string) {
     print_chars(str.data);
 }
 
-def println(data: var[]) {
+def println(data: decimal[]) {
     print_numbers(data);
     print_char('\n');
 }
@@ -112,11 +112,11 @@ def println(data: _uint64[]) {
     print_char('\n');
 }
 
-def print(data: var) {
+def print(data: decimal) {
     print_num(data);
 }
 
-def println(data: var) {
+def println(data: decimal) {
     print_num(data);
     print_char('\n');
 }
@@ -217,7 +217,7 @@ def exit() {
 }
 
 def sizeOf(data: object) : long {
-    result : var;
+    result : _int64;
 
     asm {
         pushl [data]
@@ -228,7 +228,7 @@ def sizeOf(data: object) : long {
 }
 
 def sizeOf(data: object[]) : long {
-    result : var;
+    result : _int64;
 
     asm {
         pushl [data]
@@ -338,8 +338,8 @@ local def print_chars(str: _int16[]) {
     print_chars(str);
 }
 
-local def read_ch(echo: var) : char {
-    result  : var = 0;
+local def read_ch(echo: decimal) : char {
+    result  : decimal = 0;
 
     asm {
         loadl cmt, [echo]

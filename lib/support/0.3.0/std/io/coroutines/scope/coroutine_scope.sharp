@@ -45,7 +45,7 @@ class coroutine_scope {
         setup(where, 0);
     }
 
-    private def setup(where: coroutine_dispatcher, supervising: var) {
+    private def setup(where: coroutine_dispatcher, supervising: decimal) {
         created := new job();
         created.dispatcher = where;
         created.supervisor = supervising;
@@ -92,7 +92,7 @@ class coroutine_scope {
     }
 
     /** number of coroutines of this scope that are not finished yet */
-    def active_count() : var {
+    def active_count() : decimal {
         return scope_job!!.child_count();
     }
 
@@ -118,7 +118,7 @@ class coroutine_scope {
      */
     def join_children() {
         kids := scope_job!!.children();
-        for(i : var = 0; i < sizeof(kids); i++) {
+        for(i : decimal = 0; i < sizeof(kids); i++) {
             kids[i].join();
         }
     }

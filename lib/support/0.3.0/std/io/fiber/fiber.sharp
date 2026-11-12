@@ -10,9 +10,9 @@ class fiber { // Thread 1mb fiber 6kb <starting size>
    private fiber() {}
 
    name : string = "";
-   id : var = -1;
+   id : decimal = -1;
    excuse main : (object[]?)(int);
-   exit_val : var = 0;
+   exit_val : decimal = 0;
    bound_thread : thread?;
 
    fiber(name : string, main : (object[])(int)) {

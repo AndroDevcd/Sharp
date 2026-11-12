@@ -12,7 +12,7 @@ import (
  * USAGE
  *     downloads := new semaphore(4);           // at most 4 at once
  *
- *     for(i : var = 0; i < 100; i++) {
+ *     for(i : decimal = 0; i < 100; i++) {
  *         launch(downloads, { s: object ->
  *             limit := s as semaphore;
  *             limit.acquire();
@@ -43,14 +43,14 @@ import (
 class semaphore {
 
     private lk : object = lock_stripes.next();
-    private permits : var = 0;
+    private permits : decimal = 0;
     private waiters : wait_queue = new wait_queue();
 
     /**
      * @param permits how many permits are available at the start (0 or more)
      * @throws illegal_argument_exception for a negative number
      */
-    semaphore(permits: var) {
+    semaphore(permits: decimal) {
         if(permits < 0) {
             throw new illegal_argument_exception("a semaphore cannot start with a negative number of permits");
         }
@@ -97,7 +97,7 @@ class semaphore {
      * SUSPENDS for at most `ms`. A cancellation point.
      * Java: tryAcquire(timeout, MILLISECONDS)
      */
-    def acquire_for(ms: var) : bool {
+    def acquire_for(ms: decimal) : bool {
         ensure_active();
 
         w : waiter? = null;
@@ -114,7 +114,7 @@ class semaphore {
             return true;
         }
 
-        outcome : var = await_waiter(w!!, ms);
+        outcome : decimal = await_waiter(w!!, ms);
         if(outcome == 1) {
             return true;
         }
@@ -134,7 +134,7 @@ class semaphore {
      * Never suspends, not a cancellation point. Kotlin: Semaphore.tryAcquire()
      */
     def try_acquire() : bool {
-        got : var = 0;
+        got : decimal = 0;
         lock(lk) {
             if(permits > 0) {
                 permits--;
@@ -194,8 +194,8 @@ class semaphore {
     }
 
     /** number of permits that can be taken without waiting. Kotlin: availablePermits */
-    def available_permits() : var {
-        count : var = 0;
+    def available_permits() : decimal {
+        count : decimal = 0;
         lock(lk) {
             count = permits;
         }
@@ -203,8 +203,8 @@ class semaphore {
     }
 
     /** number of coroutines waiting for a permit right now */
-    def waiting_count() : var {
-        count : var = 0;
+    def waiting_count() : decimal {
+        count : decimal = 0;
         lock(lk) {
             count = waiters.size();
         }

@@ -79,8 +79,8 @@ mutate file {
      */
     def write_lines(lines: list<string>) {
         buf := new char_buffer(256);
-        count : var = lines.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = lines.size().value;
+        for(i : decimal = 0; i < count; i++) {
             buf.append(lines.at(i));
             buf.append_char('\n');
         }

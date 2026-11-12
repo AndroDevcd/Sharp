@@ -21,9 +21,9 @@ import ( testing )
 
 class city {
     name : string = "";
-    population : var = 0;
+    population : decimal = 0;
 
-    city(city_name: string, people: var) {
+    city(city_name: string, people: decimal) {
         name = city_name;
         population = people;
     }
@@ -142,8 +142,8 @@ def main(args: string[]) {
 
     // ================= many entries: 500 int keys in 128 buckets
     squares := new hash_map<int, int>();
-    new_keys : var = 0;
-    for(i : var = 0; i < 500; i++) {
+    new_keys : decimal = 0;
+    for(i : decimal = 0; i < 500; i++) {
         if(squares.put(i, i * i).value) new_keys++;
     }
     expect("500 puts: every key was new", new_keys, 500);
@@ -155,15 +155,15 @@ def main(args: string[]) {
     expect("500 puts: at(499)", squares.at(499)!!.value, 249001);
 
     // every key gives its own value: the sum of i * i for i = 0..499
-    sum : var = 0;
-    for(i : var = 0; i < 500; i++) {
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 500; i++) {
         sum += squares.at(i)!!.value;
     }
     expect("500 puts: the sum of all values", sum, 41541750);
 
     // overwrite every second key
-    replaced : var = 0;
-    for(i : var = 0; i < 500; i += 2) {
+    replaced : decimal = 0;
+    for(i : decimal = 0; i < 500; i += 2) {
         if(squares.put(i, 1).value == 0) replaced++;
     }
     expect("250 overwrites: none was a new key", replaced, 250);
@@ -173,7 +173,7 @@ def main(args: string[]) {
 
     // ================= many entries with string keys
     lengths := new hash_map<string, int>();
-    for(i : var = 0; i < 300; i++) {
+    for(i : decimal = 0; i < 300; i++) {
         number : int = i;
         lengths.put("key" + number, i + 1000);
     }
@@ -182,7 +182,7 @@ def main(args: string[]) {
     expect("300 string keys: at(key42)", lengths.at("key42")!!.value, 1042);
     expect("300 string keys: at(key299)", lengths.at("key299")!!.value, 1299);
     sum = 0;
-    for(i : var = 0; i < 300; i++) {
+    for(i : decimal = 0; i < 300; i++) {
         number : int = i;
         sum += lengths.at("key" + number)!!.value;
     }
@@ -193,7 +193,7 @@ def main(args: string[]) {
     // ================= a map with a chosen number of buckets
     buckets : int = 4;
     tiny := new hash_map<int, string>(buckets);
-    for(i : var = 0; i < 20; i++) {
+    for(i : decimal = 0; i < 20; i++) {
         tiny.put(i, "value");
     }
     tiny.put(13, "thirteen");
@@ -232,13 +232,13 @@ def main(args: string[]) {
     expect_str("object values: field of the second value", capitals.map.at(1).second.name, "tokyo");
 
     // keys and values can be expressions
-    five : var = 5;
+    five : decimal = 5;
     computed := { "double" : five * 2, "square" : five * five };
     expect("computed value 1", computed.map.at(0).second, 10);
     expect("computed value 2", computed.map.at(1).second, 25);
 
     // going through the pairs with foreach
-    total : var = 0;
+    total : decimal = 0;
     keys : string = "";
     foreach(entry in digits.map) {
         total += entry.second;

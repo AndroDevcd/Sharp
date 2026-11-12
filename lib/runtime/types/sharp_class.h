@@ -30,10 +30,28 @@ struct sharp_class {
     Int methodCount;
     Int interfaceCount;
     sharp_object *reflect;
+
+    // Which slots of an instance / of the static object hold a number instead
+    // of a reference (see "THE SLOTS OF A CLASS INSTANCE" in
+    // memory/sharp_object.h). One entry per slot, built by
+    // build_number_slot_maps() once the classes are loaded.
+    bool *instanceNumberSlots;
+    bool *staticNumberSlots;
 };
 
 CXX11_INLINE void init_struct(sharp_class *sc);
 bool are_classes_related(sharp_class*, sharp_class*);
+
+/** Fill in instanceNumberSlots / staticNumberSlots of every class. Called once at startup. */
+void build_number_slot_maps();
+
+/**
+ * For an object whose slots are described by a class (a class instance or a
+ * class's static object): one bool per slot, true = the slot holds a number.
+ * nullptr for every other object - arrays and plain objects hold references
+ * in every slot.
+ */
+const bool* number_slots_of(const sharp_object *o);
 uint32_t get_hash(string &name);
 
 #endif //SHARP_SHARP_CLASS_H

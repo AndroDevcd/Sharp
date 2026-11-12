@@ -30,6 +30,11 @@ bool is_numeric_type(sharp_type &st) {
     return type.type >= type_int8 && type.type <= type_var;
 }
 
+bool is_decimal_type(sharp_type &st) {
+    sharp_type type = get_real_type(st);
+    return type.type == type_var && !type.isArray;
+}
+
 bool is_evaluable_type(sharp_type &st) {
     sharp_type type = get_real_type(st);
     return (is_numeric_type(type) && !type.isArray && type.type != type_function_ptr);
@@ -57,7 +62,9 @@ data_type str_to_native_type(string &str) {
     if(str == "_uint16") return type_uint16;
     if(str == "_uint32") return type_uint32;
     if(str == "_uint64") return type_uint64;
-    if(str == "var") return type_var;
+    // `decimal`: a 64-bit decimal number. The keyword was `var` until numbers
+    // became typed; inside the compiler and the VM the type is still type_var.
+    if(str == "decimal") return type_var;
     if(str == "object") return type_object;
     return type_undefined;
 }
@@ -73,7 +80,7 @@ string type_to_str(sharp_type &type) {
     else if(type.type == type_uint16) ss << "_uint16";
     else if(type.type == type_uint32) ss << "_uint32";
     else if(type.type == type_uint64) ss << "_uint64";
-    else if(type.type == type_var) ss << "var";
+    else if(type.type == type_var) ss << "decimal";
     else if(type.type == type_any) ss << "any";
     else if(type.type == type_object) ss << "object";
     else if(type.type == type_string) {

@@ -19,8 +19,8 @@ import ( testing, std.io )
 FOLDER : string = "/tmp/sharp_suite_std_files";
 
 /** how many entries of `names` are exactly `name` */
-def count_named(names: list<string>, name: string): var {
-    found : var = 0;
+def count_named(names: list<string>, name: string): decimal {
+    found : decimal = 0;
     foreach(entry in names) {
         if(entry == name) found++;
     }
@@ -85,7 +85,7 @@ def main(args: string[]) {
     // ---- a longer text: 1000 times "0123456789"
     chunk : string = "0123456789";
     long_text : string = "";
-    for(i : var = 0; i < 1000; i++) {
+    for(i : decimal = 0; i < 1000; i++) {
         long_text = long_text + chunk;
     }
     notes.write(long_text);
@@ -132,7 +132,7 @@ def main(args: string[]) {
     expect_false("...and nothing exists", lost.exists().value);
 
     // ---- an empty path is refused
-    threw : var = 0;
+    threw : decimal = 0;
     try {
         nameless := new file("");
     } catch(e: nullptr_exception) {

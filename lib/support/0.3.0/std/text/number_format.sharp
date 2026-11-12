@@ -6,7 +6,7 @@ import ( std.io )
  * number_format
  *
  * Turns numbers into text. All functions are static and take the number as a
- * native `var`:
+ * native `decimal`:
  *
  *     number_format.integer(42)                 "42"
  *     number_format.fixed(3.14159, 2)           "3.14"
@@ -39,16 +39,16 @@ class number_format {
     private static const digit_chars : string = "0123456789abcdefghijklmnopqrstuvwxyz";
 
     /* above this a number is no longer an exact whole number (2^53) */
-    private static const exact_limit : var = 9007199254740992;
+    private static const exact_limit : decimal = 9007199254740992;
 
     // ------------------------------------------------------------------ helpers
 
     /** "NaN", "Infinity" or "-Infinity" if the number is one of those, otherwise null. */
-    private static def special_name(number: var): string? {
+    private static def special_name(number: decimal): string? {
         if(number != number) return "NaN";
         // (the negative limit is computed: a large literal with a minus sign in front
         //  of it is compiled as -2147483648)
-        largest : var = 1.7976931348623157e308;
+        largest : decimal = 1.7976931348623157e308;
         if(number > largest) return "Infinity";
         if(number < 0 - largest) return "-Infinity";
         return null;
@@ -59,13 +59,13 @@ class number_format {
      * `out` in the given radix, with at least `min_digits` digits (zeros are
      * put in front).
      */
-    private static def append_digits(out: text_buffer, value: var, radix: var, min_digits: var, upper: var) {
+    private static def append_digits(out: text_buffer, value: decimal, radix: decimal, min_digits: decimal, upper: decimal) {
         // the digits come out last first, so they are collected in a small buffer from its end
         buffer := new _int8[64];
-        at : var = 64;
+        at : decimal = 64;
         while(value > 0) {
-            digit : var = value % radix;
-            c : var = digit_chars.data[digit];
+            digit : decimal = value % radix;
+            c : decimal = digit_chars.data[digit];
             if(upper) {
                 if(c >= 'a') c = c - 32;
             }
@@ -75,32 +75,32 @@ class number_format {
             value = value / radix;
         }
 
-        for(i : var = 64 - at; i < min_digits; i++) {
+        for(i : decimal = 64 - at; i < min_digits; i++) {
             out.append_char('0');
         }
-        for(i : var = at; i < 64; i++) {
+        for(i : decimal = at; i < 64; i++) {
             out.append_char(buffer[i]);
         }
     }
 
     /** Text of a huge number (>= 2^53) without decimals, taken from the runtime's own conversion. */
-    private static def huge(number: var): string {
+    private static def huge(number: decimal): string {
         text := snprintf('f', number, 1);       // e.g. "1e+20" prints as "100000000000000000000.0"
-        point : var = text.index_of_char('.');
+        point : decimal = text.index_of_char('.');
         if(point < 0) return text;
         return text.take(point);
     }
 
     /** Throws illegal_argument_exception unless 0 <= decimals <= 15. */
-    private static def check_decimals(decimals: var) {
+    private static def check_decimals(decimals: decimal) {
         if(decimals < 0 || decimals > 15)
             throw new ill_arg_except("decimals must be between 0 and 15, but was ${new int(decimals)}");
     }
 
     /** 10 to the power of `exponent` (a small whole number >= 0). */
-    private static def power_of_ten(exponent: var): var {
-        result : var = 1;
-        for(i : var = 0; i < exponent; i++) {
+    private static def power_of_ten(exponent: decimal): decimal {
+        result : decimal = 1;
+        for(i : decimal = 0; i < exponent; i++) {
             result = result * 10;
         }
         return result;
@@ -111,14 +111,14 @@ class number_format {
      * decimals, with `separator` between groups of three digits of the whole
      * part (0 = no grouping) and `point` as the decimal point.
      */
-    private static def format_decimal(number: var, decimals: var, separator: var, point: var): string {
+    private static def format_decimal(number: decimal, decimals: decimal, separator: decimal, point: decimal): string {
         special := special_name(number);
         if((special as object) != null) return special!!;
 
-        negative : var = number < 0;
-        magnitude : var = negative ? 0 - number : number;
-        scale : var = power_of_ten(decimals);
-        scaled : var = magnitude * scale;
+        negative : decimal = number < 0;
+        magnitude : decimal = negative ? 0 - number : number;
+        scale : decimal = power_of_ten(decimals);
+        scaled : decimal = magnitude * scale;
 
         out := new text_buffer();
         if(scaled >= exact_limit) {
@@ -128,7 +128,7 @@ class number_format {
             append_grouped(out, whole_text, separator);
             if(decimals > 0) {
                 out.append_char(point);
-                for(i : var = 0; i < decimals; i++) {
+                for(i : decimal = 0; i < decimals; i++) {
                     out.append_char('0');
                 }
             }
@@ -137,11 +137,11 @@ class number_format {
 
         // half away from zero (magnitude is >= 0). The cast is applied to a plain
         // variable: casting a whole expression in parentheses crashes the compiler.
-        rounded : var = scaled + 0.5;
+        rounded : decimal = scaled + 0.5;
         rounded = rounded as _int64;
-        fraction : var = rounded % scale;
+        fraction : decimal = rounded % scale;
         // (rounded - fraction) is a multiple of scale, so this division is exact
-        whole : var = rounded - fraction;
+        whole : decimal = rounded - fraction;
         whole = whole / scale;
 
         if(negative && rounded > 0) out.append_char('-');   // (no "-0.00")
@@ -160,16 +160,16 @@ class number_format {
     }
 
     /** Appends `digits` with `separator` between groups of three, counted from the right (0 = no grouping). */
-    private static def append_grouped(out: text_buffer, digits: string, separator: var) {
-        n : var = sizeof(digits.data);
-        for(i : var = 0; i < n; i++) {
+    private static def append_grouped(out: text_buffer, digits: string, separator: decimal) {
+        n : decimal = sizeof(digits.data);
+        for(i : decimal = 0; i < n; i++) {
             if(separator != 0 && i > 0 && (n - i) % 3 == 0) out.append_char(separator);
             out.append_char(digits.data[i]);
         }
     }
 
     /** The whole number `number` (fraction cut off) in `radix`, at least `width` digits, sign in front. */
-    private static def format_radix(number: var, radix: var, width: var, upper: var): string {
+    private static def format_radix(number: decimal, radix: decimal, width: decimal, upper: decimal): string {
         special := special_name(number);
         if((special as object) != null) return special!!;
         if(radix < 2 || radix > 36)
@@ -177,8 +177,8 @@ class number_format {
         if(width < 0)
             throw new ill_arg_except("width cannot be negative: ${new int(width)}");
 
-        negative : var = number < 0;
-        magnitude : var = negative ? 0 - number : number;
+        negative : decimal = number < 0;
+        magnitude : decimal = negative ? 0 - number : number;
         if(magnitude >= exact_limit) {
             if(radix == 10) {
                 return negative ? "-" + huge(magnitude) : huge(magnitude);
@@ -186,7 +186,7 @@ class number_format {
             throw new ill_arg_except("the number is too large to be written exactly in radix ${new int(radix)}");
         }
 
-        whole : var = magnitude as _int64;                  // cut the fraction off
+        whole : decimal = magnitude as _int64;                  // cut the fraction off
         out := new text_buffer();
         if(negative && whole > 0) out.append_char('-');
         append_digits(out, whole, radix, width < 1 ? 1 : width, upper);
@@ -200,7 +200,7 @@ class number_format {
      * integer(-7) is "-7". A fraction is cut off, not rounded: integer(2.9)
      * is "2" and integer(-2.9) is "-2" (use fixed(n, 0) to round).
      */
-    static def integer(number: var): string {
+    static def integer(number: decimal): string {
         return format_radix(number, 10, 1, 0);
     }
 
@@ -211,7 +211,7 @@ class number_format {
      * padded(-7, 3) is "-007".
      * Throws illegal_argument_exception if width is negative.
      */
-    static def padded(number: var, width: int): string {
+    static def padded(number: decimal, width: int): string {
         return format_radix(number, 10, width.value, 0);
     }
 
@@ -222,47 +222,47 @@ class number_format {
      * Throws illegal_argument_exception if radix is not between 2 and 36, or
      * if the number is 2^53 or larger (it would not be exact).
      */
-    static def to_radix(number: var, radix_base: int): string {
+    static def to_radix(number: decimal, radix_base: int): string {
         return format_radix(number, radix_base.value, 1, 0);
     }
 
     /** to_radix(number, radix_base) with zeros in front until there are at least `width` digits. */
-    static def to_radix(number: var, radix_base: int, width: int): string {
+    static def to_radix(number: decimal, radix_base: int, width: int): string {
         return format_radix(number, radix_base.value, width.value, 0);
     }
 
     /** The whole number in hexadecimal with small letters: hex(255) is "ff", hex(0) is "0". */
-    static def hex(number: var): string {
+    static def hex(number: decimal): string {
         return format_radix(number, 16, 1, 0);
     }
 
     /** hex(number) with at least `width` digits: hex(255, 4) is "00ff". */
-    static def hex(number: var, width: int): string {
+    static def hex(number: decimal, width: int): string {
         return format_radix(number, 16, width.value, 0);
     }
 
     /** The whole number in hexadecimal with capital letters: hex_upper(255) is "FF". */
-    static def hex_upper(number: var): string {
+    static def hex_upper(number: decimal): string {
         return format_radix(number, 16, 1, 1);
     }
 
     /** hex_upper(number) with at least `width` digits: hex_upper(255, 4) is "00FF". */
-    static def hex_upper(number: var, width: int): string {
+    static def hex_upper(number: decimal, width: int): string {
         return format_radix(number, 16, width.value, 1);
     }
 
     /** The whole number in binary: binary(5) is "101". */
-    static def binary(number: var): string {
+    static def binary(number: decimal): string {
         return format_radix(number, 2, 1, 0);
     }
 
     /** binary(number) with at least `width` digits: binary(5, 8) is "00000101". */
-    static def binary(number: var, width: int): string {
+    static def binary(number: decimal, width: int): string {
         return format_radix(number, 2, width.value, 0);
     }
 
     /** The whole number in octal: octal(8) is "10". */
-    static def octal(number: var): string {
+    static def octal(number: decimal): string {
         return format_radix(number, 8, 1, 0);
     }
 
@@ -273,7 +273,7 @@ class number_format {
      * fixed(3.14159, 2) is "3.14", fixed(2, 2) is "2.00", fixed(2.5, 0) is "3".
      * Throws illegal_argument_exception if decimals is not between 0 and 15.
      */
-    static def fixed(number: var, decimals: int): string {
+    static def fixed(number: decimal, decimals: int): string {
         check_decimals(decimals.value);
         return format_decimal(number, decimals.value, 0, '.');
     }
@@ -284,7 +284,7 @@ class number_format {
      * trimmed(1.23456, 2) is "1.23".
      * Throws illegal_argument_exception if max_decimals is not between 0 and 15.
      */
-    static def trimmed(number: var, max_decimals: int): string {
+    static def trimmed(number: decimal, max_decimals: int): string {
         check_decimals(max_decimals.value);
         text := format_decimal(number, max_decimals.value, 0, '.');
         if(text.index_of_char('.') < 0) return text;
@@ -295,7 +295,7 @@ class number_format {
      * A short readable form: a whole number without a point ("42"), anything
      * else with up to 6 decimals and no zeros at the end ("0.1", "3.141593").
      */
-    static def plain(number: var): string {
+    static def plain(number: decimal): string {
         return trimmed(number, 6);
     }
 
@@ -303,7 +303,7 @@ class number_format {
      * The number rounded to a whole number, with commas between groups of
      * three digits: grouped(1234567) is "1,234,567", grouped(-1234.5) is "-1,235".
      */
-    static def grouped(number: var): string {
+    static def grouped(number: decimal): string {
         return format_decimal(number, 0, ',', '.');
     }
 
@@ -312,7 +312,7 @@ class number_format {
      * `decimals` digits after the point: grouped(1234567.891, 2) is "1,234,567.89".
      * Throws illegal_argument_exception if decimals is not between 0 and 15.
      */
-    static def grouped(number: var, decimals: int): string {
+    static def grouped(number: decimal, decimals: int): string {
         check_decimals(decimals.value);
         return format_decimal(number, decimals.value, ',', '.');
     }
@@ -323,7 +323,7 @@ class number_format {
      * grouped(1234567, 0, ' ', '.') is "1 234 567".
      * Throws illegal_argument_exception if decimals is not between 0 and 15.
      */
-    static def grouped(number: var, decimals: int, separator: char, decimal_point: char): string {
+    static def grouped(number: decimal, decimals: int, separator: char, decimal_point: char): string {
         check_decimals(decimals.value);
         return format_decimal(number, decimals.value, separator.value, decimal_point.value);
     }
@@ -333,7 +333,7 @@ class number_format {
      * is "100%". The number is multiplied by 100 and rounded to `decimals`.
      * Throws illegal_argument_exception if decimals is not between 0 and 15.
      */
-    static def percent(number: var, decimals: int): string {
+    static def percent(number: decimal, decimals: int): string {
         check_decimals(decimals.value);
         return format_decimal(number * 100, decimals.value, 0, '.') + "%";
     }
@@ -345,14 +345,14 @@ class number_format {
      * scientific(0, 2) is "0.00e+00".
      * Throws illegal_argument_exception if decimals is not between 0 and 15.
      */
-    static def scientific(number: var, decimals: int): string {
+    static def scientific(number: decimal, decimals: int): string {
         check_decimals(decimals.value);
         special := special_name(number);
         if((special as object) != null) return special!!;
 
-        negative : var = number < 0;
-        mantissa : var = negative ? 0 - number : number;
-        exponent : var = 0;
+        negative : decimal = number < 0;
+        mantissa : decimal = negative ? 0 - number : number;
+        exponent : decimal = 0;
         if(mantissa != 0) {
             // bring the mantissa into 1 <= m < 10, counting the steps
             while(mantissa >= 10) {
@@ -364,8 +364,8 @@ class number_format {
                 exponent--;
             }
             // rounding may carry into a second digit (9.99 -> 10.0): shift once more
-            scale : var = power_of_ten(decimals.value);
-            rounded_mantissa : var = mantissa * scale + 0.5;
+            scale : decimal = power_of_ten(decimals.value);
+            rounded_mantissa : decimal = mantissa * scale + 0.5;
             rounded_mantissa = rounded_mantissa as _int64;
             if(rounded_mantissa >= 10 * scale) {
                 mantissa = mantissa / 10;
@@ -389,12 +389,12 @@ class number_format {
      * ordinal(2) "2nd", ordinal(3) "3rd", ordinal(4) "4th", ordinal(11) "11th",
      * ordinal(22) "22nd", ordinal(113) "113th". A fraction is cut off.
      */
-    static def ordinal(number: var): string {
+    static def ordinal(number: decimal): string {
         text := integer(number);
-        whole : var = number < 0 ? 0 - number : number;
+        whole : decimal = number < 0 ? 0 - number : number;
         whole = whole as _int64;
-        last_two : var = whole % 100;
-        last_one : var = whole % 10;
+        last_two : decimal = whole % 100;
+        last_one : decimal = whole % 10;
         if(last_two >= 11 && last_two <= 13) return text + "th";
         if(last_one == 1) return text + "st";
         if(last_one == 2) return text + "nd";
@@ -408,13 +408,13 @@ class number_format {
      * "1.0 MB". Units go up to EB; from KB on there is one decimal.
      * Throws illegal_argument_exception if the number is negative.
      */
-    static def bytes(number: var): string {
+    static def bytes(number: decimal): string {
         if(number < 0) throw new ill_arg_except("bytes: a size cannot be negative");
         if(number < 1024) return integer(number) + " B";
 
         units : string = "KMGTPE";
-        value : var = number / 1024;
-        unit : var = 0;
+        value : decimal = number / 1024;
+        unit : decimal = 0;
         // (>= 1023.95 would print as "1024.0", so it moves to the next unit already)
         while(value >= 1023.95 && unit < 5) {
             value = value / 1024;
@@ -433,15 +433,15 @@ class number_format {
      * Throws illegal_argument_exception unless 1 <= number <= 3999 (Roman
      * numerals have no zero and no standard form beyond 3999).
      */
-    static def roman(number: var): string {
-        whole : var = number as _int64;
+    static def roman(number: decimal): string {
+        whole : decimal = number as _int64;
         if(whole < 1 || whole > 3999)
             throw new ill_arg_except("roman: the number must be between 1 and 3999");
 
-        values := new var[] { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
+        values := new decimal[] { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
         symbols := new string[] { "M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
         out := new text_buffer();
-        for(i : var = 0; i < 13; i++) {
+        for(i : decimal = 0; i < 13; i++) {
             while(whole >= values[i]) {
                 out.append(symbols[i]);
                 whole = whole - values[i];

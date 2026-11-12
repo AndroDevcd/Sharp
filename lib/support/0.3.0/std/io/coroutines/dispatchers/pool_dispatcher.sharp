@@ -46,23 +46,23 @@ import (
 class pool_dispatcher : coroutine_dispatcher {
 
     private guard : object = new _object_();
-    private started : var = 0;
-    private parallelism : var = 0;
+    private started : decimal = 0;
+    private parallelism : decimal = 0;
 
     /**
      * @param threads number of worker threads; 0 or less means the automatic
      *                size (cores - 1, at most 4, see the class comment)
      */
-    pool_dispatcher(threads: var) {
+    pool_dispatcher(threads: decimal) {
         parallelism = threads;
     }
 
     /** number of worker threads this dispatcher has, or will start */
-    def get_parallelism() : var {
-        count : var = 0;
+    def get_parallelism() : decimal {
+        count : decimal = 0;
         lock(guard) {
             if(parallelism <= 0) {
-                cores : var = vm.hardware_concurrency().value;
+                cores : decimal = vm.hardware_concurrency().value;
                 parallelism = cores - 1;
                 if(parallelism < 1) {
                     parallelism = 1;
@@ -82,8 +82,8 @@ class pool_dispatcher : coroutine_dispatcher {
      * coroutine was dispatched.
      * @return true when the new value was taken
      */
-    def set_parallelism(threads: var) : bool {
-        changed : var = 0;
+    def set_parallelism(threads: decimal) : bool {
+        changed : decimal = 0;
         lock(guard) {
             if(started == 0 && threads >= 1) {
                 parallelism = threads;
@@ -107,8 +107,8 @@ class pool_dispatcher : coroutine_dispatcher {
     }
 
     private def start_workers() {
-        first : var = 0;
-        count : var = get_parallelism();
+        first : decimal = 0;
+        count : decimal = get_parallelism();
         lock(guard) {
             if(started == 0) {
                 started = 1;
@@ -117,7 +117,7 @@ class pool_dispatcher : coroutine_dispatcher {
         }
 
         if(first != 0) {
-            for(i : var = 0; i < count; i++) {
+            for(i : decimal = 0; i < count; i++) {
                 worker := new thread("coroutine-worker", pool_dispatcher.keep_alive);
                 worker.start();
             }

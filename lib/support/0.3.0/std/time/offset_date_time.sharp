@@ -51,7 +51,7 @@ class offset_date_time {
      * year-month-day hour:minute:second.nano at `offset`.
      * @throws date_time_exception when a field is out of range
      */
-    static def of(year: var, month_number: var, day: var, hour: var, minute: var, second: var, nano: var,
+    static def of(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal, nano: decimal,
                   offset: zone_offset): offset_date_time {
         return new offset_date_time(date_time.of(year, month_number, day, hour, minute, second, nano), offset);
     }
@@ -84,17 +84,17 @@ class offset_date_time {
     /** the offset from UTC */
     def offset(): zone_offset { return offset_part; }
 
-    def year(): var { return local_part.year(); }
-    def month_value(): var { return local_part.month_value(); }
-    def day(): var { return local_part.day(); }
+    def year(): decimal { return local_part.year(); }
+    def month_value(): decimal { return local_part.month_value(); }
+    def day(): decimal { return local_part.day(); }
     def day_of_week(): day_of_week { return local_part.day_of_week(); }
-    def hour(): var { return local_part.hour(); }
-    def minute(): var { return local_part.minute(); }
-    def second(): var { return local_part.second(); }
-    def nano(): var { return local_part.nano(); }
+    def hour(): decimal { return local_part.hour(); }
+    def minute(): decimal { return local_part.minute(); }
+    def second(): decimal { return local_part.second(); }
+    def nano(): decimal { return local_part.nano(); }
 
     /** whole seconds from 1970-01-01T00:00:00Z to this moment (negative before) */
-    def to_epoch_second(): var {
+    def to_epoch_second(): decimal {
         return local_part.to_epoch_second(offset_part);
     }
 
@@ -115,7 +115,7 @@ class offset_date_time {
         if(offset == offset_part) {
             return self;
         }
-        difference : var = offset.total_seconds() - offset_part.total_seconds();
+        difference : decimal = offset.total_seconds() - offset_part.total_seconds();
         return new offset_date_time(local_part.plus_seconds(difference), offset);
     }
 
@@ -135,12 +135,12 @@ class offset_date_time {
     def minus(amount: duration): offset_date_time { return new offset_date_time(local_part.minus(amount), offset_part); }
     def plus(amount: period): offset_date_time { return new offset_date_time(local_part.plus(amount), offset_part); }
     def minus(amount: period): offset_date_time { return new offset_date_time(local_part.minus(amount), offset_part); }
-    def plus_days(days: var): offset_date_time { return new offset_date_time(local_part.plus_days(days), offset_part); }
-    def plus_months(months: var): offset_date_time { return new offset_date_time(local_part.plus_months(months), offset_part); }
-    def plus_years(years: var): offset_date_time { return new offset_date_time(local_part.plus_years(years), offset_part); }
-    def plus_hours(hours: var): offset_date_time { return new offset_date_time(local_part.plus_hours(hours), offset_part); }
-    def plus_minutes(minutes: var): offset_date_time { return new offset_date_time(local_part.plus_minutes(minutes), offset_part); }
-    def plus_seconds(seconds: var): offset_date_time { return new offset_date_time(local_part.plus_seconds(seconds), offset_part); }
+    def plus_days(days: decimal): offset_date_time { return new offset_date_time(local_part.plus_days(days), offset_part); }
+    def plus_months(months: decimal): offset_date_time { return new offset_date_time(local_part.plus_months(months), offset_part); }
+    def plus_years(years: decimal): offset_date_time { return new offset_date_time(local_part.plus_years(years), offset_part); }
+    def plus_hours(hours: decimal): offset_date_time { return new offset_date_time(local_part.plus_hours(hours), offset_part); }
+    def plus_minutes(minutes: decimal): offset_date_time { return new offset_date_time(local_part.plus_minutes(minutes), offset_part); }
+    def plus_seconds(seconds: decimal): offset_date_time { return new offset_date_time(local_part.plus_seconds(seconds), offset_part); }
 
     /** the exact time from this moment to `other` (the offsets may differ) */
     def until(other: offset_date_time): duration {
@@ -152,24 +152,24 @@ class offset_date_time {
     // ------------------------------------------------------------------
 
     /** -1 when this moment is before `other`, 0 when it is the same moment, 1 when after */
-    def compare_to(other: offset_date_time): var {
+    def compare_to(other: offset_date_time): decimal {
         return to_instant().compare_to(other.to_instant());
     }
 
-    def is_before(other: offset_date_time): var { return compare_to(other) < 0; }
-    def is_after(other: offset_date_time): var { return compare_to(other) > 0; }
+    def is_before(other: offset_date_time): decimal { return compare_to(other) < 0; }
+    def is_after(other: offset_date_time): decimal { return compare_to(other) > 0; }
 
     /** 1 when the local date-time AND the offset are both the same */
-    def same_fields(other: offset_date_time): var {
+    def same_fields(other: offset_date_time): decimal {
         return local_part == other.local_part && offset_part == other.offset_part;
     }
 
-    def operator==(other: offset_date_time): var { return compare_to(other) == 0; }
-    def operator!=(other: offset_date_time): var { return compare_to(other) != 0; }
-    def operator<(other: offset_date_time): var { return compare_to(other) < 0; }
-    def operator<=(other: offset_date_time): var { return compare_to(other) <= 0; }
-    def operator>(other: offset_date_time): var { return compare_to(other) > 0; }
-    def operator>=(other: offset_date_time): var { return compare_to(other) >= 0; }
+    def operator==(other: offset_date_time): decimal { return compare_to(other) == 0; }
+    def operator!=(other: offset_date_time): decimal { return compare_to(other) != 0; }
+    def operator<(other: offset_date_time): decimal { return compare_to(other) < 0; }
+    def operator<=(other: offset_date_time): decimal { return compare_to(other) <= 0; }
+    def operator>(other: offset_date_time): decimal { return compare_to(other) > 0; }
+    def operator>=(other: offset_date_time): decimal { return compare_to(other) >= 0; }
 
     def operator+(amount: duration): offset_date_time { return plus(amount); }
     def operator-(amount: duration): offset_date_time { return minus(amount); }

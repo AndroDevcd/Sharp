@@ -10,23 +10,23 @@ import ( testing )
  *
  *     x.numbers!![1]
  *
- * has the type of the whole array (var[]) instead of one element (var):
+ * has the type of the whole array (decimal[]) instead of one element (decimal):
  *
- *     error S8017: could not resolve symbol `expect(_int8[], var[], _int32): unknown`
+ *     error S8017: could not resolve symbol `expect(_int8[], decimal[], _int32): unknown`
  *
  * (the error is also reported on the line ABOVE the one that is wrong).
  * These work and give 6:
  *     x.numbers[1]                          // no !!
- *     a : var[] = x.numbers!!;  a[1]        // through a local
+ *     a : decimal[] = x.numbers!!;  a[1]        // through a local
  */
 
 class holder {
-    numbers : var[]?;
+    numbers : decimal[]?;
 }
 
 def main(args: string[]) {
     x := new holder();
-    x.numbers = new var[] { 5, 6 };
+    x.numbers = new decimal[] { 5, 6 };
     expect("index without !!", x.numbers[1], 6);        // compiles
     expect("index after !!", x.numbers!![1], 6);        // error S8017
     finish("classes");

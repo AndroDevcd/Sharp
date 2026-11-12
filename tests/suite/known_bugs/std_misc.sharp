@@ -15,7 +15,7 @@ def main(args: string[]) {
     // Its getter tests `value == null`; for a class with its own operator== (string)
     // that calls string.operator==(null), which reads the characters of null.
     // (deferred_init of a class without operator== works: cases/std_misc.sharp)
-    outcome : var = 0;
+    outcome : decimal = 0;
     lazy := new deferred_init<string>(make_name);
     try {
         text := lazy.value;

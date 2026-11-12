@@ -13,7 +13,7 @@ private program_name : string = "sharpc";
 private program_vers : string = "0.3.0";
 private files := new list<string>();
 
-def main(args: string[]) : var {
+def main(args: string[]) : decimal {
     if(args == null) {
         help();
         return 1;
@@ -294,7 +294,7 @@ def add_library_files(version_num: string) {
     }
 }
 
-def contains(files: list<string>, file: string) : var {
+def contains(files: list<string>, file: string) : decimal {
 
     foreach(f in files) {
         if(f == file)
@@ -304,7 +304,7 @@ def contains(files: list<string>, file: string) : var {
     return false;
 }
 
-def count(files: list<string>, file: string) : var {
+def count(files: list<string>, file: string) : decimal {
     amount := 0;
     foreach(f in files) {
         if(f == file)
@@ -314,7 +314,7 @@ def count(files: list<string>, file: string) : var {
     return amount;
 }
 
-def in_ignored_folder(fullpath: string) : var {
+def in_ignored_folder(fullpath: string) : decimal {
    foreach(path in options.ignored_directories) {
       if(fullpath.starts_with(path))
         return true;
@@ -323,7 +323,7 @@ def in_ignored_folder(fullpath: string) : var {
    return false;
 }
 
-def is_ignored_file(fullpath: string) : var {
+def is_ignored_file(fullpath: string) : decimal {
    foreach(path in options.ignored_files) {
       if(fullpath == path)
         return true;
@@ -472,7 +472,7 @@ private def create_project() {
     exit();
 }
 
-private static def is_number(str: string) : var {
+private static def is_number(str: string) : decimal {
     foreach(c in str) {
         if(!char.is_digit(c))
             return false;

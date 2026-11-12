@@ -8,7 +8,7 @@ import ( testing, std.util )
  */
 
 /* counts how often the lazy supplier below has run (a lambda can change an object, not a local) */
-supplier_runs : var = 0;
+supplier_runs : decimal = 0;
 
 def make_text(): string {
     supplier_runs++;
@@ -99,7 +99,7 @@ def check_either() {
     expect_not_null("right_or_null on a right", good.right_or_null());
     expect_null("right_or_null on a left", bad.right_or_null());
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { good.left_value(); } catch(e: no_such_element_exception) { caught++; }
     try { bad.right_value(); } catch(e: no_such_element_exception) { caught++; }
     expect("the missing side throws", caught, 2);
@@ -221,7 +221,7 @@ def check_preconditions() {
     }
 
     expect("require_index returns the index", preconditions.require_index(2, 3), 2);
-    caught : var = 0;
+    caught : decimal = 0;
     try { preconditions.require_index(3, 3); } catch(e: out_of_bounds_exception) { caught++; }
     try { preconditions.require_index(0 - 1, 3); } catch(e: out_of_bounds_exception) { caught++; }
     try { preconditions.require_index(0, 0); } catch(e: out_of_bounds_exception) { caught++; }
@@ -332,9 +332,9 @@ def check_id_generator() {
 }
 
 def check_bit_flags() {
-    read : var = 1;
-    write : var = 2;
-    execute : var = 4;
+    read : decimal = 1;
+    write : decimal = 2;
+    execute : decimal = 4;
 
     expect("flag(0)", bit_flags.flag(0), 1);
     expect("flag(1)", bit_flags.flag(1), 2);
@@ -391,7 +391,7 @@ def check_bit_flags() {
     expect_true("flag 31", high.has(2147483648).value);
     expect("count of all 32", new bit_flags(4294967295).count(), 32);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { access.add(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { access.has(1.5); } catch(e: illegal_argument_exception) { caught++; }
     try { new bit_flags(4294967296); } catch(e: illegal_argument_exception) { caught++; }

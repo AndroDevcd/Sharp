@@ -102,7 +102,7 @@ def check_text() {
     expect_str("to_padded_string exact width", n.to_padded_string(3), "255");
     expect_str("to_padded_string of 0", zero.to_padded_string(4), "0000");
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { n.to_string_radix(1); } catch(e: illegal_argument_exception) { caught++; }
     try { n.to_string_radix(37); } catch(e: illegal_argument_exception) { caught++; }
     try { int.parse_radix("11", 1); } catch(e: illegal_argument_exception) { caught++; }
@@ -120,7 +120,7 @@ def check_parsing() {
     expect("long.parse_radix", long.parse_radix("100000000", 16).value, 4294967296);
     expect("double.parse_radix", double.parse_radix("11", 2).value, 3);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { int.parse_radix("12", 2); } catch(e: number_format_exception) { caught++; }
     try { int.parse_radix("fg", 16); } catch(e: number_format_exception) { caught++; }
     try { int.parse_radix("", 10); } catch(e: number_format_exception) { caught++; }
@@ -172,9 +172,9 @@ def check_limits() {
     expect("double.min_value", double.min_value + double.max_value, 0);
     expect_true("double.min_positive_value is above 0", double.min_positive_value > 0);
     expect("half of double.min_positive_value is 0", double.min_positive_value / 2, 0);
-    one_more : var = 1 + double.epsilon;
+    one_more : decimal = 1 + double.epsilon;
     expect_true("1 + epsilon is above 1", one_more > 1);
-    half_more : var = 1 + double.epsilon / 2;
+    half_more : decimal = 1 + double.epsilon / 2;
     expect("1 + epsilon / 2 is 1", half_more, 1);
 
     // the limits really are the limits of the types
@@ -311,7 +311,7 @@ def check_char_and_bool() {
 }
 
 /* throws exception number `kind` with the message "m" */
-def throw_kind(kind: var) {
+def throw_kind(kind: decimal) {
     if(kind == 0) throw new unsupported_operation_exception("m");
     if(kind == 1) throw new no_such_element_exception("m");
     if(kind == 2) throw new number_format_exception("m");
@@ -326,7 +326,7 @@ def throw_kind(kind: var) {
 }
 
 /* which catch clause takes exception number `kind`? */
-def caught_by(kind: var): var {
+def caught_by(kind: decimal): decimal {
     try {
         throw_kind(kind);
     } catch(e: unsupported_operation_exception) {
@@ -356,7 +356,7 @@ def caught_by(kind: var): var {
 }
 
 def check_exceptions() {
-    for(kind : var = 0; kind <= 10; kind++) {
+    for(kind : decimal = 0; kind <= 10; kind++) {
         expect("each exception reaches its own catch clause", caught_by(kind), kind);
     }
 
@@ -367,8 +367,8 @@ def check_exceptions() {
     }
 
     // every one of them is an exception
-    reached : var = 0;
-    for(kind : var = 0; kind <= 10; kind++) {
+    reached : decimal = 0;
+    for(kind : decimal = 0; kind <= 10; kind++) {
         try {
             throw_kind(kind);
         } catch(e: exception) {
@@ -378,7 +378,7 @@ def check_exceptions() {
     expect("catch(exception) takes all eleven", reached, 11);
 
     // the hierarchy: a base class clause takes its subclasses
-    where : var = 0;
+    where : decimal = 0;
     try {
         throw new division_by_zero_exception("x");
     } catch(e: arithmetic_exception) {

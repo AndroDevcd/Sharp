@@ -7,7 +7,7 @@ mod std.io;
  * per call (the console prints every piece right away).
  *
  *     out := new buffered_writer(new console_writer());
- *     for(i : var = 0; i < 1000; i++) {
+ *     for(i : decimal = 0; i < 1000; i++) {
  *         out.write_int(i);
  *         out.new_line();
  *     }
@@ -26,13 +26,13 @@ class buffered_writer : text_writer {
     private target : text_writer;
     private buf : char_buffer;
     /** hand the buffer on when it holds this many characters */
-    private capacity : var = 4096;
+    private capacity : decimal = 4096;
     private line_separator : string = "\n";
-    private auto_flush : var = 0;
-    private closed : var = 0;
+    private auto_flush : decimal = 0;
+    private closed : decimal = 0;
 
-    private chars_written : var = 0;
-    private lines_written : var = 0;
+    private chars_written : decimal = 0;
+    private lines_written : decimal = 0;
 
     /** a buffered writer in front of `target` that hands text on every 4096 characters */
     buffered_writer(target: text_writer) {
@@ -45,7 +45,7 @@ class buffered_writer : text_writer {
      * `capacity` characters.
      * Throws illegal_argument_exception when capacity is below 1.
      */
-    buffered_writer(target: text_writer, capacity: var) {
+    buffered_writer(target: text_writer, capacity: decimal) {
         if(capacity < 1) {
             throw new illegal_argument_exception("buffered_writer: the capacity must be at least 1");
         }
@@ -79,7 +79,7 @@ class buffered_writer : text_writer {
     }
 
     /** add one character given as its code. Throws io_exception when closed. */
-    override def write_char(ch: var) {
+    override def write_char(ch: decimal) {
         check_open();
         buf.append_char(ch);
         chars_written++;
@@ -104,12 +104,12 @@ class buffered_writer : text_writer {
     }
 
     /** add a whole number in decimal ("42", "-7"). Throws io_exception when closed. */
-    def write_int(value: var) {
+    def write_int(value: decimal) {
         write(io_strings.int_to_string(value));
     }
 
     /** add a number the short way ("3", "0.5" - see io_strings.number_to_string). Throws io_exception when closed. */
-    def write_number(value: var) {
+    def write_number(value: decimal) {
         write(io_strings.number_to_string(value));
     }
 
@@ -131,17 +131,17 @@ class buffered_writer : text_writer {
     }
 
     /** the number of characters written through this writer so far (line separators included) */
-    def get_chars_written() : var {
+    def get_chars_written() : decimal {
         return chars_written;
     }
 
     /** the number of line ends written with write_line() and new_line() so far */
-    def get_lines_written() : var {
+    def get_lines_written() : decimal {
         return lines_written;
     }
 
     /** how many characters are waiting in the buffer */
-    def buffered() : var {
+    def buffered() : decimal {
         return buf.length();
     }
 

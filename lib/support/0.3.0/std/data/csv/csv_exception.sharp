@@ -13,16 +13,16 @@ mod std.data;
  */
 class csv_exception base exception {
     /** line of the problem, counting from 1, or -1 */
-    line : var = 0 - 1;
+    line : decimal = 0 - 1;
     /** place within the line, counting from 1, or -1 */
-    column : var = 0 - 1;
+    column : decimal = 0 - 1;
 
     /** an error that is not about a place in a text */
     public csv_exception(message: string) -> base(message) {
     }
 
     /** an error at a known place; `message` should already mention the place */
-    public csv_exception(message: string, line: var, column: var) -> base(message) {
+    public csv_exception(message: string, line: decimal, column: decimal) -> base(message) {
         self->line = line;
         self->column = column;
     }

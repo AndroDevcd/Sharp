@@ -196,6 +196,27 @@ static data_type arithmetic_result_type(Token &operand, sharp_type &left, sharp_
     return type_int32;
 }
 
+/**
+ * Record on the operation step that was just created which kind of operation
+ * it is and what its operands need (see set_numeric_operation, operation.h).
+ * This is the place to do it: left.type and right.type are still known here,
+ * the generator later only sees register numbers.
+ *
+ *      /  **                   always calculated as decimals
+ *      + - *  == != < > <= >=  decimal when either side is a decimal
+ *      % & | ^ << >>           always calculated as integers
+ */
+static void type_binary_operation(operation_schema *scheme, Token &operand, sharp_type &left, sharp_type &right) {
+    bool leftIsDecimal = is_decimal_type(left), rightIsDecimal = is_decimal_type(right);
+    bool decimalOperation = is_decimal_operator(operand.getValue(), leftIsDecimal, rightIsDecimal);
+
+    set_numeric_operation(scheme, decimalOperation, leftIsDecimal, rightIsDecimal);
+
+    // 2 ** 3 is calculated with decimals (pow) but its type is a whole number
+    if(operand == "**" && arithmetic_result_type(operand, left, right) != type_var)
+        scheme->steps.last()->resultConversion = convert_to_integer;
+}
+
 void compile_binary_integer_expression(
         expression *e,
         expression &left,
@@ -360,6 +381,13 @@ void compile_binary_integer_expression(
                 }
             }
 
+            // && and || test each side with a conditional jump, which needs an
+            // integer: `0.5 && x` must see 0.5 as true
+            if(operand == "||" || operand == "&&") {
+                convert_number_to_condition(left);
+                convert_number_to_condition(right);
+            }
+
             if(operand == "||") {
                 create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
             } else if(operand == "&&") {
@@ -419,6 +447,7 @@ void compile_binary_integer_expression(
                           create_exponent_operation(&e->scheme, register_0, register_1);
                       }
 
+                      type_binary_operation(&e->scheme, operand, left.type, right.type);
                       e->scheme.schemeType = scheme_binary_math;
                 )
             }
@@ -474,6 +503,13 @@ void compile_binary_numeric_expression(
                     goto error;
                 }
             }
+            // && and || test each side with a conditional jump, which needs an
+            // integer: `0.5 && x` must see 0.5 as true
+            if(operand == "||" || operand == "&&") {
+                convert_number_to_condition(left);
+                convert_number_to_condition(right);
+            }
+
             if(operand == "||") {
                 create_or_or_operation(&e->scheme, &left.scheme, &right.scheme);
             } else if(operand == "&&") {
@@ -523,6 +559,7 @@ void compile_binary_numeric_expression(
                              create_exponent_operation(&e->scheme, -1, register_0);
                          }
 
+                         type_binary_operation(&e->scheme, operand, left.type, right.type);
                          e->scheme.schemeType = scheme_accelerated_binary_math;
                     )
                 } else {
@@ -570,6 +607,7 @@ void compile_binary_numeric_expression(
                              create_exponent_operation(&e->scheme, register_0, register_1);
                          }
 
+                         type_binary_operation(&e->scheme, operand, left.type, right.type);
                          e->scheme.schemeType = scheme_binary_math;
                     )
                 }
@@ -609,7 +647,9 @@ void compile_binary_object_expression(
 
             e->scheme.schemeType = scheme_null_check;
 
-            e->type.type = type_var;
+            // 0 or 1, an integer. (It was typed `var`, which did not matter while
+            // every number was stored the same way.)
+            e->type.type = type_int8;
             break;
         }
 

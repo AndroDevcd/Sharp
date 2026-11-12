@@ -23,7 +23,7 @@ def odt(o: offset_date_time): string {
     return o.to_string()!!;
 }
 
-def rejects_offset(s: string): var {
+def rejects_offset(s: string): decimal {
     try {
         zone_offset.parse(s);
         return 0;
@@ -32,7 +32,7 @@ def rejects_offset(s: string): var {
     }
 }
 
-def rejects_instant(s: string): var {
+def rejects_instant(s: string): decimal {
     try {
         instant.parse(s);
         return 0;
@@ -43,7 +43,7 @@ def rejects_instant(s: string): var {
 
 def main(args: string[]) {
     // seconds from 1900-01-01 to 1970-01-01 (70 years with 17 leap days)
-    seconds_1900_to_1970 : var = 2208988800;
+    seconds_1900_to_1970 : decimal = 2208988800;
 
     // ================= instant =================
 
@@ -192,7 +192,7 @@ def main(args: string[]) {
     expect_true("parse rejects the empty string", rejects_offset(""));
     expect_true("parse rejects trailing text", rejects_offset("+02:00x"));
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { zone_offset.of_hours(19); } catch(e: date_time_exception) { caught = 1; }
     expect("of_hours(19) throws", caught, 1);
     caught = 0;

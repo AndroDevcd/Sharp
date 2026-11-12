@@ -36,12 +36,12 @@ import ( std.io )
  * Not thread safe.
  */
 class json_parser {
-    private max_depth : var = 1000;
+    private max_depth : _int64 = 1000;
 
     /* the text being parsed and the place in it */
     private chars : _int8[]?;
-    private count : var = 0;
-    private pos : var = 0;
+    private count : _int64 = 0;
+    private pos : _int64 = 0;
 
     /** parse `text` with the default settings. Throws json_exception when it is not valid JSON. */
     static def parse(text: string) : json_value {
@@ -73,7 +73,7 @@ class json_parser {
      * this parser.
      * Throws illegal_argument_exception when depth is negative.
      */
-    def set_max_depth(depth: var) : json_parser {
+    def set_max_depth(depth: _int64) : json_parser {
         if(depth < 0) {
             throw new illegal_argument_exception("set_max_depth: the depth cannot be negative");
         }
@@ -82,7 +82,7 @@ class json_parser {
     }
 
     /** the nesting depth this parser allows */
-    def get_max_depth() : var {
+    def get_max_depth() : _int64 {
         return max_depth;
     }
 
@@ -112,7 +112,7 @@ class json_parser {
             if(pos >= count) {
                 fail("expected a value but the text ends");
             }
-            ch : var = chars[pos];
+            ch : _int64 = chars[pos];
             value : json_value? = null;
 
             if(ch == '{' || ch == '[') {
@@ -216,7 +216,7 @@ class json_parser {
     /** step over the four white space characters JSON allows */
     private def skip_space() {
         while(pos < count) {
-            ch : var = chars[pos];
+            ch : _int64 = chars[pos];
             if(ch != ' ' && ch != '\n' && ch != '\r' && ch != '\t') {
                 return;
             }
@@ -246,8 +246,8 @@ class json_parser {
 
     /** read the literal `word` (true, false, null) at the current place */
     private def read_word(word: string) {
-        n : var = sizeof(word.data);
-        for(i : var = 0; i < n; i++) {
+        n : _int64 = sizeof(word.data);
+        for(i : _int64 = 0; i < n; i++) {
             if(pos + i >= count || chars[pos + i] != word.data[i]) {
                 fail("expected a value (did you mean " + word + "?)");
             }
@@ -260,8 +260,8 @@ class json_parser {
     }
 
     /** read a number at the current place, checking the form JSON prescribes */
-    private def read_number() : var {
-        start : var = pos;
+    private def read_number() : decimal {
+        start : _int64 = pos;
         if(chars[pos] == '-') {
             pos++;
         }
@@ -311,11 +311,11 @@ class json_parser {
 
     /** read a string in double quotes at the current place and return its content with the escapes resolved */
     private def read_string() : string {
-        opening : var = pos;
+        opening : _int64 = pos;
         pos++; // the opening quote
 
         // most strings have no escapes: find the end first and copy in one piece
-        scan : var = pos;
+        scan : _int64 = pos;
         while(scan < count && chars[scan] != '"' && chars[scan] != 92 && (chars[scan] & 0xff) >= 32) {
             scan++;
         }
@@ -334,7 +334,7 @@ class json_parser {
                 pos = opening;
                 fail("the string that starts here is never closed");
             }
-            ch : var = chars[pos] & 0xff;
+            ch : _int64 = chars[pos] & 0xff;
             if(ch == '"') {
                 pos++;
                 break;
@@ -353,7 +353,7 @@ class json_parser {
             if(pos + 1 >= count) {
                 fail("the text ends in the middle of an escape");
             }
-            escape : var = chars[pos + 1];
+            escape : _int64 = chars[pos + 1];
             if(escape == '"') { buf.append_char('"'); pos += 2; }
             else if(escape == 92) { buf.append_char(92); pos += 2; }
             else if(escape == '/') { buf.append_char('/'); pos += 2; }
@@ -363,7 +363,7 @@ class json_parser {
             else if(escape == 'r') { buf.append_char(13); pos += 2; }
             else if(escape == 't') { buf.append_char(9); pos += 2; }
             else if(escape == 'u') {
-                code : var = read_hex4(pos + 2);
+                code : _int64 = read_hex4(pos + 2);
                 if(code >= 0xDC00 && code <= 0xDFFF) {
                     fail("a low surrogate escape without the high surrogate in front of it");
                 }
@@ -372,7 +372,7 @@ class json_parser {
                     if(pos + 7 >= count || chars[pos + 6] != 92 || chars[pos + 7] != 'u') {
                         fail("a high surrogate escape must be followed by a low surrogate escape");
                     }
-                    low : var = read_hex4(pos + 8);
+                    low : _int64 = read_hex4(pos + 8);
                     if(low < 0xDC00 || low > 0xDFFF) {
                         fail("a high surrogate escape must be followed by a low surrogate escape");
                     }
@@ -391,13 +391,13 @@ class json_parser {
     }
 
     /** the value of the four hexadecimal digits at index `at` */
-    private def read_hex4(at: var) : var {
+    private def read_hex4(at: _int64) : _int64 {
         if(at + 4 > count) {
             fail("expected four hexadecimal digits after \\u but the text ends");
         }
-        code : var = 0;
-        for(i : var = 0; i < 4; i++) {
-            digit : var = io_strings.hex_value(chars[at + i]);
+        code : _int64 = 0;
+        for(i : _int64 = 0; i < 4; i++) {
+            digit : _int64 = io_strings.hex_value(chars[at + i]);
             if(digit < 0) {
                 pos = at + i;
                 fail("expected a hexadecimal digit after \\u but found " + describe(chars[at + i]));
@@ -408,7 +408,7 @@ class json_parser {
     }
 
     /** append the character with the given Unicode number as UTF-8 bytes */
-    private static def append_utf8(buf: char_buffer, code: var) {
+    private static def append_utf8(buf: char_buffer, code: _int64) {
         if(code < 0x80) {
             buf.append_char(code);
         } else if(code < 0x800) {
@@ -431,8 +431,8 @@ class json_parser {
     /* ------------------------------------------------------------------ */
 
     /** a character for an error message: 'x', or its code when it cannot be printed */
-    private static def describe(ch: var) : string {
-        code : var = ch & 0xff;
+    private static def describe(ch: _int64) : string {
+        code : _int64 = ch & 0xff;
         if(code < 32 || code > 126) {
             return "the character with code " + io_strings.int_to_string(code);
         }
@@ -442,9 +442,9 @@ class json_parser {
     /** throw a json_exception for the current place */
     private def fail(what: string) {
         // work out line and column of `pos`
-        line : var = 1;
-        column : var = 1;
-        for(i : var = 0; i < pos && i < count; i++) {
+        line : _int64 = 1;
+        column : _int64 = 1;
+        for(i : _int64 = 0; i < pos && i < count; i++) {
             if(chars[i] == '\n') {
                 line++;
                 column = 1;
@@ -453,7 +453,7 @@ class json_parser {
             }
         }
         message := what + " at line " + io_strings.int_to_string(line) + ", column " + io_strings.int_to_string(column);
-        at : var = pos;
+        at : _int64 = pos;
         chars = null;
         throw new json_exception(message, at, line, column);
     }

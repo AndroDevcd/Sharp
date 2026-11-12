@@ -14,7 +14,7 @@ import (
 */
 class reentrant_lock {
     private data: _object_;
-    private recursiveLocks: var;
+    private recursiveLocks: decimal;
     private fib: fiber? = null;
 
     reentrant_lock(data: _object_) {

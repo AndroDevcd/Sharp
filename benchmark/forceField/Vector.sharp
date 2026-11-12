@@ -6,10 +6,10 @@ import std;
  * Created by BraxtonN on 7/20/2018.
  */
 public class Vector {
-    public var x;
-    public var y;
+    public decimal x;
+    public decimal y;
     
-    public Vector(var _x, var _y) {
+    public Vector(decimal _x, decimal _y) {
       self->x = _x;
       self->y = _y;
     }
@@ -27,7 +27,7 @@ public class Vector {
       return new Vector(x + v.x, y + v.y);
     }
     
-    public def scale(var d) : Vector {
+    public def scale(decimal d) : Vector {
       return new Vector(x * d, y * d);
     }
     
@@ -36,12 +36,12 @@ public class Vector {
       y += v.y;
     }
     
-    public def dot(Vector v) : var {
+    public def dot(Vector v) : decimal {
       return x * v.x + y * v.y;
     }
     
     public def normalize() : Vector {
-      var magnitude = Math.sqrt(dot(self));
+      decimal magnitude = Math.sqrt(dot(self));
       if (magnitude == 0.0) return new Vector(0, 0);
       return scale(1.0 / magnitude);
     }

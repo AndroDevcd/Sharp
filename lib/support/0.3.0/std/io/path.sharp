@@ -31,7 +31,7 @@ import ( platform )
 class path {
 
     /** the character this operating system puts between the parts of a path: '/' or '\' (as a character code) */
-    static def separator() : var {
+    static def separator() : decimal {
         if(build.is_windows()) {
             return 92; // back slash
         }
@@ -39,7 +39,7 @@ class path {
     }
 
     /** true for the two characters that separate the parts of a path: '/' and '\' */
-    static def is_separator(ch: var) : var {
+    static def is_separator(ch: decimal) : decimal {
         return ch == '/' || ch == 92;
     }
 
@@ -49,7 +49,7 @@ class path {
      * for a relative path.
      */
     static def root(p: string) : string {
-        n : var = sizeof(p.data);
+        n : decimal = sizeof(p.data);
         buf := new char_buffer(4);
         if(n >= 2 && p.data[1] == ':' && io_strings.is_letter(p.data[0])) {
             buf.append_char(p.data[0]);
@@ -64,8 +64,8 @@ class path {
     }
 
     /** the number of characters at the start of `p` that belong to its root (0 for a relative path) */
-    private static def root_length(p: string) : var {
-        n : var = sizeof(p.data);
+    private static def root_length(p: string) : decimal {
+        n : decimal = sizeof(p.data);
         if(n >= 2 && p.data[1] == ':' && io_strings.is_letter(p.data[0])) {
             if(n >= 3 && is_separator(p.data[2])) {
                 return 3;
@@ -80,7 +80,7 @@ class path {
 
     /** true when the path starts at a root: with a separator or a drive ("/a", "\a", "C:\a") */
     static def is_absolute(p: string) : bool {
-        n : var = sizeof(p.data);
+        n : decimal = sizeof(p.data);
         if(n >= 1 && is_separator(p.data[0])) {
             return true;
         }
@@ -95,9 +95,9 @@ class path {
      */
     static def split(p: string) : list<string> {
         parts := new list<string>();
-        n : var = sizeof(p.data);
-        start : var = root_length(p);
-        for(i : var = start; i <= n; i++) {
+        n : decimal = sizeof(p.data);
+        start : decimal = root_length(p);
+        for(i : decimal = start; i <= n; i++) {
             if(i == n || is_separator(p.data[i])) {
                 if(i > start) {
                     parts.add(io_strings.slice(p, start, i));
@@ -112,8 +112,8 @@ class path {
     private static def build(root_text: string, parts: list<string>) : string {
         buf := new char_buffer(64);
         buf.append(root_text);
-        count : var = parts.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = parts.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0) {
                 buf.append_char(separator());
             }
@@ -139,8 +139,8 @@ class path {
 
         parts := split(first);
         more := split(second);
-        count : var = more.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = more.size().value;
+        for(i : decimal = 0; i < count; i++) {
             parts.add(more.at(i));
         }
         return build(root(first), parts);
@@ -158,8 +158,8 @@ class path {
      */
     static def join_all(parts: list<string>) : string {
         result : string = "";
-        count : var = parts.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = parts.size().value;
+        for(i : decimal = 0; i < count; i++) {
             result = join(result, parts.at(i));
         }
         return result;
@@ -190,12 +190,12 @@ class path {
      */
     static def normalize(p: string) : string {
         root_text := root(p);
-        rooted : var = sizeof(root_text.data) > 0;
+        rooted : decimal = sizeof(root_text.data) > 0;
         parts := split(p);
         kept := new list<string>();
-        count : var = parts.size().value;
+        count : decimal = parts.size().value;
 
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             part := parts.at(i);
             if(part == ".") {
                 continue;
@@ -237,12 +237,12 @@ class path {
      */
     static def file_name(p: string) : string {
         // only the end of the path matters: find the last part without splitting everything
-        end : var = sizeof(p.data);
-        low : var = root_length(p);
+        end : decimal = sizeof(p.data);
+        low : decimal = root_length(p);
         while(end > low && is_separator(p.data[end - 1])) {
             end--;
         }
-        start : var = end;
+        start : decimal = end;
         while(start > low && !is_separator(p.data[start - 1])) {
             start--;
         }
@@ -257,7 +257,7 @@ class path {
      */
     static def extension(p: string) : string {
         name := file_name(p);
-        dot : var = io_strings.last_index_of(name, '.');
+        dot : decimal = io_strings.last_index_of(name, '.');
         if(dot <= 0) {
             return "";
         }
@@ -270,7 +270,7 @@ class path {
      */
     static def stem(p: string) : string {
         name := file_name(p);
-        dot : var = io_strings.last_index_of(name, '.');
+        dot : decimal = io_strings.last_index_of(name, '.');
         if(dot <= 0) {
             return name;
         }
@@ -320,8 +320,8 @@ class path {
         if(theirs.size() > mine.size()) {
             return false;
         }
-        count : var = theirs.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = theirs.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(mine.at(i) != theirs.at(i)) {
                 return false;
             }
@@ -356,22 +356,22 @@ class path {
         }
 
         // how many parts at the beginning are the same?
-        common : var = 0;
+        common : decimal = 0;
         while(common < mine.size().value && common < theirs.size().value
             && mine.at(common) == theirs.at(common)) {
             common++;
         }
 
         result := new list<string>();
-        their_count : var = theirs.size().value;
-        for(i : var = common; i < their_count; i++) {
+        their_count : decimal = theirs.size().value;
+        for(i : decimal = common; i < their_count; i++) {
             if(theirs.at(i) == "..") {
                 throw new illegal_argument_exception("relative_to: cannot find the way back from \"" + start + "\"");
             }
             result.add("..");
         }
-        my_count : var = mine.size().value;
-        for(i : var = common; i < my_count; i++) {
+        my_count : decimal = mine.size().value;
+        for(i : decimal = common; i < my_count; i++) {
             result.add(mine.at(i));
         }
 

@@ -6,11 +6,11 @@ mod app;
     platform.kernel
 )*/
 
-chan := new channel<var>(UNLIMITED);
+chan := new channel<decimal>(UNLIMITED);
 const loop_count := 10000;
 const slices := 10;
 const n := 0;
-counter := new atomic<var>{ 0 };
+counter := new atomic<decimal>{ 0 };
 
 def main(args: string[]) {
 

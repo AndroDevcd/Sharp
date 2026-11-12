@@ -30,41 +30,41 @@ class date_time_fields {
     /** what was parsed, for error messages */
     private original : string;
 
-    has_year : var = 0;
-    year : var = 0;
-    has_month : var = 0;
-    month_value : var = 0;
-    has_day : var = 0;
-    day : var = 0;
-    has_day_of_year : var = 0;
-    day_of_year : var = 0;
+    has_year : decimal = 0;
+    year : decimal = 0;
+    has_month : decimal = 0;
+    month_value : decimal = 0;
+    has_day : decimal = 0;
+    day : decimal = 0;
+    has_day_of_year : decimal = 0;
+    day_of_year : decimal = 0;
     /** ISO day of week 1 (Monday) .. 7 (Sunday), from E or e */
-    has_day_of_week : var = 0;
-    day_of_week_value : var = 0;
-    has_iso_week : var = 0;
-    iso_week : var = 0;
-    has_iso_week_year : var = 0;
-    iso_week_year : var = 0;
-    has_quarter : var = 0;
-    quarter : var = 0;
+    has_day_of_week : decimal = 0;
+    day_of_week_value : decimal = 0;
+    has_iso_week : decimal = 0;
+    iso_week : decimal = 0;
+    has_iso_week_year : decimal = 0;
+    iso_week_year : decimal = 0;
+    has_quarter : decimal = 0;
+    quarter : decimal = 0;
 
     /** hour 0 .. 23, from H */
-    has_hour : var = 0;
-    hour : var = 0;
+    has_hour : decimal = 0;
+    hour : decimal = 0;
     /** hour 1 .. 12, from h */
-    has_hour_12 : var = 0;
-    hour_12 : var = 0;
+    has_hour_12 : decimal = 0;
+    hour_12 : decimal = 0;
     /** from a: 0 = AM, 1 = PM */
-    has_am_pm : var = 0;
-    pm : var = 0;
-    has_minute : var = 0;
-    minute : var = 0;
-    has_second : var = 0;
-    second : var = 0;
-    has_nano : var = 0;
-    nano : var = 0;
+    has_am_pm : decimal = 0;
+    pm : decimal = 0;
+    has_minute : decimal = 0;
+    minute : decimal = 0;
+    has_second : decimal = 0;
+    second : decimal = 0;
+    has_nano : decimal = 0;
+    nano : decimal = 0;
 
-    has_offset : var = 0;
+    has_offset : decimal = 0;
     offset : zone_offset;
 
     /** an empty field set for a parse of `text` */
@@ -78,12 +78,12 @@ class date_time_fields {
     }
 
     /** 1 when the fields are enough to build a date */
-    def has_date(): var {
+    def has_date(): decimal {
         return has_year && ((has_month && has_day) || has_day_of_year);
     }
 
     /** 1 when the fields are enough to build a time of day */
-    def has_time(): var {
+    def has_time(): decimal {
         return has_hour || (has_hour_12 && has_am_pm);
     }
 
@@ -136,7 +136,7 @@ class date_time_fields {
      *         without AM/PM, H and h/a that disagree, or a field out of range
      */
     def to_time(): time_of_day {
-        hour_of_day : var = 0;
+        hour_of_day : decimal = 0;
         if(has_hour_12) {
             if(!has_am_pm) {
                 throw failure("an hour on the 12-hour clock (h) needs AM or PM (a)");

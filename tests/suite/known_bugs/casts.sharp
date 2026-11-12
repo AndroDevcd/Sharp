@@ -26,21 +26,21 @@ class animal {
 
 class dog base animal {
     dog(n: string) -> base(n) {}
-    def fetch() : var { return 1; }
+    def fetch() : decimal { return 1; }
 }
 
 class cat base animal {
     cat(n: string) -> base(n) {}
-    def purr() : var { return 2; }
+    def purr() : decimal { return 2; }
 }
 
 class unrelated {
-    v : var;
+    v : decimal;
 }
 
-def through_int8(x: _int8) : var { return x; }
-def through_uint8(x: _uint8) : var { return x; }
-def through_int16(x: _int16) : var { return x; }
+def through_int8(x: _int8) : decimal { return x; }
+def through_uint8(x: _uint8) : decimal { return x; }
+def through_int16(x: _int16) : decimal { return x; }
 
 def main(args: string[]) {
     a_dog : animal = new dog("rex");

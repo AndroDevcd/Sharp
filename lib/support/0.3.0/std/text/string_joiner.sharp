@@ -26,11 +26,11 @@ class string_joiner {
     private body : text_buffer = new text_buffer();
 
     /* how many pieces were added */
-    private pieces : var = 0;
+    private pieces : decimal = 0;
 
     /* what build() returns when nothing was added; only used if has_empty_value is set */
     private empty_value : string = "";
-    private has_empty_value : var = 0;
+    private has_empty_value : decimal = 0;
 
     /** A joiner that puts `separator` between the pieces, with no prefix or suffix. */
     string_joiner(separator: string) {
@@ -53,14 +53,14 @@ class string_joiner {
     }
 
     /** Adds a whole number as a piece, without decimals: add_int(3) adds "3". */
-    def add_int(number: var): string_joiner {
+    def add_int(number: decimal): string_joiner {
         return add(number_format.integer(number));
     }
 
     /** Adds every string of the array as a piece of its own (null elements are skipped). */
     def add_all(items: string[]): string_joiner {
-        count : var = sizeof(items);
-        for(i : var = 0; i < count; i++) {
+        count : decimal = sizeof(items);
+        for(i : decimal = 0; i < count; i++) {
             item := items[i];
             if((item as object) != null) add(item);
         }
@@ -88,12 +88,12 @@ class string_joiner {
     }
 
     /** How many pieces were added. */
-    def count(): var {
+    def count(): decimal {
         return pieces;
     }
 
     /** 1 if nothing was added yet. */
-    def is_empty(): var {
+    def is_empty(): decimal {
         return pieces == 0;
     }
 
@@ -101,7 +101,7 @@ class string_joiner {
      * The number of characters build() would return (prefix, pieces,
      * separators and suffix; or the empty value if nothing was added).
      */
-    def length(): var {
+    def length(): decimal {
         if(pieces == 0 && has_empty_value) return sizeof(empty_value.data);
         return sizeof(prefix.data) + body.length() + sizeof(suffix.data);
     }

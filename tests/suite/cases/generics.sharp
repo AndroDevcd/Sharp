@@ -4,7 +4,7 @@ import ( testing )
 
 /**
  * Generics: a class written once with a type left open (`box<T>`) and used
- * with the type filled in (`box<var>`, `box<string>`, `box<point>`). The
+ * with the type filled in (`box<decimal>`, `box<string>`, `box<point>`). The
  * open type can be used for fields, parameters, return values, arrays and
  * for other generic classes.
  *
@@ -13,15 +13,15 @@ import ( testing )
  */
 
 class point {
-    x : var = 0;
-    y : var = 0;
+    x : decimal = 0;
+    y : decimal = 0;
 
-    point(px: var, py: var) {
+    point(px: decimal, py: decimal) {
         x = px;
         y = py;
     }
 
-    def sum(): var {
+    def sum(): decimal {
         return x + y;
     }
 }
@@ -29,7 +29,7 @@ class point {
 class named_point base point {
     name : string = "";
 
-    named_point(name: string, px: var, py: var) -> base(px, py) {
+    named_point(name: string, px: decimal, py: decimal) -> base(px, py) {
         self->name = name;
     }
 }
@@ -37,7 +37,7 @@ class named_point base point {
 /* one type parameter */
 class box<T> {
     item : T;
-    puts : var = 0;
+    puts : decimal = 0;
 
     box(first: T) {
         item = first;
@@ -109,9 +109,9 @@ class triple_of<A, B, C> {
 /* an array of the open type */
 class stack_of<T> {
     items : T[];
-    count : var = 0;
+    count : decimal = 0;
 
-    stack_of(capacity: var) {
+    stack_of(capacity: decimal) {
         items = new T[capacity];
     }
 
@@ -129,11 +129,11 @@ class stack_of<T> {
         return items[count - 1];
     }
 
-    def at(index: var): T {
+    def at(index: decimal): T {
         return items[index];
     }
 
-    def is_empty(): var {
+    def is_empty(): decimal {
         return count == 0;
     }
 }
@@ -170,7 +170,7 @@ class point_holder<T base point> {
         held = p;
     }
 
-    def held_sum(): var {
+    def held_sum(): decimal {
         return held.x + held.y;
     }
 
@@ -179,17 +179,17 @@ class point_holder<T base point> {
     }
 }
 
-def unbox(b: box<var>): var {
+def unbox(b: box<decimal>): decimal {
     return b.take();
 }
 
-def boxed_point(x: var, y: var): box<point> {
+def boxed_point(x: decimal, y: decimal): box<point> {
     return new box<point>(new point(x, y));
 }
 
 def main(args: string[]) {
     // ---- a native number as the type
-    numbers := new box<var>(7);
+    numbers := new box<decimal>(7);
     expect("box<var>: the first item", numbers.take(), 7);
     numbers.put(8.5);
     expect("box<var>: after put", numbers.take(), 8.5);
@@ -242,8 +242,8 @@ def main(args: string[]) {
     expect("box<int>: the number inside the int object", wrapped.take().value, 41);
 
     // ---- each use of the class is separate
-    box_one := new box<var>(1);
-    box_two := new box<var>(2);
+    box_one := new box<decimal>(1);
+    box_two := new box<decimal>(2);
     box_one.put(11);
     expect("two boxes of the same type: first", box_one.take(), 11);
     expect("two boxes of the same type: second", box_two.take(), 2);
@@ -253,7 +253,7 @@ def main(args: string[]) {
     expect("a generic object as a function result", boxed_point(5, 6).take().sum(), 11);
 
     // ---- two type parameters
-    p := new pair_of<var, string>(1, "one");
+    p := new pair_of<decimal, string>(1, "one");
     expect("pair_of<var, string>: first", p.first, 1);
     expect_str("pair_of<var, string>: second", p.second, "one");
     expect("pair_of: method returning the first type", p.get_first(), 1);
@@ -268,7 +268,7 @@ def main(args: string[]) {
     q := new pair_of<point, point>(new point(1, 2), new point(3, 4));
     expect("pair_of<point, point>: first", q.first.sum(), 3);
     expect("pair_of<point, point>: second", q.second.sum(), 7);
-    same_types := new pair_of<var, var>(8, 9);
+    same_types := new pair_of<decimal, decimal>(8, 9);
     expect("pair_of<var, var>: first", same_types.first, 8);
     expect("pair_of<var, var>: second", same_types.flipped().first, 9);
     mixed := new pair_of<string, point>("origin", new point(0, 0));
@@ -276,13 +276,13 @@ def main(args: string[]) {
     expect("pair_of<string, point>: second", mixed.second.sum(), 0);
 
     // ---- three type parameters
-    t := new triple_of<var, string, point>(1, "two", new point(3, 3));
+    t := new triple_of<decimal, string, point>(1, "two", new point(3, 3));
     expect("triple_of: first", t.one, 1);
     expect_str("triple_of: second", t.two, "two");
     expect("triple_of: third", t.three.sum(), 6);
 
     // ---- an array of the open type
-    stack := new stack_of<var>(10);
+    stack := new stack_of<decimal>(10);
     expect("stack_of<var>: empty at first", stack.is_empty(), 1);
     stack.push(3);
     stack.push(6);
@@ -294,7 +294,7 @@ def main(args: string[]) {
     expect("stack_of<var>: pop again", stack.pop(), 6);
     expect("stack_of<var>: one left", stack.count, 1);
     expect("stack_of<var>: not empty", stack.is_empty(), 0);
-    for(i : var = 0; i < 9; i++) {
+    for(i : decimal = 0; i < 9; i++) {
         stack.push(i * i);
     }
     expect("stack_of<var>: filled in a loop", stack.count, 10);
@@ -312,21 +312,21 @@ def main(args: string[]) {
     expect_str("stack_of<string>: peek", string_stack.peek(), "bottom");
 
     // ---- a generic class as the type of another
-    nested := new box<box<var> >(new box<var>(3));
+    nested := new box<box<decimal> >(new box<decimal>(3));
     expect("box<box<var> >: the inner item", nested.take().take(), 3);
     nested.take().put(4);
     expect("box<box<var> >: changed through the outer box", nested.take().take(), 4);
-    pair_box := new box<pair_of<var, string> >(new pair_of<var, string>(5, "five"));
+    pair_box := new box<pair_of<decimal, string> >(new pair_of<decimal, string>(5, "five"));
     expect("box<pair_of<var, string> >: first", pair_box.take().first, 5);
     expect_str("box<pair_of<var, string> >: second", pair_box.take().second, "five");
-    stack_of_boxes := new stack_of<box<var> >(3);
+    stack_of_boxes := new stack_of<box<decimal> >(3);
     stack_of_boxes.push(box_one);
     stack_of_boxes.push(box_two);
     expect("stack_of<box<var> >: count", stack_of_boxes.count, 2);
     expect("stack_of<box<var> >: the same object comes back", stack_of_boxes.at(0) == box_one, 1);
 
     // ---- a generic class built from other generic classes
-    h := new history_of<var>(1);
+    h := new history_of<decimal>(1);
     h.change(2);
     h.change(3);
     expect("history_of<var>: now", h.now(), 3);

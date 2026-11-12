@@ -11,9 +11,9 @@ import ( testing )
  * loopable again and repeats get_elements().
  */
 
-class numbers_base : loopable<var> {
-    override def get_elements() : var[]? {
-        numbers := new var[2];
+class numbers_base : loopable<decimal> {
+    override def get_elements() : decimal[]? {
+        numbers := new decimal[2];
         numbers[0] = 4; numbers[1] = 5;
         return numbers;
     }
@@ -23,7 +23,7 @@ class numbers_derived base numbers_base {
 }
 
 def main(args: string[]) {
-    total : var = 0;
+    total : decimal = 0;
     source := new numbers_derived();
     foreach(n in source) {
         total += n;

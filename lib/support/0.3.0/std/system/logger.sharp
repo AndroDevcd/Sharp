@@ -44,30 +44,30 @@ import ( std.io, std.math )
  */
 class logger {
     /* the levels */
-    static const level_trace : var = 0;
-    static const level_debug : var = 1;
-    static const level_info : var = 2;
-    static const level_warn : var = 3;
-    static const level_error : var = 4;
+    static const level_trace : decimal = 0;
+    static const level_debug : decimal = 1;
+    static const level_info : decimal = 2;
+    static const level_warn : decimal = 3;
+    static const level_error : decimal = 4;
     /** a level for set_level() that lets nothing through */
-    static const level_off : var = 5;
+    static const level_off : decimal = 5;
 
     private logger_name : string;
-    private level : var = 2;
+    private level : decimal = 2;
     private targets := new list<text_writer>();
     private pattern : string = "{time} {level} [{name}] {message}";
-    private custom_pattern : var = 0;
-    private timestamps : var = 1;
-    private auto_flush : var = 1;
-    private closed : var = 0;
+    private custom_pattern : decimal = 0;
+    private timestamps : decimal = 1;
+    private auto_flush : decimal = 1;
+    private closed : decimal = 0;
 
-    private has_clock : var = 0;
-    private clock : ()(var);
+    private has_clock : decimal = 0;
+    private clock : ()(decimal);
 
     /** how many messages were written (passed the level) */
-    private written : var = 0;
+    private written : decimal = 0;
     /** how many messages were dropped because of the level */
-    private dropped : var = 0;
+    private dropped : decimal = 0;
 
     /** a logger called `name` at level info, without targets */
     logger(name: string) {
@@ -88,7 +88,7 @@ class logger {
      * or logger.level_off for none). Returns this logger.
      * Throws illegal_argument_exception for a number that is not a level.
      */
-    def set_level(new_level: var) : logger {
+    def set_level(new_level: decimal) : logger {
         if(new_level < 0 || new_level > 5 || (new_level as _int32) != new_level) {
             throw new illegal_argument_exception("logger: not a level: " + io_strings.number_to_string(new_level));
         }
@@ -97,17 +97,17 @@ class logger {
     }
 
     /** the lowest level that is written */
-    def get_level() : var {
+    def get_level() : decimal {
         return level;
     }
 
     /** true when a message of `message_level` would be written - to skip building an expensive message that would be dropped */
-    def is_enabled(message_level: var) : bool {
+    def is_enabled(message_level: decimal) : bool {
         return message_level >= level && level < 5;
     }
 
     /** the name of a level as it appears in messages: "TRACE", "DEBUG", "INFO", "WARN", "ERROR" ("OFF" for logger.level_off, "?" otherwise) */
-    static def level_name(which: var) : string {
+    static def level_name(which: decimal) : string {
         if(which == 0) return "TRACE";
         if(which == 1) return "DEBUG";
         if(which == 2) return "INFO";
@@ -123,7 +123,7 @@ class logger {
      * Throws illegal_argument_exception for any other word - for reading
      * the level from a configuration file or the command line.
      */
-    static def level_of(word: string) : var {
+    static def level_of(word: string) : decimal {
         lower := io_strings.to_lower(io_strings.trim(word));
         if(lower == "trace") return 0;
         if(lower == "debug") return 1;
@@ -158,7 +158,7 @@ class logger {
     }
 
     /** how many targets the logger writes to */
-    def target_count() : var {
+    def target_count() : decimal {
         return targets.size().value;
     }
 
@@ -192,7 +192,7 @@ class logger {
      * function without parameters that returns milliseconds since
      * 1970-01-01 00:00 UTC. Returns this logger.
      */
-    def set_clock(source: ()(var)) : logger {
+    def set_clock(source: ()(decimal)) : logger {
         clock = source;
         has_clock = 1;
         return self;
@@ -251,7 +251,7 @@ class logger {
      * illegal_argument_exception for a number that is not a level, and
      * io_exception when a file target cannot be written.
      */
-    def log(message_level: var, message: string) {
+    def log(message_level: decimal, message: string) {
         if(closed) {
             throw new illegal_state_exception("logger: the logger \"" + logger_name + "\" is closed");
         }
@@ -265,8 +265,8 @@ class logger {
 
         line := format_line(message_level, message);
         written++;
-        count : var = targets.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = targets.size().value;
+        for(i : decimal = 0; i < count; i++) {
             target := targets.at(i);
             target.write_line(line);
             if(auto_flush) {
@@ -276,15 +276,15 @@ class logger {
     }
 
     /** the line for one message, without a line end: the pattern with its placeholders filled in */
-    def format_line(message_level: var, message: string) : string {
+    def format_line(message_level: decimal, message: string) : string {
         used : string = pattern;
         if(!custom_pattern && !timestamps) {
             used = "{level} [{name}] {message}";
         }
 
         buf := new char_buffer(sizeof(used.data) + sizeof(message.data) + 32);
-        n : var = sizeof(used.data);
-        i : var = 0;
+        n : decimal = sizeof(used.data);
+        i : decimal = 0;
         while(i < n) {
             if(used.data[i] == '{') {
                 if(matches(used, i, "{time}")) {
@@ -317,12 +317,12 @@ class logger {
     }
 
     /** true when `text` has `word` at index `at` */
-    private static def matches(text: string, at: var, word: string) : var {
-        m : var = sizeof(word.data);
+    private static def matches(text: string, at: decimal, word: string) : decimal {
+        m : decimal = sizeof(word.data);
         if(at + m > sizeof(text.data)) {
             return 0;
         }
-        for(k : var = 0; k < m; k++) {
+        for(k : decimal = 0; k < m; k++) {
             if(text.data[at + k] != word.data[k]) {
                 return 0;
             }
@@ -331,7 +331,7 @@ class logger {
     }
 
     /** the current time in milliseconds since 1970, from the injected clock or the machine */
-    private def now() : var {
+    private def now() : decimal {
         if(has_clock) {
             return clock();
         }
@@ -343,42 +343,42 @@ class logger {
      * (UTC, the proleptic Gregorian calendar). Negative values (before
      * 1970) are treated as 0.
      */
-    static def format_time(mills: var) : string {
+    static def format_time(mills: decimal) : string {
         if(mills < 0 || mills != mills) {
             mills = 0;
         }
         mills = floor(mills).value;
-        ms : var = mills % 1000;
-        seconds : var = (mills - ms) / 1000;
-        second : var = seconds % 60;
-        minutes : var = (seconds - second) / 60;
-        minute : var = minutes % 60;
-        hours : var = (minutes - minute) / 60;
-        hour : var = hours % 24;
-        days : var = (hours - hour) / 24;
+        ms : decimal = mills % 1000;
+        seconds : decimal = (mills - ms) / 1000;
+        second : decimal = seconds % 60;
+        minutes : decimal = (seconds - second) / 60;
+        minute : decimal = minutes % 60;
+        hours : decimal = (minutes - minute) / 60;
+        hour : decimal = hours % 24;
+        days : decimal = (hours - hour) / 24;
 
         /*
         * Days since 1970-01-01 to year / month / day (the "civil from
         * days" method): shift the start to 0000-03-01 so that the leap day
         * is the last day of a year, then work in 400 year eras.
         */
-        z : var = days + 719468;
-        era : var = (z - z % 146097) / 146097;
-        day_of_era : var = z - era * 146097;
-        t1 : var = (day_of_era - day_of_era % 1460) / 1460;
-        t2 : var = (day_of_era - day_of_era % 36524) / 36524;
-        t3 : var = (day_of_era - day_of_era % 146096) / 146096;
-        y0 : var = day_of_era - t1 + t2 - t3;
-        year_of_era : var = (y0 - y0 % 365) / 365;
-        year : var = year_of_era + era * 400;
-        c1 : var = (year_of_era - year_of_era % 4) / 4;
-        c2 : var = (year_of_era - year_of_era % 100) / 100;
-        day_of_year : var = day_of_era - (365 * year_of_era + c1 - c2);
-        m0 : var = 5 * day_of_year + 2;
-        month_index : var = (m0 - m0 % 153) / 153;
-        d0 : var = 153 * month_index + 2;
-        day : var = day_of_year - (d0 - d0 % 5) / 5 + 1;
-        month : var = month_index + 3;
+        z : decimal = days + 719468;
+        era : decimal = (z - z % 146097) / 146097;
+        day_of_era : decimal = z - era * 146097;
+        t1 : decimal = (day_of_era - day_of_era % 1460) / 1460;
+        t2 : decimal = (day_of_era - day_of_era % 36524) / 36524;
+        t3 : decimal = (day_of_era - day_of_era % 146096) / 146096;
+        y0 : decimal = day_of_era - t1 + t2 - t3;
+        year_of_era : decimal = (y0 - y0 % 365) / 365;
+        year : decimal = year_of_era + era * 400;
+        c1 : decimal = (year_of_era - year_of_era % 4) / 4;
+        c2 : decimal = (year_of_era - year_of_era % 100) / 100;
+        day_of_year : decimal = day_of_era - (365 * year_of_era + c1 - c2);
+        m0 : decimal = 5 * day_of_year + 2;
+        month_index : decimal = (m0 - m0 % 153) / 153;
+        d0 : decimal = 153 * month_index + 2;
+        day : decimal = day_of_year - (d0 - d0 % 5) / 5 + 1;
+        month : decimal = month_index + 3;
         if(month > 12) {
             month -= 12;
         }
@@ -398,12 +398,12 @@ class logger {
     }
 
     /** how many messages were written so far (they passed the level) */
-    def get_written() : var {
+    def get_written() : decimal {
         return written;
     }
 
     /** how many messages were dropped so far because their level was below the level of the logger */
-    def get_dropped() : var {
+    def get_dropped() : decimal {
         return dropped;
     }
 
@@ -412,8 +412,8 @@ class logger {
      * Throws io_exception when a file cannot be written.
      */
     def flush() {
-        count : var = targets.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = targets.size().value;
+        for(i : decimal = 0; i < count; i++) {
             targets.at(i).flush();
         }
     }
@@ -428,8 +428,8 @@ class logger {
             return;
         }
         closed = 1;
-        count : var = targets.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = targets.size().value;
+        for(i : decimal = 0; i < count; i++) {
             targets.at(i).close();
         }
     }

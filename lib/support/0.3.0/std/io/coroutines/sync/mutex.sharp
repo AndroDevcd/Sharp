@@ -49,7 +49,7 @@ import (
 class mutex {
 
     private lk : object = lock_stripes.next();
-    private held : var = 0;
+    private held : decimal = 0;
     private owner : fiber?;
     private waiters : wait_queue = new wait_queue();
 
@@ -99,7 +99,7 @@ class mutex {
      */
     def try_acquire() : bool {
         me := fiber.current();
-        got : var = 0;
+        got : decimal = 0;
         lock(lk) {
             if(held == 0) {
                 held = 1;
@@ -119,7 +119,7 @@ class mutex {
      */
     def release() {
         next_owner : waiter? = null;
-        was_free : var = 0;
+        was_free : decimal = 0;
 
         lock(lk) {
             if(held == 0) {
@@ -184,7 +184,7 @@ class mutex {
     /** true when the calling fiber is the one that holds the mutex. Kotlin: Mutex.holdsLock(owner) */
     def holds_lock() : bool {
         me := fiber.current();
-        mine : var = 0;
+        mine : decimal = 0;
         lock(lk) {
             if(held != 0 && owner != null) {
                 if((owner as object) == (me as object)) {
@@ -196,8 +196,8 @@ class mutex {
     }
 
     /** number of coroutines waiting for the mutex right now */
-    def waiting_count() : var {
-        count : var = 0;
+    def waiting_count() : decimal {
+        count : decimal = 0;
         lock(lk) {
             count = waiters.size();
         }

@@ -30,10 +30,10 @@ protected class win_fs base file_system {
     * no limit on the length of the path.
     */
     override def normalize(pathname: string) : string {
-        n : var = sizeof(pathname.data);
+        n : decimal = sizeof(pathname.data);
         buf := new char_buffer(n + 1);
-        last_was_slash : var = 0;
-        i : var = 0;
+        last_was_slash : decimal = 0;
+        i : decimal = 0;
 
         // keep the two separators that start a server share
         if(n >= 2 && (pathname.data[0] == '/' || pathname.data[0] == '\\')
@@ -45,7 +45,7 @@ protected class win_fs base file_system {
         }
 
         for(; i < n; i++) {
-            ch : var = pathname.data[i];
+            ch : decimal = pathname.data[i];
             if(ch == '/' || ch == '\\') {
                 if(!last_was_slash) {
                     buf.append_char('\\');
@@ -58,10 +58,10 @@ protected class win_fs base file_system {
         }
 
         // remove the trailing separator, but keep "\" and "C:\" (roots)
-        len : var = buf.length();
+        len : decimal = buf.length();
         if(last_was_slash && len > 1) {
-            is_drive_root : var = (len == 3 && buf.char_at(1) == ':');
-            is_share_start : var = (len == 2);
+            is_drive_root : decimal = (len == 3 && buf.char_at(1) == ':');
+            is_share_start : decimal = (len == 2);
             if(!is_drive_root && !is_share_start) {
                 buf.truncate(len - 1);
             }
@@ -76,7 +76,7 @@ protected class win_fs base file_system {
       */
      override def get_attributes(f: file) : int {
         path := f.path.data;
-        attrs : var = 0;
+        attrs : _int64 = 0;
 
         /*
         * This will perform the os call to request the
@@ -102,8 +102,8 @@ protected class win_fs base file_system {
       */
      override def check_access(f: file, access: int) : int {
         path := f.path.data;
-        _access := access.value;
-        result : var = 0;
+        _access : _int64 = access.value;
+        result : _int64 = 0;
 
         // unsupported on windows
         if(access == file_system.access_execute)

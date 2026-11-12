@@ -8,22 +8,22 @@ import ( testing, std.collections )
  * read-only immutable_list.
  */
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
-def descending(a: int, b: int) : var { return b.value - a.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
 def is_even(n: int) : bool { return n.value % 2 == 0; }
 def is_big(n: int) : bool { return n.value > 100; }
 
 /** a list<int> from an array literal of numbers */
 def list_of(items: int[]) : list<int> {
     result := new list<int>();
-    for(i : var = 0; i < sizeof(items); i++) result.add(items[i]);
+    for(i : decimal = 0; i < sizeof(items); i++) result.add(items[i]);
     return result;
 }
 
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : var = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -33,7 +33,7 @@ def join(items: list<int>) : string {
 /** "1,2,3" for an array of ints */
 def join_array(items: int[]) : string {
     text := "";
-    for(i : var = 0; i < sizeof(items); i++) {
+    for(i : decimal = 0; i < sizeof(items); i++) {
         if(i > 0) text = text + ",";
         text = text + items[i];
     }
@@ -41,12 +41,12 @@ def join_array(items: int[]) : string {
 }
 
 class card {
-    rank : var;
+    rank : decimal;
     label : string;
-    card(rank: var, label: string) { self->rank = rank; self->label = label; }
+    card(rank: decimal, label: string) { self->rank = rank; self->label = label; }
 }
 
-def by_rank(a: card, b: card) : var { return a.rank - b.rank; }
+def by_rank(a: card, b: card) : decimal { return a.rank - b.rank; }
 
 def test_search() {
     empty := new list<int>();
@@ -113,7 +113,7 @@ def test_ordering() {
     cards.add(new card(2, "a")); cards.add(new card(1, "b")); cards.add(new card(2, "c")); cards.add(new card(1, "d"));
     lists<card>.sort(cards, by_rank);
     order := "";
-    for(i : var = 0; i < 4; i++) order = order + cards.at(i).label;
+    for(i : decimal = 0; i < 4; i++) order = order + cards.at(i).label;
     expect_str("sort is stable", order, "bdac");
 
     sorted := list_of(new int[] { 10, 20, 30, 40 });
@@ -137,17 +137,17 @@ def test_ordering() {
 
     // scale: 5000 pseudo random numbers
     big := new list<int>();
-    seed : var = 8086;
-    sum_before : var = 0;
-    for(i : var = 0; i < 5000; i++) {
+    seed : decimal = 8086;
+    sum_before : decimal = 0;
+    for(i : decimal = 0; i < 5000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         big.add(new int(seed));
         sum_before += seed;
     }
     lists<int>.sort(big, ascending);
-    in_order : var = 1;
-    sum_after : var = big.at(0).value;
-    for(i : var = 1; i < 5000; i++) {
+    in_order : decimal = 1;
+    sum_after : decimal = big.at(0).value;
+    for(i : decimal = 1; i < 5000; i++) {
         if(big.at(i - 1).value > big.at(i).value) in_order = 0;
         sum_after += big.at(i).value;
     }
@@ -237,7 +237,7 @@ def test_ranges() {
     expect_str("fill", join(h), "7,7,7");
 
     it := lists<int>.iterator(l);
-    digits : var = 0;
+    digits : decimal = 0;
     while(it.has_next()) digits = digits * 10 + it.next().value;
     expect("iterator", digits, 12345);
     expect("iterator of empty", lists<int>.iterator(empty).has_next(), 0);
@@ -297,7 +297,7 @@ def test_immutable_list() {
     expect_str("reversed", join(frozen.reversed().to_list()), "5,1,4,1,3");
     expect_str("reversed leaves the original", join(frozen.to_list()), "3,1,4,1,5");
 
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in frozen) { digits = digits * 10 + x.value; }
     expect("foreach", digits, 31415);
     it := frozen.iterator();

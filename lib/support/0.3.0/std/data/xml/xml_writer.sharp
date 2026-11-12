@@ -46,7 +46,7 @@ import ( std.io )
  */
 class xml_writer {
     private buf : char_buffer;
-    private indent : var = 0;
+    private indent : decimal = 0;
 
     /** the names of the open elements, the innermost last */
     private open_names := new list<string>();
@@ -56,11 +56,11 @@ class xml_writer {
     private attribute_names := new list<string>();
 
     /** the start tag of the innermost element is still open: "<name" was written but not ">" */
-    private in_start_tag : var = 0;
+    private in_start_tag : decimal = 0;
     /** a root element was started (and maybe finished) */
-    private has_root : var = 0;
+    private has_root : decimal = 0;
     /** something was written before the root that wants a line break after it */
-    private wrote_prolog : var = 0;
+    private wrote_prolog : decimal = 0;
 
     /** a writer with nothing written; no indentation */
     xml_writer() {
@@ -73,7 +73,7 @@ class xml_writer {
      * writing anything. Returns this writer.
      * Throws illegal_argument_exception when spaces is negative.
      */
-    def set_indent(spaces: var) : xml_writer {
+    def set_indent(spaces: decimal) : xml_writer {
         if(spaces < 0) {
             throw new illegal_argument_exception("xml: the indent cannot be negative");
         }
@@ -87,11 +87,11 @@ class xml_writer {
 
     /** throw unless `name` is usable as an element or attribute name */
     private static def check_name(name: string) {
-        n : var = sizeof(name.data);
-        ok : var = n > 0;
-        for(i : var = 0; ok && i < n; i++) {
-            ch : var = name.data[i] & 0xff;
-            start_char : var = io_strings.is_letter(ch) || ch == '_' || ch == ':' || ch >= 128;
+        n : decimal = sizeof(name.data);
+        ok : decimal = n > 0;
+        for(i : decimal = 0; ok && i < n; i++) {
+            ch : decimal = name.data[i] & 0xff;
+            start_char : decimal = io_strings.is_letter(ch) || ch == '_' || ch == ':' || ch >= 128;
             if(!start_char) {
                 if(i == 0 || !(io_strings.is_digit(ch) || ch == '-' || ch == '.')) {
                     ok = 0;
@@ -104,10 +104,10 @@ class xml_writer {
     }
 
     /** append `text` with the characters escaped that have a meaning in XML; `in_attribute` also escapes quotes and white space */
-    private def append_escaped(text: string, in_attribute: var) {
-        n : var = sizeof(text.data);
-        for(i : var = 0; i < n; i++) {
-            ch : var = text.data[i] & 0xff;
+    private def append_escaped(text: string, in_attribute: decimal) {
+        n : decimal = sizeof(text.data);
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = text.data[i] & 0xff;
             if(ch == '&') {
                 buf.append("&amp;");
             } else if(ch == '<') {
@@ -142,9 +142,9 @@ class xml_writer {
     }
 
     /** true when the innermost open element has text (then nothing inside it is put on new lines) */
-    private def inside_text() : var {
-        count : var = open_content.size().value;
-        for(i : var = 0; i < count; i++) {
+    private def inside_text() : decimal {
+        count : decimal = open_content.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(open_content.at(i).value >= 2) {
                 return 1;
             }
@@ -161,10 +161,10 @@ class xml_writer {
     }
 
     /** note that the innermost open element got content of the given kind (1 = element/comment, 2 = text) */
-    private def mark_content(kind: var) {
-        count : var = open_content.size().value;
+    private def mark_content(kind: decimal) {
+        count : decimal = open_content.size().value;
         if(count > 0) {
-            old : var = open_content.at(count - 1).value;
+            old : decimal = open_content.at(count - 1).value;
             if(kind == 1 && (old == 0 || old == 2)) {
                 open_content.put(count - 1, new int(old + 1));
             } else if(kind == 2 && old < 2) {
@@ -234,8 +234,8 @@ class xml_writer {
             throw new illegal_state_exception("xml: attribute \"" + name + "\" must directly follow start()");
         }
         check_name(name);
-        count : var = attribute_names.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = attribute_names.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(attribute_names.at(i), name)) {
                 throw new illegal_state_exception("xml: the element has two attributes \"" + name + "\"");
             }
@@ -251,7 +251,7 @@ class xml_writer {
     }
 
     /** add an attribute whose value is a number, written the short way ("3", "0.5"). Returns this writer. Throws like attribute(). */
-    def attribute_number(name: string, value: var) : xml_writer {
+    def attribute_number(name: string, value: decimal) : xml_writer {
         return attribute(name, io_strings.number_to_string(value));
     }
 
@@ -288,9 +288,9 @@ class xml_writer {
         close_start_tag();
         mark_content(2);
         buf.append("<![CDATA[");
-        n : var = sizeof(content.data);
-        for(i : var = 0; i < n; i++) {
-            ch : var = content.data[i];
+        n : decimal = sizeof(content.data);
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = content.data[i];
             buf.append_char(ch);
             if(ch == ']' && i + 2 < n && content.data[i + 1] == ']' && content.data[i + 2] == '>') {
                 // write the second bracket too, then end the section in front of the '>' and start a new one
@@ -310,7 +310,7 @@ class xml_writer {
      * ends with "-" (XML does not allow that in a comment).
      */
     def comment(content: string) : xml_writer {
-        n : var = sizeof(content.data);
+        n : decimal = sizeof(content.data);
         if(io_strings.contains(content, "--") || (n > 0 && content.data[n - 1] == '-')) {
             throw new illegal_argument_exception("xml: a comment cannot contain \"--\" or end with \"-\"");
         }
@@ -339,7 +339,7 @@ class xml_writer {
             throw new illegal_state_exception("xml: end() without an open element");
         }
         name := open_names.pop_last();
-        content : var = open_content.last().value;
+        content : decimal = open_content.last().value;
         open_content.pop_back();
 
         if(in_start_tag) {
@@ -372,7 +372,7 @@ class xml_writer {
     }
 
     /** how many elements are open at the moment */
-    def depth() : var {
+    def depth() : decimal {
         return open_names.size().value;
     }
 

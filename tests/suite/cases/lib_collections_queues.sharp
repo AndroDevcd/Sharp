@@ -11,7 +11,7 @@ import ( testing, std.collections )
 def join(items: int[]?) : string {
     text := "";
     if(items == null) return text;
-    for(i : var = 0; i < sizeof(items); i++) {
+    for(i : decimal = 0; i < sizeof(items); i++) {
         if(i > 0) text = text + ",";
         text = text + items[i];
     }
@@ -21,7 +21,7 @@ def join(items: int[]?) : string {
 /** "1,2,3" for everything an iterator still has to give */
 def drain(it: iterator<int>) : string {
     text := "";
-    first : var = 1;
+    first : decimal = 1;
     while(it.has_next()) {
         if(!first) text = text + ",";
         first = 0;
@@ -31,15 +31,15 @@ def drain(it: iterator<int>) : string {
 }
 
 /** works with ANY collection of the module: that is the point of `iterable` */
-def total(numbers: iterable<int>) : var {
-    sum : var = 0;
+def total(numbers: iterable<int>) : decimal {
+    sum : decimal = 0;
     it := numbers.iterator();
     while(it.has_next()) sum += it.next().value;
     return sum;
 }
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
-def descending(a: int, b: int) : var { return b.value - a.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
 
 def test_stack() {
     s := new stack<int>();
@@ -62,7 +62,7 @@ def test_stack() {
     expect("stack contains missing", s.contains(7), 0);
     expect_str("stack to_array is top down", join(s.to_array()), "3,2,1");
     expect_str("stack iterator is top down", drain(s.iterator()), "3,2,1");
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in s) { digits = digits * 10 + x.value; }
     expect("stack foreach is top down", digits, 321);
     expect("stack to_list first", s.to_list().at(0).value, 3);
@@ -74,10 +74,10 @@ def test_stack() {
     expect("stack empty after pops", s.is_empty(), 1);
 
     // growth past the first array (16) and LIFO order: push 0..999, pop gives 999..0
-    for(i : var = 0; i < 1000; i++) s.push(i);
+    for(i : decimal = 0; i < 1000; i++) s.push(i);
     expect("stack big size", s.size(), 1000);
-    in_order : var = 1;
-    for(i : var = 999; i >= 0; i--) {
+    in_order : decimal = 1;
+    for(i : decimal = 999; i >= 0; i--) {
         if(s.pop().value != i) in_order = 0;
     }
     expect("stack pops in reverse order", in_order, 1);
@@ -110,7 +110,7 @@ def test_queue() {
     expect_str("queue to_array", join(q.to_array()), "1,2,3");
     expect_str("queue iterator", drain(q.iterator()), "1,2,3");
     expect("queue to_list last", q.to_list().at(2).value, 3);
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in q) { digits = digits * 10 + x.value; }
     expect("queue foreach", digits, 123);
     expect("queue dequeue", q.dequeue().value, 1);
@@ -119,9 +119,9 @@ def test_queue() {
     expect("queue empty", q.is_empty(), 1);
 
     // the ring buffer wraps around many times: keep 5 waiting while 2000 pass through
-    for(i : var = 0; i < 5; i++) q.enqueue(i);
-    fifo : var = 1;
-    for(i : var = 5; i < 2000; i++) {
+    for(i : decimal = 0; i < 5; i++) q.enqueue(i);
+    fifo : decimal = 1;
+    for(i : decimal = 5; i < 2000; i++) {
         q.enqueue(i);
         if(q.dequeue().value != i - 5) fifo = 0;
     }
@@ -168,7 +168,7 @@ def test_deque() {
     expect("deque remove_last", d.remove_last().value, 4);
     expect_str("deque after removes", join(d.to_array()), "1,2,7");
     expect_str("deque iterator", drain(d.iterator()), "1,2,7");
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in d) { digits = digits * 10 + x.value; }
     expect("deque foreach", digits, 127);
     expect("deque to_list", d.to_list().at(2).value, 7);
@@ -176,9 +176,9 @@ def test_deque() {
 
     // growth while the contents are wrapped around the end of the array
     d.clear();
-    for(i : var = 0; i < 10; i++) d.add_last(i);
-    for(i : var = 0; i < 8; i++) d.remove_first();           // head is now at index 8
-    for(i : var = 10; i < 50; i++) d.add_last(i);            // wraps, then grows twice
+    for(i : decimal = 0; i < 10; i++) d.add_last(i);
+    for(i : decimal = 0; i < 8; i++) d.remove_first();           // head is now at index 8
+    for(i : decimal = 10; i < 50; i++) d.add_last(i);            // wraps, then grows twice
     expect("deque grown size", d.size(), 42);
     expect("deque grown first", d.first().value, 8);
     expect("deque grown last", d.last().value, 49);
@@ -190,8 +190,8 @@ def test_deque() {
 
     // scale: used as a sliding window, 3000 in at the back, out at the front
     d.clear();
-    sum : var = 0;
-    for(i : var = 0; i < 3000; i++) {
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 3000; i++) {
         d.add_last(i);
         if(d.size() > 100) sum += d.remove_first().value;
     }
@@ -199,7 +199,7 @@ def test_deque() {
     expect("deque window sum (0..2899)", sum, 4203550);
     expect("deque window first", d.first().value, 2900);
     // and from the other side
-    for(i : var = 0; i < 500; i++) d.add_first(0 - i);
+    for(i : decimal = 0; i < 500; i++) d.add_first(0 - i);
     expect("deque add_first many", d.first().value, 0 - 499);
     expect("deque add_first size", d.size(), 600);
     expect("deque at across the wrap", d.at(500).value, 2900);
@@ -223,7 +223,7 @@ def test_priority_queue() {
     expect_str("pq to_sorted_array", join(pq.to_sorted_array()), "1,2,3,4,5");
     expect("pq to_sorted_array keeps the queue", pq.size(), 5);
     expect_str("pq iterator", drain(pq.iterator()), "1,2,3,4,5");
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in pq) { digits = digits * 10 + x.value; }
     expect("pq foreach", digits, 12345);
     expect("pq to_list", pq.to_list().at(4).value, 5);
@@ -246,27 +246,27 @@ def test_priority_queue() {
     expect("pq descending poll", big_first.poll().value, 9);
 
     // a lambda as the comparison: shortest string first
-    by_length := new priority_queue<string>({ a: string, b: string -> (var) return a.size().value - b.size().value; });
+    by_length := new priority_queue<string>({ a: string, b: string -> (decimal) return a.size().value - b.size().value; });
     by_length.add("ccc"); by_length.add("a"); by_length.add("dddd"); by_length.add("bb");
     expect_str("pq<string> poll", by_length.poll(), "a");
     expect_str("pq<string> poll 2", by_length.poll(), "bb");
     expect_str("pq<string> peek", by_length.peek(), "ccc");
 
     // scale: 5000 pseudo random numbers must come out in ascending order
-    seed : var = 12345;
-    sum_in : var = 0;
-    for(i : var = 0; i < 5000; i++) {
+    seed : decimal = 12345;
+    sum_in : decimal = 0;
+    for(i : decimal = 0; i < 5000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         pq.add(seed);
         sum_in += seed;
     }
     expect("pq big size", pq.size(), 5000);
-    ordered : var = 1;
-    sum_out : var = 0;
-    previous : var = 0 - 1;
-    polled : var = 0;
+    ordered : decimal = 1;
+    sum_out : decimal = 0;
+    previous : decimal = 0 - 1;
+    polled : decimal = 0;
     while(!pq.is_empty()) {
-        value : var = pq.poll().value;
+        value : decimal = pq.poll().value;
         if(value < previous) ordered = 0;
         previous = value;
         sum_out += value;
@@ -277,11 +277,11 @@ def test_priority_queue() {
     expect("pq big nothing lost", sum_out, sum_in);
 
     // removing from the middle keeps the heap valid
-    for(i : var = 0; i < 200; i++) pq.add((i * 37) % 200);        // a permutation of 0..199
-    for(i : var = 0; i < 200; i += 2) pq.remove(i);                // drop the even ones
+    for(i : decimal = 0; i < 200; i++) pq.add((i * 37) % 200);        // a permutation of 0..199
+    for(i : decimal = 0; i < 200; i += 2) pq.remove(i);                // drop the even ones
     expect("pq after middle removes size", pq.size(), 100);
-    odd_order : var = 1;
-    for(i : var = 1; i < 200; i += 2) {
+    odd_order : decimal = 1;
+    for(i : decimal = 1; i < 200; i += 2) {
         if(pq.poll().value != i) odd_order = 0;
     }
     expect("pq after middle removes order", odd_order, 1);

@@ -19,9 +19,9 @@ import std;
  * with over 35%+ of the overall time as a result of having to keep waking
  * up to clean up thousands of bytes of memory
  */
-def main(string[] args) : var {
-    var past = getUtcTimeInMills(),now, tmp;
-    for(var i = 0; i < 50000000; i++)
+def main(string[] args) : decimal {
+    decimal past = getUtcTimeInMills(),now, tmp;
+    for(decimal i = 0; i < 50000000; i++)
     {
         new Exception();
     } // 1.650s
@@ -29,7 +29,7 @@ def main(string[] args) : var {
     now = getUtcTimeInMills();
     println("new object(ms) " + (now-past));
     past = getUtcTimeInMills();
-    for(var i = 0; i < 50000000; i++)
+    for(decimal i = 0; i < 50000000; i++)
     {
         new Exception{};
     } // 1.650s
@@ -39,7 +39,7 @@ def main(string[] args) : var {
     past = getUtcTimeInMills();
 
    Exception e = new Exception();
-   for(var i = 0; i < 5000000; i++)
+   for(decimal i = 0; i < 5000000; i++)
    {
        Exception p = e;
    } // 514ms

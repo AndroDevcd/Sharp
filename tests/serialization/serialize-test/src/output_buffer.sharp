@@ -10,13 +10,13 @@ import (
  */
 class output_buffer {
     data: _int8[]?;
-    position: var = -1;
+    position: decimal = -1;
     size: _int32 = 0;
     initial_size : _int32 = 0;
     
     // Initial chunk size for allocations
-    static const INITIAL_SIZE: var = 512;
-    static const SMALL_BUFFER_THRESHOLD: var = 4096;
+    static const INITIAL_SIZE: decimal = 512;
+    static const SMALL_BUFFER_THRESHOLD: decimal = 4096;
     
     output_buffer() {
         data = new _int8[INITIAL_SIZE];
@@ -37,7 +37,7 @@ class output_buffer {
      */
     private def ensure_capacity(requiredSpace: int) {
         if (position + requiredSpace >= size) {
-            newSize: var;
+            newSize: decimal;
 
             if (size == 0) {
                 // Initialize with appropriate size
@@ -126,7 +126,7 @@ class output_buffer {
         
         write_int32(value!!.size());
         
-        for (i : var = 0; i < value!!.size(); i++) {
+        for (i : decimal = 0; i < value!!.size(); i++) {
             write_byte(value[i].value);
         }
     }

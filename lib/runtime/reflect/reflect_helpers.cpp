@@ -17,7 +17,7 @@ void ignore_static_resolve(bool ignore) {
 }
 
 bool is_static_class(sharp_object *object) {
-    return object != NULL && GENERATION(object->info) == gc_perm;
+    return object != NULL && object->staticObject;
 }
 
 object* resolve_field(string name, sharp_object* o) {
@@ -29,6 +29,10 @@ object* resolve_field(string name, sharp_object* o) {
             sharp_field &field = representedClass->fields[i];
             if(field.name == name) {
                 if(ignoreStaticResolution || isStatic == check_flag(field.flags, flag_static)) {
+                    // A number field has no object to hand out: its slot holds
+                    // the number. Callers that want it use number_field().
+                    if(field.type->type <= type_var && !field.isArray)
+                        throw vm_exception("field `" + name + "` is a number: use number_field()");
                     return &o->node[field.address];
                 }
                 else {
@@ -105,7 +109,7 @@ sharp_class* locate_class_hashed(uint32_t hash) {
 }
 
 void assign_numeric_field(sharp_object* o, uInt index, double value) {
-    o->HEAD[index] = value;
+    set_number_at(o, index, value);     // as an integer or a decimal, by what the field holds
 }
 
 void assign_object_field(sharp_object* o, uInt index, sharp_object* value) {
@@ -147,9 +151,47 @@ object* assign_instance_to_class_field(string &name, sharp_object* o, sharp_obje
     return nullptr;
 }
 
+/** the field `name` of the class of `o`, static or instance to match the object */
+static sharp_field* find_field(const string &name, sharp_object *o) {
+    if(o && IS_CLASS(o)) {
+        sharp_class *representedClass = &vm.classes[CLASS(o->info)];
+        bool isStatic = is_static_class(o);
+
+        for(Int i = 0; i < representedClass->totalFieldCount; i++) {
+            sharp_field &field = representedClass->fields[i];
+            if(field.name == name
+               && (ignoreStaticResolution || isStatic == check_flag(field.flags, flag_static)))
+                return &field;
+        }
+    }
+
+    return nullptr;
+}
+
+static sharp_field* find_number_field(const string &name, sharp_object *o) {
+    sharp_field *field = find_field(name, o);
+    if(field == nullptr || field->type->type > type_var || field->isArray)
+        throw vm_exception("no number field `" + name + "` in the object");
+    return field;
+}
+
+double number_field(sharp_object *instance, const string &name) {
+    sharp_field *field = find_number_field(name, instance);
+    vm_cell cell = number_slot(instance, field->address);
+    return field->type->type == type_var ? cell.d : (double)cell.i;
+}
+
+void set_number_field(sharp_object *instance, const string &name, double value) {
+    sharp_field *field = find_number_field(name, instance);
+    if(field->type->type == type_var)
+        number_slot(instance, field->address).d = value;
+    else
+        number_slot(instance, field->address).i = decimal_to_integer(value);
+}
+
+/** set the `value` field of a number object (int, long, double, bool ... - std/primatives.sharp) */
 void assign_numeric_class_field(sharp_object* o, double value) {
-    auto field = resolve_field("value", o);
-    if(field) assign_numeric_field(field->o, 0, value);
+    set_number_field(o, "value", value);
 }
 
 void assign_object_class_field(sharp_object* o, string &name, sharp_object* value) {
@@ -161,7 +203,7 @@ void assign_string_field(sharp_object* o, string &value) {
     if(o != nullptr) {
         if (o->size == value.size()) {
             for (Int i = 0; i < value.size(); i++) {
-                o->HEAD[i] = value[i];
+                set_integer_at(o, i, value[i]);
             }
         } else {
             throw vm_exception("string.size != field's size");
@@ -175,7 +217,7 @@ double read_numeric_value(sharp_object *o, Int index) {
     if(o) {
         if(o->type <= type_var) {
             if(index < o->size)
-                return o->HEAD[index];
+                return number_at(o, index);
             else {
                 stringstream ss;
                 ss << "access to field at index: " << index << " with size of: " << o->size;
@@ -196,7 +238,7 @@ string read_string_value(sharp_object *o) {
     if(o != NULL) {
         if (o->type <= type_var) {
             for(Int i = 0; i < o->size; i++) {
-                s += (char)o->HEAD[i];
+                s += (char)integer_at(o, i);
             }
         }
     }

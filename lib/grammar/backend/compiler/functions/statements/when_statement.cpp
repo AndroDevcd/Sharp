@@ -25,7 +25,10 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
 
     controlPaths[WHEN_CONTROL_PATH] = true;
     if(ast->hasSubAst(ast_expression)) {
-        compile_cond_expression(cond, ast->getSubAst(ast_expression));
+        // the subject of `when(x)` is a value the clauses are compared with, not
+        // a condition (see the clauses below)
+        compile_expression(cond, ast->getSubAst(ast_expression));
+        extract_value_field_from_expression(cond, "std#bool", ast->getSubAst(ast_expression));
 
         set_internal_variable_name(ss, "cond_var", uniqueId++)
         fieldType.copy(get_real_type(cond.type));
@@ -68,14 +71,22 @@ void compile_when_statement(Ast *ast, operation_schema *scheme, bool *controlPat
                     tmp.type.copy(cond.type);
                     tmp.scheme.copy(cond.scheme);
 
-                    compile_cond_expression(comparer, expressionAst);
+                    // With a subject (`when(x) { 20 -> ... }`) the clause is a VALUE
+                    // that is compared with it, not a condition: it must not be
+                    // turned into 0 or 1 first (compile_cond_expression does that
+                    // to a decimal). Without a subject it is a condition, and is
+                    // converted below.
+                    compile_expression(comparer, expressionAst);
+                    extract_value_field_from_expression(comparer, "std#bool", expressionAst);
 
                     if(ast->hasSubAst(ast_expression)) {
                         compile_binary_expression(&out, branch, tmp, comparer, operand);
                         extract_value_field_from_expression(out, "std#bool", expressionAst, true);
+                        convert_number_to_condition(out);
                         create_get_value_operation(whenClauseScheme, &out.scheme, false, false);
                     } else {
                         extract_value_field_from_expression(comparer, "std#bool", expressionAst, true);
+                        convert_number_to_condition(comparer);
                         create_get_value_operation(whenClauseScheme, &comparer.scheme, false, false);
                     }
 

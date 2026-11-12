@@ -54,7 +54,7 @@ def main(args: string[]) {
 
     // ---- fixed, used to be wrong (5): an EMPTY dictionary literal throws nullptr_exception while it is
     // being built (dictionary() -> list.add_all() -> copy() of a null array).
-    built : var = 0;
+    built : decimal = 0;
     try {
         empty := { as <string, city> : };
         built = 1;

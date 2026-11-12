@@ -10,14 +10,14 @@ import ( testing )
  * For reference, in binary:  12 = 1100   10 = 1010   6 = 0110   3 = 0011
  */
 
-def bit_and(a: var, b: var): var { return a & b; }
-def bit_or(a: var, b: var): var { return a | b; }
-def bit_xor(a: var, b: var): var { return a ^ b; }
-def shift_left(a: var, n: var): var { return a << n; }
-def shift_right(a: var, n: var): var { return a >> n; }
+def bit_and(a: decimal, b: decimal): decimal { return a & b; }
+def bit_or(a: decimal, b: decimal): decimal { return a | b; }
+def bit_xor(a: decimal, b: decimal): decimal { return a ^ b; }
+def shift_left(a: decimal, n: decimal): decimal { return a << n; }
+def shift_right(a: decimal, n: decimal): decimal { return a >> n; }
 
 /** 1 when bit number `bit` (0 is the lowest) is set in `value` */
-def has_bit(value: var, bit: var): var {
+def has_bit(value: decimal, bit: decimal): decimal {
     return (value >> bit) & 1;
 }
 
@@ -67,20 +67,20 @@ def main(args: string[]) {
     expect("-8 >> 1 keeps the sign", -8 >> 1, 0 - 4);
 
     // ---- variables
-    a : var = 12;
-    b : var = 10;
+    a : decimal = 12;
+    b : decimal = 10;
     expect("a & b", a & b, 8);
     expect("a | b", a | b, 14);
     expect("a ^ b", a ^ b, 6);
     expect("a << 2", a << 2, 48);
     expect("a >> 2", a >> 2, 3);
-    two : var = 2;
+    two : decimal = 2;
     expect("a << two", a << two, 48);
     expect("a >> two", a >> two, 3);
     expect("b << b", b << b, 10240);
 
     // ---- negative numbers
-    minus_one : var = 0 - 1;
+    minus_one : decimal = 0 - 1;
     expect("-1 & 255 (all bits set)", minus_one & 255, 255);
     expect("-1 | 5", minus_one | 5, 0 - 1);
     expect("-1 ^ 0", minus_one ^ 0, 0 - 1);
@@ -88,13 +88,13 @@ def main(args: string[]) {
     expect("-16 >> 2", (0 - 16) >> 2, 0 - 4);
 
     // ---- a fraction loses its fractional part first
-    f : var = 6.7;
+    f : decimal = 6.7;
     expect("6.7 & 3", f & 3, 2);
     expect("6.7 | 1", f | 1, 7);
     expect("6.7 << 1", f << 1, 12);
 
     // ---- compound assignment
-    c : var = 12;
+    c : decimal = 12;
     c &= 10;
     expect("&=", c, 8);
     c |= 3;
@@ -108,7 +108,7 @@ def main(args: string[]) {
     expect("|= twice", c, 255);
     c &= 0x3c;
     expect("&= with a mask", c, 60);
-    mask : var = 0x18;
+    mask : decimal = 0x18;
     c &= mask;
     expect("&= with a variable", c, 24);
     c |= mask << 1;
@@ -128,7 +128,7 @@ def main(args: string[]) {
     expect("64 >> 4 - 2", 64 >> 4 - 2, 16);
 
     // ---- bit tricks
-    flags : var = 0;
+    flags : decimal = 0;
     flags |= 1 << 2;
     flags |= 1 << 5;
     expect("two bits set", flags, 36);
@@ -147,8 +147,8 @@ def main(args: string[]) {
     expect("high byte of 0x1234", (0x1234 >> 8) & 0xff, 0x12);
 
     // ---- swapping two numbers with ^
-    p : var = 21;
-    q : var = 99;
+    p : decimal = 21;
+    q : decimal = 99;
     p ^= q;
     q ^= p;
     p ^= q;
@@ -156,8 +156,8 @@ def main(args: string[]) {
     expect("q after the swap", q, 21);
 
     // ---- counting the set bits of 0xb7 (1011 0111) in a loop
-    value : var = 0xb7;
-    count : var = 0;
+    value : decimal = 0xb7;
+    count : decimal = 0;
     while(value != 0) {
         count += value & 1;
         value = value >> 1;

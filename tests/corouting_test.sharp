@@ -4,11 +4,11 @@ import std.io.*;
 import platform;
 import platform.kernel;
 
-chan := new channel<var>(UNLIMITED);
+chan := new channel<decimal>(UNLIMITED);
 task_count := 100_000;
-counter := new atomic<var>{ 0 };
+counter := new atomic<decimal>{ 0 };
 
-def foo() : var {
+def foo() : decimal {
     //set_thread_max(2);
     for(i := 0; i < task_count; i++) {
         if((i % 10000) == 0)
@@ -30,7 +30,7 @@ def loop() {
    for(i := 0; i < 100_000_000; i++) {}
 }
 
-def modnum(num: var) {
+def modnum(num: decimal) {
    asm {
       nop
       int 0x10

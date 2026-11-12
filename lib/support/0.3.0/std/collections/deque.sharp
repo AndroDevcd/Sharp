@@ -21,17 +21,17 @@ mod std.collections;
  * Unlike a linked_list, reading by index (at) is O(1) as well.
  *
  * Limitation: the element type has to be an object type; native types such
- * as `var` cannot be used as T.
+ * as `decimal` cannot be used as T.
  */
 class deque<T> : loopable<T>, iterable<T> {
     /** the ring buffer */
     private items : T[]?;
     /** array index of the first element */
-    private head : var;
+    private head : decimal;
     /** number of elements */
-    private count : var;
+    private count : decimal;
 
-    private static const default_capacity : var = 16;
+    private static const default_capacity : decimal = 16;
 
     /** Create an empty deque with room for 16 elements. */
     deque() {
@@ -41,17 +41,17 @@ class deque<T> : loopable<T>, iterable<T> {
     }
 
     /** Number of elements. O(1). */
-    def size() : var {
+    def size() : decimal {
         return count;
     }
 
     /** 1 when there are no elements, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return count == 0;
     }
 
     /** Number of elements that fit before the buffer has to grow. O(1). */
-    def capacity() : var {
+    def capacity() : decimal {
         return sizeof(items);
     }
 
@@ -108,7 +108,7 @@ class deque<T> : loopable<T>, iterable<T> {
      */
     def remove_last() : T {
         if(count == 0) throw empty_error("remove_last");
-        index : var = slot(count - 1);
+        index : decimal = slot(count - 1);
         element := items[index];
         release(index);
         count--;
@@ -165,7 +165,7 @@ class deque<T> : loopable<T>, iterable<T> {
      */
     def put(index: int, element: T) : T {
         if(index.value < 0 || index.value >= count) throw bounds_error(index.value);
-        position : var = slot(index.value);
+        position : decimal = slot(index.value);
         old := items[position];
         items[position] = element;
         return old;
@@ -175,15 +175,15 @@ class deque<T> : loopable<T>, iterable<T> {
      * Position (0 = front) of the first element that equals `element`, or -1
      * when there is none. Elements are compared with `==`. O(n).
      */
-    def index_of(element: T) : var {
-        for(i : var = 0; i < count; i++) {
+    def index_of(element: T) : decimal {
+        for(i : decimal = 0; i < count; i++) {
             if(items[slot(i)] == element) return i;
         }
         return -1;
     }
 
     /** 1 when an element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : var {
+    def contains(element: T) : decimal {
         return index_of(element) >= 0;
     }
 
@@ -197,7 +197,7 @@ class deque<T> : loopable<T>, iterable<T> {
     /** A new array with the elements from front to back (length 0 when empty). O(n). */
     def to_array() : T[] {
         result := new T[count];
-        for(i : var = 0; i < count; i++)
+        for(i : decimal = 0; i < count; i++)
             result[i] = items[slot(i)];
         return result;
     }
@@ -205,7 +205,7 @@ class deque<T> : loopable<T>, iterable<T> {
     /** A new `list` with the elements from front to back. O(n). */
     def to_list() : list<T> {
         result := new list<T>();
-        for(i : var = 0; i < count; i++)
+        for(i : decimal = 0; i < count; i++)
             result.add(items[slot(i)]);
         return result;
     }
@@ -228,29 +228,29 @@ class deque<T> : loopable<T>, iterable<T> {
     }
 
     /** Array index of the element at logical position `index` (0 = front). */
-    private def slot(index: var) : var {
-        position : var = head + index;
+    private def slot(index: decimal) : decimal {
+        position : decimal = head + index;
         if(position >= sizeof(items)) position = position - sizeof(items);
         return position;
     }
 
     /** Drop the reference in an array slot so the garbage collector can free the element. */
-    private def release(index: var) {
+    private def release(index: decimal) {
         excuse nothing : T;
         items[index] = nothing;
     }
 
     /** Move the elements into a new buffer of the given capacity, front at index 0. */
-    private def resize(new_capacity: var) {
+    private def resize(new_capacity: decimal) {
         if(new_capacity < default_capacity) new_capacity = default_capacity;
         bigger := new T[new_capacity];
-        for(i : var = 0; i < count; i++)
+        for(i : decimal = 0; i < count; i++)
             bigger[i] = items[slot(i)];
         items = bigger;
         head = 0;
     }
 
-    private def bounds_error(index: var) : out_of_bounds_exception {
+    private def bounds_error(index: decimal) : out_of_bounds_exception {
         i : int = index;
         n : int = count;
         return new out_of_bounds_exception("deque: index $i is out of bounds (size $n)");

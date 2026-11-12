@@ -16,11 +16,11 @@ import ( std.io, std.data, std.math )
  */
 
 class coordinate {
-    x : var;
-    y : var;
-    z : var;
+    x : decimal;
+    y : decimal;
+    z : decimal;
 
-    coordinate(a: var, b: var, c: var) {
+    coordinate(a: decimal, b: decimal, c: decimal) {
         x = a;
         y = b;
         z = c;
@@ -31,12 +31,12 @@ def calc(text: string) : coordinate {
     root := json_parser.parse(text);
     coordinates := root.member("coordinates");
 
-    count : var = coordinates.size();
-    x : var = 0;
-    y : var = 0;
-    z : var = 0;
+    count : decimal = coordinates.size();
+    x : decimal = 0;
+    y : decimal = 0;
+    z : decimal = 0;
 
-    for(i : var = 0; i < count; i++) {
+    for(i : decimal = 0; i < count; i++) {
         entry := coordinates.at(i);
         x += entry.member("x").as_number();
         y += entry.member("y").as_number();
@@ -66,9 +66,9 @@ def main(args: string[]) {
     verify();
     text := new file(args[0]).read_text();
 
-    start : var = nano_time().value;
+    start : decimal = nano_time().value;
     result := calc(text);
-    seconds : var = (nano_time().value - start) / 1000000000;
+    seconds : decimal = (nano_time().value - start) / 1000000000;
 
     println("Coordinate {x: " + number_to_string(result.x) + ", y: " + number_to_string(result.y)
             + ", z: " + number_to_string(result.z) + "}");

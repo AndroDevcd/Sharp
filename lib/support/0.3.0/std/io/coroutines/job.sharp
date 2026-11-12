@@ -81,29 +81,29 @@ import (
 class job : coroutine_body {
 
     /** the body is running, or has not started yet */
-    static const ACTIVE : var = 1;
+    static const ACTIVE : decimal = 1;
     /** the body is finished, children are still running */
-    static const COMPLETING : var = 2;
+    static const COMPLETING : decimal = 2;
     /** cancelled or failed; waiting for the body and the children to stop */
-    static const CANCELLING : var = 3;
+    static const CANCELLING : decimal = 3;
     /** finished normally (final) */
-    static const COMPLETED : var = 4;
+    static const COMPLETED : decimal = 4;
     /** finished after a cancellation or a failure (final) */
-    static const CANCELLED : var = 5;
+    static const CANCELLED : decimal = 5;
 
     // ---- set before the job starts ---------------------------------------------------
     protected lk : object = lock_stripes.next();
     protected parent : job?;
     /** 1 when this job is in its parent's list of children (0: no parent, or the parent was finished already) */
-    protected attached : var = 0;
+    protected attached : decimal = 0;
     /** 1: failing children do not cancel this job */
-    protected supervisor : var = 0;
+    protected supervisor : decimal = 0;
     /** 1: an in-line scope (coroutine_scope { }, with_timeout { }): its failure is rethrown to the caller, not pushed to the parent */
-    protected scoped : var = 0;
+    protected scoped : decimal = 0;
     /** 0: there is no code to run (a scope object); the job completes when complete() or cancel() is called */
-    protected has_body : var = 1;
+    protected has_body : decimal = 1;
     /** 1: a failure is kept for whoever asks (deferred.await) and never reported as uncaught */
-    protected quiet : var = 0;
+    protected quiet : decimal = 0;
     /** where children of this job run unless they ask for something else */
     protected dispatcher : coroutine_dispatcher?;
     protected block0 : ()();
@@ -113,20 +113,20 @@ class job : coroutine_body {
     protected fib : fiber?;
 
     // ---- guarded by lk ----------------------------------------------------------------
-    protected state : var = 1;
+    protected state : decimal = 1;
     /** 1 once the job was cancelled or failed; what the cancellation points look at */
-    protected cancel_flag : var = 0;
-    protected body_done : var = 0;
+    protected cancel_flag : decimal = 0;
+    protected body_done : decimal = 0;
     /** why the job was cancelled: the exception of the failure, or the cancellation_exception */
     protected failure : throwable?;
     /** 1 when `failure` is a real error and not a cancellation */
-    protected failed : var = 0;
+    protected failed : decimal = 0;
     /** the waiter the fiber of this job is sleeping on right now (so cancel() can wake it) */
     protected waiting : waiter?;
     protected joiners : wait_queue?;
     protected handlers : completion_node?;
     protected first_child : job?;
-    protected n_children : var = 0;
+    protected n_children : decimal = 0;
 
     // ---- results of begin_cancel() / make_final(), see LOCKING DISCIPLINE ----------------
     private out_kids : job[]?;
@@ -184,7 +184,7 @@ class job : coroutine_body {
     }
 
     /** ACTIVE, COMPLETING, CANCELLING, COMPLETED or CANCELLED as a number */
-    def get_state() : var {
+    def get_state() : decimal {
         return state;
     }
 
@@ -217,7 +217,7 @@ class job : coroutine_body {
     }
 
     /** how many children are not finished yet */
-    def child_count() : var {
+    def child_count() : decimal {
         return n_children;
     }
 
@@ -270,7 +270,7 @@ class job : coroutine_body {
      * Kotlin: CompletableJob.complete()
      */
     def complete() : bool {
-        changed : var = 0;
+        changed : decimal = 0;
         lock(lk) {
             if(has_body == 0 && body_done == 0 && state == 1) {
                 body_done = 1;
@@ -363,7 +363,7 @@ class job : coroutine_body {
         node := new completion_node();
         node.fn = handler;
 
-        run_now : var = 0;
+        run_now : decimal = 0;
         lock(lk) {
             if(state > 3) {
                 run_now = 1;
@@ -403,8 +403,8 @@ class job : coroutine_body {
      * Make `child` a child of this job. Returns 0 when this job is cancelled or
      * finished already: the child is then not attached and must not start.
      */
-    protected def attach_child(child: job) : var {
-        ok : var = 0;
+    protected def attach_child(child: job) : decimal {
+        ok : decimal = 0;
         lock(lk) {
             if(state < 3) {
                 child.prev_sibling = null;
@@ -442,7 +442,7 @@ class job : coroutine_body {
     /** the children as an array. Hold `lk`. */
     private def snapshot_children() : job[] {
         kids := new job[n_children];
-        index : var = 0;
+        index : decimal = 0;
         child := first_child;
         while(child != null) {
             kids[index] = child!!;
@@ -459,7 +459,7 @@ class job : coroutine_body {
      * @param cause   what cancellation points throw / what a scope rethrows
      * @param failing 1 when `cause` is a real error (a child failed), 0 for a cancellation
      */
-    protected def cancel_with(cause: throwable, failing: var) {
+    protected def cancel_with(cause: throwable, failing: decimal) {
         first := new step();
         first.kind = 1;
         first.target = self;
@@ -473,8 +473,8 @@ class job : coroutine_body {
      * call moved the job to CANCELLING; out_kids and out_sleeper then hold the
      * children to cancel and the waiter to wake.
      */
-    private def begin_cancel(cause: throwable, failing: var) : var {
-        changed : var = 0;
+    private def begin_cancel(cause: throwable, failing: decimal) : decimal {
+        changed : decimal = 0;
         lock(lk) {
             if(state < 3) {
                 state = 3;
@@ -509,8 +509,8 @@ class job : coroutine_body {
      * all children are done. Returns 1 when this call made the job final;
      * out_joiners and out_handlers then hold who has to be told.
      */
-    private def make_final() : var {
-        finished : var = 0;
+    private def make_final() : decimal {
+        finished : decimal = 0;
         lock(lk) {
             if(state < 4 && body_done != 0 && n_children == 0) {
                 if(state == 3) {
@@ -659,7 +659,7 @@ class job : coroutine_body {
     /** push one cancel step per job on the work stack and return the new top */
     private static def push_cancels(top: step?, kids: job[], cause: throwable) : step? {
         result := top;
-        for(i : var = 0; i < sizeof(kids); i++) {
+        for(i : decimal = 0; i < sizeof(kids); i++) {
             s := new step();
             s.kind = 1;
             s.target = kids[i];
@@ -672,7 +672,7 @@ class job : coroutine_body {
 
     /** end the sleep of a fiber whose job was cancelled; it finds waiter.CANCELLED and throws */
     private static def wake_cancelled(sleeper: waiter) {
-        won : var = 0;
+        won : decimal = 0;
         guard := sleeper.guard;
         lock(guard) {
             won = sleeper.resume(2);        // waiter.CANCELLED
@@ -688,8 +688,8 @@ class job : coroutine_body {
      * cancel() can wake it. Returns 0 when the job is cancelled already (the
      * fiber must not sleep).
      */
-    protected def set_waiter(w: waiter) : var {
-        ok : var = 0;
+    protected def set_waiter(w: waiter) : decimal {
+        ok : decimal = 0;
         lock(lk) {
             if(cancel_flag == 0) {
                 waiting = w;
@@ -708,7 +708,7 @@ class job : coroutine_body {
     /** throw what a cancellation point of this job throws */
     protected def throw_cancelled() {
         cause : throwable? = null;
-        real_error : var = 0;
+        real_error : decimal = 0;
         lock(lk) {
             cause = failure;
             real_error = failed;
@@ -753,7 +753,7 @@ class job : coroutine_body {
         set_current_job(self);
 
         error : throwable? = null;
-        cancellation : var = 0;
+        cancellation : decimal = 0;
 
         // a coroutine that was cancelled before it got to run never runs its body
         if(cancel_flag == 0) {
@@ -776,7 +776,7 @@ class job : coroutine_body {
      * The body returned (error == null) or threw.
      * @param cancellation 1 when `error` is a cancellation_exception
      */
-    protected def finish_body(error: throwable?, cancellation: var) {
+    protected def finish_body(error: throwable?, cancellation: decimal) {
         kids : job[]? = null;
 
         lock(lk) {
@@ -872,10 +872,10 @@ class job : coroutine_body {
     /** one entry of the work stack of settle() */
     class step {
         /** 1 = cancel `target` with `cause`, 2 = see whether `target` can be made final */
-        kind : var = 0;
+        kind : decimal = 0;
         target : job?;
         cause : throwable?;
-        failing : var = 0;
+        failing : decimal = 0;
         next : step?;
     }
 }

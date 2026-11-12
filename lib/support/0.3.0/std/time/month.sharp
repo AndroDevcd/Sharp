@@ -37,9 +37,9 @@ class month {
     static const december : month = new month(12);
 
     /** 1 (January) .. 12 (December) */
-    private number : var = 1;
+    private number : decimal = 1;
 
-    private month(n: var) {
+    private month(n: decimal) {
         number = n;
     }
 
@@ -47,7 +47,7 @@ class month {
      * The month with number `n`: 1 = January ... 12 = December.
      * @throws date_time_exception when `n` is not 1 .. 12
      */
-    static def of(n: var): month {
+    static def of(n: decimal): month {
         time_math.check_range("month", n, 1, 12);
         if(n == 1) { return january; }
         if(n == 2) { return february; }
@@ -76,7 +76,7 @@ class month {
      */
     static def parse(text: string): month {
         r := new time_text_reader(text, "month");
-        index : var = r.accept_word(full_names);
+        index : decimal = r.accept_word(full_names);
         if(index < 0) {
             index = r.accept_word(short_names);
         }
@@ -88,7 +88,7 @@ class month {
     }
 
     /** the number of the month: 1 .. 12 */
-    def value(): var {
+    def value(): decimal {
         return number;
     }
 
@@ -106,7 +106,7 @@ class month {
      * How many days the month has: 31, 30, or for February 28 - or 29 when
      * `leap_year` is not 0.
      */
-    def length(leap_year: var): var {
+    def length(leap_year: decimal): decimal {
         if(number == 2) {
             if(leap_year) {
                 return 29;
@@ -120,12 +120,12 @@ class month {
     }
 
     /** the shortest the month can be: 28 for February, otherwise its length */
-    def min_length(): var {
+    def min_length(): decimal {
         return length(0);
     }
 
     /** the longest the month can be: 29 for February, otherwise its length */
-    def max_length(): var {
+    def max_length(): decimal {
         return length(1);
     }
 
@@ -133,16 +133,16 @@ class month {
      * The day of the year (1 .. 366) on which this month starts:
      * 1 for January, 32 for February, 60 or (leap year) 61 for March ...
      */
-    def first_day_of_year(leap_year: var): var {
-        day : var = 1;
-        for(m : var = 1; m < number; m++) {
+    def first_day_of_year(leap_year: decimal): decimal {
+        day : decimal = 1;
+        for(m : decimal = 1; m < number; m++) {
             day += of(m).length(leap_year);
         }
         return day;
     }
 
     /** the quarter of the year the month is in: 1 (Jan-Mar) .. 4 (Oct-Dec) */
-    def quarter(): var {
+    def quarter(): decimal {
         return time_math.trunc_div(number - 1, 3) + 1;
     }
 
@@ -150,12 +150,12 @@ class month {
      * The month `months` months later; negative numbers go back. The year
      * wraps around: december.plus(1) is january.
      */
-    def plus(months: var): month {
+    def plus(months: decimal): month {
         return of(time_math.floor_mod(number - 1 + months, 12) + 1);
     }
 
     /** the month `months` months earlier (see `plus`) */
-    def minus(months: var): month {
+    def minus(months: decimal): month {
         return plus(0 - months);
     }
 

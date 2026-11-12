@@ -3,11 +3,11 @@ mod main;
 import ( testing )
 
 /**
- * Arithmetic on native numbers (var): the four operations, remainder,
+ * Arithmetic on native numbers (decimal): the four operations, remainder,
  * precedence, parentheses, unary minus, compound assignment, ++ and --.
  */
 
-def add(a: var, b: var): var { return a + b; }
+def add(a: decimal, b: decimal): decimal { return a + b; }
 
 def main(args: string[]) {
     // ---- the basic operations
@@ -31,8 +31,8 @@ def main(args: string[]) {
     expect("nested parentheses", ((1 + 2) * (3 + 4)) - (5 * (6 - 4)), 11);
 
     // ---- variables
-    a : var = 12;
-    b : var = 5;
+    a : decimal = 12;
+    b : decimal = 5;
     expect("a + b", a + b, 17);
     expect("a - b", a - b, 7);
     expect("a * b", a * b, 60);
@@ -49,7 +49,7 @@ def main(args: string[]) {
     expect_near("1 / 3 * 3", 1 / 3 * 3, 1, 0.000000001);
 
     // ---- compound assignment
-    c : var = 10;
+    c : decimal = 10;
     c += 5;
     expect("+=", c, 15);
     c -= 3;
@@ -62,13 +62,13 @@ def main(args: string[]) {
     expect("%=", c, 3);
 
     // ---- increment and decrement
-    d : var = 7;
+    d : decimal = 7;
     d++;
     expect("d++", d, 8);
     d--;
     d--;
     expect("d-- twice", d, 6);
-    e : var = d++;
+    e : decimal = d++;
     expect("post increment gives the old value", e, 6);
     expect("...and then adds one", d, 7);
 
@@ -83,7 +83,7 @@ def main(args: string[]) {
 
     // ---- many terms in one expression
     expect("sum of ten terms", 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10, 55);
-    f : var = 2;
+    f : decimal = 2;
     expect("ten variables in one expression", f + f * f + f - f / f + f * 3 + f + f + f - f, 17);
 
     finish("arithmetic");

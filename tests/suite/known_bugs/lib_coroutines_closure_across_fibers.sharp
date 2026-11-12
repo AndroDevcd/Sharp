@@ -31,7 +31,7 @@ import (
  *           printed as an unhandled exception) and the second check fails.
  */
 
-class box { value : var = 0; }
+class box { value : decimal = 0; }
 
 seen_on_other_fiber := new box();      // a global: every fiber can see it
 finished := new box();
@@ -56,7 +56,7 @@ def main(args: string[]) {
         return 0;
     });
 
-    for(i : var = 0; i < 200 && finished.value == 0; i++) {
+    for(i : decimal = 0; i < 200 && finished.value == 0; i++) {
         delay(5);
     }
     expect("a captured local on another fiber", seen_on_other_fiber.value, 7);

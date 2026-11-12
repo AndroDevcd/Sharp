@@ -24,7 +24,7 @@ class manual_clock : clock {
     /** added to the clock after every now(); zero unless auto_advance was called */
     private step : duration;
     /** how often now() has been called (lets a test check that code read the clock) */
-    private reads : var = 0;
+    private reads : decimal = 0;
 
     /** a clock standing at 1970-01-01T00:00:00Z */
     manual_clock() {
@@ -63,12 +63,12 @@ class manual_clock : clock {
     }
 
     /** moves the clock forward by `millis` milliseconds (back when negative) */
-    def advance_millis(millis: var): manual_clock {
+    def advance_millis(millis: decimal): manual_clock {
         return advance(duration.of_millis(millis));
     }
 
     /** moves the clock forward by `seconds` whole seconds (back when negative) */
-    def advance_seconds(seconds: var): manual_clock {
+    def advance_seconds(seconds: decimal): manual_clock {
         return advance(duration.of_seconds(seconds));
     }
 
@@ -88,7 +88,7 @@ class manual_clock : clock {
     }
 
     /** how many times `now()` has been called */
-    def read_count(): var {
+    def read_count(): decimal {
         return reads;
     }
 }

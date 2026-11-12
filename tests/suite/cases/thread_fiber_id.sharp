@@ -15,7 +15,7 @@ import (
  *   lib/runtime/multitasking/thread/thread_controller.cpp, setup_thread():
  *       assign_numeric_class_field(resolve_field("id", fib->o)->o, thread->task->id);
  *   assign_numeric_class_field expects a number OBJECT (it looks for a field
- *   called "value"), but fiber.id is a native `var`, so nothing is written and
+ *   called "value"), but fiber.id is a native `decimal`, so nothing is written and
  *   the field keeps its zero. assign_numeric_field(..., 0, id) would be right.
  *
  * WHAT THE LIBRARY DOES ABOUT IT
@@ -28,7 +28,7 @@ import (
  * ACTUAL:   it is 0.
  */
 
-class box { value : var = 0; }
+class box { value : decimal = 0; }
 
 id_on_thread := new box();
 finished := new box();
@@ -44,7 +44,7 @@ def main(args: string[]) {
 
     t := new thread("second", thread_main);
     t.start();
-    for(i : var = 0; i < 400 && finished.value == 0; i++) {
+    for(i : decimal = 0; i < 400 && finished.value == 0; i++) {
         delay(5);
     }
 

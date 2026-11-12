@@ -20,11 +20,11 @@ import ( std.io, platform, platform.kernel )
 class platform_info {
     /* answers that need the shell, remembered once known; `asked_...` says whether they were asked */
     private static home_path : string = "";
-    private static asked_home : var = 0;
+    private static asked_home : decimal = 0;
     private static user : string = "";
-    private static asked_user : var = 0;
+    private static asked_user : decimal = 0;
     private static host : string = "";
-    private static asked_host : var = 0;
+    private static asked_host : decimal = 0;
 
     /** true when the program runs on windows */
     static def is_windows() : bool {
@@ -65,8 +65,8 @@ class platform_info {
     }
 
     /** the number of processors (cores) the machine has, at least 1 */
-    static def processor_count() : var {
-        count : var = vm.hardware_concurrency().value;
+    static def processor_count() : decimal {
+        count : decimal = vm.hardware_concurrency().value;
         if(count < 1) {
             return 1;
         }
@@ -74,12 +74,12 @@ class platform_info {
     }
 
     /** the character between the parts of a path: '/' or '\' (as a character code) */
-    static def path_separator() : var {
+    static def path_separator() : decimal {
         return path.separator();
     }
 
     /** the character between the entries of the PATH variable: ':' on unix, ';' on windows (as a character code) */
-    static def path_list_separator() : var {
+    static def path_list_separator() : decimal {
         if(build.is_windows()) {
             return 59; // the semicolon
         }
@@ -155,12 +155,12 @@ class platform_info {
     }
 
     /** the size in bytes of the disk the program runs on, or -1 when unknown */
-    static def total_disk_space() : var {
+    static def total_disk_space() : decimal {
         return file_natives.disk_space(0);
     }
 
     /** the number of bytes on the disk the program runs on that this program can still use, or -1 when unknown */
-    static def free_disk_space() : var {
+    static def free_disk_space() : decimal {
         return file_natives.disk_space(2);
     }
 

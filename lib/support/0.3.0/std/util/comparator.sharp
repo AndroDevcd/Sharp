@@ -7,7 +7,7 @@ mod std.util;
  * objects comes first. Comparators are built from small pieces and combined
  * (Java's Comparator, Kotlin's compareBy / thenBy / reversed):
  *
- *     by_age := comparator<person>.by_key({ p: person -> (var) return p.age; });
+ *     by_age := comparator<person>.by_key({ p: person -> (decimal) return p.age; });
  *     by_name := comparator<person>.by_text({ p: person -> (string) return p.name; });
  *
  *     oldest_first := by_age.reversed();
@@ -32,14 +32,14 @@ class comparator<T> {
     //   1  compare the numbers  number_key(a)  and  number_key(b)
     //   2  compare the texts    text_key(a)    and  text_key(b)   (by character code)
     //   3  ask the comparator `inner`
-    private kind : var = 0;
-    private compare_function : (T, T)(var);
-    private number_key : (T)(var);
+    private kind : decimal = 0;
+    private compare_function : (T, T)(decimal);
+    private number_key : (T)(decimal);
     private text_key : (T)(string);
     private inner : comparator<T>?;
 
     /** 1: the result of primary() is negated */
-    private negate : var = 0;
+    private negate : decimal = 0;
 
     /** asked when primary() says "equal" */
     private next : comparator<T>?;
@@ -48,7 +48,7 @@ class comparator<T> {
      * A comparator from a function that returns a negative number, 0 or a
      * positive number for "a before b", "same" and "a after b".
      */
-    comparator(compare_function: (T, T)(var)) {
+    comparator(compare_function: (T, T)(decimal)) {
         self->compare_function = compare_function;
         kind = 0;
     }
@@ -60,7 +60,7 @@ class comparator<T> {
      * Order objects by a number taken from each: the object with the
      * smaller key comes first (Kotlin compareBy).
      */
-    static def by_key(key: (T)(var)): comparator<T> {
+    static def by_key(key: (T)(decimal)): comparator<T> {
         result := new comparator<T>();
         result.kind = 1;
         result.number_key = key;
@@ -84,26 +84,26 @@ class comparator<T> {
      * negative when a comes first, positive when b comes first, 0 when they
      * are equal. A text that is a prefix of the other comes first.
      */
-    static def compare_text(a: string, b: string): var {
-        size_a : var = a.size().value;
-        size_b : var = b.size().value;
-        shared : var = size_a;
+    static def compare_text(a: string, b: string): decimal {
+        size_a : decimal = a.size().value;
+        size_b : decimal = b.size().value;
+        shared : decimal = size_a;
         if(size_b < shared) shared = size_b;
 
-        for(i : var = 0; i < shared; i++) {
-            difference : var = a.at(i).value - b.at(i).value;
+        for(i : decimal = 0; i < shared; i++) {
+            difference : decimal = a.at(i).value - b.at(i).value;
             if(difference != 0) return difference;
         }
         return size_a - size_b;
     }
 
-    private def primary(a: T, b: T): var {
+    private def primary(a: T, b: T): decimal {
         if(kind == 0) {
             return compare_function(a, b);
         }
         if(kind == 1) {
-            left : var = number_key(a);
-            right : var = number_key(b);
+            left : decimal = number_key(a);
+            right : decimal = number_key(b);
             if(left < right) return 0 - 1;
             if(left > right) return 1;
             return 0;
@@ -118,8 +118,8 @@ class comparator<T> {
      * Compare two objects: negative when a comes before b, positive when a
      * comes after b, 0 when this ordering does not distinguish them.
      */
-    def compare(a: T, b: T): var {
-        result : var = primary(a, b);
+    def compare(a: T, b: T): decimal {
+        result : decimal = primary(a, b);
         if(negate) {
             result = 0 - result;
         }
@@ -151,7 +151,7 @@ class comparator<T> {
     }
 
     /** then_by(by_key(key)): ties are decided by a number taken from each object */
-    def then_by_key(key: (T)(var)): comparator<T> {
+    def then_by_key(key: (T)(decimal)): comparator<T> {
         return then_by(by_key(key));
     }
 
@@ -174,22 +174,22 @@ class comparator<T> {
      * one key and then by another work.
      */
     def sort(items: T[]) {
-        n : var = sizeof(items);
+        n : decimal = sizeof(items);
         if(n < 2) return;
 
         from := items;
         to := new T[n];
 
-        for(width : var = 1; width < n; width = width * 2) {
-            for(start : var = 0; start < n; start += 2 * width) {
-                middle : var = start + width;
+        for(width : decimal = 1; width < n; width = width * 2) {
+            for(start : decimal = 0; start < n; start += 2 * width) {
+                middle : decimal = start + width;
                 if(middle > n) middle = n;
-                end : var = start + 2 * width;
+                end : decimal = start + 2 * width;
                 if(end > n) end = n;
 
-                left : var = start;
-                right : var = middle;
-                for(target : var = start; target < end; target++) {
+                left : decimal = start;
+                right : decimal = middle;
+                for(target : decimal = start; target < end; target++) {
                     // take from the left run unless the right one is strictly smaller (keeps it stable)
                     if(left < middle && (right >= end || compare(from[left], from[right]) <= 0)) {
                         to[target] = from[left];
@@ -208,7 +208,7 @@ class comparator<T> {
 
         // an odd number of passes leaves the result in the helper array
         if((from as object) != (items as object)) {
-            for(i : var = 0; i < n; i++) {
+            for(i : decimal = 0; i < n; i++) {
                 items[i] = from[i];
             }
         }
@@ -216,22 +216,22 @@ class comparator<T> {
 
     /** sort a list in place (see sort for arrays); does nothing for an empty list */
     def sort(items: list<T>) {
-        n : var = items.size().value;
+        n : decimal = items.size().value;
         if(n < 2) return;
 
         sorted := new T[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             sorted[i] = items.at(i);
         }
         sort(sorted);
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             items.put(i, sorted[i]);
         }
     }
 
     /** true when every element is in order with the one after it (also for 0 or 1 elements) */
     def is_sorted(items: T[]): bool {
-        for(i : var = 1; i < sizeof(items); i++) {
+        for(i : decimal = 1; i < sizeof(items); i++) {
             if(compare(items[i - 1], items[i]) > 0) return false;
         }
         return true;
@@ -247,7 +247,7 @@ class comparator<T> {
             throw new no_such_element_exception("comparator.min_of: the array is empty");
 
         best := items[0];
-        for(i : var = 1; i < sizeof(items); i++) {
+        for(i : decimal = 1; i < sizeof(items); i++) {
             if(compare(items[i], best) < 0) {
                 best = items[i];
             }
@@ -265,7 +265,7 @@ class comparator<T> {
             throw new no_such_element_exception("comparator.max_of: the array is empty");
 
         best := items[0];
-        for(i : var = 1; i < sizeof(items); i++) {
+        for(i : decimal = 1; i < sizeof(items); i++) {
             if(compare(items[i], best) >= 0) {
                 best = items[i];
             }
@@ -278,13 +278,13 @@ class comparator<T> {
      * the search interval: O(log n). Returns the index of an element that
      * compares equal to `wanted`, or -1 when there is none.
      */
-    def binary_search(items: T[], wanted: T): var {
-        low : var = 0;
-        high : var = sizeof(items) - 1;
+    def binary_search(items: T[], wanted: T): decimal {
+        low : decimal = 0;
+        high : decimal = sizeof(items) - 1;
 
         while(low <= high) {
-            middle : var = low + ((high - low) >> 1);
-            order : var = compare(items[middle], wanted);
+            middle : decimal = low + ((high - low) >> 1);
+            order : decimal = compare(items[middle], wanted);
             if(order == 0) return middle;
             if(order < 0) {
                 low = middle + 1;

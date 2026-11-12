@@ -11,10 +11,10 @@ import ( testing )
 
 /* every ticket takes the next number from the one counter the class has */
 class ticket {
-    static next_number : var = 1;
-    static issued : var = 0;
+    static next_number : decimal = 1;
+    static issued : decimal = 0;
 
-    number : var = 0;
+    number : decimal = 0;
 
     ticket() {
         number = next_number;
@@ -27,54 +27,54 @@ class ticket {
         issued = 0;
     }
 
-    static def upcoming(): var {
+    static def upcoming(): decimal {
         return next_number;
     }
 
     /* an ordinary method reading a static field */
-    def is_newest(): var {
+    def is_newest(): decimal {
         return number == next_number - 1;
     }
 
     /* an ordinary method writing a static field */
-    def skip_ahead(by: var) {
+    def skip_ahead(by: decimal) {
         next_number += by;
     }
 }
 
 /* a class used only as a place to keep functions */
 class calc {
-    static def square(x: var): var {
+    static def square(x: decimal): decimal {
         return x * x;
     }
 
-    static def largest(a: var, b: var): var {
+    static def largest(a: decimal, b: decimal): decimal {
         if(a > b) {
             return a;
         }
         return b;
     }
 
-    static def total(numbers: var[]): var {
-        sum : var = 0;
-        for(i : var = 0; i < sizeof(numbers); i++) {
+    static def total(numbers: decimal[]): decimal {
+        sum : decimal = 0;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
             sum += numbers[i];
         }
         return sum;
     }
 
     /* a static method calling other static methods of its class */
-    static def largest_square(a: var, b: var): var {
+    static def largest_square(a: decimal, b: decimal): decimal {
         return largest(square(a), square(b));
     }
 
     /* overloads */
-    static def describe(a: var): var { return 1; }
-    static def describe(a: var, b: var): var { return 2; }
-    static def describe(s: string): var { return 3; }
+    static def describe(a: decimal): decimal { return 1; }
+    static def describe(a: decimal, b: decimal): decimal { return 2; }
+    static def describe(s: string): decimal { return 3; }
 
     /* recursion */
-    static def factorial(n: var): var {
+    static def factorial(n: decimal): decimal {
         if(n <= 1) {
             return 1;
         }
@@ -84,25 +84,25 @@ class calc {
 
 /* static fields of several types, each with an initial value */
 class settings {
-    static level : var = 3;
-    static ratio : var = 0.75;
-    static negative : var = 0 - 40;
-    static from_expression : var = 6 * 7;
+    static level : decimal = 3;
+    static ratio : decimal = 0.75;
+    static negative : decimal = 0 - 40;
+    static from_expression : decimal = 6 * 7;
     static title : string = "untitled";
-    static sizes : var[] = new var[] { 10, 20, 30 };
-    static not_set : var;
+    static sizes : decimal[] = new decimal[] { 10, 20, 30 };
+    static not_set : decimal;
     static no_object : settings?;
 }
 
 class point {
-    x : var = 0;
-    y : var = 0;
+    x : decimal = 0;
+    y : decimal = 0;
 
     /* static fields holding objects of the class itself */
-    static made : var = 0;
+    static made : decimal = 0;
     static last_made : point?;
 
-    point(px: var, py: var) {
+    point(px: decimal, py: decimal) {
         x = px;
         y = py;
         made++;
@@ -114,14 +114,14 @@ class point {
         return new point(0, 0);
     }
 
-    static def diagonal(n: var): point {
+    static def diagonal(n: decimal): point {
         return new point(n, n);
     }
 
     /* a static method working on objects it is given */
-    static def distance_squared(a: point, b: point): var {
-        dx : var = a.x - b.x;
-        dy : var = a.y - b.y;
+    static def distance_squared(a: point, b: point): decimal {
+        dx : decimal = a.x - b.x;
+        dy : decimal = a.y - b.y;
         return dx * dx + dy * dy;
     }
 }
@@ -129,9 +129,9 @@ class point {
 /* one shared object, made the first time it is asked for */
 class shared_log {
     static instance : shared_log?;
-    static times_created : var = 0;
+    static times_created : decimal = 0;
 
-    lines : var = 0;
+    lines : decimal = 0;
 
     shared_log() {
         times_created++;
@@ -147,37 +147,37 @@ class shared_log {
 
 /* two classes with a static field of the same name do not share it */
 class left_side {
-    static count : var = 100;
-    static def bump(): var {
+    static count : decimal = 100;
+    static def bump(): decimal {
         count++;
         return count;
     }
 }
 
 class right_side {
-    static count : var = 200;
-    static def bump(): var {
+    static count : decimal = 200;
+    static def bump(): decimal {
         count += 10;
         return count;
     }
 }
 
 // ---- globals: variables and functions outside every class
-global_number : var = 5;
-global_fraction : var = 1.5;
-global_from_expression : var = 3 * 4 + 1;
+global_number : decimal = 5;
+global_fraction : decimal = 1.5;
+global_from_expression : decimal = 3 * 4 + 1;
 global_text : string = "global";
-global_numbers : var[] = new var[] { 7, 8, 9 };
+global_numbers : decimal[] = new decimal[] { 7, 8, 9 };
 global_object : point = new point(11, 22);
-global_not_set : var;
+global_not_set : decimal;
 global_nothing : point?;
 global_boxed := 9;                  // an int object, like a local declared with :=
 
-def add_to_global(amount: var) {
+def add_to_global(amount: decimal) {
     global_number += amount;
 }
 
-def read_global(): var {
+def read_global(): decimal {
     return global_number;
 }
 
@@ -185,16 +185,16 @@ def append_to_global_text(more: string) {
     global_text = global_text + more;
 }
 
-def set_global_number_at(index: var, value: var) {
+def set_global_number_at(index: decimal, value: decimal) {
     global_numbers[index] = value;
 }
 
-def next_id(): var {
+def next_id(): decimal {
     id_counter++;
     return id_counter;
 }
 
-id_counter : var = 1000;            // declared after the function that uses it
+id_counter : decimal = 1000;            // declared after the function that uses it
 
 def main(args: string[]) {
     // ---- static fields have their initial value before any object exists
@@ -227,9 +227,9 @@ def main(args: string[]) {
     expect("a static method", calc.square(9), 81);
     expect("a static method with two parameters", calc.largest(3, 8), 8);
     expect("...the other way round", calc.largest(8, 3), 8);
-    expect("a static method taking an array", calc.total(new var[] { 1, 2, 3, 4, 5 }), 15);
+    expect("a static method taking an array", calc.total(new decimal[] { 1, 2, 3, 4, 5 }), 15);
     expect("a static method calling static methods", calc.largest_square(0 - 5, 4), 25);
-    one : var = 1;
+    one : decimal = 1;
     expect("static overload with one number", calc.describe(one), 1);
     expect("static overload with two numbers", calc.describe(one, one), 2);
     expect("static overload with a string", calc.describe("text"), 3);
@@ -327,7 +327,7 @@ def main(args: string[]) {
     expect("...the global itself", id_counter, 1002);
 
     // ---- a local variable does not disturb a global of another name
-    local_number : var = global_number * 2;
+    local_number : decimal = global_number * 2;
     local_number++;
     expect("a local computed from a global", local_number, 35);
     expect("...the global is unchanged", global_number, 17);

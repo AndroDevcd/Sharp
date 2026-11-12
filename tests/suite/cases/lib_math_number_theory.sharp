@@ -91,8 +91,8 @@ def check_primes() {
     expect_false("is_prime(7.5)", is_prime(7.5).value);
 
     // count the primes below 100: there are 25
-    count : var = 0;
-    for(n : var = 0; n < 100; n++) {
+    count : decimal = 0;
+    for(n : decimal = 0; n < 100; n++) {
         if(is_prime(n).value) count++;
     }
     expect("25 primes below 100", count, 25);
@@ -231,7 +231,7 @@ def check_bits() {
     expect("parse_binary(0)", bits.parse_binary("0"), 0);
     expect("parse_binary(11111111)", bits.parse_binary("11111111"), 255);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { bits.count_ones(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { bits.count_ones(1.5); } catch(e: illegal_argument_exception) { caught++; }
     try { bits.rotate_left(4294967296, 1); } catch(e: illegal_argument_exception) { caught++; }

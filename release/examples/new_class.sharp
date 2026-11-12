@@ -20,7 +20,7 @@ class coffee {
 	   println("I'm brewing with ${water_left}oz of water and ${coffee_left}g of coffee");
 	}
 	
-	water_left : var;
+	water_left : decimal;
 	coffee_left := 150;
 }
 

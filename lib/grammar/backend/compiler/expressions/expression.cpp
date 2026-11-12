@@ -139,6 +139,10 @@ void extract_value_field_from_expression(expression &e, string className, Ast *a
 void compile_cond_expression(expression &e, Ast *ast) {
     compile_expression(e, ast);
     extract_value_field_from_expression(e, "std#bool", ast);
+
+    // a conditional jump tests an integer: a decimal condition (`if(total)`)
+    // becomes 0 or 1 first
+    convert_number_to_condition(e);
 }
 
 void compile_initialization_call(
@@ -300,6 +304,16 @@ void compile_function_call(
                 }
             }
 
+
+            // an argument becomes the kind of number its parameter is:
+            // area(count) for `def area(side: var)` passes a decimal
+            if(is_match_normal(matchResult))
+                convert_scheme_for(paramOperations.get(i), *assigner, *asignee);
+            // ... or of the constructor it is wrapped with: an _int32 given to a
+            // parameter of a class that is built from a var
+            else if(matchedConstructor != NULL && matchedConstructor->parameters.size() == 1)
+                convert_scheme_for(paramOperations.get(i), *assigner,
+                                   matchedConstructor->parameters.get(0)->type);
 
             compiledParamOperations.add(new operation_schema());
             create_function_parameter_push_operation(

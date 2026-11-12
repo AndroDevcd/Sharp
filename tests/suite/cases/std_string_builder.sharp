@@ -15,17 +15,17 @@ import ( testing )
  */
 
 class version : printable {
-    major : var = 0;
+    major : decimal = 0;
 
-    version(m: var) { major = m; }
+    version(m: decimal) { major = m; }
 
     override def to_string() : string? = new string("version");
 }
 
 /** the first `count` characters of the builder, as a string */
-def text_of(builder: string_builder, count: var): string {
+def text_of(builder: string_builder, count: decimal): string {
     text : string = "";
-    for(i : var = 0; i < count; i++) {
+    for(i : decimal = 0; i < count; i++) {
         text = text + builder.at(i);
     }
     return text;
@@ -152,7 +152,7 @@ def main(args: string[]) {
     expect_str("replace is chainable", text_of(from_text, 11), "Jello_worlD");
 
     // ---- at past the end throws
-    caught : var = 0;
+    caught : decimal = 0;
     short_text := new string_builder("abc");
     try {
         short_text.at(10);
@@ -180,7 +180,7 @@ def main(args: string[]) {
 
     // ---- building a long text: past the first capacity (255 characters)
     digits := new string_builder();
-    for(i : var = 0; i < 1000; i++) {
+    for(i : decimal = 0; i < 1000; i++) {
         digits.append("0123456789");
     }
     expect_str("long text: the start", text_of(digits, 12), "012345678901");
@@ -191,20 +191,20 @@ def main(args: string[]) {
     expect("long text: the last character, 9999", digits.at(9999).value, '9');
 
     // every one of the 10000 characters: 1000 times the digits 0..9, their sum is 45000
-    sum : var = 0;
-    for(i : var = 0; i < 10000; i++) {
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 10000; i++) {
         sum += digits.at(i).value - '0';
     }
     expect("long text: every character is the right digit", sum, 45000);
 
     // ---- a long text built one character at a time
     stars := new string_builder();
-    for(i : var = 0; i < 3000; i++) {
+    for(i : decimal = 0; i < 3000; i++) {
         stars.append('*');
     }
     stars.append('#');
-    count : var = 0;
-    for(i : var = 0; i < 3000; i++) {
+    count : decimal = 0;
+    for(i : decimal = 0; i < 3000; i++) {
         if(stars.at(i).value == '*') count++;
     }
     expect("3000 single characters", count, 3000);
@@ -213,7 +213,7 @@ def main(args: string[]) {
     // ---- a long text made of long pieces
     piece : string = "The quick brown fox jumps over the lazy dog. ";      // 45 characters
     story := new string_builder();
-    for(i : var = 0; i < 200; i++) {
+    for(i : decimal = 0; i < 200; i++) {
         story.append(piece);
     }
     expect("long pieces: first character", story.at(0).value, 'T');
@@ -222,8 +222,8 @@ def main(args: string[]) {
     expect_true("long pieces: starts_with", story.starts_with("The quick brown fox").value);
 
     // ---- many builders
-    made : var = 0;
-    for(i : var = 0; i < 200; i++) {
+    made : decimal = 0;
+    for(i : decimal = 0; i < 200; i++) {
         temp := new string_builder("item");
         temp.append("-ok");
         if(temp.at(6).value == 'k') made++;

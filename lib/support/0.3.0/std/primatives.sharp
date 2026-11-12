@@ -14,7 +14,7 @@ public class number<T, NT> base base_number<NT> {
     value : T;
         private set value -> { self->value = value; }
         
-    number(initial_val : var) {
+    number(initial_val : decimal) {
         value = initial_val;
     }
     number(initial_val : _int8) {
@@ -67,8 +67,8 @@ public class number<T, NT> base base_number<NT> {
     def operator!=(num : bool) := new bool(value!=num.value);
     def operator==(num : bool) := new bool(value==num.value);
     def operator==(num : double) := new bool(value==num.value);
-    def operator!=(num : var) := new bool(value!=num);
-    def operator==(num : var) := new bool(value==num);
+    def operator!=(num : decimal) := new bool(value!=num);
+    def operator==(num : decimal) := new bool(value==num);
     def operator!=(num : _int8) := new bool(value!=num);
     def operator==(num : _int8) := new bool(value==num);
     def operator!=(num : _int16) := new bool(value!=num);
@@ -97,7 +97,7 @@ public class number<T, NT> base base_number<NT> {
     def operator+(num : byte)   := new NT(value+num.value);
     def operator+(num : bool)   := new NT(value+num.value);
     def operator+(num : double)   := new NT(value+num.value);
-    def operator+(num : var)    := new NT(value+num);
+    def operator+(num : decimal)    := new NT(value+num);
     def operator+(num : _int8)    := new NT(value+num);
     def operator+(num : _int16)    := new NT(value+num);
     def operator+(num : _int32)    := new NT(value+num);
@@ -118,7 +118,7 @@ public class number<T, NT> base base_number<NT> {
     def operator-(num : byte)   := new NT(value-num.value);
     def operator-(num : bool)   := new NT(value-num.value);
     def operator-(num : double)   := new NT(value-num.value);
-    def operator-(num : var)    := new NT(value-num);
+    def operator-(num : decimal)    := new NT(value-num);
     def operator-(num : _int8)    := new NT(value-num);
     def operator-(num : _int16)    := new NT(value-num);
     def operator-(num : _int32)    := new NT(value-num);
@@ -141,7 +141,7 @@ public class number<T, NT> base base_number<NT> {
     def operator*(num : byte)   := new NT(value*num.value);
     def operator*(num : bool)   := new NT(value*num.value);
     def operator*(num : double)   := new NT(value*num.value);
-    def operator*(num : var)    := new NT(value*num);
+    def operator*(num : decimal)    := new NT(value*num);
     def operator*(num : _int8)    := new NT(value*num);
     def operator*(num : _int16)   := new NT(value*num);
     def operator*(num : _int32)   := new NT(value*num);
@@ -162,7 +162,7 @@ public class number<T, NT> base base_number<NT> {
     def operator/(num : byte)   := new NT(value/num.value);
     def operator/(num : bool)   := new NT(value/num.value);
     def operator/(num : double)   := new NT(value/num.value);
-    def operator/(num : var)    := new NT(value/num);
+    def operator/(num : decimal)    := new NT(value/num);
     def operator/(num : _int8)    := new NT(value/num);
     def operator/(num : _int16)   := new NT(value/num);
     def operator/(num : _int32)   := new NT(value/num);
@@ -183,7 +183,7 @@ public class number<T, NT> base base_number<NT> {
     def operator%(num : byte)   := new NT(value%num.value);
     def operator%(num : bool)   := new NT(value%num.value);
     def operator%(num : double)   := new NT(value%num.value);
-    def operator%(num : var)    := new NT(value%num);
+    def operator%(num : decimal)    := new NT(value%num);
     def operator%(num : _int8)    := new NT(value%num);
     def operator%(num : _int16)   := new NT(value%num);
     def operator%(num : _int32)   := new NT(value%num);
@@ -204,7 +204,7 @@ public class number<T, NT> base base_number<NT> {
     def operator<(num : byte)   := new bool(value<num.value);
     def operator<(num : bool)   := new bool(value<num.value);
     def operator<(num : double)   := new bool(value<num.value);
-    def operator<(num : var)    := new bool(value<num);
+    def operator<(num : decimal)    := new bool(value<num);
     def operator<(num : _int8)    := new bool(value<num);
     def operator<(num : _int16)   := new bool(value<num);
     def operator<(num : _int32)   := new bool(value<num);
@@ -225,7 +225,7 @@ public class number<T, NT> base base_number<NT> {
     def operator>(num : byte)   := new bool(value>num.value);
     def operator>(num : bool)   := new bool(value>num.value);
     def operator>(num : double)   := new bool(value>num.value);
-    def operator>(num : var)    := new bool(value>num);
+    def operator>(num : decimal)    := new bool(value>num);
     def operator>(num : _int8)    := new bool(value>num);
     def operator>(num : _int16)   := new bool(value>num);
     def operator>(num : _int32)   := new bool(value>num);
@@ -246,7 +246,7 @@ public class number<T, NT> base base_number<NT> {
     def operator<=(num : byte)   := new bool(value<=num.value);
     def operator<=(num : bool)   := new bool(value<=num.value);
     def operator<=(num : double)   := new bool(value <=num.value);
-    def operator<=(num : var)    := new bool(value<=num);
+    def operator<=(num : decimal)    := new bool(value<=num);
     def operator<=(num : _int8)    := new bool(value<=num);
     def operator<=(num : _int16)   := new bool(value<=num);
     def operator<=(num : _int32)   := new bool(value<=num);
@@ -267,7 +267,7 @@ public class number<T, NT> base base_number<NT> {
     def operator>=(num : byte)   := new bool(value>=num.value);
     def operator>=(num : bool)   := new bool(value>=num.value);
     def operator>=(num : double)   := new bool(value>=num.value);
-    def operator>=(num : var)    := new bool(value>=num);
+    def operator>=(num : decimal)    := new bool(value>=num);
     def operator>=(num : _int8)    := new bool(value>=num);
     def operator>=(num : _int16)   := new bool(value>=num);
     def operator>=(num : _int32)   := new bool(value>=num);
@@ -288,7 +288,7 @@ public class number<T, NT> base base_number<NT> {
     def operator**(num : byte)   := new NT(value**num.value);
     def operator**(num : bool)   := new NT(value**num.value);
     def operator**(num : double)   := new NT(value**num.value);
-    def operator**(num : var)    := new NT(value**num);
+    def operator**(num : decimal)    := new NT(value**num);
     def operator**(num : _int8)    := new NT(value**num);
     def operator**(num : _int16)   := new NT(value**num);
     def operator**(num : _int32)   := new NT(value**num);
@@ -309,7 +309,7 @@ public class number<T, NT> base base_number<NT> {
     def operator&&(num : byte)   := new bool(value&&num.value);
     def operator&&(num : bool)   := new bool(value&&num.value);
     def operator&&(num : double) := new bool(value&&num.value);
-    def operator&&(num : var)    := new bool(value&&num);
+    def operator&&(num : decimal)    := new bool(value&&num);
     def operator&&(num : _int8)  := new bool(value&&num);
     def operator&&(num : _int16) := new bool(value&&num);
     def operator&&(num : _int32) := new bool(value&&num);
@@ -330,7 +330,7 @@ public class number<T, NT> base base_number<NT> {
     def operator||(num : byte)   := new bool(value||num.value);
     def operator||(num : bool)   := new bool(value||num.value);
     def operator||(num : double) := new bool(value||num.value);
-    def operator||(num : var)    := new bool(value||num);
+    def operator||(num : decimal)    := new bool(value||num);
     def operator||(num : _int8)  := new bool(value||num);
     def operator||(num : _int16) := new bool(value||num);
     def operator||(num : _int32) := new bool(value||num);
@@ -351,7 +351,7 @@ public class number<T, NT> base base_number<NT> {
     def operator<<(num : byte)   := new NT(value<<num.value);
     def operator<<(num : bool)   := new NT(value<<num.value);
     def operator<<(num : double)   := new NT(value<<num.value);
-    def operator<<(num : var)    := new NT(value<<num);
+    def operator<<(num : decimal)    := new NT(value<<num);
     def operator<<(num : _int8)    := new NT(value<<num);
     def operator<<(num : _int16)   := new NT(value<<num);
     def operator<<(num : _int32)   := new NT(value<<num);
@@ -372,7 +372,7 @@ public class number<T, NT> base base_number<NT> {
     def operator>>(num : byte)   := new NT(value>>num.value);
     def operator>>(num : bool)   := new NT(value>>num.value);
     def operator>>(num : double)   := new NT(value>>num.value);
-    def operator>>(num : var)    := new NT(value>>num);
+    def operator>>(num : decimal)    := new NT(value>>num);
     def operator>>(num : _int8)    := new NT(value>>num);
     def operator>>(num : _int16)   := new NT(value>>num);
     def operator>>(num : _int32)   := new NT(value>>num);
@@ -393,7 +393,7 @@ public class number<T, NT> base base_number<NT> {
     def operator^(num : byte)   := new NT(value^num.value);
     def operator^(num : bool)   := new NT(value^num.value);
     def operator^(num : double)   := new NT(value^num.value);
-    def operator^(num : var)    := new NT(value^num);
+    def operator^(num : decimal)    := new NT(value^num);
     def operator^(num : _int8)    := new NT(value^num);
     def operator^(num : _int16)   := new NT(value^num);
     def operator^(num : _int32)   := new NT(value^num);
@@ -414,7 +414,7 @@ public class number<T, NT> base base_number<NT> {
     def operator&(num : byte)   := new NT(value&num.value);
     def operator&(num : bool)   := new NT(value&num.value);
     def operator&(num : double)   := new NT(value&num.value);
-    def operator&(num : var)    := new NT(value&num);
+    def operator&(num : decimal)    := new NT(value&num);
     def operator&(num : _int8)    := new NT(value&num);
     def operator&(num : _int16)   := new NT(value&num);
     def operator&(num : _int32)   := new NT(value&num);
@@ -435,7 +435,7 @@ public class number<T, NT> base base_number<NT> {
     def operator|(num : byte)   := new NT(value|num.value);
     def operator|(num : bool)   := new NT(value|num.value);
     def operator|(num : double)   := new NT(value|num.value);
-    def operator|(num : var)    := new NT(value|num);
+    def operator|(num : decimal)    := new NT(value|num);
     def operator|(num : _int8)    := new NT(value|num);
     def operator|(num : _int16)   := new NT(value|num);
     def operator|(num : _int32)   := new NT(value|num);
@@ -445,7 +445,7 @@ public class number<T, NT> base base_number<NT> {
     def operator|(num : _uint32)  := new NT(value|num);
     def operator|(num : _uint64)  := new NT(value|num);
     
-    def operator=(num : var) : NT { value=num; return self as NT; }
+    def operator=(num : decimal) : NT { value=num; return self as NT; }
     def operator=(num : _int8)   : NT { value=num; return self as NT; }
     def operator=(num : _int16)  : NT { value=num; return self as NT; }
     def operator=(num : _int32)  : NT { value=num; return self as NT; }
@@ -457,9 +457,9 @@ public class number<T, NT> base base_number<NT> {
     
     def operator!() := new bool(!value);
     def operator++() : NT { ++value; return self as NT; }
-    def operator++(num : var) := new NT(value++);
+    def operator++(num : decimal) := new NT(value++);
     def operator--() : NT { --value; return self as NT; }
-    def operator--(num : var) := new NT(value--);
+    def operator--(num : decimal) := new NT(value--);
     
     def operator+=(num : ulong)  : NT { value+=num.value; return self as NT; }
     def operator+=(num : long)   : NT { value+=num.value; return self as NT; }
@@ -472,7 +472,7 @@ public class number<T, NT> base base_number<NT> {
     def operator+=(num : byte)   : NT { value+=num.value; return self as NT; }
     def operator+=(num : bool)   : NT { value+=num.value; return self as NT; }
     def operator+=(num : double)   : NT { value+=num.value; return self as NT; }
-    def operator+=(num : var)    : NT { value+=num; return self as NT; }
+    def operator+=(num : decimal)    : NT { value+=num; return self as NT; }
     def operator+=(num : _int8)    : NT { value+=num; return self as NT; }
     def operator+=(num : _int16)   : NT { value+=num; return self as NT; }
     def operator+=(num : _int32)   : NT { value+=num; return self as NT; }
@@ -493,7 +493,7 @@ public class number<T, NT> base base_number<NT> {
     def operator-=(num : byte)   : NT { value-=num.value; return self as NT; }
     def operator-=(num : bool)   : NT { value-=num.value; return self as NT; }
     def operator-=(num : double)   : NT { value-=num.value; return self as NT; }
-    def operator-=(num : var)    : NT { value-=num; return self as NT; }
+    def operator-=(num : decimal)    : NT { value-=num; return self as NT; }
     def operator-=(num : _int8)    : NT { value-=num; return self as NT; }
     def operator-=(num : _int16)   : NT { value-=num; return self as NT; }
     def operator-=(num : _int32)   : NT { value-=num; return self as NT; }
@@ -514,7 +514,7 @@ public class number<T, NT> base base_number<NT> {
     def operator*=(num : byte)   : NT { value*=num.value; return self as NT; }
     def operator*=(num : bool)   : NT { value*=num.value; return self as NT; }
     def operator*=(num : double)   : NT { value*=num.value; return self as NT; }
-    def operator*=(num : var)    : NT { value*=num; return self as NT; }
+    def operator*=(num : decimal)    : NT { value*=num; return self as NT; }
     def operator*=(num : _int8)    : NT { value*=num; return self as NT; }
     def operator*=(num : _int16)   : NT { value*=num; return self as NT; }
     def operator*=(num : _int32)   : NT { value*=num; return self as NT; }
@@ -535,7 +535,7 @@ public class number<T, NT> base base_number<NT> {
     def operator/=(num : byte)   : NT { value/=num.value; return self as NT; }
     def operator/=(num : bool)   : NT { value/=num.value; return self as NT; }
     def operator/=(num : double)   : NT { value/=num.value; return self as NT; }
-    def operator/=(num : var)    : NT { value/=num; return self as NT; }
+    def operator/=(num : decimal)    : NT { value/=num; return self as NT; }
     def operator/=(num : _int8)    : NT { value/=num; return self as NT; }
     def operator/=(num : _int16)   : NT { value/=num; return self as NT; }
     def operator/=(num : _int32)   : NT { value/=num; return self as NT; }
@@ -556,7 +556,7 @@ public class number<T, NT> base base_number<NT> {
     def operator%=(num : byte)   : NT { value%=num.value; return self as NT; }
     def operator%=(num : bool)   : NT { value%=num.value; return self as NT; }
     def operator%=(num : double)   : NT { value%=num.value; return self as NT; }
-    def operator%=(num : var)    : NT { value%=num; return self as NT; }
+    def operator%=(num : decimal)    : NT { value%=num; return self as NT; }
     def operator%=(num : _int8)    : NT { value%=num; return self as NT; }
     def operator%=(num : _int16)   : NT { value%=num; return self as NT; }
     def operator%=(num : _int32)   : NT { value%=num; return self as NT; }
@@ -577,7 +577,7 @@ public class number<T, NT> base base_number<NT> {
     def operator&=(num : byte)   : NT { value&=num.value; return self as NT; }
     def operator&=(num : bool)   : NT { value&=num.value; return self as NT; }
     def operator&=(num : double)   : NT { value&=num.value; return self as NT; }
-    def operator&=(num : var)    : NT { value&=num; return self as NT; }
+    def operator&=(num : decimal)    : NT { value&=num; return self as NT; }
     def operator&=(num : _int8)    : NT { value&=num; return self as NT; }
     def operator&=(num : _int16)   : NT { value&=num; return self as NT; }
     def operator&=(num : _int32)   : NT { value&=num; return self as NT; }
@@ -598,7 +598,7 @@ public class number<T, NT> base base_number<NT> {
     def operator|=(num : byte)   : NT { value|=num.value; return self as NT; }
     def operator|=(num : bool)   : NT { value|=num.value; return self as NT; }
     def operator|=(num : double)   : NT { value|=num.value; return self as NT; }
-    def operator|=(num : var)    : NT { value|=num; return self as NT; }
+    def operator|=(num : decimal)    : NT { value|=num; return self as NT; }
     def operator|=(num : _int8)    : NT { value|=num; return self as NT; }
     def operator|=(num : _int16)   : NT { value|=num; return self as NT; }
     def operator|=(num : _int32)   : NT { value|=num; return self as NT; }
@@ -619,7 +619,7 @@ public class number<T, NT> base base_number<NT> {
     def operator^=(num : byte)   : NT { value^=num.value; return self as NT; }
     def operator^=(num : bool)   : NT { value^=num.value; return self as NT; }
     def operator^=(num : double)   : NT { value^=num.value; return self as NT; }
-    def operator^=(num : var)    : NT { value^=num; return self as NT; }
+    def operator^=(num : decimal)    : NT { value^=num; return self as NT; }
     def operator^=(num : _int8)    : NT { value^=num; return self as NT; }
     def operator^=(num : _int16)   : NT { value^=num; return self as NT; }
     def operator^=(num : _int32)   : NT { value^=num; return self as NT; }
@@ -636,7 +636,7 @@ public class number<T, NT> base base_number<NT> {
     static def parse(s: string) : NT {
         number : T = 0;
 
-        if(number is var) { // double.class
+        if(number is decimal) { // double.class
             return new NT(strtod(s).value);
         } else { //  integer type
             i := 0;
@@ -689,7 +689,7 @@ class base_number<NT> {
 
 class ulong base number<_uint64, ulong> {
     ulong(i : ulong) -> base(i.value) {}
-    ulong(initial_val : var) -> base(initial_val) {}
+    ulong(initial_val : decimal) -> base(initial_val) {}
     ulong(initial_val : _int8) -> base(initial_val) {}
     ulong(initial_val : _uint8) -> base(initial_val) {}
     ulong(initial_val : _int16)  -> base(initial_val) {}
@@ -699,7 +699,7 @@ class ulong base number<_uint64, ulong> {
     ulong(initial_val : _int64)  -> base(initial_val) {}
     ulong(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -715,7 +715,7 @@ class ulong base number<_uint64, ulong> {
 }
 class long base number<_int64, long> {
     long(i : long) -> base(i.value) {}
-    long(initial_val : var) -> base(initial_val) {}
+    long(initial_val : decimal) -> base(initial_val) {}
     long(initial_val : _int8) -> base(initial_val) {}
     long(initial_val : _uint8) -> base(initial_val) {}
     long(initial_val : _int16)  -> base(initial_val) {}
@@ -725,7 +725,7 @@ class long base number<_int64, long> {
     long(initial_val : _int64)  -> base(initial_val) {}
     long(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -738,7 +738,7 @@ class long base number<_int64, long> {
 
 class uint base number<_uint32, uint> {
     uint(i : uint) -> base(i.value) {}
-    uint(initial_val : var) -> base(initial_val) {}
+    uint(initial_val : decimal) -> base(initial_val) {}
     uint(initial_val : _int8) -> base(initial_val) {}
     uint(initial_val : _uint8) -> base(initial_val) {}
     uint(initial_val : _int16)  -> base(initial_val) {}
@@ -748,7 +748,7 @@ class uint base number<_uint32, uint> {
     uint(initial_val : _int64)  -> base(initial_val) {}
     uint(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -760,7 +760,7 @@ class uint base number<_uint32, uint> {
 }
 class int base number<_int32, int> {
     int(i : int) -> base(i.value) {}
-    int(initial_val : var) -> base(initial_val) {}
+    int(initial_val : decimal) -> base(initial_val) {}
     int(initial_val : _int8) -> base(initial_val) {}
     int(initial_val : _uint8) -> base(initial_val) {}
     int(initial_val : _int16)  -> base(initial_val) {}
@@ -770,7 +770,7 @@ class int base number<_int32, int> {
     int(initial_val : _int64)  -> base(initial_val) {}
     int(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -782,7 +782,7 @@ class int base number<_int32, int> {
 }
 class ushort base number<_uint16, ushort> {
     ushort(i : ushort) -> base(i.value) {}
-    ushort(initial_val : var) -> base(initial_val) {}
+    ushort(initial_val : decimal) -> base(initial_val) {}
     ushort(initial_val : _int8) -> base(initial_val) {}
     ushort(initial_val : _uint8) -> base(initial_val) {}
     ushort(initial_val : _int16)  -> base(initial_val) {}
@@ -792,7 +792,7 @@ class ushort base number<_uint16, ushort> {
     ushort(initial_val : _int64)  -> base(initial_val) {}
     ushort(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -804,7 +804,7 @@ class ushort base number<_uint16, ushort> {
 }
 class short base number<_int16, short> {
     short(i : short) -> base(i.value) {}
-    short(initial_val : var) -> base(initial_val) {}
+    short(initial_val : decimal) -> base(initial_val) {}
     short(initial_val : _int8) -> base(initial_val) {}
     short(initial_val : _uint8) -> base(initial_val) {}
     short(initial_val : _int16)  -> base(initial_val) {}
@@ -814,7 +814,7 @@ class short base number<_int16, short> {
     short(initial_val : _int64)  -> base(initial_val) {}
     short(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -826,7 +826,7 @@ class short base number<_int16, short> {
 }
 class uchar base number<_uint8, uchar> {
     uchar(i : uchar) -> base(i.value) {}
-    uchar(initial_val : var) -> base(initial_val) {}
+    uchar(initial_val : decimal) -> base(initial_val) {}
     uchar(initial_val : _int8) -> base(initial_val) {}
     uchar(initial_val : _uint8) -> base(initial_val) {}
     uchar(initial_val : _int16)  -> base(initial_val) {}
@@ -836,7 +836,7 @@ class uchar base number<_uint8, uchar> {
     uchar(initial_val : _int64)  -> base(initial_val) {}
     uchar(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var) -> base(initial_val) { } // todo: allow base calls on init decls and prevent constructor calling
+    init(initial_val : decimal) -> base(initial_val) { } // todo: allow base calls on init decls and prevent constructor calling
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -884,7 +884,7 @@ class uchar base number<_uint8, uchar> {
 }
 class char base number<_int8, char> {
     char(i : char) -> base(i.value) {}
-    char(initial_val : var) -> base(initial_val) {}
+    char(initial_val : decimal) -> base(initial_val) {}
     char(initial_val : _int8) -> base(initial_val) {}
     char(initial_val : _uint8) -> base(initial_val) {}
     char(initial_val : _int16)  -> base(initial_val) {}
@@ -894,7 +894,7 @@ class char base number<_int8, char> {
     char(initial_val : _int64)  -> base(initial_val) {}
     char(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -942,7 +942,7 @@ class char base number<_int8, char> {
 }
 class byte base uchar {
     byte(i : byte) -> base(i.value) {}
-    byte(initial_val : var) -> base(initial_val) {}
+    byte(initial_val : decimal) -> base(initial_val) {}
     byte(initial_val : _int8) -> base(initial_val) {}
     byte(initial_val : _uint8) -> base(initial_val) {}
     byte(initial_val : _int16)  -> base(initial_val) {}
@@ -952,7 +952,7 @@ class byte base uchar {
     byte(initial_val : _int64)  -> base(initial_val) {}
     byte(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }
@@ -965,7 +965,7 @@ class byte base uchar {
 
 class bool base number<_int8, bool> {
     bool(i : bool) -> base(i.value >= 1) {}
-    bool(initial_val : var) -> base(initial_val >= 1) {}
+    bool(initial_val : decimal) -> base(initial_val >= 1) {}
     bool(initial_val : _int8) -> base(initial_val >= 1) {}
     bool(initial_val : _uint8) -> base(initial_val >= 1) {}
     bool(initial_val : _int16)  -> base(initial_val >= 1) {}
@@ -975,7 +975,7 @@ class bool base number<_int8, bool> {
     bool(initial_val : _int64)  -> base(initial_val >= 1) {}
     bool(initial_val : _uint64)  -> base(initial_val >= 1) {}
 
-    init(initial_val : var)      -> base(initial_val >= 1) { }
+    init(initial_val : decimal)      -> base(initial_val >= 1) { }
     init(initial_val : _int8)    -> base(initial_val >= 1) { }
     init(initial_val : _int16)   -> base(initial_val >= 1) { }
     init(initial_val : _int32)   -> base(initial_val >= 1) { }
@@ -990,9 +990,9 @@ class bool base number<_int8, bool> {
     }
 }
 
-class double base number<var, double> {
+class double base number<decimal, double> {
     double(i : double) -> base(i.value) {}
-    double(initial_val : var) -> base(initial_val) {}
+    double(initial_val : decimal) -> base(initial_val) {}
     double(initial_val : _int8) -> base(initial_val) {}
     double(initial_val : _uint8) -> base(initial_val) {}
     double(initial_val : _int16)  -> base(initial_val) {}
@@ -1002,7 +1002,7 @@ class double base number<var, double> {
     double(initial_val : _int64)  -> base(initial_val) {}
     double(initial_val : _uint64)  -> base(initial_val) {}
 
-    init(initial_val : var)      -> base(initial_val) { }
+    init(initial_val : decimal)      -> base(initial_val) { }
     init(initial_val : _int8)    -> base(initial_val) { }
     init(initial_val : _int16)   -> base(initial_val) { }
     init(initial_val : _int32)   -> base(initial_val) { }

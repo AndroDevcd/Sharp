@@ -16,10 +16,10 @@ import (
 stable ext class _enum_ {
     public name : _int8[]?;
         private set value -> { name = value; }
-    public ordinal : var;
+    public ordinal : decimal;
         private set value -> { ordinal = value; }
 
-    _enum_(n: _int8[], ord : var) {
+    _enum_(n: _int8[], ord : decimal) {
         ordinal = ord;
         name = n;
     }

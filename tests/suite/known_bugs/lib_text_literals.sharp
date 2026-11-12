@@ -20,24 +20,24 @@ import ( testing )
  *    wrong call compiles silently.
  */
 
-def takes_text(text: string): var {
+def takes_text(text: string): decimal {
     return text.size().value;
 }
 
-def first_code(text: string): var {
+def first_code(text: string): decimal {
     return text.at(0).value;
 }
 
 def main(args: string[]) {
-    big : var = 12345678901;
+    big : decimal = 12345678901;
 
     // ---- 1. large negative literals
-    literal : var = -12345678901;
+    literal : decimal = -12345678901;
     expect("a large literal with a minus sign", literal, 0 - big);              // actual: -2147483648
-    folded : var = 0 - 12345678901;
+    folded : decimal = 0 - 12345678901;
     expect("0 - a large literal", folded, 0 - big);                             // actual: -2147483648
     expect("a large positive literal (correct today)", big + 1, 12345678902);
-    limit : var = -1.7976931348623157e308;
+    limit : decimal = -1.7976931348623157e308;
     expect_true("a large negative decimal literal", limit < 0 - 1e300);         // actual: false
 
     // ---- 2. a number passed as a string

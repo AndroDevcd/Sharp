@@ -11,7 +11,7 @@ import ( std.io )
  * is handy to walk over all entries of a section:
  *
  *     section := config.section("server");
- *     for(i : var = 0; i < section.size(); i++) {
+ *     for(i : decimal = 0; i < section.size(); i++) {
  *         println(section.key_at(i) + " -> " + section.value_at(i));
  *     }
  */
@@ -31,14 +31,14 @@ class ini_section {
     }
 
     /** the number of entries */
-    def size() : var {
+    def size() : decimal {
         return entry_keys.size().value;
     }
 
     /** the position of `key`, or -1 */
-    private def index_of(key: string) : var {
-        total : var = entry_keys.size().value;
-        for(i : var = 0; i < total; i++) {
+    private def index_of(key: string) : decimal {
+        total : decimal = entry_keys.size().value;
+        for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(entry_keys.at(i), key)) {
                 return i;
             }
@@ -53,7 +53,7 @@ class ini_section {
 
     /** the value of the entry `key`, or null when there is none */
     def find(key: string) : string? {
-        at : var = index_of(key);
+        at : decimal = index_of(key);
         if(at < 0) {
             return null;
         }
@@ -62,7 +62,7 @@ class ini_section {
 
     /** set the entry `key` to `value`: an existing entry keeps its place, a new one goes to the end */
     def put(key: string, value: string) {
-        at : var = index_of(key);
+        at : decimal = index_of(key);
         if(at >= 0) {
             entry_values.put(at, value);
         } else {
@@ -73,7 +73,7 @@ class ini_section {
 
     /** remove the entry `key`; returns true when there was one */
     def remove(key: string) : bool {
-        at : var = index_of(key);
+        at : decimal = index_of(key);
         if(at < 0) {
             return false;
         }
@@ -83,20 +83,20 @@ class ini_section {
     }
 
     /** the key of the entry at position `index` (0 is the first). Throws out_of_bounds_exception when there is no such entry. */
-    def key_at(index: var) : string {
+    def key_at(index: decimal) : string {
         return entry_keys.at(index);
     }
 
     /** the value of the entry at position `index`. Throws out_of_bounds_exception when there is no such entry. */
-    def value_at(index: var) : string {
+    def value_at(index: decimal) : string {
         return entry_values.at(index);
     }
 
     /** the keys of all entries in order (a new list) */
     def keys() : list<string> {
         result := new list<string>();
-        total : var = entry_keys.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = entry_keys.size().value;
+        for(i : decimal = 0; i < total; i++) {
             result.add(entry_keys.at(i));
         }
         return result;

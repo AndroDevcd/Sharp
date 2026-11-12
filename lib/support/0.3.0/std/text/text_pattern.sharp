@@ -33,29 +33,29 @@ mod std.text;
  */
 class text_pattern {
     // what one element of the translated pattern is
-    private static const kind_char : var = 0;       // one given character      (value = the character)
-    private static const kind_any : var = 1;        // ?                        (value unused)
-    private static const kind_star : var = 2;       // *                        (value unused)
-    private static const kind_set : var = 3;        // [...]                    (value = first range, see below)
+    private static const kind_char : decimal = 0;       // one given character      (value = the character)
+    private static const kind_any : decimal = 1;        // ?                        (value unused)
+    private static const kind_star : decimal = 2;       // *                        (value unused)
+    private static const kind_set : decimal = 3;        // [...]                    (value = first range, see below)
 
     private source : string = "";
-    private ignore_case : var = 0;
+    private ignore_case : decimal = 0;
 
     /* the translated pattern: kinds[i] / values[i] describe element i; `elements` of them are in use */
-    private kinds : var[]? = null;
-    private values : var[]? = null;
-    private elements : var = 0;
+    private kinds : decimal[]? = null;
+    private values : decimal[]? = null;
+    private elements : decimal = 0;
 
     /*
      * Sets are stored as ranges from..to (a single member is a range of one).
      * An element of kind_set owns the ranges values[i] .. values[i] + set_sizes[i] - 1;
      * set_negated[i] is 1 for [!...].
      */
-    private set_sizes : var[]? = null;
-    private set_negated : var[]? = null;
-    private range_from : var[]? = null;
-    private range_to : var[]? = null;
-    private ranges : var = 0;
+    private set_sizes : decimal[]? = null;
+    private set_negated : decimal[]? = null;
+    private range_from : decimal[]? = null;
+    private range_to : decimal[]? = null;
+    private ranges : decimal = 0;
 
     /**
      * Translates `pattern`. Capital and small letters are different.
@@ -79,7 +79,7 @@ class text_pattern {
     }
 
     /** `c` in lower case if case is ignored and it is a capital letter, otherwise `c`. */
-    private def fold(c: var): var {
+    private def fold(c: decimal): decimal {
         if(ignore_case && c >= 'A' && c <= 'Z') return c + 32;
         return c;
     }
@@ -87,19 +87,19 @@ class text_pattern {
     /** Translates `source` into the element arrays. */
     private def compile() {
         p := source.data;
-        n : var = sizeof(p);
+        n : decimal = sizeof(p);
         // no element or range can need more than one pattern character, so n is always enough room
-        room : var = n > 0 ? n : 1;
-        kinds = new var[room];
-        values = new var[room];
-        set_sizes = new var[room];
-        set_negated = new var[room];
-        range_from = new var[room];
-        range_to = new var[room];
+        room : decimal = n > 0 ? n : 1;
+        kinds = new decimal[room];
+        values = new decimal[room];
+        set_sizes = new decimal[room];
+        set_negated = new decimal[room];
+        range_from = new decimal[room];
+        range_to = new decimal[room];
 
-        i : var = 0;
+        i : decimal = 0;
         while(i < n) {
-            c : var = p[i];
+            c : decimal = p[i];
             if(c == '*') {
                 // several stars in a row mean the same as one
                 if(elements == 0 || kinds[elements - 1] != kind_star) {
@@ -133,19 +133,19 @@ class text_pattern {
      * Translates the set that starts with the '[' at position `open`.
      * Returns the position just after its ']'.
      */
-    private def compile_set(p: _int8[]?, n: var, open: var): var {
-        i : var = open + 1;
-        negated : var = 0;
+    private def compile_set(p: _int8[]?, n: decimal, open: decimal): decimal {
+        i : decimal = open + 1;
+        negated : decimal = 0;
         if(i < n && (p[i] == '!' || p[i] == '^')) {
             negated = 1;
             i++;
         }
 
-        first_range : var = ranges;
-        first_member : var = i;             // a ']' here is a member, not the end
-        closed : var = 0;
+        first_range : decimal = ranges;
+        first_member : decimal = i;             // a ']' here is a member, not the end
+        closed : decimal = 0;
         while(i < n) {
-            c : var = p[i];
+            c : decimal = p[i];
             if(c == ']' && i > first_member) {
                 closed = 1;
                 i++;
@@ -155,15 +155,15 @@ class text_pattern {
                 i++;
                 c = p[i];
             }
-            low : var = fold(c);
-            high : var = low;
+            low : decimal = fold(c);
+            high : decimal = low;
             // "a-z": a range, unless the '-' is the last member ("[a-]")
             if(i + 2 < n && p[i + 1] == '-' && p[i + 2] != ']') {
                 high = fold(p[i + 2]);
                 i += 2;
             }
             if(high < low) {                // "[z-a]" is read as "[a-z]"
-                swap : var = low;
+                swap : decimal = low;
                 low = high;
                 high = swap;
             }
@@ -186,17 +186,17 @@ class text_pattern {
     }
 
     /** 1 if element `e` (not a star) accepts the character `c`. */
-    private def accepts(e: var, c: var): var {
-        kind : var = kinds[e];
+    private def accepts(e: decimal, c: decimal): decimal {
+        kind : decimal = kinds[e];
         if(kind == kind_any) return 1;
         c = fold(c);
         if(kind == kind_char) return values[e] == c;
 
         // a set: is c inside one of its ranges?
-        first : var = values[e];
-        last : var = first + set_sizes[e];
-        inside : var = 0;
-        for(r : var = first; r < last; r++) {
+        first : decimal = values[e];
+        last : decimal = first + set_sizes[e];
+        inside : decimal = 0;
+        for(r : decimal = first; r < last; r++) {
             if(c >= range_from[r] && c <= range_to[r]) {
                 inside = 1;
                 break;
@@ -210,14 +210,14 @@ class text_pattern {
      * 1 if the whole of `text` fits the pattern, otherwise 0.
      * An empty pattern only matches ""; "*" matches everything, including "".
      */
-    def matches(text: string): var {
+    def matches(text: string): decimal {
         t := text.data;
-        n : var = sizeof(t);
-        ti : var = 0;               // next character of the text
-        pi : var = 0;               // next element of the pattern
+        n : decimal = sizeof(t);
+        ti : decimal = 0;               // next character of the text
+        pi : decimal = 0;               // next element of the pattern
         // where to come back to when the match fails after a star:
-        star_pi : var = -1;         // the element after the last star seen
-        star_ti : var = 0;          // the text position that star currently reaches to
+        star_pi : decimal = -1;         // the element after the last star seen
+        star_ti : decimal = 0;          // the text position that star currently reaches to
 
         while(ti < n) {
             if(pi < elements && kinds[pi] == kind_star) {
@@ -247,16 +247,16 @@ class text_pattern {
 
     /** The strings of `items` that match, in their original order (an array of length 0 if none do). Null elements are skipped. */
     def filter(items: string[]): string[] {
-        count : var = sizeof(items);
-        hits : var = 0;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = sizeof(items);
+        hits : decimal = 0;
+        for(i : decimal = 0; i < count; i++) {
             item := items[i];
             if((item as object) != null && matches(item)) hits++;
         }
 
         result := new string[hits];
-        used : var = 0;
-        for(i : var = 0; i < count; i++) {
+        used : decimal = 0;
+        for(i : decimal = 0; i < count; i++) {
             item := items[i];
             if((item as object) != null && matches(item)) result[used++] = item;
         }
@@ -264,10 +264,10 @@ class text_pattern {
     }
 
     /** How many strings of `items` match. */
-    def count_matches(items: string[]): var {
-        count : var = sizeof(items);
-        hits : var = 0;
-        for(i : var = 0; i < count; i++) {
+    def count_matches(items: string[]): decimal {
+        count : decimal = sizeof(items);
+        hits : decimal = 0;
+        for(i : decimal = 0; i < count; i++) {
             item := items[i];
             if((item as object) != null && matches(item)) hits++;
         }
@@ -280,8 +280,8 @@ class text_pattern {
     }
 
     /** 1 if the pattern has no wildcards at all, so that it matches exactly one text (apart from letter case). */
-    def is_literal(): var {
-        for(e : var = 0; e < elements; e++) {
+    def is_literal(): decimal {
+        for(e : decimal = 0; e < elements; e++) {
             if(kinds[e] != kind_char) return 0;
         }
         return 1;
@@ -291,20 +291,20 @@ class text_pattern {
      * One-off match: 1 if the whole of `text` fits `pattern`.
      * Throws parse_exception if the pattern is malformed.
      */
-    static def matches(pattern: string, text: string): var {
+    static def matches(pattern: string, text: string): decimal {
         return new text_pattern(pattern).matches(text);
     }
 
     /** One-off match that treats ASCII capital and small letters as equal. */
-    static def matches_ignore_case(pattern: string, text: string): var {
+    static def matches_ignore_case(pattern: string, text: string): decimal {
         return new text_pattern(pattern, true).matches(text);
     }
 
     /** 1 if `text` contains a character that is special in a pattern: * ? [ or \ */
-    static def has_wildcards(text: string): var {
-        n : var = sizeof(text.data);
-        for(i : var = 0; i < n; i++) {
-            c : var = text.data[i];
+    static def has_wildcards(text: string): decimal {
+        n : decimal = sizeof(text.data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = text.data[i];
             if(c == '*' || c == '?' || c == '[' || c == '\\') return 1;
         }
         return 0;
@@ -316,10 +316,10 @@ class text_pattern {
      * escape("what?") is "what\?".
      */
     static def escape(text: string): string {
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         out := new text_buffer();
-        for(i : var = 0; i < n; i++) {
-            c : var = text.data[i];
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = text.data[i];
             if(c == '*' || c == '?' || c == '[' || c == ']' || c == '\\') out.append_char('\\');
             out.append_char(c);
         }

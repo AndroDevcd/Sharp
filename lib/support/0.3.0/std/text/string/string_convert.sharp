@@ -22,7 +22,7 @@ mutate string {
      * Throws number_format_exception if the string is not an optional sign
      * followed by digits, or is outside of -2147483648 .. 2147483647.
      */
-    def to_int(): var {
+    def to_int(): decimal {
         return number_parser.parse_int(self);
     }
 
@@ -31,7 +31,7 @@ mutate string {
      * ("ff".to_int(16) is 255).
      * Throws number_format_exception, or illegal_argument_exception for a bad radix.
      */
-    def to_int(radix: int): var {
+    def to_int(radix: int): decimal {
         return number_parser.parse_int(self, radix);
     }
 
@@ -41,7 +41,7 @@ mutate string {
     }
 
     /** to_int() that returns `fallback` instead of throwing. */
-    def to_int_or(fallback: int): var {
+    def to_int_or(fallback: int): decimal {
         return number_parser.parse_int_or(self, fallback);
     }
 
@@ -49,7 +49,7 @@ mutate string {
      * Like to_int(), with the larger range -9007199254740991 .. 9007199254740991.
      * Throws number_format_exception if the string is not such a number.
      */
-    def to_long(): var {
+    def to_long(): decimal {
         return number_parser.parse_long(self);
     }
 
@@ -59,7 +59,7 @@ mutate string {
     }
 
     /** to_long() that returns `fallback` instead of throwing. */
-    def to_long_or(fallback: long): var {
+    def to_long_or(fallback: long): decimal {
         return number_parser.parse_long_or(self, fallback);
     }
 
@@ -67,7 +67,7 @@ mutate string {
      * The decimal number written in this string ("3.25", "-0.5", "1e3", "7").
      * Throws number_format_exception if the string is not a decimal number.
      */
-    def to_double(): var {
+    def to_double(): decimal {
         return number_parser.parse_double(self);
     }
 
@@ -77,7 +77,7 @@ mutate string {
     }
 
     /** to_double() that returns `fallback` instead of throwing. */
-    def to_double_or(fallback: double): var {
+    def to_double_or(fallback: double): decimal {
         return number_parser.parse_double_or(self, fallback);
     }
 
@@ -85,7 +85,7 @@ mutate string {
      * 1 if the string is "true", 0 if it is "false" (capital / small letters do not matter).
      * Throws number_format_exception for anything else.
      */
-    def to_bool(): var {
+    def to_bool(): decimal {
         return number_parser.parse_bool(self);
     }
 
@@ -95,17 +95,17 @@ mutate string {
     }
 
     /** to_bool() that returns `fallback` instead of throwing. */
-    def to_bool_or(fallback: bool): var {
+    def to_bool_or(fallback: bool): decimal {
         return number_parser.parse_bool_or(self, fallback);
     }
 
     /** 1 if the string is a whole or decimal number that to_double() accepts ("12", "-1.5e3"). */
-    def is_number(): var {
+    def is_number(): decimal {
         return number_parser.is_double(self);
     }
 
     /** 1 if the string is a whole number that to_long() accepts ("12", "-7"; not "1.5"). */
-    def is_integer(): var {
+    def is_integer(): decimal {
         return number_parser.is_long(self);
     }
 }

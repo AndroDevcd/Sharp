@@ -14,7 +14,7 @@ def text(d: duration): string {
 }
 
 /** 1 when duration.parse(s) throws a date_time_exception */
-def rejects(s: string): var {
+def rejects(s: string): decimal {
     try {
         duration.parse(s);
         return 0;
@@ -109,7 +109,7 @@ def main(args: string[]) {
     expect("...and comes back out", long_time.minus(duration.of_days(109575)).to_nanos(), 1);
 
     // ---- errors
-    caught : var = 0;
+    caught : decimal = 0;
     try { a.divided_by(0); } catch(e: date_time_exception) { caught = 1; }
     expect("divided_by(0) throws", caught, 1);
     caught = 0;

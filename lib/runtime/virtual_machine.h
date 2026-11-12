@@ -12,7 +12,7 @@
 #include "types/library.h"
 #include "error/vm_exception.h"
 
-extern thread_local long double *registers;
+extern thread_local vm_cell *registers;
 
 enum vm_state {
     VM_CREATED = 0,
@@ -112,8 +112,7 @@ sharp_function* next_rebuild_frame();
  * raises invalid_operation_exception like any other run time error.
  * (INT64_MIN % -1 traps the same way on x86; its mathematical result is 0.)
  *
- * Used by MOD / IMOD / MODL / IMODL in the interpreter and by the matching JIT
- * wrappers in jit/jit_wrappers.cpp, so both behave identically.
+ * Used by MOD / IMOD / MODL / IMODL in the interpreter.
  */
 inline Int vm_remainder(Int left, Int right) {
     if(right == 0)

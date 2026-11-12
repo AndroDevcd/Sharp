@@ -7,7 +7,7 @@ mod std.util;
  * (Kotlin's require / check / requireNotNull / error / TODO). Only static
  * functions; never instantiated.
  *
- *     def withdraw(amount: var) {
+ *     def withdraw(amount: decimal) {
  *         preconditions.require(amount > 0, "amount must be positive");
  *         preconditions.check(is_open, "the account is closed");
  *         ...
@@ -71,7 +71,7 @@ class preconditions {
      * Throws out_of_bounds_exception unless 0 <= index < size; returns the
      * index otherwise. The message names the index and the size.
      */
-    static def require_index(index: var, size: var): var {
+    static def require_index(index: decimal, size: decimal): decimal {
         if(index < 0 || index >= size || index != index) {
             shown : int = index;
             limit : int = size;
@@ -84,7 +84,7 @@ class preconditions {
      * Throws illegal_argument_exception with `message` unless
      * low <= value <= high; returns the value otherwise.
      */
-    static def require_in_range(value: var, low: var, high: var, message: string): var {
+    static def require_in_range(value: decimal, low: decimal, high: decimal, message: string): decimal {
         if(value < low || value > high || value != value)
             throw new illegal_argument_exception(message);
         return value;

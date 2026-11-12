@@ -272,6 +272,9 @@ void operation_step_to_str(Int index, operation_step *step, stringstream &ss) {
        case operation_retain_numeric_value:
            ss << "operation_retain_numeric_value";
            break;
+       case operation_convert_number:
+           ss << "operation_convert_number";
+           break;
        case operation_discard_register:
            ss << "operation_discard_register";
            break;
@@ -1191,6 +1194,25 @@ void create_shr_operation(
             operation_shr, registerLeft, registerRight));
 }
 
+void set_numeric_operation(
+        operation_schema *scheme,
+        bool decimalOperation,
+        bool leftIsDecimal,
+        bool rightIsDecimal) {
+    if(scheme == NULL || scheme->steps.empty()) return;
+
+    operation_step *step = scheme->steps.last();
+    step->nativeType = decimalOperation ? type_var : type_int64;
+
+    if(decimalOperation) {
+        step->leftConversion = leftIsDecimal ? convert_nothing : convert_to_decimal;
+        step->rightConversion = rightIsDecimal ? convert_nothing : convert_to_decimal;
+    } else {
+        step->leftConversion = leftIsDecimal ? convert_to_integer : convert_nothing;
+        step->rightConversion = rightIsDecimal ? convert_to_integer : convert_nothing;
+    }
+}
+
 void create_add_operation(
         operation_schema *scheme,
         Int registerLeft,
@@ -1641,11 +1663,13 @@ void create_pop_direct_numeric_value_from_stack_operation(
 void create_assign_array_element_operation(
         operation_schema *scheme,
         Int index,
-        bool isNumeric) {
+        bool isNumeric,
+        data_type elementType) {
     if(scheme) {
         scheme->steps.add(new operation_step(
                 operation_assign_array_element_from_stack, index));
         scheme->steps.last()->_bool = isNumeric;
+        scheme->steps.last()->nativeType = elementType;
     }
 }
 
@@ -2114,11 +2138,20 @@ void create_post_access_operation(
     scheme->steps.add(new operation_step(operation_post_access));
 }
 
-void create_negate_operation(operation_schema *scheme) {
-    scheme->steps.add(new operation_step(operation_negate_value));
+void create_convert_number_operation(operation_schema *scheme, numeric_conversion conversion) {
+    if(scheme) {
+        scheme->steps.add(new operation_step(operation_convert_number));
+        scheme->steps.last()->resultConversion = conversion;
+    }
 }
-void create_not_operation(operation_schema *scheme) {
+
+void create_negate_operation(operation_schema *scheme, bool decimalOperand) {
+    scheme->steps.add(new operation_step(operation_negate_value));
+    scheme->steps.last()->nativeType = decimalOperand ? type_var : type_int64;
+}
+void create_not_operation(operation_schema *scheme, bool decimalOperand) {
     scheme->steps.add(new operation_step(operation_not_value));
+    scheme->steps.last()->nativeType = decimalOperand ? type_var : type_int64;
 }
 
 void create_increment_operation(

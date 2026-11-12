@@ -29,7 +29,7 @@ class temp_files {
     /** the temporary directory once it is known, "" before */
     private static directory_path : string = "";
     /** counts the names handed out, so two names made in the same millisecond differ */
-    private static counter : var = 0;
+    private static counter : decimal = 0;
     /** the paths created through this class that cleanup() still has to delete */
     private static created := new list<string>();
 
@@ -100,7 +100,7 @@ class temp_files {
      * the temporary directory.
      */
     static def new_path_in(dir: string, prefix: string, suffix: string) : string {
-        sep : var = file_natives.separator();
+        sep : decimal = file_natives.separator();
         while(true) {
             counter++;
             buf := new char_buffer(96);
@@ -168,7 +168,7 @@ class temp_files {
     }
 
     /** how many files and directories created through this class cleanup() would try to delete */
-    static def pending() : var {
+    static def pending() : decimal {
         return created.size().value;
     }
 
@@ -177,10 +177,10 @@ class temp_files {
      * through this class and still exists. Returns how many were deleted.
      * Things that were already deleted by the program are skipped quietly.
      */
-    static def cleanup() : var {
-        deleted : var = 0;
-        count : var = created.size().value;
-        for(i : var = 0; i < count; i++) {
+    static def cleanup() : decimal {
+        deleted : decimal = 0;
+        count : decimal = created.size().value;
+        for(i : decimal = 0; i < count; i++) {
             f := new file(created.at(i));
             if(f.exists()) {
                 if(f.delete_recursively()) {

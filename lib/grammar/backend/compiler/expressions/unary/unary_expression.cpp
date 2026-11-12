@@ -27,7 +27,11 @@
 static void compile_array_element_step(expression *e, string &op, bool resultIsOldValue) {
     operation_schema element(e->scheme);
     operation_schema one;
-    create_get_integer_constant_operation(&one, 1);
+    // the 1 that is added is the same kind of number as the element
+    if(is_decimal_type(e->type))
+        create_get_decimal_constant_operation(&one, 1);
+    else
+        create_get_integer_constant_operation(&one, 1);
 
     e->scheme.free();
     ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
@@ -35,6 +39,9 @@ static void compile_array_element_step(expression *e, string &op, bool resultIsO
             create_plus_value_assignment_operation(&e->scheme, register_0, register_1, &element, &one);
         else
             create_sub_value_assignment_operation(&e->scheme, register_0, register_1, &element, &one);
+
+        string arithmeticOperator = op == "++" ? "+" : "-";
+        type_compound_assignment(&e->scheme, arithmeticOperator, e->type, e->type);
 
         if(resultIsOldValue)
             e->scheme.steps.last()->_bool = true;   // the operation_assign_numeric_value step
@@ -218,13 +225,17 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 }
 
                 if(op == "-")
-                    create_negate_operation(schema);
+                    create_negate_operation(schema, is_decimal_type(e->type));
                 else if(op == "++")
                     create_increment_operation(schema, e->type.type);
                 else if(op == "--")
                     create_decrement_operation(schema, e->type.type);
                 else if(op == "!")
-                    create_not_operation(schema);
+                    create_not_operation(schema, is_decimal_type(e->type));
+
+                // !x is 0 or 1, an integer, whatever kind of number x is
+                if(op == "!")
+                    e->type.type = type_int8;
 
                 e->scheme.free();
                 e->scheme.copy(*schema);
@@ -237,15 +248,15 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
                 if((field->type.type >= type_int8 && field->type.type <= type_uint64)
                    || field->type.type == type_var) {
                     if(op == "-")
-                        create_negate_operation(schema);
+                        create_negate_operation(schema, is_decimal_type(e->type));
                     else if(op == "++")
                         create_increment_operation(schema, field->type.type);
                     else if(op == "--")
                         create_decrement_operation(schema, field->type.type);
                     else if(op == "!")
-                        create_not_operation(schema);
+                        create_not_operation(schema, is_decimal_type(e->type));
 
-                    e->type.type = field->type.type;
+                    e->type.type = op == "!" ? type_int8 : field->type.type;     // !x: 0 or 1, an integer
 
                     e->scheme.free();
                     e->scheme.copy(*schema);
@@ -411,7 +422,7 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
                     create_pop_value_from_stack_operation(&e->scheme);
 
                     e->scheme.schemeType = scheme_post_increment;
-                    e->type.type = field->type.type;
+                    e->type.type = op == "!" ? type_int8 : field->type.type;     // !x: 0 or 1, an integer
                 } else if(field->type.type == type_class) {
                     goto _class;
                 } else {

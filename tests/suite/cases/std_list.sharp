@@ -6,14 +6,14 @@ import ( testing )
  * std list<T>: a growable array. Tested with three kinds of element:
  * a user class (planet), string, and the number box int.
  *
- * (list<var> - a list of native numbers - is known not to work and is not used here.)
+ * (list<decimal> - a list of native numbers - is known not to work and is not used here.)
  */
 
 class planet {
     name : string = "";
-    moons : var = 0;
+    moons : decimal = 0;
 
-    planet(planet_name: string, moon_count: var) {
+    planet(planet_name: string, moon_count: decimal) {
         name = planet_name;
         moons = moon_count;
     }
@@ -28,8 +28,8 @@ def same_name(a: planet, b: planet): bool {
 }
 
 /** adds up a list of int with foreach */
-def total_of(numbers: list<int>): var {
-    total : var = 0;
+def total_of(numbers: list<int>): decimal {
+    total : decimal = 0;
     foreach(n in numbers) {
         total += n.value;
     }
@@ -37,9 +37,9 @@ def total_of(numbers: list<int>): var {
 }
 
 /** the moons of every planet as digits, e.g. 0, 2, 1 -> 21 -> 021 */
-def moon_digits(planets: list<planet>): var {
-    digits : var = 0;
-    for(i : var = 0; i < planets.size().value; i++) {
+def moon_digits(planets: list<planet>): decimal {
+    digits : decimal = 0;
+    for(i : decimal = 0; i < planets.size().value; i++) {
         digits = digits * 10 + planets.at(i).moons;
     }
     return digits;
@@ -174,7 +174,7 @@ def main(args: string[]) {
     expect_str("sorted: last", planets.last().name, "jupiter");
 
     // ---- out of range access raises out_of_bounds_exception
-    caught : var = 0;
+    caught : decimal = 0;
     try {
         planets.at(4);
     } catch(e: out_of_bounds_exception) {
@@ -237,7 +237,7 @@ def main(args: string[]) {
     expect("pop_back on an empty list does nothing", nothing.size().value, 0);
     expect("indexof on an empty list", nothing.indexof(mars).value, 0 - 1);
     expect_null("get_elements of an empty list is null", nothing.get_elements());
-    trips_through_nothing : var = 0;
+    trips_through_nothing : decimal = 0;
     foreach(p in nothing) {
         trips_through_nothing++;
     }
@@ -284,7 +284,7 @@ def main(args: string[]) {
     expect("ints: total after put and remove", total_of(numbers), 41);
 
     // ---- foreach counts exactly size() elements, also after removals
-    trips : var = 0;
+    trips : decimal = 0;
     foreach(n in numbers) {
         trips++;
     }
@@ -292,7 +292,7 @@ def main(args: string[]) {
 
     // ---- growing: far more elements than the first capacity (10)
     big := new list<int>();
-    for(i : var = 0; i < 1000; i++) {
+    for(i : decimal = 0; i < 1000; i++) {
         big.add(i * 2);
     }
     expect("1000 adds: size", big.size().value, 1000);
@@ -301,7 +301,7 @@ def main(args: string[]) {
     expect("1000 adds: element 500", big.at(500).value, 1000);
     expect("1000 adds: last", big.last().value, 1998);
     expect("1000 adds: total", total_of(big), 999000);
-    for(i : var = 0; i < 990; i++) {
+    for(i : decimal = 0; i < 990; i++) {
         big.pop_back();
     }
     expect("990 pop_back: size", big.size().value, 10);

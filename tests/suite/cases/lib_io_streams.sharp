@@ -13,8 +13,8 @@ import ( testing, std.io )
 base_dir : string = "/tmp/sharp_suite_io_streams";
 
 /** counts the characters of a reader through the interface only */
-def count_chars(input: text_reader): var {
-    count : var = 0;
+def count_chars(input: text_reader): decimal {
+    count : decimal = 0;
     while(input.read_char() >= 0) {
         count++;
     }
@@ -150,8 +150,8 @@ def test_buffered_reader() {
 
     // numbers separated by any white space
     numbers := new buffered_reader(new string_text_reader("1 2\n3\t4   5\n"));
-    total : var = 0;
-    words : var = 0;
+    total : decimal = 0;
+    words : decimal = 0;
     while(numbers.skip_whitespace() && numbers.has_more()) {
         total += io_strings.parse_int(numbers.read_word());
         words++;
@@ -161,7 +161,7 @@ def test_buffered_reader() {
 
     // many pushed back characters
     many := new buffered_reader(new string_text_reader(""));
-    for(i : var = 0; i < 100; i++) {
+    for(i : decimal = 0; i < 100; i++) {
         many.unread('a' + (i % 26));
     }
     expect("first of 100 unread", many.read_char(), 'a' + (99 % 26));
@@ -265,7 +265,7 @@ def test_file_streams() {
     catch(e: io_exception) { pass("file_reader after close"); }
     by_name := new file_reader(base_dir + "/out.txt");
     expect("file_reader by path, through the interface", count_chars(by_name), 19);
-    lines : var = 0;
+    lines : decimal = 0;
     src3 := new file_reader(target);
     foreach(line in src3) {
         lines++;
@@ -329,7 +329,7 @@ def test_buffered_writer() {
     // buffered writer in front of a file
     target := new file(base_dir + "/buffered.txt");
     fw := new buffered_writer(new file_writer(target), 64);
-    for(i : var = 0; i < 100; i++) {
+    for(i : decimal = 0; i < 100; i++) {
         fw.write_int(i);
         fw.new_line();
     }

@@ -14,8 +14,8 @@ import ( testing, std.math )
  */
 
 def main(args: string[]) {
-    tolerance : var = 0.000000001;              // 1e-9
-    pi : var = 3.141592653589793;
+    tolerance : decimal = 0.000000001;              // 1e-9
+    pi : decimal = 3.141592653589793;
 
     // ---- the constants
     expect_near("PI", PI.value, 3.141592653589793, tolerance);
@@ -190,12 +190,12 @@ def main(args: string[]) {
     expect_false("is_infinite(0)", is_infinite(0).value);
 
     // ---- arguments can be variables and expressions, results can be combined
-    side_a : var = 3;
-    side_b : var = 4;
+    side_a : decimal = 3;
+    side_b : decimal = 4;
     expect("hypotenuse of a 3-4-5 triangle", sqrt(side_a * side_a + side_b * side_b).value, 5);
     expect_near("functions as arguments of functions", sqrt(pow(2, 4)).value + floor(2.9).value, 6, tolerance);
-    total : var = 0;
-    for(i : var = 1; i <= 10; i++) {
+    total : decimal = 0;
+    for(i : decimal = 1; i <= 10; i++) {
         total += sqrt(i * i).value;             // 1 + 2 + ... + 10
     }
     expect_near("math calls in a loop", total, 55, tolerance);

@@ -37,7 +37,7 @@ class coroutine_exceptions {
 
     private static guard : object = new _object_();
     private static handler : coroutine_exception_handler?;
-    private static reported : var = 0;
+    private static reported : decimal = 0;
 
     /** Install the handler for uncaught coroutine exceptions; null prints them instead. */
     static def set_handler(new_handler: coroutine_exception_handler?) {
@@ -47,8 +47,8 @@ class coroutine_exceptions {
     }
 
     /** how many uncaught coroutine exceptions were reported since the program started */
-    static def count() : var {
-        total : var = 0;
+    static def count() : decimal {
+        total : decimal = 0;
         lock(guard) {
             total = reported;
         }

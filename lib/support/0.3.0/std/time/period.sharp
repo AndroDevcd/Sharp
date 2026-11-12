@@ -22,11 +22,11 @@ class period {
     /** a period of nothing */
     static const zero : period = new period(0, 0, 0);
 
-    private year_count : var = 0;
-    private month_count : var = 0;
-    private day_count : var = 0;
+    private year_count : decimal = 0;
+    private month_count : decimal = 0;
+    private day_count : decimal = 0;
 
-    private period(years: var, months: var, days: var) {
+    private period(years: decimal, months: decimal, days: decimal) {
         year_count = years;
         month_count = months;
         day_count = days;
@@ -41,19 +41,19 @@ class period {
      * negative; nothing is normalised (of(0, 14, 0) stays 14 months).
      * @throws date_time_exception when an argument is not a whole number
      */
-    static def of(years: var, months: var, days: var): period {
+    static def of(years: decimal, months: decimal, days: decimal): period {
         time_math.check_whole("years", years);
         time_math.check_whole("months", months);
         time_math.check_whole("days", days);
         return new period(years, months, days);
     }
 
-    static def of_years(years: var): period { return of(years, 0, 0); }
-    static def of_months(months: var): period { return of(0, months, 0); }
-    static def of_days(days: var): period { return of(0, 0, days); }
+    static def of_years(years: decimal): period { return of(years, 0, 0); }
+    static def of_months(months: decimal): period { return of(0, months, 0); }
+    static def of_days(days: decimal): period { return of(0, 0, days); }
 
     /** a period of `weeks` weeks, stored as weeks * 7 days */
-    static def of_weeks(weeks: var): period { return of(0, 0, weeks * 7); }
+    static def of_weeks(weeks: decimal): period { return of(0, 0, weeks * 7); }
 
     /**
      * The years, months and days from `start` to `end`, such that
@@ -71,8 +71,8 @@ class period {
      *     2024-03-15 -> 2024-01-10   P-2M-5D
      */
     static def between(start: date, end: date): period {
-        total_months : var = (end.year() * 12 + end.month_value()) - (start.year() * 12 + start.month_value());
-        days : var = end.day() - start.day();
+        total_months : decimal = (end.year() * 12 + end.month_value()) - (start.year() * 12 + start.month_value());
+        days : decimal = end.day() - start.day();
         if(total_months > 0 && days < 0) {
             total_months--;
             days = start.plus_months(total_months).days_until(end);
@@ -80,8 +80,8 @@ class period {
             total_months++;
             days -= end.length_of_month();
         }
-        years : var = time_math.trunc_div(total_months, 12);
-        months : var = total_months % 12;
+        years : decimal = time_math.trunc_div(total_months, 12);
+        months : decimal = total_months % 12;
         return new period(years, months, days);
     }
 
@@ -89,22 +89,22 @@ class period {
     //  reading
     // ------------------------------------------------------------------
 
-    def years(): var { return year_count; }
-    def months(): var { return month_count; }
-    def days(): var { return day_count; }
+    def years(): decimal { return year_count; }
+    def months(): decimal { return month_count; }
+    def days(): decimal { return day_count; }
 
     /** years * 12 + months: the period's years and months as one number of months */
-    def to_total_months(): var {
+    def to_total_months(): decimal {
         return year_count * 12 + month_count;
     }
 
     /** 1 when all three fields are 0 */
-    def is_zero(): var {
+    def is_zero(): decimal {
         return year_count == 0 && month_count == 0 && day_count == 0;
     }
 
     /** 1 when at least one of the three fields is negative */
-    def is_negative(): var {
+    def is_negative(): decimal {
         return year_count < 0 || month_count < 0 || day_count < 0;
     }
 
@@ -122,22 +122,22 @@ class period {
         return new period(year_count - other.year_count, month_count - other.month_count, day_count - other.day_count);
     }
 
-    def plus_years(years: var): period { return of(year_count + years, month_count, day_count); }
-    def plus_months(months: var): period { return of(year_count, month_count + months, day_count); }
-    def plus_days(days: var): period { return of(year_count, month_count, day_count + days); }
+    def plus_years(years: decimal): period { return of(year_count + years, month_count, day_count); }
+    def plus_months(months: decimal): period { return of(year_count, month_count + months, day_count); }
+    def plus_days(days: decimal): period { return of(year_count, month_count, day_count + days); }
 
     /** a copy with the years replaced */
-    def with_years(years: var): period { return of(years, month_count, day_count); }
+    def with_years(years: decimal): period { return of(years, month_count, day_count); }
     /** a copy with the months replaced */
-    def with_months(months: var): period { return of(year_count, months, day_count); }
+    def with_months(months: decimal): period { return of(year_count, months, day_count); }
     /** a copy with the days replaced */
-    def with_days(days: var): period { return of(year_count, month_count, days); }
+    def with_days(days: decimal): period { return of(year_count, month_count, days); }
 
     /**
      * Every field multiplied by `factor` (a whole number, may be negative).
      * @throws date_time_exception when `factor` is not a whole number
      */
-    def multiplied_by(factor: var): period {
+    def multiplied_by(factor: decimal): period {
         time_math.check_whole("factor", factor);
         return new period(year_count * factor, month_count * factor, day_count * factor);
     }
@@ -154,23 +154,23 @@ class period {
      * -1 year 3 months -> -9 months. The days are left alone.
      */
     def normalized(): period {
-        total : var = to_total_months();
+        total : decimal = to_total_months();
         return new period(time_math.trunc_div(total, 12), total % 12, day_count);
     }
 
     def operator+(other: period): period { return plus(other); }
     def operator-(other: period): period { return minus(other); }
-    def operator*(factor: var): period { return multiplied_by(factor); }
+    def operator*(factor: decimal): period { return multiplied_by(factor); }
 
     /**
      * 1 when all three fields are the same. Periods are compared field by
      * field without normalising: 12 months is NOT equal to 1 year.
      */
-    def operator==(other: period): var {
+    def operator==(other: period): decimal {
         return year_count == other.year_count && month_count == other.month_count && day_count == other.day_count;
     }
 
-    def operator!=(other: period): var {
+    def operator!=(other: period): decimal {
         return year_count != other.year_count || month_count != other.month_count || day_count != other.day_count;
     }
 
@@ -217,7 +217,7 @@ class period {
      */
     static def parse(text: string): period {
         r := new time_text_reader(text, "period");
-        negate : var = 0;
+        negate : decimal = 0;
         if(r.accept('-')) {
             negate = 1;
         } else {
@@ -227,22 +227,22 @@ class period {
             throw r.failure("expected 'P'");
         }
 
-        years : var = 0;
-        months : var = 0;
-        days : var = 0;
-        parts : var = 0;
+        years : decimal = 0;
+        months : decimal = 0;
+        days : decimal = 0;
+        parts : decimal = 0;
         // 1 = years, 2 = months, 3 = weeks, 4 = days: each at most once, in this order
-        last_unit : var = 0;
+        last_unit : decimal = 0;
         while(!r.at_end()) {
-            sign : var = 1;
+            sign : decimal = 1;
             if(r.accept('-')) {
                 sign = 0 - 1;
             } else {
                 r.accept('+');
             }
-            amount : var = sign * r.read_digits(1, 15);
-            unit : var = time_text_reader.lower(r.next());
-            order : var = 0;
+            amount : decimal = sign * r.read_digits(1, 15);
+            unit : decimal = time_text_reader.lower(r.next());
+            order : decimal = 0;
             if(unit == 'y') {
                 years = amount;
                 order = 1;

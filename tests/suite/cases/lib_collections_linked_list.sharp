@@ -11,7 +11,7 @@ import ( testing, std.collections )
 def join(items: int[]?) : string {
     text := "";
     if(items == null) return text;
-    for(i : var = 0; i < sizeof(items); i++) {
+    for(i : decimal = 0; i < sizeof(items); i++) {
         if(i > 0) text = text + ",";
         text = text + items[i];
     }
@@ -21,7 +21,7 @@ def join(items: int[]?) : string {
 /** "1,2,3" for everything an iterator still has to give */
 def drain(it: iterator<int>) : string {
     text := "";
-    first : var = 1;
+    first : decimal = 1;
     while(it.has_next()) {
         if(!first) text = text + ",";
         first = 0;
@@ -31,15 +31,15 @@ def drain(it: iterator<int>) : string {
 }
 
 /** works with ANY collection of the module: that is the point of `iterable` */
-def total(numbers: iterable<int>) : var {
-    sum : var = 0;
+def total(numbers: iterable<int>) : decimal {
+    sum : decimal = 0;
     it := numbers.iterator();
     while(it.has_next()) sum += it.next().value;
     return sum;
 }
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
-def descending(a: int, b: int) : var { return b.value - a.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
 
 def test_linked_list() {
     l := new linked_list<int>();
@@ -92,7 +92,7 @@ def test_linked_list() {
 
     // foreach and both iterators
     l.add(5); l.add(8);
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in l) { digits = digits * 10 + x.value; }
     expect("ll foreach", digits, 1358);
     expect_str("ll iterator", drain(l.iterator()), "1,3,5,8");
@@ -149,7 +149,7 @@ def test_linked_list() {
 
     // scale: 3000 elements, sum of 0..2999 = 4498500
     big := new linked_list<int>();
-    for(i : var = 0; i < 3000; i++) {
+    for(i : decimal = 0; i < 3000; i++) {
         if(i % 2 == 0) big.add_last(i);
         else big.add_first(i);
     }
@@ -159,7 +159,7 @@ def test_linked_list() {
     expect("ll big last", big.last().value, 2998);
     expect("ll big at(1499) is the last odd one", big.at(1499).value, 1);
     expect("ll big at(1500) is the first even one", big.at(1500).value, 0);
-    removed : var = 0;
+    removed : decimal = 0;
     while(big.size() > 10) { big.remove_first(); big.remove_last(); removed += 2; }
     expect("ll big removed", removed, 2990);
     expect_str("ll big middle", join(big.to_array()), "9,7,5,3,1,0,2,4,6,8");

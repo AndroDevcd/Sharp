@@ -24,7 +24,7 @@ static known_value fold_arithmetic(uint8_t op, const known_value &left, const kn
         case Opcode::MUL: case Opcode::IMUL: case Opcode::MULL: case Opcode::IMULL:
             if(a * b == 0 && (a < 0 || b < 0)) return VARYING; // floating point would give -0
             return constant(a * b);
-        case Opcode::DIV: case Opcode::IDIV: case Opcode::DIVL: case Opcode::IDIVL:
+        case Opcode::DDIV: case Opcode::DIDIV: case Opcode::DDIVL: case Opcode::DIDIVL:
             if(b == 0 || a % b != 0) return VARYING;           // infinity or a fraction
             if(a == 0 && b < 0) return VARYING;                // -0
             return constant(a / b);
@@ -82,11 +82,11 @@ void apply_instruction(const ir_instruction &instr, machine_state &state) {
             reg[instr.a] = instr.pcConstant ? VARYING : constant(instr.b); // a code address is not a number we fold
             return;
         case Opcode::MOVR: reg[instr.a] = reg[instr.b]; return;
-        case Opcode::ADD: case Opcode::SUB: case Opcode::MUL: case Opcode::DIV: case Opcode::MOD:
+        case Opcode::ADD: case Opcode::SUB: case Opcode::MUL: case Opcode::DDIV: case Opcode::MOD:
         case Opcode::SHL: case Opcode::SHR:
             reg[instr.c] = fold_arithmetic(instr.op, reg[instr.a], reg[instr.b]);
             return;
-        case Opcode::IADD: case Opcode::ISUB: case Opcode::IMUL: case Opcode::IDIV: case Opcode::IMOD:
+        case Opcode::IADD: case Opcode::ISUB: case Opcode::IMUL: case Opcode::DIDIV: case Opcode::IMOD:
             reg[instr.a] = fold_arithmetic(instr.op, reg[instr.a], constant(instr.b));
             return;
         case Opcode::INC: reg[instr.a] = fold_arithmetic(Opcode::ADD, reg[instr.a], constant(1)); return;
@@ -116,11 +116,11 @@ void apply_instruction(const ir_instruction &instr, machine_state &state) {
         case Opcode::SMOVR_2: local[instr.b] = reg[instr.a]; return;
         case Opcode::ISTOREL: local[instr.a] = constant(instr.b); return;
         case Opcode::SMOVR_4: local[instr.a] = local[instr.b]; return;
-        case Opcode::ADDL: case Opcode::SUBL: case Opcode::MULL: case Opcode::DIVL: case Opcode::MODL:
+        case Opcode::ADDL: case Opcode::SUBL: case Opcode::MULL: case Opcode::DDIVL: case Opcode::MODL:
         case Opcode::ANDL: case Opcode::ORL: case Opcode::XORL:
             local[instr.b] = fold_arithmetic(instr.op, local[instr.b], reg[instr.a]);
             return;
-        case Opcode::IADDL: case Opcode::ISUBL: case Opcode::IMULL: case Opcode::IDIVL: case Opcode::IMODL:
+        case Opcode::IADDL: case Opcode::ISUBL: case Opcode::IMULL: case Opcode::DIDIVL: case Opcode::IMODL:
             local[instr.a] = fold_arithmetic(instr.op, local[instr.a], constant(instr.b));
             return;
 

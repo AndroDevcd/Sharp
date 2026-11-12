@@ -45,7 +45,7 @@ def main(args: string[]) {
     expect("size of substring(2, 5)", part.size().value, 3);
 
     // ---- fixed, used to be wrong (7): at(length) is allowed (it gives the 0 character) instead of throwing
-    threw : var = 0;
+    threw : decimal = 0;
     try {
         sb.at(3);
     } catch(e: out_of_bounds_exception) {
@@ -55,7 +55,7 @@ def main(args: string[]) {
 
     // ---- fixed, used to be wrong (8): ends_with throws out_of_bounds_exception for a matching ending
     // (it indexes the postfix with the position in the builder: `postfix[i]`)
-    result : var = 0;
+    result : decimal = 0;
     try {
         if(hello.ends_with("lo").value) {
             result = 1;

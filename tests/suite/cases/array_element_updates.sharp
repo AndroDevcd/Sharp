@@ -8,12 +8,12 @@ import ( testing )
  * Also: a compound assignment whose left side calls a function.
  */
 
-class box { nums : var[] = new var[4]; n : var = 2; }
+class box { nums : decimal[] = new decimal[4]; n : decimal = 2; }
 
-def idx(counter: var[]): var { counter[0] = counter[0] + 1; return 2; }
+def idx(counter: decimal[]): decimal { counter[0] = counter[0] + 1; return 2; }
 
 def main(args: string[]) {
-    a : var[] = new var[3];
+    a : decimal[] = new decimal[3];
     a[1] = 5;
     a[1] += 4;
     expect("a[1] += 4", a[1], 9);
@@ -21,7 +21,7 @@ def main(args: string[]) {
     expect("-= *= /=", a[1], 6);
     a[1] %= 4;
     expect("%=", a[1], 2);
-    calls : var[] = new var[1];
+    calls : decimal[] = new decimal[1];
     a[idx(calls)] += 7;
     expect("the index expression runs once", calls[0], 1);
     expect("a[idx()] += 7", a[2], 7);
@@ -29,18 +29,18 @@ def main(args: string[]) {
     b.nums[3] += b.n * a[2];
     b.nums[3] += b.nums[3];
     expect("field array element +=", b.nums[3], 28);
-    i : var = 0;
-    for(k : var = 0; k < 1000; k++) { a[0] += k; i += a[0] % 7; }
+    i : decimal = 0;
+    for(k : decimal = 0; k < 1000; k++) { a[0] += k; i += a[0] % 7; }
     expect("in a loop", a[0], 499500);
     expect("loop checksum", i, 2002);
     bytes : _int8[] = new _int8[2];
     bytes[0] += 100; bytes[0] += 20;
     expect("_int8 element +=", bytes[0], 120);
-    hit : var = 0;
+    hit : decimal = 0;
     try { a[3] += 1; } catch(e: exception) { hit = 1; }
     expect("out of bounds += throws", hit, 1);
     expect("field of a call result +=", more_checks(), 32);
-    z : var[] = new var[4];
+    z : decimal[] = new decimal[4];
     z[1] = 3;
     z[1]++;
     expect("z[1]++", z[1], 4);
@@ -50,16 +50,16 @@ def main(args: string[]) {
     expect("++z[2]", z[2], 1);
     --z[3]; --z[3];
     expect("--z[3]", z[3], 0 - 2);
-    old : var = z[1]++;
+    old : decimal = z[1]++;
     expect("the value of z[1]++ is the old value", old, 2);
     expect("...and the element was increased", z[1], 3);
-    now : var = ++z[1];
+    now : decimal = ++z[1];
     expect("the value of ++z[1] is the new value", now, 4);
-    count : var = 0;
-    for(k : var = 0; k < 500; k++) { z[0]++; count += z[k % 4]; }
+    count : decimal = 0;
+    for(k : decimal = 0; k < 500; k++) { z[0]++; count += z[k % 4]; }
     expect("z[0]++ in a loop", z[0], 500);
     expect("loop sum", count, 31500);
-    hits : var[] = new var[1];
+    hits : decimal[] = new decimal[1];
     z[idx(hits)]++;
     expect("index runs once for ++", hits[0], 1);
     expect("z[idx()]++", z[2], 2);
@@ -67,12 +67,12 @@ def main(args: string[]) {
 }
 
 class counter {
-    count : var = 10;
-    made : var = 0;
+    count : decimal = 10;
+    made : decimal = 0;
     def me() : counter { made++; return self; }
 }
 
-def more_checks() : var {
+def more_checks() : decimal {
     c := new counter();
     c.me().count += 5;
     c.me().count *= 2;

@@ -4,11 +4,11 @@ import (
     std.io
 )
 
-def enable_compile_only(enable: var) {
+def enable_compile_only(enable: decimal) {
    options.compile = enable;
 }
 
-def enable_show_all_errors(enable: var) {
+def enable_show_all_errors(enable: decimal) {
    options.aggressive_errors = enable;
 }
 
@@ -26,11 +26,11 @@ def enable_release_mode() {
    options.strip = true;
 }
 
-def enable_magic_mode(enable : var) {
+def enable_magic_mode(enable : decimal) {
    options.magic = enable;
 }
 
-def enable_debug_mode(enable : var) {
+def enable_debug_mode(enable : decimal) {
    options.debug_mode = enable;
 }
 
@@ -48,11 +48,11 @@ def set_target_platform(target : string) {
    }
 }
 
-def enable_warnings(enable : var) {
+def enable_warnings(enable : decimal) {
    options.warnings = enable;
 }
 
-def enable_warning_type(wtype : string, enable: var) {
+def enable_warning_type(wtype : string, enable: decimal) {
    when(wtype) {
       "-waccess" -> warning_options[__w_access] = enable;
       "-wambig" -> warning_options[__w_ambig] = enable;
@@ -65,7 +65,7 @@ def enable_warning_type(wtype : string, enable: var) {
    }
 }
 
-def enable_green_mode(enable : var) {
+def enable_green_mode(enable : decimal) {
    options.green_mode = enable;
 }
 

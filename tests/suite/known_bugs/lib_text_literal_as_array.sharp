@@ -17,9 +17,9 @@ import ( testing )
  * ambiguous instead, which is why the one-argument form is called format_one.)
  */
 
-def count_all(parts: string[]): var {
-    total : var = 0;
-    for(i : var = 0; i < sizeof(parts); i++) {
+def count_all(parts: string[]): decimal {
+    total : decimal = 0;
+    for(i : decimal = 0; i < sizeof(parts); i++) {
         total = total + parts[i].size().value;
     }
     return total;

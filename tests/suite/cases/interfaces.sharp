@@ -10,8 +10,8 @@ import ( testing )
  */
 
 interface measurable {
-    def area(): var;
-    def perimeter(): var;
+    def area(): decimal;
+    def perimeter(): decimal;
 }
 
 interface named {
@@ -19,32 +19,32 @@ interface named {
 }
 
 interface resizable {
-    def resize(factor: var);
+    def resize(factor: decimal);
 }
 
 /* delegates with parameters of several types, and one returning an object */
 interface calculator {
-    def apply(a: var, b: var): var;
-    def apply_all(numbers: var[]): var;
+    def apply(a: decimal, b: decimal): decimal;
+    def apply_all(numbers: decimal[]): decimal;
     def label(prefix: string): string;
-    def boxed(a: var): int;
+    def boxed(a: decimal): int;
 }
 
 /* three interfaces on one class */
 class rectangle : measurable, named, resizable {
-    width : var = 0;
-    height : var = 0;
+    width : decimal = 0;
+    height : decimal = 0;
 
-    rectangle(w: var, h: var) {
+    rectangle(w: decimal, h: decimal) {
         width = w;
         height = h;
     }
 
-    override def area(): var {
+    override def area(): decimal {
         return width * height;
     }
 
-    override def perimeter(): var {
+    override def perimeter(): decimal {
         return 2 * (width + height);
     }
 
@@ -52,34 +52,34 @@ class rectangle : measurable, named, resizable {
         return "rectangle";
     }
 
-    override def resize(factor: var) {
+    override def resize(factor: decimal) {
         width = width * factor;
         height = height * factor;
     }
 
     /* a method that is not part of any interface */
-    def is_square(): var {
+    def is_square(): decimal {
         return width == height;
     }
 }
 
 /* two interfaces */
 class right_triangle : measurable, named {
-    a : var = 0;
-    b : var = 0;
-    c : var = 0;
+    a : decimal = 0;
+    b : decimal = 0;
+    c : decimal = 0;
 
-    right_triangle(a: var, b: var, c: var) {
+    right_triangle(a: decimal, b: decimal, c: decimal) {
         self->a = a;
         self->b = b;
         self->c = c;
     }
 
-    override def area(): var {
+    override def area(): decimal {
         return a * b / 2;
     }
 
-    override def perimeter(): var {
+    override def perimeter(): decimal {
         return a + b + c;
     }
 
@@ -96,10 +96,10 @@ class dot : named {
 }
 
 class counter : resizable {
-    count : var = 1;
-    calls : var = 0;
+    count : decimal = 1;
+    calls : decimal = 0;
 
-    override def resize(factor: var) {
+    override def resize(factor: decimal) {
         count = count * factor;
         calls++;
     }
@@ -109,7 +109,7 @@ class counter : resizable {
 class labelled_rectangle base rectangle : calculator {
     text : string = "";
 
-    labelled_rectangle(w: var, h: var, text: string) -> base(w, h) {
+    labelled_rectangle(w: decimal, h: decimal, text: string) -> base(w, h) {
         self->text = text;
     }
 
@@ -117,13 +117,13 @@ class labelled_rectangle base rectangle : calculator {
         return text;
     }
 
-    override def apply(a: var, b: var): var {
+    override def apply(a: decimal, b: decimal): decimal {
         return a * width + b * height;
     }
 
-    override def apply_all(numbers: var[]): var {
-        total : var = 0;
-        for(i : var = 0; i < sizeof(numbers); i++) {
+    override def apply_all(numbers: decimal[]): decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
             total += numbers[i];
         }
         return total * width;
@@ -133,19 +133,19 @@ class labelled_rectangle base rectangle : calculator {
         return prefix + text;
     }
 
-    override def boxed(a: var): int {
+    override def boxed(a: decimal): int {
         return new int(a + height);
     }
 }
 
 class adder : calculator {
-    override def apply(a: var, b: var): var {
+    override def apply(a: decimal, b: decimal): decimal {
         return a + b;
     }
 
-    override def apply_all(numbers: var[]): var {
-        total : var = 0;
-        for(i : var = 0; i < sizeof(numbers); i++) {
+    override def apply_all(numbers: decimal[]): decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
             total += numbers[i];
         }
         return total;
@@ -155,19 +155,19 @@ class adder : calculator {
         return prefix + "adder";
     }
 
-    override def boxed(a: var): int {
+    override def boxed(a: decimal): int {
         return new int(a + 1);
     }
 }
 
 class multiplier : calculator {
-    override def apply(a: var, b: var): var {
+    override def apply(a: decimal, b: decimal): decimal {
         return a * b;
     }
 
-    override def apply_all(numbers: var[]): var {
-        total : var = 1;
-        for(i : var = 0; i < sizeof(numbers); i++) {
+    override def apply_all(numbers: decimal[]): decimal {
+        total : decimal = 1;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
             total *= numbers[i];
         }
         return total;
@@ -177,7 +177,7 @@ class multiplier : calculator {
         return prefix + "multiplier";
     }
 
-    override def boxed(a: var): int {
+    override def boxed(a: decimal): int {
         return new int(a * 2);
     }
 }
@@ -185,19 +185,19 @@ class multiplier : calculator {
 /* a class with a field of an interface type */
 class machine {
     tool : calculator;
-    runs : var = 0;
+    runs : decimal = 0;
 
     machine(tool: calculator) {
         self->tool = tool;
     }
 
-    def run(a: var, b: var): var {
+    def run(a: decimal, b: decimal): decimal {
         runs++;
         return tool.apply(a, b);
     }
 }
 
-def area_of(m: measurable): var {
+def area_of(m: measurable): decimal {
     return m.area();
 }
 
@@ -205,20 +205,20 @@ def name_of(n: named): string {
     return n.name();
 }
 
-def resize_twice(r: resizable, factor: var) {
+def resize_twice(r: resizable, factor: decimal) {
     r.resize(factor);
     r.resize(factor);
 }
 
-def total_area(items: measurable[]): var {
-    total : var = 0;
-    for(i : var = 0; i < sizeof(items); i++) {
+def total_area(items: measurable[]): decimal {
+    total : decimal = 0;
+    for(i : decimal = 0; i < sizeof(items); i++) {
         total += items[i].area();
     }
     return total;
 }
 
-def pick_calculator(multiply: var): calculator {
+def pick_calculator(multiply: decimal): calculator {
     if(multiply) {
         return new multiplier();
     }
@@ -284,8 +284,8 @@ def main(args: string[]) {
     expect("array element 2 is a rectangle", shapes[2].perimeter(), 4);
     expect("array element 3 is the triangle from before", shapes[3].perimeter(), 12);
     expect("the array passed to a function: 10 + 24 + 1 + 6", total_area(shapes), 41);
-    perimeters : var = 0;
-    for(i : var = 0; i < sizeof(shapes); i++) {
+    perimeters : decimal = 0;
+    for(i : decimal = 0; i < sizeof(shapes); i++) {
         perimeters += shapes[i].perimeter();
     }
     expect("a loop over the array: 14 + 24 + 4 + 12", perimeters, 54);
@@ -300,7 +300,7 @@ def main(args: string[]) {
     small := new rectangle(1, 2);
     resizables[0] = small;
     resizables[1] = c;
-    for(i : var = 0; i < 2; i++) {
+    for(i : decimal = 0; i < 2; i++) {
         resizables[i].resize(10);
     }
     expect("every element resized: the rectangle", small.area(), 200);
@@ -311,8 +311,8 @@ def main(args: string[]) {
     mul : calculator = new multiplier();
     expect("two parameters: adder", add.apply(6, 7), 13);
     expect("two parameters: multiplier", mul.apply(6, 7), 42);
-    expect("an array parameter: adder", add.apply_all(new var[] { 1, 2, 3, 4 }), 10);
-    expect("an array parameter: multiplier", mul.apply_all(new var[] { 1, 2, 3, 4 }), 24);
+    expect("an array parameter: adder", add.apply_all(new decimal[] { 1, 2, 3, 4 }), 10);
+    expect("an array parameter: multiplier", mul.apply_all(new decimal[] { 1, 2, 3, 4 }), 24);
     expect_str("a string parameter and result: adder", add.label("an "), "an adder");
     expect_str("a string parameter and result: multiplier", mul.label("a "), "a multiplier");
     expect("an object result: adder", add.boxed(9).value, 10);
@@ -338,7 +338,7 @@ def main(args: string[]) {
     expect("inherited implementation of an interface method", l.area(), 6);
     expect_str("an override of an inherited interface method", l.name(), "label");
     expect("the class's own interface: apply", l.apply(10, 100), 320);
-    expect("the class's own interface: apply_all", l.apply_all(new var[] { 1, 2, 3 }), 12);
+    expect("the class's own interface: apply_all", l.apply_all(new decimal[] { 1, 2, 3 }), 12);
     expect_str("the class's own interface: label", l.label("my "), "my label");
     expect("the class's own interface: boxed", l.boxed(4).value, 7);
     expect("seen as the base class's interface", area_of(l), 6);

@@ -72,7 +72,7 @@ protected class file_system {
             return f.path;
         }
 
-        sep : var = path_separator().value;
+        sep : decimal = path_separator().value;
         cwd := current_directory();
         buf := new char_buffer(sizeof(cwd.data) + sizeof(f.path.data) + 2);
         buf.append(cwd);
@@ -89,11 +89,11 @@ protected class file_system {
       * windows.
       */
      def is_rooted(path: string) : bool {
-        n : var = sizeof(path.data);
+        n : decimal = sizeof(path.data);
         if(n == 0) {
             return false;
         }
-        first : var = path.data[0];
+        first : decimal = path.data[0];
         if(first == '/' || first == 92) { // 92 is the back slash
             return true;
         }
@@ -170,10 +170,10 @@ protected class file_system {
      def set_permission(f: file, access: int, enable: bool, owneronly: bool) : int {
         // native code here
         path := f.path.data;
-        _access := access.value;
-        _enable := enable.value;
-        _owneronly := owneronly.value;
-        result : var = 0;
+        _access : _int64 = access.value;
+        _enable : _int64 = enable.value;
+        _owneronly : _int64 = owneronly.value;
+        result : _int64 = 0;
 
         if(build.is_windows() && access == access_execute)
             return -1;
@@ -207,8 +207,8 @@ protected class file_system {
      def last_modified_time(f: file, stat_id: int) : long {
         // native code
         path := f.path.data;
-        _stat_id : var = stat_id.value;
-        time : var = 0;
+        _stat_id : _int64 = stat_id.value;
+        time : _int64 = 0;
 
         /*
         * This will perform the os call to request the
@@ -232,7 +232,7 @@ protected class file_system {
      def get_length(f: file) : int {
         // native code here
         path := f.path.data;
-        size : var = 0;
+        size : _int64 = 0;
 
         if(!f.is_file())
             return 0;
@@ -286,7 +286,7 @@ protected class file_system {
     private def delete_directory(f: file) : int {
         // native code here
         path := f.path.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         /*
         * This will perform the os call to request the
@@ -309,7 +309,7 @@ protected class file_system {
     def delete(f: file) : int {
         // native code here
         path := f.path.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         if(f.is_directory())
             return delete_directory(f);
@@ -341,9 +341,9 @@ protected class file_system {
             return null;
 
         names := directory_listing.names(f.path);
-        count : var = names.size().value;
+        count : decimal = names.size().value;
         result := new string[count];
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             result[i] = names.at(i);
         }
         return result;
@@ -389,7 +389,7 @@ protected class file_system {
     def create_directory(f: file) : int {
         // native code here
         path := f.get_path().data;
-        result: var;
+        result: _int64;
 
         /*
         * This will perform the os call to request the
@@ -413,7 +413,7 @@ protected class file_system {
         // native code here
         path := f1.path.data;
         rename := f2.get_path().data;
-        result : var = 0;
+        result : _int64 = 0;
 
         /*
         * This will perform the os call to request the
@@ -461,7 +461,7 @@ protected class file_system {
     static def write(f: file, data: string) : int {
         path := f.path.data;
         raw := data.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         if(raw == null || sizeof(raw) == 0) {
             /*
@@ -502,8 +502,8 @@ protected class file_system {
     public def set_last_modified_time(f: file, time: long) : int {
         // native code here
         path := f.path.data;
-        _time := time.value;
-        result : var = 0;
+        _time : _int64 = time.value;
+        result : _int64 = 0;
 
         /*
         * This will perform the os call to request the
@@ -540,14 +540,17 @@ protected class file_system {
      */
     static def get_space_available(request: int) : long {
         // native code here
-        result : var = 0;
+        result : _int64 = 0;
+        // (the asm block used to load `request` itself: an `int` object, not a
+        //  number, so the interrupt got whatever happened to be in its slot)
+        _request : _int64 = request.value;
 
         /*
         * This will perform the os call to request the
         * disk space
         */
         asm {
-            loadl ebx, [request]
+            loadl ebx, [_request]
             int 0x32
             smovr2 [result], ebx
         }

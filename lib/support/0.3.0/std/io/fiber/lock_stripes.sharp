@@ -44,10 +44,10 @@ mod std.io.fiber;
 class lock_stripes {
 
     /** how many lock objects there are */
-    private static const STRIPE_COUNT : var = 64;
+    private static const STRIPE_COUNT : decimal = 64;
 
     private static stripes : object[]?;
-    private static cursor : var = 0;
+    private static cursor : decimal = 0;
 
     /**
      * Create the lock objects. Safe to call more than once. Must run for the
@@ -56,7 +56,7 @@ class lock_stripes {
     static def setup() {
         if(stripes == null) {
             created := new object[64];
-            for(i : var = 0; i < 64; i++) {
+            for(i : decimal = 0; i < 64; i++) {
                 created[i] = new _object_();
             }
 
@@ -79,7 +79,7 @@ class lock_stripes {
         }
 
         // a racing fiber may have moved the cursor between the two statements above
-        index : var = cursor;
+        index : decimal = cursor;
         if(index < 0 || index >= 64) {
             index = 0;
         }

@@ -1,18 +1,18 @@
 mod std.reflect;
 
 
-const _type_int8   : var = 0;
-const _type_int16  : var = 1;
-const _type_int32  : var = 2;
-const _type_int64  : var = 3;
-const _type_uint8  : var = 4;
-const _type_uint16 : var = 5;
-const _type_uint32 : var = 6;
-const _type_uint64 : var = 7;
-const _type_fn_ptr : var = 8;
-const _type_var    : var = 9;
-const _type_object : var = 10;
-const _type_class  : var = 11;
+const _type_int8   : decimal = 0;
+const _type_int16  : decimal = 1;
+const _type_int32  : decimal = 2;
+const _type_int64  : decimal = 3;
+const _type_uint8  : decimal = 4;
+const _type_uint16 : decimal = 5;
+const _type_uint32 : decimal = 6;
+const _type_uint64 : decimal = 7;
+const _type_fn_ptr : decimal = 8;
+const _type_var    : decimal = 9;
+const _type_object : decimal = 10;
+const _type_class  : decimal = 11;
 
 class data_type {
     type_function: _function_?;

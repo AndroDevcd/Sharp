@@ -28,13 +28,13 @@ class string_reader {
     private text : string = "";
 
     /* number of characters in text */
-    private size : var = 0;
+    private size : decimal = 0;
 
     /* index of the next character to read: 0 .. size */
-    private cursor : var = 0;
+    private cursor : decimal = 0;
 
     /* position saved by mark(), -1 = no mark set */
-    private marked : var = -1;
+    private marked : decimal = -1;
 
     /** A reader at the start of `text`. */
     string_reader(text: string) {
@@ -45,27 +45,27 @@ class string_reader {
     // ------------------------------------------------------------------ position
 
     /** Index of the next character to read: 0 at the start, length() at the end. */
-    def position(): var {
+    def position(): decimal {
         return cursor;
     }
 
     /** The number of characters in the whole text. */
-    def length(): var {
+    def length(): decimal {
         return size;
     }
 
     /** How many characters are left to read. */
-    def remaining(): var {
+    def remaining(): decimal {
         return size - cursor;
     }
 
     /** 1 if every character has been read. */
-    def at_end(): var {
+    def at_end(): decimal {
         return cursor >= size;
     }
 
     /** 1 if there is at least one more character to read. */
-    def has_next(): var {
+    def has_next(): decimal {
         return cursor < size;
     }
 
@@ -104,18 +104,18 @@ class string_reader {
     }
 
     /** The line the cursor is on, counting from 1 (a line ends at "\n"). */
-    def line(): var {
-        result : var = 1;
-        for(i : var = 0; i < cursor; i++) {
+    def line(): decimal {
+        result : decimal = 1;
+        for(i : decimal = 0; i < cursor; i++) {
             if(text.data[i] == '\n') result++;
         }
         return result;
     }
 
     /** The column the cursor is at within its line, counting from 1. */
-    def column(): var {
-        result : var = 1;
-        for(i : var = cursor - 1; i >= 0; i--) {
+    def column(): decimal {
+        result : decimal = 1;
+        for(i : decimal = cursor - 1; i >= 0; i--) {
             if(text.data[i] == '\n') return result;
             result++;
         }
@@ -125,7 +125,7 @@ class string_reader {
     // ------------------------------------------------------------------ single characters
 
     /** The next character without taking it, or -1 at the end. */
-    def peek(): var {
+    def peek(): decimal {
         if(cursor >= size) return -1;
         return text.data[cursor];
     }
@@ -135,21 +135,21 @@ class string_reader {
      * (peek(0) is peek(), peek(1) the one after it). -1 if that is beyond the
      * end or before the start.
      */
-    def peek(offset: int): var {
-        at : var = cursor + offset.value;
+    def peek(offset: int): decimal {
+        at : decimal = cursor + offset.value;
         if(at < 0 || at >= size) return -1;
         return text.data[at];
     }
 
     /** Takes the next character and returns it, or returns -1 at the end (and stays there). */
-    def next(): var {
+    def next(): decimal {
         if(cursor >= size) return -1;
         return text.data[cursor++];
     }
 
     /** Skips up to `count` characters (fewer if the end comes first). Returns how many were skipped. */
-    def skip(count: int): var {
-        step : var = count.value;
+    def skip(count: int): decimal {
+        step : decimal = count.value;
         if(step < 0) step = 0;
         if(step > size - cursor) step = size - cursor;
         cursor += step;
@@ -165,10 +165,10 @@ class string_reader {
     // ------------------------------------------------------------------ matching fixed text
 
     /** 1 if the text continues with `expected` at the cursor. Takes nothing. "" always matches. */
-    def looking_at(expected: string): var {
-        m : var = sizeof(expected.data);
+    def looking_at(expected: string): decimal {
+        m : decimal = sizeof(expected.data);
         if(cursor + m > size) return 0;
-        for(j : var = 0; j < m; j++) {
+        for(j : decimal = 0; j < m; j++) {
             if(text.data[cursor + j] != expected.data[j]) return 0;
         }
         return 1;
@@ -178,14 +178,14 @@ class string_reader {
      * If the text continues with `expected`, takes it and returns 1;
      * otherwise takes nothing and returns 0.
      */
-    def match(expected: string): var {
+    def match(expected: string): decimal {
         if(!looking_at(expected)) return 0;
         cursor += sizeof(expected.data);
         return 1;
     }
 
     /** If the next character is `c`, takes it and returns 1; otherwise returns 0. */
-    def match_char(c: char): var {
+    def match_char(c: char): decimal {
         if(cursor < size && text.data[cursor] == c.value) {
             cursor++;
             return 1;
@@ -210,23 +210,23 @@ class string_reader {
     // ------------------------------------------------------------------ runs of characters
 
     /** 1 if the character `c` is one of the characters of `chars`. */
-    private static def one_of(c: var, chars: string): var {
-        m : var = sizeof(chars.data);
-        for(j : var = 0; j < m; j++) {
+    private static def one_of(c: decimal, chars: string): decimal {
+        m : decimal = sizeof(chars.data);
+        for(j : decimal = 0; j < m; j++) {
             if(chars.data[j] == c) return 1;
         }
         return 0;
     }
 
     /** The characters from `start` up to the cursor as a string. */
-    private def taken_since(start: var): string {
+    private def taken_since(start: decimal): string {
         if(cursor <= start) return new string();
         return new string(text.data!!, start, cursor);
     }
 
     /** Skips whitespace (space, tab, \n, \r, vertical tab, form feed). Returns how many characters were skipped. */
-    def skip_whitespace(): var {
-        start : var = cursor;
+    def skip_whitespace(): decimal {
+        start : decimal = cursor;
         while(cursor < size && (text.data[cursor] == ' ' || (text.data[cursor] >= 9 && text.data[cursor] <= 13))) {
             cursor++;
         }
@@ -234,8 +234,8 @@ class string_reader {
     }
 
     /** Skips characters as long as they are one of `chars`. Returns how many were skipped. */
-    def skip_while_in(chars: string): var {
-        start : var = cursor;
+    def skip_while_in(chars: string): decimal {
+        start : decimal = cursor;
         while(cursor < size && one_of(text.data[cursor], chars)) {
             cursor++;
         }
@@ -247,8 +247,8 @@ class string_reader {
      * `r.skip_while({ c: char -> (bool) return c.value != ';'; })`.
      * Returns how many were skipped.
      */
-    def skip_while(accept: (char)(bool)): var {
-        start : var = cursor;
+    def skip_while(accept: (char)(bool)): decimal {
+        start : decimal = cursor;
         while(cursor < size && accept(text.data[cursor])) {
             cursor++;
         }
@@ -257,7 +257,7 @@ class string_reader {
 
     /** Takes characters as long as they are one of `chars` and returns them ("" if the first one already is not). */
     def read_while_in(chars: string): string {
-        start : var = cursor;
+        start : decimal = cursor;
         while(cursor < size && one_of(text.data[cursor], chars)) {
             cursor++;
         }
@@ -266,7 +266,7 @@ class string_reader {
 
     /** Takes characters as long as `accept` says yes for them and returns them ("" if none). */
     def read_while(accept: (char)(bool)): string {
-        start : var = cursor;
+        start : decimal = cursor;
         while(cursor < size && accept(text.data[cursor])) {
             cursor++;
         }
@@ -284,7 +284,7 @@ class string_reader {
         if(sizeof(delimiter.data) == 0)
             throw new ill_arg_except("read_until: the delimiter cannot be empty");
 
-        start : var = cursor;
+        start : decimal = cursor;
         while(cursor < size && !looking_at(delimiter)) {
             cursor++;
         }
@@ -297,7 +297,7 @@ class string_reader {
      * character everything up to the end is taken.
      */
     def read_until_any(chars: string): string {
-        start : var = cursor;
+        start : decimal = cursor;
         while(cursor < size && !one_of(text.data[cursor], chars)) {
             cursor++;
         }
@@ -306,14 +306,14 @@ class string_reader {
 
     /** Takes up to `count` characters (fewer at the end) and returns them. */
     def read(count: int): string {
-        start : var = cursor;
+        start : decimal = cursor;
         skip(count);
         return taken_since(start);
     }
 
     /** Takes a run of digits 0-9 and returns it ("" if the next character is not a digit). */
     def read_digits(): string {
-        start : var = cursor;
+        start : decimal = cursor;
         while(cursor < size && text.data[cursor] >= '0' && text.data[cursor] <= '9') {
             cursor++;
         }
@@ -326,7 +326,7 @@ class string_reader {
      * next character cannot start a name.
      */
     def read_identifier(): string {
-        start : var = cursor;
+        start : decimal = cursor;
         if(cursor < size && character.is_identifier_start(text.data[cursor])) {
             cursor++;
             while(cursor < size && character.is_identifier_part(text.data[cursor])) {
@@ -342,7 +342,7 @@ class string_reader {
      * the text it returns "".
      */
     def read_line(): string {
-        start : var = cursor;
+        start : decimal = cursor;
         while(cursor < size && text.data[cursor] != '\n' && text.data[cursor] != '\r') {
             cursor++;
         }
@@ -356,7 +356,7 @@ class string_reader {
 
     /** Takes everything that is left and returns it ("" at the end). */
     def read_rest(): string {
-        start : var = cursor;
+        start : decimal = cursor;
         cursor = size;
         return taken_since(start);
     }

@@ -14,10 +14,10 @@ class q_err base p_err {
     q_err(message: string) -> base(message) {}
 }
 
-def rem(a: var, b: var): var { return a % b; }
+def rem(a: decimal, b: decimal): decimal { return a % b; }
 
 def main(args: string[]) {
-    hit : var = 0;
+    hit : decimal = 0;
     try { throw new q_err("x"); } catch(e: p_err) { hit = 1; }
     expect("subclass caught by its base class handler", hit, 1);
 
@@ -41,8 +41,8 @@ def main(args: string[]) {
     expect("remainder still works", rem(17, 5), 2);
     expect("negative remainder", rem(0 - 7, 3), 0 - 1);
 
-    total : var = 0;
-    for(i : var = 0; i < 5000; i++) {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 5000; i++) {
         try { total += rem(i, i % 3); } catch(e: exception) { total += 1000; }
     }
     expect("hot loop with remainder by zero", total, 1667833);

@@ -12,7 +12,7 @@ mod std.math;
  *     m := new matrix(2, 2);          // 2 x 2, all zeros
  *     m.put(0, 0, 4); m.put(0, 1, 7);
  *     m.put(1, 0, 2); m.put(1, 1, 6);
- *     d : var = m.determinant();      // 4 * 6 - 7 * 2 = 10
+ *     d : decimal = m.determinant();      // 4 * 6 - 7 * 2 = 10
  *     inv := m.inverse();             // { 0.6, -0.7, -0.2, 0.4 }
  *     id := m * inv;                  // the identity (up to rounding)
  *
@@ -26,24 +26,24 @@ mod std.math;
  */
 class matrix {
     /** number of rows (read only) */
-    rows : var = 0;
+    rows : decimal = 0;
         private set v -> { rows = v; }
 
     /** number of columns (read only) */
-    columns : var = 0;
+    columns : decimal = 0;
         private set v -> { columns = v; }
 
-    private cells : var[];
+    private cells : decimal[];
 
     /**
      * A matrix of the given size filled with zeros.
      * Throws illegal_argument_exception when a size is < 1 or not whole.
      */
-    matrix(rows: var, columns: var) {
+    matrix(rows: decimal, columns: decimal) {
         check_size(rows, columns);
         self->rows = rows;
         self->columns = columns;
-        cells = new var[rows * columns];
+        cells = new decimal[rows * columns];
     }
 
     /**
@@ -53,7 +53,7 @@ class matrix {
      * Throws illegal_argument_exception when a size is < 1 or the array does
      * not hold exactly rows * columns values.
      */
-    matrix(rows: var, columns: var, values: var[]) {
+    matrix(rows: decimal, columns: decimal, values: decimal[]) {
         check_size(rows, columns);
         if(sizeof(values) != rows * columns)
             throw new illegal_argument_exception("matrix: expected " + number_to_string(rows * columns)
@@ -61,8 +61,8 @@ class matrix {
 
         self->rows = rows;
         self->columns = columns;
-        cells = new var[rows * columns];
-        for(i : var = 0; i < sizeof(values); i++) {
+        cells = new decimal[rows * columns];
+        for(i : decimal = 0; i < sizeof(values); i++) {
             cells[i] = values[i];
         }
     }
@@ -71,13 +71,13 @@ class matrix {
     matrix(other: matrix) {
         rows = other.rows;
         columns = other.columns;
-        cells = new var[rows * columns];
-        for(i : var = 0; i < rows * columns; i++) {
+        cells = new decimal[rows * columns];
+        for(i : decimal = 0; i < rows * columns; i++) {
             cells[i] = other.cells[i];
         }
     }
 
-    private static def check_size(rows: var, columns: var) {
+    private static def check_size(rows: decimal, columns: decimal) {
         if(rows < 1 || columns < 1 || floor_of(rows) != rows || floor_of(columns) != columns)
             throw new illegal_argument_exception("matrix: rows and columns must be whole numbers >= 1");
     }
@@ -86,16 +86,16 @@ class matrix {
      * The n x n identity matrix: 1 on the diagonal, 0 elsewhere. Multiplying
      * by it changes nothing.
      */
-    static def identity(n: var): matrix {
+    static def identity(n: decimal): matrix {
         result := new matrix(n, n);
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             result.cells[i * n + i] = 1;
         }
         return result;
     }
 
     /** a rows x columns matrix with every cell set to `value` */
-    static def filled(rows: var, columns: var, value: var): matrix {
+    static def filled(rows: decimal, columns: decimal, value: decimal): matrix {
         result := new matrix(rows, columns);
         result.fill(value);
         return result;
@@ -105,10 +105,10 @@ class matrix {
      * A square matrix with `values` on the diagonal and 0 elsewhere.
      * Throws illegal_argument_exception when the array is empty.
      */
-    static def diagonal(values: var[]): matrix {
-        n : var = sizeof(values);
+    static def diagonal(values: decimal[]): matrix {
+        n : decimal = sizeof(values);
         result := new matrix(n, n);
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             result.cells[i * n + i] = values[i];
         }
         return result;
@@ -118,7 +118,7 @@ class matrix {
      * The cell in row `row`, column `column` (both counted from 0).
      * Throws out_of_bounds_exception when the position is outside the matrix.
      */
-    def at(row: var, column: var): var {
+    def at(row: decimal, column: decimal): decimal {
         check_position(row, column);
         return cells[row * columns + column];
     }
@@ -127,12 +127,12 @@ class matrix {
      * Store `value` in row `row`, column `column`.
      * Throws out_of_bounds_exception when the position is outside the matrix.
      */
-    def put(row: var, column: var, value: var) {
+    def put(row: decimal, column: decimal, value: decimal) {
         check_position(row, column);
         cells[row * columns + column] = value;
     }
 
-    private def check_position(row: var, column: var) {
+    private def check_position(row: decimal, column: decimal) {
         if(row < 0 || row >= rows || column < 0 || column >= columns)
             throw new out_of_bounds_exception("matrix: no cell (" + number_to_string(row) + ", "
                 + number_to_string(column) + ") in a " + number_to_string(rows) + " x "
@@ -140,8 +140,8 @@ class matrix {
     }
 
     /** set every cell to `value` */
-    def fill(value: var) {
-        for(i : var = 0; i < rows * columns; i++) {
+    def fill(value: decimal) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             cells[i] = value;
         }
     }
@@ -160,10 +160,10 @@ class matrix {
      * Row `row` as a new array of `columns` numbers.
      * Throws out_of_bounds_exception when there is no such row.
      */
-    def row(row: var): var[] {
+    def row(row: decimal): decimal[] {
         check_position(row, 0);
-        result := new var[columns];
-        for(c : var = 0; c < columns; c++) {
+        result := new decimal[columns];
+        for(c : decimal = 0; c < columns; c++) {
             result[c] = cells[row * columns + c];
         }
         return result;
@@ -173,19 +173,19 @@ class matrix {
      * Column `column` as a new array of `rows` numbers.
      * Throws out_of_bounds_exception when there is no such column.
      */
-    def column(column: var): var[] {
+    def column(column: decimal): decimal[] {
         check_position(0, column);
-        result := new var[rows];
-        for(r : var = 0; r < rows; r++) {
+        result := new decimal[rows];
+        for(r : decimal = 0; r < rows; r++) {
             result[r] = cells[r * columns + column];
         }
         return result;
     }
 
     /** all cells, row after row, as a new array of rows * columns numbers */
-    def to_array(): var[] {
-        result := new var[rows * columns];
-        for(i : var = 0; i < rows * columns; i++) {
+    def to_array(): decimal[] {
+        result := new decimal[rows * columns];
+        for(i : decimal = 0; i < rows * columns; i++) {
             result[i] = cells[i];
         }
         return result;
@@ -200,7 +200,7 @@ class matrix {
             throw new illegal_argument_exception("matrix: cannot add " + size_text() + " and " + other.size_text());
 
         result := new matrix(rows, columns);
-        for(i : var = 0; i < rows * columns; i++) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             result.cells[i] = cells[i] + other.cells[i];
         }
         return result;
@@ -215,7 +215,7 @@ class matrix {
             throw new illegal_argument_exception("matrix: cannot subtract " + other.size_text() + " from " + size_text());
 
         result := new matrix(rows, columns);
-        for(i : var = 0; i < rows * columns; i++) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             result.cells[i] = cells[i] - other.cells[i];
         }
         return result;
@@ -224,16 +224,16 @@ class matrix {
     /** every cell negated */
     def operator-(): matrix {
         result := new matrix(rows, columns);
-        for(i : var = 0; i < rows * columns; i++) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             result.cells[i] = 0 - cells[i];
         }
         return result;
     }
 
     /** every cell multiplied by a number */
-    def operator*(factor: var): matrix {
+    def operator*(factor: decimal): matrix {
         result := new matrix(rows, columns);
-        for(i : var = 0; i < rows * columns; i++) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             result.cells[i] = cells[i] * factor;
         }
         return result;
@@ -252,10 +252,10 @@ class matrix {
             throw new illegal_argument_exception("matrix: cannot multiply " + size_text() + " by " + other.size_text());
 
         result := new matrix(rows, other.columns);
-        for(r : var = 0; r < rows; r++) {
-            for(c : var = 0; c < other.columns; c++) {
-                total : var = 0;
-                for(k : var = 0; k < columns; k++) {
+        for(r : decimal = 0; r < rows; r++) {
+            for(c : decimal = 0; c < other.columns; c++) {
+                total : decimal = 0;
+                for(k : decimal = 0; k < columns; k++) {
                     total += cells[r * columns + k] * other.cells[k * other.columns + c];
                 }
                 result.cells[r * other.columns + c] = total;
@@ -267,7 +267,7 @@ class matrix {
     /** true when both matrices have the same size and exactly equal cells */
     def operator==(other: matrix): bool {
         if(rows != other.rows || columns != other.columns) return false;
-        for(i : var = 0; i < rows * columns; i++) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             if(cells[i] != other.cells[i]) return false;
         }
         return true;
@@ -279,9 +279,9 @@ class matrix {
     }
 
     /** true when both matrices have the same size and every pair of cells differs by at most `tolerance` */
-    def approx_equals(other: matrix, tolerance: var): bool {
+    def approx_equals(other: matrix, tolerance: decimal): bool {
         if(rows != other.rows || columns != other.columns) return false;
-        for(i : var = 0; i < rows * columns; i++) {
+        for(i : decimal = 0; i < rows * columns; i++) {
             if(absolute(cells[i] - other.cells[i]) > tolerance) return false;
         }
         return true;
@@ -294,14 +294,14 @@ class matrix {
      * Throws illegal_argument_exception when the vector does not have
      * `columns` numbers.
      */
-    def multiply_vector(vector: var[]): var[] {
+    def multiply_vector(vector: decimal[]): decimal[] {
         if(sizeof(vector) != columns)
             throw new illegal_argument_exception("matrix: the vector needs " + number_to_string(columns) + " numbers");
 
-        result := new var[rows];
-        for(r : var = 0; r < rows; r++) {
-            total : var = 0;
-            for(c : var = 0; c < columns; c++) {
+        result := new decimal[rows];
+        for(r : decimal = 0; r < rows; r++) {
+            total : decimal = 0;
+            for(c : decimal = 0; c < columns; c++) {
                 total += cells[r * columns + c] * vector[c];
             }
             result[r] = total;
@@ -312,8 +312,8 @@ class matrix {
     /** the matrix flipped over its diagonal: rows become columns (an n x m matrix becomes m x n) */
     def transpose(): matrix {
         result := new matrix(columns, rows);
-        for(r : var = 0; r < rows; r++) {
-            for(c : var = 0; c < columns; c++) {
+        for(r : decimal = 0; r < rows; r++) {
+            for(c : decimal = 0; c < columns; c++) {
                 result.cells[c * rows + r] = cells[r * columns + c];
             }
         }
@@ -324,10 +324,10 @@ class matrix {
      * The sum of the diagonal cells.
      * Throws illegal_argument_exception when the matrix is not square.
      */
-    def trace(): var {
+    def trace(): decimal {
         require_square("trace");
-        total : var = 0;
-        for(i : var = 0; i < rows; i++) {
+        total : decimal = 0;
+        for(i : decimal = 0; i < rows; i++) {
             total += cells[i * columns + i];
         }
         return total;
@@ -343,16 +343,16 @@ class matrix {
      *
      * Throws illegal_argument_exception when the matrix is not square.
      */
-    def determinant(): var {
+    def determinant(): decimal {
         require_square("determinant");
-        n : var = rows;
+        n : decimal = rows;
         work := to_array();
-        result : var = 1;
+        result : decimal = 1;
 
-        for(col : var = 0; col < n; col++) {
+        for(col : decimal = 0; col < n; col++) {
             // find the pivot: the largest value in this column, at or below the diagonal
-            pivot : var = col;
-            for(r : var = col + 1; r < n; r++) {
+            pivot : decimal = col;
+            for(r : decimal = col + 1; r < n; r++) {
                 if(absolute(work[r * n + col]) > absolute(work[pivot * n + col])) {
                     pivot = r;
                 }
@@ -361,8 +361,8 @@ class matrix {
             if(work[pivot * n + col] == 0) return 0;
 
             if(pivot != col) {
-                for(c : var = 0; c < n; c++) {
-                    held : var = work[col * n + c];
+                for(c : decimal = 0; c < n; c++) {
+                    held : decimal = work[col * n + c];
                     work[col * n + c] = work[pivot * n + c];
                     work[pivot * n + c] = held;
                 }
@@ -371,9 +371,9 @@ class matrix {
 
             result = result * work[col * n + col];
 
-            for(r : var = col + 1; r < n; r++) {
-                factor : var = work[r * n + col] / work[col * n + col];
-                for(c : var = col; c < n; c++) {
+            for(r : decimal = col + 1; r < n; r++) {
+                factor : decimal = work[r * n + col] / work[col * n + col];
+                for(c : decimal = col; c < n; c++) {
                     work[r * n + c] = work[r * n + c] - factor * work[col * n + c];
                 }
             }
@@ -395,14 +395,14 @@ class matrix {
      */
     def inverse(): matrix {
         require_square("inverse");
-        n : var = rows;
+        n : decimal = rows;
         work := to_array();
         result := identity(n);
         out := result.cells;
 
-        for(col : var = 0; col < n; col++) {
-            pivot : var = col;
-            for(r : var = col + 1; r < n; r++) {
+        for(col : decimal = 0; col < n; col++) {
+            pivot : decimal = col;
+            for(r : decimal = col + 1; r < n; r++) {
                 if(absolute(work[r * n + col]) > absolute(work[pivot * n + col])) {
                     pivot = r;
                 }
@@ -412,8 +412,8 @@ class matrix {
                 throw new arithmetic_exception("matrix: the matrix is singular and has no inverse");
 
             if(pivot != col) {
-                for(c : var = 0; c < n; c++) {
-                    held : var = work[col * n + c];
+                for(c : decimal = 0; c < n; c++) {
+                    held : decimal = work[col * n + c];
                     work[col * n + c] = work[pivot * n + c];
                     work[pivot * n + c] = held;
 
@@ -424,18 +424,18 @@ class matrix {
             }
 
             // scale the pivot row so the diagonal cell becomes 1
-            divisor : var = work[col * n + col];
-            for(c : var = 0; c < n; c++) {
+            divisor : decimal = work[col * n + col];
+            for(c : decimal = 0; c < n; c++) {
                 work[col * n + c] = work[col * n + c] / divisor;
                 out[col * n + c] = out[col * n + c] / divisor;
             }
 
             // clear this column in every other row
-            for(r : var = 0; r < n; r++) {
+            for(r : decimal = 0; r < n; r++) {
                 if(r != col) {
-                    factor : var = work[r * n + col];
+                    factor : decimal = work[r * n + col];
                     if(factor != 0) {
-                        for(c : var = 0; c < n; c++) {
+                        for(c : decimal = 0; c < n; c++) {
                             work[r * n + c] = work[r * n + c] - factor * work[col * n + c];
                             out[r * n + c] = out[r * n + c] - factor * out[col * n + c];
                         }
@@ -454,7 +454,7 @@ class matrix {
      * right_side does not have `rows` numbers, and arithmetic_exception when
      * the matrix is singular (no solution, or infinitely many).
      */
-    def solve(right_side: var[]): var[] {
+    def solve(right_side: decimal[]): decimal[] {
         require_square("solve");
         if(sizeof(right_side) != rows)
             throw new illegal_argument_exception("matrix: the right side needs " + number_to_string(rows) + " numbers");
@@ -468,14 +468,14 @@ class matrix {
      * Throws illegal_argument_exception when the matrix is not square or
      * exponent is negative or not whole (use inverse().power(n) for A^-n).
      */
-    def power(exponent: var): matrix {
+    def power(exponent: decimal): matrix {
         require_square("power");
         if(exponent < 0 || floor_of(exponent) != exponent)
             throw new illegal_argument_exception("matrix: the exponent must be a whole number >= 0");
 
         result := identity(rows);
         factor := new matrix(self);
-        remaining : var = exponent;
+        remaining : decimal = exponent;
 
         while(remaining > 0) {
             if((remaining % 2) == 1) {
@@ -496,16 +496,16 @@ class matrix {
      * Throws out_of_bounds_exception when the position is outside the matrix
      * and illegal_argument_exception when the matrix has only one row or column.
      */
-    def minor(row: var, column: var): matrix {
+    def minor(row: decimal, column: decimal): matrix {
         check_position(row, column);
         if(rows < 2 || columns < 2)
             throw new illegal_argument_exception("matrix: a matrix with one row or column has no minor");
 
         result := new matrix(rows - 1, columns - 1);
-        target : var = 0;
-        for(r : var = 0; r < rows; r++) {
+        target : decimal = 0;
+        for(r : decimal = 0; r < rows; r++) {
             if(r != row) {
-                for(c : var = 0; c < columns; c++) {
+                for(c : decimal = 0; c < columns; c++) {
                     if(c != column) {
                         result.cells[target++] = cells[r * columns + c];
                     }
@@ -531,10 +531,10 @@ class matrix {
      */
     override def to_string(): string? {
         text : string = "[";
-        for(r : var = 0; r < rows; r++) {
+        for(r : decimal = 0; r < rows; r++) {
             if(r > 0) text = text + ", ";
             text = text + "[";
-            for(c : var = 0; c < columns; c++) {
+            for(c : decimal = 0; c < columns; c++) {
                 if(c > 0) text = text + ", ";
                 text = text + number_to_string(cells[r * columns + c]);
             }

@@ -20,9 +20,9 @@ def at(name: string): file {
 /** the paths of `files` below the test directory, joined with spaces */
 def names_of(files: list<file>): string {
     buf := new char_buffer();
-    skip : var = io_strings.length(base_dir) + 1;
-    count : var = files.size().value;
-    for(i : var = 0; i < count; i++) {
+    skip : decimal = io_strings.length(base_dir) + 1;
+    count : decimal = files.size().value;
+    for(i : decimal = 0; i < count; i++) {
         if(i > 0) {
             buf.append_char(' ');
         }
@@ -145,7 +145,7 @@ def test_walker() {
     // a deep chain: no recursion, so depth is no problem (but the default limit is 64)
     chain := new char_buffer();
     chain.append("deepchain");
-    for(i : var = 0; i < 80; i++) {
+    for(i : decimal = 0; i < 80; i++) {
         chain.append("/n");
     }
     at(chain.to_string()!!).mkdirs();
@@ -240,7 +240,7 @@ def test_listing_fallback() {
 def test_temp_files() {
     dir := temp_files.directory();
     expect_true("temp directory exists", new file(dir).is_directory().value);
-    before : var = temp_files.pending();
+    before : decimal = temp_files.pending();
 
     p1 := temp_files.new_path("sharp_suite_io_", ".tmp");
     p2 := temp_files.new_path("sharp_suite_io_", ".tmp");

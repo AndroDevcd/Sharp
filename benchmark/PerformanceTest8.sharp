@@ -12,9 +12,9 @@ import std;
  * in the Sharp programming language totaling 5 instructions (when optimized)
  * to complete a full loop cycle
  */
-def main(string[] args) : var {
+def main(string[] args) : decimal {
 
-    var i;
+    decimal i;
 
     asm( // this will be optimized even further by the optimizer
     " movi #50000000, egx"

@@ -15,26 +15,26 @@ import ( testing )
  */
 
 class node {
-    value : var;
+    value : decimal;
     label : string?;
     next : node?;
-    numbers : var[]?;
+    numbers : decimal[]?;
 
-    def self_or_null(give: var) : node? {
+    def self_or_null(give: decimal) : node? {
         if(give) { return self; }
         return null;
     }
 }
 
 /** a parameter that may be null */
-def value_or(n: node?, fallback: var) : var {
+def value_or(n: node?, fallback: decimal) : decimal {
     if(n == null) { return fallback; }
     return n!!.value;
 }
 
 /** walks a chain of nodes until `next` is null */
-def chain_length(first: node?) : var {
-    count : var = 0;
+def chain_length(first: node?) : decimal {
+    count : decimal = 0;
     current : node? = first;
     while(current != null) {
         count++;
@@ -58,7 +58,7 @@ def main(args: string[]) {
     expect_true("object != null", a != null);
     expect_false("object == null", a == null);
     expect_true("null field == null", a.next == null);
-    taken : var = 0;
+    taken : decimal = 0;
     if(nothing == null) { taken = 1; }
     expect("if(x == null)", taken, 1);
     taken = 0;
@@ -87,7 +87,7 @@ def main(args: string[]) {
     a.next = new node();
     a.next!!.value = 4;
     expect("field of a field with !!", a.next!!.value, 4);
-    a.numbers = new var[2];
+    a.numbers = new decimal[2];
     expect_not_null("array field set", a.numbers);
     expect("sizeof the array field", sizeof(a.numbers), 2);
     a.numbers = null;
@@ -155,9 +155,9 @@ def main(args: string[]) {
     expect_null("element before it is set", nodes[1]);
     nodes[1] = a;
     expect_not_null("element after it is set", nodes[1]);
-    nullable_array : var[]? = null;
+    nullable_array : decimal[]? = null;
     expect_null("a null array variable", nullable_array);
-    nullable_array = new var[2];
+    nullable_array = new decimal[2];
     expect("...given an array", sizeof(nullable_array), 2);
 
     // ---- !! on null raises nullptr_exception
@@ -168,7 +168,7 @@ def main(args: string[]) {
         pass("write through null");
     }
 
-    reached : var = 0;
+    reached : decimal = 0;
     try {
         reached = 1;
         reached = nothing!!.value + 2;

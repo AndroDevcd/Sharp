@@ -11,26 +11,26 @@ import ( testing, std.collections )
 
 class person {
     name : string;
-    age : var;
+    age : decimal;
     city : string;
-    person(name: string, age: var, city: string) {
+    person(name: string, age: decimal, city: string) {
         self->name = name;
         self->age = age;
         self->city = city;
     }
 }
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
 def is_even(n: int) : bool { return n.value % 2 == 0; }
 def is_big(n: int) : bool { return n.value > 100; }
 def is_small(n: int) : bool { return n.value < 3; }
-def value_of(n: int) : var { return n.value; }
-def age_of(p: person) : var { return p.age; }
+def value_of(n: int) : decimal { return n.value; }
+def age_of(p: person) : decimal { return p.age; }
 
 /** a list<int> with the numbers from..to (both included) */
-def numbers(from: var, to: var) : list<int> {
+def numbers(from: decimal, to: decimal) : list<int> {
     result := new list<int>();
-    for(i : var = from; i <= to; i++) result.add(new int(i));
+    for(i : decimal = from; i <= to; i++) result.add(new int(i));
     return result;
 }
 
@@ -42,7 +42,7 @@ def join(items: list<int>) : string {
 /** the names of a list of people: "ann,bob" */
 def names(people: list<person>) : string {
     text := "";
-    for(i : var = 0; i < people.size().value; i++) {
+    for(i : decimal = 0; i < people.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + people.at(i).name;
     }
@@ -169,18 +169,18 @@ def test_numbers_and_order() {
     // equal ages keep their order (bob before dee) in both directions
     expect_str("sorted_by is stable", names(collections<person>.sorted_by(crowd, age_of)), "bob,dee,ann,eve,cid");
     expect_str("sorted_by_descending is stable", names(collections<person>.sorted_by_descending(crowd, age_of)), "cid,eve,ann,bob,dee");
-    expect_str("sorted_with a lambda", names(collections<person>.sorted_with(crowd, { a: person, b: person -> (var) return b.age - a.age; })), "cid,eve,ann,bob,dee");
+    expect_str("sorted_with a lambda", names(collections<person>.sorted_with(crowd, { a: person, b: person -> (decimal) return b.age - a.age; })), "cid,eve,ann,bob,dee");
 
     // scale: sorted_by on 5000 pseudo random numbers
     big := new list<int>();
-    seed : var = 555;
-    for(i : var = 0; i < 5000; i++) {
+    seed : decimal = 555;
+    for(i : decimal = 0; i < 5000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         big.add(new int(seed));
     }
     sorted := collections<int>.sorted_by(big, value_of);
-    in_order : var = 1;
-    for(i : var = 1; i < 5000; i++) {
+    in_order : decimal = 1;
+    for(i : decimal = 1; i < 5000; i++) {
         if(sorted.at(i - 1).value > sorted.at(i).value) in_order = 0;
     }
     expect("sorted_by 5000: size", sorted.size().value, 5000);

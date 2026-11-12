@@ -16,19 +16,19 @@ mod std.math;
  */
 class circle {
     /** x of the centre */
-    x : var = 0;
+    x : decimal = 0;
 
     /** y of the centre */
-    y : var = 0;
+    y : decimal = 0;
 
     /** distance from the centre to the border; never negative */
-    radius : var = 0;
+    radius : decimal = 0;
 
     /**
      * The circle around (x, y) with the given radius.
      * Throws illegal_argument_exception when radius is negative.
      */
-    circle(x: var, y: var, radius: var) {
+    circle(x: decimal, y: decimal, radius: decimal) {
         if(radius < 0)
             throw new illegal_argument_exception("circle: the radius cannot be negative");
         self->x = x;
@@ -40,7 +40,7 @@ class circle {
      * The circle around `center` with the given radius.
      * Throws illegal_argument_exception when radius is negative.
      */
-    circle(center: vector2, radius: var) {
+    circle(center: vector2, radius: decimal) {
         if(radius < 0)
             throw new illegal_argument_exception("circle: the radius cannot be negative");
         x = center.x;
@@ -61,24 +61,24 @@ class circle {
     }
 
     /** 2 * radius */
-    def diameter(): var {
+    def diameter(): decimal {
         return 2 * radius;
     }
 
     /** pi * radius^2 */
-    def area(): var {
+    def area(): decimal {
         return PI_VALUE * radius * radius;
     }
 
     /** the length of the border: 2 * pi * radius */
-    def circumference(): var {
+    def circumference(): decimal {
         return TAU * radius;
     }
 
     /** true when the point (px, py) is inside the circle or on its border: distance^2 <= radius^2 */
-    def contains(px: var, py: var): bool {
-        dx : var = px - x;
-        dy : var = py - y;
+    def contains(px: decimal, py: decimal): bool {
+        dx : decimal = px - x;
+        dy : decimal = py - y;
         return dx * dx + dy * dy <= radius * radius;
     }
 
@@ -101,9 +101,9 @@ class circle {
      * squared distance, so no square root is taken.
      */
     def intersects(other: circle): bool {
-        dx : var = other.x - x;
-        dy : var = other.y - y;
-        reach : var = radius + other.radius;
+        dx : decimal = other.x - x;
+        dy : decimal = other.y - y;
+        reach : decimal = radius + other.radius;
         return dx * dx + dy * dy <= reach * reach;
     }
 
@@ -113,13 +113,13 @@ class circle {
      * centre clamped to the rectangle) and test whether it is inside the circle.
      */
     def intersects(box: rect): bool {
-        nearest_x : var = clamp(x, box.x, box.x + box.width);
-        nearest_y : var = clamp(y, box.y, box.y + box.height);
+        nearest_x : decimal = clamp(x, box.x, box.x + box.width);
+        nearest_y : decimal = clamp(y, box.y, box.y + box.height);
         return contains(nearest_x, nearest_y);
     }
 
     /** the distance from the centre to the point (px, py) */
-    def distance_to(px: var, py: var): var {
+    def distance_to(px: decimal, py: decimal): decimal {
         return hypot(px - x, py - y);
     }
 
@@ -129,12 +129,12 @@ class circle {
     }
 
     /** the point on the border in direction `radians` from the centre (0 = +x, counter clockwise) */
-    def point_at(radians: var): vector2 {
+    def point_at(radians: decimal): vector2 {
         return new vector2(x + radius * cos_of(radians), y + radius * sin_of(radians));
     }
 
     /** the same circle moved by (dx, dy) */
-    def translated(dx: var, dy: var): circle {
+    def translated(dx: decimal, dy: decimal): circle {
         return new circle(x + dx, y + dy, radius);
     }
 
@@ -142,7 +142,7 @@ class circle {
      * The same circle with its radius multiplied by `factor`.
      * Throws illegal_argument_exception when factor is negative.
      */
-    def scaled(factor: var): circle {
+    def scaled(factor: decimal): circle {
         return new circle(x, y, radius * factor);
     }
 

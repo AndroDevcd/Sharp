@@ -518,7 +518,7 @@ bool replace_one(function_ir &ir, std::vector<int> &triedHeaders) {
             emit(Opcode::MOVI, A, (int32_t)start);
             emit(Opcode::SUB, A, X, X);                                         // X = i0 - n
         }
-        if(stride != 1) emit(Opcode::IDIV, X, (int32_t)stride);
+        if(stride != 1) emit(Opcode::DIDIV, X, (int32_t)stride);
 
         // T = number of trips
         if(testOp == Opcode::LT || testOp == Opcode::GT) {
@@ -570,7 +570,7 @@ bool replace_one(function_ir &ir, std::vector<int> &triedHeaders) {
                 emit(Opcode::MUL, A, T, A);
                 if(value.c[k] != 0) emit(Opcode::IADD, A, (int32_t)value.c[k]);
             }
-            if(value.divisor != 1) emit(Opcode::IDIV, A, (int32_t)value.divisor);
+            if(value.divisor != 1) emit(Opcode::DIDIV, A, (int32_t)value.divisor);
             if(value.addStart) {
                 emit(Opcode::LOADL, X, value.local);
                 emit(Opcode::ADD, X, A, A);

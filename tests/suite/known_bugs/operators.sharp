@@ -13,16 +13,16 @@ import ( testing )
  *   Same result in all four configurations ({no -O, -O} x {JIT, -nojit}).
  */
 
-trace : var = 0;
+trace : decimal = 0;
 
 /* appends its digit to trace, so trace shows the order of the calls */
-def mark(digit: var): var {
+def mark(digit: decimal): decimal {
     trace = trace * 10 + digit;
     return digit;
 }
 
 def main(args: string[]) {
-    x : var = mark(1) + mark(2);
+    x : decimal = mark(1) + mark(2);
     expect("a + b evaluates a first", trace, 12);                   // 21
 
     trace = 0;

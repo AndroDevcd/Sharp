@@ -35,7 +35,7 @@ class string : loopable<_int8> {
     string(str : char[]) {
         if(str != null) {
             data = new _int8[sizeof(str)];
-            iter : var = 0;
+            iter : decimal = 0;
             foreach(ch in str) {
                 data[iter++] = ch.value;
             }
@@ -96,7 +96,7 @@ class string : loopable<_int8> {
         if(immstr == null) return self;
         else if(immstr == data) return self;
 
-        old_size : var = sizeof(data);
+        old_size : decimal = sizeof(data);
 
         if(data == null)
             data = new _int8[sizeof(immstr)];
@@ -117,7 +117,7 @@ class string : loopable<_int8> {
         else if(immstr == data)
             throw new error("attempting to append string data from instance, use substring first");
 
-        old_size : var = sizeof(data);
+        old_size : decimal = sizeof(data);
 
         if(data == null)
             data = new _int8[len.value];
@@ -144,7 +144,7 @@ class string : loopable<_int8> {
         if(data != null) {
             str.data = copy(data!!, 0, sizeof(data));
 
-            iter : var = 0;
+            iter : decimal = 0;
             foreach(ch in data) {
                 if('A' <= ch && ch <= 'Z')
                     str.data[iter] =  'a' + (ch - 'A');
@@ -292,7 +292,7 @@ class string : loopable<_int8> {
         return s.append(num);
     }
 
-    def operator+(num : var) : string {
+    def operator+(num : decimal) : string {
         return operator+(new double(num).to_string());
     }
 
@@ -364,7 +364,7 @@ class string : loopable<_int8> {
         const p := 31;
         const m := 1e9 + 9;
         hash_value := 0;
-        p_pow : var = 1;
+        p_pow : decimal = 1;
         foreach(c in data) {
             hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
             p_pow = (p_pow * p) % m;

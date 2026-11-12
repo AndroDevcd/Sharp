@@ -9,13 +9,18 @@
 #include "../../field_generator.h"
 #include "scheme_processor.h"
 #include "../code_info.h"
+#include "../constant_conversion.h"
 #include "../../../../../../core/opcode/opcode_macros.h"
 
 void add_instruction(opcode_instr instr) {
+    cc.previousInstruction = cc.lastInstruction;
+    cc.lastInstruction = cc.instructions.size();
     cc.instructions.add(instr);
 }
 
 void add_instruction(opcode_instr *instr) {
+    cc.previousInstruction = cc.lastInstruction;
+    cc.lastInstruction = cc.instructions.size();
     for(int i = 0; i < INSTRUCTION_BUFFER_SIZE; i++) {
         cc.instructions.add(instr[i]);
     }
@@ -109,6 +114,8 @@ void process_step(operation_step *step) {
             return process_deallocate_register(step);
         case operation_retain_numeric_value:
             return process_retain_numeric_value(step);
+        case operation_convert_number:
+            return process_convert_number(step);
         case operation_call_dynamic_function:
             return process_call_dynamic_function(step);
         case operation_call_instance_function:
@@ -305,13 +312,13 @@ dynamic_instruction machine_instruction_to_dynamic_instruction(machine_instructi
                     mi->opcode == Opcode::MOVI
                     || mi->opcode == Opcode::IADD
                     || mi->opcode == Opcode::ISUB
-                    || mi->opcode == Opcode::IDIV
+                    || mi->opcode == Opcode::DIDIV
                     || mi->opcode == Opcode::IMUL
                     || mi->opcode == Opcode::NEWCLASS
                     || mi->opcode == Opcode::NEWCLASSARRAY
                     || mi->opcode == Opcode::IADDL
                     || mi->opcode == Opcode::ISUBL
-                    || mi->opcode == Opcode::IDIVL
+                    || mi->opcode == Opcode::DIDIVL
                     || mi->opcode == Opcode::IMODL
                     || mi->opcode == Opcode::IMULL
                     || mi->opcode == Opcode::ISTORE
@@ -543,7 +550,11 @@ void process_setup_local_field(operation_step *step) {
     validate_step_type(step, operation_setup_local_field);
 
     if(is_numeric_type(step->field->type) && !step->field->type.isArray) {
-        add_instruction(Opcode::Builder::istorel(step->field->ci->address, 0));
+        // `n : var;` starts as the decimal 0.0, `n : _int32;` as the integer 0
+        if(is_decimal_type(step->field->type))
+            add_instruction(Opcode::Builder::distorel(step->field->ci->address, 0));
+        else
+            add_instruction(Opcode::Builder::istorel(step->field->ci->address, 0));
     } else {
         add_instruction(Opcode::Builder::pushNull());
         add_instruction(Opcode::Builder::popl(step->field->ci->address));
@@ -561,7 +572,7 @@ void process_get_array_element_at_index(operation_step *step) {
     add_instruction(Opcode::Builder::checklen(ADX));
 
     if(step->nativeType <= type_var) {
-        add_instruction(Opcode::Builder::iaload(EBX, ADX));
+        add_instruction(array_load((data_type)step->nativeType, EBX, ADX));
         set_machine_data(get_register(EBX));
     } else {
         add_instruction(Opcode::Builder::movnd(ADX));
@@ -580,7 +591,6 @@ void process_set_array_element_at_index(operation_step *step) {
     add_instruction(Opcode::Builder::checklen(ADX));
 
     if(step->nativeType <= type_var) {
-        set_machine_data(numeric_instance_field);
         add_instruction(Opcode::Builder::loadValue(EBX));
         // An element of a sized array holds a value of that size, exactly like
         // a local or a field of the type:  bytes[0] = 200  stores (int8_t)200,
@@ -589,7 +599,9 @@ void process_set_array_element_at_index(operation_step *step) {
         // compare equal to the same byte read back from a file.)
         if(step->nativeType < type_function_ptr)
             cast_machine_data(EBX, (data_type)step->nativeType);
-        add_instruction(Opcode::Builder::rmov(ADX, EBX));
+        add_instruction(array_store((data_type)step->nativeType, ADX, EBX));
+        // the value of `a[i] = v` is the value that was stored, still in ebx
+        set_machine_data(get_register(EBX));
     } else {
         add_instruction(Opcode::Builder::movnd(ADX));
         add_instruction(Opcode::Builder::popObject());
@@ -654,112 +666,166 @@ void process_set_current_data_as_object(operation_step *step) {
     set_machine_data(generic_object_data);
 }
 
+/**
+ * TYPED NUMBER OPERATIONS
+ *
+ * A step that calculates with two numbers says, in fields filled in by
+ * set_numeric_operation() (operation.h):
+ *
+ *      nativeType        type_var: a decimal operation, else an integer one
+ *      leftConversion    I2D / D2I needed on the left operand first
+ *      rightConversion   the same for the right operand
+ *      resultConversion  I2D / D2I needed on the result
+ *
+ * get_numeric_operands() finds the two registers and emits the conversions,
+ * the process_xxx function emits the one instruction for the kind, and
+ * set_numeric_result() converts the result and records where it is.
+ *
+ *      count * 1.5   (count: _int32)       i2d  egx            ; left operand
+ *                                          dmul egx, ebx -> bmr
+ */
+struct numeric_operands {
+    _register left;
+    _register right;
+};
+
+static void convert_register(_register r, numeric_conversion conversion) {
+    // a constant is converted here, at compile time (constant_conversion.h)
+    if(fold_constant_conversion(r, conversion)) return;
+
+    if(conversion == convert_to_decimal) {
+        add_instruction(Opcode::Builder::i2d(r, r));
+    } else if(conversion == convert_to_integer) {
+        add_instruction(Opcode::Builder::d2i(r, r));
+    } else if(conversion == convert_to_truth) {
+        // 1 when the decimal is not 0.0: dnot gives 1 for 0.0, not flips it
+        add_instruction(Opcode::Builder::dnot(r, r));
+        add_instruction(Opcode::Builder::_not(r, r));
+    }
+}
+
+static bool is_decimal_operation(operation_step *step) {
+    return step->nativeType == type_var;
+}
+
+static numeric_operands get_numeric_operands(operation_step *step) {
+    internal_register* left = step->integer == -1 ?
+            get_register(BMR) : get_register_or_consume(step->integer, true);
+    internal_register* right = get_register_or_consume(step->secondRegister, false);
+
+    numeric_operands operands;
+    operands.left = (_register) left->address;
+    operands.right = (_register) right->address;
+
+    // Converted in place: both registers hold values that exist only to be
+    // operands of this one operation.
+    convert_register(operands.left, step->leftConversion);
+    convert_register(operands.right, step->rightConversion);
+    return operands;
+}
+
+static void set_numeric_result(operation_step *step, _register result) {
+    convert_register(result, step->resultConversion);
+    set_machine_data(get_register(result));
+}
+
 void process_exponent(operation_step *step) {
     validate_step_type(step, operation_exponent);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::exp(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::dexp(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_shr(operation_step *step) {
     validate_step_type(step, operation_shr);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::shr(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::shr(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_shl(operation_step *step) {
     validate_step_type(step, operation_shl);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::shl(
-           BMR,  (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::shl(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_gte(operation_step *step) {
     validate_step_type(step, operation_gte);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::ge(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(CMT));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dgte(operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::ge(operands.left, operands.right));
+    set_numeric_result(step, CMT);
 }
 
 void process_lte(operation_step *step) {
     validate_step_type(step, operation_lte);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::le(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(CMT));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dlte(operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::le(operands.left, operands.right));
+    set_numeric_result(step, CMT);
 }
 
 void process_gt(operation_step *step) {
     validate_step_type(step, operation_gt);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::gt(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(CMT));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dgt(operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::gt(operands.left, operands.right));
+    set_numeric_result(step, CMT);
 }
 
 void process_lt(operation_step *step) {
     validate_step_type(step, operation_lt);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::lt(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(CMT));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dlt(operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::lt(operands.left, operands.right));
+    set_numeric_result(step, CMT);
 }
 
 void process_not_eq(operation_step *step) {
     validate_step_type(step, operation_not_eq);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::tne(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dtne(operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::tne(operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_eq_eq(operation_step *step) {
     validate_step_type(step, operation_eq_eq);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::te(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dtest(operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::te(operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_and_and(operation_step *step) {
@@ -795,97 +861,82 @@ internal_register* get_register_or_consume(Int registerId, bool leftSide) {
 void process_add(operation_step *step) {
     validate_step_type(step, operation_add);
 
-    internal_register* left = step->integer == -1 ?
-            get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::add(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dadd(BMR, operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::add(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_sub(operation_step *step) {
     validate_step_type(step, operation_sub);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::sub(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dsub(BMR, operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::sub(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_mult(operation_step *step) {
     validate_step_type(step, operation_mult);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::mul(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dmul(BMR, operands.left, operands.right));
+    else
+        add_instruction(Opcode::Builder::mul(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_div(operation_step *step) {
     validate_step_type(step, operation_div);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::div(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::ddiv(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_mod(operation_step *step) {
     validate_step_type(step, operation_mod);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::mod(
-            BMR, (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::mod(BMR, operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_and(operation_step *step) {
     validate_step_type(step, operation_and);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::uand(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::uand(operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_or(operation_step *step) {
     validate_step_type(step, operation_or);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::_or(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::_or(operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_xor(operation_step *step) {
     validate_step_type(step, operation_xor);
 
-    internal_register* left = step->integer == -1 ?
-                              get_register(BMR) : get_register_or_consume(step->integer, true);
-    internal_register* right = get_register_or_consume( step->secondRegister, false);
+    numeric_operands operands = get_numeric_operands(step);
 
-    add_instruction(Opcode::Builder::_xor(
-            (_register) left->address, (_register)right->address));
-    set_machine_data(get_register(BMR));
+    add_instruction(Opcode::Builder::_xor(operands.left, operands.right));
+    set_numeric_result(step, BMR);
 }
 
 void process_jump_if_false(operation_step *step) {
@@ -1036,7 +1087,8 @@ void process_assign_array_element_from_stack(operation_step *step) {
         set_machine_data(array_numeric_data);
         add_instruction(Opcode::Builder::movi(step->integer, ADX));
         add_instruction(Opcode::Builder::loadValue(EGX));
-        add_instruction(Opcode::Builder::rmov(ADX, EGX));
+        // (the element type is on the step: create_assign_array_element_operation)
+        add_instruction(array_store((data_type)step->nativeType, ADX, EGX));
     }
 }
 
@@ -1091,8 +1143,8 @@ void process_nullify_value(operation_step *step) {
 void process_get_static_function_address(operation_step *step) {
     validate_step_type(step, operation_get_static_function_address);
 
-    Int address = create_constant(step->function->ci->address);
-    set_machine_data(numeric_constant, address);
+    // a function's address is an integer
+    set_machine_data(integer_constant, step->function->ci->address);
 }
 
 void process_get_string_constant(operation_step *step) {
@@ -1106,8 +1158,7 @@ void process_get_string_constant(operation_step *step) {
 void process_get_char_constant(operation_step *step) {
     validate_step_type(step, operation_get_char_constant);
 
-    Int address = create_constant(step->_char);
-    set_machine_data(numeric_constant, address);
+    set_machine_data(integer_constant, (Int)step->_char);
 }
 
 void process_retain_numeric_value(operation_step *step) {
@@ -1115,6 +1166,19 @@ void process_retain_numeric_value(operation_step *step) {
 
     auto reg = find_register(step->integer);
     consume_machine_data(reg);
+}
+
+/**
+ * operation_convert_number: the value produced so far changes kind
+ * (compiler/expressions/numeric_conversion.h). It is loaded into a register,
+ * converted there, and the register is the value from then on.
+ */
+void process_convert_number(operation_step *step) {
+    validate_step_type(step, operation_convert_number);
+
+    consume_machine_data(get_register(EGX));
+    convert_register(EGX, step->resultConversion);
+    set_machine_data(get_register(EGX));
 }
 
 void process_deallocate_register(operation_step *step) {
@@ -1302,7 +1366,10 @@ void process_negate_value(operation_step *step) {
     validate_step_type(step, operation_negate_value);
 
     consume_machine_data(get_register(EBX));
-    add_instruction(Opcode::Builder::neg(EBX, EBX));
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dneg(EBX, EBX));
+    else
+        add_instruction(Opcode::Builder::neg(EBX, EBX));
     set_machine_data(get_register(EBX));
 }
 
@@ -1310,7 +1377,11 @@ void process_not_value(operation_step *step) {
     validate_step_type(step, operation_not_value);
 
     consume_machine_data(get_register(EBX));
-    add_instruction(Opcode::Builder::_not(EBX, EBX));
+    // !x is 1 when x is zero, else 0: always an integer, whatever x is
+    if(is_decimal_operation(step))
+        add_instruction(Opcode::Builder::dnot(EBX, EBX));
+    else
+        add_instruction(Opcode::Builder::_not(EBX, EBX));
     set_machine_data(get_register(EBX));
 }
 
@@ -1324,15 +1395,13 @@ void process_get_decimal_constant(operation_step *step) {
 void process_get_bool_constant(operation_step *step) {
     validate_step_type(step, operation_get_bool_constant);
 
-    Int address = create_constant(step->_bool ? 1 : 0);
-    set_machine_data(numeric_constant, address);
+    set_machine_data(integer_constant, step->_bool ? 1 : 0);
 }
 
 void process_get_integer_constant(operation_step *step) {
     validate_step_type(step, operation_get_integer_constant);
 
-    Int address = create_constant(step->integer);
-    set_machine_data(numeric_constant, address);
+    set_machine_data(integer_constant, step->integer);
 }
 
 void process_return_nil(operation_step *step) {
@@ -1415,7 +1484,8 @@ void process_get_instance_field_value(operation_step *step) {
 
     sharp_field *staticField = step->field;
     consume_machine_data();
-    add_instruction(Opcode::Builder::movn(get_or_initialize_code(staticField)->address));
+    get_or_initialize_code(staticField);
+    move_to_field(staticField);
     set_machine_data(staticField, false, true);
 }
 

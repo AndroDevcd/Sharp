@@ -9,28 +9,28 @@ import ( testing, std.collections )
 
 class person {
     name : string;
-    age : var;
+    age : decimal;
     city : string;
-    person(name: string, age: var, city: string) {
+    person(name: string, age: decimal, city: string) {
         self->name = name;
         self->age = age;
         self->city = city;
     }
 }
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
 def is_even(n: int) : bool { return n.value % 2 == 0; }
 def is_big(n: int) : bool { return n.value > 100; }
 def is_small(n: int) : bool { return n.value < 3; }
-def value_of(n: int) : var { return n.value; }
-def age_of(p: person) : var { return p.age; }
+def value_of(n: int) : decimal { return n.value; }
+def age_of(p: person) : decimal { return p.age; }
 def city_of(p: person) : string { return p.city; }
 def name_of(p: person) : string { return p.name; }
 
 /** a list<int> with the numbers from..to (both included) */
-def numbers(from: var, to: var) : list<int> {
+def numbers(from: decimal, to: decimal) : list<int> {
     result := new list<int>();
-    for(i : var = from; i <= to; i++) result.add(new int(i));
+    for(i : decimal = from; i <= to; i++) result.add(new int(i));
     return result;
 }
 
@@ -42,7 +42,7 @@ def join(items: list<int>) : string {
 /** the names of a list of people: "ann,bob" */
 def names(people: list<person>) : string {
     text := "";
-    for(i : var = 0; i < people.size().value; i++) {
+    for(i : decimal = 0; i < people.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + people.at(i).name;
     }
@@ -117,7 +117,7 @@ def test_transforms() {
     expect("group_by 6000: groups", by_remainder.size(), 7);
     expect("group_by 6000: size of group 0", by_remainder.at(0)!!.size().value, 857);
     expect("group_by 6000: size of group 1", by_remainder.at(1)!!.size().value, 858);
-    total : var = 0;
+    total : decimal = 0;
     foreach(entry in by_remainder) { total += entry.value.size().value; }
     expect("group_by 6000: nothing lost", total, 6000);
     expect("map + fold 6000", transforms<int, int>.fold(transforms<int, int>.map(big, { x: int -> (int) return x.value * 2; }), 0, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 36006000);

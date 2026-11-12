@@ -45,6 +45,7 @@ void process_pop_direct_numeric_value_from_stack(operation_step *step);
 void process_allocate_register(operation_step *step);
 void process_deallocate_register(operation_step *step);
 void process_retain_numeric_value(operation_step *step);
+void process_convert_number(operation_step *step);
 void process_call_dynamic_function(operation_step *step);
 void process_get_char_constant(operation_step *step);
 void process_get_string_constant(operation_step *step);

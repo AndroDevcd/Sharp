@@ -31,12 +31,12 @@ class wait_queue {
 
     private head : waiter?;
     private tail : waiter?;
-    private count : var = 0;
+    private count : decimal = 0;
 
     wait_queue() {}
 
     /** number of waiters in the queue (claimed ones that were not removed yet included) */
-    def size() : var {
+    def size() : decimal {
         return count;
     }
 
@@ -91,7 +91,7 @@ class wait_queue {
      * @return the claimed waiter - the caller MUST call unpark() on it after
      *         releasing the lock - or null when nobody is waiting.
      */
-    def pop_waiting(new_state: var) : waiter? {
+    def pop_waiting(new_state: decimal) : waiter? {
         for( ;; ) {
             w := head;
             if(w == null) {
@@ -108,7 +108,7 @@ class wait_queue {
     }
 
     /** pop_waiting() that also hands `value` to the waiter (waiter.item) */
-    def pop_waiting_with(new_state: var, value: object?) : waiter? {
+    def pop_waiting_with(new_state: decimal, value: object?) : waiter? {
         for( ;; ) {
             w := head;
             if(w == null) {

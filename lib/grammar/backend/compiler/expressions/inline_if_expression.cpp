@@ -14,12 +14,16 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
     compile_expression(falseExpr, ast->getSubAst(2));
 
     extract_value_field_from_expression(condExpr, "", ast->getSubAst(0));
+    convert_number_to_condition(condExpr);
     if(is_evaluable_type(condExpr.type)) {
         stringstream ss;
         sharp_label *endLabel, *ifFalseLabel;
         Int match_result = is_implicit_type_match(trueExpr.type, falseExpr.type, exclude_all);
 
         if(is_match_normal(match_result)) {
+            // `flag ? 1 : 0.5` - the whole expression has the type of the first
+            // branch, so the second branch is made that kind of number too
+            convert_number_for(falseExpr, trueExpr.type);
             e->type.copy(trueExpr.type);
 
             set_internal_label_name(ss, "if_end", uniqueId++)

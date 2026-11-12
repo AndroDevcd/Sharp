@@ -380,6 +380,7 @@ void compile_function(sharp_function *function, Ast *ast) {
                 function->scheme->copy(e.scheme);
                 create_return_operation(function->scheme);
             } else if(is_numeric_type(e.type) && !get_real_type(e.type).isArray) {
+                convert_number_for(e, function->returnType);
                 create_numeric_return_operation(function->scheme, &e.scheme);
             } else {
                 create_object_return_operation(function->scheme, &e.scheme);

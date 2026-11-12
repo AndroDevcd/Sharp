@@ -15,14 +15,14 @@ base_dir : string = "/tmp/sharp_suite_io_binary";
 /** the bytes of a buffer as lower case hex, e.g. "00ff10" */
 def hex_of(buf: byte_buffer): string {
     out := new char_buffer();
-    for(i : var = 0; i < buf.size(); i++) {
+    for(i : decimal = 0; i < buf.size(); i++) {
         out.append(io_strings.int_to_hex(buf.byte_at(i), 2));
     }
     return out.to_string()!!;
 }
 
 /** put a double and read it back */
-def through_buffer(value: var, little: var): var {
+def through_buffer(value: decimal, little: decimal): decimal {
     buf := new byte_buffer();
     if(little) {
         buf.little_endian();
@@ -79,7 +79,7 @@ def test_bytes() {
     expect("clear resets position", buf.position(), 0);
 
     // growth
-    for(i : var = 0; i < 5000; i++) {
+    for(i : decimal = 0; i < 5000; i++) {
         buf.put_int8(i);
     }
     expect("5000 bytes", buf.size(), 5000);
@@ -169,7 +169,7 @@ def test_floats() {
     expect_str("NaN", io_strings.slice(hex_of(special), 32, 48), "7ff8000000000000");
     expect_true("read infinity", special.get_float64() > 1e308);
     expect_true("read -infinity", special.get_float64() < 0 - 1e308);
-    nan : var = special.get_float64();
+    nan : decimal = special.get_float64();
     expect_true("read NaN", nan != nan);
 
     little := new byte_buffer().little_endian();
@@ -187,9 +187,9 @@ def test_floats() {
     expect("power of two", through_buffer(1024, 0), 1024);
     expect("2^53 + 2", through_buffer(9007199254740994, 0), 9007199254740994);
     expect("just below one", through_buffer(0.9999999999999999, 0), 0.9999999999999999);
-    same : var = 1;
-    value : var = 0.000123;
-    for(i : var = 0; i < 60; i++) {
+    same : decimal = 1;
+    value : decimal = 0.000123;
+    for(i : decimal = 0; i < 60; i++) {
         if(through_buffer(value, i % 2) != value) {
             same = 0;
         }
@@ -252,7 +252,7 @@ def test_strings() {
     // to a file and back
     target := new file(base_dir + "/buffer.bin");
     all := new byte_buffer();
-    for(i : var = 0; i < 256; i++) {
+    for(i : decimal = 0; i < 256; i++) {
         all.put_int8(i);
     }
     all.put_float64(2.5).put_string_prefixed("tail");
@@ -347,7 +347,7 @@ def test_writer_reader() {
     try { new binary_reader(bad).read_bool(); fail("bad bool", "no exception"); }
     catch(e: io_exception) { pass("bad bool"); }
     endless := new byte_buffer();
-    for(i : var = 0; i < 12; i++) {
+    for(i : decimal = 0; i < 12; i++) {
         endless.put_int8(255);
     }
     try { new binary_reader(endless).read_varint(); fail("endless varint", "no exception"); }

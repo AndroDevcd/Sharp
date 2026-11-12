@@ -9,8 +9,8 @@ import ( testing )
  */
 
 class counter {
-    value : var = 0;
-    def add(n: var) { value += n; }
+    value : decimal = 0;
+    def add(n: decimal) { value += n; }
 }
 
 total := new counter();
@@ -18,48 +18,48 @@ log := new string_builder();
 
 def run(block: ()()) { block(); }
 def run_twice(block: ()()) { block(); block(); }
-def repeat(times: var, block: ()()) { for(i : var = 0; i < times; i++) { block(); } }
-def apply(x: var, f: (var)(var)) : var { return f(x); }
-def apply2(a: var, b: var, f: (var, var)(var)) : var { return f(a, b); }
-def each(items: var[], f: (var)()) { foreach(v in items) { f(v); } }
-def count_if(items: var[], test: (var)(var)) : var {
-    n : var = 0;
+def repeat(times: decimal, block: ()()) { for(i : decimal = 0; i < times; i++) { block(); } }
+def apply(x: decimal, f: (decimal)(decimal)) : decimal { return f(x); }
+def apply2(a: decimal, b: decimal, f: (decimal, decimal)(decimal)) : decimal { return f(a, b); }
+def each(items: decimal[], f: (decimal)()) { foreach(v in items) { f(v); } }
+def count_if(items: decimal[], test: (decimal)(decimal)) : decimal {
+    n : decimal = 0;
     foreach(v in items) { if(test(v)) { n++; } }
     return n;
 }
-def sum_by(items: var[], f: (var)(var)) : var {
-    s : var = 0;
+def sum_by(items: decimal[], f: (decimal)(decimal)) : decimal {
+    s : decimal = 0;
     foreach(v in items) { s += f(v); }
     return s;
 }
-def with_text(s: string, f: (string)(var)) : var { return f(s); }
-def make(f: ()(var)) : var { return f(); }
+def with_text(s: string, f: (string)(decimal)) : decimal { return f(s); }
+def make(f: ()(decimal)) : decimal { return f(); }
 
 class pipeline {
-    items : var[];
-    pipeline(a: var[]) { items = a; }
+    items : decimal[];
+    pipeline(a: decimal[]) { items = a; }
 
-    def keep(test: (var)(var)) : pipeline {
-        n : var = 0;
+    def keep(test: (decimal)(decimal)) : pipeline {
+        n : decimal = 0;
         foreach(v in items) { if(test(v)) { n++; } }
-        result := new var[n];
-        i : var = 0;
+        result := new decimal[n];
+        i : decimal = 0;
         foreach(v in items) { if(test(v)) { result[i] = v; i++; } }
         return new pipeline(result);
     }
 
-    def change(f: (var)(var)) : pipeline {
-        result := new var[sizeof(items)];
-        for(i : var = 0; i < sizeof(items); i++) { result[i] = f(items[i]); }
+    def change(f: (decimal)(decimal)) : pipeline {
+        result := new decimal[sizeof(items)];
+        for(i : decimal = 0; i < sizeof(items); i++) { result[i] = f(items[i]); }
         return new pipeline(result);
     }
 
-    def for_each(f: (var)()) { foreach(v in items) { f(v); } }
-    def sum() : var { s : var = 0; foreach(v in items) { s += v; } return s; }
+    def for_each(f: (decimal)()) { foreach(v in items) { f(v); } }
+    def sum() : decimal { s : decimal = 0; foreach(v in items) { s += v; } return s; }
 }
 
 def main(args: string[]) {
-    numbers := new var[] { 1, 2, 3, 4, 5, 6 };
+    numbers := new decimal[] { 1, 2, 3, 4, 5, 6 };
 
     // ---- no parentheses, no parameters
     total.value = 0;
@@ -92,7 +92,7 @@ def main(args: string[]) {
     // ---- explicit parameters keep working
     expect("x -> expression statement body", apply(4) { x -> return x * 3; }, 12);
     expect("two parameters", apply2(3, 4) { a, b -> return a * b; }, 12);
-    expect("typed parameters and return type", apply2(3, 4) { a: var, b: var -> (var) return a + b; }, 7);
+    expect("typed parameters and return type", apply2(3, 4) { a: decimal, b: decimal -> (decimal) return a + b; }, 7);
     expect("no parameters with an arrow", make { -> return 42; }, 42);
     expect("no arrow, single expression result", make { 6 * 7 }, 42);
 
@@ -120,14 +120,14 @@ def main(args: string[]) {
     expect("an implicit lambda inside a lambda without it", total.value, 23);
 
     expect("a call with a trailing lambda inside an it lambda",
-           apply(3) { it + count_if(new var[] { 1, 2, 3, 4 }) { it > 2 } }, 5);
+           apply(3) { it + count_if(new decimal[] { 1, 2, 3, 4 }) { it > 2 } }, 5);
 
     // ---- statements that are followed by a block are not lambdas
-    hits : var = 0;
+    hits : decimal = 0;
     if(count_if(numbers) { it > 0 } == 6) { hits++; }
     while(hits < 3) { hits++; }
     foreach(v in numbers) { hits++; }
-    for(i : var = 0; i < apply(1) { it + 1 }; i++) { hits++; }
+    for(i : decimal = 0; i < apply(1) { it + 1 }; i++) { hits++; }
     when(hits) {
         11 -> { hits = 100; }
         else -> { hits = 0 - 1; }
@@ -135,7 +135,7 @@ def main(args: string[]) {
     expect("if / while / foreach / for / when still take their blocks", hits, 100);
 
     // ---- literals with braces are still literals
-    arr := new var[] { 7, 8 };
+    arr := new decimal[] { 7, 8 };
     expect("vector array literal", arr[1], 8);
     dict := { "a" : 1, "b" : 2 };
     expect_not_null("dictionary literal", dict);

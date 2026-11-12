@@ -12,7 +12,7 @@ mod std.math;
  *
  * Formula: a + (b - a) * t.
  */
-def lerp(a: var, b: var, t: var): var {
+def lerp(a: decimal, b: decimal, t: decimal): decimal {
     return a + (b - a) * t;
 }
 
@@ -23,7 +23,7 @@ def lerp(a: var, b: var, t: var): var {
  * Throws arithmetic_exception when a == b (every v is then "nowhere" on a
  * line of length 0).
  */
-def inverse_lerp(a: var, b: var, v: var): var {
+def inverse_lerp(a: decimal, b: decimal, v: decimal): decimal {
     if(a == b)
         throw new arithmetic_exception("inverse_lerp: a and b are equal");
     return (v - a) / (b - a);
@@ -38,7 +38,7 @@ def inverse_lerp(a: var, b: var, v: var): var {
  *
  * Throws arithmetic_exception when in_low == in_high.
  */
-def map_range(v: var, in_low: var, in_high: var, out_low: var, out_high: var): var {
+def map_range(v: decimal, in_low: decimal, in_high: decimal, out_low: decimal, out_high: decimal): decimal {
     if(in_low == in_high)
         throw new arithmetic_exception("map_range: the input range is empty");
     return out_low + (v - in_low) * (out_high - out_low) / (in_high - in_low);
@@ -52,11 +52,11 @@ def map_range(v: var, in_low: var, in_high: var, out_low: var, out_high: var): v
  * Formula: t = clamp((x - edge0) / (edge1 - edge0), 0, 1); t * t * (3 - 2 t).
  * Throws arithmetic_exception when edge0 == edge1.
  */
-def smoothstep(edge0: var, edge1: var, x: var): var {
+def smoothstep(edge0: decimal, edge1: decimal, x: decimal): decimal {
     if(edge0 == edge1)
         throw new arithmetic_exception("smoothstep: the edges are equal");
 
-    t : var = (x - edge0) / (edge1 - edge0);
+    t : decimal = (x - edge0) / (edge1 - edge0);
     if(t < 0) t = 0;
     if(t > 1) t = 1;
     return t * t * (3 - 2 * t);
@@ -68,10 +68,10 @@ def smoothstep(edge0: var, edge1: var, x: var): var {
  *
  * Throws illegal_argument_exception when low >= high.
  */
-def wrap(v: var, low: var, high: var): var {
+def wrap(v: decimal, low: decimal, high: decimal): decimal {
     if(low >= high)
         throw new illegal_argument_exception("wrap: low must be less than high");
 
-    span : var = high - low;
+    span : decimal = high - low;
     return low + ((v - low) - floor_of((v - low) / span) * span);
 }

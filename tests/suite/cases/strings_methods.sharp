@@ -13,8 +13,8 @@ import ( testing )
  * Sharp - so the checks go through variables.)
  */
 
-def count_char(text: string, wanted: char) : var {
-    found : var = 0;
+def count_char(text: string, wanted: char) : decimal {
+    found : decimal = 0;
     foreach(ch in text) {
         if(ch == wanted.value) {
             found++;
@@ -102,7 +102,7 @@ def main(args: string[]) {
     expect_true("two objects with the same characters are ==", (abc == also_abc).value);
     expect_false("different strings", (abc == hello).value);
     expect_true("different strings are !=", (abc != hello).value);
-    taken : var = 0;
+    taken : decimal = 0;
     if(abc == also_abc) { taken = 1; }
     expect("if(a == b)", taken, 1);
     taken = 0;
@@ -148,7 +148,7 @@ def main(args: string[]) {
     // ---- building strings from numbers and characters
     expect_str("+ whole number", "n=" + 5, "n=5");
     expect_str("+ two numbers appends each", "a" + 1 + 2, "a12");
-    x : var = 2.5;
+    x : decimal = 2.5;
     expect_str("+ native variable has 16 decimals", "x=" + x, "x=2.5000000000000000");
     forty_two := 42;
     expect_str("+ int object", "i=" + forty_two, "i=42");
@@ -170,7 +170,7 @@ def main(args: string[]) {
 
     // a string built in a loop
     grown := "";
-    for(k : var = 0; k < 100; k++) {
+    for(k : decimal = 0; k < 100; k++) {
         grown += "ab";
     }
     expect("100 times \"ab\"", grown.size().value, 200);

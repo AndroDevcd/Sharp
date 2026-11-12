@@ -25,41 +25,41 @@ class regex_match {
     private text : string = "";
 
     /* positions[2 * g] / positions[2 * g + 1] = start / end of group g, -1 if it did not take part */
-    private positions : var[]? = null;
-    private groups : var = 0;
+    private positions : decimal[]? = null;
+    private groups : decimal = 0;
 
     /**
      * Used by regex: a match in `text` with the group positions copied from
      * `positions` (two numbers per group, group 0 first).
      */
-    regex_match(text: string, positions: var[], group_total: var) {
+    regex_match(text: string, positions: decimal[], group_total: decimal) {
         self->text = text;
         self->groups = group_total;
-        self->positions = new var[group_total * 2];
-        for(i : var = 0; i < group_total * 2; i++) {
+        self->positions = new decimal[group_total * 2];
+        for(i : decimal = 0; i < group_total * 2; i++) {
             self->positions[i] = positions[i];
         }
     }
 
     /** Throws out_of_bounds_exception unless 0 <= group <= group_count(). */
-    private def check_group(index: var) {
+    private def check_group(index: decimal) {
         if(index < 0 || index >= groups)
             throw new bounds_except("there is no group " + number_format.integer(index)
                 + "; the pattern has " + number_format.integer(groups - 1) + " groups");
     }
 
     /** Index of the first character of the match in the searched text. */
-    def start(): var {
+    def start(): decimal {
         return positions[0];
     }
 
     /** Index just after the last character of the match (start() == end() for an empty match). */
-    def end(): var {
+    def end(): decimal {
         return positions[1];
     }
 
     /** The number of characters matched (0 for an empty match). */
-    def length(): var {
+    def length(): decimal {
         return positions[1] - positions[0];
     }
 
@@ -69,7 +69,7 @@ class regex_match {
     }
 
     /** How many groups the pattern has, not counting group 0 (the whole match). */
-    def group_count(): var {
+    def group_count(): decimal {
         return groups - 1;
     }
 
@@ -77,7 +77,7 @@ class regex_match {
      * 1 if group `index` took part in the match (even if it matched "").
      * Throws out_of_bounds_exception if the pattern has no such group.
      */
-    def has_group(index: int): var {
+    def has_group(index: int): decimal {
         check_group(index.value);
         return positions[index.value * 2] >= 0;
     }
@@ -89,8 +89,8 @@ class regex_match {
      */
     def group(index: int): string {
         check_group(index.value);
-        from : var = positions[index.value * 2];
-        to : var = positions[index.value * 2 + 1];
+        from : decimal = positions[index.value * 2];
+        to : decimal = positions[index.value * 2 + 1];
         if(from < 0 || to <= from) return new string();
         return new string(text.data!!, from, to);
     }
@@ -100,7 +100,7 @@ class regex_match {
      * group took no part in the match.
      * Throws out_of_bounds_exception if the pattern has no such group.
      */
-    def group_start(index: int): var {
+    def group_start(index: int): decimal {
         check_group(index.value);
         return positions[index.value * 2];
     }
@@ -110,7 +110,7 @@ class regex_match {
      * the group took no part in the match.
      * Throws out_of_bounds_exception if the pattern has no such group.
      */
-    def group_end(index: int): var {
+    def group_end(index: int): decimal {
         check_group(index.value);
         return positions[index.value * 2 + 1];
     }
@@ -118,7 +118,7 @@ class regex_match {
     /** All groups as an array: element 0 is the whole match, element n is group(n). */
     def groups_array(): string[] {
         result := new string[groups];
-        for(g : var = 0; g < groups; g++) {
+        for(g : decimal = 0; g < groups; g++) {
             result[g] = group(g);
         }
         return result;

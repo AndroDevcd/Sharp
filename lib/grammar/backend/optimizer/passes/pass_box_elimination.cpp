@@ -24,8 +24,7 @@
 //         smovr_3 fp+3      ; tmp = the box
 //         pushl 3
 //         popobj2
-//         movn #0           ; tmp.value
-//         iload egx
+//         getf egx, slot 0  ; tmp.value
 //         smovr_2 egx, fp+1 ; k
 //
 //   No allocation, no constructor calls, no garbage for the collector. The
@@ -38,12 +37,12 @@
 //   happens to it is one of:
 //
 //     - being copied around: dup, popl / pushl, popobj2, smovr_3, pushobj, pop
-//     - one call that "stores a number into field 0 and does nothing else"
+//     - one call that "stores a number into one number field and does nothing else"
 //       (analysis/box_constructors.h works that out from the callee's bytecode,
 //       so nothing about the std number classes is hard coded here)
 //     - calls that do nothing at all with it (the empty init<T>() functions)
-//     - reading field 0 back: movn #0 ; iload
-//     - writing field 0 with a small whole number: movn #0 ; mov32 r, r ; imov r
+//     - reading that field back: getf r, slot
+//     - writing that field: putf r, slot
 //       (what `n += 2` on an `int` compiles to once the operator is inlined)
 //     - a cast to the class it was created as (always succeeds)
 //
@@ -54,8 +53,9 @@
 //
 //   For an object that qualifies, the instructions that only moved it around
 //   are deleted, the constructor call becomes "store the number in a new local
-//   slot" (with the constructor's casts) and each read of field 0 becomes a
-//   read of that slot.
+//   slot" (with the constructor's casts) and each read or write of the field
+//   becomes a read or write of that slot. A field of an object and a local are
+//   the same 64-bit cell, so the value is the same bit for bit.
 //
 // DETAILS THAT KEEP IT HONEST
 //   - One slot per `new_class` instruction. If the same `new_class` can run
@@ -96,8 +96,7 @@ enum pointer_kind : uint8_t {
     p_heap,     // a field / static / thread local: never a tracked object
     p_any,      // unknown: reading or writing through it may touch any slot
     p_local,    // &local[value]
-    p_slot,     // the stack slot a tracked object (value) was just popped from; `index` = its stack position
-    p_field     // field 0 of tracked object `value`
+    p_slot      // the stack slot a tracked object (value) was just popped from; `index` = its stack position
 };
 
 struct flow_state {
@@ -140,13 +139,13 @@ struct analysis {
     void escape_everything(flow_state &s) {
         for(int v : s.stack) escape(v);
         for(int v : s.locals) escape(v);
-        if(s.ptr == p_slot || s.ptr == p_field) escape(s.ptrValue);
+        if(s.ptr == p_slot) escape(s.ptrValue);
     }
 
     bool holds(flow_state &s, int site) {
         for(int v : s.stack) if(v == site) return true;
         for(int v : s.locals) if(v == site) return true;
-        return (s.ptr == p_slot || s.ptr == p_field) && s.ptrValue == site;
+        return (s.ptr == p_slot) && s.ptrValue == site;
     }
 
     void push(flow_state &s, int value) {
@@ -177,7 +176,7 @@ struct analysis {
     }
 
     void object_liveness();
-    bool stores_small_whole_number(size_t index);
+    int boxed_field(flow_state &s, const ir_instruction &instr);
     void forget_dead(flow_state &s, int block);
     bool merge_into(flow_state &into, flow_state &from);
     void step(size_t index, flow_state &s, action *act);
@@ -253,22 +252,18 @@ void analysis::object_liveness() {
 }
 
 /**
- * Is the register that the IMOV at `index` stores the result of a cast to an
- * integer type of at most 32 bits, done right before it?
- *     mov32 bmr, bmr ; imov bmr          (what `int`'s operators generate)
+ * GETF / PUTF: is it the value field of a tracked box whose constructor has
+ * run? Returns the box (0 = no: the generic rules apply and the object escapes).
+ *     ptr must point at a local or a just-popped stack slot holding the box,
+ *     and the number slot must be the one the constructor stored into.
  */
-bool analysis::stores_small_whole_number(size_t index) {
-    if(index == 0 || cfg.blockOf[index] != cfg.blockOf[index - 1]) return false;
+int analysis::boxed_field(flow_state &s, const ir_instruction &instr) {
+    if(s.ptr != p_local && s.ptr != p_slot) return 0;
 
-    const ir_instruction &store = ir.code[index];
-    const ir_instruction &cast = ir.code[index - 1];
-    switch(cast.op) {
-        case Opcode::MOV8: case Opcode::MOV16: case Opcode::MOV32:
-        case Opcode::MOVU8: case Opcode::MOVU16: case Opcode::MOVU32:
-            return cast.a == store.a;
-        default:
-            return false;
-    }
+    int value = deref(s);
+    if(value <= 0 || !has(s.constructed, value)) return 0;     // not ours, or read before the value was stored
+    if(constructors[value] == nullptr || constructors[value]->slot != instr.b) return 0;
+    return value;
 }
 
 /** On entry to `block`: drop what can never be looked at again, so stale references do not count */
@@ -286,7 +281,7 @@ void analysis::forget_dead(flow_state &s, int block) {
     site_set present;
     for(int v : s.stack) if(v > 0) present |= bit(v);
     for(int v : s.locals) if(v > 0) present |= bit(v);
-    if(s.ptr == p_slot || s.ptr == p_field) present |= bit(s.ptrValue);
+    if(s.ptr == p_slot) present |= bit(s.ptrValue);
     s.constructed &= present;
 }
 
@@ -321,8 +316,8 @@ bool analysis::merge_into(flow_state &into, flow_state &from) {
             && (into.ptr == p_dead || into.ptr == p_heap || into.ptr == p_any
                 || (into.ptrValue == from.ptrValue && (into.ptr != p_slot || into.ptrIndex == from.ptrIndex)));
     if(!samePtr) {
-        if(into.ptr == p_slot || into.ptr == p_field) escape(into.ptrValue);
-        if(from.ptr == p_slot || from.ptr == p_field) escape(from.ptrValue);
+        if(into.ptr == p_slot) escape(into.ptrValue);
+        if(from.ptr == p_slot) escape(from.ptrValue);
         if(into.ptr == p_local) escape(into.locals[into.ptrValue]);
         if(from.ptr == p_local) escape(from.locals[from.ptrValue]);
         if(into.ptr != p_any) { into.ptr = p_any; changed = true; }
@@ -393,9 +388,7 @@ void analysis::step(size_t index, flow_state &s, action *act) {
             return;
         }
         case Opcode::SMOVR_3: {                         // local.obj = *ptr
-            int value = 0;
-            if(s.ptr == p_field) escape(s.ptrValue);    // the number object inside the box gets out
-            else value = deref(s);
+            int value = deref(s);
             if(local_ok(instr.a)) s.locals[instr.a] = value; else escape(value);
             set(a_delete, value);
             return;
@@ -404,36 +397,22 @@ void analysis::step(size_t index, flow_state &s, action *act) {
             if(local_ok(instr.a)) { s.ptr = p_local; s.ptrValue = instr.a; }
             else s.ptr = p_any;
             return;
-        case Opcode::MOVN: {                            // ptr = &ptr->field[a]
-            if(s.ptr == p_field) { escape(s.ptrValue); s.ptr = p_heap; return; }
-            int value = deref(s);
-            if(value > 0 && instr.a == 0) {
-                s.ptr = p_field; s.ptrValue = value;
-                set(a_delete, value);
-            } else {
-                escape(value);
-                s.ptr = p_heap;
-            }
+        case Opcode::MOVN: {                            // ptr = &ptr->field[a]: an object field, a box has none
+            escape(deref(s));
+            s.ptr = p_heap;
             return;
         }
-        case Opcode::ILOAD:                             // regs[a] = *ptr (a number)
-            if(s.ptr == p_field) {
-                if(!has(s.constructed, s.ptrValue)) escape(s.ptrValue);  // read before the value was stored
-                set(a_load, s.ptrValue);
-            } else {
-                escape(deref(s));
-            }
-            return;
-        case Opcode::IMOV:                              // *ptr = regs[a] (a number)
-            // `n += 2` on a boxed local: the new value goes to the value slot instead.
-            // Only when the number being stored was just cut down to a whole number
-            // of at most 32 bits: an object's field keeps a `long double`, the slot
-            // is a `double`, and such a number is the same in both.
-            if(s.ptr == p_field && stores_small_whole_number(index)) {
-                set(a_store, s.ptrValue);
-                return;
-            }
-            break;                                      // anything else: the generic rules (the box escapes)
+        case Opcode::GETF: {                            // regs[a] = ptr->o.<number slot b>
+            int value = boxed_field(s, instr);
+            if(value > 0) { set(a_load, value); return; }
+            break;                                      // anything else: the generic rules (the object escapes)
+        }
+        case Opcode::PUTF: {                            // ptr->o.<number slot b> = regs[a]
+            // `n += 2` on a boxed local: the new value goes to the value slot instead
+            int value = boxed_field(s, instr);
+            if(value > 0) { set(a_store, value); return; }
+            break;
+        }
         case Opcode::CAST: {                            // check that *ptr is of class a
             // a tracked object's class is known: it is the class its new_class created
             if(s.ptr != p_local && s.ptr != p_slot) break;
@@ -445,9 +424,7 @@ void analysis::step(size_t index, flow_state &s, action *act) {
             return;
         }
         case Opcode::PUSHOBJ: {                         // push *ptr
-            int value = 0;
-            if(s.ptr == p_field) escape(s.ptrValue);
-            else value = deref(s);
+            int value = deref(s);
             push(s, value);
             set(a_delete, value);
             return;
@@ -459,14 +436,14 @@ void analysis::step(size_t index, flow_state &s, action *act) {
                 set(a_delete, value);
             } else {
                 escape(value);
-                if(s.ptr == p_slot || s.ptr == p_field) escape(s.ptrValue);
+                if(s.ptr == p_slot) escape(s.ptrValue);
                 if(s.ptr == p_any || s.ptr == p_dead) escape_everything(s);
             }
             return;
         }
         case Opcode::DEL:                               // *ptr = null
             if(s.ptr == p_local) s.locals[s.ptrValue] = 0;
-            else if(s.ptr == p_slot || s.ptr == p_field) escape(s.ptrValue);
+            else if(s.ptr == p_slot) escape(s.ptrValue);
             else if(s.ptr == p_any || s.ptr == p_dead) escape_everything(s);
             return;
 
@@ -545,10 +522,7 @@ void analysis::step(size_t index, flow_state &s, action *act) {
         }
     }
 
-    if(reads_pointer(instr)) {
-        if(s.ptr == p_field) escape(s.ptrValue);
-        else escape(deref(s));
-    }
+    if(reads_pointer(instr)) escape(deref(s));
 
     for(int i = 0; i < info.popsNumbers + info.popsObjects; i++) escape(pop(s));
     for(int i = 0; i < info.pushesNumbers + info.pushesObjects; i++) push(s, 0);

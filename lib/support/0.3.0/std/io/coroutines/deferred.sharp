@@ -13,7 +13,7 @@ mod std.io.coroutines;
  * A deferred IS a job: join(), cancel(), is_active() and the rest work as for
  * any coroutine. Its exception is not reported as uncaught; await() throws it.
  *
- * `t` must be an object type (int, string, your classes ...): deferred<var>
+ * `t` must be an object type (int, string, your classes ...): deferred<decimal>
  * and other native numbers are not supported, write deferred<int>.
  *
  * Kotlin equivalent: kotlinx.coroutines.Deferred<T>.
@@ -92,7 +92,7 @@ class deferred<t> base job {
      */
     static def await_all(items: deferred<t>[]) : list<t> {
         results := new list<t>();
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             results.add(items[i].await());
         }
         return results;
@@ -101,7 +101,7 @@ class deferred<t> base job {
     /** await_all() for a list. Kotlin: list.awaitAll() */
     static def await_all(items: list<deferred<t> >) : list<t> {
         results := new list<t>();
-        for(i : var = 0; i < items.size().value; i++) {
+        for(i : decimal = 0; i < items.size().value; i++) {
             results.add(items.at(i).await());
         }
         return results;

@@ -30,7 +30,7 @@ class _field_ {
     }
 }
 
-local def get_field_data(index: var, o: _object_?): object? {
+local def get_field_data(index: decimal, o: _object_?): object? {
     asm {
       ipushl [index]
       pushl [o]

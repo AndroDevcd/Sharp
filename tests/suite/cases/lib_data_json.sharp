@@ -17,7 +17,7 @@ base_dir : string = "/tmp/sharp_suite_io_json";
 q : string = "\"";
 
 /** the text must be rejected, with the error at the given line and column */
-def expect_error(name: string, text: string, line: var, column: var) {
+def expect_error(name: string, text: string, line: decimal, column: decimal) {
     try {
         json_parser.parse(text);
         fail(name, "no exception");
@@ -151,12 +151,12 @@ def test_values() {
 
     // an object large enough to use its hash index
     large := json_value.new_object();
-    for(i : var = 0; i < 500; i++) {
+    for(i : decimal = 0; i < 500; i++) {
         large.put_number("key" + io_strings.int_to_string(i), i);
     }
     expect("large object size", large.size(), 500);
-    found_all : var = 1;
-    for(i : var = 0; i < 500; i++) {
+    found_all : decimal = 1;
+    for(i : decimal = 0; i < 500; i++) {
         if(large.number_or("key" + io_strings.int_to_string(i), 0 - 1) != i) {
             found_all = 0;
         }
@@ -287,16 +287,16 @@ def test_parser_good() {
 
     // deep nesting: no recursion in parser, writer, equals or copy
     deep := new char_buffer();
-    for(i : var = 0; i < 900; i++) {
+    for(i : decimal = 0; i < 900; i++) {
         deep.append_char('[');
     }
     deep.append("1");
-    for(i : var = 0; i < 900; i++) {
+    for(i : decimal = 0; i < 900; i++) {
         deep.append_char(']');
     }
     deep_text := deep.to_string()!!;
     nested := json_parser.parse(deep_text);
-    depth : var = 0;
+    depth : decimal = 0;
     walk := nested;
     while(walk.is_array().value) {
         walk = walk.at(0);
@@ -321,7 +321,7 @@ def test_parser_good() {
     // a larger document
     big := new char_buffer();
     big.append_char('[');
-    for(i : var = 0; i < 2000; i++) {
+    for(i : decimal = 0; i < 2000; i++) {
         if(i > 0) {
             big.append_char(',');
         }

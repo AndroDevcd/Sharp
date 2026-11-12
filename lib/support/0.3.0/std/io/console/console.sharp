@@ -42,27 +42,27 @@ class console {
     }
 
     /** print a whole number without a line end: 42, not 42.0000000000000000 (a fraction is cut off) */
-    static def print_int(value: var) {
+    static def print_int(value: decimal) {
         print(io_strings.int_to_string(value));
     }
 
     /** print a whole number and a line end */
-    static def println_int(value: var) {
+    static def println_int(value: decimal) {
         println(io_strings.int_to_string(value));
     }
 
     /** print a number the short way without a line end: 3, 0.5, 1e21 (see io_strings.number_to_string) */
-    static def print_number(value: var) {
+    static def print_number(value: decimal) {
         print(io_strings.number_to_string(value));
     }
 
     /** print a number the short way and a line end */
-    static def println_number(value: var) {
+    static def println_number(value: decimal) {
         println(io_strings.number_to_string(value));
     }
 
     /** print a number with exactly `decimals` digits behind the point, rounded, without a line end */
-    static def print_fixed(value: var, decimals: var) {
+    static def print_fixed(value: decimal, decimals: decimal) {
         print(io_strings.fixed_to_string(value, decimals));
     }
 
@@ -76,13 +76,13 @@ class console {
     }
 
     /** print one character given as its code, without a line end */
-    static def print_char(ch: var) {
+    static def print_char(ch: decimal) {
         print(io_strings.from_char(ch));
     }
 
     /** print `count` line ends (blank lines) */
-    static def new_lines(count: var) {
-        for(i : var = 0; i < count; i++) {
+    static def new_lines(count: decimal) {
+        for(i : decimal = 0; i < count; i++) {
             println();
         }
     }
@@ -92,7 +92,7 @@ class console {
      * e.g. ansi.red) without a line end.
      * Throws illegal_argument_exception when color is not 0..15.
      */
-    static def print_colored(text: string, color: var) {
+    static def print_colored(text: string, color: decimal) {
         print(ansi.colored(text, color));
     }
 
@@ -100,12 +100,12 @@ class console {
      * Print `text` in the colour `color` and a line end.
      * Throws illegal_argument_exception when color is not 0..15.
      */
-    static def println_colored(text: string, color: var) {
+    static def println_colored(text: string, color: decimal) {
         println(ansi.colored(text, color));
     }
 
     /** print `text` in a style of the class ansi (ansi.bold, ansi.underline, ...) without a line end */
-    static def print_styled(text: string, style: var) {
+    static def print_styled(text: string, style: decimal) {
         print(ansi.styled(text, style));
     }
 
@@ -120,7 +120,7 @@ class console {
     }
 
     /** put the cursor at `row`, `column` (both from 1). Throws illegal_argument_exception when one is below 1. */
-    static def move_cursor(row: var, column: var) {
+    static def move_cursor(row: decimal, column: decimal) {
         print_text(ansi.move_to(row, column));
     }
 
@@ -135,7 +135,7 @@ class console {
      */
     static def read_line_or_null() : string? {
         buf := new char_buffer(80);
-        ch : var = read_char().value;
+        ch : decimal = read_char().value;
         if(ch == 0 - 1) {
             return null;
         }
@@ -180,7 +180,7 @@ class console {
      * -7. Spaces around the number are ignored.
      * Throws io_exception when the input has ended.
      */
-    static def read_int(message: string) : var {
+    static def read_int(message: string) : decimal {
         while(true) {
             answer := io_strings.trim(prompt(message));
             if(io_strings.is_int(answer)) {
@@ -197,14 +197,14 @@ class console {
      * Throws io_exception when the input has ended and
      * illegal_argument_exception when low is greater than high.
      */
-    static def read_int_between(message: string, low: var, high: var) : var {
+    static def read_int_between(message: string, low: decimal, high: decimal) : decimal {
         if(low > high) {
             throw new illegal_argument_exception("read_int_between: the lowest value is above the highest");
         }
         while(true) {
             answer := io_strings.trim(prompt(message));
             if(io_strings.is_int(answer)) {
-                value : var = io_strings.parse_int(answer);
+                value : decimal = io_strings.parse_int(answer);
                 if(value >= low && value <= high) {
                     return value;
                 }
@@ -220,7 +220,7 @@ class console {
      * again until the answer is one. Spaces around the number are ignored.
      * Throws io_exception when the input has ended.
      */
-    static def read_number(message: string) : var {
+    static def read_number(message: string) : decimal {
         while(true) {
             answer := io_strings.trim(prompt(message));
             if(io_strings.is_number(answer)) {
@@ -257,12 +257,12 @@ class console {
      * Throws io_exception when the input has ended and
      * illegal_argument_exception when there are no choices.
      */
-    static def choose(message: string, choices: list<string>) : var {
-        count : var = choices.size().value;
+    static def choose(message: string, choices: list<string>) : decimal {
+        count : decimal = choices.size().value;
         if(count == 0) {
             throw new illegal_argument_exception("choose: there are no choices");
         }
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             println("  " + io_strings.int_to_string(i + 1) + ") " + choices.at(i));
         }
         return read_int_between(message, 1, count) - 1;

@@ -20,7 +20,7 @@
 //               number part (->var) and an object part (->obj), used separately
 //   stack       the operand stack above the frame (push/pop of numbers/objects)
 //   ptr         task->ptr, "the object slot being looked at"; set by MOVL,
-//               MOVG, MOVN..., read by ILOAD, PUSHOBJ, POPOBJ...
+//               MOVG, MOVN..., read by GETF, PUSHOBJ, POPOBJ...
 //   heap        fields and array elements: shared with other threads, so the
 //               optimizer never assumes it knows what they contain
 //

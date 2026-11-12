@@ -96,7 +96,7 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
 
         set_internal_variable_name(ss, "return_address", 0)
         if((returnAddressField = resolve_local_field(ss.str(), &current_context)) == NULL) {
-            sharp_type fieldType = sharp_type(type_var);
+            sharp_type fieldType = sharp_type(type_int64);  // a code address: an integer
             returnAddressField =  create_local_field(current_file, &current_context, ss.str(), flags, fieldType, normal_field, ast);
             create_dependency(returnAddressField);
         }

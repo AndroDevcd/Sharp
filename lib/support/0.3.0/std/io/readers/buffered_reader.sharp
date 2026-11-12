@@ -26,13 +26,13 @@ class buffered_reader : text_reader, loopable<string> {
     private source : text_reader;
     /** characters given back with unread(), used as a stack: the last element is read next */
     private pushed : _int8[];
-    private pushed_count : var = 0;
+    private pushed_count : decimal = 0;
 
-    private line_number : var = 1;
-    private column_number : var = 1;
+    private line_number : decimal = 1;
+    private column_number : decimal = 1;
     /** the last character taken was "\r": a "\n" that follows belongs to the same line end */
-    private after_return : var = 0;
-    private closed : var = 0;
+    private after_return : decimal = 0;
+    private closed : decimal = 0;
 
     /** a buffered reader that takes its characters from `source` */
     buffered_reader(source: text_reader) {
@@ -47,7 +47,7 @@ class buffered_reader : text_reader, loopable<string> {
     }
 
     /** the next character from the pushed-back ones or the source, without any counting */
-    private def raw_read() : var {
+    private def raw_read() : decimal {
         if(pushed_count > 0) {
             pushed_count--;
             return pushed[pushed_count] & 0xff;
@@ -56,9 +56,9 @@ class buffered_reader : text_reader, loopable<string> {
     }
 
     /** the next character (0..255), or -1 at the end. Throws io_exception when closed. */
-    override def read_char() : var {
+    override def read_char() : decimal {
         check_open();
-        ch : var = raw_read();
+        ch : decimal = raw_read();
         if(ch < 0) {
             return ch;
         }
@@ -81,7 +81,7 @@ class buffered_reader : text_reader, loopable<string> {
     }
 
     /** the next character without taking it, or -1 at the end. Throws io_exception when closed. */
-    override def peek_char() : var {
+    override def peek_char() : decimal {
         check_open();
         if(pushed_count > 0) {
             return pushed[pushed_count - 1] & 0xff;
@@ -98,7 +98,7 @@ class buffered_reader : text_reader, loopable<string> {
      * line end they are ahead until it is read again.
      * Throws io_exception when closed.
      */
-    def unread(ch: var) {
+    def unread(ch: decimal) {
         check_open();
         if(pushed_count >= sizeof(pushed)) {
             bigger := new _int8[sizeof(pushed) * 2];
@@ -123,7 +123,7 @@ class buffered_reader : text_reader, loopable<string> {
         }
 
         buf := new char_buffer(80);
-        ch : var = read_char();
+        ch : decimal = read_char();
         while(ch >= 0 && ch != '\n' && ch != '\r') {
             buf.append_char(ch);
             ch = read_char();
@@ -138,7 +138,7 @@ class buffered_reader : text_reader, loopable<string> {
     override def read_all() : string {
         check_open();
         buf := new char_buffer(256);
-        ch : var = read_char();
+        ch : decimal = read_char();
         while(ch >= 0) {
             buf.append_char(ch);
             ch = read_char();
@@ -160,7 +160,7 @@ class buffered_reader : text_reader, loopable<string> {
      */
     def skip_whitespace() : bool {
         check_open();
-        ch : var = peek_char();
+        ch : decimal = peek_char();
         while(ch >= 0 && io_strings.is_space(ch)) {
             read_char();
             ch = peek_char();
@@ -176,7 +176,7 @@ class buffered_reader : text_reader, loopable<string> {
     def read_word() : string {
         skip_whitespace();
         buf := new char_buffer(32);
-        ch : var = peek_char();
+        ch : decimal = peek_char();
         while(ch >= 0 && !io_strings.is_space(ch)) {
             buf.append_char(read_char());
             ch = peek_char();
@@ -189,10 +189,10 @@ class buffered_reader : text_reader, loopable<string> {
      * not returned. When `stop` does not come any more the rest of the text
      * is returned. Throws io_exception when closed.
      */
-    def read_until(stop: var) : string {
+    def read_until(stop: decimal) : string {
         check_open();
         buf := new char_buffer(64);
-        ch : var = read_char();
+        ch : decimal = read_char();
         while(ch >= 0 && ch != stop) {
             buf.append_char(ch);
             ch = read_char();
@@ -205,14 +205,14 @@ class buffered_reader : text_reader, loopable<string> {
      * Throws illegal_argument_exception for a negative length and
      * io_exception when closed.
      */
-    def read(length: var) : string {
+    def read(length: decimal) : string {
         check_open();
         if(length < 0) {
             throw new illegal_argument_exception("read: negative length");
         }
         buf := new char_buffer(length);
-        for(i : var = 0; i < length; i++) {
-            ch : var = read_char();
+        for(i : decimal = 0; i < length; i++) {
+            ch : decimal = read_char();
             if(ch < 0) {
                 break;
             }
@@ -222,12 +222,12 @@ class buffered_reader : text_reader, loopable<string> {
     }
 
     /** the number of the line the next character is on, counting from 1 */
-    def line() : var {
+    def line() : decimal {
         return line_number;
     }
 
     /** the place of the next character within its line, counting from 1 */
-    def column() : var {
+    def column() : decimal {
         return column_number;
     }
 
@@ -251,12 +251,12 @@ class buffered_reader : text_reader, loopable<string> {
      */
     override def get_elements() : string[]? {
         lines := read_lines();
-        count : var = lines.size().value;
+        count : decimal = lines.size().value;
         if(count == 0) {
             return null;
         }
         result := new string[count];
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             result[i] = lines.at(i);
         }
         return result;

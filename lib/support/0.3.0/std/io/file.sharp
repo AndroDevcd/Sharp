@@ -69,9 +69,9 @@ public class file {
             return null;
         }
 
-        sep : var = separator.value;
-        n : var = sizeof(path.data);
-        for(i : var = n - 1; i >= 0; i--) {
+        sep : decimal = separator.value;
+        n : decimal = sizeof(path.data);
+        for(i : decimal = n - 1; i >= 0; i--) {
             if(path.data[i] == sep) {
                 if(i + 1 >= n) {
                     return path; // a root: nothing behind the separator
@@ -358,7 +358,7 @@ public class file {
      * Returns the time that was set, or -1 when the file does not exist.
      * Throws illegal_argument_exception for a negative time.
      */
-    def set_last_modified(time: var) : int {
+    def set_last_modified(time: decimal) : int {
         if ((time as _int32) < 0) throw new ill_arg_except("Negative time");
         return fs.set_last_modified_time(self, time);
     }
@@ -380,7 +380,7 @@ public class file {
      * Sets the owner's or everybody's write permission for this abstract
      * pathname. Returns 0 on success.
      */
-    def set_writable(writable: var, owner_only: var) : int {
+    def set_writable(writable: decimal, owner_only: decimal) : int {
         return fs.set_permission(self, file_system.access_write, writable, owner_only);
     }
 
@@ -388,7 +388,7 @@ public class file {
      * A convenience method to set the owner's write permission for this abstract
      * pathname. Returns 0 on success.
      */
-    def set_writable(writable: var) : int {
+    def set_writable(writable: decimal) : int {
         return set_writable(writable, true);
     }
 
@@ -396,7 +396,7 @@ public class file {
      * Sets the owner's or everybody's read permission for this abstract
      * pathname. Returns 0 on success.
      */
-    def set_readable(readable: var, owner_only: var) : int {
+    def set_readable(readable: decimal, owner_only: decimal) : int {
         return fs.set_permission(self, file_system.access_read, readable, owner_only);
     }
 
@@ -404,7 +404,7 @@ public class file {
      * A convenience method to set the owner's read permission for this abstract
      * pathname. Returns 0 on success.
      */
-    def set_readable(readable: var) : int {
+    def set_readable(readable: decimal) : int {
         return set_readable(readable, true);
     }
 
@@ -413,7 +413,7 @@ public class file {
      * pathname. Returns 0 on success; always -1 on windows, which has no
      * such permission.
      */
-    def set_executable(executable: var, owner_only: var) : int {
+    def set_executable(executable: decimal, owner_only: decimal) : int {
         return fs.set_permission(self, file_system.access_execute, executable, owner_only);
     }
 
@@ -421,7 +421,7 @@ public class file {
      * A convenience method to set the owner's execute permission for this abstract
      * pathname. Returns 0 on success.
      */
-    def set_executable(executable: var) : int {
+    def set_executable(executable: decimal) : int {
         return set_executable(executable, true);
     }
 

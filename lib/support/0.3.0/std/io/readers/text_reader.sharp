@@ -7,8 +7,8 @@ mod std.io;
  *
  * Code that takes a text_reader works with all of them:
  *
- *     def count_lines(input: text_reader) : var {
- *         lines : var = 0;
+ *     def count_lines(input: text_reader) : decimal {
+ *         lines : decimal = 0;
  *         while(input.read_line() != null) { lines++; }
  *         return lines;
  *     }
@@ -19,10 +19,10 @@ mod std.io;
  */
 interface text_reader {
     /** the next character (0..255), or -1 at the end of the text */
-    def read_char() : var;
+    def read_char() : decimal;
 
     /** the next character without taking it: the following read_char() returns it again. -1 at the end */
-    def peek_char() : var;
+    def peek_char() : decimal;
 
     /**
      * The text up to the next line end ("\n", "\r\n" or "\r"), without the

@@ -25,7 +25,7 @@ class tree_node<K, V> {
     /** the node this one hangs under, null for the root */
     parent : tree_node<K, V>?;
     /** number of nodes on the longest way down from here, this node included (a leaf has height 1) */
-    height : var;
+    height : decimal;
 
     /** Create a leaf that is not attached to a tree yet. */
     tree_node(key: K, value: V) {

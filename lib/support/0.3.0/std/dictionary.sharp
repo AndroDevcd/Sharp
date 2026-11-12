@@ -35,17 +35,17 @@ class dictionary<k,v> : loopable<pair<k,v> > {
     dictionary(dict : pair<k,v>[]) {
         // (one by one: an empty literal passes an empty array, which the
         // bulk copy functions cannot handle)
-        for(i : var = 0; i < sizeof(dict); i++)
+        for(i : decimal = 0; i < sizeof(dict); i++)
             map.add(dict[i]);
     }
 
     /** Number of pairs (a key that was written twice counts twice). O(1). */
-    def size() : var {
+    def size() : decimal {
         return map.size().value;
     }
 
     /** 1 when the dictionary has no pairs, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return map.size().value == 0;
     }
 

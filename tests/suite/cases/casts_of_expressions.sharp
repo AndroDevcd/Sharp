@@ -9,23 +9,23 @@ import ( testing )
  * Casting an expression in parentheses to a number type aborts the compiler:
  *
  *     sharp: <code-generator> fatal error: previous machine data not consumed!
- *     note: in function: tens(var, var): var
+ *     note: in function: tens(decimal, decimal): decimal
  *
  * Both functions below trigger it. Casting a plain variable works, so the
  * library computes into a variable first and casts that:
  *
- *     result : var = (value - digit) / radix;
+ *     result : decimal = (value - digit) / radix;
  *     result = result as _int64;
  */
 
-def tens(value: var, radix: var): var {
-    digit : var = value % radix;
-    result : var = ((value - digit) / radix) as _int64;
+def tens(value: decimal, radix: decimal): decimal {
+    digit : decimal = value % radix;
+    result : decimal = ((value - digit) / radix) as _int64;
     return result;
 }
 
-def magnitude(number: var): var {
-    whole : var = (number < 0 ? 0 - number : number) as _int64;
+def magnitude(number: decimal): decimal {
+    whole : decimal = (number < 0 ? 0 - number : number) as _int64;
     return whole;
 }
 

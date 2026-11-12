@@ -11,8 +11,16 @@
 
 struct fiber;
 
+/**
+ * One slot of a fiber's stack: a local variable, an argument, or a temporary.
+ * A slot has both halves; a number uses `var`, a reference uses `obj`.
+ *
+ * The reference half is what the garbage collector scans (every slot up to sp,
+ * memory/tracing_collector.cpp): it is always an object or null, which is why
+ * the collector needs no map of "which slots hold references".
+ */
 struct stack_item {
-    double var;
+    vm_cell var;    // a number: an integer or a decimal, see vm_cell in stdimports.h
     object obj;
 };
 

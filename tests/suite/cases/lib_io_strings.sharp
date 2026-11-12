@@ -29,7 +29,7 @@ def test_char_buffer() {
     expect("clear", buf.length(), 0);
 
     // growth far beyond the first capacity
-    for(i : var = 0; i < 1000; i++) {
+    for(i : decimal = 0; i < 1000; i++) {
         buf.append_char('a' + (i % 26));
     }
     expect("1000 appended", buf.length(), 1000);
@@ -174,12 +174,12 @@ def test_split_join_sort() {
     io_strings.sort(names);
     expect_str("sorted", io_strings.join(names, " "), "Apple apple banana fig figs pear");
     many := new list<string>();
-    for(i : var = 0; i < 200; i++) {
+    for(i : decimal = 0; i < 200; i++) {
         many.add(io_strings.pad_left(io_strings.int_to_string((i * 37) % 200), 3, '0'));
     }
     io_strings.sort(many);
-    ordered : var = 1;
-    for(i : var = 1; i < 200; i++) {
+    ordered : decimal = 1;
+    for(i : decimal = 1; i < 200; i++) {
         if(io_strings.compare(many.at(i - 1), many.at(i)) > 0) {
             ordered = 0;
         }
@@ -250,10 +250,10 @@ def test_numbers() {
     catch(e: number_format_exception) { pass("parse_number bad"); }
 
     // number -> text -> number gives the same number
-    values := new var[6];
+    values := new decimal[6];
     values[0] = 0.3; values[1] = 123456.789; values[2] = 1.0 / 3.0; values[3] = 6.02214076e23; values[4] = 1e-7; values[5] = 0 - 987654321.125;
-    same : var = 1;
-    for(i : var = 0; i < 6; i++) {
+    same : decimal = 1;
+    for(i : decimal = 0; i < 6; i++) {
         if(io_strings.parse_number(io_strings.number_to_string(values[i])) != values[i]) {
             same = 0;
             println("round trip differs for " + io_strings.number_to_string(values[i]));

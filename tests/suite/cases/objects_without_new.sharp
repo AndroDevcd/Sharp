@@ -9,14 +9,14 @@ import ( testing, std.collections )
  */
 
 class point {
-    x : var;
-    y : var;
+    x : decimal;
+    y : decimal;
     point() { x = 0; y = 0; }
-    point(a: var, b: var) { x = a; y = b; }
+    point(a: decimal, b: decimal) { x = a; y = b; }
     point(other: point) { x = other.x; y = other.y; }
 
-    def sum() : var { return x + y; }
-    def moved(dx: var) : point { return point(x + dx, y); }      // inside its own class
+    def sum() : decimal { return x + y; }
+    def moved(dx: decimal) : point { return point(x + dx, y); }      // inside its own class
     def twin() : point { return point(self); }
     def operator+(o: point) : point { return point(x + o.x, y + o.y); }
 }
@@ -25,17 +25,17 @@ class named {
     text : string;
     count : int = 0;
     named(t: string) { text = t; }
-    named(t: string, c: var) { text = t; count = c; }
+    named(t: string, c: decimal) { text = t; count = c; }
 }
 
 class shape {
-    def area() : var { return 0; }
+    def area() : decimal { return 0; }
 }
 
 class square base shape {
-    side : var;
-    square(s: var) { side = s; }
-    def scaled(by: var) : square { return square(side * by); }
+    side : decimal;
+    square(s: decimal) { side = s; }
+    def scaled(by: decimal) : square { return square(side * by); }
 }
 
 class holder {
@@ -45,10 +45,10 @@ class holder {
 }
 
 // a function with the same name as a class wins over the class
-class gadget { size : var = 1; gadget() { } gadget(s: var) { size = s; } }
-def gadget(a: var, b: var, c: var) : var { return a + b + c; }
+class gadget { size : decimal = 1; gadget() { } gadget(s: decimal) { size = s; } }
+def gadget(a: decimal, b: decimal, c: decimal) : decimal { return a + b + c; }
 
-def take(p: point) : var { return p.sum(); }
+def take(p: point) : decimal { return p.sum(); }
 def make() : point { return point(4, 5); }
 
 def main(args: string[]) {
@@ -97,13 +97,13 @@ def main(args: string[]) {
     g := new gadget(9);
     expect("...and new still reaches the class", g.size, 9);
 
-    total : var = 0;
-    for(i : var = 0; i < 1000; i++) {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) {
         total += point(i, 1).sum();
     }
     expect("in a loop", total, 500500);
 
-    hit : var = 0;
+    hit : decimal = 0;
     try { throw illegal_state_exception("made without new"); }
     catch(e: illegal_state_exception) { hit = 1; }
     expect("throw without new", hit, 1);

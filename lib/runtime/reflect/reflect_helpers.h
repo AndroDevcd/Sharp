@@ -29,6 +29,12 @@ void assign_object_field(sharp_object* o, uInt index, sharp_object* value);
 void assign_string_field(sharp_object* o, string &value);
 bool is_static_class(object*);
 
+// Number fields of a class instance (the number is in the object's slot, see
+// memory/sharp_object.h). `value` is stored as what the field is declared as:
+// an integer field drops the fraction.
+double number_field(sharp_object *instance, const string &name);
+void set_number_field(sharp_object *instance, const string &name, double value);
+
 // Member reading
 double read_numeric_value(sharp_object *o, Int index);
 string read_string_value(sharp_object *o);

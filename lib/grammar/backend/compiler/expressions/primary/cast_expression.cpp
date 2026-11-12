@@ -39,6 +39,13 @@ void compile_cast_expression(expression *e, Ast *ast) {
                     // stopped with "previous machine data not consumed".
                     // The value of a number cast is therefore first made ONE step:
                     //      [ get value (the original scheme) ] [ cast ]
+                    // `total as _int32` (total: var) first drops the fraction
+                    // (D2I), then the cast narrows; `count as var` is an I2D.
+                    // (It used to be nothing at all for `as var`, which was
+                    // right only while every number was stored the same way.)
+                    if(!castType.isArray)
+                        convert_number_for(*e, castType);
+
                     if(e->scheme.schemeType != scheme_none
                        && castType.type != type_class && castType.type != type_object) {
                         wrap_scheme_as_value(e->scheme);

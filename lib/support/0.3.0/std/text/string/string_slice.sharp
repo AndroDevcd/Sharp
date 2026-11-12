@@ -17,8 +17,8 @@ mutate string {
      * Throws out_of_bounds_exception if start is negative or > length.
      */
     def substring(start: int): string {
-        n : var = sizeof(data);
-        from : var = start.value;
+        n : decimal = sizeof(data);
+        from : decimal = start.value;
         if(from < 0 || from > n)
             throw new bounds_except("substring: start $start is outside of a string of ${size()} characters");
         return string_support.slice(data, from, n);
@@ -30,8 +30,8 @@ mutate string {
      * Throws illegal_argument_exception if count is negative.
      */
     def take(count: int): string {
-        c : var = count.value;
-        n : var = sizeof(data);
+        c : decimal = count.value;
+        n : decimal = sizeof(data);
         if(c < 0) throw new ill_arg_except("take: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, 0, c);
@@ -43,8 +43,8 @@ mutate string {
      * Throws illegal_argument_exception if count is negative.
      */
     def take_last(count: int): string {
-        c : var = count.value;
-        n : var = sizeof(data);
+        c : decimal = count.value;
+        n : decimal = sizeof(data);
         if(c < 0) throw new ill_arg_except("take_last: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, n - c, n);
@@ -56,8 +56,8 @@ mutate string {
      * Throws illegal_argument_exception if count is negative.
      */
     def drop(count: int): string {
-        c : var = count.value;
-        n : var = sizeof(data);
+        c : decimal = count.value;
+        n : decimal = sizeof(data);
         if(c < 0) throw new ill_arg_except("drop: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, c, n);
@@ -69,8 +69,8 @@ mutate string {
      * Throws illegal_argument_exception if count is negative.
      */
     def drop_last(count: int): string {
-        c : var = count.value;
-        n : var = sizeof(data);
+        c : decimal = count.value;
+        n : decimal = sizeof(data);
         if(c < 0) throw new ill_arg_except("drop_last: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, 0, n - c);
@@ -82,14 +82,14 @@ mutate string {
      * If the delimiter does not occur the whole string is returned.
      */
     def substring_before(delimiter: string): string {
-        at : var = string_support.find_forward(data, delimiter.data, 0);
+        at : decimal = string_support.find_forward(data, delimiter.data, 0);
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
         return string_support.slice(data, 0, at);
     }
 
     /** Like substring_before(delimiter), but returns `missing` if the delimiter does not occur. */
     def substring_before(delimiter: string, missing: string): string {
-        at : var = string_support.find_forward(data, delimiter.data, 0);
+        at : decimal = string_support.find_forward(data, delimiter.data, 0);
         if(at < 0) return missing;
         return string_support.slice(data, 0, at);
     }
@@ -100,14 +100,14 @@ mutate string {
      * If the delimiter does not occur the whole string is returned.
      */
     def substring_after(delimiter: string): string {
-        at : var = string_support.find_forward(data, delimiter.data, 0);
+        at : decimal = string_support.find_forward(data, delimiter.data, 0);
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
         return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
     }
 
     /** Like substring_after(delimiter), but returns `missing` if the delimiter does not occur. */
     def substring_after(delimiter: string, missing: string): string {
-        at : var = string_support.find_forward(data, delimiter.data, 0);
+        at : decimal = string_support.find_forward(data, delimiter.data, 0);
         if(at < 0) return missing;
         return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
     }
@@ -118,14 +118,14 @@ mutate string {
      * If the delimiter does not occur the whole string is returned.
      */
     def substring_before_last(delimiter: string): string {
-        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        at : decimal = string_support.find_backward(data, delimiter.data, sizeof(data));
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
         return string_support.slice(data, 0, at);
     }
 
     /** Like substring_before_last(delimiter), but returns `missing` if the delimiter does not occur. */
     def substring_before_last(delimiter: string, missing: string): string {
-        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        at : decimal = string_support.find_backward(data, delimiter.data, sizeof(data));
         if(at < 0) return missing;
         return string_support.slice(data, 0, at);
     }
@@ -136,14 +136,14 @@ mutate string {
      * If the delimiter does not occur the whole string is returned.
      */
     def substring_after_last(delimiter: string): string {
-        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        at : decimal = string_support.find_backward(data, delimiter.data, sizeof(data));
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
         return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
     }
 
     /** Like substring_after_last(delimiter), but returns `missing` if the delimiter does not occur. */
     def substring_after_last(delimiter: string, missing: string): string {
-        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        at : decimal = string_support.find_backward(data, delimiter.data, sizeof(data));
         if(at < 0) return missing;
         return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
     }
@@ -153,7 +153,7 @@ mutate string {
      * otherwise an unchanged copy. An empty prefix changes nothing.
      */
     def remove_prefix(prefix: string): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(string_support.region_equals(data, 0, prefix.data)) return string_support.slice(data, sizeof(prefix.data), n);
         return string_support.slice(data, 0, n);
     }
@@ -163,8 +163,8 @@ mutate string {
      * otherwise an unchanged copy. An empty suffix changes nothing.
      */
     def remove_suffix(suffix: string): string {
-        n : var = sizeof(data);
-        m : var = sizeof(suffix.data);
+        n : decimal = sizeof(data);
+        m : decimal = sizeof(suffix.data);
         if(m <= n && string_support.region_equals(data, n - m, suffix.data)) return string_support.slice(data, 0, n - m);
         return string_support.slice(data, 0, n);
     }
@@ -175,9 +175,9 @@ mutate string {
      * "(abc)".remove_surrounding("(", ")") is "abc".
      */
     def remove_surrounding(prefix: string, suffix: string): string {
-        n : var = sizeof(data);
-        p : var = sizeof(prefix.data);
-        m : var = sizeof(suffix.data);
+        n : decimal = sizeof(data);
+        p : decimal = sizeof(prefix.data);
+        m : decimal = sizeof(suffix.data);
         if(n >= p + m && string_support.region_equals(data, 0, prefix.data) && string_support.region_equals(data, n - m, suffix.data))
             return string_support.slice(data, p, n - m);
         return string_support.slice(data, 0, n);
@@ -195,13 +195,13 @@ mutate string {
      * (start < 0, end > length or end < start).
      */
     def remove_range(start: int, end: int): string {
-        n : var = sizeof(data);
-        from : var = start.value;
-        to : var = end.value;
+        n : decimal = sizeof(data);
+        from : decimal = start.value;
+        to : decimal = end.value;
         if(from < 0 || to > n || to < from)
             throw new bounds_except("remove_range: range $start..$end is not inside a string of ${size()} characters");
 
-        kept : var = n - (to - from);
+        kept : decimal = n - (to - from);
         if(kept == 0) return new string();
 
         out := new _int8[kept];
@@ -212,11 +212,11 @@ mutate string {
 
     /** The characters in opposite order ("abc".reversed() is "cba"). */
     def reversed(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             out[i] = data[n - 1 - i];
         }
         return string_support.of_buffer(out, n);
@@ -228,14 +228,14 @@ mutate string {
      * Throws illegal_argument_exception if count is negative.
      */
     def repeat(count: int): string {
-        c : var = count.value;
-        n : var = sizeof(data);
+        c : decimal = count.value;
+        n : decimal = sizeof(data);
         if(c < 0) throw new ill_arg_except("repeat: count cannot be negative: $count");
         if(c == 0 || n == 0) return new string();
 
         // one buffer of the final size, filled block by block: no growing copies
         out := new _int8[n * c];
-        for(i : var = 0; i < c; i++) {
+        for(i : decimal = 0; i < c; i++) {
             memcopy(data!!, out, i * n, 0, n);
         }
         return string_support.of_buffer(out, n * c);

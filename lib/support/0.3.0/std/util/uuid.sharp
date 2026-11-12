@@ -32,21 +32,21 @@ mod std.util;
  */
 class uuid {
     /** the 16 bytes, most significant first, each 0 .. 255 */
-    private bytes : var[];
+    private bytes : decimal[];
 
-    private uuid(bytes: var[]) {
+    private uuid(bytes: decimal[]) {
         self->bytes = bytes;
     }
 
     /** the "nil" uuid: all 128 bits zero, 00000000-0000-0000-0000-000000000000 */
     static def nil_uuid(): uuid {
-        return new uuid(new var[16]);
+        return new uuid(new decimal[16]);
     }
 
     /** a new random version 4 uuid from the runtime's random generator */
     static def random(): uuid {
-        data := new var[16];
-        for(i : var = 0; i < 16; i++) {
+        data := new decimal[16];
+        for(i : decimal = 0; i < 16; i++) {
             data[i] = rand_index(256);
         }
         return new uuid(stamp_version_4(data));
@@ -57,15 +57,15 @@ class uuid {
      * seed gives the same sequence of uuids.
      */
     static def random(generator: seeded_random): uuid {
-        data := new var[16];
-        for(i : var = 0; i < 16; i++) {
+        data := new decimal[16];
+        for(i : decimal = 0; i < 16; i++) {
             data[i] = generator.next_int(256);
         }
         return new uuid(stamp_version_4(data));
     }
 
     /** overwrite the six fixed bits: version 4 in byte 6, variant "10" in byte 8 */
-    private static def stamp_version_4(data: var[]): var[] {
+    private static def stamp_version_4(data: decimal[]): decimal[] {
         data[6] = (data[6] & 15) | 64;          // 0100 xxxx
         data[8] = (data[8] & 63) | 128;         // 10xx xxxx
         return data;
@@ -76,13 +76,13 @@ class uuid {
      * Throws illegal_argument_exception when the array does not hold
      * exactly 16 whole numbers in 0 .. 255.
      */
-    static def from_bytes(values: var[]): uuid {
+    static def from_bytes(values: decimal[]): uuid {
         if(sizeof(values) != 16)
             throw new illegal_argument_exception("uuid: 16 bytes are needed");
 
-        data := new var[16];
-        for(i : var = 0; i < 16; i++) {
-            value : var = values[i];
+        data := new decimal[16];
+        for(i : decimal = 0; i < 16; i++) {
+            value : decimal = values[i];
             if(value < 0 || value > 255 || value != (value as _int64))
                 throw new illegal_argument_exception("uuid: a byte must be a whole number in 0 .. 255");
             data[i] = value;
@@ -101,9 +101,9 @@ class uuid {
         if(text.size() != 36)
             throw new parse_exception("uuid: a uuid has 36 characters: " + text);
 
-        data := new var[16];
-        index : var = 0;
-        position : var = 0;
+        data := new decimal[16];
+        index : decimal = 0;
+        position : decimal = 0;
 
         while(position < 36) {
             if(position == 8 || position == 13 || position == 18 || position == 23) {
@@ -111,8 +111,8 @@ class uuid {
                     throw new parse_exception("uuid: expected '-' at position " + snprintf('l', position, 0) + ": " + text);
                 position++;
             } else {
-                high : var = hex_value(text.at(position).value);
-                low : var = hex_value(text.at(position + 1).value);
+                high : decimal = hex_value(text.at(position).value);
+                low : decimal = hex_value(text.at(position + 1).value);
                 if(high < 0 || low < 0)
                     throw new parse_exception("uuid: not a hexadecimal digit: " + text);
                 data[index++] = high * 16 + low;
@@ -138,20 +138,20 @@ class uuid {
     }
 
     /** the value 0 .. 15 of a hexadecimal digit, or -1 for any other character */
-    private static def hex_value(ch: var): var {
+    private static def hex_value(ch: decimal): decimal {
         if(ch >= '0' && ch <= '9') return ch - '0';
         if(ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
         if(ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
         return 0 - 1;
     }
 
-    private static def hex_digit(value: var): var {
+    private static def hex_digit(value: decimal): decimal {
         if(value < 10) return '0' + value;
         return 'a' + (value - 10);
     }
 
     /** the version number 0 .. 15: the top four bits of byte 6 (4 for random uuids, 0 for nil) */
-    def version_number(): var {
+    def version_number(): decimal {
         return bytes[6] >> 4;
     }
 
@@ -160,8 +160,8 @@ class uuid {
      * are "10"), 0 for the old NCS layout ("0x"), 6 for Microsoft GUIDs
      * ("110") and 7 for the reserved pattern ("111").
      */
-    def variant(): var {
-        top : var = bytes[8] >> 5;          // the top three bits
+    def variant(): decimal {
+        top : decimal = bytes[8] >> 5;          // the top three bits
         if(top < 4) return 0;
         if(top < 6) return 2;
         return top;
@@ -169,16 +169,16 @@ class uuid {
 
     /** true for the nil uuid (all bits zero) */
     def is_nil(): bool {
-        for(i : var = 0; i < 16; i++) {
+        for(i : decimal = 0; i < 16; i++) {
             if(bytes[i] != 0) return false;
         }
         return true;
     }
 
     /** a copy of the 16 bytes, most significant first */
-    def to_bytes(): var[] {
-        result := new var[16];
-        for(i : var = 0; i < 16; i++) {
+    def to_bytes(): decimal[] {
+        result := new decimal[16];
+        for(i : decimal = 0; i < 16; i++) {
             result[i] = bytes[i];
         }
         return result;
@@ -188,8 +188,8 @@ class uuid {
      * Three-way comparison, byte by byte from the most significant: -1, 0
      * or 1. This is the same order as comparing the text forms.
      */
-    def compare_to(other: uuid): var {
-        for(i : var = 0; i < 16; i++) {
+    def compare_to(other: uuid): decimal {
+        for(i : decimal = 0; i < 16; i++) {
             if(bytes[i] != other.bytes[i]) {
                 if(bytes[i] < other.bytes[i]) return 0 - 1;
                 return 1;
@@ -221,9 +221,9 @@ class uuid {
     /** the text form in small letters: "123e4567-e89b-42d3-a456-426614174000" */
     override def to_string(): string? {
         text := new _int8[36];
-        position : var = 0;
+        position : decimal = 0;
 
-        for(i : var = 0; i < 16; i++) {
+        for(i : decimal = 0; i < 16; i++) {
             if(i == 4 || i == 6 || i == 8 || i == 10) {
                 text[position++] = '-';
             }
@@ -235,8 +235,8 @@ class uuid {
 
     /** a hash code over all 16 bytes (equal uuids have equal hashes) */
     override def hash(): int {
-        result : var = 17;
-        for(i : var = 0; i < 16; i++) {
+        result : decimal = 17;
+        for(i : decimal = 0; i < 16; i++) {
             result = (result * 31 + bytes[i]) % 2147483647;
         }
         return result;

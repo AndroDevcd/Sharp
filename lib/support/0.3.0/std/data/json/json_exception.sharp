@@ -16,18 +16,18 @@ mod std.data;
  */
 class json_exception base exception {
     /** index in the text of the character that is wrong (from 0), or -1 when the error is not about text */
-    position : var = 0 - 1;
+    position : decimal = 0 - 1;
     /** line of that character, counting from 1, or -1 */
-    line : var = 0 - 1;
+    line : decimal = 0 - 1;
     /** place of that character in its line, counting from 1, or -1 */
-    column : var = 0 - 1;
+    column : decimal = 0 - 1;
 
     /** an error that is not about a place in a text */
     public json_exception(message: string) -> base(message) {
     }
 
     /** a parse error at a known place; `message` should already mention the place */
-    public json_exception(message: string, position: var, line: var, column: var) -> base(message) {
+    public json_exception(message: string, position: decimal, line: decimal, column: decimal) -> base(message) {
         self->position = position;
         self->line = line;
         self->column = column;

@@ -26,11 +26,11 @@ mod testing;
  * which the runner reports as a failure too.
  */
 
-passed : var = 0;
-failed : var = 0;
+passed : decimal = 0;
+failed : decimal = 0;
 
 /** two numbers must be exactly equal */
-def expect(name: string, actual: var, expected: var) {
+def expect(name: string, actual: decimal, expected: decimal) {
     if(actual == expected) {
         passed++;
     } else {
@@ -40,8 +40,8 @@ def expect(name: string, actual: var, expected: var) {
 }
 
 /** two numbers must be equal within `tolerance` (for results that are not exact, like 0.1 + 0.2) */
-def expect_near(name: string, actual: var, expected: var, tolerance: var) {
-    difference : var = actual - expected;
+def expect_near(name: string, actual: decimal, expected: decimal, tolerance: decimal) {
+    difference : decimal = actual - expected;
     if(difference < 0) {
         difference = 0 - difference;
     }
@@ -55,7 +55,7 @@ def expect_near(name: string, actual: var, expected: var, tolerance: var) {
 }
 
 /** the condition must be true (anything that is not 0) */
-def expect_true(name: string, condition: var) {
+def expect_true(name: string, condition: decimal) {
     if(condition != 0) {
         passed++;
     } else {
@@ -65,7 +65,7 @@ def expect_true(name: string, condition: var) {
 }
 
 /** the condition must be false (0) */
-def expect_false(name: string, condition: var) {
+def expect_false(name: string, condition: decimal) {
     if(condition == 0) {
         passed++;
     } else {

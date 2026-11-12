@@ -17,11 +17,11 @@ import (
  * perform heavy operations such ass add(), insert(), and remove()
  * directly in c++ to increase the overall performance
  */
-def main(string[] args) : var {
-    varLst1 := new list<var>();
-    var past = getUtcTimeInMills(), now;
+def main(string[] args) : decimal {
+    varLst1 := new list<decimal>();
+    decimal past = getUtcTimeInMills(), now;
 
-    for(var i = 0; i < 2000000; i++)
+    for(decimal i = 0; i < 2000000; i++)
     {
         varLst1.add(i);
     }
@@ -33,7 +33,7 @@ def main(string[] args) : var {
     VarList varLst2 = new VarList();
     past = getUtcTimeInMills();
 
-    for(var i = 0; i < 2000000; i++)
+    for(decimal i = 0; i < 2000000; i++)
     {
         varLst2.add(i);
     }
@@ -45,7 +45,7 @@ def main(string[] args) : var {
     ArrayList<TestClass> classLst = new ArrayList<TestClass>();
     past = getUtcTimeInMills();
 
-    for(var i = 0; i < 1000000; i++)
+    for(decimal i = 0; i < 1000000; i++)
     {
         classLst.add(new TestClass());
     }
@@ -57,7 +57,7 @@ def main(string[] args) : var {
     ObjList classLst2 = new ObjList(); // fast anonymous dataset list
     past = getUtcTimeInMills();
 
-    for(var i = 0; i < 1000000; i++)
+    for(decimal i = 0; i < 1000000; i++)
     {
         classLst2.add(new TestClass());
     }
@@ -68,7 +68,7 @@ def main(string[] args) : var {
 }
 
 public class TestClass {
-    var id;
-    var[] TAG = "TestClass";
+    decimal id;
+    decimal[] TAG = "TestClass";
 }
 

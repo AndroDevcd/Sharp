@@ -66,6 +66,9 @@ void compile_initialization_call(
 
 bool scheme_has_own_layout(_operation_scheme type);
 void wrap_scheme_as_value(operation_schema &scheme);
+
+// converting numbers between integer and decimal where a value changes hands
+#include "numeric_conversion.h"
 sharp_function* compile_class_function_overload(
         sharp_class *with_class,
         expression &e,

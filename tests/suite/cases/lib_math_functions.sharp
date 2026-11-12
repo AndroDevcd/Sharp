@@ -27,7 +27,7 @@ def check_constants() {
     expect_near("RADIANS_PER_DEGREE", RADIANS_PER_DEGREE * 180, PI_VALUE, 0.000000000000001);
     expect_near("DEGREES_PER_RADIAN", DEGREES_PER_RADIAN * PI_VALUE, 180, 0.0000000000001);
     expect_true("1 + EPSILON is above 1", 1 + EPSILON > 1);
-    half_gap : var = EPSILON / 2;
+    half_gap : decimal = EPSILON / 2;
     expect("1 + EPSILON / 2 is 1", 1 + half_gap, 1);
     expect("MAX_SAFE_INTEGER", MAX_SAFE_INTEGER, 9007199254740991);
     expect("MIN_SAFE_INTEGER", MIN_SAFE_INTEGER + MAX_SAFE_INTEGER, 0);
@@ -35,9 +35,9 @@ def check_constants() {
 }
 
 /* a fractional literal on the LEFT of a variable (it used to lose its fraction) */
-def half_minus(v: var): var { return 0.5 - v; }
-def half_times(v: var): var { return 0.5 * v; }
-def one_and_half_plus(v: var): var { return 1.5 + v; }
+def half_minus(v: decimal): decimal { return 0.5 - v; }
+def half_times(v: decimal): decimal { return 0.5 * v; }
+def one_and_half_plus(v: decimal): decimal { return 1.5 + v; }
 
 def check_native() {
     expect("0.5 - v", half_minus(0.25), 0.25);
@@ -90,18 +90,18 @@ def check_comparison() {
     expect("max of three", max(5, 2, 9), 9);
     expect_true("min with NaN is NaN", is_nan(min(1, NaN.value)).value);
 
-    values := new var[5];
+    values := new decimal[5];
     values[0] = 4; values[1] = 0 - 7; values[2] = 12; values[3] = 0; values[4] = 3.5;
     expect("min_of", min_of(values), 0 - 7);
     expect("max_of", max_of(values), 12);
     try {
-        min_of(new var[0]);
+        min_of(new decimal[0]);
         fail("min_of(empty)", "no exception");
     } catch(e: illegal_argument_exception) {
         pass("min_of(empty) throws");
     }
     try {
-        max_of(new var[0]);
+        max_of(new decimal[0]);
         fail("max_of(empty)", "no exception");
     } catch(e: illegal_argument_exception) {
         pass("max_of(empty) throws");
@@ -175,7 +175,7 @@ def check_rounding() {
     expect("ceil_div(-7, 2)", ceil_div(0 - 7, 2), 0 - 3);
     expect("ceil_div(8, 2)", ceil_div(8, 2), 4);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { int_div(1, 0); } catch(e: division_by_zero_exception) { caught++; }
     try { int_rem(1, 0); } catch(e: division_by_zero_exception) { caught++; }
     try { floor_div(1, 0); } catch(e: division_by_zero_exception) { caught++; }
@@ -305,7 +305,7 @@ def check_interpolation() {
     expect("wrap(7, 2, 5)", wrap(7, 2, 5), 4);
     expect("wrap(5, 0, 5)", wrap(5, 0, 5), 0);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { inverse_lerp(3, 3, 1); } catch(e: arithmetic_exception) { caught++; }
     try { map_range(1, 2, 2, 0, 1); } catch(e: arithmetic_exception) { caught++; }
     try { smoothstep(1, 1, 1); } catch(e: arithmetic_exception) { caught++; }

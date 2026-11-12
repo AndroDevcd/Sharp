@@ -31,18 +31,18 @@ import (
 * Elements are compared with `==` (indexof, remove): numbers and strings by
 * value, other objects by identity.
 *
-* Limitation: the element type has to be an object type. `list<var>` does
+* Limitation: the element type has to be an object type. `list<decimal>` does
 * not compile at the moment (the class uses `T?`).
 *
 * Not thread safe: see synced_list for a list that several threads may use.
 */
 class list<T> : loopable<T> {
     /** number of elements in use; data[0 .. n_elements - 1] are the elements */
-    private n_elements : var;
+    private n_elements : _int64;
     /** the storage; usually longer than n_elements so that add() has room */
     private data : T[]?;
     /** 1: grow in small fixed steps (saves memory), 0: grow proportionally (saves time) */
-    private is_compact: var;
+    private is_compact: _int64;
 
     private static const default_capacity := 10;
     private static const min_capacity := 128;
@@ -107,6 +107,22 @@ class list<T> : loopable<T> {
         if(index.value >= n_elements || index.value < 0)
             throw new bounds_except(out_of_bounds_msg(index));
         return data[index.value];
+    }
+
+    /**
+     * The same, for an index that is a plain number (a loop counter, a
+     * literal). The compiler picks this version whenever the index is not an
+     * `int` object, and no object is created for the call - which is what
+     * makes a loop over a list cheap:
+     *
+     *     for(i : _int64 = 0; i < count; i++) { total += items.at(i).value; }
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def at(index: _int64): T {
+        if(index >= n_elements || index < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+        return data[index];
     }
 
     /**
@@ -200,8 +216,8 @@ class list<T> : loopable<T> {
      */
     def add_all(lst: list<T>) {
        // (count first: this also makes my_list.add_all(my_list) terminate)
-       n : var = lst.size().value;
-       for(i : var = 0; i < n; i++)
+       n : _int64 = lst.size().value;
+       for(i : _int64 = 0; i < n; i++)
            add(lst.at(i));
     }
 
@@ -222,7 +238,7 @@ class list<T> : loopable<T> {
 
     /** Position of the first element that equals `element`, or -1. O(n). */
     def indexof(element: T) : int {
-       for(i : var = 0; i < n_elements; i++) {
+       for(i : _int64 = 0; i < n_elements; i++) {
            if(element == data[i]) {
                return i;
            }
@@ -266,7 +282,7 @@ class list<T> : loopable<T> {
           if(n_elements >= sizeof(data))
               expand();
           n_elements++;
-           for(i : var = n_elements - 1; i > index.value; i--)
+           for(i : _int64 = n_elements - 1; i > index.value; i--)
               data[i] = data[i-1];
            data[index.value] = element;
        }
@@ -275,7 +291,7 @@ class list<T> : loopable<T> {
 
     /** Remove the first element that equals `val`; does nothing when there is none. O(n). */
     def remove(val: T) {
-       for(i : var = 0; i < n_elements; i++) {
+       for(i : _int64 = 0; i < n_elements; i++) {
            if(val == data[i]) {
                remove_at(i);
                return;
@@ -288,7 +304,7 @@ class list<T> : loopable<T> {
      * true; does nothing when there is none. O(n).
      */
     def remove(val: T, compare_fun: (T, T)(bool)) {
-       for(i : var = 0; i < n_elements; i++) {
+       for(i : _int64 = 0; i < n_elements; i++) {
            if(compare_fun(val, data[i])) {
                remove_at(i);
                return;
@@ -317,7 +333,7 @@ class list<T> : loopable<T> {
      * answers true, or -1. O(n).
      */
     def indexof(comparer: T, find_func: (T, T)(bool)) : int {
-       for(i : var = 0; i < n_elements; i++) {
+       for(i : _int64 = 0; i < n_elements; i++) {
            if(find_func(data[i], comparer)) {
                return i;
            }
@@ -333,9 +349,9 @@ class list<T> : loopable<T> {
      * ones use sort(), which is O(n log n).
      */
     def linear_sort(swap: (T, T)(bool)) {
-       for(i : var = 0; i < n_elements; i++) {
+       for(i : _int64 = 0; i < n_elements; i++) {
 
-           for (j : var = 0; j < n_elements; j++) {
+           for (j : _int64 = 0; j < n_elements; j++) {
                if((j + 1) < n_elements) {
 
                    if (swap(data[j], data[j+1])) {
@@ -353,7 +369,7 @@ class list<T> : loopable<T> {
      * or null when there is none. O(n).
      */
     def find(comparer : T, find_func: (T, T)(bool)) : T? {
-       for(i : var = 0; i < n_elements; i++) {
+       for(i : _int64 = 0; i < n_elements; i++) {
            if(find_func(data[i], comparer)) {
                return data[i];
            }
@@ -368,8 +384,8 @@ class list<T> : loopable<T> {
      *
      * @return true when an element was replaced, false when none matched
      */
-    def replace(val: T, compare_fun: (T, T)(var)) : bool {
-       for(i : var = 0; i < n_elements; i++) {
+    def replace(val: T, compare_fun: (T, T)(decimal)) : bool {
+       for(i : _int64 = 0; i < n_elements; i++) {
            if(compare_fun(val, data[i])) {
                data[i] = val;
                return true;
@@ -383,7 +399,7 @@ class list<T> : loopable<T> {
 //       str := new string_builder();
 //
 //       str += "[ ";
-//       for(i : var = 0; i < n_elements; i++) {
+//       for(i : decimal = 0; i < n_elements; i++) {
 //           str += data[i];
 //
 //           if((i + 1) < n_elements) {
@@ -396,9 +412,9 @@ class list<T> : loopable<T> {
 //    }
 
 //    override def hash() : int {
-//       i : var = 0;
+//       i : decimal = 0;
 //       hash_value := 0;
-//       multiplier : var = 0;
+//       multiplier : decimal = 0;
 //       const m := 1e9 + 9;
 //
 //       foreach(item in data) {
@@ -415,13 +431,13 @@ class list<T> : loopable<T> {
     // ------------------------------------------------------------------
 
     /** 1 when the list has no elements, otherwise 0 (a native number; empty() answers with a bool object). O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return n_elements == 0;
     }
 
     /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
-    def contains(element: T) : var {
-        for(i : var = 0; i < n_elements; i++) {
+    def contains(element: T) : decimal {
+        for(i : _int64 = 0; i < n_elements; i++) {
             if(element == data[i]) return 1;
         }
         return 0;
@@ -429,7 +445,7 @@ class list<T> : loopable<T> {
 
     /** Position of the last element that equals `element`, or -1 (indexof gives the first). O(n). */
     def last_indexof(element: T) : int {
-        for(i : var = n_elements - 1; i >= 0; i--) {
+        for(i : _int64 = n_elements - 1; i >= 0; i--) {
             if(element == data[i]) return i;
         }
         return -1;
@@ -441,7 +457,7 @@ class list<T> : loopable<T> {
      */
     def to_array() : T[] {
         result := new T[n_elements];
-        for(i : var = 0; i < n_elements; i++)
+        for(i : _int64 = 0; i < n_elements; i++)
             result[i] = data[i];
         return result;
     }
@@ -457,15 +473,15 @@ class list<T> : loopable<T> {
             throw new bounds_except("sub_list: range $from..$to is out of bounds");
 
         result := new list<T>();
-        for(i : var = from.value; i < to.value; i++)
+        for(i : _int64 = from.value; i < to.value; i++)
             result.add(data[i]);
         return result;
     }
 
     /** Reverse the order of the elements in place. O(n). */
     def reverse() {
-        low : var = 0;
-        high : var = n_elements - 1;
+        low : _int64 = 0;
+        high : _int64 = n_elements - 1;
         while(low < high) {
             held := data[low];
             data[low] = data[high];
@@ -480,29 +496,29 @@ class list<T> : loopable<T> {
      * when a sorts before b, 0 when they sort the same, a positive number
      * when a sorts after b:
      *
-     *     numbers.sort({ a: int, b: int -> (var) return a.value - b.value; });
+     *     numbers.sort({ a: int, b: int -> (decimal) return a.value - b.value; });
      *
      * Bottom-up merge sort (loops only, no recursion): O(n log n) for any
      * input, and stable - elements that compare as equal keep their order.
      * Use this instead of linear_sort, which is O(n * n).
      */
-    def sort(compare: (T, T)(var)) {
-        n : var = n_elements;
+    def sort(compare: (T, T)(decimal)) {
+        n : _int64 = n_elements;
         if(n < 2) return;
 
         source := data!!;           // the array the current runs are in
         target := new T[sizeof(data)];
-        for(width : var = 1; width < n; width = width * 2) {
-            for(low : var = 0; low < n; low = low + width * 2) {
-                middle : var = low + width;
+        for(width : _int64 = 1; width < n; width = width * 2) {
+            for(low : _int64 = 0; low < n; low = low + width * 2) {
+                middle : _int64 = low + width;
                 if(middle > n) middle = n;
-                high : var = low + width * 2;
+                high : _int64 = low + width * 2;
                 if(high > n) high = n;
 
                 // merge source[low, middle) and source[middle, high) into target[low, high)
-                left : var = low;
-                right : var = middle;
-                out : var = low;
+                left : _int64 = low;
+                right : _int64 = middle;
+                out : _int64 = low;
                 while(left < middle && right < high) {
                     // "<=" takes from the left run on a tie: that keeps the sort stable
                     if(compare(source[left], source[right]) <= 0) target[out++] = source[left++];

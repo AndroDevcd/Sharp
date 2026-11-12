@@ -16,7 +16,7 @@ import ( testing, std.text )
 
 def main(args: string[]) {
     empty : string = "";
-    big : var = 12345678901;        // (a variable: `0 - 12345678901` is folded to -2147483648 as well)
+    big : decimal = 12345678901;        // (a variable: `0 - 12345678901` is folded to -2147483648 as well)
 
     // ---- number_parser: whole numbers
     expect("parse_int", number_parser.parse_int("42"), 42);

@@ -31,9 +31,9 @@ public const NEGATIVE_INFINITY : double = negative_infinity_value();
  * of -infinity (see tests/suite/known_bugs/lib_math_literals.sharp), so the
  * division is done on variables here.
  */
-local def negative_infinity_value(): var {
-    zero : var = 0;
-    one : var = 1;
+local def negative_infinity_value(): decimal {
+    zero : decimal = 0;
+    one : decimal = 1;
     return (0 - one) / zero;
 }
 
@@ -186,9 +186,9 @@ def round(num: double) : double {
 }
 
 local def math_proc(num: double, proc: double) : double {
-    _num := num.value;
-    _proc := proc.value;
-    result : var = 0;
+    _num : decimal = num.value;
+    _proc : _int64 = proc.value;
+    result : decimal = 0;
     asm {
         loadl ebx, [_num]
         loadl ecx, [_proc]
@@ -200,10 +200,10 @@ local def math_proc(num: double, proc: double) : double {
 }
 
 local def math_proc(num: double, num2: double, proc: double) : double {
-    _num := num.value;
-    _num2 := num2.value;
-    _proc := proc.value;
-    result : var = 0;
+    _num : decimal = num.value;
+    _num2 : decimal = num2.value;
+    _proc : _int64 = proc.value;
+    result : decimal = 0;
     asm {
         loadl ebx, [_num]
         loadl egx, [_num2]

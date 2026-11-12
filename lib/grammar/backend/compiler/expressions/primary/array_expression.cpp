@@ -47,6 +47,7 @@ void compile_array_expression(expression *e, Ast *ast) {
             e->type.nullableItems = false;
             e->type.arrayElement = true;
             extract_value_field_from_expression(arrayExpression, "", ast, true);
+            convert_number_to_integer(arrayExpression);     // items[total] with total: var
             create_access_array_element_operation(&e->scheme, e->type, &arrayExpression.scheme);
         } else {
             create_new_error(

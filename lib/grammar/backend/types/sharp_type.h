@@ -402,6 +402,18 @@ uInt is_implicit_type_match(
 sharp_type get_real_type(sharp_type&);
 sharp_class* get_class_type(sharp_type&);
 bool is_numeric_type(sharp_type&);
+
+/**
+ * A number in Sharp is one of two KINDS: a decimal (64-bit double: `var` and
+ * fractional literals) or an integer (the sized types _int8 .. _uint64,
+ * characters, booleans, whole literals, function pointers).
+ *
+ * The kind decides which instructions work on the value (ADD or DADD, LT or
+ * DLT, ...) and when a conversion (I2D / D2I) is needed. The size of an integer
+ * does not matter for that: every integer is 64 bits wide in a register and is
+ * narrowed when it is stored.
+ */
+bool is_decimal_type(sharp_type&);
 bool is_evaluable_type(sharp_type&);
 bool is_object_type(sharp_type&);
 data_type str_to_native_type(string&);

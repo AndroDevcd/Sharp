@@ -8,20 +8,20 @@ import ( testing )
  */
 
 /** 1 * 2 * ... * n */
-def factorial(n: var): var {
-    result : var = 1;
-    for(i : var = 2; i <= n; i++) {
+def factorial(n: decimal): decimal {
+    result : decimal = 1;
+    for(i : decimal = 2; i <= n; i++) {
         result *= i;
     }
     return result;
 }
 
 /** how many numbers from 2 to limit are prime */
-def count_primes(limit: var): var {
-    count : var = 0;
-    for(n : var = 2; n <= limit; n++) {
-        prime : var = 1;
-        for(d : var = 2; d * d <= n; d++) {
+def count_primes(limit: decimal): decimal {
+    count : decimal = 0;
+    for(n : decimal = 2; n <= limit; n++) {
+        prime : decimal = 1;
+        for(d : decimal = 2; d * d <= n; d++) {
             if(n % d == 0) {
                 prime = 0;
                 break;
@@ -33,8 +33,8 @@ def count_primes(limit: var): var {
 }
 
 /** return from the middle of a loop: the position of `wanted`, or -1 */
-def index_of(numbers: var[], wanted: var): var {
-    for(i : var = 0; i < sizeof(numbers); i++) {
+def index_of(numbers: decimal[], wanted: decimal): decimal {
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
         if(numbers[i] == wanted) {
             return i;
         }
@@ -43,8 +43,8 @@ def index_of(numbers: var[], wanted: var): var {
 }
 
 /** how many steps the "halve it or triple it and add one" game takes to reach 1 */
-def collatz_steps(n: var): var {
-    steps : var = 0;
+def collatz_steps(n: decimal): decimal {
+    steps : decimal = 0;
     while(n != 1) {
         if(n % 2 == 0) {
             n = n / 2;
@@ -57,23 +57,23 @@ def collatz_steps(n: var): var {
 }
 
 def main(args: string[]) {
-    sum : var = 0;
-    count : var = 0;
+    sum : decimal = 0;
+    count : decimal = 0;
 
     // ---- for
-    for(i : var = 0; i < 5; i++) {
+    for(i : decimal = 0; i < 5; i++) {
         sum += i;
     }
     expect("for 0 to 4", sum, 10);
 
     sum = 0;
-    for(i : var = 1; i <= 100; i++) {
+    for(i : decimal = 1; i <= 100; i++) {
         sum += i;
     }
     expect("for 1 to 100", sum, 5050);
 
     sum = 0;
-    for(i : var = 10; i > 0; i--) {
+    for(i : decimal = 10; i > 0; i--) {
         sum = sum * 2 + i;
         count++;
     }
@@ -81,31 +81,31 @@ def main(args: string[]) {
     expect("counting down", sum, 9217);
 
     count = 0;
-    for(i : var = 0; i < 20; i += 5) {
+    for(i : decimal = 0; i < 20; i += 5) {
         count++;
     }
     expect("for in steps of 5", count, 4);
 
     count = 0;
-    for(x : var = 1; x < 1000; x *= 2) {
+    for(x : decimal = 1; x < 1000; x *= 2) {
         count++;
     }
     expect("for, doubling up to 1000", count, 10);
 
     count = 0;
-    for(x : var = 0; x < 1; x += 0.25) {
+    for(x : decimal = 0; x < 1; x += 0.25) {
         count++;
     }
     expect("for in steps of 0.25", count, 4);
 
     // ---- the variable of a for is its own: the next loop can use the name again
     sum = 0;
-    for(i : var = 0; i < 3; i++) { sum += 1; }
-    for(i : var = 0; i < 3; i++) { sum += 10; }
+    for(i : decimal = 0; i < 3; i++) { sum += 1; }
+    for(i : decimal = 0; i < 3; i++) { sum += 10; }
     expect("two loops with the same variable name", sum, 33);
 
     // ---- a variable declared before the loop keeps its value after it
-    k : var = 0;
+    k : decimal = 0;
     for(; k < 5; k++) {
     }
     expect("k after for(; k < 5; k++)", k, 5);
@@ -131,14 +131,14 @@ def main(args: string[]) {
     }
     expect("for(;;) with a break", count, 7);
     count = 0;
-    for(i : var = 0; i < 4;) {
+    for(i : decimal = 0; i < 4;) {
         i++;
         count++;
     }
     expect("for without a step", count, 4);
 
     // ---- while
-    n : var = 0;
+    n : decimal = 0;
     while(n < 5) {
         n++;
     }
@@ -191,7 +191,7 @@ def main(args: string[]) {
     expect("do-while counts the digits of 1234", count, 4);
 
     // ---- foreach
-    numbers : var[] = new var[5];
+    numbers : decimal[] = new decimal[5];
     numbers[0] = 3;
     numbers[1] = 1;
     numbers[2] = 4;
@@ -213,7 +213,7 @@ def main(args: string[]) {
     }
     expect("foreach goes in order", n, 31415);
 
-    largest : var = 0;
+    largest : decimal = 0;
     foreach(item in numbers) {
         if(item > largest) {
             largest = item;
@@ -242,11 +242,11 @@ def main(args: string[]) {
 
     // ---- loops that run zero times
     count = 0;
-    for(i : var = 0; i < 0; i++) {
+    for(i : decimal = 0; i < 0; i++) {
         count++;
     }
     expect("for with a false condition", count, 0);
-    for(i : var = 5; i < 5; i++) {
+    for(i : decimal = 5; i < 5; i++) {
         count++;
     }
     expect("for starting at its limit", count, 0);
@@ -259,7 +259,7 @@ def main(args: string[]) {
         count++;
     }
     expect("while(false)", count, 0);
-    nothing : var[] = new var[0];
+    nothing : decimal[] = new decimal[0];
     foreach(item in nothing) {
         count++;
     }
@@ -272,7 +272,7 @@ def main(args: string[]) {
 
     // ---- break
     sum = 0;
-    for(i : var = 0; i < 10; i++) {
+    for(i : decimal = 0; i < 10; i++) {
         if(i == 4) {
             break;
         }
@@ -308,7 +308,7 @@ def main(args: string[]) {
     expect("break in a foreach", sum, 4);
 
     count = 0;
-    for(i : var = 0; i < 10; i++) {
+    for(i : decimal = 0; i < 10; i++) {
         break;
         count++;
     }
@@ -316,7 +316,7 @@ def main(args: string[]) {
 
     // ---- continue
     sum = 0;
-    for(i : var = 0; i < 10; i++) {
+    for(i : decimal = 0; i < 10; i++) {
         if(i % 2 == 0) {
             continue;
         }
@@ -357,7 +357,7 @@ def main(args: string[]) {
 
     // ---- break and continue together
     sum = 0;
-    for(i : var = 0; i < 100; i++) {
+    for(i : decimal = 0; i < 100; i++) {
         if(i % 2 == 1) {
             continue;
         }
@@ -370,33 +370,33 @@ def main(args: string[]) {
 
     // ---- nested loops
     count = 0;
-    for(i : var = 0; i < 4; i++) {
-        for(j : var = 0; j < 3; j++) {
+    for(i : decimal = 0; i < 4; i++) {
+        for(j : decimal = 0; j < 3; j++) {
             count++;
         }
     }
     expect("4 x 3", count, 12);
 
     sum = 0;
-    for(i : var = 1; i <= 3; i++) {
-        for(j : var = 1; j <= 3; j++) {
+    for(i : decimal = 1; i <= 3; i++) {
+        for(j : decimal = 1; j <= 3; j++) {
             sum += i * j;
         }
     }
     expect("the 3 x 3 multiplication table", sum, 36);
 
     count = 0;
-    for(i : var = 0; i < 4; i++) {
-        for(j : var = 0; j < i; j++) {
+    for(i : decimal = 0; i < 4; i++) {
+        for(j : decimal = 0; j < i; j++) {
             count++;
         }
     }
     expect("the inner limit depends on the outer variable", count, 6);
 
     count = 0;
-    for(i : var = 0; i < 3; i++) {
-        for(j : var = 0; j < 3; j++) {
-            for(l : var = 0; l < 3; l++) {
+    for(i : decimal = 0; i < 3; i++) {
+        for(j : decimal = 0; j < 3; j++) {
+            for(l : decimal = 0; l < 3; l++) {
                 count++;
             }
         }
@@ -404,7 +404,7 @@ def main(args: string[]) {
     expect("three deep", count, 27);
 
     count = 0;
-    for(i : var = 0; i < 3; i++) {
+    for(i : decimal = 0; i < 3; i++) {
         n = 0;
         while(n < 2) {
             do {
@@ -416,7 +416,7 @@ def main(args: string[]) {
     expect("a do-while in a while in a for", count, 6);
 
     sum = 0;
-    for(i : var = 0; i < 2; i++) {
+    for(i : decimal = 0; i < 2; i++) {
         foreach(item in numbers) {
             sum += item;
         }
@@ -425,10 +425,10 @@ def main(args: string[]) {
 
     // ---- break leaves only the inner loop
     count = 0;
-    outer : var = 0;
-    for(i : var = 0; i < 3; i++) {
+    outer : decimal = 0;
+    for(i : decimal = 0; i < 3; i++) {
         outer++;
-        for(j : var = 0; j < 10; j++) {
+        for(j : decimal = 0; j < 10; j++) {
             if(j == 2) {
                 break;
             }
@@ -440,8 +440,8 @@ def main(args: string[]) {
 
     // ---- break in the outer loop, after the inner loop
     count = 0;
-    for(i : var = 0; i < 10; i++) {
-        for(j : var = 0; j < 2; j++) {
+    for(i : decimal = 0; i < 10; i++) {
+        for(j : decimal = 0; j < 2; j++) {
             count++;
         }
         if(i == 1) {
@@ -452,8 +452,8 @@ def main(args: string[]) {
 
     // ---- continue skips only the rest of the inner step
     count = 0;
-    for(i : var = 0; i < 3; i++) {
-        for(j : var = 0; j < 4; j++) {
+    for(i : decimal = 0; i < 3; i++) {
+        for(j : decimal = 0; j < 4; j++) {
             if(j == 1) {
                 continue;
             }
@@ -464,22 +464,22 @@ def main(args: string[]) {
 
     // ---- continue in the outer loop skips the inner loop
     count = 0;
-    for(i : var = 0; i < 4; i++) {
+    for(i : decimal = 0; i < 4; i++) {
         if(i == 2) {
             continue;
         }
-        for(j : var = 0; j < 5; j++) {
+        for(j : decimal = 0; j < 5; j++) {
             count++;
         }
     }
     expect("outer continue", count, 15);
 
     // ---- leaving two loops with a flag
-    found_i : var = 0 - 1;
-    found_j : var = 0 - 1;
-    done : var = false;
-    for(i : var = 0; i < 5 && !done; i++) {
-        for(j : var = 0; j < 5; j++) {
+    found_i : decimal = 0 - 1;
+    found_j : decimal = 0 - 1;
+    done : decimal = false;
+    for(i : decimal = 0; i < 5 && !done; i++) {
+        for(j : decimal = 0; j < 5; j++) {
             if(i * j == 6) {
                 found_i = i;
                 found_j = j;
@@ -492,8 +492,8 @@ def main(args: string[]) {
     expect("first j with i * j == 6", found_j, 3);
 
     // ---- writing an array in one loop and reading it in another
-    squares : var[] = new var[10];
-    for(i : var = 0; i < sizeof(squares); i++) {
+    squares : decimal[] = new decimal[10];
+    for(i : decimal = 0; i < sizeof(squares); i++) {
         squares[i] = i * i;
     }
     sum = 0;
@@ -518,7 +518,7 @@ def main(args: string[]) {
 
     // ---- a long loop
     sum = 0;
-    for(i : var = 0; i < 100000; i++) {
+    for(i : decimal = 0; i < 100000; i++) {
         sum += i % 7;
     }
     expect("100000 steps", sum, 299995);

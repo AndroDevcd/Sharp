@@ -8,12 +8,12 @@ import ( testing )
  * if, stored in a variable, returned from a function and used in arithmetic.
  */
 
-def less(a: var, b: var): var { return a < b; }
-def same(a: var, b: var): var { return a == b; }
-def at_least(a: var, b: var): var { return a >= b; }
+def less(a: decimal, b: decimal): decimal { return a < b; }
+def same(a: decimal, b: decimal): decimal { return a == b; }
+def at_least(a: decimal, b: decimal): decimal { return a >= b; }
 
 /** the larger of two numbers */
-def max(a: var, b: var): var {
+def max(a: decimal, b: decimal): decimal {
     if(a > b) {
         return a;
     }
@@ -40,9 +40,9 @@ def main(args: string[]) {
     expect_false("3 >= 4", 3 >= 4);
 
     // ---- variables
-    a : var = 10;
-    b : var = 20;
-    c : var = 10;
+    a : decimal = 10;
+    b : decimal = 20;
+    c : decimal = 10;
     expect_true("a == c", a == c);
     expect_false("a == b", a == b);
     expect_true("a != b", a != b);
@@ -71,8 +71,8 @@ def main(args: string[]) {
     expect_true("9 < a", 9 < a);
 
     // ---- negative numbers
-    n : var = 0 - 5;
-    m : var = 0 - 2;
+    n : decimal = 0 - 5;
+    m : decimal = 0 - 2;
     expect_true("-5 < -2", n < m);
     expect_false("-5 > -2", n > m);
     expect_true("-5 < 0", n < 0);
@@ -85,8 +85,8 @@ def main(args: string[]) {
     expect_true("-0 == 0", -0 == 0);
 
     // ---- fractions
-    half : var = 0.5;
-    third : var = 1 / 3;
+    half : decimal = 0.5;
+    third : decimal = 1 / 3;
     expect_true("0.5 == 1 / 2", half == 1 / 2);
     expect_true("0.5 > 1 / 3", half > third);
     expect_true("1 / 3 < 0.34", third < 0.34);
@@ -100,7 +100,7 @@ def main(args: string[]) {
     expect_true("0.001 != 0.0011", 0.001 != 0.0011);
 
     // ---- large numbers
-    big : var = 1000000000000;
+    big : decimal = 1000000000000;
     expect_true("a trillion < a trillion and one", big < big + 1);
     expect_true("a trillion == 1e12", big == 1e12);
     expect_false("a trillion > 1e12", big > 1e12);
@@ -114,8 +114,8 @@ def main(args: string[]) {
     expect("multiplying by a comparison", 7 * (a < b), 7);
 
     // ---- stored in a variable
-    smaller : var = a < b;
-    equal : var = a == b;
+    smaller : decimal = a < b;
+    equal : decimal = a == b;
     expect("smaller", smaller, 1);
     expect("equal", equal, 0);
     smaller = b < a;

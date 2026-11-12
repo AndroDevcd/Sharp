@@ -41,9 +41,9 @@ import (
  * of searching for the function.
  */
 
-depth_reached : var = 0;
+depth_reached : decimal = 0;
 
-def descend(levels: var) {
+def descend(levels: decimal) {
     if(levels == 0) {
         println("going to sleep 3 calls deep");
         delay(5);                   // the fiber is switched out here, with descend() on the stack three times

@@ -11,10 +11,10 @@ import std;
  * done n times
  *
  */
-def main(string[] args) : var {
-    var out;
-    for(var i =0; i <= 100000; i++)
-        for(var j = 0; j <= 10000; j++)
+def main(string[] args) : decimal {
+    decimal out;
+    for(decimal i =0; i <= 100000; i++)
+        for(decimal j = 0; j <= 10000; j++)
             out+=i+j;
 
 

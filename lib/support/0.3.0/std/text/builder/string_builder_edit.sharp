@@ -19,7 +19,7 @@ import ( std.io )
 mutate string_builder {
 
     /** INTERNAL. Throws out_of_bounds_exception unless 0 <= start <= end <= length. */
-    private def check_range(what: string, start: var, end: var) {
+    private def check_range(what: string, start: decimal, end: decimal) {
         if(start < 0 || end > cursor || end < start)
             throw new bounds_except("$what: range ${new int(start)}..${new int(end)} is not inside a text of ${size()} characters");
     }
@@ -28,21 +28,21 @@ mutate string_builder {
      * INTERNAL. Opens a gap of `count` characters at `pos`: the text from pos
      * on moves right. The gap still holds old characters; the caller fills it.
      */
-    private def open_gap(pos: var, count: var) {
+    private def open_gap(pos: decimal, count: decimal) {
         if(count <= 0) return;
         reserve(count);
         // move right, starting from the end so nothing is overwritten before it is moved
-        for(i : var = cursor - 1; i >= pos; i--) {
+        for(i : decimal = cursor - 1; i >= pos; i--) {
             data[i + count] = data[i];
         }
         cursor += count;
     }
 
     /** INTERNAL. Removes the characters start .. end - 1: the text from end on moves left. */
-    private def close_gap(start: var, end: var) {
-        count : var = end - start;
+    private def close_gap(start: decimal, end: decimal) {
+        count : decimal = end - start;
         if(count <= 0) return;
-        for(i : var = end; i < cursor; i++) {
+        for(i : decimal = end; i < cursor; i++) {
             data[i - count] = data[i];
         }
         cursor -= count;
@@ -54,9 +54,9 @@ mutate string_builder {
      * Throws out_of_bounds_exception if pos is negative or > length.
      */
     def insert(pos: int, text: string) : string_builder {
-        at : var = pos.value;
+        at : decimal = pos.value;
         check_range("insert", at, at);
-        len : var = sizeof(text.data);
+        len : decimal = sizeof(text.data);
         if(len > 0) {
             open_gap(at, len);
             memcopy(text.data!!, data!!, at, 0, len);
@@ -69,7 +69,7 @@ mutate string_builder {
      * Throws out_of_bounds_exception if pos is negative or > length.
      */
     def insert_char(pos: int, c: char) : string_builder {
-        at : var = pos.value;
+        at : decimal = pos.value;
         check_range("insert_char", at, at);
         open_gap(at, 1);
         data[at] = c.value;
@@ -93,7 +93,7 @@ mutate string_builder {
      * Throws out_of_bounds_exception if pos is not a position inside the text.
      */
     def delete_char_at(pos: int) : string_builder {
-        at : var = pos.value;
+        at : decimal = pos.value;
         if(at < 0 || at >= cursor)
             throw new bounds_except("delete_char_at: index $pos is outside of a text of ${size()} characters");
         close_gap(at, at + 1);
@@ -106,12 +106,12 @@ mutate string_builder {
      * Throws out_of_bounds_exception if the range is not inside the text.
      */
     def replace_range(start: int, end: int, text: string) : string_builder {
-        from : var = start.value;
-        to : var = end.value;
+        from : decimal = start.value;
+        to : decimal = end.value;
         check_range("replace_range", from, to);
 
-        len : var = sizeof(text.data);
-        old_len : var = to - from;
+        len : decimal = sizeof(text.data);
+        old_len : decimal = to - from;
         if(len > old_len) open_gap(to, len - old_len);
         else if(len < old_len) close_gap(from + len, to);
         if(len > 0) memcopy(text.data!!, data!!, from, 0, len);
@@ -123,7 +123,7 @@ mutate string_builder {
      * Throws out_of_bounds_exception if pos is not a position inside the text.
      */
     def set_char_at(pos: int, c: char) : string_builder {
-        at : var = pos.value;
+        at : decimal = pos.value;
         if(at < 0 || at >= cursor)
             throw new bounds_except("set_char_at: index $pos is outside of a text of ${size()} characters");
         data[at] = c.value;
@@ -132,10 +132,10 @@ mutate string_builder {
 
     /** Puts the characters in opposite order ("abc" becomes "cba"). */
     def reverse() : string_builder {
-        i : var = 0;
-        j : var = cursor - 1;
+        i : decimal = 0;
+        j : decimal = cursor - 1;
         while(i < j) {
-            tmp : var = data[i];
+            tmp : decimal = data[i];
             data[i] = data[j];
             data[j] = tmp;
             i++;
@@ -161,13 +161,13 @@ mutate string_builder {
 
     /** set_length that fills up with the character `fill` instead of spaces. */
     def set_length(new_length: int, fill: char) : string_builder {
-        wanted : var = new_length.value;
+        wanted : decimal = new_length.value;
         if(wanted < 0)
             throw new ill_arg_except("set_length: the length cannot be negative: $new_length");
 
         if(wanted > cursor) {
             reserve(wanted - cursor);
-            for(i : var = cursor; i < wanted; i++) {
+            for(i : decimal = cursor; i < wanted; i++) {
                 data[i] = fill.value;
             }
         }
@@ -190,7 +190,7 @@ mutate string_builder {
      * Appends a whole number in base 10 without decimals: append_int(42)
      * appends "42". A fraction is cut off (2.9 appends "2", -2.9 appends "-2").
      */
-    def append_int(number: var) : string_builder {
+    def append_int(number: decimal) : string_builder {
         return append(number_format.integer(number));
     }
 
@@ -199,12 +199,12 @@ mutate string_builder {
      * append_number(3.14159, 2) appends "3.14".
      * Throws illegal_argument_exception if decimals is not between 0 and 15.
      */
-    def append_number(number: var, decimals: int) : string_builder {
+    def append_number(number: decimal, decimals: int) : string_builder {
         return append(number_format.fixed(number, decimals));
     }
 
     /** Appends "true" if `value` is not 0, otherwise "false". */
-    def append_bool(value: var) : string_builder {
+    def append_bool(value: decimal) : string_builder {
         if(value) return append("true");
         return append("false");
     }
@@ -215,14 +215,14 @@ mutate string_builder {
      * Throws illegal_argument_exception if count is negative.
      */
     def append_repeat(text: string, count: int) : string_builder {
-        times : var = count.value;
+        times : decimal = count.value;
         if(times < 0)
             throw new ill_arg_except("append_repeat: count cannot be negative: $count");
 
-        len : var = sizeof(text.data);
+        len : decimal = sizeof(text.data);
         if(len > 0 && times > 0) {
             reserve(len * times);
-            for(i : var = 0; i < times; i++) {
+            for(i : decimal = 0; i < times; i++) {
                 memcopy(text.data!!, data!!, cursor, 0, len);
                 cursor += len;
             }
@@ -235,8 +235,8 @@ mutate string_builder {
      * (not before the first or after the last). Null elements are skipped.
      */
     def append_all(parts: string[], separator: string) : string_builder {
-        count : var = sizeof(parts);
-        for(i : var = 0; i < count; i++) {
+        count : decimal = sizeof(parts);
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0) append(separator);
             part := parts[i];
             if((part as object) != null) append(part);

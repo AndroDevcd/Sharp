@@ -20,18 +20,18 @@ mutate string {
      * (found left to right, starting at `first_at`) with `replacement`.
      * The result is allocated once at its final size.
      */
-    private def rebuild(old: _int8[]?, replacement: _int8[]?, first_at: var, matches: var): string {
-        n : var = sizeof(data);
-        m : var = sizeof(old);
-        r : var = sizeof(replacement);
-        total : var = n + matches * (r - m);
+    private def rebuild(old: _int8[]?, replacement: _int8[]?, first_at: decimal, matches: decimal): string {
+        n : decimal = sizeof(data);
+        m : decimal = sizeof(old);
+        r : decimal = sizeof(replacement);
+        total : decimal = n + matches * (r - m);
         if(total == 0) return new string();
 
         out := new _int8[total];
-        src : var = 0;              // next character of this string to copy
-        dst : var = 0;              // next free position in out
-        at : var = first_at;
-        done : var = 0;
+        src : decimal = 0;              // next character of this string to copy
+        dst : decimal = 0;              // next free position in out
+        at : decimal = first_at;
+        done : decimal = 0;
         while(done < matches && at >= 0) {
             if(at > src) {
                 memcopy(data!!, out, dst, src, at);
@@ -60,7 +60,7 @@ mutate string {
         if(sizeof(old.data) == 0)
             throw new ill_arg_except("replace_all: the text to replace cannot be empty");
 
-        first_at : var = string_support.find_forward(data, old.data, 0);
+        first_at : decimal = string_support.find_forward(data, old.data, 0);
         if(first_at < 0) return string_support.slice(data, 0, sizeof(data));
         return rebuild(old.data, replacement.data, first_at, string_support.count(data, old.data));
     }
@@ -75,7 +75,7 @@ mutate string {
         if(sizeof(old.data) == 0)
             throw new ill_arg_except("replace_first: the text to replace cannot be empty");
 
-        at : var = string_support.find_forward(data, old.data, 0);
+        at : decimal = string_support.find_forward(data, old.data, 0);
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
         return rebuild(old.data, replacement.data, at, 1);
     }
@@ -90,7 +90,7 @@ mutate string {
         if(sizeof(old.data) == 0)
             throw new ill_arg_except("replace_last: the text to replace cannot be empty");
 
-        at : var = string_support.find_backward(data, old.data, sizeof(data));
+        at : decimal = string_support.find_backward(data, old.data, sizeof(data));
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
         return rebuild(old.data, replacement.data, at, 1);
     }
@@ -100,14 +100,14 @@ mutate string {
      * ("a.b.c".replace_char('.', '/') is "a/b/c"). Returns a new string.
      */
     def replace_char(old: char, replacement: char): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
-        from : var = old.value;
-        to : var = replacement.value;
+        from : decimal = old.value;
+        to : decimal = replacement.value;
         out := new _int8[n];
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c == from) out[i] = to;
             else out[i] = c;
         }
@@ -122,14 +122,14 @@ mutate string {
      * (start < 0, end > length or end < start).
      */
     def replace_range(start: int, end: int, replacement: string): string {
-        n : var = sizeof(data);
-        from : var = start.value;
-        to : var = end.value;
+        n : decimal = sizeof(data);
+        from : decimal = start.value;
+        to : decimal = end.value;
         if(from < 0 || to > n || to < from)
             throw new bounds_except("replace_range: range $start..$end is not inside a string of ${size()} characters");
 
-        r : var = sizeof(replacement.data);
-        total : var = n - (to - from) + r;
+        r : decimal = sizeof(replacement.data);
+        total : decimal = n - (to - from) + r;
         if(total == 0) return new string();
 
         out := new _int8[total];
@@ -166,13 +166,13 @@ mutate string {
      * ("(555) 123-4567".remove_chars("() -") is "5551234567").
      */
     def remove_chars(chars: string): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        used : var = 0;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        used : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(!string_support.in_set(c, chars.data)) out[used++] = c;
         }
         return string_support.of_buffer(out, used);
@@ -183,13 +183,13 @@ mutate string {
      * original order ("a1b2c3".retain_chars("0123456789") is "123").
      */
     def retain_chars(chars: string): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        used : var = 0;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        used : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(string_support.in_set(c, chars.data)) out[used++] = c;
         }
         return string_support.of_buffer(out, used);

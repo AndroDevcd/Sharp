@@ -21,11 +21,11 @@ mod std.io.coroutines.channels;
  */
 class channels {
     /** no buffer: every send meets a receive */
-    static const RENDEZVOUS : var = 0;
+    static const RENDEZVOUS : decimal = 0;
     /** a buffer of a sensible default size */
-    static const BUFFERED : var = 64;
+    static const BUFFERED : decimal = 64;
     /** a buffer without a limit */
-    static const UNLIMITED : var = -1;
+    static const UNLIMITED : decimal = -1;
     /** a buffer of one that always holds the newest element */
-    static const CONFLATED : var = -2;
+    static const CONFLATED : decimal = -2;
 }

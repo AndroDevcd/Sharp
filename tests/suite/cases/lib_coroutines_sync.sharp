@@ -20,9 +20,9 @@ import (
  */
 
 class plain {
-    value : var = 0;
-    peak : var = 0;
-    inside : var = 0;
+    value : decimal = 0;
+    peak : decimal = 0;
+    inside : decimal = 0;
     order : string = "";
 }
 
@@ -38,7 +38,7 @@ finished := new atomic_counter();
 /** read, give others a turn, write back: loses updates unless the mutex really excludes */
 def slow_increment() {
     guard.acquire();
-    seen : var = shared.value;
+    seen : decimal = shared.value;
     yield();
     shared.value = seen + 1;
     guard.release();
@@ -52,7 +52,7 @@ def slow_increment() {
  */
 def sleepy_increment() {
     guard.acquire();
-    seen : var = shared.value;
+    seen : decimal = shared.value;
     delay(1);
     shared.value = seen + 1;
     guard.release();
@@ -92,7 +92,7 @@ def queue_up(tag: string) {
  */
 def warm_up() {
     run_blocking({ ->
-        for(i : var = 0; i < 30; i++) {
+        for(i : decimal = 0; i < 30; i++) {
             w := async<int>.start({ -> (int) delay(1); return 10; });
             w.await();
             k := launch({ -> yield(); delay(1); });
@@ -106,7 +106,7 @@ def warm_up() {
 
     m := new mutex();
     s := new semaphore(1);
-    for(i : var = 0; i < 30; i++) {
+    for(i : decimal = 0; i < 30; i++) {
         m.acquire();
         m.release();
         m.try_acquire();
@@ -140,7 +140,7 @@ def test_atomic_counter() {
 
     never_reached.write(0);
     coroutine_scope({ ->
-        for(i : var = 0; i < 10000; i++) {
+        for(i : decimal = 0; i < 10000; i++) {
             launch_on(dispatchers.default_pool(), { -> never_reached.increment(); });
         }
     });
@@ -204,7 +204,7 @@ def test_mutex_exclusion() {
     // held across a suspension point, on one thread
     shared.value = 0;
     run_blocking({ ->
-        for(i : var = 0; i < 500; i++) {
+        for(i : decimal = 0; i < 500; i++) {
             launch({ -> slow_increment(); });
         }
     });
@@ -213,7 +213,7 @@ def test_mutex_exclusion() {
     // the same on the worker threads
     shared.value = 0;
     coroutine_scope({ ->
-        for(i : var = 0; i < 300; i++) {
+        for(i : decimal = 0; i < 300; i++) {
             launch_on(dispatchers.default_pool(), { -> sleepy_increment(); });
         }
     });
@@ -222,7 +222,7 @@ def test_mutex_exclusion() {
     // 10,000 coroutines, with_lock, an unsynchronised counter
     shared.value = 0;
     coroutine_scope({ ->
-        for(i : var = 0; i < 10000; i++) {
+        for(i : decimal = 0; i < 10000; i++) {
             launch_on(dispatchers.default_pool(), { -> quick_increment(); });
         }
     });
@@ -308,7 +308,7 @@ def test_semaphore() {
     tracker.peak = 0;
     finished.write(0);
     coroutine_scope({ ->
-        for(i : var = 0; i < 600; i++) {
+        for(i : decimal = 0; i < 600; i++) {
             launch_on(dispatchers.default_pool(), { -> through_the_gate(); });
         }
     });

@@ -85,7 +85,7 @@ void fill_stack_trace_from_frame_info() {
     if(methodsField->o && pcField->o) {
         std::list<KeyPair<Int, Int>> frameInfo;
         for (Int i = 0; i < methodsField->o->size; i++) {
-            frameInfo.push_back(KeyPair<Int, Int>(methodsField->o->HEAD[i], pcField->o->HEAD[i]));
+            frameInfo.push_back(KeyPair<Int, Int>(integer_at(methodsField->o, i), integer_at(pcField->o, i)));
         }
 
         string str;
@@ -142,7 +142,7 @@ void vm_exception::push_exception() {
                         copy_object(dataField, create_object(str.size(), type_int8, true));
 
                         for (Int i = 0; i < str.size(); i++) {
-                            dataField->o->HEAD[i] = str[i];
+                            set_integer_at(dataField->o, i, str[i]);
                         }
                     }
                 }
@@ -158,7 +158,7 @@ void vm_exception::push_exception() {
         copy_object(msg, create_object(err.message.size(), type_int8));
 
         for (Int i = 0; i < err.message.size(); i++) {
-            msg->o->HEAD[i] = err.message[i];
+            set_integer_at(msg->o, i, err.message[i]);
         }
 
         auto frameInfo = get_frame_info(thread->task);
@@ -171,8 +171,8 @@ void vm_exception::push_exception() {
 
         Int i = 0; // here we assign frame info to the fields
         for(auto frame : frameInfo) {
-            methods->o->HEAD[i] = frame.key;
-            pc->o->HEAD[i] = frame.value;
+            set_integer_at(methods->o, i, frame.key);
+            set_integer_at(pc->o, i, frame.value);
 
             i++;
         }

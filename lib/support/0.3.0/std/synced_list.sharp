@@ -20,9 +20,9 @@ import (
 * snapshot: foreach (get_elements() copies the elements) or to_list().
 */
 class synced_list<T base _object_> : loopable<T> {
-    private n_elements : var;
+    private n_elements : decimal;
     private data : T[]?;
-    private is_compact: var;
+    private is_compact: decimal;
 
     private static const default_capacity := 10;
     private static const min_capacity := 128;
@@ -122,8 +122,8 @@ class synced_list<T base _object_> : loopable<T> {
      */
     def add_all(lst: list<T>) {
         lock(self) {
-            n : var = lst.size().value;
-            for(i : var = 0; i < n; i++) {
+            n : decimal = lst.size().value;
+            for(i : decimal = 0; i < n; i++) {
                 if(n_elements >= sizeof(data))
                     expand();
                 data[n_elements++] = lst.at(i);
@@ -137,16 +137,16 @@ class synced_list<T base _object_> : loopable<T> {
     }
 
     /** 1 when the list has no elements, otherwise 0 (a native number; empty() answers with a bool object). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         lock(self) {
             return n_elements == 0;
         }
     }
 
     /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
-    def contains(element: T) : var {
+    def contains(element: T) : decimal {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(element == data[i]) return 1;
             }
             return 0;
@@ -160,7 +160,7 @@ class synced_list<T base _object_> : loopable<T> {
     def to_list() : list<T> {
         lock(self) {
             result := new list<T>();
-            for(i : var = 0; i < n_elements; i++)
+            for(i : decimal = 0; i < n_elements; i++)
                 result.add(data[i]);
             return result;
         }
@@ -176,7 +176,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     def indexof(element: T) : int {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(element == data[i]) {
                     return i;
                 }
@@ -218,7 +218,7 @@ class synced_list<T base _object_> : loopable<T> {
                if(n_elements >= sizeof(data))
                    expand();
                n_elements++;
-                for(i : var = n_elements - 1; i > index.value; i--)
+                for(i : decimal = n_elements - 1; i > index.value; i--)
                    data[i] = data[i-1];
                 data[index.value] = element;
             }
@@ -228,7 +228,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     def remove(val: T) {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(val == data[i]) {
                     remove_at(i);
                     return;
@@ -239,7 +239,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     def remove(val: T, compare_fun: (T, T)(bool)) {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(compare_fun(val, data[i])) {
                     remove_at(i);
                     return;
@@ -263,7 +263,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     def indexof(comparer: T, find_func: (T, T)(bool)) : int {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(find_func(data[i], comparer)) {
                     return i;
                 }
@@ -275,9 +275,9 @@ class synced_list<T base _object_> : loopable<T> {
 
     def linear_sort(swap: (T, T)(bool)) {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
 
-                for (j : var = 0; j < n_elements; j++) {
+                for (j : decimal = 0; j < n_elements; j++) {
                     if((j + 1) < n_elements) {
 
                         if (swap(data[j], data[j+1])) {
@@ -293,7 +293,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     def find(comparer : T, find_func: (T, T)(bool)) : T? {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(find_func(data[i], comparer)) {
                     return data[i];
                 }
@@ -303,9 +303,9 @@ class synced_list<T base _object_> : loopable<T> {
         }
     }
 
-    def replace(val: T, compare_fun: (T, T)(var)) : bool {
+    def replace(val: T, compare_fun: (T, T)(decimal)) : bool {
         lock(self) {
-            for(i : var = 0; i < n_elements; i++) {
+            for(i : decimal = 0; i < n_elements; i++) {
                 if(compare_fun(val, data[i])) {
                     data[i] = val;
                     return true;
@@ -336,7 +336,7 @@ class synced_list<T base _object_> : loopable<T> {
 
     override def hash() : int {
         lock(self) {
-            i : var = 0;
+            i : decimal = 0;
             hash_value := 0;
             multiplier := 0;
             const m := 1e9 + 9;

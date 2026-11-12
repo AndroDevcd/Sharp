@@ -19,7 +19,7 @@ mod std.collections;
  * concurrent collections instead.
  *
  * Limitation: the element type has to be an object type; native types such
- * as `var` cannot be used as T.
+ * as `decimal` cannot be used as T.
  */
 class queue<T> : loopable<T>, iterable<T> {
     /** the ring buffer that holds the elements, front of the queue first */
@@ -31,12 +31,12 @@ class queue<T> : loopable<T>, iterable<T> {
     }
 
     /** Number of waiting elements. O(1). */
-    def size() : var {
+    def size() : decimal {
         return items.size();
     }
 
     /** 1 when the queue has no elements, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return items.is_empty();
     }
 
@@ -96,7 +96,7 @@ class queue<T> : loopable<T>, iterable<T> {
     }
 
     /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
-    def contains(element: T) : var {
+    def contains(element: T) : decimal {
         return items.contains(element);
     }
 

@@ -32,7 +32,7 @@ def first(pattern: string, text: string): string {
 def all(pattern: string, text: string): string {
     found := new regex(pattern).find_all(text);
     values := new string[sizeof(found)];
-    for(i : var = 0; i < sizeof(found); i++) {
+    for(i : decimal = 0; i < sizeof(found); i++) {
         values[i] = found[i].value();
     }
     return show(values);

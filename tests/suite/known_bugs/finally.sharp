@@ -35,7 +35,7 @@ def cleanup_with_its_own_finally() {
 }
 
 def main(args: string[]) {
-    caught : var = 0;
+    caught : decimal = 0;
     try {
         cleanup_with_its_own_finally();
     } catch(e: illegal_state_exception) {

@@ -20,9 +20,9 @@ import std;
  * which means the amount of processor instructions executed is in the Tens of trillions
  * of instructions LoL. What is the cause of this? why factorCount() of course
  */
-def main(string[] args) : var {
-    var triangle = 1;
-    var index = 1;
+def main(string[] args) : decimal {
+    decimal triangle = 1;
+    decimal index = 1;
 
     while(factorCount (triangle) < 1001)
     {
@@ -32,10 +32,10 @@ def main(string[] args) : var {
     println("" + triangle);
 }
 
-def factorCount(var n) : var {
-    var square = Math.sqrt(n);
-    var isquare = (_int64)square;
-    var count = isquare == square ? -1 : 0;
+def factorCount(decimal n) : decimal {
+    decimal square = Math.sqrt(n);
+    decimal isquare = (_int64)square;
+    decimal count = isquare == square ? -1 : 0;
     while(isquare) {
         if(0 == n % isquare) count += 2;
         isquare--;

@@ -234,6 +234,9 @@ void compile_field(sharp_field *field, Ast *ast) {
                 }
             }
 
+            // the value becomes the kind of number the variable holds (`x : var = 3`)
+            convert_number_for(e, field->type);
+
             if(field_match_result == match_initializer) {
                 APPLY_TEMP_SCHEME_WITHOUT_INJECT(5,
                      compile_initialization_call(ast, initializer_function, e, &scheme_5);
@@ -364,6 +367,9 @@ void compile_field(sharp_field *field, Ast *ast) {
                                              " expressions are not compatible, assigning nullable type of `" +
                                              type_to_str(xtraField->type) + "` to non nullable type of `" + type_to_str(e.type) + "`.");
                         }
+
+                        // the value becomes the kind of number the variable holds (`x : var = 3`)
+                        convert_number_for(e, xtraField->type);
 
                         if(field_match_result == match_initializer) {
                             APPLY_TEMP_SCHEME_WITHOUT_INJECT(5,

@@ -17,8 +17,8 @@ import ( testing )
  * reports as a failure. With the bug fixed it prints RESULT PASS.
  */
 class sink {
-    count : var = 0;
-    last : var = 0;
+    count : decimal = 0;
+    last : decimal = 0;
 
     def put(ch: _int8): sink {
         count++;
@@ -26,7 +26,7 @@ class sink {
         return self;
     }
 
-    def put_number(n: var): sink {
+    def put_number(n: decimal): sink {
         count++;
         return self;
     }

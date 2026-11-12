@@ -27,15 +27,15 @@ mod std.collections;
  */
 class bit_set {
     /** words[i] holds the bits i*30 .. i*30 + 29; bit b of the word is index i*30 + b */
-    private words : var[];
+    private words : decimal[];
 
-    private static const bits_per_word : var = 30;
+    private static const bits_per_word : decimal = 30;
     /** a word with all 30 bits on: 2^30 - 1 */
-    private static const full_word : var = 1073741823;
+    private static const full_word : decimal = 1073741823;
 
     /** Create an empty bit set (all bits off). */
     bit_set() {
-        words = new var[2];
+        words = new decimal[2];
     }
 
     /**
@@ -47,7 +47,7 @@ class bit_set {
     bit_set(bit_count: int) {
         if(bit_count.value < 0)
             throw new illegal_argument_exception("bit_set: negative size");
-        words = new var[word_index(bit_count.value) + 1];
+        words = new decimal[word_index(bit_count.value) + 1];
     }
 
     /**
@@ -57,7 +57,7 @@ class bit_set {
      */
     def set_bit(index: int) {
         check_index(index.value);
-        w : var = word_index(index.value);
+        w : decimal = word_index(index.value);
         ensure_words(w + 1);
         words[w] = words[w] | (1 << (index.value % bits_per_word));
     }
@@ -69,7 +69,7 @@ class bit_set {
      */
     def clear_bit(index: int) {
         check_index(index.value);
-        w : var = word_index(index.value);
+        w : decimal = word_index(index.value);
         if(w >= sizeof(words)) return;      // beyond the stored words everything is off already
         words[w] = words[w] & (full_word - (1 << (index.value % bits_per_word)));
     }
@@ -79,7 +79,7 @@ class bit_set {
      *
      * @throws out_of_bounds_exception when index is negative
      */
-    def assign(index: int, value: var) {
+    def assign(index: int, value: decimal) {
         if(value) set_bit(index);
         else clear_bit(index);
     }
@@ -100,9 +100,9 @@ class bit_set {
      * @return 1 when the bit is on, 0 when it is off
      * @throws out_of_bounds_exception when index is negative
      */
-    def test(index: int) : var {
+    def test(index: int) : decimal {
         check_index(index.value);
-        w : var = word_index(index.value);
+        w : decimal = word_index(index.value);
         if(w >= sizeof(words)) return 0;
         return (words[w] >> (index.value % bits_per_word)) & 1;
     }
@@ -114,7 +114,7 @@ class bit_set {
      */
     def set_range(from: int, to: int) {
         check_range(from.value, to.value);
-        for(i : var = from.value; i < to.value; i++)
+        for(i : decimal = from.value; i < to.value; i++)
             set_bit(i);
     }
 
@@ -125,21 +125,21 @@ class bit_set {
      */
     def clear_range(from: int, to: int) {
         check_range(from.value, to.value);
-        for(i : var = from.value; i < to.value; i++)
+        for(i : decimal = from.value; i < to.value; i++)
             clear_bit(i);
     }
 
     /** Turn every bit off. O(n). */
     def clear() {
-        for(i : var = 0; i < sizeof(words); i++)
+        for(i : decimal = 0; i < sizeof(words); i++)
             words[i] = 0;
     }
 
     /** Number of bits that are on. O(n) in the number of words. */
-    def cardinality() : var {
-        total : var = 0;
-        for(i : var = 0; i < sizeof(words); i++) {
-            word : var = words[i];
+    def cardinality() : decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(words); i++) {
+            word : decimal = words[i];
             // clearing the lowest bit that is on, once per such bit
             while(word != 0) {
                 word = word & (word - 1);
@@ -150,8 +150,8 @@ class bit_set {
     }
 
     /** 1 when no bit is on, otherwise 0. O(n) in the number of words. */
-    def is_empty() : var {
-        for(i : var = 0; i < sizeof(words); i++) {
+    def is_empty() : decimal {
+        for(i : decimal = 0; i < sizeof(words); i++) {
             if(words[i] != 0) return 0;
         }
         return 1;
@@ -161,10 +161,10 @@ class bit_set {
      * Index of the highest bit that is on, plus one; 0 when no bit is on.
      * (So all bits at index >= length() are off.)
      */
-    def length() : var {
-        for(w : var = sizeof(words) - 1; w >= 0; w--) {
+    def length() : decimal {
+        for(w : decimal = sizeof(words) - 1; w >= 0; w--) {
             if(words[w] != 0) {
-                for(b : var = bits_per_word - 1; b >= 0; b--) {
+                for(b : decimal = bits_per_word - 1; b >= 0; b--) {
                     if((words[w] >> b) & 1) return w * bits_per_word + b + 1;
                 }
             }
@@ -176,16 +176,16 @@ class bit_set {
      * Index of the first bit that is ON at or after `from`, or -1 when there
      * is none. Loop over all bits that are on with:
      *
-     *     for(i : var = bits.next_set_bit(0); i >= 0; i = bits.next_set_bit(i + 1)) ...
+     *     for(i : decimal = bits.next_set_bit(0); i >= 0; i = bits.next_set_bit(i + 1)) ...
      *
      * @throws out_of_bounds_exception when from is negative
      */
-    def next_set_bit(from: int) : var {
+    def next_set_bit(from: int) : decimal {
         check_index(from.value);
-        limit : var = sizeof(words) * bits_per_word;
-        i : var = from.value;
+        limit : decimal = sizeof(words) * bits_per_word;
+        i : decimal = from.value;
         while(i < limit) {
-            w : var = word_index(i);
+            w : decimal = word_index(i);
             if(words[w] == 0) {
                 i = (w + 1) * bits_per_word;        // nothing in this word: skip it whole
             } else {
@@ -202,12 +202,12 @@ class bit_set {
      *
      * @throws out_of_bounds_exception when from is negative
      */
-    def next_clear_bit(from: int) : var {
+    def next_clear_bit(from: int) : decimal {
         check_index(from.value);
-        limit : var = sizeof(words) * bits_per_word;
-        i : var = from.value;
+        limit : decimal = sizeof(words) * bits_per_word;
+        i : decimal = from.value;
         while(i < limit) {
-            w : var = word_index(i);
+            w : decimal = word_index(i);
             if(words[w] == full_word) {
                 i = (w + 1) * bits_per_word;        // this word is all on: skip it whole
             } else {
@@ -220,7 +220,7 @@ class bit_set {
 
     /** Keep only the bits that are also on in `other` (intersection). `other` is not changed. */
     def and_with(other: bit_set) {
-        for(i : var = 0; i < sizeof(words); i++) {
+        for(i : decimal = 0; i < sizeof(words); i++) {
             if(i < sizeof(other.words)) words[i] = words[i] & other.words[i];
             else words[i] = 0;
         }
@@ -229,28 +229,28 @@ class bit_set {
     /** Also turn on every bit that is on in `other` (union). `other` is not changed. */
     def or_with(other: bit_set) {
         ensure_words(sizeof(other.words));
-        for(i : var = 0; i < sizeof(other.words); i++)
+        for(i : decimal = 0; i < sizeof(other.words); i++)
             words[i] = words[i] | other.words[i];
     }
 
     /** Switch every bit that is on in `other` (afterwards a bit is on when it was on in exactly one of the two). */
     def xor_with(other: bit_set) {
         ensure_words(sizeof(other.words));
-        for(i : var = 0; i < sizeof(other.words); i++)
+        for(i : decimal = 0; i < sizeof(other.words); i++)
             words[i] = words[i] ^ other.words[i];
     }
 
     /** Turn off every bit that is on in `other` (difference). `other` is not changed. */
     def and_not(other: bit_set) {
-        for(i : var = 0; i < sizeof(words); i++) {
+        for(i : decimal = 0; i < sizeof(words); i++) {
             if(i < sizeof(other.words))
                 words[i] = words[i] & (full_word - other.words[i]);
         }
     }
 
     /** 1 when at least one bit is on in both sets, otherwise 0. */
-    def intersects(other: bit_set) : var {
-        for(i : var = 0; i < sizeof(words); i++) {
+    def intersects(other: bit_set) : decimal {
+        for(i : decimal = 0; i < sizeof(words); i++) {
             if(i < sizeof(other.words)) {
                 if((words[i] & other.words[i]) != 0) return 1;
             }
@@ -259,13 +259,13 @@ class bit_set {
     }
 
     /** 1 when exactly the same bits are on in both sets (their capacities may differ), otherwise 0. */
-    def same_bits(other: bit_set) : var {
-        longest : var = sizeof(words);
+    def same_bits(other: bit_set) : decimal {
+        longest : decimal = sizeof(words);
         if(sizeof(other.words) > longest) longest = sizeof(other.words);
 
-        for(i : var = 0; i < longest; i++) {
-            mine : var = 0;
-            theirs : var = 0;
+        for(i : decimal = 0; i < longest; i++) {
+            mine : decimal = 0;
+            theirs : decimal = 0;
             if(i < sizeof(words)) mine = words[i];
             if(i < sizeof(other.words)) theirs = other.words[i];
             if(mine != theirs) return 0;
@@ -283,7 +283,7 @@ class bit_set {
     /** The indexes of all bits that are on, in ascending order. */
     def to_list() : list<int> {
         result := new list<int>();
-        for(i : var = next_set_bit(0); i >= 0; i = next_set_bit(i + 1))
+        for(i : decimal = next_set_bit(0); i >= 0; i = next_set_bit(i + 1))
             result.add(new int(i));
         return result;
     }
@@ -291,8 +291,8 @@ class bit_set {
     /** The indexes of the bits that are on, like "{1, 5, 64}" ("{}" when none is). */
     def to_string() : string {
         text := "{";
-        first : var = 1;
-        for(i : var = next_set_bit(0); i >= 0; i = next_set_bit(i + 1)) {
+        first : decimal = 1;
+        for(i : decimal = next_set_bit(0); i >= 0; i = next_set_bit(i + 1)) {
             if(!first) text = text + ", ";
             first = 0;
             text = text + new int(i);
@@ -301,30 +301,30 @@ class bit_set {
     }
 
     /** Which word holds the bit: index / 30, rounded down. */
-    private def word_index(index: var) : var {
+    private def word_index(index: decimal) : decimal {
         return (index - (index % bits_per_word)) / bits_per_word;
     }
 
     /** Grow the word array (keeping its contents) so that it has at least `wanted` words. */
-    private def ensure_words(wanted: var) {
+    private def ensure_words(wanted: decimal) {
         if(wanted <= sizeof(words)) return;
 
-        length : var = sizeof(words) * 2;
+        length : decimal = sizeof(words) * 2;
         if(length < wanted) length = wanted;
-        bigger := new var[length];
-        for(i : var = 0; i < sizeof(words); i++)
+        bigger := new decimal[length];
+        for(i : decimal = 0; i < sizeof(words); i++)
             bigger[i] = words[i];
         words = bigger;
     }
 
-    private def check_index(index: var) {
+    private def check_index(index: decimal) {
         if(index < 0) {
             i : int = index;
             throw new out_of_bounds_exception("bit_set: negative index $i");
         }
     }
 
-    private def check_range(from: var, to: var) {
+    private def check_range(from: decimal, to: decimal) {
         if(from < 0 || from > to) {
             a : int = from;
             b : int = to;

@@ -11,12 +11,12 @@ import std;
  * copy methods vs doing it in sharp
  *
  */
-def main(string[] args) : var {
-    var[] lst1 = new var[10000000];
-    var[] lst2 = new var[10000000];
+def main(string[] args) : decimal {
+    decimal[] lst1 = new decimal[10000000];
+    decimal[] lst2 = new decimal[10000000];
 
-    var past = getUtcTimeInMills(), now;
-    for(var i = 0; i < sizeof(lst1); i++) {
+    decimal past = getUtcTimeInMills(), now;
+    for(decimal i = 0; i < sizeof(lst1); i++) {
         lst2[i] = lst1[i];
     }
 
@@ -24,7 +24,7 @@ def main(string[] args) : var {
     println("for loop (" + (now-past) + ") ms");
 
     past = getUtcTimeInMills();
-    lst2 = (var[])memcpy(lst1, 0, sizeof(lst1));
+    lst2 = (decimal[])memcpy(lst1, 0, sizeof(lst1));
 
     now = getUtcTimeInMills();
     println("memcpy (" + (now-past) + ") ms");

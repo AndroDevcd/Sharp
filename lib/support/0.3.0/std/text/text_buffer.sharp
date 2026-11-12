@@ -11,7 +11,7 @@ import ( std.io )
  * produced in a loop:
  *
  *     out := new text_buffer();
- *     for(i : var = 0; i < n; i++) {
+ *     for(i : decimal = 0; i < n; i++) {
  *         out.append_char('a' + i);
  *     }
  *     out.append(" done");
@@ -19,7 +19,7 @@ import ( std.io )
  *
  * Compared with std#string_builder it is deliberately minimal: it only
  * appends at the end (plus drop_last and clear), and everything is native
- * numbers - characters, positions and lengths are `var`, so no number objects
+ * numbers - characters, positions and lengths are `decimal`, so no number objects
  * are created while building. For inserting, deleting or searching inside
  * the text use string_builder.
  *
@@ -34,10 +34,10 @@ class text_buffer {
         private set value -> { data = value; }
 
     /* the number of characters of text */
-    private used : var = 0;
+    private used : decimal = 0;
 
     /* size of the array a buffer starts with */
-    private static const start_capacity : var = 32;
+    private static const start_capacity : decimal = 32;
 
     /** An empty buffer. */
     text_buffer() {
@@ -50,17 +50,17 @@ class text_buffer {
     }
 
     /** Makes sure `extra` more characters fit, at least doubling the array when it has to grow. */
-    private def reserve(extra: var) {
-        needed : var = used + extra;
+    private def reserve(extra: decimal) {
+        needed : decimal = used + extra;
         if(needed > sizeof(data)) {
-            bigger : var = sizeof(data) * 2;
+            bigger : decimal = sizeof(data) * 2;
             if(bigger < needed) bigger = needed;
             realloc(data!!, bigger);
         }
     }
 
     /** Appends one character, given as a native number or a character literal. Returns this buffer. */
-    def append_char(c: var): text_buffer {
+    def append_char(c: decimal): text_buffer {
         if(used >= sizeof(data)) reserve(1);
         data[used++] = c;
         return self;
@@ -68,7 +68,7 @@ class text_buffer {
 
     /** Appends the text of `text` (nothing if it is empty). Returns this buffer. */
     def append(text: string): text_buffer {
-        len : var = sizeof(text.data);
+        len : decimal = sizeof(text.data);
         if(len > 0) {
             reserve(len);
             memcopy(text.data!!, data!!, used, 0, len);
@@ -78,10 +78,10 @@ class text_buffer {
     }
 
     /** Appends the character `c` `count` times (nothing for a count of 0 or less). Returns this buffer. */
-    def append_repeat(c: var, count: var): text_buffer {
+    def append_repeat(c: decimal, count: decimal): text_buffer {
         if(count > 0) {
             reserve(count);
-            for(i : var = 0; i < count; i++) {
+            for(i : decimal = 0; i < count; i++) {
                 data[used++] = c;
             }
         }
@@ -89,12 +89,12 @@ class text_buffer {
     }
 
     /** The number of characters appended so far. */
-    def length(): var {
+    def length(): decimal {
         return used;
     }
 
     /** 1 if nothing has been appended (or everything was cleared). */
-    def is_empty(): var {
+    def is_empty(): decimal {
         return used == 0;
     }
 
@@ -102,13 +102,13 @@ class text_buffer {
      * The character at `index` (0 = first), or -1 if index is outside of the
      * text. Never throws.
      */
-    def char_at(index: var): var {
+    def char_at(index: decimal): decimal {
         if(index < 0 || index >= used) return -1;
         return data[index];
     }
 
     /** The last character, or -1 if the buffer is empty. */
-    def last(): var {
+    def last(): decimal {
         if(used == 0) return -1;
         return data[used - 1];
     }
@@ -120,7 +120,7 @@ class text_buffer {
     }
 
     /** Makes sure the buffer can hold `capacity` characters in total without growing again. Returns this buffer. */
-    def ensure_capacity(capacity: var): text_buffer {
+    def ensure_capacity(capacity: decimal): text_buffer {
         if(capacity > used) reserve(capacity - used);
         return self;
     }

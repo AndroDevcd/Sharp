@@ -7,13 +7,13 @@ import ( testing, std.collections )
  * ranges, removal, and that the tree stays balanced.
  */
 
-def ascending(a: int, b: int) : var { return a.value - b.value; }
-def descending(a: int, b: int) : var { return b.value - a.value; }
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
 
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : var = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -23,7 +23,7 @@ def join(items: list<int>) : string {
 /** "1,2,3" for the keys an entry iterator still has to give */
 def drain_keys(it: iterator<map_entry<int, string> >) : string {
     text := "";
-    first : var = 1;
+    first : decimal = 1;
     while(it.has_next()) {
         if(!first) text = text + ",";
         first = 0;
@@ -33,7 +33,7 @@ def drain_keys(it: iterator<map_entry<int, string> >) : string {
 }
 
 /** the value of a nullable int, or -1 for null */
-def or_minus_one(value: int?) : var {
+def or_minus_one(value: int?) : decimal {
     if(value == null) return 0 - 1;
     return value!!.value;
 }
@@ -98,7 +98,7 @@ def test_tree_map_basics() {
     expect_str("tree last_entry", m.last_entry()!!.value, "eighty");
     expect_str("tree iterator", drain_keys(m.iterator()), "10,20,30,40,50,60,70,80");
     expect_str("tree descending_iterator", drain_keys(m.descending_iterator()), "80,70,60,50,40,30,20,10");
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(entry in m) { digits = digits * 10 + entry.key.value / 10; }
     expect("tree foreach", digits, 12345678);
     finished := m.iterator();
@@ -170,7 +170,7 @@ def test_tree_map_basics() {
     expect("tree descending first_key", down.first_key().value, 3);
     expect("tree descending floor_key (the nearest key at or BEFORE in map order)", or_minus_one(down.ceiling_key(0)), 0 - 1);
 
-    by_length := new tree_map<string, int>({ a: string, b: string -> (var) return a.size().value - b.size().value; });
+    by_length := new tree_map<string, int>({ a: string, b: string -> (decimal) return a.size().value - b.size().value; });
     by_length.put("ccc", 3); by_length.put("a", 1); by_length.put("bb", 2);
     expect("tree same length is the same key", by_length.put("zz", 22), 0);
     expect("tree<string> size", by_length.size(), 3);
@@ -182,7 +182,7 @@ def test_tree_map_basics() {
 /** insert order that would turn an unbalanced tree into a linked list */
 def test_tree_map_balance() {
     m := new tree_map<int, int>(ascending);
-    for(i : var = 1; i <= 1023; i++) m.put(i, i * 2);
+    for(i : decimal = 1; i <= 1023; i++) m.put(i, i * 2);
     expect("tree ascending inserts size", m.size(), 1023);
     expect("tree ascending inserts stay perfectly balanced", m.height(), 10);
     expect("tree ascending inserts first", m.first_key().value, 1);
@@ -190,16 +190,16 @@ def test_tree_map_balance() {
     expect("tree ascending inserts at", m.at(777)!!.value, 1554);
 
     down := new tree_map<int, int>(ascending);
-    for(i : var = 2000; i >= 1; i--) down.put(i, i);
+    for(i : decimal = 2000; i >= 1; i--) down.put(i, i);
     expect("tree descending inserts size", down.size(), 2000);
     expect_true("tree descending inserts height <= 12", down.height() <= 12);
 
     // remove from one side only: the tree must shrink and stay balanced
-    for(i : var = 1; i <= 1900; i++) down.remove(i);
+    for(i : decimal = 1; i <= 1900; i++) down.remove(i);
     expect("tree one sided removes size", down.size(), 100);
     expect_true("tree one sided removes height <= 8", down.height() <= 8);
     expect("tree one sided removes first", down.first_key().value, 1901);
-    sum : var = 0;
+    sum : decimal = 0;
     foreach(entry in down) { sum += entry.value.value; }
     expect("tree one sided removes sum (1901..2000)", sum, 195050);
 }

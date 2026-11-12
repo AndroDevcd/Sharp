@@ -31,16 +31,16 @@ import ( std.io, std.math, std.text )
  * runtime has no "append" call, so it reads the whole file and writes it back.
  */
 
-seed : var = 42;
+seed : decimal = 42;
 
 /** the next pseudo random whole number, 1 .. 2147483646 (Lehmer / "minstd") */
-def next() : var {
+def next() : decimal {
     seed = (seed * 48271) % 2147483647;
     return seed;
 }
 
 /** a pseudo random number in [0, 1) */
-def unit() : var {
+def unit() : decimal {
     return next() / 2147483647;
 }
 
@@ -50,7 +50,7 @@ def main(args: string[]) {
         exit(2);
     }
 
-    entries : var = 524288;
+    entries : decimal = 524288;
     if(sizeof(args) > 1) { entries = args[1].to_int(); }
 
     out := new file(args[0]);
@@ -60,7 +60,7 @@ def main(args: string[]) {
     append_command := "cat '" + args[0] + ".part' >> '" + args[0] + "'";
 
     chunk := new string_builder();
-    for(i : var = 0; i < entries; i++) {
+    for(i : decimal = 0; i < entries; i++) {
         chunk += "    {\n      \"x\": -";
         chunk += number_to_fixed(unit() * 9 + 1, 15);
         chunk += "e-30,\n      \"y\": ";
@@ -68,7 +68,7 @@ def main(args: string[]) {
         chunk += "e+30,\n      \"z\": ";
         chunk += number_to_fixed(unit(), 16);
         chunk += ",\n      \"name\": \"";
-        for(letter : var = 0; letter < 6; letter++) {
+        for(letter : decimal = 0; letter < 6; letter++) {
             chunk.append_char('a' + next() % 26);
         }
         chunk += " ";

@@ -207,7 +207,7 @@ def check_vector3() {
 }
 
 def check_matrix() {
-    m := new matrix(2, 3, new var[] { 1, 2, 3, 4, 5, 6 });
+    m := new matrix(2, 3, new decimal[] { 1, 2, 3, 4, 5, 6 });
     expect("rows", m.rows, 2);
     expect("columns", m.columns, 3);
     expect("at(0, 0)", m.at(0, 0), 1);
@@ -231,7 +231,7 @@ def check_matrix() {
     id := matrix.identity(3);
     expect("identity diagonal", id.at(0, 0) + id.at(1, 1) + id.at(2, 2), 3);
     expect("identity elsewhere", id.at(0, 1) + id.at(2, 0), 0);
-    diag := matrix.diagonal(new var[] { 2, 3 });
+    diag := matrix.diagonal(new decimal[] { 2, 3 });
     expect("diagonal", diag.at(0, 0) * 10 + diag.at(1, 1), 23);
     expect("diagonal off cells", diag.at(0, 1), 0);
 
@@ -247,8 +247,8 @@ def check_matrix() {
     expect("transpose (2, 0)", t.at(2, 0), 3);
     expect("transpose (0, 1)", t.at(0, 1), 4);
 
-    a := new matrix(2, 2, new var[] { 1, 2, 3, 4 });
-    b := new matrix(2, 2, new var[] { 5, 6, 7, 8 });
+    a := new matrix(2, 2, new decimal[] { 1, 2, 3, 4 });
+    b := new matrix(2, 2, new decimal[] { 5, 6, 7, 8 });
     sum := a + b;
     expect("a + b", sum.at(0, 0) + sum.at(1, 1), 18);
     difference := b - a;
@@ -269,26 +269,26 @@ def check_matrix() {
     expect("(2 x 3) * (3 x 2) cell", wide.at(1, 1), 77);
     expect("(2 x 3) * (3 x 2) cell 2", wide.at(0, 1), 32);
     expect_true("a * identity == a", (a * matrix.identity(2) == a).value);
-    expect_true("==", (a == new matrix(2, 2, new var[] { 1, 2, 3, 4 })).value);
+    expect_true("==", (a == new matrix(2, 2, new decimal[] { 1, 2, 3, 4 })).value);
     expect_true("!=", (a != b).value);
     expect_false("== with another size", (a == m).value);
     expect_true("same_size", a.same_size(b).value);
     expect_false("same_size differs", a.same_size(m).value);
 
-    vector := m.multiply_vector(new var[] { 1, 0, 2 });
+    vector := m.multiply_vector(new decimal[] { 1, 0, 2 });
     expect("multiply_vector [0]", vector[0], 7);
     expect("multiply_vector [1]", vector[1], 16);
 
     expect("trace", a.trace(), 5);
     expect("determinant 2 x 2", a.determinant(), 0 - 2);
-    c := new matrix(3, 3, new var[] { 2, 0, 1, 1, 3, 2, 1, 1, 1 });
+    c := new matrix(3, 3, new decimal[] { 2, 0, 1, 1, 3, 2, 1, 1, 1 });
     expect_near("determinant 3 x 3", c.determinant(), 0, 0.000000000001);     // 2(3-2) - 0 + 1(1-3) = 0
-    d := new matrix(3, 3, new var[] { 6, 1, 1, 4, 0 - 2, 5, 2, 8, 7 });
+    d := new matrix(3, 3, new decimal[] { 6, 1, 1, 4, 0 - 2, 5, 2, 8, 7 });
     expect_near("determinant 3 x 3 (b)", d.determinant(), 0 - 306, 0.000000001);
     expect("determinant of identity", matrix.identity(4).determinant(), 1);
-    expect("determinant needing a row swap", new matrix(2, 2, new var[] { 0, 1, 1, 0 }).determinant(), 0 - 1);
+    expect("determinant needing a row swap", new matrix(2, 2, new decimal[] { 0, 1, 1, 0 }).determinant(), 0 - 1);
 
-    e := new matrix(2, 2, new var[] { 4, 7, 2, 6 });
+    e := new matrix(2, 2, new decimal[] { 4, 7, 2, 6 });
     inv := e.inverse();
     expect_near("inverse (0, 0)", inv.at(0, 0), 0.6, 0.000000000001);
     expect_near("inverse (0, 1)", inv.at(0, 1), 0 - 0.7, 0.000000000001);
@@ -304,11 +304,11 @@ def check_matrix() {
     }
 
     // 2x + y = 5, x + 3y = 10  ->  x = 1, y = 3
-    solution := new matrix(2, 2, new var[] { 2, 1, 1, 3 }).solve(new var[] { 5, 10 });
+    solution := new matrix(2, 2, new decimal[] { 2, 1, 1, 3 }).solve(new decimal[] { 5, 10 });
     expect_near("solve x", solution[0], 1, 0.000000000001);
     expect_near("solve y", solution[1], 3, 0.000000000001);
 
-    fib := new matrix(2, 2, new var[] { 1, 1, 1, 0 }).power(10);     // { F11, F10, F10, F9 }
+    fib := new matrix(2, 2, new decimal[] { 1, 1, 1, 0 }).power(10);     // { F11, F10, F10, F9 }
     expect("power: F11", fib.at(0, 0), 89);
     expect("power: F10", fib.at(0, 1), 55);
     expect("power: F9", fib.at(1, 1), 34);
@@ -318,16 +318,16 @@ def check_matrix() {
     expect("minor size", minor.rows * 10 + minor.columns, 22);
     expect("minor cells", minor.at(0, 0) * 1000 + minor.at(0, 1) * 100 + minor.at(1, 0) * 10 + minor.at(1, 1), 0 - 2000 + 500 + 80 + 7);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { new matrix(0, 2); } catch(e3: illegal_argument_exception) { caught++; }
-    try { new matrix(2, 2, new var[] { 1, 2, 3 }); } catch(e4: illegal_argument_exception) { caught++; }
+    try { new matrix(2, 2, new decimal[] { 1, 2, 3 }); } catch(e4: illegal_argument_exception) { caught++; }
     try { a + m; } catch(e5: illegal_argument_exception) { caught++; }
     try { a - m; } catch(e6: illegal_argument_exception) { caught++; }
     try { m * m; } catch(e7: illegal_argument_exception) { caught++; }
     try { m.determinant(); } catch(e8: illegal_argument_exception) { caught++; }
     try { m.inverse(); } catch(e9: illegal_argument_exception) { caught++; }
     try { m.trace(); } catch(e10: illegal_argument_exception) { caught++; }
-    try { m.multiply_vector(new var[] { 1, 2 }); } catch(e11: illegal_argument_exception) { caught++; }
+    try { m.multiply_vector(new decimal[] { 1, 2 }); } catch(e11: illegal_argument_exception) { caught++; }
     try { a.power(0 - 1); } catch(e12: illegal_argument_exception) { caught++; }
     expect("wrong sizes throw illegal_argument_exception", caught, 10);
 

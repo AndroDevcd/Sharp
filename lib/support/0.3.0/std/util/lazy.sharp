@@ -26,8 +26,8 @@ mod std.util;
 class lazy<T> {
     private supplier : ()(T);
     private item : T?;
-    private computed : var = 0;
-    private has_supplier : var = 1;
+    private computed : decimal = 0;
+    private has_supplier : decimal = 1;
 
     /** a lazy value that will be produced by calling `supplier` */
     lazy(supplier: ()(T)) {

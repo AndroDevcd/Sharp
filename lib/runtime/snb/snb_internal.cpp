@@ -27,7 +27,10 @@ void ref_decrement(SharpObject obj) {
 }
 
 double* get_local_number_at(int32_t address) {
-    return &(thread_self->task->fp+address)->var;
+    // The native bridge hands numbers to native code as doubles: only a DECIMAL
+    // local can be reached this way. (Integer locals need typed accessors in
+    // the bridge API; see the note in tests/suite/known_bugs/README.md.)
+    return &(thread_self->task->fp+address)->var.d;
 }
 
 SharpObject get_local_object_at(int32_t address) {
@@ -60,9 +63,10 @@ SharpObject get_field(SharpObject obj, const char* name) {
     return lastField;
 }
 
-long double* get_raw_number_data(SharpObject *obj) {
+double* get_raw_number_data(SharpObject *obj) {
     if(obj && ((object*)obj)->o && ((object*)obj)->o->type <= type_var) {
-        return ((object*)obj)->o->HEAD;
+        // only a var[] (decimals) has data that is an array of doubles
+        return holds_decimals(((object*)obj)->o) ? (double*)((object*)obj)->o->data : nullptr;
     }
 
     return nullptr;
@@ -70,7 +74,7 @@ long double* get_raw_number_data(SharpObject *obj) {
 
 double pop_number() {
     try {
-        auto num = (thread_self->task->sp)->var;
+        auto num = (thread_self->task->sp)->var.d;
 
         thread_self->task->sp--;
         if ((thread_self->task->sp - thread_self->task->stack) < 0) {
@@ -201,7 +205,7 @@ void push_number_to_stack(double value) {
         auto task = thread_self->task;
         grow_stack
         stack_overflow_check
-        push_stack_number = value;
+        push_stack_number.d = value;
     } catch(vm_exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
     }
@@ -306,7 +310,7 @@ void return_object(SharpObject obj) {
 
 void return_number(double num) {
     auto task = thread_self->task;
-    task->fp->var = num;
+    task->fp->var.d = num;
 }
 
 void return_call() {

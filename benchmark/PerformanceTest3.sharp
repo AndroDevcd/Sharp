@@ -11,10 +11,10 @@ import std;
 * simply uses c++ to perform the lengthy operations.
 *
 */
-def main(string[] args) : var {
+def main(string[] args) : decimal {
     ObjList black_list = new ObjList();
 
-    for(var i = 0; i < 2000_000_000; i++) {
+    for(decimal i = 0; i < 2000_000_000; i++) {
         black_list.add(new Foo());
         // there
     }
@@ -22,8 +22,8 @@ def main(string[] args) : var {
 }
 
 public class Foo {
-    var i = 1234;
-    var[] msg = "mckdm";
-    var z = 0.932;
+    decimal i = 1234;
+    decimal[] msg = "mckdm";
+    decimal z = 0.932;
 }
 

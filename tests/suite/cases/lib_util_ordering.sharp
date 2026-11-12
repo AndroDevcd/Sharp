@@ -9,9 +9,9 @@ import ( testing, std.util )
 
 class person {
     name : string = "";
-    age : var = 0;
+    age : decimal = 0;
 
-    person(name: string, age: var) {
+    person(name: string, age: decimal) {
         self->name = name;
         self->age = age;
     }
@@ -20,7 +20,7 @@ class person {
 /* the names of the people in an array, joined with commas */
 def names_of(people: person[]): string {
     text : string = "";
-    for(i : var = 0; i < sizeof(people); i++) {
+    for(i : decimal = 0; i < sizeof(people); i++) {
         if(i > 0) text = text + ",";
         text = text + people[i].name;
     }
@@ -29,7 +29,7 @@ def names_of(people: person[]): string {
 
 def join(words: string[]): string {
     text : string = "";
-    for(i : var = 0; i < sizeof(words); i++) {
+    for(i : decimal = 0; i < sizeof(words); i++) {
         if(i > 0) text = text + ",";
         text = text + words[i];
     }
@@ -40,7 +40,7 @@ def join(words: string[]): string {
 def values_of(r: range): string {
     text : string = "";
     numbers := r.to_array();
-    for(i : var = 0; i < sizeof(numbers); i++) {
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
         if(i > 0) text = text + " ";
         shown : int = numbers[i];
         text = text + shown;
@@ -59,8 +59,8 @@ def check_range() {
     expect("sum", r.sum(), 15);
     expect_str("to_string", r.to_string()!!, "1..5");
 
-    total : var = 0;
-    rounds : var = 0;
+    total : decimal = 0;
+    rounds : decimal = 0;
     foreach(i in r) {
         total += i;
         rounds++;
@@ -78,7 +78,7 @@ def check_range() {
     expect("at(4)", r.at(4), 5);
     expect("index_of(4)", r.index_of(4), 3);
     expect("index_of a missing value", r.index_of(9), 0 - 1);
-    caught : var = 0;
+    caught : decimal = 0;
     try { r.at(5); } catch(e: out_of_bounds_exception) { caught++; }
     try { r.at(0 - 1); } catch(e: out_of_bounds_exception) { caught++; }
     expect("at outside throws", caught, 2);
@@ -132,7 +132,7 @@ def check_range() {
     expect_true("fractional steps: contains", quarters.contains(0.5).value);
 
     collected := new counter();
-    r.for_each({ v: var -> collected.add(v * 10); });
+    r.for_each({ v: decimal -> collected.add(v * 10); });
     expect("for_each", collected.value, 150);
 
     expect_true("==", (r == new range(1, 5)).value);
@@ -159,9 +159,9 @@ def make_people(): person[] {
 }
 
 def check_comparator() {
-    by_age := comparator<person>.by_key({ p: person -> (var) return p.age; });
+    by_age := comparator<person>.by_key({ p: person -> (decimal) return p.age; });
     by_name := comparator<person>.by_text({ p: person -> (string) return p.name; });
-    by_name_length := new comparator<person>({ a: person, b: person -> (var) return a.name.size().value - b.name.size().value; });
+    by_name_length := new comparator<person>({ a: person, b: person -> (decimal) return a.name.size().value - b.name.size().value; });
 
     young := new person("young", 10);
     old := new person("old", 90);
@@ -208,7 +208,7 @@ def check_comparator() {
     by_age.then_by(by_name).reversed().sort(people);
     expect_str("reversing a combined order reverses all of it", names_of(people), "dora,cleo,eve,adam,bert");
     people = make_people();
-    by_name_length.then_by_key({ p: person -> (var) return p.age; }).sort(people);
+    by_name_length.then_by_key({ p: person -> (decimal) return p.age; }).sort(people);
     expect_str("then_by_key", names_of(people), "eve,bert,adam,dora,cleo");
     people = make_people();
     by_age.then_by_text({ p: person -> (string) return p.name; }).sort(people);
@@ -219,7 +219,7 @@ def check_comparator() {
     expect_str("max_of (the last of the equal ones)", by_age.max_of(people).name, "cleo");
     expect_str("min_of by name", by_name.min_of(people).name, "adam");
     expect_str("max_of by name", by_name.max_of(people).name, "eve");
-    caught : var = 0;
+    caught : decimal = 0;
     try { by_age.min_of(new person[0]); } catch(e: no_such_element_exception) { caught++; }
     try { by_age.max_of(new person[0]); } catch(e: no_such_element_exception) { caught++; }
     expect("min_of / max_of of nothing throw", caught, 2);

@@ -109,7 +109,7 @@ def test_process() {
     expect_false("command_exists nonsense", process.command_exists("this_command_does_not_exist_12345").value);
 
     // nothing is left behind in the temporary directory
-    left : var = 0;
+    left : decimal = 0;
     temp_dir := new file(temp_files.directory());
     temp_names := temp_dir.list_names();
     foreach(name in temp_names) {

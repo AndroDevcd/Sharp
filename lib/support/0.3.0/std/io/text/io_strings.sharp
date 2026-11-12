@@ -26,13 +26,13 @@ class io_strings {
      * for this: it calls the == operator of string, which fails for a null
      * string and is true for an empty one.
      */
-    static def is_null(s: string?) : var {
+    static def is_null(s: string?) : decimal {
         o : object = s;
         return o == null;
     }
 
     /** the number of characters in `s` as a native number (0 for null) */
-    static def length(s: string) : var {
+    static def length(s: string) : decimal {
         if((s as object) == null) {
             return 0;
         }
@@ -44,8 +44,8 @@ class io_strings {
      * Unlike string.substring() this never throws: the range is clipped to
      * the string, and an empty range gives "".
      */
-    static def slice(s: string, start: var, end: var) : string {
-        n : var = sizeof(s.data);
+    static def slice(s: string, start: decimal, end: decimal) : string {
+        n : decimal = sizeof(s.data);
         if(start < 0) {
             start = 0;
         }
@@ -59,7 +59,7 @@ class io_strings {
     }
 
     /** the characters of `s` from `start` to the end ("" when start is past the end) */
-    static def slice_from(s: string, start: var) : string {
+    static def slice_from(s: string, start: decimal) : string {
         return slice(s, start, sizeof(s.data));
     }
 
@@ -67,12 +67,12 @@ class io_strings {
      * The position of the first character `ch` at or after position `from`,
      * or -1 when there is none.
      */
-    static def index_of(s: string, ch: var, from: var) : var {
-        n : var = sizeof(s.data);
+    static def index_of(s: string, ch: decimal, from: decimal) : decimal {
+        n : decimal = sizeof(s.data);
         if(from < 0) {
             from = 0;
         }
-        for(i : var = from; i < n; i++) {
+        for(i : decimal = from; i < n; i++) {
             if(s.data[i] == ch) {
                 return i;
             }
@@ -81,13 +81,13 @@ class io_strings {
     }
 
     /** the position of the first character `ch`, or -1 when there is none */
-    static def index_of(s: string, ch: var) : var {
+    static def index_of(s: string, ch: decimal) : decimal {
         return index_of(s, ch, 0);
     }
 
     /** the position of the last character `ch`, or -1 when there is none */
-    static def last_index_of(s: string, ch: var) : var {
-        for(i : var = sizeof(s.data) - 1; i >= 0; i--) {
+    static def last_index_of(s: string, ch: decimal) : decimal {
+        for(i : decimal = sizeof(s.data) - 1; i >= 0; i--) {
             if(s.data[i] == ch) {
                 return i;
             }
@@ -100,14 +100,14 @@ class io_strings {
      * or -1 when it does not occur. An empty needle is found at `from`
      * (as long as from is not past the end).
      */
-    static def index_of_text(s: string, needle: string, from: var) : var {
-        n : var = sizeof(s.data);
-        m : var = sizeof(needle.data);
+    static def index_of_text(s: string, needle: string, from: decimal) : decimal {
+        n : decimal = sizeof(s.data);
+        m : decimal = sizeof(needle.data);
         if(from < 0) {
             from = 0;
         }
-        for(i : var = from; i + m <= n; i++) {
-            j : var = 0;
+        for(i : decimal = from; i + m <= n; i++) {
+            j : decimal = 0;
             while(j < m && s.data[i + j] == needle.data[j]) {
                 j++;
             }
@@ -125,11 +125,11 @@ class io_strings {
 
     /** true when `s` begins with `prefix` (every string begins with "") */
     static def starts_with(s: string, prefix: string) : bool {
-        m : var = sizeof(prefix.data);
+        m : decimal = sizeof(prefix.data);
         if(m > sizeof(s.data)) {
             return false;
         }
-        for(i : var = 0; i < m; i++) {
+        for(i : decimal = 0; i < m; i++) {
             if(s.data[i] != prefix.data[i]) {
                 return false;
             }
@@ -142,12 +142,12 @@ class io_strings {
      * string ends with itself - string.ends_with() gets that case wrong).
      */
     static def ends_with(s: string, suffix: string) : bool {
-        n : var = sizeof(s.data);
-        m : var = sizeof(suffix.data);
+        n : decimal = sizeof(s.data);
+        m : decimal = sizeof(suffix.data);
         if(m > n) {
             return false;
         }
-        for(i : var = 0; i < m; i++) {
+        for(i : decimal = 0; i < m; i++) {
             if(s.data[n - m + i] != suffix.data[i]) {
                 return false;
             }
@@ -160,11 +160,11 @@ class io_strings {
         if((a as object) == null || (b as object) == null) {
             return (a as object) == (b as object);
         }
-        n : var = sizeof(a.data);
+        n : decimal = sizeof(a.data);
         if(n != sizeof(b.data)) {
             return false;
         }
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             if(a.data[i] != b.data[i]) {
                 return false;
             }
@@ -174,11 +174,11 @@ class io_strings {
 
     /** true when the two strings are the same apart from the case of the letters A-Z */
     static def equals_ignore_case(a: string, b: string) : bool {
-        n : var = sizeof(a.data);
+        n : decimal = sizeof(a.data);
         if(n != sizeof(b.data)) {
             return false;
         }
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             if(lower_char(a.data[i]) != lower_char(b.data[i])) {
                 return false;
             }
@@ -191,12 +191,12 @@ class io_strings {
      * Returns -1 when a sorts before b, 1 when it sorts after, 0 when equal.
      * A string that is the beginning of the other one sorts first.
      */
-    static def compare(a: string, b: string) : var {
-        n : var = sizeof(a.data);
-        m : var = sizeof(b.data);
-        for(i : var = 0; i < n && i < m; i++) {
-            x : var = a.data[i] & 0xff;
-            y : var = b.data[i] & 0xff;
+    static def compare(a: string, b: string) : decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        for(i : decimal = 0; i < n && i < m; i++) {
+            x : decimal = a.data[i] & 0xff;
+            y : decimal = b.data[i] & 0xff;
             if(x < y) {
                 return 0 - 1;
             }
@@ -218,22 +218,22 @@ class io_strings {
     /* ------------------------------------------------------------------ */
 
     /** true for space, tab, new line, carriage return, vertical tab and form feed */
-    static def is_space(ch: var) : var {
+    static def is_space(ch: decimal) : decimal {
         return ch == ' ' || (ch >= 9 && ch <= 13);
     }
 
     /** true for '0' .. '9' */
-    static def is_digit(ch: var) : var {
+    static def is_digit(ch: decimal) : decimal {
         return ch >= '0' && ch <= '9';
     }
 
     /** true for a-z and A-Z */
-    static def is_letter(ch: var) : var {
+    static def is_letter(ch: decimal) : decimal {
         return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
     }
 
     /** the lower case of A-Z; every other character is returned unchanged */
-    static def lower_char(ch: var) : var {
+    static def lower_char(ch: decimal) : decimal {
         if(ch >= 'A' && ch <= 'Z') {
             return ch + 32;
         }
@@ -241,7 +241,7 @@ class io_strings {
     }
 
     /** the upper case of a-z; every other character is returned unchanged */
-    static def upper_char(ch: var) : var {
+    static def upper_char(ch: decimal) : decimal {
         if(ch >= 'a' && ch <= 'z') {
             return ch - 32;
         }
@@ -252,7 +252,7 @@ class io_strings {
      * The value 0..15 of a hexadecimal digit ('0'-'9', 'a'-'f', 'A'-'F'),
      * or -1 when `ch` is not one.
      */
-    static def hex_value(ch: var) : var {
+    static def hex_value(ch: decimal) : decimal {
         if(ch >= '0' && ch <= '9') {
             return ch - '0';
         }
@@ -266,7 +266,7 @@ class io_strings {
     }
 
     /** a string made of the single character `ch` */
-    static def from_char(ch: var) : string {
+    static def from_char(ch: decimal) : string {
         one := new _int8[1];
         if(ch > 127) {
             ch = (ch & 0xff) - 256; // keep the element in -128..127 (see char_buffer.append_char)
@@ -281,8 +281,8 @@ class io_strings {
 
     /** `s` without the white space (see is_space) at its beginning and end */
     static def trim(s: string) : string {
-        start : var = 0;
-        end : var = sizeof(s.data);
+        start : decimal = 0;
+        end : decimal = sizeof(s.data);
         while(start < end && is_space(s.data[start])) {
             start++;
         }
@@ -294,12 +294,12 @@ class io_strings {
 
     /** `s` with the letters A-Z turned into a-z */
     static def to_lower(s: string) : string {
-        n : var = sizeof(s.data);
+        n : decimal = sizeof(s.data);
         if(n == 0) {
             return "";
         }
         chars := new _int8[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             chars[i] = lower_char(s.data[i]);
         }
         return new string(chars);
@@ -307,25 +307,25 @@ class io_strings {
 
     /** `s` with the letters a-z turned into A-Z */
     static def to_upper(s: string) : string {
-        n : var = sizeof(s.data);
+        n : decimal = sizeof(s.data);
         if(n == 0) {
             return "";
         }
         chars := new _int8[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             chars[i] = upper_char(s.data[i]);
         }
         return new string(chars);
     }
 
     /** `s` with every character `from` replaced by the character `to` */
-    static def replace_char(s: string, from: var, to: var) : string {
-        n : var = sizeof(s.data);
+    static def replace_char(s: string, from: decimal, to: decimal) : string {
+        n : decimal = sizeof(s.data);
         if(n == 0) {
             return "";
         }
         chars := new _int8[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             if(s.data[i] == from) {
                 chars[i] = to;
             } else {
@@ -341,15 +341,15 @@ class io_strings {
      * Throws illegal_argument_exception when `what` is empty.
      */
     static def replace_text(s: string, what: string, with: string) : string {
-        m : var = sizeof(what.data);
+        m : decimal = sizeof(what.data);
         if(m == 0) {
             throw new illegal_argument_exception("replace_text: the text to replace cannot be empty");
         }
         buf := new char_buffer(sizeof(s.data) + 16);
-        pos : var = 0;
-        n : var = sizeof(s.data);
+        pos : decimal = 0;
+        n : decimal = sizeof(s.data);
         while(pos < n) {
-            at : var = index_of_text(s, what, pos);
+            at : decimal = index_of_text(s, what, pos);
             if(at < 0) {
                 break;
             }
@@ -364,9 +364,9 @@ class io_strings {
     }
 
     /** `s` repeated `times` times ("" when times <= 0) */
-    static def repeat(s: string, times: var) : string {
+    static def repeat(s: string, times: decimal) : string {
         buf := new char_buffer(sizeof(s.data) * times + 16);
-        for(i : var = 0; i < times; i++) {
+        for(i : decimal = 0; i < times; i++) {
             buf.append(s);
         }
         return buf.to_string()!!;
@@ -376,8 +376,8 @@ class io_strings {
      * `s` with the character `fill` added in front until it is `width`
      * characters long. A string that is already that long is returned as is.
      */
-    static def pad_left(s: string, width: var, fill: var) : string {
-        n : var = sizeof(s.data);
+    static def pad_left(s: string, width: decimal, fill: decimal) : string {
+        n : decimal = sizeof(s.data);
         if(n >= width) {
             return s;
         }
@@ -391,8 +391,8 @@ class io_strings {
      * `s` with the character `fill` added behind until it is `width`
      * characters long. A string that is already that long is returned as is.
      */
-    static def pad_right(s: string, width: var, fill: var) : string {
-        n : var = sizeof(s.data);
+    static def pad_right(s: string, width: decimal, fill: decimal) : string {
+        n : decimal = sizeof(s.data);
         if(n >= width) {
             return s;
         }
@@ -411,11 +411,11 @@ class io_strings {
      * "a,,b" gives "a", "", "b" and "" gives one empty piece - the number of
      * pieces is always the number of separators + 1.
      */
-    static def split(s: string, separator: var) : list<string> {
+    static def split(s: string, separator: decimal) : list<string> {
         parts := new list<string>();
-        n : var = sizeof(s.data);
-        start : var = 0;
-        for(i : var = 0; i < n; i++) {
+        n : decimal = sizeof(s.data);
+        start : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(s.data[i] == separator) {
                 parts.add(slice(s, start, i));
                 start = i + 1;
@@ -433,11 +433,11 @@ class io_strings {
      */
     static def split_lines(s: string) : list<string> {
         lines := new list<string>();
-        n : var = sizeof(s.data);
-        start : var = 0;
-        i : var = 0;
+        n : decimal = sizeof(s.data);
+        start : decimal = 0;
+        i : decimal = 0;
         while(i < n) {
-            ch : var = s.data[i];
+            ch : decimal = s.data[i];
             if(ch == '\n') {
                 lines.add(slice(s, start, i));
                 start = i + 1;
@@ -459,8 +459,8 @@ class io_strings {
     /** the strings of `parts` in order with `separator` between them ("" for an empty list) */
     static def join(parts: list<string>, separator: string) : string {
         buf := new char_buffer();
-        count : var = parts.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = parts.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(i > 0) {
                 buf.append(separator);
             }
@@ -479,7 +479,7 @@ class io_strings {
      * number up to 2^53. NaN gives "NaN", an infinite value "Infinity" or
      * "-Infinity".
      */
-    static def int_to_string(value: var) : string {
+    static def int_to_string(value: decimal) : string {
         if(value != value) {
             return "NaN";
         }
@@ -490,7 +490,7 @@ class io_strings {
             }
             return "-Infinity";
         }
-        negative : var = value < 0;
+        negative : decimal = value < 0;
         if(negative) {
             value = 0 - value;
         }
@@ -502,12 +502,12 @@ class io_strings {
         }
 
         digits := new _int8[20];
-        pos : var = 20;
+        pos : decimal = 20;
         if(value == 0) {
             digits[--pos] = '0';
         }
         while(value > 0) {
-            digit : var = value % 10;
+            digit : decimal = value % 10;
             digits[--pos] = '0' + digit;
             value = (value - digit) / 10;
         }
@@ -523,15 +523,15 @@ class io_strings {
      * no padding). Only for numbers from 0 up to 2^53.
      * Throws illegal_argument_exception for a negative number.
      */
-    static def int_to_hex(value: var, min_digits: var) : string {
+    static def int_to_hex(value: decimal, min_digits: decimal) : string {
         if(value < 0) {
             throw new illegal_argument_exception("int_to_hex: negative number");
         }
         value = floor(value).value;
         digits := new _int8[32];
-        pos : var = 32;
+        pos : decimal = 32;
         while(value > 0 || (32 - pos) < min_digits || pos == 32) {
-            digit : var = value % 16;
+            digit : decimal = value % 16;
             if(digit < 10) {
                 digits[--pos] = '0' + digit;
             } else {
@@ -553,7 +553,7 @@ class io_strings {
      *   - very large and very small numbers use an exponent: "1.5e300", "2e-9"
      *   - NaN gives "NaN", infinite values "Infinity" / "-Infinity"
      */
-    static def number_to_string(value: var) : string {
+    static def number_to_string(value: decimal) : string {
         if(value != value) {
             return "NaN";
         }
@@ -567,7 +567,7 @@ class io_strings {
         if(value == 0) {
             return "0";
         }
-        magnitude : var = value;
+        magnitude : decimal = value;
         if(magnitude < 0) {
             magnitude = 0 - magnitude;
         }
@@ -579,10 +579,10 @@ class io_strings {
         }
 
         // exponent form: mantissa (1 <= |m| < 10) and a power of ten
-        exponent : var = floor(log10(magnitude)).value;
-        mantissa : var = value / pow(10, exponent).value;
+        exponent : decimal = floor(log10(magnitude)).value;
+        mantissa : decimal = value / pow(10, exponent).value;
         // log10 can be off by one right at a power of ten
-        abs_mantissa : var = mantissa < 0 ? 0 - mantissa : mantissa;
+        abs_mantissa : decimal = mantissa < 0 ? 0 - mantissa : mantissa;
         if(abs_mantissa >= 10) {
             exponent++;
             mantissa = value / pow(10, exponent).value;
@@ -593,7 +593,7 @@ class io_strings {
 
         // try mantissas with more and more digits until the text reads back as `value`
         best : string = "";
-        for(precision : var = 1; precision <= 17; precision++) {
+        for(precision : decimal = 1; precision <= 17; precision++) {
             text := trim_fraction(snprintf('f', mantissa, precision));
             best = text + "e" + int_to_string(exponent);
             if(strtod(best).value == value) {
@@ -604,9 +604,9 @@ class io_strings {
     }
 
     /** `value` with the fewest digits behind the point that read back as the same number */
-    private static def shortest_fixed(value: var) : string {
+    private static def shortest_fixed(value: decimal) : string {
         text : string = "";
-        for(precision : var = 1; precision <= 17; precision++) {
+        for(precision : decimal = 1; precision <= 17; precision++) {
             text = snprintf('f', value, precision);
             if(strtod(text).value == value) {
                 break;
@@ -620,7 +620,7 @@ class io_strings {
         if(index_of(text, '.', 0) < 0) {
             return text;
         }
-        end : var = sizeof(text.data);
+        end : decimal = sizeof(text.data);
         while(end > 0 && text.data[end - 1] == '0') {
             end--;
         }
@@ -636,7 +636,7 @@ class io_strings {
      * "2.0". With decimals <= 0 the number is rounded to a whole number.
      * `decimals` above 17 is treated as 17.
      */
-    static def fixed_to_string(value: var, decimals: var) : string {
+    static def fixed_to_string(value: decimal, decimals: decimal) : string {
         if(decimals > 17) {
             decimals = 17;
         }
@@ -655,8 +655,8 @@ class io_strings {
      * followed by at least one digit and nothing else (no spaces).
      */
     static def is_int(s: string) : bool {
-        n : var = sizeof(s.data);
-        i : var = 0;
+        n : decimal = sizeof(s.data);
+        i : decimal = 0;
         if(n > 0 && (s.data[0] == '-' || s.data[0] == '+')) {
             i = 1;
         }
@@ -676,20 +676,20 @@ class io_strings {
      * accepted form). Throws number_format_exception for anything else,
      * including "" and text with spaces around the number.
      */
-    static def parse_int(s: string) : var {
+    static def parse_int(s: string) : decimal {
         if(!is_int(s)) {
             throw new number_format_exception("not a whole number: \"" + s + "\"");
         }
-        n : var = sizeof(s.data);
-        i : var = 0;
-        negative : var = 0;
+        n : decimal = sizeof(s.data);
+        i : decimal = 0;
+        negative : decimal = 0;
         if(s.data[0] == '-') {
             negative = 1;
             i = 1;
         } else if(s.data[0] == '+') {
             i = 1;
         }
-        value : var = 0;
+        value : decimal = 0;
         for(; i < n; i++) {
             value = value * 10 + (s.data[i] - '0');
         }
@@ -707,12 +707,12 @@ class io_strings {
      * "", "abc", "1e", "--1", " 1", "0x10", "NaN".
      */
     static def is_number(s: string) : bool {
-        n : var = sizeof(s.data);
-        i : var = 0;
+        n : decimal = sizeof(s.data);
+        i : decimal = 0;
         if(n > 0 && (s.data[0] == '-' || s.data[0] == '+')) {
             i = 1;
         }
-        digits : var = 0;
+        digits : decimal = 0;
         while(i < n && is_digit(s.data[i])) {
             i++;
             digits++;
@@ -732,7 +732,7 @@ class io_strings {
             if(i < n && (s.data[i] == '-' || s.data[i] == '+')) {
                 i++;
             }
-            exponent_digits : var = 0;
+            exponent_digits : decimal = 0;
             while(i < n && is_digit(s.data[i])) {
                 i++;
                 exponent_digits++;
@@ -748,7 +748,7 @@ class io_strings {
      * The value of a decimal number (see is_number for the accepted form).
      * Throws number_format_exception for anything else.
      */
-    static def parse_number(s: string) : var {
+    static def parse_number(s: string) : decimal {
         if(!is_number(s)) {
             throw new number_format_exception("not a number: \"" + s + "\"");
         }
@@ -766,32 +766,32 @@ class io_strings {
      * their order. Uses a merge sort, so large lists are fine.
      */
     static def sort(items: list<string>) {
-        count : var = items.size().value;
+        count : decimal = items.size().value;
         if(count < 2) {
             return;
         }
 
         from := new string[count];
         to := new string[count];
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             from[i] = items.at(i);
         }
 
         // bottom-up merge sort: merge runs of 1, 2, 4, ... elements
-        for(width : var = 1; width < count; width = width * 2) {
-            for(left : var = 0; left < count; left += width * 2) {
-                middle : var = left + width;
+        for(width : decimal = 1; width < count; width = width * 2) {
+            for(left : decimal = 0; left < count; left += width * 2) {
+                middle : decimal = left + width;
                 if(middle > count) {
                     middle = count;
                 }
-                right : var = left + width * 2;
+                right : decimal = left + width * 2;
                 if(right > count) {
                     right = count;
                 }
 
-                a : var = left;
-                b : var = middle;
-                for(out : var = left; out < right; out++) {
+                a : decimal = left;
+                b : decimal = middle;
+                for(out : decimal = left; out < right; out++) {
                     if(a < middle && (b >= right || compare(from[a], from[b]) <= 0)) {
                         to[out] = from[a++];
                     } else {
@@ -804,7 +804,7 @@ class io_strings {
             to = swap;
         }
 
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             items.put(i, from[i]);
         }
     }
@@ -823,11 +823,11 @@ class io_strings {
      * cannot be part of a windows file name and is dropped.
      */
     static def shell_quote(text: string) : string {
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         buf := new char_buffer(n + 8);
         if(build.is_windows()) {
             buf.append_char('"');
-            for(i : var = 0; i < n; i++) {
+            for(i : decimal = 0; i < n; i++) {
                 if(text.data[i] != '"') {
                     buf.append_char(text.data[i]);
                 }
@@ -835,7 +835,7 @@ class io_strings {
             buf.append_char('"');
         } else {
             buf.append_char(39); // 39 is the single quote
-            for(i : var = 0; i < n; i++) {
+            for(i : decimal = 0; i < n; i++) {
                 if(text.data[i] == 39) {
                     buf.append_char(39);
                     buf.append_char(92); // back slash

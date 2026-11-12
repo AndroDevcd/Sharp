@@ -24,12 +24,12 @@ import (
 class link {
     input : channel<int>?;
     output : channel<int>?;
-    count : var = 0;
-    first : var = 0;
+    count : decimal = 0;
+    first : decimal = 0;
 }
 
 class flag {
-    value : var = 0;
+    value : decimal = 0;
 }
 
 received_total := new atomic_counter();
@@ -40,7 +40,7 @@ closed_seen := new atomic_counter();
 
 def send_range(l: link) {
     out := l.output!!;
-    for(i : var = 0; i < l.count; i++) {
+    for(i : decimal = 0; i < l.count; i++) {
         out.send(l.first + i);
     }
 }
@@ -58,7 +58,7 @@ def drain(l: link) {
 /** receives everything and counts elements that are not exactly previous + 1 */
 def drain_in_order(l: link) {
     source := l.input!!;
-    expected : var = l.first;
+    expected : decimal = l.first;
     for( ;; ) {
         n := source.receive_or_null();
         if(n == null) { break; }
@@ -87,7 +87,7 @@ def square_stage(l: link) {
  */
 def warm_up() {
     run_blocking({ ->
-        for(i : var = 0; i < 30; i++) {
+        for(i : decimal = 0; i < 30; i++) {
             w := async<int>.start({ -> (int) delay(1); return 10; });
             w.await();
             k := launch({ -> yield(); delay(1); });
@@ -101,7 +101,7 @@ def warm_up() {
 
     // the channel itself, without any coroutine
     ch := new channel<int>(4);
-    for(i : var = 0; i < 30; i++) {
+    for(i : decimal = 0; i < 30; i++) {
         ch.send(i);
         ch.try_send(i);
         ch.receive();
@@ -166,14 +166,14 @@ def test_capacities() {
 
     // ---- unlimited
     u := new channel<int>(channels.UNLIMITED);
-    sent : var = 0;
-    for(i : var = 0; i < 1000; i++) {
+    sent : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) {
         if(u.try_send(i)) { sent++; }
     }
     expect("unlimited channel took 1000 elements without waiting", sent, 1000);
     expect("unlimited size", u.size(), 1000);
-    sum : var = 0;
-    for(i : var = 0; i < 1000; i++) { sum += u.receive().value; }
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) { sum += u.receive().value; }
     expect("unlimited sum", sum, 499500);
 
     // ---- conflated
@@ -328,14 +328,14 @@ def test_cancellation() {
 
 def test_iteration() {
     ch := new channel<int>(channels.UNLIMITED);
-    for(i : var = 1; i <= 10; i++) { ch.send(i); }
+    for(i : decimal = 1; i <= 10; i++) { ch.send(i); }
     ch.close();
     total := new flag();
     ch.for_each({ n: int -> total.value = total.value + n.value; });
     expect("for_each visited every element", total.value, 55);
 
     other := new channel<int>(channels.UNLIMITED);
-    for(i : var = 1; i <= 4; i++) { other.send(i * i); }
+    for(i : decimal = 1; i <= 4; i++) { other.send(i * i); }
     other.close();
     items := other.to_list();
     expect("to_list size", items.size().value, 4);
@@ -371,7 +371,7 @@ def test_iteration() {
 def test_produce() {
     run_blocking({ ->
         squares := produce<int>.start({ out: send_channel<int> ->
-            for(i : var = 1; i <= 5; i++) { out.send(i * i); }
+            for(i : decimal = 1; i <= 5; i++) { out.send(i * i); }
         });
         expect("produce 1", squares.receive().value, 1);
         expect("produce 2", squares.receive().value, 4);
@@ -390,7 +390,7 @@ def test_produce() {
     run_blocking({ ->
         source := produce<int>.start(8, seed, { out: send_channel<int>, s: object ->
             l := s as link;
-            for(i : var = 0; i < l.count; i++) { out.send(l.first + i); }
+            for(i : decimal = 0; i < l.count; i++) { out.send(l.first + i); }
         });
         source.for_each({ n: int -> sum.value = sum.value + n.value; });
     });
@@ -400,7 +400,7 @@ def test_produce() {
     taken := new flag();
     run_blocking({ ->
         endless := produce<int>.start({ out: send_channel<int> ->
-            for(i : var = 0; ; i++) { out.send(i); }
+            for(i : decimal = 0; ; i++) { out.send(i); }
         });
         taken.value = endless.receive().value + endless.receive().value + endless.receive().value;
         endless.cancel();
@@ -447,12 +447,12 @@ def test_pipelines() {
     coroutine_scope({ ->
         consumers := new job[4];
         producers := new job[4];
-        for(i : var = 0; i < 4; i++) {
+        for(i : decimal = 0; i < 4; i++) {
             c := new link();
             c.input = shared;
             consumers[i] = launch_on(dispatchers.default_pool(), c, { s: object -> drain(s as link); });
         }
-        for(i : var = 0; i < 4; i++) {
+        for(i : decimal = 0; i < 4; i++) {
             p := new link();
             p.output = shared;
             p.count = 5000;
@@ -504,8 +504,8 @@ def test_pipelines() {
                 x.output!!.send(n!!.value + 1);
             }
         });
-        value : var = 0;
-        for(i : var = 0; i < 2000; i++) {
+        value : decimal = 0;
+        for(i : decimal = 0; i < 2000; i++) {
             ping.send(value);
             value = pong.receive().value;
         }

@@ -1,56 +1,38 @@
 //
-// JIT Compiler Base Implementation
+// See jit_compiler.h for the interface. This file picks the compiler for the
+// CPU the runtime was built for:
+//
+//      x86-64, System V (Linux, macOS on Intel)    jit/x64/x64_compiler.cpp
+//      anything else                               none: everything is interpreted
+//
+// A runtime built with -DSHARP_TYPE_CHECK (the number kind checker,
+// memory/type_check.h) has no compiler either: the checker's tags are kept by
+// the interpreter's handlers, machine code does not keep them.
+//
+// A new CPU gets its own folder next to jit/x64 and one more branch here.
 //
 
 #include "jit_compiler.h"
-
-#include "arm/arm64_compiler.h"
-#include "x64/x64_compiler.h"
-#include "../../util/jit/asmjit/src/asmjit/core.h"
 #include "../main.h"
 
+#if defined(__x86_64__) && !defined(_WIN32) && !defined(SHARP_TYPE_CHECK)
+#define SHARP_JIT_X64
+#include "x64/x64_compiler.h"
+#endif
+
 JitCompiler* jitCompiler = nullptr;
-jit_target_arch arch;
 recursive_mutex jit_mutex;
 
 void init_jit_compiler() {
-    if(jitCompiler != nullptr) {
-        shutdown_jit_compiler();
-    }
-    
-    // Detect host architecture automatically
-    Environment hostEnv = Environment::host();
-    
-    switch(hostEnv.arch()) {
-        case Arch::kAArch64:
-            arch = JIT_ARM64;
-            jitCompiler = new Arm64Compiler();
-            // The ARM64 backend does VM register / numeric array math with 64-bit
-            // double instructions. That is only valid where long double == double
-            // (Apple arm64). On Linux arm64 long double is a 128-bit type, so the
-            // generated code would read garbage: keep the interpreter there.
-            if(sizeof(long double) != sizeof(double)) {
-                delete jitCompiler;
-                jitCompiler = nullptr;
-                c_options.jit = false;
-            }
-            break;
-        case Arch::kX64:
-            arch = JIT_X86_64;
-            jitCompiler = new X64Compiler();
-            break;
-        case Arch::kX86:
-            // 32-bit x86 is a different backend (different registers, calling
-            // convention and pointer size). jit/x64 is 64-bit ONLY; a 32-bit
-            // backend would live in its own jit/x86 folder. Until that exists
-            // 32-bit hosts run in the interpreter.
-            arch = JIT_X86_64;
-            jitCompiler = nullptr; // todo: 32-bit x86 JIT compiler not yet implemented
-            c_options.jit = false; // disable jit compilation
-            break;
-        default:
-            throw std::runtime_error("Unsupported host architecture for JIT compilation");
-    }
+    if(!c_options.jit)          // -nojit
+        return;
+
+#ifdef SHARP_JIT_X64
+    jitCompiler = new X64Compiler();
+#else
+    // no compiler for this CPU: the interpreter runs everything
+    c_options.jit = false;
+#endif
 }
 
 void shutdown_jit_compiler() {

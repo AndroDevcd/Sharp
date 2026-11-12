@@ -31,7 +31,7 @@ import ( std.io, std.math )
  * Objects keep their members in the order they were added, and a name
  * occurs only once: putting a name again replaces its value.
  *
- * Numbers are native numbers (var): whole numbers are exact up to 2^53.
+ * Numbers are native numbers (decimal): whole numbers are exact up to 2^53.
  *
  * Arrays and objects are changed in place and are shared, not copied, when
  * put into another value (deep_copy() makes an independent copy). Do not
@@ -43,17 +43,17 @@ import ( std.io, std.math )
  */
 class json_value {
     /* the six kinds, as returned by kind() */
-    static const kind_null : var = 0;
-    static const kind_bool : var = 1;
-    static const kind_number : var = 2;
-    static const kind_string : var = 3;
-    static const kind_array : var = 4;
-    static const kind_object : var = 5;
+    static const kind_null : _int64 = 0;
+    static const kind_bool : _int64 = 1;
+    static const kind_number : _int64 = 2;
+    static const kind_string : _int64 = 3;
+    static const kind_array : _int64 = 4;
+    static const kind_object : _int64 = 5;
 
     /** which of the six kinds this value is */
-    private value_kind : var = 0;
+    private value_kind : _int64 = 0;
     /** the number of a number, and 1 / 0 for a boolean */
-    private number : var = 0;
+    private number : decimal = 0;
     /** the text of a string */
     private text : string = "";
     /** the elements of an array, or the member values of an object (in the order of `names`) */
@@ -69,9 +69,9 @@ class json_value {
     * thrown away when a member is removed.
     */
     private slots : _int32[]?;
-    private static const index_threshold : var = 12;
+    private static const index_threshold : _int64 = 12;
 
-    private json_value(kind: var) {
+    private json_value(kind: _int64) {
         value_kind = kind;
     }
 
@@ -97,7 +97,7 @@ class json_value {
      * A new number value. NaN and infinities can be stored but JSON has no
      * way to write them: json_writer throws for them.
      */
-    static def of_number(value: var) : json_value {
+    static def of_number(value: decimal) : json_value {
         v := new json_value(kind_number);
         v.number = value;
         return v;
@@ -132,7 +132,7 @@ class json_value {
     /* ------------------------------------------------------------------ */
 
     /** the kind of this value: one of json_value.kind_null, kind_bool, kind_number, kind_string, kind_array, kind_object */
-    def kind() : var {
+    def kind() : _int64 {
         return value_kind;
     }
 
@@ -141,7 +141,7 @@ class json_value {
         return name_of_kind(value_kind);
     }
 
-    private static def name_of_kind(kind: var) : string {
+    private static def name_of_kind(kind: _int64) : string {
         if(kind == kind_null) return "null";
         if(kind == kind_bool) return "boolean";
         if(kind == kind_number) return "number";
@@ -158,7 +158,7 @@ class json_value {
     def is_object() : bool { return value_kind == kind_object; }
 
     /** throw unless this value is of the given kind */
-    private def expect_kind(kind: var) {
+    private def expect_kind(kind: _int64) {
         if(value_kind != kind) {
             throw new json_exception("expected a JSON " + name_of_kind(kind) + " but this value is a "
                 + name_of_kind(value_kind));
@@ -176,7 +176,7 @@ class json_value {
     }
 
     /** the value of a number. Throws json_exception when this is not a number. */
-    def as_number() : var {
+    def as_number() : decimal {
         expect_kind(kind_number);
         return number;
     }
@@ -186,7 +186,7 @@ class json_value {
      * id). Throws json_exception when this is not a number or has a
      * fraction (2.5), is NaN or infinite.
      */
-    def as_int() : var {
+    def as_int() : decimal {
         expect_kind(kind_number);
         if(number - number != 0 || floor(number).value != number) {
             throw new json_exception("expected a whole number but the value is " + io_strings.number_to_string(number));
@@ -208,7 +208,7 @@ class json_value {
      * The number of elements of an array or of members of an object.
      * Throws json_exception for the other kinds.
      */
-    def size() : var {
+    def size() : _int64 {
         if(value_kind != kind_array && value_kind != kind_object) {
             throw new json_exception("expected a JSON array or object but this value is a " + name_of_kind(value_kind));
         }
@@ -256,7 +256,7 @@ class json_value {
     }
 
     /** add a number at the end of this array; returns this array. Throws json_exception when this is not an array. */
-    def add_number(value: var) : json_value {
+    def add_number(value: decimal) : json_value {
         return add(of_number(value));
     }
 
@@ -275,7 +275,7 @@ class json_value {
      * Throws json_exception when this is not an array or the index is not
      * in 0 .. size() - 1.
      */
-    def at(index: var) : json_value {
+    def at(index: decimal) : json_value {
         expect_kind(kind_array);
         check_index(index);
         return items!!.at(index);
@@ -287,7 +287,7 @@ class json_value {
      * Throws json_exception when this is not an array or the index is not
      * in 0 .. size() - 1.
      */
-    def put_at(index: var, value: json_value?) : json_value {
+    def put_at(index: decimal, value: json_value?) : json_value {
         expect_kind(kind_array);
         check_index(index);
         if(value == null) {
@@ -302,7 +302,7 @@ class json_value {
      * Throws json_exception when this is not an array or the index is not
      * in 0 .. size().
      */
-    def insert_at(index: var, value: json_value) : json_value {
+    def insert_at(index: decimal, value: json_value) : json_value {
         expect_kind(kind_array);
         if(index < 0 || index > items!!.size().value || floor(index).value != index) {
             throw new json_exception("index " + io_strings.number_to_string(index) + " is outside an array of "
@@ -322,7 +322,7 @@ class json_value {
      * Throws json_exception when this is not an array or the index is not
      * in 0 .. size() - 1.
      */
-    def remove_at(index: var) : json_value {
+    def remove_at(index: decimal) : json_value {
         expect_kind(kind_array);
         check_index(index);
         removed := items!!.at(index);
@@ -330,7 +330,7 @@ class json_value {
         return removed;
     }
 
-    private def check_index(index: var) {
+    private def check_index(index: decimal) {
         if(index < 0 || index >= items!!.size().value || floor(index).value != index) {
             throw new json_exception("index " + io_strings.number_to_string(index) + " is outside an array of "
                 + io_strings.int_to_string(items!!.size().value) + " elements");
@@ -340,10 +340,10 @@ class json_value {
     /* ---- objects ---- */
 
     /** a hash of the characters of `name`, between 0 and 2^31 */
-    private static def hash_name(name: string) : var {
-        h : var = 7;
-        n : var = sizeof(name.data);
-        for(i : var = 0; i < n; i++) {
+    private static def hash_name(name: string) : _int64 {
+        h : _int64 = 7;
+        n : _int64 = sizeof(name.data);
+        for(i : _int64 = 0; i < n; i++) {
             h = (h * 31 + (name.data[i] & 0xff)) % 2147483647;
         }
         return h;
@@ -351,14 +351,14 @@ class json_value {
 
     /** (re)build the hash table over all members */
     private def build_index() {
-        count : var = names!!.size().value;
-        capacity : var = 32;
+        count : _int64 = names!!.size().value;
+        capacity : _int64 = 32;
         while(capacity < count * 2 + 2) {
             capacity = capacity * 2;
         }
         table := new _int32[capacity];
-        for(i : var = 0; i < count; i++) {
-            slot : var = hash_name(names!!.at(i)) % capacity;
+        for(i : _int64 = 0; i < count; i++) {
+            slot : _int64 = hash_name(names!!.at(i)) % capacity;
             while(table[slot] != 0) {
                 slot++;
                 if(slot >= capacity) {
@@ -371,10 +371,10 @@ class json_value {
     }
 
     /** the position of the member `name`, or -1 when this object has no such member */
-    private def index_of_name(name: string) : var {
-        count : var = names!!.size().value;
+    private def index_of_name(name: string) : _int64 {
+        count : _int64 = names!!.size().value;
         if(count < index_threshold) {
-            for(i : var = 0; i < count; i++) {
+            for(i : _int64 = 0; i < count; i++) {
                 if(io_strings.equals(names!!.at(i), name)) {
                     return i;
                 }
@@ -385,10 +385,10 @@ class json_value {
         if(slots == null) {
             build_index();
         }
-        capacity : var = sizeof(slots);
-        slot : var = hash_name(name) % capacity;
+        capacity : _int64 = sizeof(slots);
+        slot : _int64 = hash_name(name) % capacity;
         while(slots[slot] != 0) {
-            position : var = slots[slot] - 1;
+            position : _int64 = slots[slot] - 1;
             if(io_strings.equals(names!!.at(position), name)) {
                 return position;
             }
@@ -413,7 +413,7 @@ class json_value {
             stored = value!!;
         }
 
-        position : var = index_of_name(name);
+        position : _int64 = index_of_name(name);
         if(position >= 0) {
             items!!.put(position, stored);
             return self;
@@ -423,12 +423,12 @@ class json_value {
         items!!.add(stored);
         if(slots != null) {
             // keep the hash table in step, or start over when it gets full
-            count : var = names!!.size().value;
-            capacity : var = sizeof(slots);
+            count : _int64 = names!!.size().value;
+            capacity : _int64 = sizeof(slots);
             if(count * 2 + 2 > capacity) {
                 slots = null;
             } else {
-                slot : var = hash_name(name) % capacity;
+                slot : _int64 = hash_name(name) % capacity;
                 while(slots[slot] != 0) {
                     slot++;
                     if(slot >= capacity) {
@@ -447,7 +447,7 @@ class json_value {
     }
 
     /** set the member `name` to a number; returns this object. Throws json_exception when this is not an object. */
-    def put_number(name: string, value: var) : json_value {
+    def put_number(name: string, value: decimal) : json_value {
         return put(name, of_number(value));
     }
 
@@ -475,7 +475,7 @@ class json_value {
      */
     def find(name: string) : json_value? {
         expect_kind(kind_object);
-        position : var = index_of_name(name);
+        position : _int64 = index_of_name(name);
         if(position < 0) {
             return null;
         }
@@ -489,7 +489,7 @@ class json_value {
      */
     def member(name: string) : json_value {
         expect_kind(kind_object);
-        position : var = index_of_name(name);
+        position : _int64 = index_of_name(name);
         if(position < 0) {
             throw new json_exception("the object has no member \"" + name + "\"");
         }
@@ -514,7 +514,7 @@ class json_value {
      * such member or it is not a number.
      * Throws json_exception when this is not an object.
      */
-    def number_or(name: string, fallback: var) : var {
+    def number_or(name: string, fallback: decimal) : decimal {
         found := find(name);
         if(found == null || found!!.value_kind != kind_number) {
             return fallback;
@@ -541,7 +541,7 @@ class json_value {
      */
     def remove(name: string) : bool {
         expect_kind(kind_object);
-        position : var = index_of_name(name);
+        position : _int64 = index_of_name(name);
         if(position < 0) {
             return false;
         }
@@ -559,8 +559,8 @@ class json_value {
     def keys() : list<string> {
         expect_kind(kind_object);
         result := new list<string>();
-        count : var = names!!.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : _int64 = names!!.size().value;
+        for(i : _int64 = 0; i < count; i++) {
             result.add(names!!.at(i));
         }
         return result;
@@ -573,7 +573,7 @@ class json_value {
      * Throws json_exception when this is not an object or the index is not
      * in 0 .. size() - 1.
      */
-    def key_at(index: var) : string {
+    def key_at(index: decimal) : string {
         expect_kind(kind_object);
         check_index(index);
         return names!!.at(index);
@@ -585,7 +585,7 @@ class json_value {
      * Throws json_exception for the other kinds and when the index is not
      * in 0 .. size() - 1.
      */
-    def value_at(index: var) : json_value {
+    def value_at(index: decimal) : json_value {
         size();
         check_index(index);
         return items!!.at(index);
@@ -608,18 +608,18 @@ class json_value {
      */
     def at_path(steps: string) : json_value? {
         current : json_value? = self;
-        n : var = sizeof(steps.data);
-        i : var = 0;
+        n : _int64 = sizeof(steps.data);
+        i : _int64 = 0;
         while(i < n) {
-            ch : var = steps.data[i];
+            ch : _int64 = steps.data[i];
             if(ch == '[') {
-                close : var = io_strings.index_of(steps, ']', i);
+                close : _int64 = io_strings.index_of(steps, ']', i);
                 digits := io_strings.slice(steps, i + 1, close);
                 if(close < 0 || !io_strings.is_int(digits) || steps.data[i + 1] == '-' || steps.data[i + 1] == '+') {
                     throw new json_exception("malformed path \"" + steps + "\": expected [number] at character "
                         + io_strings.int_to_string(i));
                 }
-                index : var = io_strings.parse_int(digits);
+                index : _int64 = io_strings.parse_int(digits);
                 i = close + 1;
                 if(current != null) {
                     if(current!!.value_kind != kind_array || index >= current!!.items!!.size().value) {
@@ -635,7 +635,7 @@ class json_value {
                         throw new json_exception("malformed path \"" + steps + "\": it starts with a period");
                     }
                 }
-                start : var = i;
+                start : _int64 = i;
                 while(i < n && steps.data[i] != '.' && steps.data[i] != '[') {
                     i++;
                 }
@@ -695,21 +695,21 @@ class json_value {
                     return false;
                 }
             } else if(a.value_kind == kind_array) {
-                count : var = a.items!!.size().value;
+                count : _int64 = a.items!!.size().value;
                 if(count != b.items!!.size().value) {
                     return false;
                 }
-                for(i : var = 0; i < count; i++) {
+                for(i : _int64 = 0; i < count; i++) {
                     left.add(a.items!!.at(i));
                     right.add(b.items!!.at(i));
                 }
             } else if(a.value_kind == kind_object) {
-                count : var = a.items!!.size().value;
+                count : _int64 = a.items!!.size().value;
                 if(count != b.items!!.size().value) {
                     return false;
                 }
-                for(i : var = 0; i < count; i++) {
-                    position : var = b.index_of_name(a.names!!.at(i));
+                for(i : _int64 = 0; i < count; i++) {
+                    position : _int64 = b.index_of_name(a.names!!.at(i));
                     if(position < 0) {
                         return false;
                     }
@@ -738,8 +738,8 @@ class json_value {
         while(originals.size() > 0) {
             original := originals.pop_last();
             target := copies.pop_last();
-            count : var = original.items!!.size().value;
-            for(i : var = 0; i < count; i++) {
+            count : _int64 = original.items!!.size().value;
+            for(i : _int64 = 0; i < count; i++) {
                 child := original.items!!.at(i);
                 child_copy := child.shallow_copy();
                 if(original.value_kind == kind_object) {

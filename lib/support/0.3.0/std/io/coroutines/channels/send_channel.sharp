@@ -5,7 +5,7 @@ mod std.io.coroutines.channels;
  *
  * USAGE
  *     def produce_numbers(out: send_channel<int>) {
- *         for(i : var = 0; i < 10; i++) { out.send(i); }
+ *         for(i : decimal = 0; i < 10; i++) { out.send(i); }
  *         out.close();
  *     }
  *

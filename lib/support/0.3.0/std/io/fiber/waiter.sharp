@@ -92,15 +92,15 @@ import (
 class waiter {
 
     /** not claimed yet: the owner fiber is (or is about to be) asleep */
-    static const WAITING : var = 0;
+    static const WAITING : decimal = 0;
     /** the event happened: the resource was handed over, the job finished, ... */
-    static const RESUMED : var = 1;
+    static const RESUMED : decimal = 1;
     /** the job of the waiting coroutine was cancelled */
-    static const CANCELLED : var = 2;
+    static const CANCELLED : decimal = 2;
     /** park_for() ran out of time */
-    static const TIMED_OUT : var = 3;
+    static const TIMED_OUT : decimal = 3;
     /** the resource was closed or shut down while the fiber waited */
-    static const CLOSED : var = 4;
+    static const CLOSED : decimal = 4;
 
     /** the fiber that waits (the one that created this waiter) */
     fib : fiber?;
@@ -108,20 +108,20 @@ class waiter {
     guard : object?;
 
     /** WAITING, RESUMED, CANCELLED, TIMED_OUT or CLOSED */
-    state : var = 0;
+    state : decimal = 0;
     /** 1 as soon as `state` is not WAITING any more. This is the field the sleep sequence reads. */
-    wake : var = 0;
+    wake : decimal = 0;
     /** 1 when the owner fiber claimed the waiter itself (abandon / timeout): nobody will call unpark() */
-    self_claimed : var = 0;
+    self_claimed : decimal = 0;
     /** owner -> waker: "I have seen `wake`, stop trying to unsuspend me" */
-    done : var = 0;
+    done : decimal = 0;
     /** waker -> owner: "unpark() is finished, I will not touch your fiber again" */
-    unparked : var = 0;
+    unparked : decimal = 0;
 
     /** a value passed between the two sides (channel element, result, ...) */
     item : object?;
     /** a number the resource may use for its own purpose (permits wanted, reader or writer, ...) */
-    tag : var = 0;
+    tag : decimal = 0;
 
     /**
      * 1 when the owner is the first fiber of a thread other than the main
@@ -136,7 +136,7 @@ class waiter {
      * in the function a thread was created with. With the runtime fixed the id
      * is no longer 0 and this mode switches itself off.
      */
-    polling : var = 0;
+    polling : decimal = 0;
 
     /** links of the wait_queue this waiter is in (null when it is in none) */
     next : waiter?;
@@ -187,7 +187,7 @@ class waiter {
      *         or resumed by somebody else): the caller must look for another
      *         waiter and must NOT call unpark().
      */
-    def resume(new_state: var) : var {
+    def resume(new_state: decimal) : decimal {
         if(state != 0) {
             return 0;
         }
@@ -201,7 +201,7 @@ class waiter {
      * resume() that also hands a value to the waiting fiber (it reads `item`
      * after park() returns). Same rules as resume().
      */
-    def resume_with(new_state: var, value: object?) : var {
+    def resume_with(new_state: decimal, value: object?) : decimal {
         if(state != 0) {
             return 0;
         }
@@ -222,7 +222,7 @@ class waiter {
      *         the owner must still call park() to finish the handshake and
      *         then act on `state`.
      */
-    def abandon(new_state: var) : var {
+    def abandon(new_state: decimal) : decimal {
         if(state != 0) {
             return 0;
         }
@@ -261,7 +261,7 @@ class waiter {
         }
 
         for( ;; ) {
-            id : var = owner.id;
+            id : decimal = owner.id;
 
             // 0 = the fiber was suspended (it is on a ready queue now), or it does not exist any more
             if(unsuspend_raw(id) == 0) {
@@ -275,7 +275,7 @@ class waiter {
 
             // 1 = running, 2 = suspended: it is on its way to the sleep call, try again.
             // anything else: the fiber is dead or was never started, nobody is left to wake.
-            st : var = state_raw(id);
+            st : decimal = state_raw(id);
             if(st != 1 && st != 2) {
                 break;
             }
@@ -305,7 +305,7 @@ class waiter {
         owner := fib!!;
 
         if(polling != 0) {
-            nap : var = 1;
+            nap : decimal = 1;
             while(wake == 0) {
                 sleep_raw(nap);
                 if(nap < 8) {
@@ -334,13 +334,13 @@ class waiter {
      * @param ms how long to wait at most. 0 or less: do not sleep at all, time
      *           out at once unless the waiter was claimed already.
      */
-    def park_for(ms: var) {
+    def park_for(ms: decimal) {
         owner := fib!!;
-        deadline : var = now_millis() + ms;
-        nap : var = 1;
+        deadline : decimal = now_millis() + ms;
+        nap : decimal = 1;
 
         while(wake == 0) {
-            remaining : var = deadline - now_millis();
+            remaining : decimal = deadline - now_millis();
 
             if(remaining <= 0) {
                 lock(guard) {
@@ -405,8 +405,8 @@ class waiter {
      * C++ equivalent of what happens inside the runtime:
      *     if(!w->wake) suspend_task(id);   // as one indivisible step
      */
-    private static def suspend_unless_woken(w: waiter, id: var) {
-        target : var = id - ((id + 1) * w.wake);
+    private static def suspend_unless_woken(w: waiter, id: decimal) {
+        target : _int64 = id - ((id + 1) * w.wake);
 
         asm {
             ipushl [target]
@@ -420,8 +420,8 @@ class waiter {
      *     wake == 1  ->  delay(0)         only gives other fibers a turn
      * DO NOT add an if, a call or an object creation to this function.
      */
-    private static def delay_unless_woken(w: waiter, ms: var) {
-        mills : var = ms - (ms * w.wake);
+    private static def delay_unless_woken(w: waiter, ms: decimal) {
+        mills : _int64 = ms - (ms * w.wake);
 
         asm {
             loadl ebx, [mills]
@@ -434,8 +434,8 @@ class waiter {
      * @return 0 the fiber was suspended and may run again (or there is no such fiber),
      *         1 the fiber is not suspended
      */
-    private static def unsuspend_raw(id: var) : var {
-        result : var = 0;
+    private static def unsuspend_raw(id: _int64) : decimal {
+        result : _int64 = 0;
 
         asm {
             ipushl [id]
@@ -447,8 +447,8 @@ class waiter {
     }
 
     /** the runtime state of fiber `id`: 0 created, 1 running, 2 suspended, 3 killed, -1 no such fiber */
-    private static def state_raw(id: var) : var {
-        result : var = 0;
+    private static def state_raw(id: _int64) : decimal {
+        result : _int64 = 0;
 
         asm {
             ipushl [id]
@@ -468,7 +468,7 @@ class waiter {
 
     /** give the other fibers of this thread a turn; no cancellation check (the raw delay(0)) */
     static def yield_fiber() {
-        mills : var = 0;
+        mills : _int64 = 0;
 
         asm {
             loadl ebx, [mills]
@@ -481,8 +481,8 @@ class waiter {
      * cancellation, cannot be woken early. For the insides of the library only;
      * user code calls delay().
      */
-    static def sleep_raw(ms: var) {
-        mills : var = ms;
+    static def sleep_raw(ms: decimal) {
+        mills : _int64 = ms;
 
         asm {
             loadl ebx, [mills]
@@ -491,8 +491,8 @@ class waiter {
     }
 
     /** wall clock in milliseconds, as a native number */
-    static def now_millis() : var {
-        now : var = 0;
+    static def now_millis() : decimal {
+        now : _int64 = 0;
 
         asm {
             int 0xb

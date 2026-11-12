@@ -17,11 +17,11 @@ mutate string {
 
     /** The string with every small letter replaced by its capital ("Hello 1".to_upper() is "HELLO 1"). */
     def to_upper(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             out[i] = string_support.upper_of(data[i]);
         }
         return string_support.of_buffer(out, n);
@@ -51,12 +51,12 @@ mutate string {
 
     /** Capital letters made small and small letters made capital ("Hello".swap_case() is "hELLO"). */
     def swap_case(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c >= 'a' && c <= 'z') out[i] = c - 32;
             else if(c >= 'A' && c <= 'Z') out[i] = c + 32;
             else out[i] = c;
@@ -71,14 +71,14 @@ mutate string {
      * punctuation) separates words and is copied as it is.
      */
     def title_case(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        at_word_start : var = 1;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
-            is_word_char : var = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+        at_word_start : decimal = 1;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            is_word_char : decimal = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
             if(!is_word_char) {
                 out[i] = c;
                 at_word_start = 1;
@@ -95,11 +95,11 @@ mutate string {
      * 1 if the string has at least one letter and none of its letters is a
      * small letter ("ABC 12".is_upper() is 1; "" and "123" give 0).
      */
-    def is_upper(): var {
-        n : var = sizeof(data);
-        letters : var = 0;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+    def is_upper(): decimal {
+        n : decimal = sizeof(data);
+        letters : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c >= 'a' && c <= 'z') return 0;
             if(c >= 'A' && c <= 'Z') letters++;
         }
@@ -110,11 +110,11 @@ mutate string {
      * 1 if the string has at least one letter and none of its letters is a
      * capital letter ("abc 12".is_lower() is 1; "" and "123" give 0).
      */
-    def is_lower(): var {
-        n : var = sizeof(data);
-        letters : var = 0;
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+    def is_lower(): decimal {
+        n : decimal = sizeof(data);
+        letters : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c >= 'A' && c <= 'Z') return 0;
             if(c >= 'a' && c <= 'z') letters++;
         }

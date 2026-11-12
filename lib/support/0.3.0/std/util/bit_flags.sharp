@@ -6,9 +6,9 @@ mod std.util;
  * A small set of on/off options packed into one number, one bit per option.
  * Define the options as powers of two and combine them with add():
  *
- *     const READ : var = 1;       // bit_flags.flag(0)
- *     const WRITE : var = 2;      // bit_flags.flag(1)
- *     const EXECUTE : var = 4;    // bit_flags.flag(2)
+ *     const READ : decimal = 1;       // bit_flags.flag(0)
+ *     const WRITE : decimal = 2;      // bit_flags.flag(1)
+ *     const EXECUTE : decimal = 4;    // bit_flags.flag(2)
  *
  *     access := new bit_flags(READ);
  *     access.add(WRITE);
@@ -28,7 +28,7 @@ mod std.util;
  */
 class bit_flags {
     /** all flags that are currently set, as one number (read only; use add / remove / assign) */
-    value : var = 0;
+    value : decimal = 0;
         private set v -> { value = v; }
 
     /** no flag set */
@@ -36,12 +36,12 @@ class bit_flags {
     }
 
     /** the flags of `mask` set */
-    bit_flags(mask: var) {
+    bit_flags(mask: decimal) {
         check(mask);
         value = mask;
     }
 
-    private static def check(mask: var) {
+    private static def check(mask: decimal) {
         if(mask < 0 || mask > 4294967295 || mask != (mask as _int64))
             throw new illegal_argument_exception("bit_flags: a mask must be a whole number in 0 .. 4294967295");
     }
@@ -51,40 +51,40 @@ class bit_flags {
      * flag(0) == 1, flag(1) == 2, flag(5) == 32.
      * Throws illegal_argument_exception for any other position.
      */
-    static def flag(position: var): var {
+    static def flag(position: decimal): decimal {
         if(position < 0 || position > 31 || position != (position as _int64))
             throw new illegal_argument_exception("bit_flags: a flag position must be in 0 .. 31");
 
-        result : var = 1;
-        for(i : var = 0; i < position; i++) {
+        result : decimal = 1;
+        for(i : decimal = 0; i < position; i++) {
             result = result * 2;
         }
         return result;
     }
 
     /** switch on every flag of `mask`; flags that are already on stay on */
-    def add(mask: var): bit_flags {
+    def add(mask: decimal): bit_flags {
         check(mask);
         value = value | mask;
         return self;
     }
 
     /** switch off every flag of `mask`; flags that are already off stay off */
-    def remove(mask: var): bit_flags {
+    def remove(mask: decimal): bit_flags {
         check(mask);
         value = value - (value & mask);
         return self;
     }
 
     /** flip every flag of `mask`: on becomes off, off becomes on */
-    def toggle(mask: var): bit_flags {
+    def toggle(mask: decimal): bit_flags {
         check(mask);
         value = value ^ mask;
         return self;
     }
 
     /** switch the flags of `mask` on (enabled true) or off (enabled false) */
-    def assign(mask: var, enabled: bool): bit_flags {
+    def assign(mask: decimal, enabled: bool): bit_flags {
         if(enabled.value) return add(mask);
         return remove(mask);
     }
@@ -96,19 +96,19 @@ class bit_flags {
     }
 
     /** true when ALL flags of `mask` are on (true for the empty mask 0) */
-    def has(mask: var): bool {
+    def has(mask: decimal): bool {
         check(mask);
         return (value & mask) == mask;
     }
 
     /** true when AT LEAST ONE flag of `mask` is on (false for the empty mask 0) */
-    def has_any(mask: var): bool {
+    def has_any(mask: decimal): bool {
         check(mask);
         return (value & mask) != 0;
     }
 
     /** true when NO flag of `mask` is on */
-    def has_none(mask: var): bool {
+    def has_none(mask: decimal): bool {
         check(mask);
         return (value & mask) == 0;
     }
@@ -119,9 +119,9 @@ class bit_flags {
     }
 
     /** how many flags are on */
-    def count(): var {
-        remaining : var = value;
-        total : var = 0;
+    def count(): decimal {
+        remaining : decimal = value;
+        total : decimal = 0;
         while(remaining > 0) {
             total += remaining & 1;
             remaining = remaining >> 1;
@@ -161,8 +161,8 @@ class bit_flags {
     override def to_string(): string? {
         if(value == 0) return "0";
 
-        length : var = 0;
-        remaining : var = value;
+        length : decimal = 0;
+        remaining : decimal = value;
         while(remaining > 0) {
             remaining = remaining >> 1;
             length++;
@@ -170,7 +170,7 @@ class bit_flags {
 
         text := new _int8[length];
         remaining = value;
-        for(i : var = length - 1; i >= 0; i--) {
+        for(i : decimal = length - 1; i >= 0; i--) {
             text[i] = '0' + (remaining & 1);
             remaining = remaining >> 1;
         }

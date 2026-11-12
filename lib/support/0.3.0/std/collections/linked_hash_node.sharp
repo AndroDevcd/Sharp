@@ -20,7 +20,7 @@ class linked_hash_node<K, V> {
     /** the value currently stored for the key */
     value : V;
     /** key.hash(), kept so growing the table does not have to hash again */
-    hash_code : var;
+    hash_code : decimal;
     /**
      * next node in the same bucket, or null at the end of the chain.
      * (Declared without `?` on purpose: the slots of the bucket array have
@@ -33,7 +33,7 @@ class linked_hash_node<K, V> {
     after : linked_hash_node<K, V>?;
 
     /** Create a node that is not linked into any chain yet. */
-    linked_hash_node(key: K, value: V, hash_code: var) {
+    linked_hash_node(key: K, value: V, hash_code: decimal) {
         self->key = key;
         self->value = value;
         self->hash_code = hash_code;

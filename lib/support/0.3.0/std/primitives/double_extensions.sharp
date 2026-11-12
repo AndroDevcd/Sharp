@@ -68,7 +68,7 @@ mutate double {
      * away from zero): 3.14159.round_to(2) is 3.14. See std.math#round_to
      * for the floating point caveat (1.005 is stored slightly below 1.005).
      */
-    def round_to(decimals: var): double {
+    def round_to(decimals: decimal): double {
         return new double(std.math#round_to(value, decimals));
     }
 
@@ -76,7 +76,7 @@ mutate double {
      * True when this value and `other` differ by at most `tolerance`: the
      * way to compare results of floating point arithmetic.
      */
-    def approx_equals(other: double, tolerance: var): bool {
+    def approx_equals(other: double, tolerance: decimal): bool {
         return absolute(value - other.value) <= tolerance;
     }
 
@@ -85,7 +85,7 @@ mutate double {
      * point, rounded: 3.14159.to_fixed(2) is "3.14", 2.0.to_fixed(3) is "2.000".
      * Throws illegal_argument_exception when decimals is outside 0 .. 100.
      */
-    def to_fixed(decimals: var): string {
+    def to_fixed(decimals: decimal): string {
         return number_to_fixed(value, decimals);
     }
 

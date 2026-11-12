@@ -21,22 +21,22 @@ mod std.math;
  */
 class rect {
     /** the smallest x of the rectangle (its left edge) */
-    x : var = 0;
+    x : decimal = 0;
 
     /** the smallest y of the rectangle */
-    y : var = 0;
+    y : decimal = 0;
 
     /** the extent along x; never negative */
-    width : var = 0;
+    width : decimal = 0;
 
     /** the extent along y; never negative */
-    height : var = 0;
+    height : decimal = 0;
 
     /**
      * The rectangle with corner (x, y) and the given size.
      * Throws illegal_argument_exception when width or height is negative.
      */
-    rect(x: var, y: var, width: var, height: var) {
+    rect(x: decimal, y: decimal, width: decimal, height: decimal) {
         if(width < 0 || height < 0)
             throw new illegal_argument_exception("rect: width and height cannot be negative");
         self->x = x;
@@ -57,7 +57,7 @@ class rect {
      * The rectangle spanned by two opposite corners, given in any order:
      * from_corners(5, 7, 1, 2) is the rectangle at (1, 2) of size 4 x 5.
      */
-    static def from_corners(x1: var, y1: var, x2: var, y2: var): rect {
+    static def from_corners(x1: decimal, y1: decimal, x2: decimal, y2: decimal): rect {
         return new rect(min(x1, x2), min(y1, y2), absolute(x2 - x1), absolute(y2 - y1));
     }
 
@@ -65,21 +65,21 @@ class rect {
      * The rectangle of the given size whose centre is (center_x, center_y).
      * Throws illegal_argument_exception when width or height is negative.
      */
-    static def from_center(center_x: var, center_y: var, width: var, height: var): rect {
+    static def from_center(center_x: decimal, center_y: decimal, width: decimal, height: decimal): rect {
         return new rect(center_x - width / 2, center_y - height / 2, width, height);
     }
 
     /** the x of the left edge (the same as the field x) */
-    def left(): var { return x; }
+    def left(): decimal { return x; }
 
     /** the x of the right edge: x + width */
-    def right(): var { return x + width; }
+    def right(): decimal { return x + width; }
 
     /** the smallest y (the same as the field y) */
-    def low_y(): var { return y; }
+    def low_y(): decimal { return y; }
 
     /** the largest y: y + height */
-    def high_y(): var { return y + height; }
+    def high_y(): decimal { return y + height; }
 
     /** the centre point */
     def center(): vector2 {
@@ -87,17 +87,17 @@ class rect {
     }
 
     /** width * height */
-    def area(): var {
+    def area(): decimal {
         return width * height;
     }
 
     /** the length of the border: 2 * (width + height) */
-    def perimeter(): var {
+    def perimeter(): decimal {
         return 2 * (width + height);
     }
 
     /** the length of the diagonal: sqrt(width^2 + height^2) */
-    def diagonal(): var {
+    def diagonal(): decimal {
         return hypot(width, height);
     }
 
@@ -112,7 +112,7 @@ class rect {
     }
 
     /** true when the point (px, py) lies inside the rectangle or on its border */
-    def contains(px: var, py: var): bool {
+    def contains(px: decimal, py: decimal): bool {
         return px >= x && px <= x + width && py >= y && py <= y + height;
     }
 
@@ -146,24 +146,24 @@ class rect {
         if(!intersects(other).value)
             throw new arithmetic_exception("rect: the rectangles do not intersect");
 
-        left_edge : var = max(x, other.x);
-        low_edge : var = max(y, other.y);
-        right_edge : var = min(x + width, other.x + other.width);
-        high_edge : var = min(y + height, other.y + other.height);
+        left_edge : decimal = max(x, other.x);
+        low_edge : decimal = max(y, other.y);
+        right_edge : decimal = min(x + width, other.x + other.width);
+        high_edge : decimal = min(y + height, other.y + other.height);
         return new rect(left_edge, low_edge, right_edge - left_edge, high_edge - low_edge);
     }
 
     /** the smallest rectangle that contains both rectangles (their bounding box) */
     def union_with(other: rect): rect {
-        left_edge : var = min(x, other.x);
-        low_edge : var = min(y, other.y);
-        right_edge : var = max(x + width, other.x + other.width);
-        high_edge : var = max(y + height, other.y + other.height);
+        left_edge : decimal = min(x, other.x);
+        low_edge : decimal = min(y, other.y);
+        right_edge : decimal = max(x + width, other.x + other.width);
+        high_edge : decimal = max(y + height, other.y + other.height);
         return new rect(left_edge, low_edge, right_edge - left_edge, high_edge - low_edge);
     }
 
     /** the same rectangle moved by (dx, dy) */
-    def translated(dx: var, dy: var): rect {
+    def translated(dx: decimal, dy: decimal): rect {
         return new rect(x + dx, y + dy, width, height);
     }
 
@@ -172,12 +172,12 @@ class rect {
      * by 2 * amount); a negative amount shrinks it.
      * Throws illegal_argument_exception when shrinking would make a size negative.
      */
-    def expanded(amount: var): rect {
+    def expanded(amount: decimal): rect {
         return new rect(x - amount, y - amount, width + 2 * amount, height + 2 * amount);
     }
 
     /** the point of the rectangle closest to (px, py): the point itself when it is inside */
-    def closest_point(px: var, py: var): vector2 {
+    def closest_point(px: decimal, py: decimal): vector2 {
         return new vector2(clamp(px, x, x + width), clamp(py, y, y + height));
     }
 

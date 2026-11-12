@@ -21,7 +21,7 @@ import ( std.io )
  * Everything is static. Malformed input throws parse_exception.
  */
 class hex {
-    private static def digit(value: var, upper: var) : var {
+    private static def digit(value: decimal, upper: decimal) : decimal {
         if(value < 10) {
             return '0' + value;
         }
@@ -51,18 +51,18 @@ class hex {
      * `separator` between the bytes: encode_separated("Hi!", ':') gives
      * "48:69:21" (the way network addresses and fingerprints are written).
      */
-    static def encode_separated(data: string, separator: var) : string {
+    static def encode_separated(data: string, separator: decimal) : string {
         return encode_with(data.data, 0, separator);
     }
 
-    private static def encode_with(bytes: _int8[]?, upper: var, separator: var) : string {
-        n : var = sizeof(bytes);
+    private static def encode_with(bytes: _int8[]?, upper: decimal, separator: decimal) : string {
+        n : decimal = sizeof(bytes);
         if(n == 0) {
             return "";
         }
         buf := new char_buffer(n * 3);
-        for(i : var = 0; i < n; i++) {
-            b : var = bytes[i] & 0xff;
+        for(i : decimal = 0; i < n; i++) {
+            b : decimal = bytes[i] & 0xff;
             if(i > 0 && separator >= 0) {
                 buf.append_char(separator);
             }
@@ -92,23 +92,23 @@ class hex {
 
     /** the bytes that the hexadecimal text encodes as an array; null when there are none. Accepts and throws like decode(). */
     static def decode_bytes(text: string) : _int8[]? {
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         buf := new char_buffer(n / 2 + 2);
-        i : var = 0;
+        i : decimal = 0;
         if(n >= 2 && text.data[0] == '0' && (text.data[1] == 'x' || text.data[1] == 'X')) {
             i = 2;
         }
 
-        high : var = 0 - 1; // the first digit of the byte being read, or -1
+        high : decimal = 0 - 1; // the first digit of the byte being read, or -1
         for(; i < n; i++) {
-            ch : var = text.data[i];
+            ch : decimal = text.data[i];
             if(ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == ':' || ch == '-') {
                 if(high >= 0) {
                     throw new parse_exception("hex: a byte is cut in two at position " + io_strings.int_to_string(i));
                 }
                 continue;
             }
-            value : var = io_strings.hex_value(ch);
+            value : decimal = io_strings.hex_value(ch);
             if(value < 0) {
                 throw new parse_exception("hex: illegal character with code " + io_strings.int_to_string(ch & 0xff)
                     + " at position " + io_strings.int_to_string(i));
@@ -142,7 +142,7 @@ class hex {
      * from_number(255, 0) is "ff", from_number(255, 4) is "00ff".
      * Throws illegal_argument_exception for a negative number.
      */
-    static def from_number(value: var, min_digits: var) : string {
+    static def from_number(value: decimal, min_digits: decimal) : string {
         return io_strings.int_to_hex(value, min_digits);
     }
 
@@ -152,18 +152,18 @@ class hex {
      * Throws parse_exception for "", for other characters, and for more
      * than 16 digits.
      */
-    static def to_number(text: string) : var {
-        n : var = sizeof(text.data);
-        i : var = 0;
+    static def to_number(text: string) : decimal {
+        n : decimal = sizeof(text.data);
+        i : decimal = 0;
         if(n >= 2 && text.data[0] == '0' && (text.data[1] == 'x' || text.data[1] == 'X')) {
             i = 2;
         }
         if(i >= n || n - i > 16) {
             throw new parse_exception("hex: not a hexadecimal number: \"" + text + "\"");
         }
-        value : var = 0;
+        value : decimal = 0;
         for(; i < n; i++) {
-            d : var = io_strings.hex_value(text.data[i]);
+            d : decimal = io_strings.hex_value(text.data[i]);
             if(d < 0) {
                 throw new parse_exception("hex: not a hexadecimal number: \"" + text + "\"");
             }
@@ -185,18 +185,18 @@ class hex {
 
     /** a hex dump of `bytes` (see dump()); null gives "" */
     static def dump_bytes(bytes: _int8[]?) : string {
-        n : var = sizeof(bytes);
+        n : decimal = sizeof(bytes);
         buf := new char_buffer(n * 5 + 16);
-        for(line : var = 0; line < n; line += 16) {
+        for(line : decimal = 0; line < n; line += 16) {
             buf.append(io_strings.int_to_hex(line, 8));
             buf.append_char(' ');
-            for(k : var = 0; k < 16; k++) {
+            for(k : decimal = 0; k < 16; k++) {
                 if(k == 8) {
                     buf.append_char(' ');
                 }
                 buf.append_char(' ');
                 if(line + k < n) {
-                    b : var = bytes[line + k] & 0xff;
+                    b : decimal = bytes[line + k] & 0xff;
                     buf.append_char(digit(b >> 4, 0));
                     buf.append_char(digit(b & 15, 0));
                 } else {
@@ -205,8 +205,8 @@ class hex {
                 }
             }
             buf.append("  |");
-            for(k : var = 0; k < 16 && line + k < n; k++) {
-                b : var = bytes[line + k] & 0xff;
+            for(k : decimal = 0; k < 16 && line + k < n; k++) {
+                b : decimal = bytes[line + k] & 0xff;
                 if(b >= 32 && b < 127) {
                     buf.append_char(b);
                 } else {

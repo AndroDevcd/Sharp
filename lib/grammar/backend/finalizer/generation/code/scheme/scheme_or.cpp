@@ -21,8 +21,8 @@ void process_or_scheme(operation_schema *scheme) {
     process_get_value(next_step);           // right
     process_jump_if_false(next_step);       // right is false -> endLabel (CMT is 0)
     process_set_label(next_step);           // trueLabel:
-    Int address = create_constant(1);       //   the result of || is 1, never
-    set_machine_data(numeric_constant, address); // the operand that was true
+    // the result of || is the integer 1, never the operand that was true
+    set_machine_data(integer_constant, 1);
     consume_machine_data(get_register(CMT));
     process_set_label(next_step);           // endLabel:
 

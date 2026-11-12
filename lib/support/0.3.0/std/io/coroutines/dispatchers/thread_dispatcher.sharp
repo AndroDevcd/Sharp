@@ -31,8 +31,8 @@ class thread_dispatcher : coroutine_dispatcher {
 
     private target : thread?;
     /** 1 when this dispatcher created the thread and may end it */
-    private owned : var = 0;
-    private closed : var = 0;
+    private owned : decimal = 0;
+    private closed : decimal = 0;
 
     /** Coroutines run on `target`, a thread that exists already. close() will not stop it. */
     thread_dispatcher(target: thread) {

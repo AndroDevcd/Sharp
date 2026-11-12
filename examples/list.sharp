@@ -4,10 +4,10 @@ mod main;
 // we need to implement the loopable interface provided by the standard library
 //
 // This will allow us to put the class directly into 'foreach' statements as shown below
-class custom_list : loopable<var> {
-   data : var[];
+class custom_list : loopable<decimal> {
+   data : decimal[];
 
-   custom_list(array : var[]) {
+   custom_list(array : decimal[]) {
       data = array;
    }
 
@@ -22,7 +22,7 @@ class custom_list : loopable<var> {
  */
 def main() {
    // create a list of items
-   array := new list<var>();
+   array := new list<decimal>();
    array.add(1);
    array.add(10);
    array.add(3);

@@ -35,7 +35,7 @@ class atomic<t base base_number<t> > {
      def operator!=(num : _int16) : bool      { lock(self) { return (value.value!=num); }}
      def operator!=(num : _int32) : bool      { lock(self) { return (value.value!=num); }}
      def operator!=(num : _int64) : bool      { lock(self) { return (value.value!=num); }}
-     def operator!=(num : var) : bool         { lock(self) { return (value.value!=num); }}
+     def operator!=(num : decimal) : bool         { lock(self) { return (value.value!=num); }}
 
      def operator==(num : atomic<t>) : bool   { lock(self) { return (value.value==num.value.value); }}
      def operator==(num : ulong) : bool       { lock(self) { return (value.value==num.value); }}
@@ -57,7 +57,7 @@ class atomic<t base base_number<t> > {
      def operator==(num : _int16) : bool      { lock(self) { return (value.value==num); }}
      def operator==(num : _int32) : bool      { lock(self) { return (value.value==num); }}
      def operator==(num : _int64) : bool      { lock(self) { return (value.value==num); }}
-     def operator==(num : var) : bool         { lock(self) { return (value.value==num); }}
+     def operator==(num : decimal) : bool         { lock(self) { return (value.value==num); }}
 
      def operator&&(num : atomic<t>) : bool   { lock(self) { return (value.value&&num.value.value); }}
      def operator&&(num : ulong) : bool       { lock(self) { return (value.value&&num.value); }}
@@ -79,7 +79,7 @@ class atomic<t base base_number<t> > {
      def operator&&(num : _int16) : bool      { lock(self) { return (value.value&&num); }}
      def operator&&(num : _int32) : bool      { lock(self) { return (value.value&&num); }}
      def operator&&(num : _int64) : bool      { lock(self) { return (value.value&&num); }}
-     def operator&&(num : var) : bool         { lock(self) { return (value.value&&num); }}
+     def operator&&(num : decimal) : bool         { lock(self) { return (value.value&&num); }}
 
      def operator||(num : atomic<t>) : bool   { lock(self) { return (value.value||num.value.value); }}
      def operator||(num : ulong) : bool       { lock(self) { return (value.value||num.value); }}
@@ -101,7 +101,7 @@ class atomic<t base base_number<t> > {
      def operator||(num : _int16) : bool      { lock(self) { return (value.value||num); }}
      def operator||(num : _int32) : bool      { lock(self) { return (value.value||num); }}
      def operator||(num : _int64) : bool      { lock(self) { return (value.value||num); }}
-     def operator||(num : var) : bool         { lock(self) { return (value.value||num); }}
+     def operator||(num : decimal) : bool         { lock(self) { return (value.value||num); }}
 
      def operator<(num : atomic<t>) : bool   { lock(self) { return (value.value<num.value.value); }}
      def operator<(num : ulong) : bool       { lock(self) { return (value.value<num.value); }}
@@ -123,7 +123,7 @@ class atomic<t base base_number<t> > {
      def operator<(num : _int16) : bool      { lock(self) { return (value.value<num); }}
      def operator<(num : _int32) : bool      { lock(self) { return (value.value<num); }}
      def operator<(num : _int64) : bool      { lock(self) { return (value.value<num); }}
-     def operator<(num : var) : bool         { lock(self) { return (value.value<num); }}
+     def operator<(num : decimal) : bool         { lock(self) { return (value.value<num); }}
 
      def operator>(num : atomic<t>) : bool   { lock(self) { return (value.value>num.value.value); }}
      def operator>(num : ulong) : bool       { lock(self) { return (value.value>num.value); }}
@@ -145,7 +145,7 @@ class atomic<t base base_number<t> > {
      def operator>(num : _int16) : bool      { lock(self) { return (value.value>num); }}
      def operator>(num : _int32) : bool      { lock(self) { return (value.value>num); }}
      def operator>(num : _int64) : bool      { lock(self) { return (value.value>num); }}
-     def operator>(num : var) : bool         { lock(self) { return (value.value>num); }}
+     def operator>(num : decimal) : bool         { lock(self) { return (value.value>num); }}
 
      def operator<=(num : atomic<t>) : bool   { lock(self) { return (value.value>=num.value.value); }}
      def operator<=(num : ulong) : bool       { lock(self) { return (value.value>=num.value); }}
@@ -167,7 +167,7 @@ class atomic<t base base_number<t> > {
      def operator<=(num : _int16) : bool      { lock(self) { return (value.value>=num); }}
      def operator<=(num : _int32) : bool      { lock(self) { return (value.value>=num); }}
      def operator<=(num : _int64) : bool      { lock(self) { return (value.value>=num); }}
-     def operator<=(num : var) : bool         { lock(self) { return (value.value>=num); }}
+     def operator<=(num : decimal) : bool         { lock(self) { return (value.value>=num); }}
 
      def operator+(num : atomic<t>) : t   { lock(self) { return (value.value+num.value.value); }}
      def operator+(num : ulong) : t       { lock(self) { return (value.value+num.value); }}
@@ -189,7 +189,7 @@ class atomic<t base base_number<t> > {
      def operator+(num : _int16) : t      { lock(self) { return (value.value+num); }}
      def operator+(num : _int32) : t      { lock(self) { return (value.value+num); }}
      def operator+(num : _int64) : t      { lock(self) { return (value.value+num); }}
-     def operator+(num : var) : t         { lock(self) { return (value.value+num); }}
+     def operator+(num : decimal) : t         { lock(self) { return (value.value+num); }}
 
      def operator-(num : atomic<t>) : t   { lock(self) { return (value.value-num.value.value); }}
      def operator-(num : ulong) : t       { lock(self) { return (value.value-num.value); }}
@@ -211,7 +211,7 @@ class atomic<t base base_number<t> > {
      def operator-(num : _int16) : t      { lock(self) { return (value.value-num); }}
      def operator-(num : _int32) : t      { lock(self) { return (value.value-num); }}
      def operator-(num : _int64) : t      { lock(self) { return (value.value-num); }}
-     def operator-(num : var) : t         { lock(self) { return (value.value-num); }}
+     def operator-(num : decimal) : t         { lock(self) { return (value.value-num); }}
 
      def operator*(num : atomic<t>) : t   { lock(self) { return (value.value*num.value.value); }}
      def operator*(num : ulong) : t       { lock(self) { return (value.value*num.value); }}
@@ -233,7 +233,7 @@ class atomic<t base base_number<t> > {
      def operator*(num : _int16) : t      { lock(self) { return (value.value*num); }}
      def operator*(num : _int32) : t      { lock(self) { return (value.value*num); }}
      def operator*(num : _int64) : t      { lock(self) { return (value.value*num); }}
-     def operator*(num : var) : t         { lock(self) { return (value.value*num); }}
+     def operator*(num : decimal) : t         { lock(self) { return (value.value*num); }}
 
      def operator/(num : atomic<t>) : t   { lock(self) { return (value.value/num.value.value); }}
      def operator/(num : ulong) : t       { lock(self) { return (value.value/num.value); }}
@@ -255,7 +255,7 @@ class atomic<t base base_number<t> > {
      def operator/(num : _int16) : t      { lock(self) { return (value.value/num); }}
      def operator/(num : _int32) : t      { lock(self) { return (value.value/num); }}
      def operator/(num : _int64) : t      { lock(self) { return (value.value/num); }}
-     def operator/(num : var) : t         { lock(self) { return (value.value/num); }}
+     def operator/(num : decimal) : t         { lock(self) { return (value.value/num); }}
 
      def operator%(num : atomic<t>) : t   { lock(self) { return (value.value%num.value.value); }}
      def operator%(num : ulong) : t       { lock(self) { return (value.value%num.value); }}
@@ -277,7 +277,7 @@ class atomic<t base base_number<t> > {
      def operator%(num : _int16) : t      { lock(self) { return (value.value%num); }}
      def operator%(num : _int32) : t      { lock(self) { return (value.value%num); }}
      def operator%(num : _int64) : t      { lock(self) { return (value.value%num); }}
-     def operator%(num : var) : t         { lock(self) { return (value.value%num); }}
+     def operator%(num : decimal) : t         { lock(self) { return (value.value%num); }}
 
      def operator**(num : atomic<t>) : t   { lock(self) { return (value.value**num.value.value); }}
      def operator**(num : ulong) : t       { lock(self) { return (value.value**num.value); }}
@@ -299,7 +299,7 @@ class atomic<t base base_number<t> > {
      def operator**(num : _int16) : t      { lock(self) { return (value.value**num); }}
      def operator**(num : _int32) : t      { lock(self) { return (value.value**num); }}
      def operator**(num : _int64) : t      { lock(self) { return (value.value**num); }}
-     def operator**(num : var) : t         { lock(self) { return (value.value**num); }}
+     def operator**(num : decimal) : t         { lock(self) { return (value.value**num); }}
 
      def operator<<(num : atomic<t>) : t   { lock(self) { return (value.value<<num.value.value); }}
      def operator<<(num : ulong) : t       { lock(self) { return (value.value<<num.value); }}
@@ -321,7 +321,7 @@ class atomic<t base base_number<t> > {
      def operator<<(num : _int16) : t      { lock(self) { return (value.value<<num); }}
      def operator<<(num : _int32) : t      { lock(self) { return (value.value<<num); }}
      def operator<<(num : _int64) : t      { lock(self) { return (value.value<<num); }}
-     def operator<<(num : var) : t         { lock(self) { return (value.value<<num); }}
+     def operator<<(num : decimal) : t         { lock(self) { return (value.value<<num); }}
 
      def operator>>(num : atomic<t>) : t   { lock(self) { return (value.value>>num.value.value); }}
      def operator>>(num : ulong) : t       { lock(self) { return (value.value>>num.value); }}
@@ -343,7 +343,7 @@ class atomic<t base base_number<t> > {
      def operator>>(num : _int16) : t      { lock(self) { return (value.value>>num); }}
      def operator>>(num : _int32) : t      { lock(self) { return (value.value>>num); }}
      def operator>>(num : _int64) : t      { lock(self) { return (value.value>>num); }}
-     def operator>>(num : var) : t         { lock(self) { return (value.value>>num); }}
+     def operator>>(num : decimal) : t         { lock(self) { return (value.value>>num); }}
 
      def operator^(num : atomic<t>) : t   { lock(self) { return (value.value^num.value.value); }}
      def operator^(num : ulong) : t       { lock(self) { return (value.value^num.value); }}
@@ -365,7 +365,7 @@ class atomic<t base base_number<t> > {
      def operator^(num : _int16) : t      { lock(self) { return (value.value^num); }}
      def operator^(num : _int32) : t      { lock(self) { return (value.value^num); }}
      def operator^(num : _int64) : t      { lock(self) { return (value.value^num); }}
-     def operator^(num : var) : t         { lock(self) { return (value.value^num); }}
+     def operator^(num : decimal) : t         { lock(self) { return (value.value^num); }}
 
      def operator&(num : atomic<t>) : t   { lock(self) { return (value.value&num.value.value); }}
      def operator&(num : ulong) : t       { lock(self) { return (value.value&num.value); }}
@@ -387,7 +387,7 @@ class atomic<t base base_number<t> > {
      def operator&(num : _int16) : t      { lock(self) { return (value.value&num); }}
      def operator&(num : _int32) : t      { lock(self) { return (value.value&num); }}
      def operator&(num : _int64) : t      { lock(self) { return (value.value&num); }}
-     def operator&(num : var) : t         { lock(self) { return (value.value&num); }}
+     def operator&(num : decimal) : t         { lock(self) { return (value.value&num); }}
 
      def operator|(num : atomic<t>) : t   { lock(self) { return (value.value|num.value.value); }}
      def operator|(num : ulong) : t       { lock(self) { return (value.value|num.value); }}
@@ -409,7 +409,7 @@ class atomic<t base base_number<t> > {
      def operator|(num : _int16) : t      { lock(self) { return (value.value|num); }}
      def operator|(num : _int32) : t      { lock(self) { return (value.value|num); }}
      def operator|(num : _int64) : t      { lock(self) { return (value.value|num); }}
-     def operator|(num : var) : t         { lock(self) { return (value.value|num); }}
+     def operator|(num : decimal) : t         { lock(self) { return (value.value|num); }}
 
      def operator=(num : atomic<t>) : atomic<t> { lock(self) { value.value=num.value.value; return self; }}
      def operator=(num : ulong) : atomic<t>     { lock(self) { value.value=num.value; return self; }}
@@ -431,7 +431,7 @@ class atomic<t base base_number<t> > {
      def operator=(num : _int16) : atomic<t>    { lock(self) { value.value=num; return self; }}
      def operator=(num : _int32) : atomic<t>    { lock(self) { value.value=num; return self; }}
      def operator=(num : _int64) : atomic<t>    { lock(self) { value.value=num; return self; }}
-     def operator=(num : var) : atomic<t>       { lock(self) { value.value=num; return self; }}
+     def operator=(num : decimal) : atomic<t>       { lock(self) { value.value=num; return self; }}
 
      def operator+=(num : atomic<t>) : atomic<t> { lock(self) { value.value+=num.value.value; return self; }}
      def operator+=(num : ulong) : atomic<t>     { lock(self) { value.value+=num.value; return self; }}
@@ -453,7 +453,7 @@ class atomic<t base base_number<t> > {
      def operator+=(num : _int16) : atomic<t>    { lock(self) { value.value+=num; return self; }}
      def operator+=(num : _int32) : atomic<t>    { lock(self) { value.value+=num; return self; }}
      def operator+=(num : _int64) : atomic<t>    { lock(self) { value.value+=num; return self; }}
-     def operator+=(num : var) : atomic<t>       { lock(self) { value.value+=num; return self; }}
+     def operator+=(num : decimal) : atomic<t>       { lock(self) { value.value+=num; return self; }}
 
      def operator-=(num : atomic<t>) : atomic<t> { lock(self) { value.value-=num.value.value; return self; }}
      def operator-=(num : ulong) : atomic<t>     { lock(self) { value.value-=num.value; return self; }}
@@ -475,7 +475,7 @@ class atomic<t base base_number<t> > {
      def operator-=(num : _int16) : atomic<t>    { lock(self) { value.value-=num; return self; }}
      def operator-=(num : _int32) : atomic<t>    { lock(self) { value.value-=num; return self; }}
      def operator-=(num : _int64) : atomic<t>    { lock(self) { value.value-=num; return self; }}
-     def operator-=(num : var) : atomic<t>       { lock(self) { value.value-=num; return self; }}
+     def operator-=(num : decimal) : atomic<t>       { lock(self) { value.value-=num; return self; }}
 
      def operator*=(num : atomic<t>) : atomic<t> { lock(self) { value.value*=num.value.value; return self; }}
      def operator*=(num : ulong) : atomic<t>     { lock(self) { value.value*=num.value; return self; }}
@@ -497,7 +497,7 @@ class atomic<t base base_number<t> > {
      def operator*=(num : _int16) : atomic<t>    { lock(self) { value.value*=num; return self; }}
      def operator*=(num : _int32) : atomic<t>    { lock(self) { value.value*=num; return self; }}
      def operator*=(num : _int64) : atomic<t>    { lock(self) { value.value*=num; return self; }}
-     def operator*=(num : var) : atomic<t>       { lock(self) { value.value*=num; return self; }}
+     def operator*=(num : decimal) : atomic<t>       { lock(self) { value.value*=num; return self; }}
 
      def operator/=(num : atomic<t>) : atomic<t> { lock(self) { value.value/=num.value.value; return self; }}
      def operator/=(num : ulong) : atomic<t>     { lock(self) { value.value/=num.value; return self; }}
@@ -519,7 +519,7 @@ class atomic<t base base_number<t> > {
      def operator/=(num : _int16) : atomic<t>    { lock(self) { value.value/=num; return self; }}
      def operator/=(num : _int32) : atomic<t>    { lock(self) { value.value/=num; return self; }}
      def operator/=(num : _int64) : atomic<t>    { lock(self) { value.value/=num; return self; }}
-     def operator/=(num : var) : atomic<t>       { lock(self) { value.value/=num; return self; }}
+     def operator/=(num : decimal) : atomic<t>       { lock(self) { value.value/=num; return self; }}
 
      def operator%=(num : atomic<t>) : atomic<t> { lock(self) { value.value%=num.value.value; return self; }}
      def operator%=(num : ulong) : atomic<t>     { lock(self) { value.value%=num.value; return self; }}
@@ -541,7 +541,7 @@ class atomic<t base base_number<t> > {
      def operator%=(num : _int16) : atomic<t>    { lock(self) { value.value%=num; return self; }}
      def operator%=(num : _int32) : atomic<t>    { lock(self) { value.value%=num; return self; }}
      def operator%=(num : _int64) : atomic<t>    { lock(self) { value.value%=num; return self; }}
-     def operator%=(num : var) : atomic<t>       { lock(self) { value.value%=num; return self; }}
+     def operator%=(num : decimal) : atomic<t>       { lock(self) { value.value%=num; return self; }}
 
      def operator&=(num : atomic<t>) : atomic<t> { lock(self) { value.value&=num.value.value; return self; }}
      def operator&=(num : ulong) : atomic<t>     { lock(self) { value.value&=num.value; return self; }}
@@ -563,7 +563,7 @@ class atomic<t base base_number<t> > {
      def operator&=(num : _int16) : atomic<t>    { lock(self) { value.value&=num; return self; }}
      def operator&=(num : _int32) : atomic<t>    { lock(self) { value.value&=num; return self; }}
      def operator&=(num : _int64) : atomic<t>    { lock(self) { value.value&=num; return self; }}
-     def operator&=(num : var) : atomic<t>       { lock(self) { value.value&=num; return self; }}
+     def operator&=(num : decimal) : atomic<t>       { lock(self) { value.value&=num; return self; }}
 
      def operator|=(num : atomic<t>) : atomic<t> { lock(self) { value.value|=num.value.value; return self; }}
      def operator|=(num : ulong) : atomic<t>     { lock(self) { value.value|=num.value; return self; }}
@@ -585,7 +585,7 @@ class atomic<t base base_number<t> > {
      def operator|=(num : _int16) : atomic<t>    { lock(self) { value.value|=num; return self; }}
      def operator|=(num : _int32) : atomic<t>    { lock(self) { value.value|=num; return self; }}
      def operator|=(num : _int64) : atomic<t>    { lock(self) { value.value|=num; return self; }}
-     def operator|=(num : var) : atomic<t>       { lock(self) { value.value|=num; return self; }}
+     def operator|=(num : decimal) : atomic<t>       { lock(self) { value.value|=num; return self; }}
 
      def operator^=(num : atomic<t>) : atomic<t> { lock(self) { value.value^=num.value.value; return self; }}
      def operator^=(num : ulong) : atomic<t>     { lock(self) { value.value^=num.value; return self; }}
@@ -607,11 +607,11 @@ class atomic<t base base_number<t> > {
      def operator^=(num : _int16) : atomic<t>    { lock(self) { value.value^=num; return self; }}
      def operator^=(num : _int32) : atomic<t>    { lock(self) { value.value^=num; return self; }}
      def operator^=(num : _int64) : atomic<t>    { lock(self) { value.value^=num; return self; }}
-     def operator^=(num : var) : atomic<t>       { lock(self) { value.value^=num; return self; }}
+     def operator^=(num : decimal) : atomic<t>       { lock(self) { value.value^=num; return self; }}
 
     def operator!() : bool { lock(self) { return (!value.value); }}
     def operator++() : t { lock(self) { return new t(++value.value); }}
-    def operator++(num : var) : t { lock(self) { return new t(value.value++); }}
+    def operator++(num : decimal) : t { lock(self) { return new t(value.value++); }}
     def operator--() : t { lock(self) { return new t(--value.value); }}
-    def operator--(num : var) : t { lock(self) { return new t(value.value--); }}
+    def operator--(num : decimal) : t { lock(self) { return new t(value.value--); }}
 }

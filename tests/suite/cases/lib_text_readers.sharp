@@ -145,7 +145,7 @@ def main(args: string[]) {
     expect("last", buffer.last(), '.');
     buffer.drop_last();
     expect_str("drop_last", buffer.build(), "abc..");
-    for(i : var = 0; i < 10000; i++) {
+    for(i : decimal = 0; i < 10000; i++) {
         buffer.append_char('a' + i % 26);
     }
     expect("growing", buffer.length(), 10005);
@@ -310,7 +310,7 @@ def main(args: string[]) {
         pass("next at the end");
     }
     numbers := new scanner("1 2 x 4");
-    total : var = 0;
+    total : decimal = 0;
     while(numbers.has_next_int()) {
         total = total + numbers.next_int();
     }

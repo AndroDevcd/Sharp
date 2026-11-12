@@ -44,7 +44,7 @@ class char_array : loopable<_int8> {
     }
 
     /** A char_array holding the numbers of `data` as characters (copied). */
-    char_array(data: var[]?) {
+    char_array(data: decimal[]?) {
         self->data = new _int8[sizeof(data)];
         for(i := 0; i < sizeof(data); i++) {
             self->data[i] = data[i];
@@ -91,17 +91,17 @@ class char_array : loopable<_int8> {
     override def to_string() := new string(data);
 
     /** The exception for a position outside of the array. */
-    private def bounds_error(what: string, index: var): bounds_except {
+    private def bounds_error(what: string, index: decimal): bounds_except {
         return new bounds_except("$what: index ${new int(index)} is outside of a char_array of ${new int(sizeof(data))} characters");
     }
 
     /** The number of characters. */
-    def length(): var {
+    def length(): decimal {
         return sizeof(data);
     }
 
     /** 1 if there are no characters. */
-    def is_empty(): var {
+    def is_empty(): decimal {
         return sizeof(data) == 0;
     }
 
@@ -109,8 +109,8 @@ class char_array : loopable<_int8> {
      * The character at `index` (0 = first) as a native number.
      * Throws out_of_bounds_exception if index is negative or >= length().
      */
-    def at(index: int): var {
-        i : var = index.value;
+    def at(index: int): decimal {
+        i : decimal = index.value;
         if(i < 0 || i >= sizeof(data)) throw bounds_error("at", i);
         return data[i];
     }
@@ -120,7 +120,7 @@ class char_array : loopable<_int8> {
      * Throws out_of_bounds_exception if index is negative or >= length().
      */
     def put(index: int, c: char): char_array {
-        i : var = index.value;
+        i : decimal = index.value;
         if(i < 0 || i >= sizeof(data)) throw bounds_error("put", i);
         data[i] = c.value;
         return self;
@@ -128,9 +128,9 @@ class char_array : loopable<_int8> {
 
     /** Sets every character to `c`. Returns this array. */
     def fill(c: char): char_array {
-        n : var = sizeof(data);
-        v : var = c.value;
-        for(i : var = 0; i < n; i++) {
+        n : decimal = sizeof(data);
+        v : decimal = c.value;
+        for(i : decimal = 0; i < n; i++) {
             data[i] = v;
         }
         return self;
@@ -141,45 +141,45 @@ class char_array : loopable<_int8> {
      * Throws out_of_bounds_exception if either position is outside of the array.
      */
     def swap(a: int, b: int): char_array {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         if(a.value < 0 || a.value >= n) throw bounds_error("swap", a.value);
         if(b.value < 0 || b.value >= n) throw bounds_error("swap", b.value);
-        tmp : var = data[a.value];
+        tmp : decimal = data[a.value];
         data[a.value] = data[b.value];
         data[b.value] = tmp;
         return self;
     }
 
     /** Position of the first character equal to `c`, or -1. */
-    def index_of(c: char): var {
-        n : var = sizeof(data);
-        v : var = c.value;
-        for(i : var = 0; i < n; i++) {
+    def index_of(c: char): decimal {
+        n : decimal = sizeof(data);
+        v : decimal = c.value;
+        for(i : decimal = 0; i < n; i++) {
             if(data[i] == v) return i;
         }
         return -1;
     }
 
     /** Position of the last character equal to `c`, or -1. */
-    def last_index_of(c: char): var {
-        v : var = c.value;
-        for(i : var = sizeof(data) - 1; i >= 0; i--) {
+    def last_index_of(c: char): decimal {
+        v : decimal = c.value;
+        for(i : decimal = sizeof(data) - 1; i >= 0; i--) {
             if(data[i] == v) return i;
         }
         return -1;
     }
 
     /** 1 if at least one character equals `c`. */
-    def contains(c: char): var {
+    def contains(c: char): decimal {
         return index_of(c) >= 0;
     }
 
     /** How many characters equal `c`. */
-    def count(c: char): var {
-        n : var = sizeof(data);
-        v : var = c.value;
-        total : var = 0;
-        for(i : var = 0; i < n; i++) {
+    def count(c: char): decimal {
+        n : decimal = sizeof(data);
+        v : decimal = c.value;
+        total : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
             if(data[i] == v) total++;
         }
         return total;
@@ -187,10 +187,10 @@ class char_array : loopable<_int8> {
 
     /** Puts the characters in opposite order, in place. Returns this array. */
     def reverse(): char_array {
-        i : var = 0;
-        j : var = sizeof(data) - 1;
+        i : decimal = 0;
+        j : decimal = sizeof(data) - 1;
         while(i < j) {
-            tmp : var = data[i];
+            tmp : decimal = data[i];
             data[i] = data[j];
             data[j] = tmp;
             i++;
@@ -205,15 +205,15 @@ class char_array : loopable<_int8> {
      * (Shell sort: no recursion and no extra memory.)
      */
     def sort(): char_array {
-        n : var = sizeof(data);
-        gap : var = 1;
+        n : decimal = sizeof(data);
+        gap : decimal = 1;
         while(gap < n / 3) {
             gap = gap * 3 + 1;                  // 1, 4, 13, 40, ...
         }
         while(gap >= 1) {
-            for(i : var = gap; i < n; i++) {
-                moving : var = data[i];
-                j : var = i;
+            for(i : decimal = gap; i < n; i++) {
+                moving : decimal = data[i];
+                j : decimal = i;
                 while(j >= gap && data[j - gap] > moving) {
                     data[j] = data[j - gap];
                     j -= gap;
@@ -227,9 +227,9 @@ class char_array : loopable<_int8> {
 
     /** Makes every small ASCII letter a capital, in place. Returns this array. */
     def to_upper(): char_array {
-        n : var = sizeof(data);
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c >= 'a' && c <= 'z') data[i] = c - 32;
         }
         return self;
@@ -237,9 +237,9 @@ class char_array : loopable<_int8> {
 
     /** Makes every capital ASCII letter small, in place. Returns this array. */
     def to_lower(): char_array {
-        n : var = sizeof(data);
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c >= 'A' && c <= 'Z') data[i] = c + 32;
         }
         return self;
@@ -257,9 +257,9 @@ class char_array : loopable<_int8> {
      * (start < 0, end > length() or end < start).
      */
     def slice(start: int, end: int): char_array {
-        n : var = sizeof(data);
-        from : var = start.value;
-        to : var = end.value;
+        n : decimal = sizeof(data);
+        from : decimal = start.value;
+        to : decimal = end.value;
         if(from < 0 || to > n || to < from)
             throw new bounds_except("slice: range $start..$end is not inside a char_array of ${new int(n)} characters");
 
@@ -272,10 +272,10 @@ class char_array : loopable<_int8> {
     }
 
     /** 1 if `other` has the same characters in the same order (two empty arrays are equal). */
-    def content_equals(other: char_array): var {
-        n : var = sizeof(data);
+    def content_equals(other: char_array): decimal {
+        n : decimal = sizeof(data);
         if(n != sizeof(other.data)) return 0;
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             if(data[i] != other.data[i]) return 0;
         }
         return 1;
@@ -283,9 +283,9 @@ class char_array : loopable<_int8> {
 
     /** The characters as an array of `char` objects (length 0 for an empty array). */
     def to_chars(): char[] {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         result := new char[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             result[i] = new char(data[i]);
         }
         return result;

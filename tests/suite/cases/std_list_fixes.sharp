@@ -23,7 +23,7 @@ def main(args: string[]) {
 
     // ---- fixed, used to be wrong (2): add_all of an EMPTY list throws nullptr_exception
     // (get_elements() of an empty list is null and add_all uses it with `!!`).
-    threw : var = 0;
+    threw : decimal = 0;
     target := new list<string>();
     target.add("x");
     try {

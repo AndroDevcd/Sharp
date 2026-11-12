@@ -102,7 +102,7 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
     }
 
     set_internal_variable_name(ss, "foreach_index", uniqueId++)
-    fieldType = sharp_type(type_var);
+    fieldType = sharp_type(type_int64);     // an array index: an integer
     indexField =  create_local_field(current_file, &current_context, ss.str(), flags, fieldType, normal_field, ast);
 
     APPLY_TEMP_SCHEME_WITH_TYPE(0, scheme_assign_value, *subScheme,

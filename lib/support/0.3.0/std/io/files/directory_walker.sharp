@@ -39,26 +39,26 @@ class directory_walker {
     private pending := new list<file>();
     private pending_depths := new list<int>();
     /** breadth first takes entries from the front of `pending` without moving the rest: this is where the front is */
-    private head : var = 0;
+    private head : decimal = 0;
 
     private root : file;
-    private started : var = 0;
-    private breadth : var = 0;
-    private max_depth : var = 64;
-    private with_root : var = 0;
-    private want_files : var = 1;
-    private want_directories : var = 1;
+    private started : decimal = 0;
+    private breadth : decimal = 0;
+    private max_depth : decimal = 64;
+    private with_root : decimal = 0;
+    private want_files : decimal = 1;
+    private want_directories : decimal = 1;
 
-    private has_filter : var = 0;
+    private has_filter : decimal = 0;
     private filter : (file)(bool);
-    private has_enter_filter : var = 0;
+    private has_enter_filter : decimal = 0;
     private enter_filter : (file)(bool);
 
     /** the next entry to return once it has been found, and its depth */
     private upcoming : file?;
-    private upcoming_depth : var = 0;
+    private upcoming_depth : decimal = 0;
     /** the depth of the entry next() returned last */
-    private last_depth : var = 0;
+    private last_depth : decimal = 0;
 
     /**
      * A walker for the directory `root`. When `root` is a plain file the
@@ -94,7 +94,7 @@ class directory_walker {
      *
      * Throws illegal_argument_exception when depth is below 0.
      */
-    def set_max_depth(depth: var) : directory_walker {
+    def set_max_depth(depth: decimal) : directory_walker {
         check_not_started();
         if(depth < 0) {
             throw new illegal_argument_exception("set_max_depth: the depth cannot be negative");
@@ -175,9 +175,9 @@ class directory_walker {
         return pending.pop_last();
     }
 
-    private last_taken_depth : var = 0;
+    private last_taken_depth : decimal = 0;
 
-    private def pending_count() : var {
+    private def pending_count() : decimal {
         if(breadth) {
             return pending.size().value - head;
         }
@@ -192,26 +192,26 @@ class directory_walker {
 
         while(upcoming == null && pending_count() > 0) {
             entry := take();
-            depth : var = last_taken_depth;
-            is_dir : var = entry.is_directory().value;
+            depth : decimal = last_taken_depth;
+            is_dir : decimal = entry.is_directory().value;
 
             // put the content of a directory on the list
             if(is_dir && depth < max_depth) {
-                enter : var = 1;
+                enter : decimal = 1;
                 if(has_enter_filter && depth > 0) {
                     enter = enter_filter(entry).value;
                 }
                 if(enter) {
                     names := directory_listing.names(entry.get_path());
-                    count : var = names.size().value;
+                    count : decimal = names.size().value;
                     if(breadth) {
-                        for(i : var = 0; i < count; i++) {
+                        for(i : decimal = 0; i < count; i++) {
                             pending.add(entry.child(names.at(i)));
                             pending_depths.add(new int(depth + 1));
                         }
                     } else {
                         // the list is used as a stack: push in reverse so the first name is taken first
-                        for(i : var = count - 1; i >= 0; i--) {
+                        for(i : decimal = count - 1; i >= 0; i--) {
                             pending.add(entry.child(names.at(i)));
                             pending_depths.add(new int(depth + 1));
                         }
@@ -220,7 +220,7 @@ class directory_walker {
             }
 
             // should this entry be reported?
-            report : var = 1;
+            report : decimal = 1;
             if(depth == 0 && !with_root) {
                 report = 0;
             } else if(is_dir && !want_directories) {
@@ -261,7 +261,7 @@ class directory_walker {
     }
 
     /** the depth of the entry next() returned last: 0 for the root, 1 for what is directly in it, ... */
-    def depth() : var {
+    def depth() : decimal {
         return last_depth;
     }
 
@@ -275,8 +275,8 @@ class directory_walker {
     }
 
     /** call `action` for every remaining entry of the walk, in walking order; returns how many there were */
-    def for_each(action: (file)()) : var {
-        count : var = 0;
+    def for_each(action: (file)()) : decimal {
+        count : decimal = 0;
         while(has_next()) {
             action(next());
             count++;

@@ -655,6 +655,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseAsmLiteral(branch);
+    } else if(*peek(1)  == "dmovi") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "ret") {
         expect(branch, peek(1)->getValue());
         parseAsmLiteral(branch);
@@ -684,6 +689,16 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, ",", false);
         parseRegister(branch);
     } else if(*peek(1)  == "mov64") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "d2i") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "i2d") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -718,7 +733,21 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
+    } else if(*peek(1)  == "dadd") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
     }  else if(*peek(1)  == "sub") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    }  else if(*peek(1)  == "dsub") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -732,7 +761,14 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
-    } else if(*peek(1)  == "div") {
+    } else if(*peek(1)  == "dmul") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "ddiv") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -751,12 +787,22 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseAsmLiteral(branch);
+    } else if(*peek(1)  == "diadd") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "isub") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
         parseAsmLiteral(branch);
-    } else if(*peek(1)  == "idiv") {
+    } else if(*peek(1)  == "disub") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(*peek(1)  == "didiv") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -771,7 +817,13 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "inc") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
+    } else if(*peek(1)  == "dinc") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
     } else if(*peek(1)  == "dec") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+    } else if(*peek(1)  == "ddec") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
     } else if(*peek(1)  == "movr") {
@@ -779,7 +831,37 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
-    } else if(*peek(1)  == "iaload") {
+    } else if(*peek(1)  == "aload64") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "aloadu32") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "aload32") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "aloadu16") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "aload16") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "aloadu8") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "aload8") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -795,7 +877,17 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
+    } else if(*peek(1)  == "dlt") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
     } else if(*peek(1)  == "gt") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "dgt") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -805,7 +897,17 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
+    } else if(*peek(1)  == "dlte") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
     } else if(*peek(1)  == "ge") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "dgte") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -820,6 +922,9 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
     } else if(*peek(1)  == "put") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+    } else if(*peek(1)  == "dput") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
     } else if(*peek(1)  == "putc") {
@@ -855,7 +960,17 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
+    } else if(*peek(1)  == "dtest") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
     } else if(*peek(1)  == "tne") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "dtne") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -874,6 +989,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
     } else if(*peek(1)  == "not") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "dnot") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -948,7 +1068,17 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseAsmLiteral(branch);
+    } else if(*peek(1)  == "daddl") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "subl") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(*peek(1)  == "dsubl") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -958,7 +1088,12 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseAsmLiteral(branch);
-    } else if(*peek(1)  == "divl") {
+    } else if(*peek(1)  == "dmull") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(*peek(1)  == "ddivl") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -973,17 +1108,32 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
         expect(branch, ",", false);
         parseLiteral(branch);
+    } else if(*peek(1)  == "diaddl") {
+        expect(branch, peek(1)->getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
     } else if(*peek(1)  == "isubl") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
         expect(branch, ",", false);
         parseLiteral(branch);
-    } else if(*peek(1)  == "idivl") {
+    } else if(*peek(1)  == "disubl") {
+        expect(branch, peek(1)->getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(*peek(1)  == "didivl") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
         expect(branch, ",", false);
         parseLiteral(branch);
     } else if(*peek(1)  == "imull") {
+        expect(branch, peek(1)->getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(*peek(1)  == "dimull") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
         expect(branch, ",", false);
@@ -994,6 +1144,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, ",", false);
         parseLiteral(branch);
     } else if(*peek(1)  == "loadl") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(*peek(1)  == "getf") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -1020,7 +1175,22 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseLiteral(branch);
-    } else if(*peek(1)  == "rmov") {
+    } else if(*peek(1)  == "astore64") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "astore32") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "astore16") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "astore8") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -1036,7 +1206,15 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "istore") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
+    } else if(*peek(1)  == "distore") {
+        expect(branch, peek(1)->getValue());
+        parseLiteral(branch);
     } else if(*peek(1)  == "smovr2") {
+        expect(branch, peek(1)->getValue());
+        parseAsmLiteral(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "putf") {
         expect(branch, peek(1)->getValue());
         parseAsmLiteral(branch);
         expect(branch, ",", false);
@@ -1045,6 +1223,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
     } else if(*peek(1)  == "istorel") {
+        expect(branch, peek(1)->getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(*peek(1)  == "distorel") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
         expect(branch, ",", false);
@@ -1078,6 +1261,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
         expect(branch, ",", false);
         parseLiteral(branch);
+    } else if(*peek(1)  == "disadd") {
+        expect(branch, peek(1)->getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
     } else if(*peek(1)  == "je") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
@@ -1088,6 +1276,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseAsmLiteral(branch);
     } else if(*peek(1)  == "cmp") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(*peek(1)  == "dcmp") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -1115,6 +1308,11 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, ",", false);
         parseLiteral(branch);
     } else if(*peek(1)  == "neg") {
+        expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(*peek(1)  == "dneg") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
@@ -4031,7 +4229,7 @@ bool parser::isImportDecl(Token &token) {
 }
 
 bool parser::isNativeType(string type) {
-    return type == "var" || type == "object"
+    return type == "decimal" || type == "object"
            || type == "_int8" || type == "_int16"
            || type == "_int32" || type == "_int64"
            || type == "_uint8" || type == "_uint16"
@@ -4159,6 +4357,7 @@ bool parser::iaAssemblyInstruction(string key) {
     return key == "nop" ||
     key  == "int" ||
     key  == "movi" ||
+    key  == "dmovi" ||
     key  == "ret" ||
     key  == "hlt" ||
     key  == "newVarArray" ||
@@ -4167,36 +4366,56 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "mov16" ||
     key  == "mov32" ||
     key  == "mov64" ||
+    key  == "d2i" ||
+    key  == "i2d" ||
     key  == "movu8" ||
     key  == "movu16" ||
     key  == "movu32" ||
     key  == "movu64" ||
     key  == "rstore" ||
     key  == "add" ||
+    key  == "dadd" ||
     key  == "sub" ||
+    key  == "dsub" ||
     key  == "mul" ||
-    key  == "div" ||
+    key  == "dmul" ||
+    key  == "ddiv" ||
     key  == "mod" ||
     key  == "iadd" ||
+    key  == "diadd" ||
     key  == "isub" ||
-    key  == "idiv" ||
+    key  == "disub" ||
+    key  == "didiv" ||
     key  == "imod" ||
     key  == "pop" ||
     key  == "inc" ||
+    key  == "dinc" ||
     key  == "dec" ||
+    key  == "ddec" ||
     key  == "movr" ||
-    key  == "iaload" ||
+    key  == "aload64" ||
+    key  == "aloadu32" ||
+    key  == "aload32" ||
+    key  == "aloadu16" ||
+    key  == "aload16" ||
+    key  == "aloadu8" ||
+    key  == "aload8" ||
     key  == "brh" ||
     key  == "ife" ||
     key  == "ifne" ||
     key  == "lt" ||
+    key  == "dlt" ||
     key  == "gt" ||
+    key  == "dgt" ||
     key  == "le" ||
+    key  == "dlte" ||
     key  == "ge" ||
+    key  == "dgte" ||
     key  == "movl" ||
     key  == "movsl" ||
     key  == "sizeof" ||
     key  == "put" ||
+    key  == "dput" ||
     key  == "putc" ||
     key  == "checklen" ||
     key  == "jmp" ||
@@ -4208,13 +4427,16 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "movn" ||
     key  == "sleep" ||
     key  == "te" ||
+    key  == "dtest" ||
     key  == "tne" ||
+    key  == "dtne" ||
     key  == "lock" ||
     key  == "ulock" ||
     key  == "movg" ||
     key  == "movnd" ||
     key  == "newObjArray" ||
     key  == "not" ||
+    key  == "dnot" ||
     key  == "skip" ||
     key  == "loadVal" ||
     key  == "shl" ||
@@ -4231,28 +4453,41 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "newClassArray" ||
     key  == "newString" ||
     key  == "addl" ||
+    key  == "daddl" ||
     key  == "subl" ||
+    key  == "dsubl" ||
     key  == "mull" ||
-    key  == "divl" ||
+    key  == "dmull" ||
+    key  == "ddivl" ||
     key  == "modl" ||
     key  == "iaddl" ||
+    key  == "diaddl" ||
     key  == "isubl" ||
-    key  == "idivl" ||
+    key  == "disubl" ||
+    key  == "didivl" ||
     key  == "imull" ||
+    key  == "dimull" ||
     key  == "imodl" ||
     key  == "loadl" ||
+    key  == "getf" ||
     key  == "popObj" ||
     key  == "smovr" ||
     key  == "andl" ||
     key  == "orl" ||
     key  == "xorl" ||
-    key  == "rmov" ||
+    key  == "astore64" ||
+    key  == "astore32" ||
+    key  == "astore16" ||
+    key  == "astore8" ||
     key  == "smov" ||
     key  == "returnVal" ||
     key  == "istore" ||
+    key  == "distore" ||
     key  == "smovr2" ||
+    key  == "putf" ||
     key  == "smovr3" ||
     key  == "istorel" ||
+    key  == "distorel" ||
     key  == "popl" ||
     key  == "pushNull" ||
     key  == "ipushl" ||
@@ -4261,10 +4496,12 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "invokeDelegate" ||
     key  == "get" ||
     key  == "isadd" ||
+    key  == "disadd" ||
     key  == "je" ||
     key  == "jne" ||
     key  == "ipopl" ||
     key  == "cmp" ||
+    key  == "dcmp" ||
     key  == "calld" ||
     key  == "varCast" ||
     key  == "tlsMovl" ||
@@ -4273,6 +4510,7 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "swap" ||
     key  == "ldc" ||
     key  == "neg" ||
+    key  == "dneg" ||
     key  == ".";
 }
 
@@ -4290,7 +4528,7 @@ bool parser::isKeyword(string key) {
            || key == "finally" || key == "throw" || key == "continue"
            || key == "goto" || key == "break" || key == "else"
            || key == "object" || key == "asm" || key == "for" || key == "foreach"
-           || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
+           || key == "decimal" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "interface" || key == "lock" || key == "enum"

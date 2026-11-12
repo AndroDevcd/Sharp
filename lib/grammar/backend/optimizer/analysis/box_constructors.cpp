@@ -7,8 +7,7 @@
 //
 //     objects   "self" (the object under construction) or "something else"
 //     numbers   "the argument, after these casts", "the constant c", or "unknown"
-//     ptr       "a local slot", "self's field 0", "a class's static object",
-//               "the static-init flag of a class", or "something else"
+//     ptr       "a local slot", "a class's static object", or "something else"
 //
 // It follows calls into the callee (the callee's frame is built from the pushed
 // values exactly as the VM does it) and follows a branch only when the
@@ -40,13 +39,17 @@ struct slot_value {
     bool isSelf = false;            // object part: the object under construction?
 };
 
-enum pointer_kind : uint8_t { p_other, p_local, p_self_value, p_static, p_static_flag };
+enum pointer_kind : uint8_t { p_other, p_local, p_static };
+
+/** number slot 0 of a class's static object: the hidden "static initializer has run" flag */
+#define STATIC_INIT_FLAG_SLOT 0
 
 struct executor {
     program_ir &program;
     std::vector<slot_value> stack;  // the operand stack, shared by all frames like the real one
     int steps = 0;
-    int stores = 0;                 // writes to self.field[0]
+    int stores = 0;                 // writes to a number field of self
+    int slot = 0;                   // ...which one
     std::vector<uint8_t> casts;     // casts of the stored value
 
     explicit executor(program_ir &p) : program(p) {}
@@ -152,6 +155,22 @@ bool executor::run(function_ir &fn, int depth) {
                 stack.pop_back();
                 break;
             }
+            // decimal constants: never the flag, never a branch condition we follow
+            case Opcode::DMOVI: {
+                number_value *r = reg(instr.a); if(!r) return false;
+                *r = number_value();
+                break;
+            }
+            case Opcode::DISTOREL: {
+                slot_value *s = local(instr.a); if(!s) return false;
+                s->number = number_value();
+                break;
+            }
+            case Opcode::DISTORE:
+                stack.push_back(slot_value());
+                break;
+            // casts and int <-> decimal conversions: remembered, to be replayed on the argument
+            case Opcode::I2D: case Opcode::D2I:
             case Opcode::MOV8: case Opcode::MOV16: case Opcode::MOV32: case Opcode::MOV64:
             case Opcode::MOVU8: case Opcode::MOVU16: case Opcode::MOVU32: case Opcode::MOVU64: {
                 number_value *to = reg(instr.a), *from = reg(instr.b); if(!to || !from) return false;
@@ -200,25 +219,20 @@ bool executor::run(function_ir &fn, int depth) {
             case Opcode::MOVG:                              // ptr = a class's static object
                 ptr = p_static;
                 break;
-            case Opcode::MOVN:                              // ptr = &ptr->field[a]
-                if(instr.a != 0) return false;
-                if(ptr == p_local && frame[ptrSlot].isSelf) ptr = p_self_value;
-                else if(ptr == p_static) ptr = p_static_flag;
-                else return false;
-                break;
-            case Opcode::ILOAD: {                           // regs[a] = *ptr
+            case Opcode::GETF: {                            // regs[a] = ptr->o.<number slot b>
                 number_value *r = reg(instr.a);
-                if(!r || ptr != p_static_flag) return false;
+                if(!r || ptr != p_static || instr.b != STATIC_INIT_FLAG_SLOT) return false;
                 r->kind = n_constant; r->constant = 1; r->casts.clear();   // see ONE ASSUMPTION in the header
                 break;
             }
-            case Opcode::IMOV: {                            // *ptr = regs[a]
+            case Opcode::PUTF: {                            // ptr->o.<number slot b> = regs[a]
                 number_value *r = reg(instr.a); if(!r) return false;
-                if(ptr == p_static_flag) {
+                if(ptr == p_static && instr.b == STATIC_INIT_FLAG_SLOT) {
                     if(r->kind != n_constant || r->constant != 1) return false;   // "initialized = true"
-                } else if(ptr == p_self_value) {
+                } else if(ptr == p_local && frame[ptrSlot].isSelf) {
                     if(r->kind != n_argument || stores != 0) return false;
                     stores++;
+                    slot = instr.b;
                     casts = r->casts;
                 } else return false;
                 break;
@@ -303,6 +317,7 @@ const box_summary& summarize_box_call(program_ir &program, Int address) {
     } else if(exec.stores == 1 && parameters == 1) {
         summary.effect = box_stores_value;
         summary.casts = exec.casts;
+        summary.slot = exec.slot;
     }
 
     return summary;

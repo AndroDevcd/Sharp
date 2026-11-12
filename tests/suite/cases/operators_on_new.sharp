@@ -15,9 +15,9 @@ import ( testing )
  */
 
 class money {
-    amount : var = 0;
+    amount : decimal = 0;
 
-    money(amount: var, unused: var) {
+    money(amount: decimal, unused: decimal) {
         self->amount = amount;
     }
 

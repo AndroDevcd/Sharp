@@ -110,7 +110,7 @@ def outer_calls_thrower() {
 }
 
 // ---- return inside try
-def return_in_try(): var {
+def return_in_try(): decimal {
     try {
         mark("t");
         return 10;
@@ -120,8 +120,8 @@ def return_in_try(): var {
 }
 
 /** the returned value is computed BEFORE the finally block runs */
-def return_value_is_computed_first(): var {
-    x : var = 1;
+def return_value_is_computed_first(): decimal {
+    x : decimal = 1;
     try {
         return x;                               // 1 ...
     } finally {
@@ -130,9 +130,9 @@ def return_value_is_computed_first(): var {
     }
 }
 
-counter : var = 0;
+counter : decimal = 0;
 
-def return_reads_global_first(): var {
+def return_reads_global_first(): decimal {
     try {
         return counter;                         // the value at this moment
     } finally {
@@ -140,7 +140,7 @@ def return_reads_global_first(): var {
     }
 }
 
-def return_expression_in_try(a: var, b: var): var {
+def return_expression_in_try(a: decimal, b: decimal): decimal {
     try {
         return a * b + 1;
     } finally {
@@ -149,9 +149,9 @@ def return_expression_in_try(a: var, b: var): var {
 }
 
 class tag {
-    number : var = 0;
+    number : decimal = 0;
 
-    tag(n: var) { number = n; }
+    tag(n: decimal) { number = n; }
 }
 
 /** the same for an object: the one that was in the variable at the return is returned */
@@ -166,7 +166,7 @@ def return_object_in_try(): tag {
 }
 
 /** return or fall through, depending on the argument; the finally runs either way */
-def maybe_return(early: var): var {
+def maybe_return(early: decimal): decimal {
     try {
         mark("t");
         if(early == 1) return 1;
@@ -179,7 +179,7 @@ def maybe_return(early: var): var {
 }
 
 // ---- return from a catch block that has a finally
-def return_in_catch(): var {
+def return_in_catch(): decimal {
     try {
         mark("t");
         throw new exception("e");
@@ -206,9 +206,9 @@ def throw_in_catch() {
 }
 
 // ---- loops
-def break_in_try(): var {
-    count : var = 0;
-    for(i : var = 0; i < 10; i++) {
+def break_in_try(): decimal {
+    count : decimal = 0;
+    for(i : decimal = 0; i < 10; i++) {
         try {
             if(i == 3) break;
             mark("t");
@@ -220,9 +220,9 @@ def break_in_try(): var {
     return count;                               // i = 0, 1, 2 and the one that broke out
 }
 
-def continue_in_try(): var {
-    sum : var = 0;
-    for(i : var = 0; i < 5; i++) {
+def continue_in_try(): decimal {
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 5; i++) {
         try {
             if(i % 2 == 1) continue;            // i = 1, 3
             mark("t");
@@ -235,9 +235,9 @@ def continue_in_try(): var {
     return sum;
 }
 
-def while_with_break(): var {
-    i : var = 0;
-    finals : var = 0;
+def while_with_break(): decimal {
+    i : decimal = 0;
+    finals : decimal = 0;
     while(i < 100) {
         try {
             i++;
@@ -249,8 +249,8 @@ def while_with_break(): var {
     return i * 10 + finals;                     // i = 4, finals = 4
 }
 
-def return_from_loop(): var {
-    for(i : var = 0; i < 10; i++) {
+def return_from_loop(): decimal {
+    for(i : decimal = 0; i < 10; i++) {
         try {
             mark("t");
             if(i == 2) return i;
@@ -262,9 +262,9 @@ def return_from_loop(): var {
 }
 
 /** a loop around a whole try/catch/finally: every second trip throws */
-def loop_around(trips: var): var {
-    total : var = 0;
-    for(i : var = 1; i <= trips; i++) {
+def loop_around(trips: decimal): decimal {
+    total : decimal = 0;
+    for(i : decimal = 1; i <= trips; i++) {
         try {
             if(i % 2 == 0) throw new exception("even");
             total += 1;
@@ -278,10 +278,10 @@ def loop_around(trips: var): var {
 }
 
 /** try/finally around a whole loop */
-def loop_inside(): var {
-    sum : var = 0;
+def loop_inside(): decimal {
+    sum : decimal = 0;
     try {
-        for(i : var = 1; i <= 4; i++) {
+        for(i : decimal = 1; i <= 4; i++) {
             sum += i;
         }
         mark("t");
@@ -344,7 +344,7 @@ def nested_exception_caught_inside() {
     mark("6");
 }
 
-def nested_return(): var {
+def nested_return(): decimal {
     try {
         try {
             mark("1");
@@ -408,8 +408,8 @@ def one_after_the_other() {
 }
 
 /** the finally block can see what the try block did */
-def finally_sees_try_work(): var {
-    x : var = 0;
+def finally_sees_try_work(): decimal {
+    x : decimal = 0;
     try {
         x = 5;
     } finally {
@@ -419,8 +419,8 @@ def finally_sees_try_work(): var {
 }
 
 /** ...also when the try block was cut short by an exception */
-def finally_sees_partial_work(): var {
-    x : var = 0;
+def finally_sees_partial_work(): decimal {
+    x : decimal = 0;
     try {
         x = 5;
         throw new exception("e");
@@ -460,7 +460,7 @@ def main(args: string[]) {
     expect_str("caught here: try, catch, finally, after", take_trail(), "tcfa");
 
     // ---- caught in the caller
-    caught : var = 0;
+    caught : decimal = 0;
     try {
         not_caught_here();
     } catch(e: illegal_state_exception) {
@@ -601,8 +601,8 @@ def main(args: string[]) {
     expect_str("try/catch inside a finally block", take_trail(), "12345");
 
     // ---- the same function many times: nothing is left behind by a finally
-    total : var = 0;
-    for(i : var = 0; i < 500; i++) {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 500; i++) {
         total += return_in_try();               // 10 each
         total += return_in_catch();             // 7 each
     }
@@ -610,7 +610,7 @@ def main(args: string[]) {
     trail = "";
 
     // ---- finally directly in main, with an exception from three shapes in a row
-    order : var = 0;
+    order : decimal = 0;
     try {
         order = order * 10 + 1;
         try {

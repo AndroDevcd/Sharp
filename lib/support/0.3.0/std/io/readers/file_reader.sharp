@@ -47,12 +47,12 @@ class file_reader base string_text_reader : loopable<string> {
      */
     override def get_elements() : string[]? {
         lines := read_lines();
-        count_lines : var = lines.size().value;
+        count_lines : decimal = lines.size().value;
         if(count_lines == 0) {
             return null;
         }
         result := new string[count_lines];
-        for(i : var = 0; i < count_lines; i++) {
+        for(i : decimal = 0; i < count_lines; i++) {
             result[i] = lines.at(i);
         }
         return result;

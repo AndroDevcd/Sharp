@@ -22,7 +22,7 @@ simple := new simple_class();
 def main() {
   println("Serialize test");
   num := 5;
-  for(i : var = 0; i < 10_000_000; i++)
+  for(i : decimal = 0; i < 10_000_000; i++)
     __serialize__(simple);
 //    describe(num);
   println("description ${describe(num)}");

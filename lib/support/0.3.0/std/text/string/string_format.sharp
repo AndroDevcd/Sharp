@@ -28,13 +28,13 @@ mutate string {
      * that does not exist.
      */
     def format(args: string[]): string {
-        n : var = sizeof(data);
-        count : var = sizeof(args);
+        n : decimal = sizeof(data);
+        count : decimal = sizeof(args);
         out := new text_buffer();
-        next_arg : var = 0;             // which argument the next {} takes
-        i : var = 0;
+        next_arg : decimal = 0;             // which argument the next {} takes
+        i : decimal = 0;
         while(i < n) {
-            c : var = data[i];
+            c : decimal = data[i];
             if(c == '{' && i + 1 < n && data[i + 1] == '{') {
                 out.append_char('{');
                 i += 2;
@@ -43,9 +43,9 @@ mutate string {
                 i += 2;
             } else if(c == '{') {
                 // read digits up to the closing brace
-                j : var = i + 1;
-                index : var = 0;
-                digits : var = 0;
+                j : decimal = i + 1;
+                index : decimal = 0;
+                digits : decimal = 0;
                 while(j < n && data[j] >= '0' && data[j] <= '9') {
                     index = index * 10 + (data[j] - '0');
                     digits++;
@@ -87,10 +87,10 @@ mutate string {
      * Everything else is copied. The opposite of unescape().
      */
     def escape(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         out := new text_buffer();
-        for(i : var = 0; i < n; i++) {
-            c : var = data[i];
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
             if(c == '\n') { out.append_char('\\'); out.append_char('n'); }
             else if(c == '\t') { out.append_char('\\'); out.append_char('t'); }
             else if(c == '\r') { out.append_char('\\'); out.append_char('r'); }
@@ -108,13 +108,13 @@ mutate string {
      * very end, is copied as it is (nothing is thrown).
      */
     def unescape(): string {
-        n : var = sizeof(data);
+        n : decimal = sizeof(data);
         out := new text_buffer();
-        i : var = 0;
+        i : decimal = 0;
         while(i < n) {
-            c : var = data[i];
+            c : decimal = data[i];
             if(c == '\\' && i + 1 < n) {
-                next : var = data[i + 1];
+                next : decimal = data[i + 1];
                 if(next == 'n') { out.append_char('\n'); i += 2; }
                 else if(next == 't') { out.append_char('\t'); i += 2; }
                 else if(next == 'r') { out.append_char('\r'); i += 2; }
@@ -160,9 +160,9 @@ mutate string {
      * Throws illegal_argument_exception if max_length is less than the length of the marker.
      */
     def ellipsize(max_length: int, marker: string): string {
-        n : var = sizeof(data);
-        limit : var = max_length.value;
-        m : var = sizeof(marker.data);
+        n : decimal = sizeof(data);
+        limit : decimal = max_length.value;
+        m : decimal = sizeof(marker.data);
         if(limit < m)
             throw new ill_arg_except("ellipsize: max_length $max_length leaves no room for the marker");
         if(n <= limit) return string_support.slice(data, 0, n);
@@ -177,7 +177,7 @@ mutate string {
      * The whole number `number` as text, without decimals: string.of_int(42)
      * is "42". A fraction is cut off. (`"" + n` prints 16 decimals for a native number.)
      */
-    static def of_int(number: var): string {
+    static def of_int(number: decimal): string {
         return number_format.integer(number);
     }
 
@@ -185,7 +185,7 @@ mutate string {
      * The number as short readable text: whole numbers without a point
      * ("42"), others with up to 6 decimals and no zeros at the end ("2.5").
      */
-    static def of_number(number: var): string {
+    static def of_number(number: decimal): string {
         return number_format.plain(number);
     }
 
@@ -195,18 +195,18 @@ mutate string {
     }
 
     /** "true" if `value` is not 0, otherwise "false". */
-    static def of_bool(value: var): string {
+    static def of_bool(value: decimal): string {
         if(value) return "true";
         return "false";
     }
 
     /** A string made of the given characters, in order. An empty array gives "". */
     static def of_chars(chars: char[]): string {
-        n : var = sizeof(chars);
+        n : decimal = sizeof(chars);
         if(n == 0) return new string();
 
         out := new _int8[n];
-        for(i : var = 0; i < n; i++) {
+        for(i : decimal = 0; i < n; i++) {
             out[i] = chars[i].value;
         }
         return string_support.of_buffer(out, n);

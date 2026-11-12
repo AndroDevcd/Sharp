@@ -26,35 +26,35 @@ def verify() {
 }
 
 def main(args: string[]) {
-    str_size : var = 131072;
-    tries : var = 8192;
+    str_size : decimal = 131072;
+    tries : decimal = 8192;
     if(sizeof(args) > 0) { str_size = args[0].to_int(); }
     if(sizeof(args) > 1) { tries = args[1].to_int(); }
 
     verify();
 
     str1 := new _int8[str_size];
-    for(i : var = 0; i < str_size; i++) {
+    for(i : decimal = 0; i < str_size; i++) {
         str1[i] = 'a';
     }
     str2 := base64.encode_bytes(str1);
     str3 := base64.decode_bytes(str2)!!;
 
-    start : var = nano_time().value;
+    start : decimal = nano_time().value;
 
-    s_encoded : var = 0;
-    for(i : var = 0; i < tries; i++) {
+    s_encoded : decimal = 0;
+    for(i : decimal = 0; i < tries; i++) {
         s_encoded += base64.encode_bytes(str1).size().value;
     }
-    encode_seconds : var = (nano_time().value - start) / 1000000000;
+    encode_seconds : decimal = (nano_time().value - start) / 1000000000;
 
-    middle : var = nano_time().value;
-    s_decoded : var = 0;
-    for(i : var = 0; i < tries; i++) {
+    middle : decimal = nano_time().value;
+    s_decoded : decimal = 0;
+    for(i : decimal = 0; i < tries; i++) {
         s_decoded += sizeof(base64.decode_bytes(str2)!!);
     }
-    decode_seconds : var = (nano_time().value - middle) / 1000000000;
-    seconds : var = (nano_time().value - start) / 1000000000;
+    decode_seconds : decimal = (nano_time().value - middle) / 1000000000;
+    seconds : decimal = (nano_time().value - start) / 1000000000;
 
     println("encode aaaa... to " + str2.substring(0, 3) + "...: " + number_to_fixed(s_encoded, 0)
             + ", " + number_to_fixed(encode_seconds, 3));

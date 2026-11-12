@@ -202,7 +202,7 @@ void compile_type_definition(
                             ast
                     );
 
-                    sharp_type initFlagType(type_var);
+                    sharp_type initFlagType(type_int8);     // 0 or 1
                     sharp_field *single_init_flag = create_field(
                             file,
                             currModule,

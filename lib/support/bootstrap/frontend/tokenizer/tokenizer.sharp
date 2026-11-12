@@ -17,19 +17,19 @@ class tokenizer {
     private lines: list<string>;
     private text: string;
     private data: _int8[];
-    private cursor: var, start;
-    private current: var;
-    private line: var;
-    private is_end: var;
-    private col: var;
-    private dynamic_string: var;
-    private brackets: var;
-    private start_parser: var;
+    private cursor: decimal, start;
+    private current: decimal;
+    private line: decimal;
+    private is_end: decimal;
+    private col: decimal;
+    private dynamic_string: decimal;
+    private brackets: decimal;
+    private start_parser: decimal;
     private file: string;
 
     private tokenizer(){ /* Dont call */ }
 
-    public tokenizer(text: string, file: string, start_parser: var)
+    public tokenizer(text: string, file: string, start_parser: decimal)
     {
         line = 1;
         self->file = file;
@@ -278,7 +278,7 @@ class tokenizer {
       tokens.add(new token(text.substring(start, cursor+1), token_id.single, type, col, line));
     }
 
-    private def match(c: var) : var {
+    private def match(c: decimal) : decimal {
         if(peek(1)==c) {
             advance();
             return true;
@@ -531,7 +531,7 @@ class tokenizer {
         }
     }
 
-    private def parse_string() : var {
+    private def parse_string() : decimal {
         if (tokens_left() < 2)
         {
             errors.new_error(compiler_error.expected_string_literal_eof, line, col);
@@ -583,7 +583,7 @@ class tokenizer {
 
                     if('{' == current) {
                         advance();
-                        // we gotta tokenize the rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
+                        // we gotta tokenize the rest of the data set  decimal to check the state where once we encounter a '}' we jump back to parsing a string
                         dynamic_string = true;
                         brackets = 1;
 
@@ -719,7 +719,7 @@ class tokenizer {
         return new string(tmp, 0, size);
     }
 
-    def is_sign(c : var) : var {
+    def is_sign(c : decimal) : decimal {
         return (('+'  == c) || ('-' == c));
     }
 
@@ -736,15 +736,15 @@ class tokenizer {
         else is_end = true;
     }
 
-    def peek_end(chars: var) : var {
+    def peek_end(chars: decimal) : decimal {
         return (cursor+chars) >= sizeof(data);
     }
 
-    def tokens_left() : var {
+    def tokens_left() : decimal {
         return sizeof(data) - cursor;
     }
 
-    def peek(chars: var) : var {
+    def peek(chars: decimal) : decimal {
         return ((cursor+chars) >= sizeof(data) || (cursor+chars) < 0)
             ? data[sizeof(data)-1] : data[cursor+chars];
     }
@@ -765,7 +765,7 @@ class tokenizer {
         return file;
     }
 
-    public def at(pos: var) : token {
+    public def at(pos: decimal) : token {
         return tokens.at(pos);
     }
 
@@ -777,7 +777,7 @@ class tokenizer {
         return tokens.get_elements();
     }
 
-    public def size() : var {
+    public def size() : decimal {
         return tokens.size();
     }
 
@@ -796,7 +796,7 @@ class tokenizer {
             lines.add(new string(raw));
     }
 
-    private static def is_hex_num(c: var) : var {
+    private static def is_hex_num(c: decimal) : decimal {
         return (char.is_digit(c) || ((c >= 65) && (c <= 70)) ||
                        ((c >= 97) && (c <= 102)));
     }

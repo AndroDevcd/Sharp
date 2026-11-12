@@ -23,7 +23,7 @@ mod std.collections;
  * The source can be anything that implements `loopable<T>`: list,
  * synced_list and every collection of std.collections. It is never changed.
  *
- * Limitation: T and R have to be object types; native `var` cannot be used.
+ * Limitation: T and R have to be object types; native `decimal` cannot be used.
  */
 class transforms<T base _object_, R base _object_> {
 
@@ -32,7 +32,7 @@ class transforms<T base _object_, R base _object_> {
         result := new list<R>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.add(transform(items[i]));
         return result;
     }
@@ -45,7 +45,7 @@ class transforms<T base _object_, R base _object_> {
         result := new list<R>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.add(transform(new int(i), items[i]));
         return result;
     }
@@ -58,10 +58,10 @@ class transforms<T base _object_, R base _object_> {
         result := new list<R>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             produced := transform(items[i]);
-            n : var = produced.size().value;
-            for(j : var = 0; j < n; j++)
+            n : decimal = produced.size().value;
+            for(j : decimal = 0; j < n; j++)
                 result.add(produced.at(j));
         }
         return result;
@@ -79,7 +79,7 @@ class transforms<T base _object_, R base _object_> {
         result := initial;
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result = operation(result, items[i]);
         return result;
     }
@@ -94,7 +94,7 @@ class transforms<T base _object_, R base _object_> {
         groups := new linked_hash_map<R, list<T> >();
         items := source.get_elements();
         if(items == null) return groups;
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             key := key_of(items[i]);
             group := groups.at(key);
             if(group == null) {
@@ -117,7 +117,7 @@ class transforms<T base _object_, R base _object_> {
         result := new linked_hash_map<R, T>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.put(key_of(items[i]), items[i]);
         return result;
     }
@@ -131,7 +131,7 @@ class transforms<T base _object_, R base _object_> {
         result := new linked_hash_map<T, R>();
         items := source.get_elements();
         if(items == null) return result;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.put(items[i], value_of(items[i]));
         return result;
     }
@@ -148,9 +148,9 @@ class transforms<T base _object_, R base _object_> {
         if(left == null) return result;
         if(right == null) return result;
 
-        n : var = sizeof(left);
+        n : decimal = sizeof(left);
         if(sizeof(right) < n) n = sizeof(right);
-        for(i : var = 0; i < n; i++)
+        for(i : decimal = 0; i < n; i++)
             result.add(new pair<T, R>(left[i], right[i]));
         return result;
     }
@@ -164,7 +164,7 @@ class transforms<T base _object_, R base _object_> {
         items := source.get_elements();
         if(items == null) return result;
         seen := new hash_set<R>();
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(seen.add(key_of(items[i]))) result.add(items[i]);
         }
         return result;

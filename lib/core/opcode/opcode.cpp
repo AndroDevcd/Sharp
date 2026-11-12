@@ -28,6 +28,14 @@ opcode_instr* OpBuilder::movi(opcode_arg value, _register outRegister) {
     return instruction_Buffer;
 }
 
+opcode_instr* OpBuilder::dmovi(opcode_arg value, _register outRegister) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DMOVI, outRegister, POSITIVE);
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
 void OpBuilder::clearBuf(opcode_instr *instrs, int buffLen) {
     for(int i = 0; i < buffLen; i++) {
         instrs[i] = -1;
@@ -89,6 +97,14 @@ opcode_instr OpBuilder::mov64(_register outRegister, _register registerToCast) {
     return SET_Ci(tmpInstr, MOV64, outRegister, POSITIVE, registerToCast, POSITIVE);
 }
 
+opcode_instr OpBuilder::d2i(_register outRegister, _register registerToCast) {
+    return SET_Ci(tmpInstr, D2I, outRegister, POSITIVE, registerToCast, POSITIVE);
+}
+
+opcode_instr OpBuilder::i2d(_register outRegister, _register registerToCast) {
+    return SET_Ci(tmpInstr, I2D, outRegister, POSITIVE, registerToCast, POSITIVE);
+}
+
 opcode_instr OpBuilder::movu8(_register outRegister, _register registerToCast) {
     return SET_Ci(tmpInstr, MOVU8, outRegister, POSITIVE, registerToCast, POSITIVE);
 }
@@ -113,20 +129,32 @@ opcode_instr OpBuilder::add(_register outRegister, _register leftRegister, _regi
     return SET_Bi(tmpInstr, ADD, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::dadd(_register outRegister, _register leftRegister, _register rightRegister) {
+    return SET_Bi(tmpInstr, DADD, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::sub(_register outRegister, _register leftRegister, _register rightRegister) {
     return SET_Bi(tmpInstr, SUB, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dsub(_register outRegister, _register leftRegister, _register rightRegister) {
+    return SET_Bi(tmpInstr, DSUB, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::mul(_register outRegister, _register leftRegister, _register rightRegister) {
     return SET_Bi(tmpInstr, MUL, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::exp(_register outRegister, _register leftRegister, _register rightRegister) {
-    return SET_Bi(tmpInstr, EXP, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
+opcode_instr OpBuilder::dmul(_register outRegister, _register leftRegister, _register rightRegister) {
+    return SET_Bi(tmpInstr, DMUL, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::div(_register outRegister, _register leftRegister, _register rightRegister) {
-    return SET_Bi(tmpInstr, DIV, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
+opcode_instr OpBuilder::dexp(_register outRegister, _register leftRegister, _register rightRegister) {
+    return SET_Bi(tmpInstr, DEXP, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::ddiv(_register outRegister, _register leftRegister, _register rightRegister) {
+    return SET_Bi(tmpInstr, DDIV, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::mod(_register outRegister, _register leftRegister, _register rightRegister) {
@@ -140,10 +168,25 @@ opcode_instr* OpBuilder::iadd(_register outRegister, opcode_arg value) {
     return instruction_Buffer;
 }
 
+opcode_instr* OpBuilder::diadd(_register outRegister, opcode_arg value) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    instruction_Buffer[0] = SET_Di(tmpInstr, DIADD, outRegister, POSITIVE);
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
 opcode_instr* OpBuilder::isub(_register outRegister, opcode_arg value) {
 
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
     instruction_Buffer[0] = SET_Di(tmpInstr, ISUB, outRegister, POSITIVE);
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
+opcode_instr* OpBuilder::disub(_register outRegister, opcode_arg value) {
+
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    instruction_Buffer[0] = SET_Di(tmpInstr, DISUB, outRegister, POSITIVE);
     instruction_Buffer[1] = value;
     return instruction_Buffer;
 }
@@ -156,10 +199,18 @@ opcode_instr* OpBuilder::imul(_register outRegister, opcode_arg value) {
     return instruction_Buffer;
 }
 
-opcode_instr* OpBuilder::idiv(_register outRegister, opcode_arg value) {
+opcode_instr* OpBuilder::dimul(_register outRegister, opcode_arg value) {
 
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
-    instruction_Buffer[0] = SET_Di(tmpInstr, IDIV, outRegister, POSITIVE);
+    instruction_Buffer[0] = SET_Di(tmpInstr, DIMUL, outRegister, POSITIVE);
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
+opcode_instr* OpBuilder::didiv(_register outRegister, opcode_arg value) {
+
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    instruction_Buffer[0] = SET_Di(tmpInstr, DIDIV, outRegister, POSITIVE);
     instruction_Buffer[1] = value;
     return instruction_Buffer;
 }
@@ -180,20 +231,48 @@ opcode_instr OpBuilder::inc(_register outRegister) {
     return SET_Di(tmpInstr, INC, outRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::dinc(_register outRegister) {
+    return SET_Di(tmpInstr, DINC, outRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::dec(_register outRegister) {
     return SET_Di(tmpInstr, DEC, outRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::ddec(_register outRegister) {
+    return SET_Di(tmpInstr, DDEC, outRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::movr(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, MOVR, outRegister, POSITIVE, inRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::iaload(_register outRegister, _register indexRegister) {
-    return SET_Ci(tmpInstr, IALOAD, outRegister, POSITIVE, indexRegister, POSITIVE);
+opcode_instr OpBuilder::aload64(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOAD64, outRegister, POSITIVE, indexRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::iload(_register outRegister) {
-    return SET_Di(tmpInstr, ILOAD, outRegister, POSITIVE);
+opcode_instr OpBuilder::aloadu32(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOADU32, outRegister, POSITIVE, indexRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::aload32(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOAD32, outRegister, POSITIVE, indexRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::aloadu16(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOADU16, outRegister, POSITIVE, indexRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::aload16(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOAD16, outRegister, POSITIVE, indexRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::aloadu8(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOADU8, outRegister, POSITIVE, indexRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::aload8(_register outRegister, _register indexRegister) {
+    return SET_Ci(tmpInstr, ALOAD8, outRegister, POSITIVE, indexRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::brh() {
@@ -212,16 +291,32 @@ opcode_instr OpBuilder::lt(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, LT, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::dlt(_register leftRegister, _register rightRegister) {
+    return SET_Ci(tmpInstr, DLT, leftRegister, POSITIVE, rightRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::gt(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, GT, leftRegister, POSITIVE, rightRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dgt(_register leftRegister, _register rightRegister) {
+    return SET_Ci(tmpInstr, DGT, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::le(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, LTE, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::dlte(_register leftRegister, _register rightRegister) {
+    return SET_Ci(tmpInstr, DLTE, leftRegister, POSITIVE, rightRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::ge(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, GTE, leftRegister, POSITIVE, rightRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dgte(_register leftRegister, _register rightRegister) {
+    return SET_Ci(tmpInstr, DGTE, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::movl(opcode_arg relFrameAddress) {
@@ -242,6 +337,10 @@ opcode_instr OpBuilder::_sizeof(_register outRegister) {
 
 opcode_instr OpBuilder::put(_register inRegister) {
     return SET_Di(tmpInstr, PUT, inRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dput(_register inRegister) {
+    return SET_Di(tmpInstr, DPUT, inRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::putc(_register inRegister) {
@@ -308,8 +407,16 @@ opcode_instr OpBuilder::te(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, TEST, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::dtest(_register leftRegister, _register rightRegister) {
+    return SET_Ci(tmpInstr, DTEST, leftRegister, POSITIVE, rightRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::tne(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, TNE, leftRegister, POSITIVE, rightRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dtne(_register leftRegister, _register rightRegister) {
+    return SET_Ci(tmpInstr, DTNE, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::lock() {
@@ -336,6 +443,10 @@ opcode_instr OpBuilder::newObjectArray(_register inRegister) {
 
 opcode_instr OpBuilder::_not(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, NOT, outRegister, POSITIVE, inRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dnot(_register outRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, DNOT, outRegister, POSITIVE, inRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::skip(opcode_arg instructionsToSkip) {
@@ -418,16 +529,28 @@ opcode_instr OpBuilder::addl(_register inRegister, opcode_arg relFrameAddress) {
     return SET_Ci(tmpInstr, ADDL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
+opcode_instr OpBuilder::daddl(_register inRegister, opcode_arg relFrameAddress) {
+    return SET_Ci(tmpInstr, DADDL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
+}
+
 opcode_instr OpBuilder::subl(_register inRegister, opcode_arg relFrameAddress) {
     return SET_Ci(tmpInstr, SUBL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
+}
+
+opcode_instr OpBuilder::dsubl(_register inRegister, opcode_arg relFrameAddress) {
+    return SET_Ci(tmpInstr, DSUBL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
 opcode_instr OpBuilder::mull(_register inRegister, opcode_arg relFrameAddress) {
     return SET_Ci(tmpInstr, MULL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
-opcode_instr OpBuilder::divl(_register inRegister, opcode_arg relFrameAddress) {
-    return SET_Ci(tmpInstr, DIVL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
+opcode_instr OpBuilder::dmull(_register inRegister, opcode_arg relFrameAddress) {
+    return SET_Ci(tmpInstr, DMULL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
+}
+
+opcode_instr OpBuilder::ddivl(_register inRegister, opcode_arg relFrameAddress) {
+    return SET_Ci(tmpInstr, DDIVL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
 opcode_instr OpBuilder::modl(_register inRegister, opcode_arg relFrameAddress) {
@@ -446,6 +569,18 @@ opcode_instr* OpBuilder::iaddl(opcode_arg value, opcode_arg relFrameAddress) {
     return instruction_Buffer;
 }
 
+opcode_instr* OpBuilder::diaddl(opcode_arg value, opcode_arg relFrameAddress) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(illegalParam(relFrameAddress, D_CLASS)) {
+        instruction_Buffer[0] =  ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DIADDL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
 opcode_instr* OpBuilder::isubl(opcode_arg value, opcode_arg relFrameAddress) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
     if(illegalParam(relFrameAddress, D_CLASS)) {
@@ -454,6 +589,18 @@ opcode_instr* OpBuilder::isubl(opcode_arg value, opcode_arg relFrameAddress) {
     }
 
     instruction_Buffer[0] = SET_Di(tmpInstr, ISUBL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
+opcode_instr* OpBuilder::disubl(opcode_arg value, opcode_arg relFrameAddress) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(illegalParam(relFrameAddress, D_CLASS)) {
+        instruction_Buffer[0] =  ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DISUBL, abs(relFrameAddress), posNeg(relFrameAddress));
     instruction_Buffer[1] = value;
     return instruction_Buffer;
 }
@@ -470,14 +617,26 @@ opcode_instr* OpBuilder::imull(opcode_arg value, opcode_arg relFrameAddress) {
     return instruction_Buffer;
 }
 
-opcode_instr* OpBuilder::idivl(opcode_arg value, opcode_arg relFrameAddress) {
+opcode_instr* OpBuilder::dimull(opcode_arg value, opcode_arg relFrameAddress) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
     if(illegalParam(relFrameAddress, D_CLASS)) {
         instruction_Buffer[0] =  ill();
         return instruction_Buffer;
     }
 
-    instruction_Buffer[0] = SET_Di(tmpInstr, IDIVL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[0] = SET_Di(tmpInstr, DIMULL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
+opcode_instr* OpBuilder::didivl(opcode_arg value, opcode_arg relFrameAddress) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(illegalParam(relFrameAddress, D_CLASS)) {
+        instruction_Buffer[0] =  ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DIDIVL, abs(relFrameAddress), posNeg(relFrameAddress));
     instruction_Buffer[1] = value;
     return instruction_Buffer;
 }
@@ -501,6 +660,13 @@ opcode_instr OpBuilder::loadl(_register inRegister, opcode_arg relFrameAddress) 
     return SET_Ci(tmpInstr, LOADL, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
+opcode_instr OpBuilder::getf(_register inRegister, opcode_arg relFrameAddress) {
+    if(inRegister == BMR) {
+        int r = 0;
+    }
+    return SET_Ci(tmpInstr, GETF, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
+}
+
 opcode_instr OpBuilder::popObject() {
     return SET_Ei(tmpInstr, POPOBJ);
 }
@@ -521,12 +687,20 @@ opcode_instr OpBuilder::xorl(_register inRegister, opcode_arg relStackAddress) {
     return SET_Ci(tmpInstr, XORL, inRegister, POSITIVE, abs(relStackAddress), posNeg(relStackAddress));
 }
 
-opcode_instr OpBuilder::imov(_register inRegister) {
-    return SET_Di(tmpInstr, IMOV, inRegister, POSITIVE);
+opcode_instr OpBuilder::astore64(_register indexRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, ASTORE64, indexRegister, POSITIVE, inRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::rmov(_register indexRegister, _register inRegister) {
-    return SET_Ci(tmpInstr, RMOV, indexRegister, POSITIVE, inRegister, POSITIVE);
+opcode_instr OpBuilder::astore32(_register indexRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, ASTORE32, indexRegister, POSITIVE, inRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::astore16(_register indexRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, ASTORE16, indexRegister, POSITIVE, inRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::astore8(_register indexRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, ASTORE8, indexRegister, POSITIVE, inRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::smov(_register outRegister, opcode_arg relStackAddress) {
@@ -545,6 +719,14 @@ opcode_instr* OpBuilder::istore(opcode_arg value) {
     return instruction_Buffer;
 }
 
+opcode_instr* OpBuilder::distore(opcode_arg value) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+
+    instruction_Buffer[0] = SET_Ei(tmpInstr, DISTORE);
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
 opcode_instr* OpBuilder::smovr4(opcode_arg relFrameAddress1, opcode_arg relFrameAddress2) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
 
@@ -555,6 +737,10 @@ opcode_instr* OpBuilder::smovr4(opcode_arg relFrameAddress1, opcode_arg relFrame
 
 opcode_instr OpBuilder::smovr2(_register inRegister, opcode_arg relFrameAddress) {
     return SET_Ci(tmpInstr, SMOVR_2, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
+}
+
+opcode_instr OpBuilder::putf(_register inRegister, opcode_arg relFrameAddress) {
+    return SET_Ci(tmpInstr, PUTF, inRegister, POSITIVE, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
 opcode_instr OpBuilder::smovr3(opcode_arg relFrameAddress) {
@@ -569,6 +755,18 @@ opcode_instr* OpBuilder::istorel(opcode_arg relFrameAddress, opcode_arg integerV
     }
 
     instruction_Buffer[0] = SET_Di(tmpInstr, ISTOREL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[1] = integerValue;
+    return instruction_Buffer;
+}
+
+opcode_instr* OpBuilder::distorel(opcode_arg relFrameAddress, opcode_arg integerValue) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(illegalParam(relFrameAddress, D_CLASS)) {
+        instruction_Buffer[0] = ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DISTOREL, abs(relFrameAddress), posNeg(relFrameAddress));
     instruction_Buffer[1] = integerValue;
     return instruction_Buffer;
 }
@@ -633,6 +831,18 @@ opcode_instr* OpBuilder::isadd(opcode_arg relStackAddress, opcode_arg value) {
     return instruction_Buffer;
 }
 
+opcode_instr* OpBuilder::disadd(opcode_arg relStackAddress, opcode_arg value) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(illegalParam(relStackAddress, D_CLASS)) {
+        instruction_Buffer[0] = ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DISADD, abs(relStackAddress), posNeg(relStackAddress));
+    instruction_Buffer[1] = value;
+    return instruction_Buffer;
+}
+
 opcode_instr OpBuilder::je(opcode_arg address) {
     if(illegalParam(address, D_CLASS))
         return ill();
@@ -655,6 +865,15 @@ opcode_instr *OpBuilder::cmp(_register inRegister, opcode_arg value) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
 
     instruction_Buffer[0] = SET_Di(tmpInstr, CMP, inRegister, POSITIVE);
+    instruction_Buffer[1] = value;
+
+    return instruction_Buffer;
+}
+
+opcode_instr *OpBuilder::dcmp(_register inRegister, opcode_arg value) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, DCMP, inRegister, POSITIVE);
     instruction_Buffer[1] = value;
 
     return instruction_Buffer;
@@ -696,6 +915,10 @@ opcode_instr OpBuilder::ldc(_register outRegister, opcode_arg address) {
 
 opcode_instr OpBuilder::neg(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, NEG, outRegister, POSITIVE, inRegister, POSITIVE);
+}
+
+opcode_instr OpBuilder::dneg(_register outRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, DNEG, outRegister, POSITIVE, inRegister, POSITIVE);
 }
 
 opcode_instr* OpBuilder::is(_register outRegister, opcode_arg type) {

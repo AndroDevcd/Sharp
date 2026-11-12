@@ -7,9 +7,9 @@ mod std.time;
  * How the value is stored - and why
  * ---------------------------------
  * The obvious representation, "nanoseconds since 1970", does not fit in a
- * `var`: a `var` holds whole numbers exactly only up to 2^53 (about 9.0e15)
+ * `decimal`: a `decimal` holds whole numbers exactly only up to 2^53 (about 9.0e15)
  * and the present is about 1.7e18 ns after 1970, so the last digits would be
- * rounded away (the spacing between neighbouring `var` values at that size
+ * rounded away (the spacing between neighbouring `decimal` values at that size
  * is 256 ns). An instant therefore keeps TWO numbers, like java.time.Instant:
  *
  *     epoch_second   whole seconds since 1970-01-01T00:00:00Z, negative before  (exact)
@@ -17,7 +17,7 @@ mod std.time;
  *
  * All arithmetic and comparison work on the pair and are exact to the
  * nanosecond. Only `now()` is limited by the runtime: vm.time_in_nanoseconds
- * hands the system clock over as one `var`, so the reading itself is already
+ * hands the system clock over as one `decimal`, so the reading itself is already
  * rounded to a multiple of 256 ns (and Windows clocks tick in 100 ns steps).
  *
  * The clock behind `now()` is the SYSTEM clock: it can jump when the
@@ -35,10 +35,10 @@ class instant {
     /** 1970-01-01T00:00:00Z */
     static const epoch : instant = new instant(0, 0);
 
-    private secs : var = 0;
-    private nano_part : var = 0;
+    private secs : decimal = 0;
+    private nano_part : decimal = 0;
 
-    private instant(epoch_second: var, nano: var) {
+    private instant(epoch_second: decimal, nano: decimal) {
         secs = epoch_second;
         nano_part = nano;
     }
@@ -52,7 +52,7 @@ class instant {
      * it when negative).
      * @throws date_time_exception when it is not a whole number below 2^53
      */
-    static def of_epoch_second(epoch_second: var): instant {
+    static def of_epoch_second(epoch_second: decimal): instant {
         time_math.check_whole("epoch second", epoch_second);
         return new instant(epoch_second, 0);
     }
@@ -63,7 +63,7 @@ class instant {
      * it is carried into the seconds: (10, -1) is 9.999999999 s.
      * @throws date_time_exception when an argument is not a whole number below 2^53
      */
-    static def of_epoch_second(epoch_second: var, nano_adjustment: var): instant {
+    static def of_epoch_second(epoch_second: decimal, nano_adjustment: decimal): instant {
         time_math.check_whole("epoch second", epoch_second);
         time_math.check_whole("nanoseconds", nano_adjustment);
         return new instant(epoch_second + time_math.floor_div(nano_adjustment, 1000000000),
@@ -75,7 +75,7 @@ class instant {
      * negative) - the timestamp format of Java, JavaScript and `utc_mills()`.
      * @throws date_time_exception when it is not a whole number below 2^53
      */
-    static def of_epoch_milli(epoch_milli: var): instant {
+    static def of_epoch_milli(epoch_milli: decimal): instant {
         time_math.check_whole("epoch millisecond", epoch_milli);
         return new instant(time_math.floor_div(epoch_milli, 1000), time_math.floor_mod(epoch_milli, 1000) * 1000000);
     }
@@ -93,17 +93,17 @@ class instant {
     // ------------------------------------------------------------------
 
     /** whole seconds since 1970-01-01T00:00:00Z, rounded down (negative before 1970) */
-    def epoch_second(): var { return secs; }
+    def epoch_second(): decimal { return secs; }
 
     /** nanoseconds after `epoch_second()`: 0 .. 999,999,999 */
-    def nano(): var { return nano_part; }
+    def nano(): decimal { return nano_part; }
 
     /**
      * Whole milliseconds since the epoch, rounded down:
      * epoch_second * 1000 + nano / 1,000,000. Exact (the result stays below
      * 2^53 for the whole supported range).
      */
-    def to_epoch_milli(): var {
+    def to_epoch_milli(): decimal {
         return secs * 1000 + time_math.trunc_div(nano_part, 1000000);
     }
 
@@ -126,16 +126,16 @@ class instant {
         return of_epoch_second(secs - amount.seconds(), nano_part - amount.nanos());
     }
 
-    def plus_seconds(seconds: var): instant {
+    def plus_seconds(seconds: decimal): instant {
         time_math.check_whole("seconds", seconds);
         return new instant(secs + seconds, nano_part);
     }
 
-    def plus_millis(millis: var): instant { return plus(duration.of_millis(millis)); }
-    def plus_nanos(nanos: var): instant { return of_epoch_second(secs, nano_part + nanos); }
-    def minus_seconds(seconds: var): instant { return plus_seconds(0 - seconds); }
-    def minus_millis(millis: var): instant { return plus_millis(0 - millis); }
-    def minus_nanos(nanos: var): instant { return plus_nanos(0 - nanos); }
+    def plus_millis(millis: decimal): instant { return plus(duration.of_millis(millis)); }
+    def plus_nanos(nanos: decimal): instant { return of_epoch_second(secs, nano_part + nanos); }
+    def minus_seconds(seconds: decimal): instant { return plus_seconds(0 - seconds); }
+    def minus_millis(millis: decimal): instant { return plus_millis(0 - millis); }
+    def minus_nanos(nanos: decimal): instant { return plus_nanos(0 - nanos); }
 
     /** the time from this instant to `other`: positive when `other` is later. Exact. */
     def until(other: instant): duration {
@@ -157,22 +157,22 @@ class instant {
     // ------------------------------------------------------------------
 
     /** -1 when this instant is before `other`, 0 when it is the same moment, 1 when after */
-    def compare_to(other: instant): var {
+    def compare_to(other: instant): decimal {
         if(secs != other.secs) {
             return time_math.compare(secs, other.secs);
         }
         return time_math.compare(nano_part, other.nano_part);
     }
 
-    def is_before(other: instant): var { return compare_to(other) < 0; }
-    def is_after(other: instant): var { return compare_to(other) > 0; }
+    def is_before(other: instant): decimal { return compare_to(other) < 0; }
+    def is_after(other: instant): decimal { return compare_to(other) > 0; }
 
-    def operator==(other: instant): var { return secs == other.secs && nano_part == other.nano_part; }
-    def operator!=(other: instant): var { return secs != other.secs || nano_part != other.nano_part; }
-    def operator<(other: instant): var { return compare_to(other) < 0; }
-    def operator<=(other: instant): var { return compare_to(other) <= 0; }
-    def operator>(other: instant): var { return compare_to(other) > 0; }
-    def operator>=(other: instant): var { return compare_to(other) >= 0; }
+    def operator==(other: instant): decimal { return secs == other.secs && nano_part == other.nano_part; }
+    def operator!=(other: instant): decimal { return secs != other.secs || nano_part != other.nano_part; }
+    def operator<(other: instant): decimal { return compare_to(other) < 0; }
+    def operator<=(other: instant): decimal { return compare_to(other) <= 0; }
+    def operator>(other: instant): decimal { return compare_to(other) > 0; }
+    def operator>=(other: instant): decimal { return compare_to(other) >= 0; }
 
     /** instant + duration, as `plus` */
     def operator+(amount: duration): instant { return plus(amount); }

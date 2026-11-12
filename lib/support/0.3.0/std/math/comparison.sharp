@@ -4,7 +4,7 @@ mod std.math;
  * Comparing and limiting native numbers: sign, min / max, clamp, equality up
  * to rounding, and the tests for "is this an ordinary number".
  *
- * Everything here takes and returns native `var` numbers (the predicates
+ * Everything here takes and returns native `decimal` numbers (the predicates
  * return `bool`, like is_nan() in math.sharp).
  */
 
@@ -12,14 +12,14 @@ mod std.math;
  * The sign of a number: -1 for negative, 1 for positive, 0 for zero.
  * NaN is returned unchanged (it is neither negative nor positive).
  */
-def sign(v: var): var {
+def sign(v: decimal): decimal {
     if(v > 0) return 1;
     if(v < 0) return 0 - 1;
     return v;       // 0 stays 0, NaN stays NaN
 }
 
 /** the smaller of two numbers; NaN if either one is NaN */
-def min(a: var, b: var): var {
+def min(a: decimal, b: decimal): decimal {
     if(a != a) return a;
     if(b != b) return b;
     if(a < b) return a;
@@ -27,7 +27,7 @@ def min(a: var, b: var): var {
 }
 
 /** the larger of two numbers; NaN if either one is NaN */
-def max(a: var, b: var): var {
+def max(a: decimal, b: decimal): decimal {
     if(a != a) return a;
     if(b != b) return b;
     if(a > b) return a;
@@ -35,12 +35,12 @@ def max(a: var, b: var): var {
 }
 
 /** the smallest of three numbers */
-def min(a: var, b: var, c: var): var {
+def min(a: decimal, b: decimal, c: decimal): decimal {
     return min(min(a, b), c);
 }
 
 /** the largest of three numbers */
-def max(a: var, b: var, c: var): var {
+def max(a: decimal, b: decimal, c: decimal): decimal {
     return max(max(a, b), c);
 }
 
@@ -48,12 +48,12 @@ def max(a: var, b: var, c: var): var {
  * The smallest number in an array (any number of values).
  * Throws illegal_argument_exception when the array is empty.
  */
-def min_of(values: var[]): var {
+def min_of(values: decimal[]): decimal {
     if(sizeof(values) == 0)
         throw new illegal_argument_exception("min_of: the array is empty");
 
-    best : var = values[0];
-    for(i : var = 1; i < sizeof(values); i++) {
+    best : decimal = values[0];
+    for(i : decimal = 1; i < sizeof(values); i++) {
         best = min(best, values[i]);
     }
     return best;
@@ -63,12 +63,12 @@ def min_of(values: var[]): var {
  * The largest number in an array (any number of values).
  * Throws illegal_argument_exception when the array is empty.
  */
-def max_of(values: var[]): var {
+def max_of(values: decimal[]): decimal {
     if(sizeof(values) == 0)
         throw new illegal_argument_exception("max_of: the array is empty");
 
-    best : var = values[0];
-    for(i : var = 1; i < sizeof(values); i++) {
+    best : decimal = values[0];
+    for(i : decimal = 1; i < sizeof(values); i++) {
         best = max(best, values[i]);
     }
     return best;
@@ -80,7 +80,7 @@ def max_of(values: var[]): var {
  *
  * Throws illegal_argument_exception when low > high.
  */
-def clamp(v: var, low: var, high: var): var {
+def clamp(v: decimal, low: decimal, high: decimal): decimal {
     if(low > high)
         throw new illegal_argument_exception("clamp: low is greater than high");
 
@@ -93,12 +93,12 @@ def clamp(v: var, low: var, high: var): var {
  * True when v is an ordinary number: not NaN and not +-infinity.
  * (v - v is 0 for every finite number and NaN for the other three.)
  */
-def is_finite(v: var): bool {
+def is_finite(v: decimal): bool {
     return (v - v) == 0;
 }
 
 /** true when v has no fractional part (and is finite): 3, -7, 1e20 */
-def is_whole(v: var): bool {
+def is_whole(v: decimal): bool {
     return (v - v) == 0 && floor_of(v) == v;
 }
 
@@ -107,7 +107,7 @@ def is_whole(v: var): bool {
  * for results of floating point arithmetic: approx_equals(0.1 + 0.2, 0.3, 1e-9).
  * Always false when either number is NaN.
  */
-def approx_equals(a: var, b: var, tolerance: var): bool {
+def approx_equals(a: decimal, b: decimal, tolerance: decimal): bool {
     return absolute(a - b) <= tolerance;
 }
 
@@ -116,8 +116,8 @@ def approx_equals(a: var, b: var, tolerance: var): bool {
  * copy_sign(3, -0.5) == -3, copy_sign(-3, 2) == 3.
  * A sign_source of 0 counts as positive.
  */
-def copy_sign(magnitude: var, sign_source: var): var {
-    size : var = absolute(magnitude);
+def copy_sign(magnitude: decimal, sign_source: decimal): decimal {
+    size : decimal = absolute(magnitude);
     if(sign_source < 0) return 0 - size;
     return size;
 }
@@ -127,7 +127,7 @@ def copy_sign(magnitude: var, sign_source: var): var {
  * -1 when a < b, 1 when a > b, 0 when they are equal.
  * NaN compares as equal to everything (no ordering exists for it).
  */
-def compare(a: var, b: var): var {
+def compare(a: decimal, b: decimal): decimal {
     if(a < b) return 0 - 1;
     if(a > b) return 1;
     return 0;

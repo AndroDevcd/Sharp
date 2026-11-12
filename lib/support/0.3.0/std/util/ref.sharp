@@ -19,7 +19,7 @@ mod std.util;
  * `value` is a public field: read and assign it directly.
  *
  * LIMITATION: T must be an object type. For a native number use
- * std.util#counter, which is the same idea for a `var`.
+ * std.util#counter, which is the same idea for a `decimal`.
  */
 class ref<T> {
     /** the object currently held */

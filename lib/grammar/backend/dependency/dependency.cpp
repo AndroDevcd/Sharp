@@ -3,6 +3,7 @@
 //
 
 #include "../compiler/functions/generic_functions.h"
+#include "overload_preference.h"
 #include "dependancy.h"
 #include "../../compiler_info.h"
 #include "../types/sharp_module.h"
@@ -659,6 +660,17 @@ sharp_function* resolve_function(
                     else ambiguous = true;
                 }
             }
+        }
+    }
+
+    // Several overloads take the call after a conversion: a plain number is
+    // rather passed as a plain number than wrapped in an object
+    // (overload_preference.h). If that singles one out, the call is not ambiguous.
+    if(ambiguous) {
+        sharp_function *preferred = prefer_plain_number_overload(resolvedFunctions, parameters);
+        if(preferred != NULL) {
+            resolvedFunction = preferred;
+            ambiguous = false;
         }
     }
 

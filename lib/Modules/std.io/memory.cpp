@@ -11,8 +11,8 @@
 
 void copy() {
     auto task = thread_self->task;
-    Int end = pop_stack_number;
-    Int start = pop_stack_number;
+    Int end = pop_stack_number.i;
+    Int start = pop_stack_number.i;
     auto from = pop_stack_object.o;
     Int copyLen = end - start, index=0;
 
@@ -27,8 +27,13 @@ void copy() {
         if(from->type <= type_var) { // var[]
             auto newArray = create_object(copyLen, (data_type)from->type);
 
-            for (Int i = start; i < end; i++) {
-                newArray->HEAD[index++] = from->HEAD[i];
+            // same element type on both sides: copy the bytes of the range.
+            // (An empty range has no array at all: create_object gives null for
+            // a size of 0, and null is what the caller gets.)
+            (void)index;
+            if(newArray != nullptr) {
+                memcpy(newArray->data, (char*)from->data + (size_t)start * element_size(from->type),
+                       (size_t)copyLen * element_size(from->type));
             }
 
             copy_object(&push_stack_object, newArray);
@@ -51,9 +56,9 @@ void copy() {
 
 void memcopy() {
     auto task = thread_self->task;
-    Int srcEnd = pop_stack_number;
-    Int srcStart = pop_stack_number;
-    Int destStart = pop_stack_number;
+    Int srcEnd = pop_stack_number.i;
+    Int srcStart = pop_stack_number.i;
+    Int destStart = pop_stack_number.i;
     Int copyLen = srcEnd - srcStart;
     auto from = pop_stack_object.o;
     auto to = pop_stack_object.o;
@@ -82,8 +87,11 @@ void memcopy() {
         }
 
         if(from->type <= type_var) { // var[]
+            // element by element through the accessors: the two arrays may hold
+            // different number types (an _int8[] copied into an _int32[])
             for (Int i = srcStart; i < srcEnd; i++) {
-                to->HEAD[destStart++] = from->HEAD[i];
+                if(holds_decimals(to) || holds_decimals(from)) set_number_at(to, destStart++, number_at(from, i));
+                else set_integer_at(to, destStart++, integer_at(from, i));
             }
         } else {
             for (Int i = srcStart; i < srcEnd; i++) {
@@ -97,8 +105,8 @@ void memcopy() {
 
 void invert() {
     auto task = thread_self->task;
-    Int len = pop_stack_number;
-    Int start = pop_stack_number;
+    Int len = pop_stack_number.i;
+    Int start = pop_stack_number.i;
     auto from = pop_stack_object.o;
 
     if(from != NULL) {
@@ -115,8 +123,9 @@ void invert() {
             auto newArray = create_object(len, from->type);
 
             Int iter = 0;
+            const int width = element_size(from->type);
             for (Int i = (start + len) - 1; i >= start; i--) {
-                newArray->HEAD[iter++] = from->HEAD[i];
+                memcpy((char*)newArray->data + (size_t)(iter++) * width, (char*)from->data + (size_t)i * width, width);
             }
 
             copy_object(&push_stack_object, newArray);

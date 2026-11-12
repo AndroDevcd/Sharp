@@ -25,12 +25,12 @@ protected class unix_fs base file_system {
     * no limit on the length of the path.
     */
     override def normalize(pathname: string) : string {
-        n : var = sizeof(pathname.data);
+        n : decimal = sizeof(pathname.data);
         buf := new char_buffer(n + 1);
-        last_was_slash : var = 0;
+        last_was_slash : decimal = 0;
 
-        for(i : var = 0; i < n; i++) {
-            ch : var = pathname.data[i];
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = pathname.data[i];
             if(ch == '/' || ch == '\\') {
                 if(!last_was_slash) {
                     buf.append_char('/');
@@ -60,7 +60,7 @@ protected class unix_fs base file_system {
       */
      override def get_attributes(f: file) : int {
         path := f.path.data;
-        attrs: var = 0;
+        attrs: _int64 = 0;
 
         /*
         * This will perform the os call to request the
@@ -74,8 +74,8 @@ protected class unix_fs base file_system {
 
         if(attrs != 0) {
             // find the first character of the name (behind the last slash)
-            name_start : var = 0;
-            for(i : var = sizeof(path) - 1; i >= 0; i--) {
+            name_start : decimal = 0;
+            for(i : decimal = sizeof(path) - 1; i >= 0; i--) {
                 if(path[i] == '/') {
                     name_start = i + 1;
                     break;
@@ -99,8 +99,8 @@ protected class unix_fs base file_system {
       */
      override def check_access(f: file, access: int) : int {
         path := f.path.data;
-        _access := access.value;
-        result : var = 0;
+        _access : _int64 = access.value;
+        result : _int64 = 0;
 
         /*
         * This will perform the os call to request the

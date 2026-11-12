@@ -50,7 +50,7 @@ void process_assign_value_scheme(operation_schema *scheme) {
         }
 
         add_instruction(Opcode::Builder::tlsMovl(closureRef->ci->address));
-        add_instruction(Opcode::Builder::movn(closure->ci->address));
+        move_to_field(closure);
 
         set_machine_data(closure, false);
         pop_machine_data_from_stack();

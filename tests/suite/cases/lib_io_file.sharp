@@ -188,7 +188,7 @@ def test_text() {
 
     // bytes: every value 0..255 survives
     bytes := new _int8[256];
-    for(i : var = 0; i < 256; i++) {
+    for(i : decimal = 0; i < 256; i++) {
         bytes[i] = i;
     }
     bin := at("all_bytes.bin");
@@ -196,8 +196,8 @@ def test_text() {
     expect("binary length", bin.size(), 256);
     read_back := bin.read_bytes();
     expect("read_bytes size", sizeof(read_back), 256);
-    same : var = 1;
-    for(i : var = 0; i < 256; i++) {
+    same : decimal = 1;
+    for(i : decimal = 0; i < 256; i++) {
         if((read_back[i] & 0xff) != i) {
             same = 0;
         }
@@ -207,7 +207,7 @@ def test_text() {
     expect("write_bytes(null) empties", bin.size(), 0);
 
     big := new char_buffer();
-    for(i : var = 0; i < 20000; i++) {
+    for(i : decimal = 0; i < 20000; i++) {
         big.append("line ").append_int(i).append_char('\n');
     }
     large := at("large.txt");

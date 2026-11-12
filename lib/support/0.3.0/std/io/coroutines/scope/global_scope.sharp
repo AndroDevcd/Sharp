@@ -58,7 +58,7 @@ class global_scope {
     }
 
     /** number of top level coroutines that are not finished yet */
-    static def active_count() : var {
+    static def active_count() : decimal {
         return root().child_count();
     }
 }

@@ -37,7 +37,7 @@ class _function_ {
         str := "$name(full_name=$full_name, id=$id, flags=$flags, owner=${owner != null ? owner!!.full_name : new string("")}," +
         " type=$type return_type=$return_type, array_return=$array_return, is_delegate=$is_delegate, params=";
 
-        for(i: var = 0; i < sizeof(params); i++) {
+        for(i: decimal = 0; i < sizeof(params); i++) {
             str += "[#$i] ${params[i]}";
 
             if((i+1) < sizeof(params)) {

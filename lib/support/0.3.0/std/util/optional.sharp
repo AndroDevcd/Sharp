@@ -7,7 +7,7 @@ mod std.util;
  * be no result" in a return type instead of returning null and hoping the
  * caller checks (Java's Optional, Kotlin's nullable types).
  *
- *     def find_user(id: var): optional<string> {
+ *     def find_user(id: decimal): optional<string> {
  *         if(id == 1) return optional<string>.of("ada");
  *         return optional<string>.empty();
  *     }
@@ -20,7 +20,7 @@ mod std.util;
  * optionals.
  *
  * LIMITATION: T must be an object type (string, int, your own classes).
- * optional<var> and other native type arguments are not supported, because
+ * optional<decimal> and other native type arguments are not supported, because
  * the class stores its value in a nullable field (T?).
  */
 class optional<T> {

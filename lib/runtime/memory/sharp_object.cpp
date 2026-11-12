@@ -29,7 +29,8 @@ void init_struct(sharp_object *o) {
     o->size = 0;
     o->info = 0;
     o->arrayFlag = 0;
-    o->HEAD = nullptr;
+    o->staticObject = 0;
+    o->data = nullptr;
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
@@ -39,17 +40,15 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
     init_struct(o);
     o->size = sc->staticFields;
     o->type = type_class;
+    o->staticObject = 1;
     SET_INFO(o->info, sc->address, gc_normal);
 
     if(o->size > 0)
     {
+        // every slot starts as zero bits: 0 for an integer field, 0.0 for a
+        // decimal field, null for a reference (see "THE SLOTS OF A CLASS
+        // INSTANCE" in sharp_object.h)
         o->node = calloc_mem<object>(o->size, sizeof(object), unsafe);
-        for(Int i = 0; i < o->size; i++) {
-            sharp_field *field = sc->fields + (sc->instanceFields + i);
-            if(field->type->type <= type_var && !field->isArray && check_flag(field->flags, flag_static)) {
-                copy_object(o->node + i, create_object(1, field->type->type));
-            }
-        }
     }
 
     push_object(o);
@@ -67,13 +66,9 @@ sharp_object* create_object(sharp_class* sc, bool unsafe) {
 
     if(o->size > 0)
     {
+        // one allocation for the object and one for its slots, nothing per
+        // field: number fields live in their slot and start as 0
         o->node = calloc_mem<object>(o->size, sizeof(object), unsafe);
-        for(Int i = 0; i < sc->instanceFields; i++) {
-            sharp_field *field = sc->fields + i;
-            if(field->type->type <= type_var && !field->isArray) {
-                copy_object(o->node + i, create_object(1, field->type->type));
-            }
-        }
     }
 
     push_object(o);
@@ -107,13 +102,13 @@ void realloc_object(sharp_object *o, Int size, bool unsafe) {
         }
 
         if(o->type <= type_var) {
-            o->HEAD = realloc_mem<long double>(o->HEAD, sizeof(long double) * size, o->size, unsafe);
+            // elements are element_size(type) bytes each; the new ones start as 0
+            size_t oldBytes = (size_t)element_size(o->type) * o->size;
+            size_t newBytes = (size_t)element_size(o->type) * size;
+            o->data = realloc_mem<char>(o->data, newBytes, oldBytes, unsafe);
 
-            if(size > o->size) {
-                for(Int i = o->size; i < size; i++) {
-                    o->HEAD[i] = 0;
-                }
-            }
+            if(newBytes > oldBytes)
+                memset((char*)o->data + oldBytes, 0, newBytes - oldBytes);
 
         } else {
             o->node = realloc_mem<object>(o->node, sizeof(object) * size, o->size, unsafe);
@@ -134,9 +129,11 @@ Int sizeof_object(sharp_object *o) {
     if(o != nullptr) {
 
         if(o->type <= type_var) {
-            size += sizeof(double) * o->size;
+            size += element_size(o->type) * o->size;
         } else {
+            const bool *numbers = number_slots_of(o);
             for(uInt i = 0; i < o->size; i++) {
+                if(numbers != nullptr && numbers[i]) continue;     // a number, counted with the slots below
                 if(o->node[i].o != nullptr) {
                     size += sizeof_object(o->node[i].o);
                 }
@@ -182,7 +179,7 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
         o->type = type;
         o->arrayFlag = 1;
         SET_GENERATION(o->info, gc_normal);
-        o->HEAD = calloc_mem<long double>(size, sizeof(long double), unsafe);
+        o->data = calloc_mem<char>(size, element_size(type), unsafe);     // see element_size() in sharp_object.h
 
         push_object(o);
         return o;
@@ -434,5 +431,5 @@ bool lock_object(sharp_object *o) {
 
 extern void populate_string(string &s, sharp_object *o) {
     for(Int i = 0; i < o->size; i++)
-        s += (unsigned char)o->HEAD[i];
+        s += (unsigned char)integer_at(o, i);
 }

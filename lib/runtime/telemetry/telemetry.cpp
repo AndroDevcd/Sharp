@@ -41,17 +41,23 @@ static std::map<sharp_function*, tm_jit_function> tm_jit_functions;
 // If you add an opcode there, add its name here too - unknown ones print as numbers.
 static const char* tm_opcode_names[] = {
     "NOP", "INT", "MOVI", "RET", "HLT", "NEWARRAY", "CAST", "MOV8", "MOV16", "MOV32", "MOV64", "MOVU8",
-    "MOVU16", "MOVU32", "MOVU64", "RSTORE", "ADD", "SUB", "MUL", "DIV", "MOD", "IADD", "ISUB", "IMUL",
-    "IDIV", "IMOD", "POP", "INC", "DEC", "MOVR", "BRH", "IFE", "IFNE", "LT", "GT", "LTE", "GTE", "MOVL",
+    "MOVU16", "MOVU32", "MOVU64", "RSTORE", "ADD", "SUB", "MUL", "DDIV", "MOD", "IADD", "ISUB", "IMUL",
+    "DIDIV", "IMOD", "POP", "INC", "DEC", "MOVR", "BRH", "IFE", "IFNE", "LT", "GT", "LTE", "GTE", "MOVL",
     "MOVSL", "SIZEOF", "PUT", "PUTC", "CHECKLEN", "JMP", "LOADPC", "PUSHOBJ", "DEL", "CALL", "NEWCLASS",
     "MOVN", "SLEEP", "TEST", "TNE", "LOCK", "ULOCK", "MOVG", "MOVND", "NEWOBJARRAY", "NOT", "SKIP",
     "LOADVAL", "SHL", "SHR", "SKPE", "SKNE", "AND", "UAND", "OR", "XOR", "THROW", "CHECKNULL",
-    "RETURNOBJ", "NEWCLASSARRAY", "NEWSTRING", "ADDL", "SUBL", "MULL", "DIVL", "MODL", "IADDL", "ISUBL",
-    "IMULL", "IDIVL", "IMODL", "LOADL", "IALOAD", "POPOBJ", "SMOVR", "ANDL", "ORL", "XORL", "RMOV",
+    "RETURNOBJ", "NEWCLASSARRAY", "NEWSTRING", "ADDL", "SUBL", "MULL", "DDIVL", "MODL", "IADDL", "ISUBL",
+    "IMULL", "DIDIVL", "IMODL", "LOADL", "POPOBJ", "SMOVR", "ANDL", "ORL", "XORL",
     "SMOV", "RETURNVAL", "ISTORE", "SMOVR_2", "ISTOREL", "POPL", "PUSHNULL", "IPUSHL", "PUSHL", "ITEST",
     "INVOKE_DELEGATE", "GET", "ISADD", "JE", "JNE", "IPOPL", "CMP", "CALLD", "VARCAST", "TLS_MOVL",
-    "DUP", "POPOBJ_2", "SWAP", "LDC", "SMOVR_3", "NEG", "EXP", "IS", "MOV_ABS", "LOAD_ABS", "ILOAD",
-    "SMOVR_4", "IMOV"
+    "DUP", "POPOBJ_2", "SWAP", "LDC", "SMOVR_3", "NEG", "DEXP", "IS", "MOV_ABS", "LOAD_ABS",
+    "SMOVR_4",
+    // typed numbers (decimal twins and conversions)
+    "DADD", "DSUB", "DMUL", "DNEG", "DINC", "DDEC", "DLT", "DGT", "DLTE", "DGTE", "DTEST", "DTNE",
+    "DNOT", "DCMP", "DIADD", "DISUB", "DIMUL", "DADDL", "DSUBL", "DMULL", "DIADDL", "DISUBL",
+    "DIMULL", "DISADD", "DISTORE", "DISTOREL", "DMOVI", "DPUT", "I2D", "D2I",
+    "GETF", "PUTF",
+    "ALOAD8", "ALOADU8", "ALOAD16", "ALOADU16", "ALOAD32", "ALOADU32", "ALOAD64", "ASTORE8", "ASTORE16", "ASTORE32", "ASTORE64"
 };
 
 static std::string opcode_name(int op) {

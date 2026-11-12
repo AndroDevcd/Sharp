@@ -43,7 +43,7 @@ def main(args: string[]) {
     s3 := "x";
     s3 += yes;
     expect_str("s += bool object", s3, "xtrue");
-    fraction : var = 2.5;
+    fraction : decimal = 2.5;
     s4 := "x";
     s4 += fraction;
     expect_str("s += var", s4, "x2.5000000000000000");

@@ -3,7 +3,7 @@ mod main;
 import ( testing )
 
 /**
- * Arrays of native numbers: `var[]` and the sized kinds `_int8[]`,
+ * Arrays of native numbers: `decimal[]` and the sized kinds `_int8[]`,
  * `_uint8[]`, `_int16[]`, `_uint16[]`, `_int32[]`, `_uint32[]`, `_int64[]`.
  *
  * An array is an object. A variable holds a reference to it, so assigning
@@ -12,21 +12,21 @@ import ( testing )
  */
 
 class matrix {
-    cells : var[];
-    spare : var[]?;
+    cells : decimal[];
+    spare : decimal[]?;
 }
 
 /** an array kept in a global variable */
-shared : var[] = new var[4];
+shared : decimal[] = new decimal[4];
 
-def fill(a: var[], value: var) {
-    for(i : var = 0; i < sizeof(a); i++) {
+def fill(a: decimal[], value: decimal) {
+    for(i : decimal = 0; i < sizeof(a); i++) {
         a[i] = value;
     }
 }
 
-def total(a: var[]) : var {
-    sum : var = 0;
+def total(a: decimal[]) : decimal {
+    sum : decimal = 0;
     foreach(x in a) {
         sum += x;
     }
@@ -34,32 +34,32 @@ def total(a: var[]) : var {
 }
 
 /** { 0, 1, 4, 9, ... } */
-def squares(n: var) : var[] {
-    a := new var[n];
-    for(i : var = 0; i < n; i++) {
+def squares(n: decimal) : decimal[] {
+    a := new decimal[n];
+    for(i : decimal = 0; i < n; i++) {
         a[i] = i * i;
     }
     return a;
 }
 
-def same_array(a: var[]) : var[] { return a; }
+def same_array(a: decimal[]) : decimal[] { return a; }
 
-def swap(a: var[], i: var, j: var) {
-    kept : var = a[i];
+def swap(a: decimal[], i: decimal, j: decimal) {
+    kept : decimal = a[i];
     a[i] = a[j];
     a[j] = kept;
 }
 
 /** pointing the parameter at a new array does not change the caller's variable */
-def point_elsewhere(a: var[]) {
-    a = new var[1];
+def point_elsewhere(a: decimal[]) {
+    a = new decimal[1];
     a[0] = 99;
 }
 
-def make_bytes(n: var) : _int8[] { return new _int8[n]; }
+def make_bytes(n: decimal) : _int8[] { return new _int8[n]; }
 
-def total_bytes(a: _int8[]) : var {
-    sum : var = 0;
+def total_bytes(a: _int8[]) : decimal {
+    sum : decimal = 0;
     foreach(x in a) {
         sum += x;
     }
@@ -68,7 +68,7 @@ def total_bytes(a: _int8[]) : var {
 
 def main(args: string[]) {
     // ---- creating: every element starts at 0
-    a := new var[5];
+    a := new decimal[5];
     expect("sizeof", sizeof(a), 5);
     expect("first element starts at 0", a[0], 0);
     expect("last element starts at 0", a[4], 0);
@@ -85,7 +85,7 @@ def main(args: string[]) {
     expect("an element computed from itself", a[1], 70);
 
     // ---- the index can be any number expression
-    i : var = 2;
+    i : decimal = 2;
     a[i] = 5;
     a[i + 1] = 6;
     expect("variable index", a[2], 5);
@@ -96,26 +96,26 @@ def main(args: string[]) {
     expect("the value of an int object as index", a[box.value], 5);
 
     // ---- the size can be computed, and can be 0
-    n : var = 4;
-    computed := new var[n * 2];
+    n : decimal = 4;
+    computed := new decimal[n * 2];
     expect("new var[n * 2]", sizeof(computed), 8);
-    empty := new var[0];
+    empty := new decimal[0];
     expect("new var[0]", sizeof(empty), 0);
-    large := new var[10000];
+    large := new decimal[10000];
     large[9999] = 1;
     expect("10000 elements", sizeof(large), 10000);
     expect("the last of 10000", large[9999] + large[0], 1);
 
     // ---- an array written as a list of values
-    d := new var[] { 1, 2, 3 };
+    d := new decimal[] { 1, 2, 3 };
     expect("list: size", sizeof(d), 3);
     expect("list: elements", d[0] + d[1] * 10 + d[2] * 100, 321);
-    fractions := new var[] { 1.5, 2.25 };
+    fractions := new decimal[] { 1.5, 2.25 };
     expect("list of fractions", fractions[0] + fractions[1], 3.75);
-    x : var = 3;
-    from_expressions := new var[] { x, x * 2, x * x };
+    x : decimal = 3;
+    from_expressions := new decimal[] { x, x * 2, x * x };
     expect("list of expressions", from_expressions[1] + from_expressions[2], 15);
-    one_value := new var[] { 7 };
+    one_value := new decimal[] { 7 };
     expect("list with one value", sizeof(one_value), 1);
     bare : _int32[] = { 4, 5, 6 };
     expect("a bare { } list of whole numbers is an _int32[]: size", sizeof(bare), 3);
@@ -171,7 +171,7 @@ def main(args: string[]) {
     expect("filled by a function: first", a[0], 9);
     expect("filled by a function: last", a[4], 9);
     expect("total of five nines", total(a), 45);
-    expect("total of a list", total(new var[] { 1, 2, 3, 4 }), 10);
+    expect("total of a list", total(new decimal[] { 1, 2, 3, 4 }), 10);
     expect("total of an empty array", total(empty), 0);
     swap(d, 0, 2);
     expect("swapped by a function", d[0] * 10 + d[2], 31);
@@ -203,11 +203,11 @@ def main(args: string[]) {
     through_call[1] = 13;
     expect("an array that went through a function is still the same one", a[1], 13);
     expect_true("...and compares equal", through_call == a);
-    different := new var[5];
+    different := new decimal[5];
     expect_false("another array of the same size is not ==", different == a);
 
     // pointing a variable at a new array leaves the old one to the other variable
-    a = new var[2];
+    a = new decimal[2];
     expect("a is the new array", sizeof(a), 2);
     expect("other_name still has the old one", sizeof(other_name), 5);
     expect("...with its elements", other_name[2], 42);
@@ -218,7 +218,7 @@ def main(args: string[]) {
     expect("global array size", sizeof(shared), 4);
     m := new matrix();
     expect_null("an array field starts as null", m.cells);
-    m.cells = new var[3];
+    m.cells = new decimal[3];
     m.cells[1] = 4;
     expect("element of an array field", m.cells[1], 4);
     expect("size of an array field", sizeof(m.cells), 3);
@@ -229,35 +229,35 @@ def main(args: string[]) {
 
     // ---- arrays of arrays: rows kept in an object[]
     rows := new object[3];
-    rows[0] = new var[2];
-    rows[1] = new var[4];
-    first_row := rows[0] as var[];
+    rows[0] = new decimal[2];
+    rows[1] = new decimal[4];
+    first_row := rows[0] as decimal[];
     first_row[1] = 5;
-    again := rows[0] as var[];
+    again := rows[0] as decimal[];
     expect("element of a row", again[1], 5);
-    expect("rows can differ in size", sizeof(rows[1] as var[]), 4);
+    expect("rows can differ in size", sizeof(rows[1] as decimal[]), 4);
     expect_null("a row that was never set", rows[2]);
     // a 3 x 3 multiplication table
     table := new object[3];
-    for(r : var = 0; r < 3; r++) {
-        row := new var[3];
-        for(c : var = 0; c < 3; c++) {
+    for(r : decimal = 0; r < 3; r++) {
+        row := new decimal[3];
+        for(c : decimal = 0; c < 3; c++) {
             row[c] = (r + 1) * (c + 1);
         }
         table[r] = row;
     }
-    expect("table[2][2] is 3 * 3", (table[2] as var[])[2], 9);
-    expect("table[1][2] is 2 * 3", (table[1] as var[])[2], 6);
-    expect("total of the last row: 3 + 6 + 9", total(table[2] as var[]), 18);
+    expect("table[2][2] is 3 * 3", (table[2] as decimal[])[2], 9);
+    expect("table[1][2] is 2 * 3", (table[1] as decimal[])[2], 6);
+    expect("total of the last row: 3 + 6 + 9", total(table[2] as decimal[]), 18);
 
     // ---- loops
-    sum : var = 0;
+    sum : decimal = 0;
     foreach(value in sq) {
         sum += value;
     }
     expect("foreach", sum, 14);
     sum = 0;
-    for(k : var = 0; k < sizeof(sq); k++) {
+    for(k : decimal = 0; k < sizeof(sq); k++) {
         sum += sq[k] * (k + 1);
     }
     expect("for with an index: 0*1 + 1*2 + 4*3 + 9*4", sum, 50);
@@ -265,7 +265,7 @@ def main(args: string[]) {
         value = 100;
     }
     expect("the foreach variable is a copy of the element", sq[3], 9);
-    visits : var = 0;
+    visits : decimal = 0;
     foreach(value in empty) {
         visits++;
     }
@@ -299,7 +299,7 @@ def main(args: string[]) {
     }
 
     // the statements after the failing one are skipped
-    reached : var = 0;
+    reached : decimal = 0;
     try {
         a[1] = 1;
         reached = 1;

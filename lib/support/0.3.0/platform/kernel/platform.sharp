@@ -58,9 +58,9 @@ class platform
             popObj
         }
 
-        const min_args : var = 5;
+        const min_args : decimal = 5;
         user_args := new string[sizeof(args) - min_args];
-        iter : var = 0;
+        iter : decimal = 0;
 
         for(i := min_args; i < sizeof(args); i++) {
             user_args[iter++] = new string(args[i] as _int8[]);

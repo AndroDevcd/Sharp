@@ -18,11 +18,11 @@ import ( std.io, std.math, std.collections )
 
 /** one operation: 1 = add `val` to the cell, 2 = move by `val`, 3 = loop over `body`, 4 = print the cell */
 class op {
-    kind : var;
-    val : var;
+    kind : decimal;
+    val : decimal;
     body : op[]?;
 
-    op(k: var, v: var) {
+    op(k: decimal, v: decimal) {
         kind = k;
         val = v;
     }
@@ -37,7 +37,7 @@ class op {
 /** the program text and how far it has been read */
 class source {
     text : _int8[];
-    pos : var = 0;
+    pos : decimal = 0;
 
     source(t: _int8[]) {
         text = t;
@@ -45,22 +45,22 @@ class source {
 }
 
 class tape {
-    cells : var[] = new var[1];
-    pos : var = 0;
+    cells : decimal[] = new decimal[1];
+    pos : decimal = 0;
 
-    def cell() : var {
+    def cell() : decimal {
         return cells[pos];
     }
 
-    def inc(x: var) {
+    def inc(x: decimal) {
         cells[pos] = cells[pos] + x;
     }
 
-    def move(x: var) {
+    def move(x: decimal) {
         pos += x;
         while(pos >= sizeof(cells)) {
-            bigger := new var[sizeof(cells) * 2];
-            for(i : var = 0; i < sizeof(cells); i++) {
+            bigger := new decimal[sizeof(cells) * 2];
+            for(i : decimal = 0; i < sizeof(cells); i++) {
                 bigger[i] = cells[i];
             }
             cells = bigger;
@@ -69,25 +69,25 @@ class tape {
 }
 
 class printer {
-    sum1 : var = 0;
-    sum2 : var = 0;
+    sum1 : decimal = 0;
+    sum2 : decimal = 0;
 
-    def put(n: var) {
+    def put(n: decimal) {
         sum1 = (sum1 + n) % 255;
         sum2 = (sum2 + sum1) % 255;
     }
 
-    def checksum() : var {
+    def checksum() : decimal {
         return (sum2 << 8) | sum1;
     }
 }
 
 def parse(src: source) : op[] {
     ops := new list<op>();
-    length : var = sizeof(src.text);
+    length : decimal = sizeof(src.text);
 
     while(src.pos < length) {
-        c : var = src.text[src.pos];
+        c : decimal = src.text[src.pos];
         src.pos++;
 
         if(c == '+') { ops.add(new op(1, 1)); }
@@ -103,10 +103,10 @@ def parse(src: source) : op[] {
 }
 
 def run(program: op[], t: tape, p: printer) {
-    count : var = sizeof(program);
-    for(i : var = 0; i < count; i++) {
+    count : decimal = sizeof(program);
+    for(i : decimal = 0; i < count; i++) {
         o := program[i];
-        k : var = o.kind;
+        k : decimal = o.kind;
 
         if(k == 1) { t.inc(o.val); }
         else if(k == 2) { t.move(o.val); }
@@ -134,7 +134,7 @@ def verify() {
     right := new printer();
     hello_text := "Hello World!\n";
     expected := hello_text.to_bytes();
-    for(i : var = 0; i < sizeof(expected); i++) {
+    for(i : decimal = 0; i < sizeof(expected); i++) {
         right.put(expected[i]);
     }
 
@@ -154,9 +154,9 @@ def main(args: string[]) {
     text := new file(args[0]).read_text();
     p := new printer();
 
-    start : var = nano_time().value;
+    start : decimal = nano_time().value;
     run_text(text, p);
-    seconds : var = (nano_time().value - start) / 1000000000;
+    seconds : decimal = (nano_time().value - start) / 1000000000;
 
     println("Output checksum: " + number_to_fixed(p.checksum(), 0));
     println("time: " + number_to_fixed(seconds, 3));

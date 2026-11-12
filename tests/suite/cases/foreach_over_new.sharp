@@ -8,16 +8,16 @@ import ( testing )
  * Workaround: assign the object to a local variable and loop over that.
  */
 
-class three_numbers : loopable<var> {
-    override def get_elements() : var[]? {
-        numbers := new var[3];
+class three_numbers : loopable<decimal> {
+    override def get_elements() : decimal[]? {
+        numbers := new decimal[3];
         numbers[0] = 1; numbers[1] = 2; numbers[2] = 3;
         return numbers;
     }
 }
 
 def main(args: string[]) {
-    total : var = 0;
+    total : decimal = 0;
     foreach(n in new three_numbers()) {
         total += n;
     }

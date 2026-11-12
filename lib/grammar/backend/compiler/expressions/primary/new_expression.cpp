@@ -166,6 +166,8 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
 
         if(matchResult != no_match_found) {
             if(is_match_normal(matchResult)) {
+                // new var[] { 1, 2 }: each item becomes the kind of the elements
+                convert_number_for(*expr, *newType);
                 setArrayItem->steps.add(new operation_step(operation_get_value, &expr->scheme));
             } else { // match_constructor
                 operation_schema resultScheme;
@@ -201,7 +203,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
             }
 
             create_push_to_stack_operation(setArrayItem);
-            create_assign_array_element_operation(setArrayItem, i, isNumeric);
+            create_assign_array_element_operation(setArrayItem, i, isNumeric, newType->type);
         } else {
             create_new_error(GENERIC, ast->line, ast->col,
                          "cannot assign array item of type `" + type_to_str(e->type) +"` to array of type `" + type_to_str(*newType) + "`.");
@@ -219,6 +221,7 @@ void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) 
     expression arraySize;
     compile_expression(arraySize, ast->getSubAst(ast_expression));
     extract_value_field_from_expression(arraySize, "", ast, true);
+    convert_number_to_integer(arraySize);       // new var[n] with n: var
     operation_schema *arraySieScheme = new operation_schema(arraySize.scheme);
 
     e->type.copy(*newType);

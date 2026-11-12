@@ -54,11 +54,7 @@ void initialize_main_thread_stack(std::list<string>& appArgs) {
     sharp_object *mainThread = argsObject->o->node[iter-1].o;
     main->currentThread.o = mainThread;
 
-    assign_numeric_field(
-       resolve_field("native_handle", mainThread)->o,
-       0,
-       0
-    );
+    set_number_field(mainThread, "native_handle", 0);
 
     auto nameField = resolve_field("name", mainThread);
     copy_object(nameField, create_object(vm.string_class));
@@ -69,17 +65,9 @@ void initialize_main_thread_stack(std::list<string>& appArgs) {
     assign_string_field(data->o, str);
 
 
-    assign_numeric_field(
-            resolve_field("started", mainThread)->o,
-            0,
-            true
-    );
+    set_number_field(mainThread, "started", true);
 
-    assign_numeric_field(
-            resolve_field("stack_size", mainThread)->o,
-            0,
-            threadStackSize
-    );
+    set_number_field(mainThread, "stack_size", threadStackSize);
 
     /*
      * Assign program args to be passed to main

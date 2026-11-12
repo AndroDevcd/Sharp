@@ -24,8 +24,10 @@ void fiber::free() {
         std::free(this->stack); stack = NULL;
     }
 
+    TC(if(slotTags != NULL) { std::free(slotTags); slotTags = NULL; })
+
     if(registers != NULL) {
-        release_bytes(sizeof(double) * REGISTER_SIZE);
+        release_bytes(sizeof(vm_cell) * REGISTER_SIZE);
         std::free(registers); registers = NULL;
     }
 
@@ -115,7 +117,7 @@ void init_struct(fiber *fib) {
     fib->lockWaiting = false;
     fib->timerArmed = -1;
     fib->stackLimit = virtualStackSize;
-    fib->registers = malloc_mem<long double>(REGISTER_SIZE * sizeof(long double));
+    fib->registers = malloc_mem<vm_cell>(REGISTER_SIZE * sizeof(vm_cell));
     new (&fib->mut) std::recursive_mutex();
 
     if(virtualStackSize < INITIAL_STACK_SIZE) {
@@ -129,6 +131,8 @@ void init_struct(fiber *fib) {
     }
 
     fib->stack = malloc_struct<stack_item>(sizeof(stack_item), fib->stackSize);
+    fib->growAt = fib->stack + fib->stackSize - 1;
+    TC(fib->slotTags = (unsigned char*)calloc(fib->stackSize, 1); memset(fib->regTags, 0, sizeof(fib->regTags));)
     if(virtualStackSize - vm.mf.threadLocals < INITIAL_FRAME_SIZE) {
         fib->frameSize = virtualStackSize - vm.mf.threadLocals;
     }
@@ -145,6 +149,7 @@ void init_struct(fiber *fib) {
 void fiber::growStack(Int requiredSize) {
     TELEMETRY_COUNT(tm_stack_grows)
     guard_mutex(mut)
+    TC(uInt tagsBefore = stackSize;)
     if(requiredSize < STACK_GROW_SIZE)
       requiredSize = STACK_GROW_SIZE;
     else requiredSize += STACK_GROW_SIZE;
@@ -169,7 +174,7 @@ void fiber::growStack(Int requiredSize) {
         stack_item *stackItem = stack+stackSize;
         for(Int i = stackSize; i < stackSize+requiredSize; i++) {
             stackItem->obj.o = NULL;
-            stackItem->var=0;
+            stackItem->var.i=0;
             stackItem++;
         }
 
@@ -198,7 +203,7 @@ void fiber::growStack(Int requiredSize) {
         stack_item *stackItem = stack+stackSize;
         for(Int i = stackSize; i < stackLimit; i++) {
             stackItem->obj.o = NULL;
-            stackItem->var=0;
+            stackItem->var.i=0;
             stackItem++;
         }
 
@@ -208,5 +213,11 @@ void fiber::growStack(Int requiredSize) {
         stackSize = stackLimit;
     }
 
+    growAt = stack + stackSize - 1;     // the stack may have moved and is longer
+
+    TC(if(stackSize != tagsBefore) {
+        slotTags = (unsigned char*)realloc(slotTags, stackSize);
+        memset(slotTags + tagsBefore, 0, stackSize - tagsBefore);
+    })
 }
 

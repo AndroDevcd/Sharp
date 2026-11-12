@@ -12,7 +12,7 @@ mod std.collections;
  * The order is decided by a comparison function given to the constructor
  * (negative: a sorts before b, zero: same element, positive: a sorts after b):
  *
- *     primes := new tree_set<int>({ a: int, b: int -> (var) return a.value - b.value; });
+ *     primes := new tree_set<int>({ a: int, b: int -> (decimal) return a.value - b.value; });
  *     primes.add(7);  primes.add(2);  primes.add(5);  primes.add(2);
  *     primes.size();          // 3
  *     primes.first();         // 2
@@ -25,7 +25,7 @@ mod std.collections;
  * It is built on `tree_map` (an AVL tree; each element is a key).
  *
  * Limitation: the element type has to be an object type; native types such
- * as `var` cannot be used as T.
+ * as `decimal` cannot be used as T.
  */
 class tree_set<T> : loopable<T>, iterable<T> {
     /** the elements are the keys of this map (each key maps to itself) */
@@ -36,17 +36,17 @@ class tree_set<T> : loopable<T>, iterable<T> {
      *
      * @param compare the ordering of the elements, see the class comment
      */
-    tree_set(compare: (T, T)(var)) {
+    tree_set(compare: (T, T)(decimal)) {
         members = new tree_map<T, T>(compare);
     }
 
     /** Number of elements. O(1). */
-    def size() : var {
+    def size() : decimal {
         return members.size();
     }
 
     /** 1 when the set has no elements, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return members.is_empty();
     }
 
@@ -56,7 +56,7 @@ class tree_set<T> : loopable<T>, iterable<T> {
      *
      * @return 1 when the element was added, 0 when it was already there
      */
-    def add(element: T) : var {
+    def add(element: T) : decimal {
         return members.put_if_absent(element, element);
     }
 
@@ -65,16 +65,16 @@ class tree_set<T> : loopable<T>, iterable<T> {
      *
      * @return how many elements were actually added
      */
-    def add_all(elements: list<T>) : var {
-        added : var = 0;
-        n : var = elements.size().value;
-        for(i : var = 0; i < n; i++)
+    def add_all(elements: list<T>) : decimal {
+        added : decimal = 0;
+        n : decimal = elements.size().value;
+        for(i : decimal = 0; i < n; i++)
             added += add(elements.at(i));
         return added;
     }
 
     /** 1 when the set holds the element, otherwise 0. O(log n). */
-    def contains(element: T) : var {
+    def contains(element: T) : decimal {
         return members.contains_key(element);
     }
 
@@ -83,7 +83,7 @@ class tree_set<T> : loopable<T>, iterable<T> {
      *
      * @return 1 when it was removed, 0 when the set did not hold it
      */
-    def remove(element: T) : var {
+    def remove(element: T) : decimal {
         return members.remove(element);
     }
 
@@ -169,7 +169,7 @@ class tree_set<T> : loopable<T>, iterable<T> {
         result := new list<T>();
         items := members.key_array();
         compare := members.comparison();
-        for(i : var = 0; i < sizeof(items); i++) {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(compare(items[i], to) >= 0) break;
             result.add(items[i]);
         }
@@ -216,9 +216,9 @@ class tree_set<T> : loopable<T>, iterable<T> {
     /** An iterator over a snapshot of the elements in descending order. O(n) to create. */
     def descending_iterator() : iterator<T> {
         items := members.key_array();
-        n : var = sizeof(items);
+        n : decimal = sizeof(items);
         reversed := new T[n];
-        for(i : var = 0; i < n; i++)
+        for(i : decimal = 0; i < n; i++)
             reversed[i] = items[n - 1 - i];
         return new array_iterator<T>(reversed);
     }

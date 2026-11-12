@@ -45,6 +45,7 @@ static void build_table() {
     PLAIN(INT, "int", layout_d, k_int, k_none, k_none,                                  // exec_interrupt(a): can do anything
           f_opaque | f_call | TH | SE | SC);
     PLAIN(MOVI, "movi", layout_d_raw, k_reg_w, k_int, k_none, f_none);                  // regs[a] = b
+    PLAIN(DMOVI, "dmovi", layout_d_raw, k_reg_w, k_int, k_none, f_none);
     PLAIN(RET, "ret", layout_d, k_int, k_none, k_none, f_terminator | SE);              // return (a == 1: with the exception on the stack)
     PLAIN(HLT, "hlt", layout_none, k_none, k_none, k_none, f_terminator | SE);          // stop the thread
 
@@ -56,6 +57,8 @@ static void build_table() {
     PLAIN(MOV16, "mov16", layout_c, k_reg_w, k_reg_r, k_none, f_none);
     PLAIN(MOV32, "mov32", layout_c, k_reg_w, k_reg_r, k_none, f_none);
     PLAIN(MOV64, "mov64", layout_c, k_reg_w, k_reg_r, k_none, f_none);
+    PLAIN(D2I, "d2i", layout_c, k_reg_w, k_reg_r, k_none, f_none);
+    PLAIN(I2D, "i2d", layout_c, k_reg_w, k_reg_r, k_none, f_none);
     PLAIN(MOVU8,  "movu8",  layout_c, k_reg_w, k_reg_r, k_none, f_none);
     PLAIN(MOVU16, "movu16", layout_c, k_reg_w, k_reg_r, k_none, f_none);
     PLAIN(MOVU32, "movu32", layout_c, k_reg_w, k_reg_r, k_none, f_none);
@@ -64,19 +67,27 @@ static void build_table() {
     STACK(RSTORE, "rstore", layout_d, k_reg_r, k_none, k_none, 0, 0, 1, 0, f_none);     // push regs[a]
 
     PLAIN(ADD, "add", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);                     // regs[c] = regs[a] + regs[b]
+    PLAIN(DADD, "dadd", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
     PLAIN(SUB, "sub", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
+    PLAIN(DSUB, "dsub", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
     PLAIN(MUL, "mul", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
-    PLAIN(DIV, "div", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
+    PLAIN(DMUL, "dmul", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
+    PLAIN(DDIV, "ddiv", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);
     PLAIN(MOD, "mod", layout_b, k_reg_r, k_reg_r, k_reg_w, TH);                         // integer %: traps on a zero divisor
     PLAIN(IADD, "iadd", layout_d_raw, k_reg_rw, k_int, k_none, f_none);                 // regs[a] += b
+    PLAIN(DIADD, "diadd", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
     PLAIN(ISUB, "isub", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
+    PLAIN(DISUB, "disub", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
     PLAIN(IMUL, "imul", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
-    PLAIN(IDIV, "idiv", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
+    PLAIN(DIMUL, "dimul", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
+    PLAIN(DIDIV, "didiv", layout_d_raw, k_reg_rw, k_int, k_none, f_none);
     PLAIN(IMOD, "imod", layout_d_raw, k_reg_rw, k_int, k_none, TH);
 
     STACK(POP, "pop", layout_none, k_none, k_none, k_none, 0, 1, 0, 0, f_none);         // pop an object (the slot is cleared)
     PLAIN(INC, "inc", layout_d, k_reg_rw, k_none, k_none, f_none);                      // regs[a]++
+    PLAIN(DINC, "dinc", layout_d, k_reg_rw, k_none, k_none, f_none);
     PLAIN(DEC, "dec", layout_d, k_reg_rw, k_none, k_none, f_none);
+    PLAIN(DDEC, "ddec", layout_d, k_reg_rw, k_none, k_none, f_none);
     PLAIN(MOVR, "movr", layout_c, k_reg_w, k_reg_r, k_none, f_none);                    // regs[a] = regs[b]
 
     IMPLICIT(BRH, "brh", layout_none, k_none, k_none, k_none, R(ADX), 0,                // pc = regs[ADX]
@@ -87,9 +98,13 @@ static void build_table() {
              f_indirect_jump | f_cond_jump | SC);
 
     IMPLICIT(LT,  "lt",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);        // regs[CMT] = regs[a] < regs[b]
+    IMPLICIT(DLT,  "dlt",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
     IMPLICIT(GT,  "gt",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
+    IMPLICIT(DGT,  "dgt",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
     IMPLICIT(LTE, "lte", layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
+    IMPLICIT(DLTE, "dlte", layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
     IMPLICIT(GTE, "gte", layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
+    IMPLICIT(DGTE, "dgte", layout_c, k_reg_r, k_reg_r, k_none, 0, R(CMT), f_none);
 
     PLAIN(MOVL, "movl", layout_d, k_slot_addr, k_none, k_none, WP);                     // ptr = &(fp+a)->obj
     STACK(POPL, "popl", layout_d, k_obj_w, k_none, k_none, 0, 1, 0, 0, f_none);         // (fp+a)->obj = pop object
@@ -97,6 +112,7 @@ static void build_table() {
     PLAIN(MOVSL, "movsl", layout_d, k_sp_rel, k_none, k_none, WP);                      // ptr = &(sp+a)->obj
     PLAIN(SIZEOF, "sizeof", layout_d, k_reg_w, k_none, k_none, RP | RH);                // regs[a] = ptr ? ptr->o->size : 0
     PLAIN(PUT, "put", layout_d, k_reg_r, k_none, k_none, SE);                           // print number
+    PLAIN(DPUT, "dput", layout_d, k_reg_r, k_none, k_none, SE);
     PLAIN(PUTC, "putc", layout_d, k_reg_r, k_none, k_none, SE);                         // print char
     IMPLICIT(GET, "get", layout_d, k_reg_w, k_none, k_none, R(CMT), 0, SE);             // read a key
     PLAIN(CHECKLEN, "checklen", layout_d, k_reg_r, k_none, k_none, RP | RH | TH);       // bounds check regs[a] against ptr->o->size
@@ -111,13 +127,16 @@ static void build_table() {
     PLAIN(MOVN, "movn", layout_raw, k_field, k_none, k_none, RP | WP | RH | TH);        // ptr = &ptr->o->node[a]
     PLAIN(SLEEP, "sleep", layout_d, k_reg_r, k_none, k_none, SE);
     IMPLICIT(TEST, "test", layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);      // regs[BMR] = regs[a] == regs[b]
+    IMPLICIT(DTEST, "dtest", layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);
     IMPLICIT(TNE,  "tne",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);      // regs[BMR] = regs[a] != regs[b]
+    IMPLICIT(DTNE,  "dtne",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);
     PLAIN(LOCK, "lock", layout_none, k_none, k_none, k_none, RP | RH | SE | TH | SC);   // lock ptr->o (may yield and retry)
     PLAIN(ULOCK, "ulock", layout_none, k_none, k_none, k_none, RP | RH | SE | TH);
     PLAIN(MOVG, "movg", layout_d, k_static, k_none, k_none, WP);                        // ptr = &staticHeap[a]
     PLAIN(MOVND, "movnd", layout_d, k_reg_r, k_none, k_none, RP | WP | RH | TH);        // ptr = &ptr->o->node[regs[a]]
     STACK(NEWOBJARRAY, "newobjarray", layout_d, k_reg_r, k_none, k_none, 0, 0, 0, 1, NEW);
     PLAIN(NOT, "not", layout_c, k_reg_w, k_reg_r, k_none, f_none);                      // regs[a] = !regs[b]
+    PLAIN(DNOT, "dnot", layout_c, k_reg_w, k_reg_r, k_none, f_none);
     PLAIN(SKIP, "skip", layout_d, k_pc_rel, k_none, k_none, f_jump | f_terminator);     // pc += a + 1
     STACK(LOADVAL, "loadval", layout_d, k_reg_w, k_none, k_none, 1, 0, 0, 0, f_none);   // regs[a] = pop number
     PLAIN(SHL, "shl", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);                     // regs[c] = (Int)regs[a] << (Int)regs[b]
@@ -125,6 +144,7 @@ static void build_table() {
     PLAIN(SKPE, "skpe", layout_c, k_reg_r, k_pc_rel, k_none, f_cond_jump | SC);         // if(regs[a]) pc += b
     PLAIN(SKNE, "skne", layout_c, k_reg_r, k_pc_rel, k_none, f_cond_jump | SC);         // if(!regs[a]) pc += b
     IMPLICIT(CMP, "cmp", layout_d_raw, k_reg_r, k_int, k_none, 0, R(CMT), f_none);      // regs[CMT] = regs[a] == b
+    IMPLICIT(DCMP, "dcmp", layout_d_raw, k_reg_r, k_int, k_none, 0, R(CMT), f_none);
     IMPLICIT(AND,  "and",  layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);      // regs[BMR] = regs[a] && regs[b]
     IMPLICIT(UAND, "uand", layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);      // regs[BMR] = (Int)regs[a] & (Int)regs[b]
     IMPLICIT(OR,   "or",   layout_c, k_reg_r, k_reg_r, k_none, 0, R(BMR), f_none);
@@ -137,29 +157,47 @@ static void build_table() {
     STACK(NEWSTRING, "newstring", layout_d, k_string, k_none, k_none, 0, 0, 0, 1, NEW);
 
     PLAIN(ADDL, "addl", layout_c, k_reg_r, k_var_rw, k_none, f_none);                   // (fp+b)->var += regs[a]
+    PLAIN(DADDL, "daddl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
     PLAIN(SUBL, "subl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
+    PLAIN(DSUBL, "dsubl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
     PLAIN(MULL, "mull", layout_c, k_reg_r, k_var_rw, k_none, f_none);
-    PLAIN(DIVL, "divl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
+    PLAIN(DMULL, "dmull", layout_c, k_reg_r, k_var_rw, k_none, f_none);
+    PLAIN(DDIVL, "ddivl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
     PLAIN(MODL, "modl", layout_c, k_reg_r, k_var_rw, k_none, TH);
     PLAIN(IADDL, "iaddl", layout_d_raw, k_var_rw, k_int, k_none, f_none);               // (fp+a)->var += b
+    PLAIN(DIADDL, "diaddl", layout_d_raw, k_var_rw, k_int, k_none, f_none);
     PLAIN(ISUBL, "isubl", layout_d_raw, k_var_rw, k_int, k_none, f_none);
+    PLAIN(DISUBL, "disubl", layout_d_raw, k_var_rw, k_int, k_none, f_none);
     PLAIN(IMULL, "imull", layout_d_raw, k_var_rw, k_int, k_none, f_none);
-    PLAIN(IDIVL, "idivl", layout_d_raw, k_var_rw, k_int, k_none, f_none);
+    PLAIN(DIMULL, "dimull", layout_d_raw, k_var_rw, k_int, k_none, f_none);
+    PLAIN(DIDIVL, "didivl", layout_d_raw, k_var_rw, k_int, k_none, f_none);
     PLAIN(IMODL, "imodl", layout_d_raw, k_var_rw, k_int, k_none, TH);
     PLAIN(LOADL, "loadl", layout_c, k_reg_w, k_var_r, k_none, f_none);                  // regs[a] = (fp+b)->var
-    PLAIN(IALOAD, "iaload", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);          // regs[a] = ptr->o->HEAD[regs[b]]
-    PLAIN(ILOAD, "iload", layout_d, k_reg_w, k_none, k_none, RP | RH | TH);             // regs[a] = ptr->o->HEAD[0]
+    PLAIN(GETF, "getf", layout_c, k_reg_w, k_int, k_none, RP | RH | TH);                  // regs[a] = ptr->o.<number field b>
+    PLAIN(ALOAD64, "aload64", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
+    PLAIN(ALOADU32, "aloadu32", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
+    PLAIN(ALOAD32, "aload32", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
+    PLAIN(ALOADU16, "aloadu16", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
+    PLAIN(ALOAD16, "aload16", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
+    PLAIN(ALOADU8, "aloadu8", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
+    PLAIN(ALOAD8, "aload8", layout_c, k_reg_w, k_reg_r, k_none, RP | RH | TH);
     STACK(POPOBJ, "popobj", layout_none, k_none, k_none, k_none, 0, 1, 0, 0, RP | SE | TH); // *ptr = pop object
     PLAIN(SMOVR, "smovr", layout_c, k_reg_r, k_sp_rel, k_none, f_none);                 // (sp+b)->var = regs[a]
     PLAIN(ANDL, "andl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
     PLAIN(ORL,  "orl",  layout_c, k_reg_r, k_var_rw, k_none, f_none);
     PLAIN(XORL, "xorl", layout_c, k_reg_r, k_var_rw, k_none, f_none);
-    PLAIN(RMOV, "rmov", layout_c, k_reg_r, k_reg_r, k_none, RP | RH | SE | TH);         // ptr->o->HEAD[regs[a]] = regs[b]
+    PLAIN(ASTORE64, "astore64", layout_c, k_reg_r, k_reg_r, k_none, RP | RH | SE | TH);
+    PLAIN(ASTORE32, "astore32", layout_c, k_reg_r, k_reg_r, k_none, RP | RH | SE | TH);
+    PLAIN(ASTORE16, "astore16", layout_c, k_reg_r, k_reg_r, k_none, RP | RH | SE | TH);
+    PLAIN(ASTORE8, "astore8", layout_c, k_reg_r, k_reg_r, k_none, RP | RH | SE | TH);
     PLAIN(SMOV, "smov", layout_c, k_reg_w, k_sp_rel, k_none, f_none);                   // regs[a] = (sp+b)->var
     PLAIN(RETURNVAL, "returnval", layout_d, k_reg_r, k_none, k_none, SE);               // fp->var = regs[a]   (the return slot)
     STACK(ISTORE, "istore", layout_raw, k_int, k_none, k_none, 0, 0, 1, 0, f_none);     // push a
+    STACK(DISTORE, "distore", layout_raw, k_int, k_none, k_none, 0, 0, 1, 0, f_none);
     PLAIN(SMOVR_2, "smovr_2", layout_c, k_reg_r, k_var_w, k_none, f_none);              // (fp+b)->var = regs[a]
+    PLAIN(PUTF, "putf", layout_c, k_reg_r, k_int, k_none, RP | RH | SE | TH);             // ptr->o.<number field b> = regs[a]
     PLAIN(ISTOREL, "istorel", layout_d_raw, k_var_w, k_int, k_none, f_none);            // (fp+a)->var = b
+    PLAIN(DISTOREL, "distorel", layout_d_raw, k_var_w, k_int, k_none, f_none);
     STACK(PUSHNULL, "pushnull", layout_none, k_none, k_none, k_none, 0, 0, 0, 1, f_none);
     STACK(IPUSHL, "ipushl", layout_d, k_var_r, k_none, k_none, 0, 0, 1, 0, f_none);     // push (fp+a)->var
     STACK(PUSHL, "pushl", layout_d, k_obj_r, k_none, k_none, 0, 0, 0, 1, f_none);       // push (fp+a)->obj
@@ -167,6 +205,7 @@ static void build_table() {
     PLAIN(INVOKE_DELEGATE, "invoke_delegate", layout_d_c, k_method, k_int, k_int,       // call delegate a (b = static, c = arg count)
           f_call | TH | SE | SC);
     PLAIN(ISADD, "isadd", layout_d_raw, k_sp_rel, k_int, k_none, f_none);               // (sp+a)->var += b
+    PLAIN(DISADD, "disadd", layout_d_raw, k_sp_rel, k_int, k_none, f_none);
     IMPLICIT(JE,  "je",  layout_d, k_pc, k_none, k_none, R(CMT), 0, f_cond_jump | SC);  // if(regs[CMT]) pc = a
     IMPLICIT(JNE, "jne", layout_d, k_pc, k_none, k_none, R(CMT), 0, f_cond_jump | SC);  // if(!regs[CMT]) pc = a
     PLAIN(TLS_MOVL, "tls_movl", layout_d, k_abs_slot, k_none, k_none, WP);              // ptr = &(stack+a)->obj
@@ -178,10 +217,10 @@ static void build_table() {
     PLAIN(LDC, "ldc", layout_c, k_reg_w, k_constant, k_none, f_none);                   // regs[a] = constants[b]
     PLAIN(SMOVR_3, "smovr_3", layout_d, k_obj_w, k_none, k_none, RP | RH);              // (fp+a)->obj = *ptr
     PLAIN(NEG, "neg", layout_c, k_reg_w, k_reg_r, k_none, f_none);                      // regs[a] = -regs[b]
-    PLAIN(EXP, "exp", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);                     // regs[c] = pow(regs[a], regs[b])
+    PLAIN(DNEG, "dneg", layout_c, k_reg_w, k_reg_r, k_none, f_none);
+    PLAIN(DEXP, "dexp", layout_b, k_reg_r, k_reg_r, k_reg_w, f_none);                     // regs[c] = pow(regs[a], regs[b])
     PLAIN(IS, "is", layout_d_raw, k_reg_w, k_int, k_none, RP | RH);                     // regs[a] = is_type(ptr, b)
     PLAIN(SMOVR_4, "smovr_4", layout_d_raw, k_var_w, k_var_r, k_none, f_none);          // (fp+a)->var = (fp+b)->var
-    PLAIN(IMOV, "imov", layout_d, k_reg_r, k_none, k_none, RP | RH | SE | TH);          // ptr->o->HEAD[0] = regs[a]
 
     tableReady = true;
 }

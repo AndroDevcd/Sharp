@@ -9,7 +9,7 @@ import ( testing )
  *   1. the character literal ')' as the last argument of a call: `f(')');`
  *      ("expected `;`"). In std/system/platform_info.sharp `return ';';`
  *      inside an if block failed in a similar way ("returning `nil` from a
- *      function returning `var`"), though the same statement compiles here.
+ *      function returning `decimal`"), though the same statement compiles here.
  *      Workaround: the character code (41, 59).
  *   2. `!!` directly in front of a closing parenthesis in a concatenation:
  *      `println("x" + maybe!!);` ("expected `)`").
@@ -18,11 +18,11 @@ import ( testing )
  *      ("unexpected symbol `.`"). Workaround: a variable.
  */
 
-def semicolon(): var {
+def semicolon(): decimal {
     return ';';
 }
 
-def code_of(ch: var): var {
+def code_of(ch: decimal): decimal {
     return ch;
 }
 

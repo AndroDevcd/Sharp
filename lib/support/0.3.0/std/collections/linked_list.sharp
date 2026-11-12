@@ -24,7 +24,7 @@ mod std.collections;
  * strings compare by value, other objects by identity.
  *
  * Limitation: the element type has to be an object type (int, string, your
- * own classes). Native types such as `var` cannot be used as T.
+ * own classes). Native types such as `decimal` cannot be used as T.
  */
 class linked_list<T> : loopable<T>, iterable<T> {
     /** first node, null when the list is empty */
@@ -32,7 +32,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
     /** last node, null when the list is empty */
     private tail : linked_node<T>?;
     /** number of elements */
-    private count : var;
+    private count : decimal;
 
     /** Create an empty list. */
     linked_list() {
@@ -42,17 +42,17 @@ class linked_list<T> : loopable<T>, iterable<T> {
     /** Create a list holding the elements of an array, in the same order. O(n). */
     linked_list(items: T[]) {
         count = 0;
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             add_last(items[i]);
     }
 
     /** Number of elements in the list. O(1). */
-    def size() : var {
+    def size() : decimal {
         return count;
     }
 
     /** 1 when the list has no elements, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return count == 0;
     }
 
@@ -91,8 +91,8 @@ class linked_list<T> : loopable<T>, iterable<T> {
 
     /** Append every element of a `list`, keeping their order. O(n) in the size of `other`. */
     def add_all(other: list<T>) {
-        n : var = other.size().value;
-        for(i : var = 0; i < n; i++)
+        n : decimal = other.size().value;
+        for(i : decimal = 0; i < n; i++)
             add_last(other.at(i));
     }
 
@@ -183,7 +183,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
      * @throws out_of_bounds_exception when index < 0 or index > size()
      */
     def insert(index: int, element: T) {
-        i : var = index.value;
+        i : decimal = index.value;
         if(i < 0 || i > count) throw bounds_error(i);
 
         if(i == 0) {
@@ -218,7 +218,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
      *
      * @return 1 when an element was removed, 0 when the list does not contain it
      */
-    def remove(element: T) : var {
+    def remove(element: T) : decimal {
         node := head;
         while(node != null) {
             current := node!!;
@@ -235,8 +235,8 @@ class linked_list<T> : loopable<T>, iterable<T> {
      * Position of the first element that equals `element`, or -1 when the
      * list does not contain it. O(n).
      */
-    def index_of(element: T) : var {
-        i : var = 0;
+    def index_of(element: T) : decimal {
+        i : decimal = 0;
         node := head;
         while(node != null) {
             current := node!!;
@@ -248,7 +248,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
     }
 
     /** 1 when at least one element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : var {
+    def contains(element: T) : decimal {
         return index_of(element) >= 0;
     }
 
@@ -277,7 +277,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
     /** A new array with the elements in list order (length 0 for an empty list). O(n). */
     def to_array() : T[] {
         items := new T[count];
-        i : var = 0;
+        i : decimal = 0;
         node := head;
         while(node != null) {
             current := node!!;
@@ -322,17 +322,17 @@ class linked_list<T> : loopable<T>, iterable<T> {
      * Find the node at an index, walking from the head for the front half of
      * the list and from the tail for the back half.
      */
-    private def node_at(index: var) : linked_node<T> {
+    private def node_at(index: decimal) : linked_node<T> {
         if(index < 0 || index >= count) throw bounds_error(index);
 
         if(index < count / 2) {
             node := head!!;
-            for(i : var = 0; i < index; i++)
+            for(i : decimal = 0; i < index; i++)
                 node = node.next!!;
             return node;
         } else {
             node := tail!!;
-            for(i : var = count - 1; i > index; i--)
+            for(i : decimal = count - 1; i > index; i--)
                 node = node.prev!!;
             return node;
         }
@@ -354,7 +354,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
         count--;
     }
 
-    private def bounds_error(index: var) : out_of_bounds_exception {
+    private def bounds_error(index: decimal) : out_of_bounds_exception {
         i : int = index;
         n : int = count;
         return new out_of_bounds_exception("linked_list: index $i is out of bounds (size $n)");

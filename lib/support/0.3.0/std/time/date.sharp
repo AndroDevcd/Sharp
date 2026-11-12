@@ -29,18 +29,18 @@ mod std.time;
  *     date.parse("2000-01-01") < d // 1
  */
 class date {
-    static const min_year : var = 0 - 999999;
-    static const max_year : var = 999999;
+    static const min_year : decimal = 0 - 999999;
+    static const max_year : decimal = 999999;
 
     /** 1970-01-01, epoch day 0 */
     static const epoch : date = new date(1970, 1, 1);
 
-    private y : var = 1970;
-    private m : var = 1;
-    private d : var = 1;
+    private y : decimal = 1970;
+    private m : decimal = 1;
+    private d : decimal = 1;
 
     /** use date.of(...); the constructor does not validate */
-    private date(year: var, month_number: var, day: var) {
+    private date(year: decimal, month_number: decimal, day: decimal) {
         y = year;
         m = month_number;
         d = day;
@@ -57,10 +57,10 @@ class date {
      *         the month is not 1 .. 12, or the day does not exist in that
      *         month (31 April, 29 February in a year that is not a leap year)
      */
-    static def of(year: var, month_number: var, day: var): date {
+    static def of(year: decimal, month_number: decimal, day: decimal): date {
         time_math.check_range("year", year, min_year, max_year);
         time_math.check_range("month", month_number, 1, 12);
-        longest : var = days_in_month(year, month_number);
+        longest : decimal = days_in_month(year, month_number);
         if(day < 1 || day > longest || !time_math.is_whole(day)) {
             w := new time_text_writer();
             w.put_text("day ").put_text(time_math.number_text(day)).put_text(" is not valid for ");
@@ -72,7 +72,7 @@ class date {
     }
 
     /** as of(year, number, day) with the month given as a `month` object: date.of_month(2024, month.february, 29) */
-    static def of_month(year: var, in_month: month, day: var): date {
+    static def of_month(year: decimal, in_month: month, day: decimal): date {
         return of(year, in_month.value(), day);
     }
 
@@ -98,21 +98,21 @@ class date {
      *
      * @throws date_time_exception when the result is outside the supported years
      */
-    static def of_epoch_day(epoch_day: var): date {
+    static def of_epoch_day(epoch_day: decimal): date {
         time_math.check_whole("epoch day", epoch_day);
-        z : var = epoch_day + 719468;
-        era : var = time_math.floor_div(z, 146097);
-        doe : var = z - era * 146097;
-        yoe : var = time_math.trunc_div(doe - time_math.trunc_div(doe, 1460) + time_math.trunc_div(doe, 36524)
+        z : decimal = epoch_day + 719468;
+        era : decimal = time_math.floor_div(z, 146097);
+        doe : decimal = z - era * 146097;
+        yoe : decimal = time_math.trunc_div(doe - time_math.trunc_div(doe, 1460) + time_math.trunc_div(doe, 36524)
             - time_math.trunc_div(doe, 146096), 365);
-        doy : var = doe - (365 * yoe + time_math.trunc_div(yoe, 4) - time_math.trunc_div(yoe, 100));
-        mp : var = time_math.trunc_div(5 * doy + 2, 153);
-        day : var = doy - time_math.trunc_div(153 * mp + 2, 5) + 1;
-        month_number : var = mp + 3;
+        doy : decimal = doe - (365 * yoe + time_math.trunc_div(yoe, 4) - time_math.trunc_div(yoe, 100));
+        mp : decimal = time_math.trunc_div(5 * doy + 2, 153);
+        day : decimal = doy - time_math.trunc_div(153 * mp + 2, 5) + 1;
+        month_number : decimal = mp + 3;
         if(mp >= 10) {
             month_number = mp - 9;
         }
-        year : var = yoe + era * 400;
+        year : decimal = yoe + era * 400;
         if(month_number <= 2) {
             year += 1;
         }
@@ -126,7 +126,7 @@ class date {
      *
      * @throws date_time_exception when the day is not 1 .. 365 (366 in a leap year)
      */
-    static def of_year_day(year: var, day_of_year: var): date {
+    static def of_year_day(year: decimal, day_of_year: decimal): date {
         time_math.check_range("year", year, min_year, max_year);
         time_math.check_range("day of year", day_of_year, 1, days_in_year(year));
         return of(year, 1, 1).plus_days(day_of_year - 1);
@@ -151,7 +151,7 @@ class date {
      * divisible by 4, except the century years, unless divisible by 400.
      * 2024 and 2000 are leap years; 2023, 1900 and 2100 are not.
      */
-    static def is_leap_year(year: var): var {
+    static def is_leap_year(year: decimal): decimal {
         if(time_math.floor_mod(year, 4) != 0) {
             return 0;
         }
@@ -165,12 +165,12 @@ class date {
      * How many days month `month_number` (1-12) of `year` has: 28 .. 31.
      * @throws date_time_exception when the month is not 1 .. 12
      */
-    static def days_in_month(year: var, month_number: var): var {
+    static def days_in_month(year: decimal, month_number: decimal): decimal {
         return month.of(month_number).length(is_leap_year(year));
     }
 
     /** 366 for a leap year, otherwise 365 */
-    static def days_in_year(year: var): var {
+    static def days_in_year(year: decimal): decimal {
         if(is_leap_year(year)) {
             return 366;
         }
@@ -182,16 +182,16 @@ class date {
     // ------------------------------------------------------------------
 
     /** the year, e.g. 2024 (0 is 1 BC, negative years are earlier) */
-    def year(): var { return y; }
+    def year(): decimal { return y; }
 
     /** the month as a number: 1 (January) .. 12 (December) */
-    def month_value(): var { return m; }
+    def month_value(): decimal { return m; }
 
     /** the month as a `month` object (for its name, length ...) */
     def month_of_year(): month { return month.of(m); }
 
     /** the day of the month: 1 .. 31 */
-    def day(): var { return d; }
+    def day(): decimal { return d; }
 
     /**
      * The day of the week. 1970-01-01 (epoch day 0) was a Thursday, so the
@@ -202,23 +202,23 @@ class date {
     }
 
     /** the day of the year: 1 (1 January) .. 365, or 366 in a leap year */
-    def day_of_year(): var {
+    def day_of_year(): decimal {
         return month.of(m).first_day_of_year(is_leap_year(y)) + d - 1;
     }
 
     /** the quarter of the year: 1 (January-March) .. 4 (October-December) */
-    def quarter(): var {
+    def quarter(): decimal {
         return time_math.trunc_div(m - 1, 3) + 1;
     }
 
     /** 1 when this date's year is a leap year */
-    def is_leap_year(): var { return is_leap_year(y); }
+    def is_leap_year(): decimal { return is_leap_year(y); }
 
     /** how many days this date's month has: 28 .. 31 */
-    def length_of_month(): var { return days_in_month(y, m); }
+    def length_of_month(): decimal { return days_in_month(y, m); }
 
     /** how many days this date's year has: 365 or 366 */
-    def length_of_year(): var { return days_in_year(y); }
+    def length_of_year(): decimal { return days_in_year(y); }
 
     /**
      * The ISO-8601 week number: 1 .. 53.
@@ -236,8 +236,8 @@ class date {
      *
      *     2021-01-03 -> week 53 (of 2020)      2024-12-30 -> week 1 (of 2025)
      */
-    def iso_week(): var {
-        week : var = time_math.floor_div(day_of_year() - day_of_week().value() + 10, 7);
+    def iso_week(): decimal {
+        week : decimal = time_math.floor_div(day_of_year() - day_of_week().value() + 10, 7);
         if(week < 1) {
             return iso_weeks_in_year(y - 1);
         }
@@ -248,8 +248,8 @@ class date {
     }
 
     /** the year the ISO week of this date belongs to (see `iso_week`): the year, or one before/after it */
-    def iso_week_year(): var {
-        week : var = time_math.floor_div(day_of_year() - day_of_week().value() + 10, 7);
+    def iso_week_year(): decimal {
+        week : decimal = time_math.floor_div(day_of_year() - day_of_week().value() + 10, 7);
         if(week < 1) {
             return y - 1;
         }
@@ -263,8 +263,8 @@ class date {
      * How many ISO weeks `year` has: 53 when 1 January is a Thursday, or a
      * Wednesday in a leap year; otherwise 52.
      */
-    static def iso_weeks_in_year(year: var): var {
-        first : var = new date(year, 1, 1).day_of_week().value();
+    static def iso_weeks_in_year(year: decimal): decimal {
+        first : decimal = new date(year, 1, 1).day_of_week().value();
         if(first == 4 || (first == 3 && is_leap_year(year))) {
             return 53;
         }
@@ -290,19 +290,19 @@ class date {
      * (every division drops its fraction; 719468 is the number of days from
      * 0000-03-01 to 1970-01-01)
      */
-    def to_epoch_day(): var {
-        yy : var = y;
+    def to_epoch_day(): decimal {
+        yy : decimal = y;
         if(m <= 2) {
             yy -= 1;
         }
-        era : var = time_math.floor_div(yy, 400);
-        yoe : var = yy - era * 400;
-        mp : var = m - 3;
+        era : decimal = time_math.floor_div(yy, 400);
+        yoe : decimal = yy - era * 400;
+        mp : decimal = m - 3;
         if(m <= 2) {
             mp = m + 9;
         }
-        doy : var = time_math.trunc_div(153 * mp + 2, 5) + d - 1;
-        doe : var = yoe * 365 + time_math.trunc_div(yoe, 4) - time_math.trunc_div(yoe, 100) + doy;
+        doy : decimal = time_math.trunc_div(153 * mp + 2, 5) + d - 1;
+        doe : decimal = yoe * 365 + time_math.trunc_div(yoe, 4) - time_math.trunc_div(yoe, 100) + doy;
         return era * 146097 + doe - 719468;
     }
 
@@ -314,7 +314,7 @@ class date {
      * The date `days` days later (earlier when negative).
      * @throws date_time_exception when the result leaves the supported years
      */
-    def plus_days(days: var): date {
+    def plus_days(days: decimal): date {
         if(days == 0) {
             return self;
         }
@@ -323,7 +323,7 @@ class date {
     }
 
     /** the date `weeks` weeks (7 days each) later */
-    def plus_weeks(weeks: var): date {
+    def plus_weeks(weeks: decimal): date {
         time_math.check_whole("weeks", weeks);
         return plus_days(weeks * 7);
     }
@@ -335,15 +335,15 @@ class date {
      *
      * @throws date_time_exception when the result leaves the supported years
      */
-    def plus_months(months: var): date {
+    def plus_months(months: decimal): date {
         if(months == 0) {
             return self;
         }
         time_math.check_whole("months", months);
         // count months from year 0 so one division gives the new year and month
-        total : var = y * 12 + (m - 1) + months;
-        new_year : var = time_math.floor_div(total, 12);
-        new_month : var = time_math.floor_mod(total, 12) + 1;
+        total : decimal = y * 12 + (m - 1) + months;
+        new_year : decimal = time_math.floor_div(total, 12);
+        new_month : decimal = time_math.floor_mod(total, 12) + 1;
         return clamped(new_year, new_month, d);
     }
 
@@ -353,7 +353,7 @@ class date {
      *
      * @throws date_time_exception when the result leaves the supported years
      */
-    def plus_years(years: var): date {
+    def plus_years(years: decimal): date {
         if(years == 0) {
             return self;
         }
@@ -361,10 +361,10 @@ class date {
         return clamped(y + years, m, d);
     }
 
-    def minus_days(days: var): date { return plus_days(0 - days); }
-    def minus_weeks(weeks: var): date { return plus_weeks(0 - weeks); }
-    def minus_months(months: var): date { return plus_months(0 - months); }
-    def minus_years(years: var): date { return plus_years(0 - years); }
+    def minus_days(days: decimal): date { return plus_days(0 - days); }
+    def minus_weeks(weeks: decimal): date { return plus_weeks(0 - weeks); }
+    def minus_months(months: decimal): date { return plus_months(0 - months); }
+    def minus_years(years: decimal): date { return plus_years(0 - years); }
 
     /**
      * This date plus a period: first the years and months are added together
@@ -380,9 +380,9 @@ class date {
     }
 
     /** year/month with the day clamped to the length of that month */
-    private static def clamped(year: var, month_number: var, day: var): date {
+    private static def clamped(year: decimal, month_number: decimal, day: decimal): date {
         time_math.check_range("year", year, min_year, max_year);
-        longest : var = days_in_month(year, month_number);
+        longest : decimal = days_in_month(year, month_number);
         if(day > longest) {
             day = longest;
         }
@@ -393,7 +393,7 @@ class date {
      * The number of days from this date to `other`: positive when `other` is
      * later. date.of(2024, 1, 1).days_until(date.of(2024, 3, 1)) is 60.
      */
-    def days_until(other: date): var {
+    def days_until(other: date): decimal {
         return other.to_epoch_day() - to_epoch_day();
     }
 
@@ -407,7 +407,7 @@ class date {
     // ------------------------------------------------------------------
 
     /** the same month and day in another year; 29 February is clamped to 28 when needed */
-    def with_year(year: var): date {
+    def with_year(year: decimal): date {
         return clamped(year, m, d);
     }
 
@@ -416,7 +416,7 @@ class date {
      * the length of that month.
      * @throws date_time_exception when the month is not 1 .. 12
      */
-    def with_month(month_number: var): date {
+    def with_month(month_number: decimal): date {
         time_math.check_range("month", month_number, 1, 12);
         return clamped(y, month_number, d);
     }
@@ -425,7 +425,7 @@ class date {
      * The same year and month with another day of the month.
      * @throws date_time_exception when that day does not exist in the month
      */
-    def with_day(day: var): date {
+    def with_day(day: decimal): date {
         return of(y, m, day);
     }
 
@@ -433,7 +433,7 @@ class date {
      * The same year with another day of the year (1 .. 365/366).
      * @throws date_time_exception when the day is out of range for the year
      */
-    def with_day_of_year(day_of_year: var): date {
+    def with_day_of_year(day_of_year: decimal): date {
         return of_year_day(y, day_of_year);
     }
 
@@ -451,7 +451,7 @@ class date {
 
     /** the first date AFTER this one that falls on `target` (never this date itself) */
     def next(target: day_of_week): date {
-        ahead : var = day_of_week().days_until(target);
+        ahead : decimal = day_of_week().days_until(target);
         if(ahead == 0) {
             ahead = 7;
         }
@@ -465,7 +465,7 @@ class date {
 
     /** the last date BEFORE this one that falls on `target` (never this date itself) */
     def previous(target: day_of_week): date {
-        back : var = target.days_until(day_of_week());
+        back : decimal = target.days_until(day_of_week());
         if(back == 0) {
             back = 7;
         }
@@ -490,7 +490,7 @@ class date {
      * This date at hour:minute:second.
      * @throws date_time_exception when a field is out of range
      */
-    def at_time(hour: var, minute: var, second: var): date_time {
+    def at_time(hour: decimal, minute: decimal, second: decimal): date_time {
         return date_time.of(self, time_of_day.of(hour, minute, second));
     }
 
@@ -504,21 +504,21 @@ class date {
     // ------------------------------------------------------------------
 
     /** -1 when this date is before `other`, 0 when it is the same day, 1 when after */
-    def compare_to(other: date): var {
+    def compare_to(other: date): decimal {
         if(y != other.y) { return time_math.compare(y, other.y); }
         if(m != other.m) { return time_math.compare(m, other.m); }
         return time_math.compare(d, other.d);
     }
 
-    def is_before(other: date): var { return compare_to(other) < 0; }
-    def is_after(other: date): var { return compare_to(other) > 0; }
+    def is_before(other: date): decimal { return compare_to(other) < 0; }
+    def is_after(other: date): decimal { return compare_to(other) > 0; }
 
-    def operator==(other: date): var { return y == other.y && m == other.m && d == other.d; }
-    def operator!=(other: date): var { return y != other.y || m != other.m || d != other.d; }
-    def operator<(other: date): var { return compare_to(other) < 0; }
-    def operator<=(other: date): var { return compare_to(other) <= 0; }
-    def operator>(other: date): var { return compare_to(other) > 0; }
-    def operator>=(other: date): var { return compare_to(other) >= 0; }
+    def operator==(other: date): decimal { return y == other.y && m == other.m && d == other.d; }
+    def operator!=(other: date): decimal { return y != other.y || m != other.m || d != other.d; }
+    def operator<(other: date): decimal { return compare_to(other) < 0; }
+    def operator<=(other: date): decimal { return compare_to(other) <= 0; }
+    def operator>(other: date): decimal { return compare_to(other) > 0; }
+    def operator>=(other: date): decimal { return compare_to(other) >= 0; }
 
     /** date + period, as `plus` */
     def operator+(amount: period): date { return plus(amount); }
@@ -553,7 +553,7 @@ class date {
     }
 
     /** the year the ISO way: at least 4 digits, '+' when more, '-' when negative */
-    static def write_year(w: time_text_writer, year: var) {
+    static def write_year(w: time_text_writer, year: decimal) {
         if(year < 0) {
             w.put('-').put_padded(0 - year, 4);
         } else {
@@ -581,24 +581,24 @@ class date {
 
     /** reads `YYYY-MM-DD` at the cursor of `r` and leaves the cursor after it (shared with date_time) */
     static def read_from(r: time_text_reader): date {
-        sign : var = 1;
-        signed : var = 0;
+        sign : decimal = 1;
+        signed : decimal = 0;
         if(r.accept('-')) {
             sign = 0 - 1;
             signed = 1;
         } else if(r.accept('+')) {
             signed = 1;
         }
-        year : var = 0;
+        year : decimal = 0;
         if(signed) {
             year = r.read_digits(4, 6);
         } else {
             year = r.read_digits(4, 4);
         }
         r.expect('-');
-        month_number : var = r.read_digits(2, 2);
+        month_number : decimal = r.read_digits(2, 2);
         r.expect('-');
-        day : var = r.read_digits(2, 2);
+        day : decimal = r.read_digits(2, 2);
         return of(sign * year, month_number, day);
     }
 }

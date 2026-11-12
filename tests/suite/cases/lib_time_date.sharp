@@ -18,7 +18,7 @@ def text(d: date): string {
 }
 
 /** 1 when date.of(y, m, d) throws a date_time_exception */
-def rejects(y: var, m: var, d: var): var {
+def rejects(y: decimal, m: decimal, d: decimal): decimal {
     try {
         date.of(y, m, d);
         return 0;
@@ -28,7 +28,7 @@ def rejects(y: var, m: var, d: var): var {
 }
 
 /** 1 when date.parse(s) throws a date_time_exception */
-def rejects_text(s: string): var {
+def rejects_text(s: string): decimal {
     try {
         date.parse(s);
         return 0;
@@ -37,11 +37,11 @@ def rejects_text(s: string): var {
     }
 }
 
-def epoch_day_of(y: var, m: var, d: var): var {
+def epoch_day_of(y: decimal, m: decimal, d: decimal): decimal {
     return date.of(y, m, d).to_epoch_day();
 }
 
-def weekday_of(y: var, m: var, d: var): var {
+def weekday_of(y: decimal, m: decimal, d: decimal): decimal {
     return date.of(y, m, d).day_of_week().value();
 }
 
@@ -127,9 +127,9 @@ def main(args: string[]) {
 
     // round trip over every day of four centuries around the epoch would be slow in the
     // interpreter; every 97th day from 1583 to 2400 covers all months and weekdays
-    mismatches : var = 0;
-    previous : var = 0 - 141800;
-    for(day : var = 0 - 141700; day < 157200; day += 97) {
+    mismatches : decimal = 0;
+    previous : decimal = 0 - 141800;
+    for(day : decimal = 0 - 141700; day < 157200; day += 97) {
         back : date = date.of_epoch_day(day);
         if(back.to_epoch_day() != day) {
             mismatches++;
@@ -273,7 +273,7 @@ def main(args: string[]) {
     } catch(e: date_time_exception) {
         pass("of_year_day(2023, 366) throws");
     }
-    caught_as_exception : var = 0;
+    caught_as_exception : decimal = 0;
     try {
         date.of(2024, 0, 1);
     } catch(e: exception) {

@@ -18,10 +18,10 @@ class string_text_reader : text_reader, loopable<string> {
     /** the characters that are read (null for an empty text) */
     private chars : _int8[]?;
     /** how many characters there are */
-    private count : var = 0;
+    private count : decimal = 0;
     /** the index of the character read_char() returns next */
-    private pos : var = 0;
-    private closed : var = 0;
+    private pos : decimal = 0;
+    private closed : decimal = 0;
 
     /** a reader for `text`; a null or empty string is a text without characters */
     string_text_reader(text: string) {
@@ -38,7 +38,7 @@ class string_text_reader : text_reader, loopable<string> {
     }
 
     /** the next character (0..255), or -1 at the end. Throws io_exception when closed. */
-    override def read_char() : var {
+    override def read_char() : decimal {
         check_open();
         if(pos >= count) {
             return 0 - 1;
@@ -47,7 +47,7 @@ class string_text_reader : text_reader, loopable<string> {
     }
 
     /** the next character without taking it, or -1 at the end. Throws io_exception when closed. */
-    override def peek_char() : var {
+    override def peek_char() : decimal {
         check_open();
         if(pos >= count) {
             return 0 - 1;
@@ -61,7 +61,7 @@ class string_text_reader : text_reader, loopable<string> {
      * -1 when that is past the end (or offset is negative).
      * Throws io_exception when closed.
      */
-    def peek_char_at(offset: var) : var {
+    def peek_char_at(offset: decimal) : decimal {
         check_open();
         if(offset < 0 || pos + offset >= count) {
             return 0 - 1;
@@ -80,7 +80,7 @@ class string_text_reader : text_reader, loopable<string> {
             return null;
         }
 
-        start : var = pos;
+        start : decimal = pos;
         while(pos < count && chars[pos] != '\n' && chars[pos] != '\r') {
             pos++;
         }
@@ -116,12 +116,12 @@ class string_text_reader : text_reader, loopable<string> {
      * before that, "" at the end. Throws illegal_argument_exception for a
      * negative length and io_exception when closed.
      */
-    def read(length: var) : string {
+    def read(length: decimal) : string {
         check_open();
         if(length < 0) {
             throw new illegal_argument_exception("read: negative length");
         }
-        end : var = pos + length;
+        end : decimal = pos + length;
         if(end > count) {
             end = count;
         }
@@ -138,12 +138,12 @@ class string_text_reader : text_reader, loopable<string> {
      * over (fewer at the end of the text). A negative length skips nothing.
      * Throws io_exception when closed.
      */
-    def skip(length: var) : var {
+    def skip(length: decimal) : decimal {
         check_open();
         if(length < 0) {
             return 0;
         }
-        skipped : var = length;
+        skipped : decimal = length;
         if(pos + skipped > count) {
             skipped = count - pos;
         }
@@ -172,17 +172,17 @@ class string_text_reader : text_reader, loopable<string> {
     }
 
     /** how many characters have not been read yet */
-    def remaining() : var {
+    def remaining() : decimal {
         return count - pos;
     }
 
     /** the number of characters in the whole text */
-    def length() : var {
+    def length() : decimal {
         return count;
     }
 
     /** the index of the next character to be read: 0 at the beginning, length() at the end */
-    def position() : var {
+    def position() : decimal {
         return pos;
     }
 
@@ -191,7 +191,7 @@ class string_text_reader : text_reader, loopable<string> {
      * end). Throws illegal_argument_exception when the position is outside
      * 0 .. length().
      */
-    def seek(position: var) {
+    def seek(position: decimal) {
         if(position < 0 || position > count) {
             throw new illegal_argument_exception("seek: position " + io_strings.int_to_string(position)
                 + " is outside 0.." + io_strings.int_to_string(count));
@@ -205,9 +205,9 @@ class string_text_reader : text_reader, loopable<string> {
      * proportional to the position), so that seek() and unread() never make
      * it wrong.
      */
-    def line() : var {
-        number : var = 1;
-        for(i : var = 0; i < pos; i++) {
+    def line() : decimal {
+        number : decimal = 1;
+        for(i : decimal = 0; i < pos; i++) {
             if(chars[i] == '\n') {
                 number++;
             } else if(chars[i] == '\r' && !(i + 1 < count && chars[i + 1] == '\n')) {
@@ -218,8 +218,8 @@ class string_text_reader : text_reader, loopable<string> {
     }
 
     /** the place of the next character within its line, counting from 1 */
-    def column() : var {
-        start : var = pos;
+    def column() : decimal {
+        start : decimal = pos;
         while(start > 0 && chars[start - 1] != '\n' && chars[start - 1] != '\r') {
             start--;
         }
@@ -246,12 +246,12 @@ class string_text_reader : text_reader, loopable<string> {
      */
     override def get_elements() : string[]? {
         lines := read_lines();
-        count_lines : var = lines.size().value;
+        count_lines : decimal = lines.size().value;
         if(count_lines == 0) {
             return null;
         }
         result := new string[count_lines];
-        for(i : var = 0; i < count_lines; i++) {
+        for(i : decimal = 0; i < count_lines; i++) {
             result[i] = lines.at(i);
         }
         return result;

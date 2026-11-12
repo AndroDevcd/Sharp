@@ -12,9 +12,9 @@ import ( testing )
 
 class item {
     name : string;
-    weight : var;
+    weight : decimal;
 
-    item(n: string, w: var) {
+    item(n: string, w: decimal) {
         name = n;
         weight = w;
     }
@@ -28,8 +28,8 @@ class shelf {
     labels : string[];
 }
 
-def total_weight(items: item[]) : var {
-    total : var = 0;
+def total_weight(items: item[]) : decimal {
+    total : decimal = 0;
     foreach(it in items) {
         total += it.weight;
     }
@@ -46,8 +46,8 @@ def heaviest(items: item[]) : item {
     return best;
 }
 
-def count_nulls(items: item[]) : var {
-    count : var = 0;
+def count_nulls(items: item[]) : decimal {
+    count : decimal = 0;
     foreach(it in items) {
         if(it == null) { count++; }
     }
@@ -66,9 +66,9 @@ def put_first(items: item[], replacement: item) {
     items[0] = replacement;
 }
 
-def make_names(n: var) : string[] {
+def make_names(n: decimal) : string[] {
     result := new string[n];
-    for(i : var = 0; i < n; i++) {
+    for(i : decimal = 0; i < n; i++) {
         index : int = i;
         result[i] = "name" + index;
     }
@@ -147,7 +147,7 @@ def main(args: string[]) {
         names += it.name;
     }
     expect_str("foreach visits the elements in order", names, "abc");
-    visits : var = 0;
+    visits : decimal = 0;
     foreach(it in new item[0]) {
         visits++;
     }
@@ -161,7 +161,7 @@ def main(args: string[]) {
 
     // ---- a plain for loop with an index
     backwards := new string();
-    for(i : var = sizeof(items) - 1; i >= 0; i--) {
+    for(i : decimal = sizeof(items) - 1; i >= 0; i--) {
         backwards += items[i].name;
     }
     expect_str("for loop from the end", backwards, "cba");

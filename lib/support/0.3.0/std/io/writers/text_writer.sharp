@@ -22,7 +22,7 @@ interface text_writer {
     def write(text: string);
 
     /** write one character given as its code ('a', 10, ...) */
-    def write_char(ch: var);
+    def write_char(ch: decimal);
 
     /** write `text` followed by a line end ("\n") */
     def write_line(text: string);

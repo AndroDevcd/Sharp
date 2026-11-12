@@ -38,9 +38,9 @@ import ( std.io )
  * writer object can be used again and again. Not thread safe.
  */
 class json_writer {
-    private indent : var = 0;
-    private sort_keys : var = 0;
-    private ascii_only : var = 0;
+    private indent : decimal = 0;
+    private sort_keys : decimal = 0;
+    private ascii_only : decimal = 0;
 
     /** `value` as compact JSON text. Throws json_exception for NaN or infinite numbers. */
     static def to_compact(value: json_value) : string {
@@ -64,7 +64,7 @@ class json_writer {
      * writer.
      * Throws illegal_argument_exception when spaces is negative.
      */
-    def set_indent(spaces: var) : json_writer {
+    def set_indent(spaces: decimal) : json_writer {
         if(spaces < 0) {
             throw new illegal_argument_exception("set_indent: the indent cannot be negative");
         }
@@ -121,13 +121,13 @@ class json_writer {
             if(current != null) {
                 v := current!!;
                 current = null;
-                kind : var = v.kind();
+                kind : decimal = v.kind();
                 if(kind == json_value.kind_null) {
                     buf.append("null");
                 } else if(kind == json_value.kind_bool) {
                     if(v.as_bool()) { buf.append("true"); } else { buf.append("false"); }
                 } else if(kind == json_value.kind_number) {
-                    number : var = v.as_number();
+                    number : decimal = v.as_number();
                     if(number - number != 0) {
                         throw new json_exception("JSON cannot express the number " + io_strings.number_to_string(number));
                     }
@@ -147,8 +147,8 @@ class json_writer {
 
             // continue with the innermost open container
             container := open.last();
-            done : var = next.last().value;
-            total : var = container.size();
+            done : decimal = next.last().value;
+            total : decimal = container.size();
             if(done >= total) {
                 open.pop_back();
                 next.pop_back();
@@ -164,7 +164,7 @@ class json_writer {
             new_line(buf, open.size().value);
             next.put(next.size().value - 1, new int(done + 1));
 
-            position : var = orders.last().position_of(done);
+            position : decimal = orders.last().position_of(done);
             if(container.is_object()) {
                 write_string(buf, container.key_at(position));
                 buf.append_char(':');
@@ -178,7 +178,7 @@ class json_writer {
     }
 
     /** in indented output: start a new line, indented for nesting depth `depth` */
-    private def new_line(buf: char_buffer, depth: var) {
+    private def new_line(buf: char_buffer, depth: decimal) {
         if(indent > 0) {
             buf.append_char('\n');
             buf.append_repeated(' ', depth * indent);
@@ -187,11 +187,11 @@ class json_writer {
 
     /** append `text` in double quotes with everything escaped that has to be */
     private def write_string(buf: char_buffer, text: string) {
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         buf.append_char('"');
-        i : var = 0;
+        i : decimal = 0;
         while(i < n) {
-            ch : var = text.data[i] & 0xff;
+            ch : decimal = text.data[i] & 0xff;
             if(ch == '"') {
                 buf.append_char(92);
                 buf.append_char('"');
@@ -219,15 +219,15 @@ class json_writer {
                 buf.append_char(ch);
             } else {
                 // decode one UTF-8 character: how many bytes follow the first one?
-                extra : var = 0;
-                code : var = ch;
+                extra : decimal = 0;
+                code : decimal = ch;
                 if(ch >= 0xF0 && ch < 0xF8) { extra = 3; code = ch & 0x07; }
                 else if(ch >= 0xE0) { extra = 2; code = ch & 0x0F; }
                 else if(ch >= 0xC0) { extra = 1; code = ch & 0x1F; }
 
-                valid : var = extra > 0 && i + extra < n;
-                for(k : var = 1; valid && k <= extra; k++) {
-                    following : var = text.data[i + k] & 0xff;
+                valid : decimal = extra > 0 && i + extra < n;
+                for(k : decimal = 1; valid && k <= extra; k++) {
+                    following : decimal = text.data[i + k] & 0xff;
                     if(following < 0x80 || following > 0xBF) {
                         valid = 0;
                     } else {
@@ -256,7 +256,7 @@ class json_writer {
     }
 
     /** append a back slash, 'u' and the four hexadecimal digits of `code` */
-    private static def write_unicode_escape(buf: char_buffer, code: var) {
+    private static def write_unicode_escape(buf: char_buffer, code: decimal) {
         buf.append_char(92);
         buf.append_char('u');
         buf.append(io_strings.int_to_hex(code, 4));

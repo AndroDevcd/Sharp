@@ -17,7 +17,7 @@ def main(args: string[]): int {
         return 1;
     }
 
-    for(i: var = 0; i < sizeof(args); i++) {
+    for(i: decimal = 0; i < sizeof(args); i++) {
         
         arg := args[i];
         if(arg == "-a"){

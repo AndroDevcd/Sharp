@@ -32,7 +32,7 @@ class linked_list<T> : loopable<T> {
 
     private head: node<T>?;
     private tail: node<T>?;
-    private n_elements: var;
+    private n_elements: decimal;
 
     linked_list() {
         head = null;
@@ -51,7 +51,7 @@ class linked_list<T> : loopable<T> {
 
         elements := new T[n_elements];
         current := head;
-        i : var = 0;
+        i : decimal = 0;
 
         while(current != null) {
             elements[i++] = current!!.value;
@@ -75,12 +75,12 @@ class linked_list<T> : loopable<T> {
         return get_node_at(index.value)!!.value;
     }
 
-    private def get_node_at(index: var): node<T>? {
+    private def get_node_at(index: decimal): node<T>? {
         if(index >= n_elements || index < 0)
             return null;
 
         current := head;
-        for(i : var = 0; i < index; i++) {
+        for(i : decimal = 0; i < index; i++) {
             current = current!!.next;
         }
 
@@ -168,7 +168,7 @@ class linked_list<T> : loopable<T> {
 
     def indexof(element: T) : int {
         current := head;
-        i : var = 0;
+        i : decimal = 0;
 
         while(current != null) {
             if(element == current!!.value) {
@@ -193,7 +193,7 @@ class linked_list<T> : loopable<T> {
         }
 
         current := head;
-        for(i : var = 0; i < n_elements - 2; i++) {
+        for(i : decimal = 0; i < n_elements - 2; i++) {
             current = current!!.next;
         }
 
@@ -318,7 +318,7 @@ class linked_list<T> : loopable<T> {
 
     def indexof(comparer: T, find_func: (T, T)(bool)) : int {
         current := head;
-        i : var = 0;
+        i : decimal = 0;
 
         while(current != null) {
             if(find_func(current!!.value, comparer)) {
@@ -365,7 +365,7 @@ class linked_list<T> : loopable<T> {
         return null;
     }
 
-    def replace(val: T, compare_fun: (T, T)(var)) : bool {
+    def replace(val: T, compare_fun: (T, T)(decimal)) : bool {
         current := head;
 
         while(current != null) {
@@ -384,7 +384,7 @@ class linked_list<T> : loopable<T> {
 
         str += "[ ";
         current := head;
-        i : var = 0;
+        i : decimal = 0;
 
         while(current != null) {
             str += current!!.value.to_string();
@@ -403,9 +403,9 @@ class linked_list<T> : loopable<T> {
 
     override def hash() : int {
         hash_value := 0;
-        multiplier : var = 0;
+        multiplier : decimal = 0;
         const m := 1e9 + 9;
-        i : var = 0;
+        i : decimal = 0;
 
         current := head;
         while(current != null) {

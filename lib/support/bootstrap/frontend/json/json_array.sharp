@@ -3,10 +3,10 @@ mod frontend.json;
 class json_array : loopable<json_value> {
     values := new list<json_value>();
 
-    num_values : var;
+    num_values : decimal;
        get { return values.size(); }
 
-    def operator[](value_index: var) : json_value {
+    def operator[](value_index: decimal) : json_value {
         return values.at(value_index);
     }
 

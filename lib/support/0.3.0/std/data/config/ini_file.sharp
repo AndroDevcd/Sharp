@@ -76,10 +76,10 @@ class ini_file {
     def read_text(text: string) {
         lines := io_strings.split_lines(text);
         current : string = "";
-        total : var = lines.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = lines.size().value;
+        for(i : decimal = 0; i < total; i++) {
             line := io_strings.trim(lines.at(i));
-            n : var = sizeof(line.data);
+            n : decimal = sizeof(line.data);
             if(n == 0 || line.data[0] == ';' || line.data[0] == '#') {
                 continue;
             }
@@ -95,8 +95,8 @@ class ini_file {
             }
 
             // the key ends at the first '=' or ':'
-            split : var = 0 - 1;
-            for(k : var = 0; k < n; k++) {
+            split : decimal = 0 - 1;
+            for(k : decimal = 0; k < n; k++) {
                 if(line.data[k] == '=' || line.data[k] == ':') {
                     split = k;
                     break;
@@ -117,17 +117,17 @@ class ini_file {
     }
 
     /** resolve the quotes and escapes of a value written in double quotes; other values are returned as they are */
-    private static def unquote(value: string, line_number: var) : string {
-        n : var = sizeof(value.data);
+    private static def unquote(value: string, line_number: decimal) : string {
+        n : decimal = sizeof(value.data);
         if(n < 2 || value.data[0] != '"' || value.data[n - 1] != '"') {
             return value;
         }
         buf := new char_buffer(n);
-        i : var = 1;
+        i : decimal = 1;
         while(i < n - 1) {
-            ch : var = value.data[i];
+            ch : decimal = value.data[i];
             if(ch == 92 && i + 1 < n - 1) {
-                following : var = value.data[i + 1];
+                following : decimal = value.data[i + 1];
                 if(following == 'n') { buf.append_char(10); }
                 else if(following == 't') { buf.append_char(9); }
                 else if(following == 'r') { buf.append_char(13); }
@@ -147,16 +147,16 @@ class ini_file {
     }
 
     /** true when the value has to be written in quotes to be read back unchanged */
-    private static def needs_quotes(value: string) : var {
-        n : var = sizeof(value.data);
+    private static def needs_quotes(value: string) : decimal {
+        n : decimal = sizeof(value.data);
         if(n == 0) {
             return 0;
         }
         if(io_strings.is_space(value.data[0]) || io_strings.is_space(value.data[n - 1]) || value.data[0] == '"') {
             return 1;
         }
-        for(i : var = 0; i < n; i++) {
-            ch : var = value.data[i];
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = value.data[i];
             if(ch == '\n' || ch == '\r' || ch == '\t') {
                 return 1;
             }
@@ -165,9 +165,9 @@ class ini_file {
     }
 
     /** the position of the section `name` in the list, or -1 */
-    private def section_index(name: string) : var {
-        total : var = all_sections.size().value;
-        for(i : var = 0; i < total; i++) {
+    private def section_index(name: string) : decimal {
+        total : decimal = all_sections.size().value;
+        for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(all_sections.at(i).name(), name)) {
                 return i;
             }
@@ -177,7 +177,7 @@ class ini_file {
 
     /** the section `name`, created when it does not exist */
     private def section_for(name: string) : ini_section {
-        at : var = section_index(name);
+        at : decimal = section_index(name);
         if(at >= 0) {
             return all_sections.at(at);
         }
@@ -193,7 +193,7 @@ class ini_file {
 
     /** the section `name` with its entries, or null when there is none. Changing the section changes these settings. */
     def section(name: string) : ini_section? {
-        at : var = section_index(name);
+        at : decimal = section_index(name);
         if(at < 0) {
             return null;
         }
@@ -203,8 +203,8 @@ class ini_file {
     /** the names of all sections in order ("" for the global section, when it has entries) */
     def sections() : list<string> {
         result := new list<string>();
-        total : var = all_sections.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = all_sections.size().value;
+        for(i : decimal = 0; i < total; i++) {
             result.add(all_sections.at(i).name());
         }
         return result;
@@ -212,7 +212,7 @@ class ini_file {
 
     /** the keys of the section `name` in order; an empty list when there is no such section */
     def keys(name: string) : list<string> {
-        at : var = section_index(name);
+        at : decimal = section_index(name);
         if(at < 0) {
             return new list<string>();
         }
@@ -221,7 +221,7 @@ class ini_file {
 
     /** true when the section `section_name` has an entry `key` */
     def has(section_name: string, key: string) : bool {
-        at : var = section_index(section_name);
+        at : decimal = section_index(section_name);
         if(at < 0) {
             return false;
         }
@@ -230,7 +230,7 @@ class ini_file {
 
     /** the value of `key` in the section `section_name`, or null when the section or the key does not exist */
     def find(section_name: string, key: string) : string? {
-        at : var = section_index(section_name);
+        at : decimal = section_index(section_name);
         if(at < 0) {
             return null;
         }
@@ -252,7 +252,7 @@ class ini_file {
      * Throws number_format_exception when the entry exists but is not a
      * number ("12", "-0.5", "1e3" are; "", "abc", "12px" are not).
      */
-    def number_or(section_name: string, key: string, fallback: var) : var {
+    def number_or(section_name: string, key: string, fallback: decimal) : decimal {
         found := find(section_name, key);
         if(io_strings.is_null(found)) {
             return fallback;
@@ -298,7 +298,7 @@ class ini_file {
     }
 
     /** set `key` in the section `section_name` to a number, written the short way ("8080", "0.5"). Returns these settings. Throws like put(). */
-    def put_number(section_name: string, key: string, value: var) : ini_file {
+    def put_number(section_name: string, key: string, value: decimal) : ini_file {
         return put(section_name, key, io_strings.number_to_string(value));
     }
 
@@ -310,11 +310,11 @@ class ini_file {
         return put(section_name, key, "false");
     }
 
-    private static def check_name(name: string, is_section: var) {
-        n : var = sizeof(name.data);
+    private static def check_name(name: string, is_section: decimal) {
+        n : decimal = sizeof(name.data);
         if(is_section) {
-            for(i : var = 0; i < n; i++) {
-                ch : var = name.data[i];
+            for(i : decimal = 0; i < n; i++) {
+                ch : decimal = name.data[i];
                 if(ch == ']' || ch == '\n' || ch == '\r') {
                     throw new illegal_argument_exception("ini: a section name cannot contain ']' or a line end: " + name);
                 }
@@ -324,12 +324,12 @@ class ini_file {
         if(n == 0) {
             throw new illegal_argument_exception("ini: the key cannot be empty");
         }
-        first : var = name.data[0];
+        first : decimal = name.data[0];
         if(first == '[' || first == ';' || first == '#' || io_strings.is_space(first) || io_strings.is_space(name.data[n - 1])) {
             throw new illegal_argument_exception("ini: a key cannot start with '[', ';' or '#' or have spaces around it: " + name);
         }
-        for(i : var = 0; i < n; i++) {
-            ch : var = name.data[i];
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = name.data[i];
             if(ch == '=' || ch == ':' || ch == '\n' || ch == '\r') {
                 throw new illegal_argument_exception("ini: a key cannot contain '=', ':' or a line end: " + name);
             }
@@ -338,7 +338,7 @@ class ini_file {
 
     /** remove `key` from the section `section_name`; returns true when there was such an entry. An emptied section stays. */
     def remove(section_name: string, key: string) : bool {
-        at : var = section_index(section_name);
+        at : decimal = section_index(section_name);
         if(at < 0) {
             return false;
         }
@@ -347,7 +347,7 @@ class ini_file {
 
     /** remove the section `name` with all its entries; returns true when there was one */
     def remove_section(name: string) : bool {
-        at : var = section_index(name);
+        at : decimal = section_index(name);
         if(at < 0) {
             return false;
         }
@@ -356,10 +356,10 @@ class ini_file {
     }
 
     /** the number of entries in all sections together */
-    def size() : var {
-        count : var = 0;
-        total : var = all_sections.size().value;
-        for(i : var = 0; i < total; i++) {
+    def size() : decimal {
+        count : decimal = 0;
+        total : decimal = all_sections.size().value;
+        for(i : decimal = 0; i < total; i++) {
             count += all_sections.at(i).size();
         }
         return count;
@@ -374,12 +374,12 @@ class ini_file {
     override def to_string() : string? {
         buf := new char_buffer(256);
         // the global section has no header, so it has to come first
-        global_at : var = section_index("");
+        global_at : decimal = section_index("");
         if(global_at >= 0) {
             write_entries(buf, all_sections.at(global_at));
         }
-        total : var = all_sections.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = all_sections.size().value;
+        for(i : decimal = 0; i < total; i++) {
             if(i == global_at) {
                 continue;
             }
@@ -396,16 +396,16 @@ class ini_file {
     }
 
     private static def write_entries(buf: char_buffer, from: ini_section) {
-        total : var = from.size();
-        for(i : var = 0; i < total; i++) {
+        total : decimal = from.size();
+        for(i : decimal = 0; i < total; i++) {
             buf.append(from.key_at(i));
             buf.append(" = ");
             value := from.value_at(i);
             if(needs_quotes(value)) {
                 buf.append_char('"');
-                n : var = sizeof(value.data);
-                for(k : var = 0; k < n; k++) {
-                    ch : var = value.data[k];
+                n : decimal = sizeof(value.data);
+                for(k : decimal = 0; k < n; k++) {
+                    ch : decimal = value.data[k];
                     if(ch == '"') { buf.append_char(92); buf.append_char('"'); }
                     else if(ch == 92) { buf.append_char(92); buf.append_char(92); }
                     else if(ch == '\n') { buf.append_char(92); buf.append_char('n'); }

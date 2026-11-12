@@ -20,12 +20,12 @@ def ptext(p: period): string {
     return p.to_string()!!;
 }
 
-def on(y: var, m: var, d: var): date {
+def on(y: decimal, m: decimal, d: decimal): date {
     return date.of(y, m, d);
 }
 
 /** 1 when period.parse(s) throws a date_time_exception */
-def rejects_period(s: string): var {
+def rejects_period(s: string): decimal {
     try {
         period.parse(s);
         return 0;
@@ -34,7 +34,7 @@ def rejects_period(s: string): var {
     }
 }
 
-def between(y1: var, m1: var, d1: var, y2: var, m2: var, d2: var): string {
+def between(y1: decimal, m1: decimal, d1: decimal, y2: decimal, m2: decimal, d2: decimal): string {
     return period.between(date.of(y1, m1, d1), date.of(y2, m2, d2)).to_string()!!;
 }
 
@@ -93,7 +93,7 @@ def main(args: string[]) {
     expect_str("-2024 years", text(on(2024, 7, 4).minus_years(2024)), "0000-07-04");
 
     // ---- out of range results
-    caught : var = 0;
+    caught : decimal = 0;
     try {
         on(999999, 12, 31).plus_days(1);
     } catch(e: date_time_exception) {

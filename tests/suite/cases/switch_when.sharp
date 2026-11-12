@@ -25,15 +25,15 @@ enum color {
 }
 
 /** counts calls, to show what was (and was not) evaluated */
-calls : var = 0;
+calls : decimal = 0;
 
-def touch(result: var): var {
+def touch(result: decimal): decimal {
     calls++;
     return result;
 }
 
 /** the number of days in a month of an ordinary year, 0 for a month that does not exist */
-def days_in_month(month: var): var {
+def days_in_month(month: decimal): decimal {
     when(month) {
         2 -> { return 28; }
         4, 6, 9, 11 -> { return 30; }
@@ -42,7 +42,7 @@ def days_in_month(month: var): var {
     return 0;
 }
 
-def color_number(c: color): var {
+def color_number(c: color): decimal {
     when(c) {
         color.red -> { return 10; }
         color.green -> { return 20; }
@@ -51,7 +51,7 @@ def color_number(c: color): var {
     return 0;
 }
 
-def animal_legs(animal: string): var {
+def animal_legs(animal: string): decimal {
     when(animal) {
         "bird" -> { return 2; }
         "dog", "cat" -> { return 4; }
@@ -62,7 +62,7 @@ def animal_legs(animal: string): var {
 }
 
 /** a when without a value: the first true condition wins */
-def size_class(n: var): var {
+def size_class(n: decimal): decimal {
     when {
         n < 10 -> { return 1; }
         n < 100 -> { return 2; }
@@ -72,7 +72,7 @@ def size_class(n: var): var {
     return 0;
 }
 
-def is_vowel(letter: var): var {
+def is_vowel(letter: decimal): decimal {
     when(letter) {
         'a', 'e', 'i', 'o', 'u' -> { return 1; }
     }
@@ -80,8 +80,8 @@ def is_vowel(letter: var): var {
 }
 
 def main(args: string[]) {
-    r : var = 0;
-    n : var = 2;
+    r : decimal = 0;
+    n : decimal = 2;
 
     // ---- the matching clause runs
     when(n) {
@@ -151,7 +151,7 @@ def main(args: string[]) {
 
     // ---- several values in one clause
     r = 0;
-    for(i : var = 1; i <= 6; i++) {
+    for(i : decimal = 1; i <= 6; i++) {
         when(i) {
             1, 2 -> { r += 1; }
             3, 4, 5 -> { r += 10; }
@@ -169,8 +169,8 @@ def main(args: string[]) {
     expect("a when with one clause", r, 1);
 
     // ---- expressions as the value and in the clauses
-    a : var = 4;
-    b : var = 6;
+    a : decimal = 4;
+    b : decimal = 6;
     r = 0;
     when(a + b) {
         a -> { r = 1; }
@@ -188,7 +188,7 @@ def main(args: string[]) {
     expect("a clause that is a variable expression", r, 1);
 
     // ---- fractions and negative numbers
-    half : var = 0.5;
+    half : decimal = 0.5;
     r = 0;
     when(half) {
         0.25 -> { r = 1; }
@@ -197,7 +197,7 @@ def main(args: string[]) {
     }
     expect("when on a fraction", r, 2);
 
-    minus : var = 0 - 3;
+    minus : decimal = 0 - 3;
     r = 0;
     when(minus) {
         3 -> { r = 1; }
@@ -226,7 +226,7 @@ def main(args: string[]) {
     expect("...so the second clause was not evaluated", calls, 1);
 
     // ---- when without a value
-    v : var = 15;
+    v : decimal = 15;
     r = 0;
     when {
         v < 10 -> { r = 1; }
@@ -264,8 +264,8 @@ def main(args: string[]) {
     expect("two conditions in one clause: either may be true", r, 5);
 
     // ---- several statements in a clause
-    x : var = 0;
-    y : var = 0;
+    x : decimal = 0;
+    y : decimal = 0;
     n = 2;
     when(n) {
         1 -> {
@@ -301,10 +301,10 @@ def main(args: string[]) {
     expect("a when inside a when", r, 12);
 
     // ---- inside a loop
-    ones : var = 0;
-    twos : var = 0;
-    others : var = 0;
-    for(i : var = 0; i < 9; i++) {
+    ones : decimal = 0;
+    twos : decimal = 0;
+    others : decimal = 0;
+    for(i : decimal = 0; i < 9; i++) {
         when(i % 3) {
             1 -> { ones++; }
             2 -> { twos += 2; }
@@ -317,7 +317,7 @@ def main(args: string[]) {
 
     // ---- continue inside a clause continues the loop around the when
     r = 0;
-    for(i : var = 0; i < 5; i++) {
+    for(i : decimal = 0; i < 5; i++) {
         when(i) {
             1, 3 -> { continue; }
         }
@@ -329,7 +329,7 @@ def main(args: string[]) {
     expect("is_vowel('a')", is_vowel('a'), 1);
     expect("is_vowel('u')", is_vowel('u'), 1);
     expect("is_vowel('x')", is_vowel('x'), 0);
-    vowels : var = 0;
+    vowels : decimal = 0;
     foreach(letter in "a quick brown fox") {
         vowels += is_vowel(letter);
     }
@@ -342,8 +342,8 @@ def main(args: string[]) {
     expect("days_in_month(1)", days_in_month(1), 31);
     expect("days_in_month(12)", days_in_month(12), 31);
     expect("days_in_month(13)", days_in_month(13), 0);
-    days : var = 0;
-    for(month : var = 1; month <= 12; month++) {
+    days : decimal = 0;
+    for(month : decimal = 1; month <= 12; month++) {
         days += days_in_month(month);
     }
     expect("days in a year", days, 365);

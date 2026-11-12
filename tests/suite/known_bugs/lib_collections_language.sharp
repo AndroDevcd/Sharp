@@ -20,7 +20,7 @@ def main(args: string[]) {
     expect_str("\"a\" + \"\"", left + "", "a");
 
     // ---- BUG 2: a local of a nullable NUMBER type that is declared without
-    // a value is not null (string?, class and var[]? locals are).
+    // a value is not null (string?, class and decimal[]? locals are).
     count : int?;
     if(count == null) pass("an int? local without a value is null");
     else fail("an int? local without a value is null", "it is not null");

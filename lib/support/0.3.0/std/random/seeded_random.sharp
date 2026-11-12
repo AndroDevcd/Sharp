@@ -12,8 +12,8 @@ import ( std.math )
  * content, replays.
  *
  *     rng := new seeded_random(42);
- *     roll : var = rng.next_int(1, 6);        // a die: 1 .. 6
- *     chance : var = rng.next_double();       // 0 <= chance < 1
+ *     roll : decimal = rng.next_int(1, 6);        // a die: 1 .. 6
+ *     chance : decimal = rng.next_double();       // 0 <= chance < 1
  *     rng.shuffle(cards);
  *
  * (rand(), rand_int() ... in std/random.sharp use the runtime's generator
@@ -31,17 +31,17 @@ import ( std.math )
  * The class does no locking; give each thread its own generator.
  */
 class seeded_random {
-    private static const WORD : var = 4294967296;       // 2^32
-    private static const MASK : var = 4294967295;       // 2^32 - 1
+    private static const WORD : decimal = 4294967296;       // 2^32
+    private static const MASK : decimal = 4294967295;       // 2^32 - 1
 
     /** used instead of a seed that reduces to 0, which xorshift cannot leave */
-    private static const ZERO_SEED_REPLACEMENT : var = 2463534242;
+    private static const ZERO_SEED_REPLACEMENT : decimal = 2463534242;
 
-    private state : var = 1;
+    private state : decimal = 1;
 
     /** a second gaussian value is produced with every first one and kept here */
-    private spare_gaussian : var = 0;
-    private has_spare_gaussian : var = 0;
+    private spare_gaussian : decimal = 0;
+    private has_spare_gaussian : decimal = 0;
 
     /** a generator with the fixed seed 1 (so it, too, is reproducible) */
     seeded_random() {
@@ -49,7 +49,7 @@ class seeded_random {
     }
 
     /** a generator started from `seed_value` (see seed()) */
-    seeded_random(seed_value: var) {
+    seeded_random(seed_value: decimal) {
         seed(seed_value);
     }
 
@@ -59,11 +59,11 @@ class seeded_random {
      * modulo 2^32; a result of 0 is replaced by a fixed non-zero constant.
      * Throws illegal_argument_exception for NaN or an infinite seed.
      */
-    def seed(seed_value: var) {
+    def seed(seed_value: decimal) {
         if((seed_value - seed_value) != 0)
             throw new illegal_argument_exception("seeded_random: the seed must be a finite number");
 
-        whole : var = seed_value;
+        whole : decimal = seed_value;
         if(whole < 0) whole = 0 - whole;
         // drop the fraction, then reduce modulo 2^32 without the % operator
         // (which is limited to 63 bits)
@@ -76,18 +76,18 @@ class seeded_random {
     }
 
     /** floor for a non-negative number below 2^63 */
-    private static def math_floor(v: var): var {
+    private static def math_floor(v: decimal): decimal {
         return v as _int64;
     }
 
     /** the fractional part of a non-negative number (0 for numbers too large to have one) */
-    private static def math_fraction(v: var): var {
+    private static def math_fraction(v: decimal): decimal {
         if(v >= 9007199254740992) return 0;
         return v - (v as _int64);
     }
 
     /** the current internal state: pass it to seed() later to continue from this exact point */
-    def get_state(): var {
+    def get_state(): decimal {
         return state;
     }
 
@@ -95,8 +95,8 @@ class seeded_random {
      * The next raw value: a whole number in 1 .. 4294967295 (one xorshift32
      * step). All other functions are built on this one.
      */
-    def next_u32(): var {
-        x : var = state;
+    def next_u32(): decimal {
+        x : decimal = state;
         x = x ^ ((x << 13) & MASK);
         x = x ^ (x >> 17);
         x = x ^ ((x << 5) & MASK);
@@ -105,7 +105,7 @@ class seeded_random {
     }
 
     /** a number in 0 <= result < 1, evenly spread: next_u32() / 2^32 */
-    def next_double(): var {
+    def next_double(): decimal {
         return next_u32() / WORD;
     }
 
@@ -113,7 +113,7 @@ class seeded_random {
      * A number in low <= result < high.
      * Throws illegal_argument_exception when low > high.
      */
-    def next_double(low: var, high: var): var {
+    def next_double(low: decimal, high: decimal): decimal {
         if(low > high)
             throw new illegal_argument_exception("seeded_random: low is greater than high");
         return low + next_double() * (high - low);
@@ -124,7 +124,7 @@ class seeded_random {
      * something with `bound` elements.
      * Throws illegal_argument_exception when bound is < 1 or above 2^32.
      */
-    def next_int(bound: var): var {
+    def next_int(bound: decimal): decimal {
         if(bound < 1 || bound > WORD)
             throw new illegal_argument_exception("seeded_random: the bound must be in 1 .. 4294967296");
         return (next_double() * bound) as _int64;
@@ -136,7 +136,7 @@ class seeded_random {
      * Throws illegal_argument_exception when low > high or the range holds
      * more than 2^32 numbers.
      */
-    def next_int(low: var, high: var): var {
+    def next_int(low: decimal, high: decimal): decimal {
         if(low > high)
             throw new illegal_argument_exception("seeded_random: low is greater than high");
         return low + next_int(high - low + 1);
@@ -151,7 +151,7 @@ class seeded_random {
      * true with the given probability (0 = never, 1 = always).
      * Throws illegal_argument_exception when probability is outside 0 .. 1.
      */
-    def next_bool(probability: var): bool {
+    def next_bool(probability: decimal): bool {
         if(probability < 0 || probability > 1 || probability != probability)
             throw new illegal_argument_exception("seeded_random: a probability must be in 0 .. 1");
         return next_double() < probability;
@@ -166,22 +166,22 @@ class seeded_random {
      * with 0 < s < 1); then u * f and v * f with f = sqrt(-2 ln(s) / s) are
      * two independent normal values. The second one is kept for the next call.
      */
-    def next_gaussian(): var {
+    def next_gaussian(): decimal {
         if(has_spare_gaussian) {
             has_spare_gaussian = 0;
             return spare_gaussian;
         }
 
-        u : var = 0;
-        v : var = 0;
-        s : var = 0;
+        u : decimal = 0;
+        v : decimal = 0;
+        s : decimal = 0;
         do {
             u = next_double() * 2 - 1;
             v = next_double() * 2 - 1;
             s = u * u + v * v;
         } while(s >= 1 || s == 0);
 
-        factor : var = square_root(0 - 2 * ln(s) / s);
+        factor : decimal = square_root(0 - 2 * ln(s) / s);
         spare_gaussian = v * factor;
         has_spare_gaussian = 1;
         return u * factor;
@@ -192,7 +192,7 @@ class seeded_random {
      * deviation: mean + deviation * next_gaussian().
      * Throws illegal_argument_exception when deviation is negative.
      */
-    def next_gaussian(mean: var, deviation: var): var {
+    def next_gaussian(mean: decimal, deviation: decimal): decimal {
         if(deviation < 0)
             throw new illegal_argument_exception("seeded_random: the standard deviation cannot be negative");
         return mean + deviation * next_gaussian();
@@ -202,7 +202,7 @@ class seeded_random {
      * One of the numbers of the array, each with equal chance.
      * Throws illegal_argument_exception when the array is empty.
      */
-    def pick(values: var[]): var {
+    def pick(values: decimal[]): decimal {
         if(sizeof(values) == 0)
             throw new illegal_argument_exception("seeded_random: cannot pick from an empty array");
         return values[next_int(sizeof(values))];
@@ -236,10 +236,10 @@ class seeded_random {
      * element with a randomly chosen one at or before it. Every one of the
      * n! orders is equally likely (as far as the generator allows).
      */
-    def shuffle(values: var[]) {
-        for(i : var = sizeof(values) - 1; i > 0; i--) {
-            j : var = next_int(i + 1);
-            held : var = values[i];
+    def shuffle(values: decimal[]) {
+        for(i : decimal = sizeof(values) - 1; i > 0; i--) {
+            j : decimal = next_int(i + 1);
+            held : decimal = values[i];
             values[i] = values[j];
             values[j] = held;
         }
@@ -247,8 +247,8 @@ class seeded_random {
 
     /** put the objects of the array (strings, your own classes ...) into a random order, in place (Fisher-Yates) */
     def shuffle_objects(values: object[]) {
-        for(i : var = sizeof(values) - 1; i > 0; i--) {
-            j : var = next_int(i + 1);
+        for(i : decimal = sizeof(values) - 1; i > 0; i--) {
+            j : decimal = next_int(i + 1);
             held := values[i];
             values[i] = values[j];
             values[j] = held;
@@ -260,12 +260,12 @@ class seeded_random {
      * indexes, usable to visit ANY collection in random order.
      * Throws illegal_argument_exception when count is negative.
      */
-    def permutation(count: var): var[] {
+    def permutation(count: decimal): decimal[] {
         if(count < 0)
             throw new illegal_argument_exception("seeded_random: the count cannot be negative");
 
-        result := new var[count];
-        for(i : var = 0; i < count; i++) {
+        result := new decimal[count];
+        for(i : decimal = 0; i < count; i++) {
             result[i] = i;
         }
         shuffle(result);
@@ -277,7 +277,7 @@ class seeded_random {
      * digits 0-9.
      * Throws illegal_argument_exception when length is negative.
      */
-    def next_string(length: var): string {
+    def next_string(length: decimal): string {
         return next_string(length, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
     }
 
@@ -287,16 +287,16 @@ class seeded_random {
      * Throws illegal_argument_exception when length is negative or the
      * alphabet is empty.
      */
-    def next_string(length: var, alphabet: string): string {
+    def next_string(length: decimal, alphabet: string): string {
         if(length < 0)
             throw new illegal_argument_exception("seeded_random: the length cannot be negative");
-        choices : var = alphabet.size().value;
+        choices : decimal = alphabet.size().value;
         if(choices == 0)
             throw new illegal_argument_exception("seeded_random: the alphabet is empty");
         if(length == 0) return "";
 
         text := new _int8[length];
-        for(i : var = 0; i < length; i++) {
+        for(i : decimal = 0; i < length; i++) {
             text[i] = alphabet.at(next_int(choices)).value;
         }
         return new string(text);

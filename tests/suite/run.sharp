@@ -39,19 +39,19 @@ import ( std.io )
  */
 
 /* seconds one test may run before it is stopped and counted as failed */
-TIME_LIMIT : var = 120;
+TIME_LIMIT : decimal = 120;
 
 QUOTE : string = "'";
 
-passed_tests : var = 0;
-failed_tests : var = 0;
+passed_tests : decimal = 0;
+failed_tests : decimal = 0;
 
 /** "some/folder/arithmetic.sharp" -> "arithmetic"   (file.list() may give names or whole paths) */
 def test_name(file_name: string): string {
-    length : var = file_name.size().value;
-    start : var = 0;
-    for(i : var = 0; i < length; i++) {
-        c : var = file_name.at(i).value;
+    length : decimal = file_name.size().value;
+    start : decimal = 0;
+    for(i : decimal = 0; i < length; i++) {
+        c : decimal = file_name.at(i).value;
         if(c == '/' || c == 92) {       // 92 is the backslash
             start = i + 1;
         }
@@ -115,7 +115,7 @@ def main(args: string[]) {
     work := args[3];
 
     options : string = "";
-    for(i : var = 4; i < sizeof(args); i++) {
+    for(i : decimal = 4; i < sizeof(args); i++) {
         options += " " + args[i];
     }
 
@@ -125,8 +125,8 @@ def main(args: string[]) {
     println("");
 
     cases := new file(suite + "/cases").list();
-    count : var = cases.size().value;
-    for(i : var = 0; i < count; i++) {
+    count : decimal = cases.size().value;
+    for(i : decimal = 0; i < count; i++) {
         file_name := cases.at(i);
         if(file_name.ends_with(".sharp").value) {
             run_one(sharpc, sharp, suite, work, options, file_name);

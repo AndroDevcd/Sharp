@@ -12,7 +12,7 @@ mod std.collections;
  *     compare(a, b) > 0     a comes out after b
  *
  *     // smallest number first
- *     pq := new priority_queue<int>({ a: int, b: int -> (var) return a.value - b.value; });
+ *     pq := new priority_queue<int>({ a: int, b: int -> (decimal) return a.value - b.value; });
  *     pq.add(5);  pq.add(1);  pq.add(3);
  *     pq.poll();      // 1
  *     pq.poll();      // 3
@@ -32,36 +32,36 @@ mod std.collections;
  * sorted copy is made.
  *
  * Limitation: the element type has to be an object type; native types such
- * as `var` cannot be used as T.
+ * as `decimal` cannot be used as T.
  */
 class priority_queue<T> : loopable<T>, iterable<T> {
     /** the heap; heap[0] is the smallest element */
     private heap : T[]?;
     /** number of elements */
-    private count : var;
+    private count : decimal;
     /** negative: first argument comes out first; see the class comment */
-    private compare : (T, T)(var);
+    private compare : (T, T)(decimal);
 
-    private static const default_capacity : var = 16;
+    private static const default_capacity : decimal = 16;
 
     /**
      * Create an empty priority queue.
      *
      * @param compare the ordering, see the class comment
      */
-    priority_queue(compare: (T, T)(var)) {
+    priority_queue(compare: (T, T)(decimal)) {
         heap = new T[default_capacity];
         count = 0;
         self->compare = compare;
     }
 
     /** Number of elements. O(1). */
-    def size() : var {
+    def size() : decimal {
         return count;
     }
 
     /** 1 when there are no elements, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return count == 0;
     }
 
@@ -69,7 +69,7 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     def add(element: T) {
         if(count == sizeof(heap)) {
             bigger := new T[count * 2];
-            for(i : var = 0; i < count; i++)
+            for(i : decimal = 0; i < count; i++)
                 bigger[i] = heap[i];
             heap = bigger;
         }
@@ -81,8 +81,8 @@ class priority_queue<T> : loopable<T>, iterable<T> {
 
     /** Add every element of a `list`. O(m log n) for m new elements. */
     def add_all(elements: list<T>) {
-        n : var = elements.size().value;
-        for(i : var = 0; i < n; i++)
+        n : decimal = elements.size().value;
+        for(i : decimal = 0; i < n; i++)
             add(elements.at(i));
     }
 
@@ -125,8 +125,8 @@ class priority_queue<T> : loopable<T>, iterable<T> {
      *
      * @return 1 when an element was removed, 0 when there was none
      */
-    def remove(element: T) : var {
-        for(i : var = 0; i < count; i++) {
+    def remove(element: T) : decimal {
+        for(i : decimal = 0; i < count; i++) {
             if(heap[i] == element) {
                 remove_slot(i);
                 return 1;
@@ -136,8 +136,8 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     }
 
     /** 1 when an element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : var {
-        for(i : var = 0; i < count; i++) {
+    def contains(element: T) : decimal {
+        for(i : decimal = 0; i < count; i++) {
             if(heap[i] == element) return 1;
         }
         return 0;
@@ -156,12 +156,12 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     def to_sorted_array() : T[] {
         // work on a copy of the heap: take the smallest off n times
         scratch := new T[count];
-        for(i : var = 0; i < count; i++)
+        for(i : decimal = 0; i < count; i++)
             scratch[i] = heap[i];
 
         result := new T[count];
-        remaining : var = count;
-        for(i : var = 0; i < count; i++) {
+        remaining : decimal = count;
+        for(i : decimal = 0; i < count; i++) {
             result[i] = scratch[0];
             remaining--;
             scratch[0] = scratch[remaining];
@@ -174,7 +174,7 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     def to_list() : list<T> {
         sorted := to_sorted_array();
         result := new list<T>();
-        for(i : var = 0; i < sizeof(sorted); i++)
+        for(i : decimal = 0; i < sizeof(sorted); i++)
             result.add(sorted[i]);
         return result;
     }
@@ -197,7 +197,7 @@ class priority_queue<T> : loopable<T>, iterable<T> {
      * Take the element at heap index `index` out: the last element takes its
      * place and is then moved up or down until the heap rule holds again.
      */
-    private def remove_slot(index: var) : T {
+    private def remove_slot(index: decimal) : T {
         removed := heap[index];
         count--;
         if(index < count) {
@@ -211,10 +211,10 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     }
 
     /** Move the element at `index` towards the root while it is smaller than its parent. */
-    private def sift_up(items: T[], index: var) {
+    private def sift_up(items: T[], index: decimal) {
         element := items[index];
         while(index > 0) {
-            parent : var = (index - 1) >> 1;
+            parent : decimal = (index - 1) >> 1;
             if(compare(element, items[parent]) >= 0) break;
             items[index] = items[parent];
             index = parent;
@@ -223,11 +223,11 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     }
 
     /** Move the element at `index` towards the leaves while a child is smaller; `length` = used part of the array. */
-    private def sift_down(items: T[], length: var, index: var) {
+    private def sift_down(items: T[], length: decimal, index: decimal) {
         if(index >= length) return;
         element := items[index];
         while(true) {
-            child : var = index * 2 + 1;
+            child : decimal = index * 2 + 1;
             if(child >= length) break;
             // pick the smaller of the two children
             if(child + 1 < length && compare(items[child + 1], items[child]) < 0)

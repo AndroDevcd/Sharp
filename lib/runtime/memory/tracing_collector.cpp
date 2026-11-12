@@ -308,7 +308,7 @@ static inline void mark(sharp_object *o) {
         MARK(o->info, 1);
 
         // numbers have nothing to follow (type <= type_var: HEAD is an array
-        // of long double), everything else is an array of object slots
+        // of vm_cell), everything else is an array of object slots
         if(o->type > type_var && o->node != nullptr)
             pending.push_back(o);
     }
@@ -319,9 +319,19 @@ static void mark_everything_reachable() {
         sharp_object *o = pending.back();
         pending.pop_back();
 
+        // A class instance has number fields in some of its slots: those are
+        // not references and must not be followed (their bits are an integer
+        // or a decimal, not an address).
+        const bool *numbers = number_slots_of(o);
         object *slot = o->node;
-        for(uInt i = 0; i < o->size; i++, slot++)
-            mark(slot->o);
+        if(numbers == nullptr) {
+            for(uInt i = 0; i < o->size; i++, slot++)
+                mark(slot->o);
+        } else {
+            for(uInt i = 0; i < o->size; i++, slot++) {
+                if(!numbers[i]) mark(slot->o);
+            }
+        }
     }
 }
 
@@ -462,8 +472,8 @@ static void sweep_list(sharp_object **head) {
         *link = o->next;
 
         if(o->type <= type_var) {
-            sweptBytes += sizeof(long double) * o->size;
-            std::free(o->HEAD);
+            sweptBytes += (size_t)element_size(o->type) * o->size;
+            std::free(o->data);
         } else if(o->node != nullptr) {
             sweptBytes += sizeof(object) * o->size;
             std::free(o->node);

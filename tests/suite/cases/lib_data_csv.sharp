@@ -17,13 +17,13 @@ q : string = "\"";
 /** the rows as text that shows the structure: fields in [brackets], rows separated by / */
 def show(rows: list<csv_row>): string {
     buf := new char_buffer();
-    count : var = rows.size().value;
-    for(r : var = 0; r < count; r++) {
+    count : decimal = rows.size().value;
+    for(r : decimal = 0; r < count; r++) {
         if(r > 0) {
             buf.append_char('/');
         }
         row := rows.at(r);
-        for(i : var = 0; i < row.size(); i++) {
+        for(i : decimal = 0; i < row.size(); i++) {
             buf.append_char('[').append(row.at(i)).append_char(']');
         }
     }
@@ -34,7 +34,7 @@ def expect_rows(name: string, text: string, expected: string) {
     expect_str(name, show(csv_reader.parse(text)), expected);
 }
 
-def expect_bad(name: string, text: string, line: var, column: var) {
+def expect_bad(name: string, text: string, line: decimal, column: decimal) {
     try {
         csv_reader.parse(text);
         fail(name, "no exception");
@@ -234,7 +234,7 @@ def test_round_trip() {
 
     // a larger table
     big := new csv_writer();
-    for(i : var = 0; i < 3000; i++) {
+    for(i : decimal = 0; i < 3000; i++) {
         big.write_number(i).write_field("name " + io_strings.int_to_string(i)).write_field("a,b").end_row();
     }
     table := csv_reader.parse(big.to_string()!!);

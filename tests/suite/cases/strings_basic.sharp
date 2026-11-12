@@ -17,15 +17,15 @@ def greet(name: string): string {
     return "hello " + name;
 }
 
-def repeat(piece: string, times: var): string {
+def repeat(piece: string, times: decimal): string {
     result := "";
-    for(i : var = 0; i < times; i++) {
+    for(i : decimal = 0; i < times; i++) {
         result += piece;
     }
     return result;
 }
 
-def double_it(n: var): var { return n * 2; }
+def double_it(n: decimal): decimal { return n * 2; }
 
 def main(args: string[]) {
     // ---- joining with +
@@ -61,7 +61,7 @@ def main(args: string[]) {
     letters += "c";
     expect_str("+= onto an empty string", letters, "abc");
     built := "";
-    for(i : var = 0; i < 5; i++) {
+    for(i : decimal = 0; i < 5; i++) {
         built += "ab";
     }
     expect_str("+= in a loop", built, "ababababab");
@@ -86,9 +86,9 @@ def main(args: string[]) {
     expect_str("string + negative int object", "t=" + minus, "t=-7");
     big : long = 5000000000;
     expect_str("string + long object", "big=" + big, "big=5000000000");
-    number : var = 2.5;
+    number : decimal = 2.5;
     expect_str("string + var has 16 decimals", "n=" + number, "n=2.5000000000000000");
-    whole : var = 3;
+    whole : decimal = 3;
     expect_str("...also for a whole number", "n=" + whole, "n=3.0000000000000000");
     expect_str("string + number + string", "<" + count + ">", "<42>");
     expect_str("the numbers are joined, not added", "1" + 2 + 3, "123");

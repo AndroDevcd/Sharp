@@ -35,7 +35,7 @@ def first_or<T>(items: list<T>, fallback: T) : T {
  */
 def transform<T, R>(items: list<T>, f: (T)(R)) : list<R> {
     result := new list<R>();
-    for(i : var = 0; i < items.size(); i++) {
+    for(i : decimal = 0; i < items.size(); i++) {
         result.add(f(items.at(i)));
     }
     return result;

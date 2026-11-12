@@ -95,9 +95,9 @@ bool local_operands(const ir_instruction &instr, int &first, int &second, bool &
         case Opcode::LOADL:    first = instr.b; return true;                        // regs[a] = local
         case Opcode::SMOVR_2:  first = instr.b; writesFirst = true; return true;    // local = regs[a]
         case Opcode::ISTOREL:  first = instr.a; writesFirst = true; return true;    // local = constant
-        case Opcode::IADDL: case Opcode::ISUBL: case Opcode::IMULL: case Opcode::IDIVL:
+        case Opcode::IADDL: case Opcode::ISUBL: case Opcode::IMULL: case Opcode::DIDIVL:
             first = instr.a; writesFirst = true; return true;                       // local op= constant
-        case Opcode::ADDL: case Opcode::SUBL: case Opcode::MULL: case Opcode::DIVL:
+        case Opcode::ADDL: case Opcode::SUBL: case Opcode::MULL: case Opcode::DDIVL:
             first = instr.b; writesFirst = true; return true;                       // local op= regs[a]
         case Opcode::SMOVR_4:                                                       // local a = local b
             first = instr.a; writesFirst = true; second = instr.b; return true;
@@ -124,12 +124,12 @@ void translate(ir_instruction &instr, const std::vector<int> &registerOf) {
         case Opcode::IADDL:   if(reg(instr.a) >= 0) become(instr, Opcode::IADD, reg(instr.a), instr.b); break;
         case Opcode::ISUBL:   if(reg(instr.a) >= 0) become(instr, Opcode::ISUB, reg(instr.a), instr.b); break;
         case Opcode::IMULL:   if(reg(instr.a) >= 0) become(instr, Opcode::IMUL, reg(instr.a), instr.b); break;
-        case Opcode::IDIVL:   if(reg(instr.a) >= 0) become(instr, Opcode::IDIV, reg(instr.a), instr.b); break;
+        case Opcode::DIDIVL:   if(reg(instr.a) >= 0) become(instr, Opcode::DIDIV, reg(instr.a), instr.b); break;
         // local op= regs[a]   ->   R = R op regs[a]
         case Opcode::ADDL:    if(reg(instr.b) >= 0) become(instr, Opcode::ADD, reg(instr.b), instr.a, reg(instr.b)); break;
         case Opcode::SUBL:    if(reg(instr.b) >= 0) become(instr, Opcode::SUB, reg(instr.b), instr.a, reg(instr.b)); break;
         case Opcode::MULL:    if(reg(instr.b) >= 0) become(instr, Opcode::MUL, reg(instr.b), instr.a, reg(instr.b)); break;
-        case Opcode::DIVL:    if(reg(instr.b) >= 0) become(instr, Opcode::DIV, reg(instr.b), instr.a, reg(instr.b)); break;
+        case Opcode::DDIVL:    if(reg(instr.b) >= 0) become(instr, Opcode::DDIV, reg(instr.b), instr.a, reg(instr.b)); break;
         case Opcode::SMOVR_4: {
             int to = reg(instr.a), from = reg(instr.b);
             if(to >= 0 && from >= 0) become(instr, Opcode::MOVR, to, from);

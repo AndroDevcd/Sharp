@@ -253,6 +253,9 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 }
 
                 if(is_match_normal(match_result)) {
+                    // `total = count` with total: var, count: _int32 (and the
+                    // other way round): the value becomes the kind of the target
+                    convert_number_for(right, left.type);
                     Int lastPos = array_element_store_position(left);
 
                     if(lastPos != -1) {
@@ -325,6 +328,11 @@ void compile_assign_expression(expression *e, Ast *ast) {
                         } else if(operand == "^=") {
                             create_xor_value_assignment_operation(&e->scheme, register_0, register_1, &left.scheme, &right.scheme);
                         }
+
+                        // "+=" -> "+": typed like the binary operator, result
+                        // converted back to the kind of the variable
+                        string arithmeticOperator = operand.getValue().substr(0, operand.getValue().size() - 1);
+                        type_compound_assignment(&e->scheme, arithmeticOperator, left.type, right.type);
                     )
                 } else {
                     create_new_error(INCOMPATIBLE_TYPES, ast->line, ast->col,

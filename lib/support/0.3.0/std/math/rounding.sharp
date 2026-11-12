@@ -4,7 +4,7 @@ mod std.math;
  * Rounding native numbers, and whole number division.
  *
  * floor() and ceil() in math.sharp return `double` objects; the functions
- * here return native `var` numbers (floor_of / ceil_of in native_math.sharp
+ * here return native `decimal` numbers (floor_of / ceil_of in native_math.sharp
  * are the native floor and ceil).
  *
  *     value   floor_of  ceil_of  trunc  round_half_away  round_half_even
@@ -18,7 +18,7 @@ mod std.math;
  * Drop the fractional part (round toward zero): trunc(2.9) == 2,
  * trunc(-2.9) == -2. NaN and the infinities are returned unchanged.
  */
-def trunc(v: var): var {
+def trunc(v: decimal): decimal {
     if(v < 0) return ceil_of(v);
     return floor_of(v);
 }
@@ -27,7 +27,7 @@ def trunc(v: var): var {
  * The fractional part, with the sign of v: fract(2.75) == 0.75,
  * fract(-2.75) == -0.75. Always v == trunc(v) + fract(v).
  */
-def fract(v: var): var {
+def fract(v: decimal): decimal {
     return v - trunc(v);
 }
 
@@ -35,7 +35,7 @@ def fract(v: var): var {
  * Round to the nearest whole number; a tie (x.5) goes AWAY from zero, which
  * is what people usually call rounding: 2.5 -> 3, -2.5 -> -3, 2.4 -> 2.
  */
-def round_half_away(v: var): var {
+def round_half_away(v: decimal): decimal {
     if(v < 0) return ceil_of(v - 0.5);
     return floor_of(v + 0.5);
 }
@@ -46,9 +46,9 @@ def round_half_away(v: var): var {
  * -2.5 -> -2. Over many values this does not drift upward the way
  * round_half_away does.
  */
-def round_half_even(v: var): var {
-    low : var = floor_of(v);
-    difference : var = v - low;
+def round_half_even(v: decimal): decimal {
+    low : decimal = floor_of(v);
+    difference : decimal = v - low;
 
     if(difference < 0.5) return low;
     if(difference > 0.5) return low + 1;
@@ -67,25 +67,25 @@ def round_half_even(v: var): var {
  * The usual floating point caveat applies: 1.005 is stored as
  * 1.00499999999999989..., so round_to(1.005, 2) is 1 and not 1.01.
  */
-def round_to(v: var, decimals: var): var {
+def round_to(v: decimal, decimals: decimal): decimal {
     if(decimals < 0) {
-        scale : var = power(10, 0 - decimals);
+        scale : decimal = power(10, 0 - decimals);
         return round_half_away(v / scale) * scale;
     }
 
-    scale : var = power(10, decimals);
+    scale : decimal = power(10, decimals);
     return round_half_away(v * scale) / scale;
 }
 
 /** round DOWN to `decimals` digits after the point: floor_to(3.149, 2) == 3.14 */
-def floor_to(v: var, decimals: var): var {
-    scale : var = power(10, decimals);
+def floor_to(v: decimal, decimals: decimal): decimal {
+    scale : decimal = power(10, decimals);
     return floor_of(v * scale) / scale;
 }
 
 /** round UP to `decimals` digits after the point: ceil_to(3.141, 2) == 3.15 */
-def ceil_to(v: var, decimals: var): var {
-    scale : var = power(10, decimals);
+def ceil_to(v: decimal, decimals: decimal): decimal {
+    scale : decimal = power(10, decimals);
     return ceil_of(v * scale) / scale;
 }
 
@@ -95,7 +95,7 @@ def ceil_to(v: var, decimals: var): var {
  *
  * Throws division_by_zero_exception when step is 0.
  */
-def round_to_multiple(v: var, step: var): var {
+def round_to_multiple(v: decimal, step: decimal): decimal {
     if(step == 0)
         throw new division_by_zero_exception("round_to_multiple: step is 0");
     return round_half_away(v / step) * step;
@@ -107,7 +107,7 @@ def round_to_multiple(v: var, step: var): var {
  *
  * Throws division_by_zero_exception when divisor is 0.
  */
-def int_div(dividend: var, divisor: var): var {
+def int_div(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("int_div: division by zero");
     return trunc(dividend / divisor);
@@ -120,7 +120,7 @@ def int_div(dividend: var, divisor: var): var {
  *
  * Throws division_by_zero_exception when divisor is 0.
  */
-def int_rem(dividend: var, divisor: var): var {
+def int_rem(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("int_rem: division by zero");
     return dividend - trunc(dividend / divisor) * divisor;
@@ -132,7 +132,7 @@ def int_rem(dividend: var, divisor: var): var {
  *
  * Throws division_by_zero_exception when divisor is 0.
  */
-def floor_div(dividend: var, divisor: var): var {
+def floor_div(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("floor_div: division by zero");
     return floor_of(dividend / divisor);
@@ -147,7 +147,7 @@ def floor_div(dividend: var, divisor: var): var {
  * Formula: dividend - floor(dividend / divisor) * divisor.
  * Throws division_by_zero_exception when divisor is 0.
  */
-def floor_mod(dividend: var, divisor: var): var {
+def floor_mod(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("floor_mod: division by zero");
     return dividend - floor_of(dividend / divisor) * divisor;
@@ -159,7 +159,7 @@ def floor_mod(dividend: var, divisor: var): var {
  *
  * Throws division_by_zero_exception when divisor is 0.
  */
-def ceil_div(dividend: var, divisor: var): var {
+def ceil_div(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("ceil_div: division by zero");
     return ceil_of(dividend / divisor);

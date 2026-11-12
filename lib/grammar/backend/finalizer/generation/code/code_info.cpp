@@ -113,6 +113,13 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
                 x++;
                 break;
             }
+            case Opcode::DMOVI:
+            {
+                ss << "dmovi #" << (int)code.get(x+1)  << ", ";
+                ss<< register_to_str(GET_Da(opcodeData)) ;
+                x++;
+                break;
+            }
             case Opcode::RET:
             {
                 ss<<"ret" << (GET_Da(opcodeData) == ERR_STATE ? " ERR" : "");
@@ -184,6 +191,24 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
                 ss<< register_to_str(GET_Cb(opcodeData));
 
                 break;
+            }
+            case Opcode::D2I:
+            {
+                ss<<"d2i ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::I2D:
+            {
+                ss<<"i2d ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
             } case Opcode::MOVU8:
             {
                 ss<<"movu8 ";
@@ -238,9 +263,31 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DADD:
+            {
+                ss<<"dadd ";
+                ss<< register_to_str(GET_Ba(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Bb(opcodeData));
+                ss<< " -> ";
+                ss<< register_to_str(GET_Bc(opcodeData));
+
+                break;
+            }
             case Opcode::SUB:
             {
                 ss<<"sub ";
+                ss<< register_to_str(GET_Ba(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Bb(opcodeData));
+                ss<< " -> ";
+                ss<< register_to_str(GET_Bc(opcodeData));
+
+                break;
+            }
+            case Opcode::DSUB:
+            {
+                ss<<"dsub ";
                 ss<< register_to_str(GET_Ba(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Bb(opcodeData));
@@ -260,9 +307,20 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
-            case Opcode::DIV:
+            case Opcode::DMUL:
             {
-                ss<<"div ";
+                ss<<"dmul ";
+                ss<< register_to_str(GET_Ba(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Bb(opcodeData));
+                ss<< " -> ";
+                ss<< register_to_str(GET_Bc(opcodeData));
+
+                break;
+            }
+            case Opcode::DDIV:
+            {
+                ss<<"ddiv ";
                 ss<< register_to_str(GET_Ba(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Bb(opcodeData));
@@ -291,9 +349,27 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DIADD:
+            {
+                ss<<"diadd ";
+                ss<< register_to_str(GET_Da(opcodeData));
+                ss<< ", #";
+                ss<< code.get(++x);
+
+                break;
+            }
             case Opcode::ISUB:
             {
                 ss<<"isub ";
+                ss<< register_to_str(GET_Da(opcodeData));
+                ss<< ", #";
+                ss<< code.get(++x);
+
+                break;
+            }
+            case Opcode::DISUB:
+            {
+                ss<<"disub ";
                 ss<< register_to_str(GET_Da(opcodeData));
                 ss<< ", #";
                 ss<< code.get(++x);
@@ -309,9 +385,18 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
-            case Opcode::IDIV:
+            case Opcode::DIMUL:
             {
-                ss<<"idiv ";
+                ss<<"dimul ";
+                ss<< register_to_str(GET_Da(opcodeData));
+                ss<< ", #";
+                ss<< code.get(++x);
+
+                break;
+            }
+            case Opcode::DIDIV:
+            {
+                ss<<"didiv ";
                 ss<< register_to_str(GET_Da(opcodeData));
                 ss<< ", #";
                 ss<< code.get(++x);
@@ -340,9 +425,23 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DINC:
+            {
+                ss<<"dinc ";
+                ss<< register_to_str(GET_Da(opcodeData));
+
+                break;
+            }
             case Opcode::DEC:
             {
                 ss<<"dec ";
+                ss<< register_to_str(GET_Da(opcodeData));
+
+                break;
+            }
+            case Opcode::DDEC:
+            {
+                ss<<"ddec ";
                 ss<< register_to_str(GET_Da(opcodeData));
 
                 break;
@@ -356,19 +455,66 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
-            case Opcode::IALOAD:
+            case Opcode::ALOAD64:
             {
-                ss<<"iaload ";
+                ss<<"aload64 ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
 
                 break;
             }
-            case Opcode::ILOAD:
+            case Opcode::ALOADU32:
             {
-                ss<<"iload ";
-                ss<< register_to_str(GET_Da(opcodeData));
+                ss<<"aloadu32 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ALOAD32:
+            {
+                ss<<"aload32 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ALOADU16:
+            {
+                ss<<"aloadu16 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ALOAD16:
+            {
+                ss<<"aload16 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ALOADU8:
+            {
+                ss<<"aloadu8 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ALOAD8:
+            {
+                ss<<"aload8 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
 
                 break;
             }
@@ -411,9 +557,27 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DLT:
+            {
+                ss<<"dlt ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
             case Opcode::GT:
             {
                 ss<<"gt ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::DGT:
+            {
+                ss<<"dgt ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
@@ -429,9 +593,27 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DLTE:
+            {
+                ss<<"dlte ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
             case Opcode::GTE:
             {
                 ss<<"gte ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::DGTE:
+            {
+                ss<<"dgte ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
@@ -467,6 +649,13 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
             case Opcode::PUT:
             {
                 ss<<"put ";
+                ss<< register_to_str(GET_Da(opcodeData));
+
+                break;
+            }
+            case Opcode::DPUT:
+            {
+                ss<<"dput ";
                 ss<< register_to_str(GET_Da(opcodeData));
 
                 break;
@@ -552,9 +741,27 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DTEST:
+            {
+                ss<<"dtest ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
             case Opcode::TNE:
             {
                 ss<<"tne ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::DTNE:
+            {
+                ss<<"dtne ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
@@ -596,6 +803,15 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
             case Opcode::NOT: //c
             {
                 ss<<"not ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::DNOT:
+            {
+                ss<<"dnot ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
@@ -658,6 +874,15 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
             case Opcode::CMP:
             {
                 ss<<"cmp ";
+                ss<< register_to_str(GET_Da(opcodeData));
+                ss<< ", ";
+                ss<< code.get(++x);
+
+                break;
+            }
+            case Opcode::DCMP:
+            {
+                ss<<"dcmp ";
                 ss<< register_to_str(GET_Da(opcodeData));
                 ss<< ", ";
                 ss<< code.get(++x);
@@ -742,9 +967,25 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DADDL:
+            {
+                ss<<"daddl ";
+                ss << register_to_str(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
+
+                break;
+            }
             case Opcode::SUBL:
             {
                 ss<<"subl ";
+                ss << register_to_str(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
+
+                break;
+            }
+            case Opcode::DSUBL:
+            {
+                ss<<"dsubl ";
                 ss << register_to_str(GET_Ca(opcodeData)) << ", fp@";
                 ss<<GET_Cb(opcodeData);
 
@@ -758,9 +999,17 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
-            case Opcode::DIVL:
+            case Opcode::DMULL:
             {
-                ss<<"divl ";
+                ss<<"dmull ";
+                ss << register_to_str(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
+
+                break;
+            }
+            case Opcode::DDIVL:
+            {
+                ss<<"ddivl ";
                 ss << register_to_str(GET_Ca(opcodeData)) << ", fp@";
                 ss<<GET_Cb(opcodeData);
 
@@ -782,9 +1031,25 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DIADDL:
+            {
+                ss<<"diaddl ";
+                ss << (int)code.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
+
+                break;
+            }
             case Opcode::ISUBL:
             {
                 ss<<"isubl ";
+                ss << (int)code.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
+
+                break;
+            }
+            case Opcode::DISUBL:
+            {
+                ss<<"disubl ";
                 ss << (int)code.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
@@ -798,9 +1063,17 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
-            case Opcode::IDIVL:
+            case Opcode::DIMULL:
             {
-                ss<<"idivl ";
+                ss<<"dimull ";
+                ss << (int)code.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
+
+                break;
+            }
+            case Opcode::DIDIVL:
+            {
+                ss<<"didivl ";
                 ss << (int)code.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
@@ -818,6 +1091,14 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
             {
                 ss<<"loadl ";
                 ss << register_to_str(GET_Ca(opcodeData)) << ", fp+";
+                ss<<GET_Cb(opcodeData);
+
+                break;
+            }
+            case Opcode::GETF:
+            {
+                ss<<"getf ";
+                ss << register_to_str(GET_Ca(opcodeData)) << ", field slot ";
                 ss<<GET_Cb(opcodeData);
 
                 break;
@@ -842,6 +1123,16 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
             {
                 ss<<"smovr_2 ";
                 ss << register_to_str(GET_Ca(opcodeData)) << ", fp+";
+                if(GET_Cb(opcodeData) < 0) ss << "[";
+                ss<<GET_Cb(opcodeData);
+                if(GET_Cb(opcodeData) < 0) ss << "]";
+
+                break;
+            }
+            case Opcode::PUTF:
+            {
+                ss<<"putf ";
+                ss << register_to_str(GET_Ca(opcodeData)) << ", field slot ";
                 if(GET_Cb(opcodeData) < 0) ss << "[";
                 ss<<GET_Cb(opcodeData);
                 if(GET_Cb(opcodeData) < 0) ss << "]";
@@ -875,19 +1166,39 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
-            case Opcode::RMOV:
+            case Opcode::ASTORE64:
             {
-                ss<<"rmov ";
+                ss<<"astore64 ";
                 ss<< register_to_str(GET_Ca(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Cb(opcodeData));
 
                 break;
             }
-            case Opcode::IMOV:
+            case Opcode::ASTORE32:
             {
-                ss<<"imov ";
-                ss<< register_to_str(GET_Da(opcodeData));
+                ss<<"astore32 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ASTORE16:
+            {
+                ss<<"astore16 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::ASTORE8:
+            {
+                ss<<"astore8 ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
 
                 break;
             }
@@ -915,9 +1226,24 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
 
                 break;
             }
+            case Opcode::DISTORE:
+            {
+                ss<<"distore ";
+                ss<< code.get(++x);
+
+                break;
+            }
             case Opcode::ISTOREL:
             {
                 ss<<"istorel ";
+                ss << ((int32_t)code.get(++x)) << ", fp+";
+                ss<<GET_Da(opcodeData);
+
+                break;
+            }
+            case Opcode::DISTOREL:
+            {
+                ss<<"distorel ";
                 ss << ((int32_t)code.get(++x)) << ", fp+";
                 ss<<GET_Da(opcodeData);
 
@@ -971,6 +1297,17 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
             case Opcode::ISADD:
             {
                 ss<<"isadd ";
+                ss << GET_Ca(opcodeData) << ", sp+";
+                if((int)code.get(x+1) < 0) ss << "[";
+                ss<<(int)code.get(x+1);
+                if((int)code.get(x+1) < 0) ss << "]";
+                x++;
+
+                break;
+            }
+            case Opcode::DISADD:
+            {
+                ss<<"disadd ";
                 ss << GET_Ca(opcodeData) << ", sp+";
                 if((int)code.get(x+1) < 0) ss << "[";
                 ss<<(int)code.get(x+1);
@@ -1038,9 +1375,17 @@ string code_to_string(List<line_info*> &lineTable, List<opcode_instr> &code) {
                 ss<< register_to_str(GET_Cb(opcodeData));
                 break;
             }
-            case Opcode::EXP:
+            case Opcode::DNEG:
             {
-                ss<<"exp ";
+                ss<<"dneg ";
+                ss<< register_to_str(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< register_to_str(GET_Cb(opcodeData));
+                break;
+            }
+            case Opcode::DEXP:
+            {
+                ss<<"dexp ";
                 ss<< register_to_str(GET_Ba(opcodeData));
                 ss<< ", ";
                 ss<< register_to_str(GET_Bb(opcodeData));

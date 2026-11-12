@@ -16,9 +16,9 @@ import ( testing, std.export )
 
 class address {
     street : string = "";
-    number : var = 0;
+    number : decimal = 0;
 
-    address(s: string, n: var) {
+    address(s: string, n: decimal) {
         street = s;
         number = n;
     }
@@ -26,12 +26,12 @@ class address {
 
 class person {
     name : string = "";
-    age : var = 0;
-    height : var = 0;
+    age : decimal = 0;
+    height : decimal = 0;
     home : address;                 // a nested object
     work : address?;                // stays null in most tests
     lucky : int = 0;                // a number box
-    scores : var[];                 // an array of numbers
+    scores : decimal[];                 // an array of numbers
 }
 
 class team {
@@ -42,35 +42,35 @@ class team {
 
 /** a list node: objects that point at each other */
 class node {
-    id : var = 0;
+    id : decimal = 0;
     next : node?;
 
-    node(n: var) { id = n; }
+    node(n: decimal) { id = n; }
 }
 
 class empty_thing {
 }
 
 class numbers_only {
-    whole : var = 0;
-    negative : var = 0;
-    fraction : var = 0;
-    large : var = 0;
-    tiny : var = 0;
+    whole : decimal = 0;
+    negative : decimal = 0;
+    fraction : decimal = 0;
+    large : decimal = 0;
+    tiny : decimal = 0;
 }
 
 def round_trip(original: object): object {
     return deserialize(serialize(original).to_string());
 }
 
-def make_person(name: string, age: var): person {
+def make_person(name: string, age: decimal): person {
     p := new person();
     p.name = name;
     p.age = age;
     p.height = 1.75;
     p.home = new address("Main Street", 12);
     p.lucky = 7;
-    p.scores = new var[3];
+    p.scores = new decimal[3];
     p.scores[0] = 90;
     p.scores[1] = 85.5;
     p.scores[2] = 0 - 4;
@@ -120,7 +120,7 @@ def main(args: string[]) {
     lines := round_trip(new address("first\nsecond\tend", 3)) as address;
     expect_str("line break and tab", lines.street, "first\nsecond\tend");
     long_name : string = "";
-    for(i : var = 0; i < 100; i++) {
+    for(i : decimal = 0; i < 100; i++) {
         long_name = long_name + "0123456789";
     }
     long_copy := round_trip(new address(long_name, 9)) as address;
@@ -212,14 +212,14 @@ def main(args: string[]) {
     // ---- a long chain: 200 nodes
     head := new node(0);
     tail := head;
-    for(i : var = 1; i < 200; i++) {
+    for(i : decimal = 1; i < 200; i++) {
         fresh := new node(i);
         tail.next = fresh;
         tail = fresh;
     }
     long_chain := round_trip(head) as node;
-    length : var = 0;
-    id_sum : var = 0;
+    length : decimal = 0;
+    id_sum : decimal = 0;
     walker : node? = long_chain;
     while(walker != null) {
         length++;
@@ -259,7 +259,7 @@ def main(args: string[]) {
     expect("round trip twice: array element", twice.scores[1], 85.5);
 
     // ---- text that is not serialized data is refused
-    threw : var = 0;
+    threw : decimal = 0;
     try {
         deserialize("this was never serialized");
     } catch(e: exception) {
@@ -268,8 +268,8 @@ def main(args: string[]) {
     expect("deserialize of other text throws", threw, 1);
 
     // ---- many round trips
-    good : var = 0;
-    for(i : var = 0; i < 200; i++) {
+    good : decimal = 0;
+    for(i : decimal = 0; i < 200; i++) {
         p := make_person("loop", i);
         back := round_trip(p) as person;
         if(back.age == i && back.home.number == 12) good++;

@@ -36,23 +36,23 @@ import ( std.io )
  */
 class url_codec {
     /** true for the characters that never need encoding: A-Z a-z 0-9 - . _ ~ */
-    private static def is_unreserved(ch: var) : var {
+    private static def is_unreserved(ch: decimal) : decimal {
         return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
             || ch == '-' || ch == '.' || ch == '_' || ch == '~';
     }
 
-    private static def hex_digit(value: var) : var {
+    private static def hex_digit(value: decimal) : decimal {
         if(value < 10) {
             return '0' + value;
         }
         return 'A' + (value - 10);
     }
 
-    private static def encode_with(text: string, keep_slash: var, plus_for_space: var) : string {
-        n : var = sizeof(text.data);
+    private static def encode_with(text: string, keep_slash: decimal, plus_for_space: decimal) : string {
+        n : decimal = sizeof(text.data);
         buf := new char_buffer(n * 3 + 1);
-        for(i : var = 0; i < n; i++) {
-            ch : var = text.data[i] & 0xff;
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = text.data[i] & 0xff;
             if(is_unreserved(ch) || (keep_slash && ch == '/')) {
                 buf.append_char(ch);
             } else if(plus_for_space && ch == ' ') {
@@ -88,15 +88,15 @@ class url_codec {
         return encode_with(text, 0, 1);
     }
 
-    private static def decode_with(text: string, plus_is_space: var) : string {
-        n : var = sizeof(text.data);
+    private static def decode_with(text: string, plus_is_space: decimal) : string {
+        n : decimal = sizeof(text.data);
         buf := new char_buffer(n + 1);
-        i : var = 0;
+        i : decimal = 0;
         while(i < n) {
-            ch : var = text.data[i];
+            ch : decimal = text.data[i];
             if(ch == '%') {
-                high : var = 0 - 1;
-                low : var = 0 - 1;
+                high : decimal = 0 - 1;
+                low : decimal = 0 - 1;
                 if(i + 2 < n) {
                     high = io_strings.hex_value(text.data[i + 1]);
                     low = io_strings.hex_value(text.data[i + 2]);
@@ -152,8 +152,8 @@ class url_codec {
                 + " keys but " + io_strings.int_to_string(values.size().value) + " values");
         }
         buf := new char_buffer(128);
-        total : var = keys.size().value;
-        for(i : var = 0; i < total; i++) {
+        total : decimal = keys.size().value;
+        for(i : decimal = 0; i < total; i++) {
             if(i > 0) {
                 buf.append_char('&');
             }
@@ -174,25 +174,25 @@ class url_codec {
      * pairs added.
      * Throws parse_exception for a malformed %XX.
      */
-    static def parse_query(query: string, keys: list<string>, values: list<string>) : var {
-        n : var = sizeof(query.data);
-        start : var = 0;
-        mark : var = io_strings.index_of(query, '?', 0);
+    static def parse_query(query: string, keys: list<string>, values: list<string>) : decimal {
+        n : decimal = sizeof(query.data);
+        start : decimal = 0;
+        mark : decimal = io_strings.index_of(query, '?', 0);
         if(mark >= 0) {
             start = mark + 1;
         }
-        end : var = io_strings.index_of(query, '#', start);
+        end : decimal = io_strings.index_of(query, '#', start);
         if(end < 0) {
             end = n;
         }
 
-        added : var = 0;
-        piece_start : var = start;
-        for(i : var = start; i <= end; i++) {
+        added : decimal = 0;
+        piece_start : decimal = start;
+        for(i : decimal = start; i <= end; i++) {
             if(i == end || query.data[i] == '&' || query.data[i] == ';') {
                 if(i > piece_start) {
-                    eq_at : var = 0 - 1;
-                    for(k : var = piece_start; k < i; k++) {
+                    eq_at : decimal = 0 - 1;
+                    for(k : decimal = piece_start; k < i; k++) {
                         if(query.data[k] == '=') {
                             eq_at = k;
                             break;
@@ -221,8 +221,8 @@ class url_codec {
     static def query_value(query: string, key: string) : string? {
         keys := new list<string>();
         values := new list<string>();
-        total : var = parse_query(query, keys, values);
-        for(i : var = 0; i < total; i++) {
+        total : decimal = parse_query(query, keys, values);
+        for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(keys.at(i), key)) {
                 return values.at(i);
             }

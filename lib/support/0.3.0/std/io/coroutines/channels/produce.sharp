@@ -8,7 +8,7 @@ import ( std.io.coroutines )
  *
  * USAGE
  *     squares := produce<int>.start({ out: send_channel<int> ->
- *         for(i : var = 1; i <= 5; i++) { out.send(i * i); }
+ *         for(i : decimal = 1; i <= 5; i++) { out.send(i * i); }
  *     });                                              // the channel is closed when the block returns
  *
  *     squares.for_each({ n: int -> println("$n"); });  // 1 4 9 16 25
@@ -50,7 +50,7 @@ class produce<t> : coroutine_body {
     }
 
     /** Start a producer on a channel of the given capacity (see `channels`). */
-    static def start(capacity: var, block: (send_channel<t>)()) : receive_channel<t> {
+    static def start(capacity: decimal, block: (send_channel<t>)()) : receive_channel<t> {
         task := new produce<t>();
         created := new channel<t>(capacity);
         task.target = created;
@@ -60,7 +60,7 @@ class produce<t> : coroutine_body {
     }
 
     /** start() with a state object handed to the block: block(out, state) */
-    static def start(capacity: var, state: object, block: (send_channel<t>, object)()) : receive_channel<t> {
+    static def start(capacity: decimal, state: object, block: (send_channel<t>, object)()) : receive_channel<t> {
         task := new produce<t>();
         created := new channel<t>(capacity);
         task.target = created;

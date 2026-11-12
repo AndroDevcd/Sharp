@@ -10,7 +10,7 @@ import ( testing, std.collections )
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : var = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -20,7 +20,7 @@ def join(items: list<int>) : string {
 /** "a,b,c" for a list of strings */
 def join_words(items: list<string>) : string {
     text := "";
-    for(i : var = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size().value; i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -29,8 +29,8 @@ def join_words(items: list<string>) : string {
 
 /** a key type whose hash is the same for every object: everything lands in one bucket */
 class clash {
-    id : var;
-    clash(id: var) { self->id = id; }
+    id : decimal;
+    clash(id: decimal) { self->id = id; }
     override def hash() : int { return 7; }
 }
 
@@ -79,7 +79,7 @@ def test_linked_hash_map() {
 
     // looping: foreach, entries(), iterator(), key_iterator()
     text := "";
-    total : var = 0;
+    total : decimal = 0;
     foreach(entry in m) {
         text = text + entry.key + ";";
         total += entry.value.value;
@@ -91,7 +91,7 @@ def test_linked_hash_map() {
     expect_str("map entries[3].key", entries.at(3).key, "four");
     expect("map entries[3].value", entries.at(3).value.value, 4);
     it := m.iterator();
-    seen : var = 0;
+    seen : decimal = 0;
     while(it.has_next()) { seen = seen * 100 + it.next().value.value; }
     expect("map iterator", seen, 11020304);
     keys := m.key_iterator();
@@ -132,7 +132,7 @@ def test_linked_hash_map() {
 
     // int keys, negative keys included
     squares := new linked_hash_map<int, int>();
-    for(i : var = 0 - 5; i <= 5; i++) squares.put(i, i * i);
+    for(i : decimal = 0 - 5; i <= 5; i++) squares.put(i, i * i);
     expect("map<int> size", squares.size(), 11);
     expect("map<int> at -4", squares.at(0 - 4)!!.value, 16);
     expect("map<int> at 0", squares.at(0)!!.value, 0);
@@ -161,10 +161,10 @@ def test_linked_hash_map() {
 
     // scale: 5000 keys (the table grows many times), checked against the formula
     big := new linked_hash_map<int, int>();
-    for(i : var = 0; i < 5000; i++) big.put(i * 7, i);
+    for(i : decimal = 0; i < 5000; i++) big.put(i * 7, i);
     expect("map big size", big.size(), 5000);
-    wrong : var = 0;
-    for(i : var = 0; i < 5000; i++) {
+    wrong : decimal = 0;
+    for(i : decimal = 0; i < 5000; i++) {
         value := big.at(i * 7);
         if(value == null) wrong++;
         else if(value!!.value != i) wrong++;
@@ -174,12 +174,12 @@ def test_linked_hash_map() {
     expect("map big first_key", big.first_key().value, 0);
     expect("map big last_key", big.last_key().value, 34993);
     // remove every second key, then the order of the rest must be untouched
-    for(i : var = 0; i < 5000; i += 2) big.remove(i * 7);
+    for(i : decimal = 0; i < 5000; i += 2) big.remove(i * 7);
     expect("map big size after removes", big.size(), 2500);
     expect_null("map big removed key", big.at(14));
     expect("map big kept key", big.at(21)!!.value, 3);
-    in_order : var = 1;
-    expected_value : var = 1;
+    in_order : decimal = 1;
+    expected_value : decimal = 1;
     foreach(entry in big) {
         if(entry.value.value != expected_value) in_order = 0;
         expected_value += 2;
@@ -207,7 +207,7 @@ def test_hash_set() {
     expect("set contains missing", s.contains(4), 0);
     expect_str("set keeps insertion order", join(s.to_list()), "3,1,2");
     expect("set to_array", s.to_array()[0].value, 3);
-    digits : var = 0;
+    digits : decimal = 0;
     foreach(x in s) { digits = digits * 10 + x.value; }
     expect("set foreach", digits, 312);
     it := s.iterator();
@@ -261,31 +261,31 @@ def test_hash_set() {
     expect_str("set<string> order", join_words(words.to_list()), "alpha,beta");
 
     // scale: 6000 adds of pseudo random numbers below 1000, checked against a plain array of flags
-    seen := new var[1000];
-    distinct : var = 0;
+    seen := new decimal[1000];
+    distinct : decimal = 0;
     big := new hash_set<int>();
-    seed : var = 4711;
-    agree : var = 1;
-    for(i : var = 0; i < 6000; i++) {
+    seed : decimal = 4711;
+    agree : decimal = 1;
+    for(i : decimal = 0; i < 6000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
-        value : var = seed % 1000;
-        was_new : var = 0;
+        value : decimal = seed % 1000;
+        was_new : decimal = 0;
         if(seen[value] == 0) { seen[value] = 1; distinct++; was_new = 1; }
         if(big.add(value) != was_new) agree = 0;
     }
     expect("set big add agrees with the reference", agree, 1);
     expect("set big size", big.size(), distinct);
-    for(value : var = 0; value < 1000; value++) {
+    for(value : decimal = 0; value < 1000; value++) {
         if(big.contains(value) != seen[value]) agree = 0;
     }
     expect("set big contains agrees with the reference", agree, 1);
-    removed : var = 0;
-    for(value : var = 0; value < 1000; value += 3) {
+    removed : decimal = 0;
+    for(value : decimal = 0; value < 1000; value += 3) {
         removed += big.remove(value);
         if(seen[value]) { seen[value] = 0; distinct--; }
     }
     expect("set big size after removes", big.size(), distinct);
-    for(value : var = 0; value < 1000; value++) {
+    for(value : decimal = 0; value < 1000; value++) {
         if(big.contains(value) != seen[value]) agree = 0;
     }
     expect("set big contains after removes", agree, 1);

@@ -23,7 +23,7 @@ def check_construction() {
     expect_str("of(two limbs)", text_of(big_integer.of(10000000)), "10000000");
     expect_str("of(inner zeros are padded)", text_of(big_integer.of(50000003)), "50000003");
     expect_str("of(2^53)", text_of(big_integer.of(9007199254740992)), "9007199254740992");
-    safe : var = 9007199254740991;          // (a large literal cannot follow a minus sign: known bug)
+    safe : decimal = 9007199254740991;          // (a large literal cannot follow a minus sign: known bug)
     expect_str("of(-(2^53 - 1))", text_of(big_integer.of(0 - safe)), "-9007199254740991");
     expect_str("zero()", text_of(big_integer.zero()), "0");
     expect_str("one()", text_of(big_integer.one()), "1");
@@ -38,7 +38,7 @@ def check_construction() {
     expect_str("parse", text_of(big_integer.parse("98765432109876543210")), "98765432109876543210");
     expect_str("copy", text_of(new big_integer(big("-31415926535897932384626"))), "-31415926535897932384626");
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { big(""); } catch(e: number_format_exception) { caught++; }
     try { big("-"); } catch(e: number_format_exception) { caught++; }
     try { big("12a4"); } catch(e: number_format_exception) { caught++; }
@@ -161,7 +161,7 @@ def check_divide() {
     // quotient * divisor + remainder gives the dividend back
     expect_str("q * b + r == a", text_of(both[0] * b + both[1]), "123456789012345678901234567890");
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { a / big_integer.zero(); } catch(e: division_by_zero_exception) { caught++; }
     try { a % big_integer.zero(); } catch(e: division_by_zero_exception) { caught++; }
     try { a.divide_and_remainder(big_integer.zero()); } catch(e: division_by_zero_exception) { caught++; }
@@ -230,7 +230,7 @@ def check_compare() {
     expect("digit_count 10^7", big("10000000").digit_count(), 8);
 
     expect("to_var", b.to_var(), 987654321);
-    safe : var = 9007199254740991;
+    safe : decimal = 9007199254740991;
     expect("to_var negative", big("-9007199254740991").to_var(), 0 - safe);
     // 1.2345678901234568 * 10^29, checked after scaling down by 10^15 twice
     expect_near("to_var of a large number", a.to_var() / 1000000000000000 / 1000000000000000, 0.12345678901234568, 0.000000000000001);

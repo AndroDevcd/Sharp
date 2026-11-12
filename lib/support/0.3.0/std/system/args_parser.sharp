@@ -63,10 +63,10 @@ class args_parser {
     private positionals := new list<args_option>();
     /** positional arguments beyond the declared ones (only when allowed) */
     private extra := new list<string>();
-    private extra_allowed : var = 0;
+    private extra_allowed : decimal = 0;
     private extra_name : string = "";
     private extra_description : string = "";
-    private help_seen : var = 0;
+    private help_seen : decimal = 0;
 
     /**
      * A parser for the program `program` (the name shown in the usage
@@ -83,11 +83,11 @@ class args_parser {
     /* ------------------------------------------------------------------ */
 
     /** throw unless `name` / `letter` can be declared: well formed and not taken */
-    private def check_new(name: string, letter: var) {
-        n : var = sizeof(name.data);
-        valid : var = n > 0;
-        for(i : var = 0; i < n; i++) {
-            ch : var = name.data[i];
+    private def check_new(name: string, letter: decimal) {
+        n : decimal = sizeof(name.data);
+        valid : decimal = n > 0;
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = name.data[i];
             if(!(io_strings.is_letter(ch) || io_strings.is_digit(ch) || ch == '-' || ch == '_')) {
                 valid = 0;
             }
@@ -102,8 +102,8 @@ class args_parser {
             throw new illegal_argument_exception("args_parser: the short name of --" + name + " must be a letter or digit");
         }
 
-        count : var = options.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = options.size().value;
+        for(i : decimal = 0; i < count; i++) {
             other := options.at(i);
             if(io_strings.equals(other.name, name)) {
                 throw new illegal_argument_exception("args_parser: \"" + name + "\" is declared twice");
@@ -113,7 +113,7 @@ class args_parser {
             }
         }
         count = positionals.size().value;
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(positionals.at(i).name, name)) {
                 throw new illegal_argument_exception("args_parser: \"" + name + "\" is declared twice");
             }
@@ -127,7 +127,7 @@ class args_parser {
      * Throws illegal_argument_exception for a malformed or already used
      * name.
      */
-    def add_flag(name: string, letter: var, description: string) : args_parser {
+    def add_flag(name: string, letter: decimal, description: string) : args_parser {
         check_new(name, letter);
         options.add(new args_option(args_option.kind_flag, name, letter, description));
         return self;
@@ -141,7 +141,7 @@ class args_parser {
      * Throws illegal_argument_exception for a malformed or already used
      * name.
      */
-    def add_option(name: string, letter: var, value_name: string, description: string, default_value: string) : args_parser {
+    def add_option(name: string, letter: decimal, value_name: string, description: string, default_value: string) : args_parser {
         check_new(name, letter);
         option := new args_option(args_option.kind_value, name, letter, description);
         option.value_name = value_name;
@@ -158,7 +158,7 @@ class args_parser {
      * Throws illegal_argument_exception for a malformed or already used
      * name.
      */
-    def add_optional_option(name: string, letter: var, value_name: string, description: string) : args_parser {
+    def add_optional_option(name: string, letter: decimal, value_name: string, description: string) : args_parser {
         check_new(name, letter);
         option := new args_option(args_option.kind_value, name, letter, description);
         option.value_name = value_name;
@@ -172,7 +172,7 @@ class args_parser {
      * Throws illegal_argument_exception for a malformed or already used
      * name.
      */
-    def add_required_option(name: string, letter: var, value_name: string, description: string) : args_parser {
+    def add_required_option(name: string, letter: decimal, value_name: string, description: string) : args_parser {
         check_new(name, letter);
         option := new args_option(args_option.kind_value, name, letter, description);
         option.value_name = value_name;
@@ -224,8 +224,8 @@ class args_parser {
     /* ------------------------------------------------------------------ */
 
     private def find_long(name: string) : args_option? {
-        count : var = options.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = options.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(options.at(i).name, name)) {
                 return options.at(i);
             }
@@ -233,9 +233,9 @@ class args_parser {
         return null;
     }
 
-    private def find_letter(letter: var) : args_option? {
-        count : var = options.size().value;
-        for(i : var = 0; i < count; i++) {
+    private def find_letter(letter: decimal) : args_option? {
+        count : decimal = options.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(options.at(i).letter == letter) {
                 return options.at(i);
             }
@@ -259,8 +259,8 @@ class args_parser {
      */
     def parse(args: string[]) {
         items := new list<string>();
-        count : var = sizeof(args);
-        for(i : var = 0; i < count; i++) {
+        count : decimal = sizeof(args);
+        for(i : decimal = 0; i < count; i++) {
             items.add(args[i]);
         }
         parse_list(items);
@@ -272,27 +272,27 @@ class args_parser {
      */
     def parse_list(args: list<string>) {
         // start fresh
-        count : var = options.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = options.size().value;
+        for(i : decimal = 0; i < count; i++) {
             options.at(i).reset();
         }
         count = positionals.size().value;
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             positionals.at(i).reset();
         }
         extra = new list<string>();
         help_seen = 0;
 
-        next_positional : var = 0;
-        only_positionals : var = 0;
-        total : var = args.size().value;
-        i : var = 0;
+        next_positional : decimal = 0;
+        only_positionals : decimal = 0;
+        total : decimal = args.size().value;
+        i : decimal = 0;
         while(i < total) {
             arg := args.at(i);
-            n : var = sizeof(arg.data);
+            n : decimal = sizeof(arg.data);
             i++;
 
-            is_option : var = 0;
+            is_option : decimal = 0;
             if(!only_positionals && n >= 2 && arg.data[0] == '-') {
                 is_option = 1;
             }
@@ -316,7 +316,7 @@ class args_parser {
                 }
 
                 // ---- --name or --name=value
-                eq_at : var = io_strings.index_of(arg, '=', 2);
+                eq_at : decimal = io_strings.index_of(arg, '=', 2);
                 name : string = "";
                 if(eq_at < 0) {
                     name = io_strings.slice_from(arg, 2);
@@ -350,9 +350,9 @@ class args_parser {
             }
 
             // ---- one-letter options: -v, -abc, -o value, -ovalue
-            k : var = 1;
+            k : decimal = 1;
             while(k < n) {
-                letter : var = arg.data[k];
+                letter : decimal = arg.data[k];
                 k++;
                 found := find_letter(letter);
                 if(found == null) {
@@ -386,14 +386,14 @@ class args_parser {
         }
 
         count = options.size().value;
-        for(j : var = 0; j < count; j++) {
+        for(j : decimal = 0; j < count; j++) {
             option := options.at(j);
             if(option.required && option.seen == 0) {
                 throw new args_exception("missing required option --" + option.name);
             }
         }
         count = positionals.size().value;
-        for(j : var = 0; j < count; j++) {
+        for(j : decimal = 0; j < count; j++) {
             option := positionals.at(j);
             if(option.required && option.seen == 0) {
                 throw new args_exception("missing required argument <" + option.name + ">");
@@ -411,8 +411,8 @@ class args_parser {
         if(found != null) {
             return found!!;
         }
-        count : var = positionals.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = positionals.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(positionals.at(i).name, name)) {
                 return positionals.at(i);
             }
@@ -438,7 +438,7 @@ class args_parser {
      * command line (-vvv gives 3).
      * Throws illegal_argument_exception when `name` was never declared.
      */
-    def count(name: string) : var {
+    def count(name: string) : decimal {
         return declared(name).seen;
     }
 
@@ -486,7 +486,7 @@ class args_parser {
      * mistake) and illegal_argument_exception when `name` was never
      * declared (the program's).
      */
-    def number(name: string) : var {
+    def number(name: string) : decimal {
         text := value(name);
         if(!io_strings.is_number(text)) {
             throw new args_exception(label_of(declared(name)) + " needs a number, not \"" + text + "\"");
@@ -499,7 +499,7 @@ class args_parser {
      * Throws args_exception when the value is not a whole number and
      * illegal_argument_exception when `name` was never declared.
      */
-    def whole_number(name: string) : var {
+    def whole_number(name: string) : decimal {
         text := value(name);
         if(!io_strings.is_int(text)) {
             throw new args_exception(label_of(declared(name)) + " needs a whole number, not \"" + text + "\"");
@@ -546,15 +546,15 @@ class args_parser {
         if(options.size().value > 0) {
             buf.append(" [options]");
         }
-        count : var = options.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = options.size().value;
+        for(i : decimal = 0; i < count; i++) {
             option := options.at(i);
             if(option.required) {
                 buf.append(" --").append(option.name).append_char(' ').append(option.value_name);
             }
         }
         count = positionals.size().value;
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             option := positionals.at(i);
             if(option.required) {
                 buf.append(" <").append(option.name).append_char('>');
@@ -580,12 +580,12 @@ class args_parser {
         right := new list<string>();
         headings := new list<int>(); // 1 for the lines that are section headings
 
-        pos_count : var = positionals.size().value;
+        pos_count : decimal = positionals.size().value;
         if(pos_count > 0 || extra_allowed) {
             left.add("arguments:");
             right.add("");
             headings.add(new int(1));
-            for(i : var = 0; i < pos_count; i++) {
+            for(i : decimal = 0; i < pos_count; i++) {
                 option := positionals.at(i);
                 left.add("  " + option.name);
                 if(option.required) {
@@ -605,8 +605,8 @@ class args_parser {
         left.add("options:");
         right.add("");
         headings.add(new int(1));
-        opt_count : var = options.size().value;
-        for(i : var = 0; i < opt_count; i++) {
+        opt_count : decimal = options.size().value;
+        for(i : decimal = 0; i < opt_count; i++) {
             option := options.at(i);
             entry := new char_buffer(32);
             entry.append("  ");
@@ -641,9 +641,9 @@ class args_parser {
             headings.add(new int(0));
         }
 
-        width : var = 0;
-        lines : var = left.size().value;
-        for(i : var = 0; i < lines; i++) {
+        width : decimal = 0;
+        lines : decimal = left.size().value;
+        for(i : decimal = 0; i < lines; i++) {
             if(headings.at(i).value == 0 && io_strings.length(left.at(i)) > width) {
                 width = io_strings.length(left.at(i));
             }
@@ -654,7 +654,7 @@ class args_parser {
         if(sizeof(about.data) > 0) {
             buf.append_char('\n').append(about).append_char('\n');
         }
-        for(i : var = 0; i < lines; i++) {
+        for(i : decimal = 0; i < lines; i++) {
             if(headings.at(i).value == 1) {
                 buf.append_char('\n').append(left.at(i)).append_char('\n');
             } else {

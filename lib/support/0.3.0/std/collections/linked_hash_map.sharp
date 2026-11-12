@@ -25,19 +25,19 @@ mod std.collections;
  * `operator==` if two different objects should count as the same key).
  *
  * Limitation: key and value types have to be object types; native types
- * such as `var` cannot be used.
+ * such as `decimal` cannot be used.
  */
 class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     /** the hash table: buckets[i] is the first node of bucket i, or null */
     private buckets : linked_hash_node<K, V>[]?;
     /** number of key/value pairs */
-    private count : var;
+    private count : decimal;
     /** the pair that was added first, null when the map is empty */
     private oldest : linked_hash_node<K, V>?;
     /** the pair that was added last, null when the map is empty */
     private newest : linked_hash_node<K, V>?;
 
-    private static const default_capacity : var = 16;
+    private static const default_capacity : decimal = 16;
 
     /** Create an empty map. */
     linked_hash_map() {
@@ -46,12 +46,12 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
     }
 
     /** Number of key/value pairs. O(1). */
-    def size() : var {
+    def size() : decimal {
         return count;
     }
 
     /** 1 when the map has no pairs, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return count == 0;
     }
 
@@ -62,8 +62,8 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
      *
      * @return 1 when the key is new, 0 when an existing value was replaced
      */
-    def put(key: K, value: V) : var {
-        hash_code : var = hash_of(key);
+    def put(key: K, value: V) : decimal {
+        hash_code : decimal = hash_of(key);
         node := find_node(key, hash_code);
         if(node != null) {
             node!!.value = value;
@@ -73,7 +73,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
         if(count + 1 > sizeof(buckets) * 0.75) grow();
 
         added := new linked_hash_node<K, V>(key, value, hash_code);
-        index : var = hash_code % sizeof(buckets);
+        index : decimal = hash_code % sizeof(buckets);
         added.chain = buckets[index];
         buckets[index] = added;
 
@@ -95,7 +95,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
      * @return 1 when the pair was added, 0 when the key already existed
      *         (the map is left unchanged)
      */
-    def put_if_absent(key: K, value: V) : var {
+    def put_if_absent(key: K, value: V) : decimal {
         if(contains_key(key)) return 0;
         return put(key, value);
     }
@@ -125,7 +125,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
     }
 
     /** 1 when the map has the key, otherwise 0. O(1) on average. */
-    def contains_key(key: K) : var {
+    def contains_key(key: K) : decimal {
         if(find_node(key, hash_of(key)) == null) return 0;
         return 1;
     }
@@ -139,7 +139,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
      * the function that uses it, where a parameter named `value` hides the
      * field `value` that operator reads.)
      */
-    def contains_value(wanted: V) : var {
+    def contains_value(wanted: V) : decimal {
         node := oldest;
         while(node != null) {
             current := node!!;
@@ -154,7 +154,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
      *
      * @return 1 when the key was removed, 0 when the map did not have it
      */
-    def remove(key: K) : var {
+    def remove(key: K) : decimal {
         if(unlink(key) == null) return 0;
         return 1;
     }
@@ -214,7 +214,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
     /** A new array with all keys in insertion order (length 0 when empty). O(n). */
     def key_array() : K[] {
         result := new K[count];
-        i : var = 0;
+        i : decimal = 0;
         node := oldest;
         while(node != null) {
             current := node!!;
@@ -255,7 +255,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
     override def get_elements() : map_entry<K, V>[]? {
         if(count == 0) return null;
         result := new map_entry<K, V>[count];
-        i : var = 0;
+        i : decimal = 0;
         node := oldest;
         while(node != null) {
             current := node!!;
@@ -279,14 +279,14 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
     }
 
     /** key.hash() made non-negative and whole, so `% sizeof(buckets)` is a valid index. */
-    private def hash_of(key: K) : var {
-        code : var = key.hash().value;
+    private def hash_of(key: K) : decimal {
+        code : decimal = key.hash().value;
         if(code < 0) code = 0 - code;
         return code % 2147483647;
     }
 
     /** The node that holds `key`, or null. The stored hash is compared first because that is much cheaper than `==`. */
-    private def find_node(key: K, hash_code: var) : linked_hash_node<K, V>? {
+    private def find_node(key: K, hash_code: decimal) : linked_hash_node<K, V>? {
         node : linked_hash_node<K, V>? = buckets[hash_code % sizeof(buckets)];
         while(node != null) {
             current := node!!;
@@ -300,14 +300,14 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
 
     /** Take the node for `key` out of its bucket and out of the order chain; returns it, or null when there is none. */
     private def unlink(key: K) : linked_hash_node<K, V>? {
-        hash_code : var = hash_of(key);
-        index : var = hash_code % sizeof(buckets);
+        hash_code : decimal = hash_of(key);
+        index : decimal = hash_code % sizeof(buckets);
 
         previous : linked_hash_node<K, V>? = null;
         node : linked_hash_node<K, V>? = buckets[index];
         while(node != null) {
             current := node!!;
-            found : var = 0;
+            found : decimal = 0;
             if(current.hash_code == hash_code) {
                 if(current.key == key) found = 1;
             }
@@ -341,7 +341,7 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
         node := oldest;
         while(node != null) {
             current := node!!;
-            index : var = current.hash_code % sizeof(bigger);
+            index : decimal = current.hash_code % sizeof(bigger);
             current.chain = bigger[index];
             bigger[index] = current;
             node = current.after;

@@ -76,20 +76,20 @@ class char_sets {
      * Throws illegal_argument_exception if last is before first.
      */
     static def range(first: char, last: char): string {
-        from : var = first.value;
-        to : var = last.value;
+        from : decimal = first.value;
+        to : decimal = last.value;
         if(to < from)
             throw new ill_arg_except("range: the last character comes before the first");
 
         buffer := new _int8[to - from + 1];
-        for(c : var = from; c <= to; c++) {
+        for(c : decimal = from; c <= to; c++) {
             buffer[c - from] = c;
         }
         return new string(buffer);
     }
 
     /** 1 if the character `c` is in `set_chars`. */
-    static def contains(set_chars: string, c: char): var {
+    static def contains(set_chars: string, c: char): decimal {
         return set_chars.index_of_char(c) >= 0;
     }
 
@@ -106,12 +106,12 @@ class char_sets {
 
     /** Appends the characters of `text` that `out` does not hold yet. */
     private static def append_new(out: text_buffer, text: string) {
-        n : var = sizeof(text.data);
-        for(i : var = 0; i < n; i++) {
-            c : var = text.data[i];
-            known : var = 0;
-            have : var = out.length();
-            for(k : var = 0; k < have; k++) {
+        n : decimal = sizeof(text.data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = text.data[i];
+            known : decimal = 0;
+            have : decimal = out.length();
+            for(k : decimal = 0; k < have; k++) {
                 if(out.data[k] == c) {
                     known = 1;
                     break;
@@ -136,17 +136,17 @@ class char_sets {
     }
 
     /** 1 if every character of `text` is in `set_chars` ("" gives 1). */
-    static def all_in(text: string, set_chars: string): var {
+    static def all_in(text: string, set_chars: string): decimal {
         return text.index_of_none(set_chars) < 0;
     }
 
     /** 1 if no character of `text` is in `set_chars` ("" gives 1). */
-    static def none_in(text: string, set_chars: string): var {
+    static def none_in(text: string, set_chars: string): decimal {
         return text.index_of_any(set_chars) < 0;
     }
 
     /** How many characters of `text` are in `set_chars` (count_in("a1b22", digits()) is 3). */
-    static def count_in(text: string, set_chars: string): var {
+    static def count_in(text: string, set_chars: string): decimal {
         return sizeof(text.retain_chars(set_chars).data);
     }
 }

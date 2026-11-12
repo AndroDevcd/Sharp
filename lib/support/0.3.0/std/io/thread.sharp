@@ -20,7 +20,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-	public thread(name : string, daemon: var, main: (object[])(int)) {
+	public thread(name : string, daemon: decimal, main: (object[])(int)) {
         self->main = main;
         self->name = name;
         self->daemon = daemon;
@@ -32,7 +32,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, main: (object[])(int), stack_size : var) {
+    public thread(name : string, main: (object[])(int), stack_size : decimal) {
         self->main = main;
         self->name = name;
         self->stack_size = stack_size;
@@ -44,7 +44,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, daemon: var, main: (object[])(int), stack_size : var) {
+    public thread(name : string, daemon: decimal, main: (object[])(int), stack_size : decimal) {
         self->main = main;
         self->name = name;
         self->stack_size = stack_size;
@@ -57,7 +57,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, main: (object[])(int), stack_size : var, group : thread_group) {
+    public thread(name : string, main: (object[])(int), stack_size : decimal, group : thread_group) {
         self->main = main;
         self->name = name;
         self->stack_size = stack_size;
@@ -80,7 +80,7 @@ public class thread {
 		parent_group.add(self);
     }
 
-    public thread(name : string, daemon: var, main: (object[])(int), stack_size : var, group : thread_group) {
+    public thread(name : string, daemon: decimal, main: (object[])(int), stack_size : decimal, group : thread_group) {
         self->main = main;
         self->name = name;
         self->daemon = daemon;
@@ -147,15 +147,15 @@ public class thread {
 
     public static def current() := vm.current_thread();
 
-    public static def sleep(mills_time : var) := time.sleep(milliseconds, mills_time);
+    public static def sleep(mills_time : decimal) := time.sleep(milliseconds, mills_time);
 
-    public static def suspend_for(mills_time : var) {
+    public static def suspend_for(mills_time : decimal) {
         vm.current_thread().suspended = true;
         time.wait(milliseconds, mills_time);
         vm.current_thread().suspended = false;
     }
 
-    public static def exit(code : var) {
+    public static def exit(code : decimal) {
         current().set_finished(code);
         asm { hlt }
     }
@@ -207,18 +207,18 @@ public class thread {
     public def operator==(t : thread) : bool = native_handle==t.native_handle;
 
     private exit_code : int;
-    private native_handle : var;
-    private id : var;
+    private native_handle : decimal;
+    private id : decimal;
     private excuse priority : thread_priority;
-    private daemon : var; // not supported as of now
-    private exited : var;
+    private daemon : decimal; // not supported as of now
+    private exited : decimal;
     private name : string = "";
 	private excuse parent_group : thread_group;
-    private started : var;
-	private suspended : var;
-    private stack_size : var;
+    private started : decimal;
+	private suspended : decimal;
+    private stack_size : decimal;
     private excuse main: (object[]?)(int);
 	private error_handler: uncaught_exception_handler?;
-	private static id_generator : var;
+	private static id_generator : decimal;
 	private fib: fiber?;
 }

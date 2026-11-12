@@ -7,7 +7,7 @@ mod std.util;
  *
  * A lambda can use the objects around it but cannot assign to an outer
  * native variable, so `total += x` inside a lambda does not work on a
- * `var`. A counter is an object, so this does:
+ * `decimal`. A counter is an object, so this does:
  *
  *     seen := new counter();
  *     items.for_each({ item: string -> seen.increment(); });
@@ -21,35 +21,35 @@ mod std.util;
  */
 class counter {
     /** the current count */
-    value : var = 0;
+    value : decimal = 0;
 
     /** the value reset() returns to */
-    private start : var = 0;
+    private start : decimal = 0;
 
     /** a counter that starts at 0 */
     counter() {
     }
 
     /** a counter that starts at `start` (and returns there on reset()) */
-    counter(start: var) {
+    counter(start: decimal) {
         value = start;
         self->start = start;
     }
 
     /** add 1 and return the new value */
-    def increment(): var {
+    def increment(): decimal {
         value = value + 1;
         return value;
     }
 
     /** subtract 1 and return the new value */
-    def decrement(): var {
+    def decrement(): decimal {
         value = value - 1;
         return value;
     }
 
     /** add `amount` (which may be negative or fractional) and return the new value */
-    def add(amount: var): var {
+    def add(amount: decimal): decimal {
         value = value + amount;
         return value;
     }
@@ -58,8 +58,8 @@ class counter {
      * Return the current value and THEN add 1 (like value++): calling
      * next() repeatedly on a new counter gives 0, 1, 2 ...
      */
-    def next(): var {
-        current : var = value;
+    def next(): decimal {
+        current : decimal = value;
         value = value + 1;
         return current;
     }

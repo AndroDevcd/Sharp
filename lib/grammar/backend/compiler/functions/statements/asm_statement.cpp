@@ -211,6 +211,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                            compile_asm_register(branch->getSubAst(ast_assembly_register))
                    )
         );
+    }  else if(opcode == "dmovi") {
+        create_machine_instruction_operation(scheme,
+                   new machine_instruction(
+                           Opcode::DMOVI,
+                           compile_asm_literal(branch->getSubAst(ast_assembly_literal), scheme),
+                           compile_asm_register(branch->getSubAst(ast_assembly_register))
+                   )
+        );
     } else if(opcode == "ret") {
         create_machine_instruction_operation(scheme,
                    new machine_instruction(
@@ -271,6 +279,22 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                       compile_asm_register(branch->getSubAst(ast_assembly_register))
               )
         );
+    } else if(opcode == "d2i") {
+        create_machine_instruction_operation(scheme,
+              new machine_instruction(
+                      Opcode::D2I,
+                      compile_asm_register(branch->getSubAst(ast_assembly_register)),
+                      compile_asm_register(branch->getSubAst(ast_assembly_register))
+              )
+        );
+    } else if(opcode == "i2d") {
+        create_machine_instruction_operation(scheme,
+              new machine_instruction(
+                      Opcode::I2D,
+                      compile_asm_register(branch->getSubAst(ast_assembly_register)),
+                      compile_asm_register(branch->getSubAst(ast_assembly_register))
+              )
+        );
     } else if(opcode == "movu8") {
         create_machine_instruction_operation(scheme,
              new machine_instruction(
@@ -319,10 +343,28 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                     compile_asm_register(branch->getSubAst(2))
             )
         );
+    } else if(opcode == "dadd") {
+        create_machine_instruction_operation(scheme,
+            new machine_instruction(
+                    Opcode::DADD,
+                    compile_asm_register(branch->getSubAst(0)),
+                    compile_asm_register(branch->getSubAst(1)),
+                    compile_asm_register(branch->getSubAst(2))
+            )
+        );
     } else if(opcode == "sub") {
         create_machine_instruction_operation(scheme,
             new machine_instruction(
                     Opcode::SUB,
+                    compile_asm_register(branch->getSubAst(0)),
+                    compile_asm_register(branch->getSubAst(1)),
+                    compile_asm_register(branch->getSubAst(2))
+            )
+        );
+    } else if(opcode == "dsub") {
+        create_machine_instruction_operation(scheme,
+            new machine_instruction(
+                    Opcode::DSUB,
                     compile_asm_register(branch->getSubAst(0)),
                     compile_asm_register(branch->getSubAst(1)),
                     compile_asm_register(branch->getSubAst(2))
@@ -337,10 +379,19 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                     compile_asm_register(branch->getSubAst(2))
             )
         );
-    } else if(opcode == "div") {
+    } else if(opcode == "dmul") {
+        create_machine_instruction_operation(scheme,
+            new machine_instruction(
+                    Opcode::DMUL,
+                    compile_asm_register(branch->getSubAst(0)),
+                    compile_asm_register(branch->getSubAst(1)),
+                    compile_asm_register(branch->getSubAst(2))
+            )
+        );
+    } else if(opcode == "ddiv") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
-                   Opcode::DIV,
+                   Opcode::DDIV,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1)),
                    compile_asm_register(branch->getSubAst(2))
@@ -363,10 +414,26 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
+    } else if(opcode == "diadd") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DIADD,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
     } else if(opcode == "isub") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::ISUB,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "disub") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DISUB,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -379,10 +446,18 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
-    } else if(opcode == "idiv") {
+    } else if(opcode == "dimul") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
-                   Opcode::IDIV,
+                   Opcode::DIMUL,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "didiv") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DIDIV,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -408,10 +483,24 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_register(branch->getSubAst(0))
            )
         );
+    } else if(opcode == "dinc") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DINC,
+                   compile_asm_register(branch->getSubAst(0))
+           )
+        );
     } else if(opcode == "dec") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::DEC,
+                   compile_asm_register(branch->getSubAst(0))
+           )
+        );
+    } else if(opcode == "ddec") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DDEC,
                    compile_asm_register(branch->getSubAst(0))
            )
         );
@@ -423,10 +512,58 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_register(branch->getSubAst(1))
            )
         );
-    } else if(opcode == "iaload") {
+    } else if(opcode == "aload64") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
-                   Opcode::IALOAD,
+                   Opcode::ALOAD64,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "aloadu32") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ALOADU32,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "aload32") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ALOAD32,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "aloadu16") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ALOADU16,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "aload16") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ALOAD16,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "aloadu8") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ALOADU8,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "aload8") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ALOAD8,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1))
            )
@@ -457,10 +594,26 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_register(branch->getSubAst(1))
            )
         );
+    } else if(opcode == "dlt") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DLT,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
     } else if(opcode == "gt") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::GT,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "dgt") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DGT,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1))
            )
@@ -473,10 +626,26 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_register(branch->getSubAst(1))
            )
         );
+    } else if(opcode == "dlte") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DLTE,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
     } else if(opcode == "ge") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::GTE,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "dgte") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DGTE,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1))
            )
@@ -506,6 +675,13 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::PUT,
+                   compile_asm_register(branch->getSubAst(0))
+           )
+        );
+    } else if(opcode == "dput") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DPUT,
                    compile_asm_register(branch->getSubAst(0))
            )
         );
@@ -585,10 +761,26 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                     compile_asm_register(branch->getSubAst(1))
             )
         );
+    } else if(opcode == "dtest") {
+        create_machine_instruction_operation(scheme,
+            new machine_instruction(
+                    Opcode::DTEST,
+                    compile_asm_register(branch->getSubAst(0)),
+                    compile_asm_register(branch->getSubAst(1))
+            )
+        );
     } else if(opcode == "tne") {
         create_machine_instruction_operation(scheme,
             new machine_instruction(
                     Opcode::TNE,
+                    compile_asm_register(branch->getSubAst(0)),
+                    compile_asm_register(branch->getSubAst(1))
+            )
+        );
+    } else if(opcode == "dtne") {
+        create_machine_instruction_operation(scheme,
+            new machine_instruction(
+                    Opcode::DTNE,
                     compile_asm_register(branch->getSubAst(0)),
                     compile_asm_register(branch->getSubAst(1))
             )
@@ -630,6 +822,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::NOT,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "dnot") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DNOT,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1))
            )
@@ -756,10 +956,26 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
+    } else if(opcode == "daddl") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DADDL,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
     } else if(opcode == "subl") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::SUBL,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "dsubl") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DSUBL,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -772,10 +988,18 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
-    } else if(opcode == "divl") {
+    } else if(opcode == "dmull") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
-                   Opcode::DIVL,
+                   Opcode::DMULL,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "ddivl") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DDIVL,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -796,10 +1020,26 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
+    } else if(opcode == "diaddl") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DIADDL,
+                   compile_asm_literal(branch->getSubAst(0), scheme),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
     } else if(opcode == "isubl") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::ISUBL,
+                   compile_asm_literal(branch->getSubAst(0), scheme),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "disubl") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DISUBL,
                    compile_asm_literal(branch->getSubAst(0), scheme),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -812,10 +1052,18 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
-    } else if(opcode == "idivl") {
+    } else if(opcode == "dimull") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
-                   Opcode::IDIVL,
+                   Opcode::DIMULL,
+                   compile_asm_literal(branch->getSubAst(0), scheme),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "didivl") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DIDIVL,
                    compile_asm_literal(branch->getSubAst(0), scheme),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -832,6 +1080,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::LOADL,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "getf") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::GETF,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -874,10 +1130,34 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
-    } else if(opcode == "rmov") {
+    } else if(opcode == "astore64") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
-                   Opcode::RMOV,
+                   Opcode::ASTORE64,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "astore32") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ASTORE32,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "astore16") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ASTORE16,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "astore8") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::ASTORE8,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1))
            )
@@ -904,10 +1184,25 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(0), scheme)
            )
         );
+    } else if(opcode == "distore") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DISTORE,
+                   compile_asm_literal(branch->getSubAst(0), scheme)
+           )
+        );
     } else if(opcode == "smovr2") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::SMOVR_2,
+                   compile_asm_register(branch->getSubAst(1)),
+                   compile_asm_literal(branch->getSubAst(0), scheme)
+           )
+        );
+    } else if(opcode == "putf") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::PUTF,
                    compile_asm_register(branch->getSubAst(1)),
                    compile_asm_literal(branch->getSubAst(0), scheme)
            )
@@ -923,6 +1218,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::ISTOREL,
+                   compile_asm_literal(branch->getSubAst(0), scheme),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "distorel") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DISTOREL,
                    compile_asm_literal(branch->getSubAst(0), scheme),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -985,6 +1288,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
         );
+    } else if(opcode == "disadd") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DISADD,
+                   compile_asm_literal(branch->getSubAst(0), scheme),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
     } else if(opcode == "je") {
         create_machine_instruction_operation(scheme,
            new machine_instruction(
@@ -1010,6 +1321,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::CMP,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_literal(branch->getSubAst(1), scheme)
+           )
+        );
+    } else if(opcode == "dcmp") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DCMP,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_literal(branch->getSubAst(1), scheme)
            )
@@ -1066,6 +1385,14 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::NEG,
+                   compile_asm_register(branch->getSubAst(0)),
+                   compile_asm_register(branch->getSubAst(1))
+           )
+        );
+    } else if(opcode == "dneg") {
+        create_machine_instruction_operation(scheme,
+           new machine_instruction(
+                   Opcode::DNEG,
                    compile_asm_register(branch->getSubAst(0)),
                    compile_asm_register(branch->getSubAst(1))
            )

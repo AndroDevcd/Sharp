@@ -3,6 +3,11 @@
 //
 
 #include "sharp_class.h"
+#include "sharp_field.h"
+#include "sharp_type.h"
+#include "../virtual_machine.h"
+#include "../memory/garbage_collector.h"
+#include "../../core/access_flag.h"
 
 
 CXX11_INLINE void init_struct(sharp_class *sc) {
@@ -23,6 +28,44 @@ CXX11_INLINE void init_struct(sharp_class *sc) {
     sc->interfaceCount = 0;
     sc->reflect = nullptr;
     sc->hash = 0;
+    sc->instanceNumberSlots = nullptr;
+    sc->staticNumberSlots = nullptr;
+}
+
+/** a field whose slot holds the number itself: a number that is not an array */
+static bool is_number_field(const sharp_field &field) {
+    return field.type != nullptr && field.type->type <= type_var && !field.isArray;
+}
+
+void build_number_slot_maps() {
+    for(Int i = 0; i < vm.mf.classes; i++) {
+        sharp_class *sc = vm.classes + i;
+
+        // The fields of a class are stored instance fields first, then static
+        // fields, each group in slot order: fields[n] describes instance slot
+        // n, fields[instanceFields + n] describes static slot n.
+        if(sc->instanceFields > 0) {
+            sc->instanceNumberSlots = (bool*)calloc(sc->instanceFields, sizeof(bool));
+            for(Int slot = 0; slot < sc->instanceFields; slot++)
+                sc->instanceNumberSlots[slot] = is_number_field(sc->fields[slot]);
+        }
+
+        if(sc->staticFields > 0) {
+            sc->staticNumberSlots = (bool*)calloc(sc->staticFields, sizeof(bool));
+            for(Int slot = 0; slot < sc->staticFields; slot++) {
+                const sharp_field &field = sc->fields[sc->instanceFields + slot];
+                sc->staticNumberSlots[slot] = is_number_field(field) && check_flag(field.flags, flag_static);
+            }
+        }
+    }
+}
+
+const bool* number_slots_of(const sharp_object *o) {
+    if(o == nullptr || o->type != type_class || o->arrayFlag)
+        return nullptr;
+
+    const sharp_class *sc = vm.classes + CLASS(o->info);
+    return o->staticObject ? sc->staticNumberSlots : sc->instanceNumberSlots;
 }
 
 /**

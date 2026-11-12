@@ -26,7 +26,7 @@ namespace {
     thread_local deserialize_buffer_t dBuffer;
 
     // Reusable byte arrays
-    thread_local unsigned char doubleBytes[sizeof(long double)];
+    thread_local unsigned char doubleBytes[sizeof(vm_cell)];
     thread_local unsigned char _64Bytes[sizeof(int64_t)];
     thread_local unsigned char _16Bytes[sizeof(int16_t)];
 
@@ -230,10 +230,19 @@ void serialize_object(sharp_object* o) {
         add_serialized_class(klass);
 
         // Pre-check buffer capacity for all elements
-        ensure_buffer_capacity(body, o->size * 5);  // Minimum bytes per object reference
+        ensure_buffer_capacity(body, o->size * 9);  // a reference is at least 5 bytes, a number field 9
 
+        // An instance has number fields in some slots: those are written as
+        // the 8 bytes of the slot. (The class is checked by its hash when the
+        // data is read back, so both sides agree on which slots these are.)
+        const bool *numbers = number_slots_of(o);
         for (Int i = 0; i < o->size; i++) {
-            serialize_object(o->node[i].o);
+            if(numbers != nullptr && numbers[i]) {
+                push_byte(body, NUMBER_FIELD);
+                push_primitive<int64_t>(body, number_slot(o, i).i);
+            } else {
+                serialize_object(o->node[i].o);
+            }
         }
     }
     else if (o->type == type_object) {
@@ -257,7 +266,7 @@ void serialize_object(sharp_object* o) {
         // Pre-allocate enough space for all primitive data
         Int elementSize = 0;
         switch (o->type) {
-            case type_var: elementSize = sizeof(long double); break;
+            case type_var: elementSize = sizeof(double); break;
             case type_function_ptr:
             case type_int32:
             case type_uint32: elementSize = sizeof(int32_t); break;
@@ -277,41 +286,41 @@ void serialize_object(sharp_object* o) {
         switch (o->type) {
             case type_var: {
                 for (Int i = 0; i < o->size; i++) {
-                    push_primitive<long double>(body, o->HEAD[i]);
+                    push_primitive<double>(body, ((double*)o->data)[i]);    // a var[] holds decimals
                 }
                 return;
             }
             case type_function_ptr: {
                 for (Int i = 0; i < o->size; i++) {
-                    push_int32(body, (int32_t)o->HEAD[i]);
+                    push_int32(body, (int32_t)integer_at(o, i));
                 }
                 return;
             }
             case type_int64:
             case type_uint64: {
                 for (Int i = 0; i < o->size; i++) {
-                    push_primitive<int64_t>(body, (int64_t)o->HEAD[i]);
+                    push_primitive<int64_t>(body, (int64_t)integer_at(o, i));
                 }
                 return;
             }
             case type_int32:
             case type_uint32: {
                 for (Int i = 0; i < o->size; i++) {
-                    push_int32(body, (int32_t)o->HEAD[i]);
+                    push_int32(body, (int32_t)integer_at(o, i));
                 }
                 return;
             }
             case type_int16:
             case type_uint16: {
                 for (Int i = 0; i < o->size; i++) {
-                    push_primitive<int16_t>(body, (int16_t)o->HEAD[i]);
+                    push_primitive<int16_t>(body, (int16_t)integer_at(o, i));
                 }
                 return;
             }
             case type_int8:
             case type_uint8: {
                 for (Int i = 0; i < o->size; i++) {
-                    push_byte(body, (int8_t)o->HEAD[i]);
+                    push_byte(body, (int8_t)integer_at(o, i));
                 }
                 return;
             }
@@ -352,11 +361,11 @@ void serialize(object* from, object* to) {
         // Copy header and body into the final buffer
         Int destPos = 0;
         for (Int i = 0; i <= header.pos; i++) {
-            serializedData->HEAD[destPos++] = header.buf[i];
+            ((int8_t*)serializedData->data)[destPos++] = header.buf[i];
         }
 
         for (Int i = 0; i <= body.pos; i++) {
-            serializedData->HEAD[destPos++] = body.buf[i];
+            ((int8_t*)serializedData->data)[destPos++] = body.buf[i];
         }
 
         // Clean up
@@ -382,7 +391,7 @@ sharp_class* locate_serialized_class(Int hash) {
 }
 
 // Initialize deserialization buffer
-void init_deserialization_buffer(long double* bytes, Int len) {
+void init_deserialization_buffer(unsigned char* bytes, Int len) {
     dBuffer.buf = bytes;
     dBuffer.pos = -1;
     dBuffer.size = len;
@@ -514,41 +523,41 @@ void deserialize_object(object* to, int expectedType, sharp_class* sc) {
         switch (type) {
             case type_var: {
                 for (Int i = 0; i < size; i++) {
-                    read_bytes(long double, doubleBytes, deserializedObject->HEAD[i])
+                    read_bytes(double, doubleBytes, ((double*)deserializedObject->data)[i])
                 }
                 break;
             }
             case type_function_ptr: {
                 for (Int i = 0; i < size; i++) {
-                    read_int32(deserializedObject->HEAD[i])
+                    { int32_t element; read_int32(element) set_integer_at(deserializedObject, i, element); }
                 }
                 break;
             }
             case type_int64:
             case type_uint64: {
                 for (Int i = 0; i < size; i++) {
-                    read_bytes(int64_t, _64Bytes, deserializedObject->HEAD[i])
+                    { int64_t element; read_bytes(int64_t, _64Bytes, element) set_integer_at(deserializedObject, i, element); }
                 }
                 break;
             }
             case type_int32:
             case type_uint32: {
                 for (Int i = 0; i < size; i++) {
-                    read_int32(deserializedObject->HEAD[i])
+                    { int32_t element; read_int32(element) set_integer_at(deserializedObject, i, element); }
                 }
                 break;
             }
             case type_int16:
             case type_uint16: {
                 for (Int i = 0; i < size; i++) {
-                    read_bytes(int16_t, _16Bytes, deserializedObject->HEAD[i])
+                    { int16_t element; read_bytes(int16_t, _16Bytes, element) set_integer_at(deserializedObject, i, element); }
                 }
                 break;
             }
             case type_int8:
             case type_uint8: {
                 for (Int i = 0; i < size; i++) {
-                    deserializedObject->HEAD[i] = read_data;
+                    set_integer_at(deserializedObject, i, (int8_t)read_data);
                 }
                 break;
             }
@@ -607,8 +616,14 @@ void deserialize_object(object* to, int expectedType, sharp_class* sc) {
                 deserialize_object(deserializedObject->node + i, -1, klass);
             }
         } else {
+            const bool *numbers = number_slots_of(deserializedObject);
             for (Int i = 0; i < klass->instanceFields; i++) {
-                deserialize_object(deserializedObject->node + i, klass->fields[i].type->type, nullptr);
+                if(numbers != nullptr && numbers[i]) {
+                    expect_data(NUMBER_FIELD)
+                    read_bytes(int64_t, _64Bytes, number_slot(deserializedObject, i).i)
+                } else {
+                    deserialize_object(deserializedObject->node + i, klass->fields[i].type->type, nullptr);
+                }
             }
         }
     } else {
@@ -621,7 +636,10 @@ void deserialize(object* from, object* to) {
     Int objects = 0;
     try {
         if (from->o && from->o->type <= type_var) {
-            init_deserialization_buffer(from->o->HEAD, from->o->size);
+            // the data to read is an array of bytes (what serialize() produces)
+            if(from->o->type != type_int8 && from->o->type != type_uint8)
+                throw vm_exception("deserialize: the data must be an _int8[]");
+            init_deserialization_buffer((unsigned char*)from->o->data, from->o->size);
             init_serialization();
 
             expect_data(SERIALIZE_START)

@@ -12,11 +12,11 @@ class err_handler : uncaught_exception_handler {
     }
 }
 
-def err_thread(args: object[]) : var {
+def err_thread(args: object[]) : decimal {
    throw new error("test error");
 }
 
-def foo_thread(args: object[]) : var {
+def foo_thread(args: object[]) : decimal {
    println("I'm foo thread!");
    return 0;
 }
@@ -29,7 +29,7 @@ def main() {
    thread1.start();
 
    thread.sleep(500); // sleep for half a second
-   non_thread := new thread("anonymous thread", { args -> (var)
+   non_thread := new thread("anonymous thread", { args -> (decimal)
        println("I'm anonymous!");
        return 0;
    });

@@ -7,8 +7,8 @@ mod std.collections;
  * elements. All collections of std.collections implement it, which makes it
  * possible to write a function once and use it with any of them:
  *
- *     def total(numbers: iterable<int>) : var {
- *         sum : var = 0;
+ *     def total(numbers: iterable<int>) : decimal {
+ *         sum : decimal = 0;
  *         it := numbers.iterator();
  *         while(it.has_next()) sum += it.next().value;
  *         return sum;

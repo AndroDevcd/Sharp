@@ -9,7 +9,7 @@ mod std.time;
  * that the test sets and advances, so the test gives the same result every
  * time and never has to wait.
  *
- *     def is_expired(c: clock, expires: instant): var {
+ *     def is_expired(c: clock, expires: instant): decimal {
  *         return c.now() >= expires;
  *     }
  *

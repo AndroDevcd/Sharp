@@ -136,8 +136,8 @@ vm_thread_entry(void *arg)
         } while (thread->state == THREAD_RUNNING);
     } catch(vm_exception &err) {
         if(thread->state == THREAD_STARTED && thread->currentThread.o != nullptr) {
-            assign_numeric_field(resolve_field("exited", thread->currentThread.o)->o, 0, 0);
-            assign_numeric_field(resolve_field("exited", thread->currentThread.o)->o, 0, -1);
+            set_number_field(thread->currentThread.o, "exited", 0);
+            set_number_field(thread->currentThread.o, "exited", -1);
         }
 
         if(err.getErr().handlingClass == vm.out_of_memory_except && thread->state == THREAD_CREATED) {
@@ -600,7 +600,7 @@ void setup_thread(sharp_thread* thread) {
             );
 
             for(Int i = 0; i < thread->name.size(); i++) {
-                threadName->HEAD[i] = thread->name[i];
+                set_integer_at(threadName, i, thread->name[i]);
             }
         }
     } else {
@@ -623,11 +623,10 @@ void setup_thread(sharp_thread* thread) {
     if(thread->currentThread.o != nullptr
        && CLASS(thread->currentThread.o->info) == vm.thread_class->address) {
         auto fib = resolve_field("fib", thread->currentThread.o);
-        auto main = resolve_field("main", thread->currentThread.o);
         auto name = resolve_field("name", thread->currentThread.o);
 
 
-        if(fib && main && name) {
+        if(fib && name) {
             copy_object(
                     fib,
                     create_object(vm.fiber_class)
@@ -636,12 +635,12 @@ void setup_thread(sharp_thread* thread) {
             copy_object(&thread->task->fiberObject, fib);
             auto fiberName = resolve_field("name", fib->o);
             copy_object(fiberName, name);
-            assign_numeric_field(resolve_field("main", fib->o)->o, 0, main->o->HEAD[0]);
+            set_number_field(fib->o, "main", number_field(thread->currentThread.o, "main"));
             // fiber.id is a native number field (`id : var`), written like `main`
             // above. assign_numeric_class_field() is for number OBJECTS (int,
             // long, ...): it stored the id somewhere else and the first fiber
             // of every new thread kept reporting id 0 - the main fiber's id.
-            assign_numeric_field(resolve_field("id", fib->o)->o, 0, thread->task->id);
+            set_number_field(fib->o, "id", thread->task->id);
         }
     }
 }
@@ -661,8 +660,7 @@ void shutdown_thread(sharp_thread* thread) {
         && thread->task->stack[vm.mf.threadLocals].obj.o != NULL
         && thread->task->stack[vm.mf.threadLocals].obj.o->type == type_class
         && CLASS(thread->task->stack[vm.mf.threadLocals].obj.o->info) == vm.int_class->address) {
-        auto valueField = resolve_field("value", thread->task->stack[vm.mf.threadLocals].obj.o);
-        thread->task->exitVal = read_numeric_value(valueField->o, 0);
+        thread->task->exitVal = number_field(thread->task->stack[vm.mf.threadLocals].obj.o, "value");
     }
 
     print_thrown_exception();
@@ -999,7 +997,7 @@ sharp_thread* get_thread(uInt id) {
 uInt create_thread(uInt methodAddr, bool daemon) {
     TELEMETRY_COUNT(tm_threads_created)
     int32_t threadId = new_thread_id();
-    registers[CMT] = false;
+    registers[CMT].i = false;
     if(methodAddr < 0 || methodAddr >= vm.mf.methods)
         return RESULT_THREAD_CREATE_FAILED;
 
@@ -1021,7 +1019,7 @@ uInt create_thread(uInt methodAddr, bool daemon) {
     setup_thread(thread, name, threadId, daemon, method, true);
 
     post(thread);
-    registers[CMT] = true;
+    registers[CMT].i = true;
     return threadId;
 }
 

@@ -25,7 +25,7 @@ mod std.collections;
  * is: plus, sub_list, reversed.
  *
  * Limitation: the element type has to be an object type; native types such
- * as `var` cannot be used as T.
+ * as `decimal` cannot be used as T.
  */
 class immutable_list<T> : loopable<T>, iterable<T> {
     /** the elements; this array is never handed out and never written after construction */
@@ -38,9 +38,9 @@ class immutable_list<T> : loopable<T>, iterable<T> {
 
     /** Create an immutable copy of the elements of an array. O(n). */
     immutable_list(source: T[]) {
-        n : var = sizeof(source);
+        n : decimal = sizeof(source);
         items = new T[n];
-        for(i : var = 0; i < n; i++)
+        for(i : decimal = 0; i < n; i++)
             items[i] = source[i];
     }
 
@@ -53,20 +53,20 @@ class immutable_list<T> : loopable<T>, iterable<T> {
         if(elements == null) {
             items = new T[0];
         } else {
-            n : var = sizeof(elements);
+            n : decimal = sizeof(elements);
             items = new T[n];
-            for(i : var = 0; i < n; i++)
+            for(i : decimal = 0; i < n; i++)
                 items[i] = elements[i];
         }
     }
 
     /** Number of elements. O(1). */
-    def size() : var {
+    def size() : decimal {
         return sizeof(items);
     }
 
     /** 1 when the list has no elements, otherwise 0. O(1). */
-    def is_empty() : var {
+    def is_empty() : decimal {
         return sizeof(items) == 0;
     }
 
@@ -106,31 +106,31 @@ class immutable_list<T> : loopable<T>, iterable<T> {
     }
 
     /** Position of the first element that equals `element` (compared with `==`), or -1. O(n). */
-    def index_of(element: T) : var {
-        for(i : var = 0; i < sizeof(items); i++) {
+    def index_of(element: T) : decimal {
+        for(i : decimal = 0; i < sizeof(items); i++) {
             if(items[i] == element) return i;
         }
         return -1;
     }
 
     /** Position of the last element that equals `element`, or -1. O(n). */
-    def last_index_of(element: T) : var {
-        for(i : var = sizeof(items) - 1; i >= 0; i--) {
+    def last_index_of(element: T) : decimal {
+        for(i : decimal = sizeof(items) - 1; i >= 0; i--) {
             if(items[i] == element) return i;
         }
         return -1;
     }
 
     /** 1 when an element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : var {
+    def contains(element: T) : decimal {
         return index_of(element) >= 0;
     }
 
     /** A NEW immutable list with `element` added at the end; this list is not changed. O(n). */
     def plus(element: T) : immutable_list<T> {
-        n : var = sizeof(items);
+        n : decimal = sizeof(items);
         extended := new T[n + 1];
-        for(i : var = 0; i < n; i++)
+        for(i : decimal = 0; i < n; i++)
             extended[i] = items[i];
         extended[n] = element;
         return new immutable_list<T>(extended);
@@ -146,25 +146,25 @@ class immutable_list<T> : loopable<T>, iterable<T> {
             throw new out_of_bounds_exception("immutable_list: range $from..$to is out of bounds");
 
         part := new T[to.value - from.value];
-        for(i : var = from.value; i < to.value; i++)
+        for(i : decimal = from.value; i < to.value; i++)
             part[i - from.value] = items[i];
         return new immutable_list<T>(part);
     }
 
     /** A NEW immutable list with the elements in reverse order. O(n). */
     def reversed() : immutable_list<T> {
-        n : var = sizeof(items);
+        n : decimal = sizeof(items);
         turned := new T[n];
-        for(i : var = 0; i < n; i++)
+        for(i : decimal = 0; i < n; i++)
             turned[i] = items[n - 1 - i];
         return new immutable_list<T>(turned);
     }
 
     /** A new array with the elements (a copy: writing to it does not affect this list). O(n). */
     def to_array() : T[] {
-        n : var = sizeof(items);
+        n : decimal = sizeof(items);
         result := new T[n];
-        for(i : var = 0; i < n; i++)
+        for(i : decimal = 0; i < n; i++)
             result[i] = items[i];
         return result;
     }
@@ -172,7 +172,7 @@ class immutable_list<T> : loopable<T>, iterable<T> {
     /** A new, ordinary (changeable) `list` with the elements. O(n). */
     def to_list() : list<T> {
         result := new list<T>();
-        for(i : var = 0; i < sizeof(items); i++)
+        for(i : decimal = 0; i < sizeof(items); i++)
             result.add(items[i]);
         return result;
     }

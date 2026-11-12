@@ -13,8 +13,7 @@
 //     ----------------------------------    ----------------------------------
 //       call  scale                           call  scale$value
 //       popobj2            ; the object       loadval egx        ; the number
-//       movn  #0           ; .value
-//       iload egx
+//       getf  egx, slot 0  ; .value
 //
 //     scale                                 scale$value (new, hidden)
 //     ----------------------------------    ----------------------------------
@@ -32,7 +31,7 @@
 //   caller does with the result is read one number field out of it and drop
 //   the object:
 //
-//         call F ; popobj2 ; movn #k ; iload r
+//         call F ; popobj2 ; getf r, slot k
 //
 //   Every other caller - one that stores the object, passes it on, compares
 //   it, calls a method on it - still calls the original function and still
@@ -42,7 +41,7 @@
 //   It starts as an exact copy of the function in which every `returnobj` is
 //   replaced by "read field k of that object and return the number":
 //
-//         returnobj        ->        movn #k ; iload ebx ; return_val ebx
+//         returnobj        ->        getf ebx, slot k ; return_val ebx
 //
 //   That copy returns F(...).field[k] by construction - it still creates the
 //   object. Then the ordinary box elimination pass runs on it. Now that the
@@ -125,17 +124,15 @@ std::unique_ptr<function_ir> make_trial(function_ir &callee, int field, program_
     for(size_t i = 0; i < copy->code.size(); i++) {
         if(copy->code[i].op != Opcode::RETURNOBJ) continue;
 
-        // fp->obj = *ptr     ->     ptr = &ptr->field[k] ; ebx = *ptr ; fp->var = ebx
+        // fp->obj = *ptr     ->     ebx = ptr->o.<number slot k> ; fp->var = ebx
         ir_instruction &instr = copy->code[i];
-        instr.op = Opcode::MOVN;
-        instr.a = field; instr.b = instr.c = 0;
+        instr.op = Opcode::GETF;
+        instr.a = EBX; instr.b = field; instr.c = 0;
         instr.modified = true;
 
-        ir_instruction read = make_instruction(*copy, Opcode::ILOAD, EBX);
         ir_instruction give = make_instruction(*copy, Opcode::RETURNVAL, EBX);
-        copy->code.insert(copy->code.begin() + i + 1, read);
-        copy->code.insert(copy->code.begin() + i + 2, give);
-        i += 2;
+        copy->code.insert(copy->code.begin() + i + 1, give);
+        i += 1;
     }
 
     int before = count_allocations(*copy);
@@ -206,16 +203,16 @@ Int pass_native_returns(program_ir &program, std::vector<std::unique_ptr<functio
             control_flow cfg;
             build_control_flow(caller, cfg);
 
-            for(int i = 0; i + 3 < (int)caller.code.size(); i++) {
-                // call F ; popobj2 ; movn #k ; iload r      - all in one block
+            for(int i = 0; i + 2 < (int)caller.code.size(); i++) {
+                // call F ; popobj2 ; getf r, slot k      - all in one block
                 if(caller.code[i].op != Opcode::CALL || caller.code[i + 1].op != Opcode::POPOBJ_2
-                   || caller.code[i + 2].op != Opcode::MOVN || caller.code[i + 3].op != Opcode::ILOAD)
+                   || caller.code[i + 2].op != Opcode::GETF)
                     continue;
-                if(cfg.blockOf[i] != cfg.blockOf[i + 3]) continue;
-                if(pointer_read_later(caller, cfg, i + 3)) continue;
+                if(cfg.blockOf[i] != cfg.blockOf[i + 2]) continue;
+                if(pointer_read_later(caller, cfg, i + 2)) continue;
 
                 Int address = caller.code[i].a;
-                int field = caller.code[i + 2].a;
+                int field = caller.code[i + 2].b;
 
                 auto key = std::make_pair(address, field);
                 auto known = versions.find(key);
@@ -246,7 +243,7 @@ Int pass_native_returns(program_ir &program, std::vector<std::unique_ptr<functio
                 if(known->second < 0) continue;
 
                 // call F$value ; loadval r
-                int reg = caller.code[i + 3].a;
+                int reg = caller.code[i + 2].a;
                 caller.code[i].a = (int32_t)known->second;
                 caller.code[i].modified = true;
 
@@ -255,7 +252,6 @@ Int pass_native_returns(program_ir &program, std::vector<std::unique_ptr<functio
                 take.a = reg; take.b = take.c = 0;
                 take.modified = true;
 
-                remove_instruction(caller, (size_t)i + 3);
                 remove_instruction(caller, (size_t)i + 2);
 
                 caller.changed = true;

@@ -27,7 +27,7 @@ import ( platform )
 class file_natives {
 
     /** the character between the parts of a path on this system: '/' or the back slash (as a character code) */
-    static def separator() : var {
+    static def separator() : decimal {
         if(build.is_windows()) {
             return 92;
         }
@@ -38,12 +38,12 @@ class file_natives {
      * True when the path starts at a root of the file system: with a
      * separator, or - on windows - with a drive ("C:...").
      */
-    static def is_rooted(file_path: string) : var {
-        n : var = sizeof(file_path.data);
+    static def is_rooted(file_path: string) : decimal {
+        n : decimal = sizeof(file_path.data);
         if(n == 0) {
             return 0;
         }
-        first : var = file_path.data[0];
+        first : decimal = file_path.data[0];
         if(first == '/' || first == 92) {
             return 1;
         }
@@ -55,10 +55,10 @@ class file_natives {
 
     /** `dir` + separator + `name` (no separator is added when `dir` already ends with one) */
     static def join(dir: string, name: string) : string {
-        sep : var = separator();
+        sep : decimal = separator();
         buf := new char_buffer(sizeof(dir.data) + sizeof(name.data) + 1);
         buf.append(dir);
-        n : var = sizeof(dir.data);
+        n : decimal = sizeof(dir.data);
         if(n > 0 && dir.data[n - 1] != sep && dir.data[n - 1] != '/') {
             buf.append_char(sep);
         }
@@ -73,10 +73,10 @@ class file_natives {
      * counts (paths held by `file` objects are normalized to it).
      */
     static def parent_of(file_path: string) : string? {
-        sep : var = separator();
-        n : var = sizeof(file_path.data);
-        at : var = 0 - 1;
-        for(i : var = n - 1; i >= 0; i--) {
+        sep : decimal = separator();
+        n : decimal = sizeof(file_path.data);
+        at : decimal = 0 - 1;
+        for(i : decimal = n - 1; i >= 0; i--) {
             if(file_path.data[i] == sep) {
                 at = i;
                 break;
@@ -122,10 +122,10 @@ class file_natives {
      * empty file. Returns 0 when the file was written and something else
      * when it could not be (e.g. its directory does not exist).
      */
-    static def write(file_path: string, text: string) : var {
+    static def write(file_path: string, text: string) : decimal {
         raw_path := file_path.data;
         raw_text := text.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         if(raw_text == null || sizeof(raw_text) == 0) {
             /*
@@ -171,9 +171,9 @@ class file_natives {
      * Delete a file (or, on unix, an empty directory or a link). Returns 0
      * when it was removed.
      */
-    static def delete_file(file_path: string) : var {
+    static def delete_file(file_path: string) : decimal {
         raw := file_path.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         asm {
             pushl [raw]
@@ -185,9 +185,9 @@ class file_natives {
     }
 
     /** delete an empty directory. Returns 0 when it was removed. */
-    static def delete_directory(file_path: string) : var {
+    static def delete_directory(file_path: string) : decimal {
         raw := file_path.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         asm {
             pushl [raw]
@@ -203,10 +203,10 @@ class file_natives {
      * Returns 0 when it worked; it fails across disks, when the source does
      * not exist, or when the directory of the destination does not exist.
      */
-    static def rename(from_path: string, to_path: string) : var {
+    static def rename(from_path: string, to_path: string) : decimal {
         raw_from := from_path.data;
         raw_to := to_path.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         asm {
             pushl [raw_to]
@@ -219,9 +219,9 @@ class file_natives {
     }
 
     /** the size of the file in bytes, or -1 when it does not exist (for a directory the number means nothing) */
-    static def size(file_path: string) : var {
+    static def size(file_path: string) : decimal {
         raw := file_path.data;
-        result : var = 0;
+        result : _int64 = 0;
 
         asm {
             pushl [raw]
@@ -285,9 +285,9 @@ class file_natives {
      * the disk, 1 the bytes that are not in use, 2 the bytes this program
      * may use. -1 when the operating system does not tell.
      */
-    static def disk_space(which: var) : var {
-        request : var = which;
-        result : var = 0;
+    static def disk_space(which: decimal) : decimal {
+        request : _int64 = which;
+        result : _int64 = 0;
 
         asm {
             loadl ebx, [request]

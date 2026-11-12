@@ -6,8 +6,8 @@ mod frontend.tokenizer;
 */
 class token {
 
-    line: var;
-    col: var;
+    line: decimal;
+    col: decimal;
     id: token_id;
     type: token_type;
     tok : string = "";
@@ -17,7 +17,7 @@ class token {
         id = token_id.noentity;
     }
 
-    public token(tok: string, id: token_id, type: token_type, col: var, line: var) {
+    public token(tok: string, id: token_id, type: token_type, col: decimal, line: decimal) {
         self->tok = tok;
         self->type = type;
         self->id = id;
@@ -26,7 +26,7 @@ class token {
     }
 
 
-    public token(tok: string, id: token_id, col: var, line: var) {
+    public token(tok: string, id: token_id, col: decimal, line: decimal) {
         self->tok = tok;
         self->type = token_type.none;
         self->id = id;

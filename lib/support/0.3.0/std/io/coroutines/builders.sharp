@@ -14,7 +14,7 @@ import ( std.io )
  *
  *     def main(args: string[]) {
  *         run_blocking({ ->                         // returns when everything inside is done
- *             for(i : var = 0; i < 10000; i++) {
+ *             for(i : decimal = 0; i < 10000; i++) {
  *                 launch({ -> hits.increment(); }); // 10,000 coroutines, children of run_blocking
  *             }
  *
@@ -185,7 +185,7 @@ def run_blocking(block: ()()) {
 
     outer := current_job();
     error : throwable? = null;
-    cancellation : var = 0;
+    cancellation : decimal = 0;
 
     // the block is called from here and not from a helper shared with the other
     // scope functions, see THE NESTING RULE in scope/scopes.sharp
@@ -245,14 +245,14 @@ private def finish_context(work: job) {
  * Kotlin: joinAll(a, b, c)
  */
 def join_all(jobs: job[]) {
-    for(i : var = 0; i < sizeof(jobs); i++) {
+    for(i : decimal = 0; i < sizeof(jobs); i++) {
         jobs[i].join();
     }
 }
 
 /** join_all() for a list of jobs. Kotlin: jobs.joinAll() */
 def join_all(jobs: list<job>) {
-    for(i : var = 0; i < jobs.size().value; i++) {
+    for(i : decimal = 0; i < jobs.size().value; i++) {
         jobs.at(i).join();
     }
 }

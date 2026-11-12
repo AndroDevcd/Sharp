@@ -22,7 +22,7 @@ mod std.io.coroutines;
 class timeout_timer : coroutine_body {
 
     private target : job?;
-    private limit : var = 0;
+    private limit : decimal = 0;
     private error : timeout_cancellation_exception?;
 
     /**
@@ -30,7 +30,7 @@ class timeout_timer : coroutine_body {
      * @param limit  after how many milliseconds
      * @param error  what the cancellation points of the scope throw then
      */
-    timeout_timer(target: job, limit: var, error: timeout_cancellation_exception) {
+    timeout_timer(target: job, limit: decimal, error: timeout_cancellation_exception) {
         self->target = target;
         self->limit = limit;
         self->error = error;

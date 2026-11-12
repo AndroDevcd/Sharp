@@ -12,7 +12,7 @@ import (
  *
  * USAGE
  *     launch({ ->
- *         for(i : var = 0; i < 100; i++) {
+ *         for(i : decimal = 0; i < 100; i++) {
  *             crunch(i);
  *             ensure_active();     // stop here if somebody cancelled us
  *         }
@@ -99,7 +99,7 @@ def throw_cancellation() {
  * A file that imports both modules gets this one by writing
  * std.io.coroutines#delay(ms), or simply by not importing std.io.fiber.)
  */
-def delay(ms: var) {
+def delay(ms: decimal) {
     j := running_job;
     if(j == null) {
         waiter.sleep_raw(ms);
@@ -149,7 +149,7 @@ def yield() {
  * park()/park_for().
  * Kotlin equivalent: suspendCancellableCoroutine { }
  */
-def await_waiter(w: waiter, ms: var) : var {
+def await_waiter(w: waiter, ms: decimal) : decimal {
     j := running_job;
     if(j == null) {
         if(ms < 0) {

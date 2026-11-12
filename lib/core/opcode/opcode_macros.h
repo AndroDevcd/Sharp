@@ -139,12 +139,12 @@
             &&ADD,                  \
             &&SUB,                   \
             &&MUL,                   \
-            &&DIV,                   \
+            &&DDIV,                   \
             &&MOD,                   \
             &&IADD,                   \
             &&ISUB,                   \
             &&IMUL,                   \
-            &&IDIV,                   \
+            &&DIDIV,                   \
             &&IMOD,                   \
             &&POP,                   \
             &&INC,                   \
@@ -197,21 +197,19 @@
             &&ADDL,                      \
             &&SUBL,                      \
             &&MULL,                      \
-            &&DIVL,                      \
+            &&DDIVL,                      \
             &&MODL,                      \
             &&IADDL,                      \
             &&ISUBL,                      \
             &&IMULL,                      \
-            &&IDIVL,                      \
+            &&DIDIVL,                      \
             &&IMODL,                      \
             &&LOADL,                      \
-            &&IALOAD,                     \
             &&POPOBJ,                       \
             &&SMOVR,                        \
             &&ANDL,                        \
             &&ORL,                        \
             &&XORL,                        \
-            &&RMOV,                          \
             &&SMOV,                          \
             &&RETURNVAL,                     \
             &&ISTORE,                        \
@@ -238,13 +236,54 @@
             &&LDC,                                     \
             &&SMOVR_3,                        \
             &&NEG,                             \
-            &&EXP,                               \
+            &&DEXP,                               \
             &&IS,                                   \
             &&MOV_ABS,                                   \
             &&LOAD_ABS,                                   \
-            &&ILOAD,                                   \
             &&SMOVR_4,                                   \
-            &&IMOV                                   \
+            &&DADD, \
+            &&DSUB, \
+            &&DMUL, \
+            &&DNEG, \
+            &&DINC, \
+            &&DDEC, \
+            &&DLT, \
+            &&DGT, \
+            &&DLTE, \
+            &&DGTE, \
+            &&DTEST, \
+            &&DTNE, \
+            &&DNOT, \
+            &&DCMP, \
+            &&DIADD, \
+            &&DISUB, \
+            &&DIMUL, \
+            &&DADDL, \
+            &&DSUBL, \
+            &&DMULL, \
+            &&DIADDL, \
+            &&DISUBL, \
+            &&DIMULL, \
+            &&DISADD, \
+            &&DISTORE, \
+            &&DISTOREL, \
+            &&DMOVI, \
+            &&DPUT, \
+            &&I2D, \
+            &&D2I, \
+            &&GETF, \
+            &&PUTF, \
+            &&ALOAD8, \
+            &&ALOADU8, \
+            &&ALOAD16, \
+            &&ALOADU16, \
+            &&ALOAD32, \
+            &&ALOADU32, \
+            &&ALOAD64, \
+            &&ASTORE8, \
+            &&ASTORE16, \
+            &&ASTORE32, \
+            &&ASTORE64 \
         };
 
 #endif //SHARP_OPCODE_MACROS_H

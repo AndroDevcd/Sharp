@@ -23,18 +23,18 @@ import ( testing, std.io )
 
 /** a place for one thread to leave its result */
 class slot {
-    value : var = 0;
+    value : decimal = 0;
     text : string = "";
 }
 
 class tally {
-    count : var = 0;
+    count : decimal = 0;
 }
 
 /** remembers the exception a thread died of */
 class catcher : uncaught_exception_handler {
     message : string = "";
-    calls : var = 0;
+    calls : decimal = 0;
 
     override def uncaught_exception(err: throwable) {
         calls++;
@@ -53,7 +53,7 @@ def wait_for(t: thread) {
 }
 
 def wait_for_all(threads: thread[]) {
-    for(i : var = 0; i < sizeof(threads); i++) {
+    for(i : decimal = 0; i < sizeof(threads); i++) {
         wait_for(threads[i]);
     }
 }
@@ -61,10 +61,10 @@ def wait_for_all(threads: thread[]) {
 // ---- thread bodies. A thread body takes object[] and returns a number.
 
 /** args[0] is a slot: leaves 1 + 2 + ... + 1000 in it */
-def sum_to_thousand(args: object[]) : var {
+def sum_to_thousand(args: object[]) : decimal {
     out := args[0] as slot;
-    total : var = 0;
-    for(i : var = 1; i <= 1000; i++) {
+    total : decimal = 0;
+    for(i : decimal = 1; i <= 1000; i++) {
         total += i;
     }
     out.value = total;
@@ -72,24 +72,24 @@ def sum_to_thousand(args: object[]) : var {
 }
 
 /** args[0] is a slot holding n: replaces it by n * n */
-def square_own_slot(args: object[]) : var {
+def square_own_slot(args: object[]) : decimal {
     own := args[0] as slot;
     own.value = own.value * own.value;
     return 0;
 }
 
 /** args[0] is a slot: adds 1 to it 10000 times (nobody else touches that slot) */
-def count_in_own_slot(args: object[]) : var {
+def count_in_own_slot(args: object[]) : decimal {
     own := args[0] as slot;
-    for(i : var = 0; i < 10000; i++) {
+    for(i : decimal = 0; i < 10000; i++) {
         own.value++;
     }
     return 0;
 }
 
 /** adds 1 to the shared tally 20000 times, each time inside the lock */
-def count_in_shared(args: object[]) : var {
-    for(i : var = 0; i < 20000; i++) {
+def count_in_shared(args: object[]) : decimal {
+    for(i : decimal = 0; i < 20000; i++) {
         lock(shared) {
             shared.count++;
         }
@@ -98,23 +98,23 @@ def count_in_shared(args: object[]) : var {
 }
 
 /** the same, but the lock is taken by a function that is called, and left by return */
-def bump_shared(): var {
+def bump_shared(): decimal {
     lock(shared) {
         shared.count += 2;
         return shared.count;
     }
 }
 
-def count_in_shared_through_calls(args: object[]) : var {
-    for(i : var = 0; i < 5000; i++) {
+def count_in_shared_through_calls(args: object[]) : decimal {
+    for(i : decimal = 0; i < 5000; i++) {
         bump_shared();
     }
     return 0;
 }
 
 /** an exception thrown and caught inside the lock, on every trip */
-def count_in_shared_with_exceptions(args: object[]) : var {
-    for(i : var = 0; i < 2000; i++) {
+def count_in_shared_with_exceptions(args: object[]) : decimal {
+    for(i : decimal = 0; i < 2000; i++) {
         try {
             lock(shared) {
                 shared.count++;
@@ -127,7 +127,7 @@ def count_in_shared_with_exceptions(args: object[]) : var {
 }
 
 /** args: a slot, then two strings; joins the strings into the slot */
-def join_words(args: object[]) : var {
+def join_words(args: object[]) : decimal {
     out := args[0] as slot;
     first := args[1] as string;
     second := args[2] as string;
@@ -136,19 +136,19 @@ def join_words(args: object[]) : var {
     return 0;
 }
 
-def count_with_atomic(args: object[]) : var {
-    for(i : var = 0; i < 5000; i++) {
+def count_with_atomic(args: object[]) : decimal {
+    for(i : decimal = 0; i < 5000; i++) {
         hits++;
     }
     return 0;
 }
 
-def always_fails(args: object[]) : var {
+def always_fails(args: object[]) : decimal {
     throw new illegal_state_exception("thread failed on purpose");
 }
 
 /** a thread that handles its own exception and still leaves a result */
-def recovers(args: object[]) : var {
+def recovers(args: object[]) : decimal {
     out := args[0] as slot;
     try {
         throw new illegal_argument_exception("inside the thread");
@@ -181,15 +181,15 @@ def main(args: string[]) {
     expect("the result the thread left behind: 1 + ... + 1000", result.value, 500500);
 
     // ---- the main thread goes on as usual afterwards
-    own : var = 0;
-    for(i : var = 1; i <= 100; i++) {
+    own : decimal = 0;
+    for(i : decimal = 1; i <= 100; i++) {
         own += i;
     }
     expect("the main thread still computes", own, 5050);
 
     // ================= a thread whose body is written in place
     unguarded.value = 0;
-    inline_thread := new thread("inline", { args: object[] -> (var)
+    inline_thread := new thread("inline", { args: object[] -> (decimal)
         unguarded.value = 77;
         unguarded.text = "from a lambda";
         return 0;
@@ -216,15 +216,15 @@ def main(args: string[]) {
     // ================= one thread after the other, 20 times
     chain := new slot();
     chain.value = 2;
-    for(i : var = 0; i < 4; i++) {
+    for(i : decimal = 0; i < 4; i++) {
         t := new thread("squarer", square_own_slot);
         t.start(one_argument(chain));
         wait_for(t);                            // the next one starts only after this one is done
     }
     expect("four threads in a row, each squaring: 2 -> 4 -> 16 -> 256 -> 65536", chain.value, 65536);
 
-    finished : var = 0;
-    for(i : var = 0; i < 20; i++) {
+    finished : decimal = 0;
+    for(i : decimal = 0; i < 20; i++) {
         t := new thread("short", sum_to_thousand);
         s := new slot();
         t.start(one_argument(s));
@@ -236,11 +236,11 @@ def main(args: string[]) {
     // ================= several threads at once, each with its own slot
     slots := new slot[4];
     counters := new thread[4];
-    for(i : var = 0; i < 4; i++) {
+    for(i : decimal = 0; i < 4; i++) {
         slots[i] = new slot();
         counters[i] = new thread("counter", count_in_own_slot);
     }
-    for(i : var = 0; i < 4; i++) {
+    for(i : decimal = 0; i < 4; i++) {
         counters[i].start(one_argument(slots[i]));
     }
     wait_for_all(counters);
@@ -253,7 +253,7 @@ def main(args: string[]) {
     // ---- each thread squares its own number
     numbers := new slot[5];
     squarers := new thread[5];
-    for(i : var = 0; i < 5; i++) {
+    for(i : decimal = 0; i < 5; i++) {
         numbers[i] = new slot();
         numbers[i].value = i + 1;               // 1 2 3 4 5
         squarers[i] = new thread("squarer", square_own_slot);
@@ -268,7 +268,7 @@ def main(args: string[]) {
     // ================= a shared counter protected by lock
     shared.count = 0;
     lockers := new thread[4];
-    for(i : var = 0; i < 4; i++) {
+    for(i : decimal = 0; i < 4; i++) {
         lockers[i] = new thread("locker", count_in_shared);
         lockers[i].start();
     }
@@ -278,11 +278,11 @@ def main(args: string[]) {
     // ---- the main thread takes part too
     shared.count = 0;
     helpers := new thread[2];
-    for(i : var = 0; i < 2; i++) {
+    for(i : decimal = 0; i < 2; i++) {
         helpers[i] = new thread("helper", count_in_shared);
         helpers[i].start();
     }
-    for(i : var = 0; i < 20000; i++) {
+    for(i : decimal = 0; i < 20000; i++) {
         lock(shared) {
             shared.count++;
         }
@@ -293,7 +293,7 @@ def main(args: string[]) {
     // ---- the lock is taken in a called function and left by return
     shared.count = 0;
     callers := new thread[3];
-    for(i : var = 0; i < 3; i++) {
+    for(i : decimal = 0; i < 3; i++) {
         callers[i] = new thread("caller", count_in_shared_through_calls);
         callers[i].start();
     }
@@ -303,7 +303,7 @@ def main(args: string[]) {
     // ---- the lock is left by an exception on every trip
     shared.count = 0;
     throwers := new thread[3];
-    for(i : var = 0; i < 3; i++) {
+    for(i : decimal = 0; i < 3; i++) {
         throwers[i] = new thread("thrower", count_in_shared_with_exceptions);
         throwers[i].start();
     }
@@ -316,7 +316,7 @@ def main(args: string[]) {
 
     // ================= atomic<int>: a counter that needs no lock statement
     atomics := new thread[4];
-    for(i : var = 0; i < 4; i++) {
+    for(i : decimal = 0; i < 4; i++) {
         atomics[i] = new thread("atomic", count_with_atomic);
         atomics[i].start();
     }

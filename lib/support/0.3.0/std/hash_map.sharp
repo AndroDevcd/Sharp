@@ -39,11 +39,14 @@ class hash_map<k base _object_, v base _object_> {
     /** the map grows when it holds more than threshold * (number of buckets) entries */
     threshold := 0.75;
     /** the number of entries at which the next growth happens */
-    max_size := 96;
+    max_size : _int64 = 12;
     /** the number of entries (read it, do not write it) */
-    size : var;
+    size : _int64;
 
-    private static const default_capacity := 128;
+    // Small on purpose: programs that build trees keep one map per node, and
+    // most of those hold a handful of entries. The table doubles when it
+    // fills up (resize), so a big map costs a few extra copies while it grows.
+    private static const default_capacity := 16;
 
     /** Create an empty map with `initialCapacity` buckets (it grows when needed). */
     public hash_map(initialCapacity: int) {
@@ -51,7 +54,7 @@ class hash_map<k base _object_, v base _object_> {
         max_size = (sizeof(data) * threshold);
     }
 
-    /** Create an empty map with 128 buckets. */
+    /** Create an empty map with 16 buckets (it grows when needed). */
     public hash_map() {
         data = new entry<k,v?>[default_capacity];
     }
@@ -66,12 +69,18 @@ class hash_map<k base _object_, v base _object_> {
     }
 
     /** The bucket a key belongs to: its hash, made non-negative, modulo the number of buckets. */
-    private def hash(key: k) : int {
-        return abs(key.hash() % sizeof(data));
+    private def hash(key: k) : _int64 {
+        // a plain number, worked out here: no object is created for it and
+        // the math library is not called
+        index : _int64 = key.hash().value % sizeof(data);
+        if(index < 0) {
+            index = 0 - index;
+        }
+        return index;
     }
 
     /** 1 when the two keys are equal (compared with `==`), otherwise 0. */
-    private def same_key(a: k, b: k) : var {
+    private def same_key(a: k, b: k) : _int64 {
         if(a == b) return 1;
         return 0;
     }
@@ -89,11 +98,11 @@ class hash_map<k base _object_, v base _object_> {
         data = new entry<k,v?>[sizeof(old_data) * 2];
         max_size = sizeof(data) * threshold;
 
-        for(i : var = 0; i < sizeof(old_data); i++) {
+        for(i : _int64 = 0; i < sizeof(old_data); i++) {
             item := old_data[i];
             while(item != null) {
                 following := item.next;
-                index : var = hash(item.key).value;
+                index : _int64 = hash(item.key);
                 item.next = data[index];
                 data[index] = item;
                 item = following;
@@ -103,7 +112,7 @@ class hash_map<k base _object_, v base _object_> {
 
     /** The entry that holds `key`, or null when the map does not have the key. */
     private def find_entry(key: k) : entry<k, v?> {
-        item := data[hash(key).value];
+        item := data[hash(key)];
         while(item != null) {
             if(same_key(item.key, key)) return item;
             item = item.next;
@@ -144,9 +153,9 @@ class hash_map<k base _object_, v base _object_> {
             return false;
         }
 
-        if(size >= max_size.value) resize();
+        if(size >= max_size) resize();
 
-        index : var = hash(key).value;
+        index : _int64 = hash(key);
         added := new entry<k,v?>(key, value);
         added.next = data[index];
         data[index] = added;
@@ -160,7 +169,7 @@ class hash_map<k base _object_, v base _object_> {
      * @return true when the key was removed, false when the map did not have it
      */
     public def remove(key: k) : bool {
-        index : var = hash(key).value;
+        index : _int64 = hash(key);
         previous : entry<k,v?>? = null;
         item := data[index];
         while(item != null) {
@@ -179,7 +188,7 @@ class hash_map<k base _object_, v base _object_> {
     /** A new list with every key, in bucket order (see the class comment). O(n). */
     public def keys() : list<k> {
         result := new list<k>();
-        for(i : var = 0; i < sizeof(data); i++) {
+        for(i : _int64 = 0; i < sizeof(data); i++) {
             item := data[i];
             while(item != null) {
                 result.add(item.key);
@@ -195,7 +204,7 @@ class hash_map<k base _object_, v base _object_> {
      */
     public def values() : list<v> {
         result := new list<v>();
-        for(i : var = 0; i < sizeof(data); i++) {
+        for(i : _int64 = 0; i < sizeof(data); i++) {
             item := data[i];
             while(item != null) {
                 if(item.value != null) result.add(item.value!!);
@@ -214,7 +223,7 @@ class hash_map<k base _object_, v base _object_> {
      */
     public def entries() : list<pair<k, v> > {
         result := new list<pair<k, v> >();
-        for(i : var = 0; i < sizeof(data); i++) {
+        for(i : _int64 = 0; i < sizeof(data); i++) {
             item := data[i];
             while(item != null) {
                 if(item.value != null) result.add(new pair<k, v>(item.key, item.value!!));

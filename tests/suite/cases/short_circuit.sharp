@@ -7,12 +7,12 @@ import ( testing )
  * numbers, bool / int objects, or functions returning them.
  */
 
-calls : var = 0;
+calls : decimal = 0;
 
 def counted_true(): bool { calls++; return true; }
 def counted_false(): bool { calls++; return false; }
-def boxed(v: var): int { return v; }
-def native_true(): var { calls++; return 1; }
+def boxed(v: decimal): int { return v; }
+def native_true(): decimal { calls++; return 1; }
 
 def main(args: string[]) {
     calls = 0;
@@ -43,14 +43,14 @@ def main(args: string[]) {
     expect("bool variables on the left", calls, 0);
 
     calls = 0;
-    zero : var = 0;
+    zero : decimal = 0;
     if(zero && native_true()) { fail("0 && f()", "the body ran"); }
     if(zero == 0 || native_true()) { } else { fail("1 || f()", "the else ran"); }
     expect("native numbers on the left", calls, 0);
 
-    items : var[] = new var[3];
-    i : var = 3;
-    hit : var = 0;
+    items : decimal[] = new decimal[3];
+    i : decimal = 3;
+    hit : decimal = 0;
     try { if(i < 3 && items[i] == 0) { hit = 1; } } catch(e: exception) { hit = 2; }
     expect("the usual bounds guard does not read past the end", hit, 0);
 

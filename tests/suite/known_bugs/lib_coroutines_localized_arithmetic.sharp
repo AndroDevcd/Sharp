@@ -15,15 +15,15 @@ import ( testing )
  *           the number differs from program to program); the other two pass.
  */
 
-localized direct : var;
-localized through_local : var;
+localized direct : decimal;
+localized through_local : decimal;
 
-def add_direct(n: var) {
+def add_direct(n: decimal) {
     direct = direct + n;
 }
 
-def add_through_local(n: var) {
-    current : var = through_local;
+def add_through_local(n: decimal) {
+    current : decimal = through_local;
     current = current + n;
     through_local = current;
 }

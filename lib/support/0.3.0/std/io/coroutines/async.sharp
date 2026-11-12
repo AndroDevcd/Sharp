@@ -23,7 +23,7 @@ mod std.io.coroutines;
  * ALSO cancels the parent scope, unless that is a supervisor (supervisor_scope,
  * global_scope).
  *
- * `t` must be an object type: async<int>, not async<var>.
+ * `t` must be an object type: async<int>, not async<decimal>.
  *
  * Kotlin equivalent: async { }.  C++ equivalent: std::async on a fiber.
  *

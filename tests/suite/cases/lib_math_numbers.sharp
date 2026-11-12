@@ -49,7 +49,7 @@ def check_complex() {
     expect_true("!=", (a != b).value);
     expect_true("approx_equals", a.approx_equals(new complex(3.0000001, 4), 0.000001).value);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { a / complex.zero(); } catch(e: division_by_zero_exception) { caught++; }
     try { a / 0; } catch(e: division_by_zero_exception) { caught++; }
     try { complex.zero().reciprocal(); } catch(e: division_by_zero_exception) { caught++; }
@@ -131,7 +131,7 @@ def check_fraction() {
     expect("zero", fraction.zero().numerator, 0);
     expect("one", fraction.one().numerator, 1);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { new fraction(1, 0); } catch(e: division_by_zero_exception) { caught++; }
     try { new fraction(1.5, 2); } catch(e: illegal_argument_exception) { caught++; }
     try { fraction.of(2.5); } catch(e: illegal_argument_exception) { caught++; }
@@ -168,7 +168,7 @@ def check_fraction() {
     // ten times one tenth is exactly one (it is not in floating point)
     total := fraction.zero();
     tenth := new fraction(1, 10);
-    for(i : var = 0; i < 10; i++) {
+    for(i : decimal = 0; i < 10; i++) {
         total = total + tenth;
     }
     expect_true("ten tenths are exactly one", (total == fraction.one()).value);

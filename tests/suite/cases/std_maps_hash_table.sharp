@@ -12,9 +12,9 @@ import ( testing )
 
 class city {
     name : string = "";
-    population : var = 0;
+    population : decimal = 0;
 
-    city(city_name: string, people: var) {
+    city(city_name: string, people: decimal) {
         name = city_name;
         population = people;
     }
@@ -97,8 +97,8 @@ def main(args: string[]) {
 
     // ================= many entries
     squares := new hash_table<int, int>();
-    new_keys : var = 0;
-    for(i : var = 0; i < 500; i++) {
+    new_keys : decimal = 0;
+    for(i : decimal = 0; i < 500; i++) {
         if(squares.put(i, i * i).value) new_keys++;
     }
     expect("500 puts: every key was new", new_keys, 500);
@@ -106,15 +106,15 @@ def main(args: string[]) {
     expect("500 puts: at(0)", squares.at(0)!!.value, 0);
     expect("500 puts: at(321)", squares.at(321)!!.value, 103041);
     expect("500 puts: at(499)", squares.at(499)!!.value, 249001);
-    sum : var = 0;
-    for(i : var = 0; i < 500; i++) {
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 500; i++) {
         sum += squares.at(i)!!.value;
     }
     expect("500 puts: the sum of all values", sum, 41541750);
 
     // remove every second key
-    removed : var = 0;
-    for(i : var = 0; i < 500; i += 2) {
+    removed : decimal = 0;
+    for(i : decimal = 0; i < 500; i += 2) {
         if(squares.remove(i).value) removed++;
     }
     expect("250 removes all found their key", removed, 250);
@@ -129,12 +129,12 @@ def main(args: string[]) {
     small.put("c", 3);
     expect("keys(): one per entry", small.keys().size().value, 3);
     expect("values(): one per entry", small.values().size().value, 3);
-    total : var = 0;
+    total : decimal = 0;
     foreach(v in small.values()) {
         total += v.value;
     }
     expect("values(): 1 + 2 + 3", total, 6);
-    found : var = 0;
+    found : decimal = 0;
     foreach(k in small.keys()) {
         if(k == "a" || k == "b" || k == "c") found++;
     }

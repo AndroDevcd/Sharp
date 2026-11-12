@@ -18,10 +18,10 @@ import ( testing )
  */
 
 class point {
-    x : var = 0;
-    y : var = 0;
+    x : decimal = 0;
+    y : decimal = 0;
 
-    point(px: var, py: var) {
+    point(px: decimal, py: decimal) {
         x = px;
         y = py;
     }
@@ -29,23 +29,23 @@ class point {
 
 // ---- a class that implements unique
 class badge : unique {
-    number : var = 0;
+    number : decimal = 0;
 
-    badge(n: var) { number = n; }
+    badge(n: decimal) { number = n; }
 
     override def hash() : int { return number * 31; }
     override def guid() : int { return number; }
 }
 
-def hash_of(u: unique): var {
+def hash_of(u: unique): decimal {
     return u.hash().value;
 }
 
 // ---- for deferred_init: a function that makes the value and counts how often it ran
 class settings {
-    port : var = 0;
+    port : decimal = 0;
 
-    settings(p: var) { port = p; }
+    settings(p: decimal) { port = p; }
 }
 
 times_made := new int(0);
@@ -56,9 +56,9 @@ def make_settings(): settings {
 }
 
 // ---- functions that give back several values at once
-def min_and_max(a: var, b: var, c: var): pair<int, int> {
-    low : var = a;
-    high : var = a;
+def min_and_max(a: decimal, b: decimal, c: decimal): pair<int, int> {
+    low : decimal = a;
+    high : decimal = a;
     if(b < low) low = b;
     if(c < low) low = c;
     if(b > high) high = b;
@@ -67,7 +67,7 @@ def min_and_max(a: var, b: var, c: var): pair<int, int> {
 }
 
 /** a division that reports a zero divisor as an error instead of throwing */
-def checked_divide(a: var, b: var): result<double, exception> {
+def checked_divide(a: decimal, b: decimal): result<double, exception> {
     if(b == 0) {
         return new result<double, exception>(0, new illegal_argument_exception("division by zero"));
     }
@@ -191,8 +191,8 @@ def main(args: string[]) {
     expect_str("to_string gives the text back", hello.to_string(), "hello");
 
     // foreach goes through the characters: h + e + l + l + o = 104 + 101 + 108 + 108 + 111
-    sum : var = 0;
-    count : var = 0;
+    sum : decimal = 0;
+    count : decimal = 0;
     foreach(c in hello) {
         sum += c;
         count++;
@@ -201,7 +201,7 @@ def main(args: string[]) {
     expect("foreach over a char_array: sum of the character codes", sum, 532);
 
     // from an array of numbers (character codes)
-    codes := new var[3];
+    codes := new decimal[3];
     codes[0] = 'a';
     codes[1] = 'b';
     codes[2] = 'c';
@@ -247,43 +247,43 @@ def main(args: string[]) {
     expect("time_unit.nanoseconds", time_unit.nanoseconds.ordinal, 3);
 
     // ================= random numbers: always inside the range that was asked for
-    outside : var = 0;
-    fractions : var = 0;
-    for(i : var = 0; i < 2000; i++) {
-        r : var = rand().value;                         // 0 .. 1
+    outside : decimal = 0;
+    fractions : decimal = 0;
+    for(i : decimal = 0; i < 2000; i++) {
+        r : decimal = rand().value;                         // 0 .. 1
         if(r < 0 || r > 1) outside++;
 
-        k : var = rand_int(5, 10).value;                // a whole number, 5 .. 10
+        k : decimal = rand_int(5, 10).value;                // a whole number, 5 .. 10
         if(k < 5 || k > 10) outside++;
         if(k % 1 != 0) fractions++;
 
-        d : var = rand_double(2, 3).value;              // 2 .. 3
+        d : decimal = rand_double(2, 3).value;              // 2 .. 3
         if(d < 2 || d > 3) outside++;
 
-        n : var = rand_int(0 - 3, 3).value;             // a range around zero
+        n : decimal = rand_int(0 - 3, 3).value;             // a range around zero
         if(n < 0 - 3 || n > 3) outside++;
 
-        big : var = rand_int().value;                   // 0 .. 1e9
+        big : decimal = rand_int().value;                   // 0 .. 1e9
         if(big < 0 || big > 1000000000) outside++;
 
-        wide : var = rand_double().value;               // 0 .. 1e9
+        wide : decimal = rand_double().value;               // 0 .. 1e9
         if(wide < 0 || wide > 1000000000) outside++;
     }
     expect("12000 random numbers, none outside its range", outside, 0);
     expect("rand_int gives whole numbers", fractions, 0);
 
-    one_value : var = rand_int(7, 7).value;
+    one_value : decimal = rand_int(7, 7).value;
     expect("rand_int(7, 7) can only be 7", one_value, 7);
 
     // the same seed gives the same numbers again
     set_seed(1234);
-    a1 : var = rand_int(0, 1000000).value;
-    a2 : var = rand_int(0, 1000000).value;
-    a3 : var = rand().value;
+    a1 : decimal = rand_int(0, 1000000).value;
+    a2 : decimal = rand_int(0, 1000000).value;
+    a3 : decimal = rand().value;
     set_seed(1234);
-    b1 : var = rand_int(0, 1000000).value;
-    b2 : var = rand_int(0, 1000000).value;
-    b3 : var = rand().value;
+    b1 : decimal = rand_int(0, 1000000).value;
+    b2 : decimal = rand_int(0, 1000000).value;
+    b3 : decimal = rand().value;
     expect_true("same seed: first number repeats", a1 == b1);
     expect_true("same seed: second number repeats", a2 == b2);
     expect_true("same seed: third number (a double) repeats", a3 == b3);

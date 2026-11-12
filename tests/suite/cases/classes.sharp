@@ -10,33 +10,33 @@ import ( testing )
 
 /* fields with and without an initial value, no constructor written */
 class defaults {
-    plain : var;                    // no initial value: starts at 0
-    with_value : var = 7;
-    fraction : var = 2.5;
-    negative : var = 0 - 3;
-    from_expression : var = 6 * 7;
+    plain : decimal;                    // no initial value: starts at 0
+    with_value : decimal = 7;
+    fraction : decimal = 2.5;
+    negative : decimal = 0 - 3;
+    from_expression : decimal = 6 * 7;
     text : string = "start";
     other : defaults?;              // no initial value: starts as null (`?` = may be null,
                                     // and is then read with `!!.`)
-    numbers : var[]?;               // no initial value: starts as null
+    numbers : decimal[]?;               // no initial value: starts as null
 }
 
 /* several constructors, chosen by the arguments */
 class point {
-    x : var = 0;
-    y : var = 0;
+    x : decimal = 0;
+    y : decimal = 0;
 
     point() {
         x = 1;
         y = 1;
     }
 
-    point(both: var) {
+    point(both: decimal) {
         x = both;
         y = both;
     }
 
-    point(px: var, py: var) {
+    point(px: decimal, py: decimal) {
         x = px;
         y = py;
     }
@@ -46,28 +46,28 @@ class point {
         y = other.y;
     }
 
-    def sum(): var {
+    def sum(): decimal {
         return x + y;
     }
 
     /* a method that changes the object it is called on */
-    def move_by(dx: var, dy: var) {
+    def move_by(dx: decimal, dy: decimal) {
         x += dx;
         y += dy;
     }
 
-    def scale(factor: var) {
+    def scale(factor: decimal) {
         x = x * factor;
         y = y * factor;
     }
 
     /* a method that calls other methods of the same object */
-    def sum_after_move(dx: var, dy: var): var {
+    def sum_after_move(dx: decimal, dy: decimal): decimal {
         move_by(dx, dy);
         return sum();
     }
 
-    def equals_point(other: point): var {
+    def equals_point(other: point): decimal {
         return x == other.x && y == other.y;
     }
 
@@ -77,7 +77,7 @@ class point {
     }
 
     /* a method that returns the object it was called on, so calls can be chained */
-    def moved(dx: var, dy: var): point {
+    def moved(dx: decimal, dy: decimal): point {
         move_by(dx, dy);
         return self;
     }
@@ -85,22 +85,22 @@ class point {
 
 /* `self` tells a field from a parameter with the same name */
 class account {
-    balance : var = 0;
+    balance : decimal = 0;
     owner : string = "";
-    deposits : var = 0;
+    deposits : decimal = 0;
 
-    account(owner: string, balance: var) {
+    account(owner: string, balance: decimal) {
         self->owner = owner;
         self->balance = balance;
     }
 
-    def deposit(amount: var) {
+    def deposit(amount: decimal) {
         self->balance = self->balance + amount;
         deposits++;
     }
 
     /* returns 1 and takes the money if there is enough, otherwise 0 */
-    def withdraw(amount: var): var {
+    def withdraw(amount: decimal): decimal {
         if(amount > balance) {
             return 0;
         }
@@ -108,7 +108,7 @@ class account {
         return 1;
     }
 
-    def transfer_to(other: account, amount: var): var {
+    def transfer_to(other: account, amount: decimal): decimal {
         if(withdraw(amount)) {
             other.deposit(amount);
             return 1;
@@ -123,11 +123,11 @@ class account {
 
 /* a constructor can do work, not only copy its arguments */
 class range {
-    low : var = 0;
-    high : var = 0;
-    length : var = 0;
+    low : decimal = 0;
+    high : decimal = 0;
+    length : decimal = 0;
 
-    range(a: var, b: var) {
+    range(a: decimal, b: decimal) {
         if(a < b) {
             low = a;
             high = b;
@@ -138,7 +138,7 @@ class range {
         length = high - low;
     }
 
-    def contains(n: var): var {
+    def contains(n: decimal): decimal {
         return n >= low && n <= high;
     }
 }
@@ -153,30 +153,30 @@ class line {
         to = b;
     }
 
-    def width(): var {
+    def width(): decimal {
         return to.x - from.x;
     }
 }
 
 class stack {
-    items : var[];
-    count : var = 0;
+    items : decimal[];
+    count : decimal = 0;
 
-    stack(capacity: var) {
-        items = new var[capacity];
+    stack(capacity: decimal) {
+        items = new decimal[capacity];
     }
 
-    def push(n: var) {
+    def push(n: decimal) {
         items[count] = n;
         count++;
     }
 
-    def pop(): var {
+    def pop(): decimal {
         count--;
         return items[count];
     }
 
-    def top(): var {
+    def top(): decimal {
         return items[count - 1];
     }
 }
@@ -186,15 +186,15 @@ class empty_class {
 }
 
 class counter {
-    count : var = 0;
+    count : decimal = 0;
 
-    def next(): var {
+    def next(): decimal {
         count++;
         return count;
     }
 }
 
-def sum_of(p: point): var {
+def sum_of(p: point): decimal {
     return p.x + p.y;
 }
 
@@ -203,7 +203,7 @@ def reset(p: point) {
     p.y = 0;
 }
 
-def make_point(n: var): point {
+def make_point(n: decimal): point {
     return new point(n, n * 2);
 }
 
@@ -232,7 +232,7 @@ def main(args: string[]) {
     d.with_value = d.with_value + 1;
     d.text = "changed";
     d.other = new defaults();
-    d.numbers = new var[] { 5, 6 };
+    d.numbers = new decimal[] { 5, 6 };
     expect("write then read a field", d.plain, 11);
     expect("change a field using its old value", d.with_value, 8);
     expect_str("write a string field", d.text, "changed");
@@ -251,7 +251,7 @@ def main(args: string[]) {
     p0 := new point();
     expect("constructor with no arguments: x", p0.x, 1);
     expect("constructor with no arguments: y", p0.y, 1);
-    five : var = 5;
+    five : decimal = 5;
     p1 := new point(five);
     expect("constructor with one number: x", p1.x, 5);
     expect("constructor with one number: y", p1.y, 5);
@@ -322,9 +322,9 @@ def main(args: string[]) {
 
     // ---- many objects in an array
     counters : counter[] = new counter[5];
-    for(i : var = 0; i < 5; i++) {
+    for(i : decimal = 0; i < 5; i++) {
         counters[i] = new counter();
-        for(j : var = 0; j < i * 2; j++) {
+        for(j : decimal = 0; j < i * 2; j++) {
             counters[i].next();
         }
     }

@@ -33,9 +33,9 @@ class template {
     private values : list<string> = new list<string>();
 
     /* what to do about a placeholder without a value */
-    private strict : var = 0;
+    private strict : decimal = 0;
     private missing_value : string = "";
-    private has_missing_value : var = 0;
+    private has_missing_value : decimal = 0;
 
     /** A template with the given text and no values yet. */
     template(text: string) {
@@ -43,16 +43,16 @@ class template {
     }
 
     /** Index of `name` in names, or -1. */
-    private def find(name: string): var {
-        count : var = names.size().value;
-        for(i : var = 0; i < count; i++) {
+    private def find(name: string): decimal {
+        count : decimal = names.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(names.at(i) == name) return i;
         }
         return -1;
     }
 
     /** 1 if `c` may be part of a placeholder name. */
-    private static def is_name_char(c: var): var {
+    private static def is_name_char(c: decimal): decimal {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
             || c == '_' || c == '.' || c == '-';
     }
@@ -66,7 +66,7 @@ class template {
         if(sizeof(name.data) == 0)
             throw new ill_arg_except("put: the placeholder name cannot be empty");
 
-        at : var = find(name);
+        at : decimal = find(name);
         if(at >= 0) {
             values.put(at, value);
         } else {
@@ -77,12 +77,12 @@ class template {
     }
 
     /** put with a whole number as the value, written without decimals: put_int("count", 3) fills in "3". */
-    def put_int(name: string, value: var): template {
+    def put_int(name: string, value: decimal): template {
         return put(name, number_format.integer(value));
     }
 
     /** put with a number as the value, written with exactly `decimals` decimals: put_number("price", 9.5, 2) fills in "9.50". */
-    def put_number(name: string, value: var, decimals: int): template {
+    def put_number(name: string, value: decimal, decimals: int): template {
         return put(name, number_format.fixed(value, decimals));
     }
 
@@ -91,30 +91,30 @@ class template {
      * Throws illegal_argument_exception if the arrays have different lengths.
      */
     def put_all(new_names: string[], new_values: string[]): template {
-        count : var = sizeof(new_names);
+        count : decimal = sizeof(new_names);
         if(count != sizeof(new_values))
             throw new ill_arg_except("put_all: there must be as many values as names");
-        for(i : var = 0; i < count; i++) {
+        for(i : decimal = 0; i < count; i++) {
             put(new_names[i], new_values[i]);
         }
         return self;
     }
 
     /** 1 if a value has been set for `name`. */
-    def has(name: string): var {
+    def has(name: string): decimal {
         return find(name) >= 0;
     }
 
     /** The value set for `name`, or `fallback` if there is none. */
     def value_of(name: string, fallback: string): string {
-        at : var = find(name);
+        at : decimal = find(name);
         if(at < 0) return fallback;
         return values.at(at);
     }
 
     /** Forgets the value of `name` (nothing happens if it has none). Returns this template. */
     def remove(name: string): template {
-        at : var = find(name);
+        at : decimal = find(name);
         if(at >= 0) {
             names.remove_at(at);
             values.remove_at(at);
@@ -157,12 +157,12 @@ class template {
      * If a placeholder starts at the '{' at position `open`, returns the
      * position of its closing '}'; otherwise -1.
      */
-    private def placeholder_end(open: var): var {
+    private def placeholder_end(open: decimal): decimal {
         d := text.data;
-        n : var = sizeof(d);
-        i : var = open + 1;
+        n : decimal = sizeof(d);
+        i : decimal = open + 1;
         while(i < n && d[i] == ' ') { i++; }
-        name_start : var = i;
+        name_start : decimal = i;
         while(i < n && is_name_char(d[i])) { i++; }
         if(i == name_start) return -1;
         while(i < n && d[i] == ' ') { i++; }
@@ -171,10 +171,10 @@ class template {
     }
 
     /** The name inside the placeholder that runs from the '{' at `open` to the '}' at `close`. */
-    private def placeholder_name(open: var, close: var): string {
+    private def placeholder_name(open: decimal, close: decimal): string {
         d := text.data;
-        from : var = open + 1;
-        to : var = close;
+        from : decimal = open + 1;
+        to : decimal = close;
         while(from < to && d[from] == ' ') { from++; }
         while(to > from && d[to - 1] == ' ') { to--; }
         return new string(d!!, from, to);
@@ -187,21 +187,21 @@ class template {
     def placeholders(): string[] {
         found := new list<string>();
         d := text.data;
-        n : var = sizeof(d);
-        i : var = 0;
+        n : decimal = sizeof(d);
+        i : decimal = 0;
         while(i < n) {
-            c : var = d[i];
+            c : decimal = d[i];
             if(c == '{' && i + 1 < n && d[i + 1] == '{') {
                 i += 2;
             } else if(c == '{') {
-                close : var = placeholder_end(i);
+                close : decimal = placeholder_end(i);
                 if(close < 0) {
                     i++;
                 } else {
                     name := placeholder_name(i, close);
-                    known : var = 0;
-                    count : var = found.size().value;
-                    for(k : var = 0; k < count; k++) {
+                    known : decimal = 0;
+                    count : decimal = found.size().value;
+                    for(k : decimal = 0; k < count; k++) {
                         if(found.at(k) == name) known = 1;
                     }
                     if(!known) found.add(name);
@@ -223,11 +223,11 @@ class template {
      */
     def render(): string {
         d := text.data;
-        n : var = sizeof(d);
+        n : decimal = sizeof(d);
         out := new text_buffer();
-        i : var = 0;
+        i : decimal = 0;
         while(i < n) {
-            c : var = d[i];
+            c : decimal = d[i];
             if(c == '{' && i + 1 < n && d[i + 1] == '{') {
                 out.append_char('{');
                 i += 2;
@@ -235,13 +235,13 @@ class template {
                 out.append_char('}');
                 i += 2;
             } else if(c == '{') {
-                close : var = placeholder_end(i);
+                close : decimal = placeholder_end(i);
                 if(close < 0) {
                     out.append_char(c);                 // not a placeholder: an ordinary brace
                     i++;
                 } else {
                     name := placeholder_name(i, close);
-                    at : var = find(name);
+                    at : decimal = find(name);
                     if(at >= 0) {
                         out.append(values.at(at));
                     } else if(strict) {

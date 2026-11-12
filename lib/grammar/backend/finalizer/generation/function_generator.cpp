@@ -60,7 +60,7 @@ void generate_initial_closure_setup(sharp_function *sf) {
 
             add_instruction(Opcode::Builder::movg(closureRef->owner->ci->address));
             add_instruction(Opcode::Builder::movn(closureRef->ci->address));
-            add_instruction(Opcode::Builder::movn(closure->ci->address));
+            move_to_field(closure);
 
             set_machine_data(closure, false);
             pop_machine_data_from_stack();

@@ -25,10 +25,10 @@ mod std.text;
 class string_tokenizer {
     private text : string = "";
     private delimiters : string = " \t\n\r";
-    private return_delimiters : var = 0;
+    private return_delimiters : decimal = 0;
 
     /* position of the next character to look at */
-    private position : var = 0;
+    private position : decimal = 0;
 
     /** A tokenizer over `text` that splits at whitespace. */
     string_tokenizer(text: string) {
@@ -53,19 +53,19 @@ class string_tokenizer {
     }
 
     /** 1 if the character `c` is one of the delimiters. */
-    private def is_delimiter(c: var): var {
-        m : var = sizeof(delimiters.data);
-        for(j : var = 0; j < m; j++) {
+    private def is_delimiter(c: decimal): decimal {
+        m : decimal = sizeof(delimiters.data);
+        for(j : decimal = 0; j < m; j++) {
             if(delimiters.data[j] == c) return 1;
         }
         return 0;
     }
 
     /** Position of the start of the next token at or after `from` (the length of the text if there is none). */
-    private def skip_delimiters(from: var): var {
+    private def skip_delimiters(from: decimal): decimal {
         if(return_delimiters) return from;      // delimiters are tokens themselves: nothing to skip
 
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         while(from < n && is_delimiter(text.data[from])) {
             from++;
         }
@@ -73,8 +73,8 @@ class string_tokenizer {
     }
 
     /** Position just after the token that starts at `from`. */
-    private def scan_token(from: var): var {
-        n : var = sizeof(text.data);
+    private def scan_token(from: decimal): decimal {
+        n : decimal = sizeof(text.data);
         if(return_delimiters && from < n && is_delimiter(text.data[from])) return from + 1;
 
         while(from < n && !is_delimiter(text.data[from])) {
@@ -84,7 +84,7 @@ class string_tokenizer {
     }
 
     /** 1 if there is at least one more token. Does not move forward. */
-    def has_more_tokens(): var {
+    def has_more_tokens(): decimal {
         return skip_delimiters(position) < sizeof(text.data);
     }
 
@@ -93,11 +93,11 @@ class string_tokenizer {
      * Throws no_such_element_exception if there are no more tokens.
      */
     def next_token(): string {
-        start : var = skip_delimiters(position);
+        start : decimal = skip_delimiters(position);
         if(start >= sizeof(text.data))
             throw new no_such_element_exception("next_token: there are no more tokens");
 
-        end : var = scan_token(start);
+        end : decimal = scan_token(start);
         position = end;
         return new string(text.data!!, start, end);
     }
@@ -119,10 +119,10 @@ class string_tokenizer {
     }
 
     /** How many tokens next_token() can still return. Does not move forward. */
-    def count_tokens(): var {
-        n : var = sizeof(text.data);
-        total : var = 0;
-        at : var = skip_delimiters(position);
+    def count_tokens(): decimal {
+        n : decimal = sizeof(text.data);
+        total : decimal = 0;
+        at : decimal = skip_delimiters(position);
         while(at < n) {
             total++;
             at = skip_delimiters(scan_token(at));
@@ -135,7 +135,7 @@ class string_tokenizer {
      * (including the delimiters in front of the next token). "" at the end.
      */
     def remaining(): string {
-        n : var = sizeof(text.data);
+        n : decimal = sizeof(text.data);
         if(position >= n) return new string();
         return new string(text.data!!, position, n);
     }
@@ -143,7 +143,7 @@ class string_tokenizer {
     /** All remaining tokens as an array; the tokenizer is at the end afterwards. No tokens gives an array of length 0. */
     def to_array(): string[] {
         result := new string[count_tokens()];
-        i : var = 0;
+        i : decimal = 0;
         while(has_more_tokens()) {
             result[i++] = next_token();
         }

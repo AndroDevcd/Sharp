@@ -18,7 +18,7 @@
 // is hard coded: the constructor's bytecode is EXECUTED SYMBOLICALLY here, calls
 // included, and it qualifies only if the one and only thing it does is
 //
-//     self.<field 0> = <optional integer casts>(the number argument)
+//     self.<one number field> = <optional casts and conversions>(the number argument)
 //
 // (`stores_value`), or nothing at all (`no_effect`, e.g. the empty init<T>()
 // functions). Any instruction the executor does not understand, any other heap
@@ -29,9 +29,9 @@
 //
 // ONE ASSUMPTION
 //   Constructors start with "run the class's static initializer if it has not
-//   run yet" (a hidden static flag, field 0 of the class's static object):
+//   run yet" (a hidden static flag, number slot 0 of the class's static object):
 //
-//       movg  @Class ; movn #0 ; iload cmt ; je <skip> ; call static_init<Class>
+//       movg  @Class ; getf cmt, slot 0 ; je <skip> ; call static_init<Class>
 //
 //   The executor takes the flag to be SET. That is what happens at run time:
 //   the program's start-up function static_init() calls the static initializer
@@ -50,13 +50,15 @@ struct program_ir;
 enum box_effect : uint8_t {
     box_unknown,        // not understood: the object must be treated as escaping
     box_no_effect,      // f(self): does nothing observable
-    box_stores_value    // f(self, number): self.field[0] = casts(number), nothing else
+    box_stores_value    // f(self, number): self.<number slot> = casts(number), nothing else
 };
 
 struct box_summary {
     box_effect effect = box_unknown;
-    /** the MOV8 / MOVU16 / ... opcodes applied to the argument before it is stored, in order */
+    /** the MOV8 / MOVU16 / I2D / D2I ... opcodes applied to the argument before it is stored, in order */
     std::vector<uint8_t> casts;
+    /** box_stores_value: the number slot of the object the value goes to (the b of its PUTF) */
+    int slot = 0;
 };
 
 /** Summary of calling the function at `address` on a tracked object. Results are cached in `program`. */

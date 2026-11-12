@@ -28,14 +28,14 @@ mutate file {
      * they are called on. Far more than any real tree; the limit only ends
      * a walk around a directory that (through a link) contains itself.
      */
-    private static const walk_depth : var = 1000;
+    private static const walk_depth : decimal = 1000;
 
     /** the size of the file in bytes; 0 for a directory and for a path that does not exist */
-    def size() : var {
+    def size() : decimal {
         if(!is_file()) {
             return 0;
         }
-        bytes : var = file_natives.size(path);
+        bytes : decimal = file_natives.size(path);
         if(bytes < 0) {
             return 0;
         }
@@ -112,7 +112,7 @@ mutate file {
         }
 
         // create them from the top down
-        for(i : var = missing.size().value - 1; i >= 0; i--) {
+        for(i : decimal = missing.size().value - 1; i >= 0; i--) {
             dir := missing.at(i);
             dir.mkdir();
             if(!dir.is_directory()) {
@@ -150,8 +150,8 @@ mutate file {
 
         result := new list<file>();
         names := directory_listing.names(path);
-        count : var = names.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = names.size().value;
+        for(i : decimal = 0; i < count; i++) {
             result.add(new file(file_natives.join(path, names.at(i))));
         }
         return result;
@@ -166,8 +166,8 @@ mutate file {
     def list_files(accept: (file)(bool)) : list<file> {
         all := list_files();
         result := new list<file>();
-        count : var = all.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = all.size().value;
+        for(i : decimal = 0; i < count; i++) {
             entry := all.at(i);
             if(accept(entry)) {
                 result.add(entry);
@@ -200,7 +200,7 @@ mutate file {
      * The number of bytes in this file, or in all files below this
      * directory added up. 0 for a path that does not exist.
      */
-    def tree_size() : var {
+    def tree_size() : decimal {
         if(!exists()) {
             return 0;
         }
@@ -208,11 +208,11 @@ mutate file {
             return size();
         }
 
-        total : var = 0;
+        total : decimal = 0;
         walker := new directory_walker(self).set_max_depth(walk_depth).files_only();
         while(walker.has_next()) {
             entry := walker.next();
-            bytes : var = file_natives.size(entry.path);
+            bytes : decimal = file_natives.size(entry.path);
             if(bytes > 0) {
                 total += bytes;
             }
@@ -245,7 +245,7 @@ mutate file {
 
         while(pending.size().value > 0) {
             top := pending.last();
-            was_opened : var = opened.last().value;
+            was_opened : decimal = opened.last().value;
             if(file_natives.delete_file(top) == 0) {
                 pending.pop_back();
                 opened.pop_back();
@@ -257,7 +257,7 @@ mutate file {
                 continue;
             }
             top_file := new file(top);
-            is_dir : var = top_file.is_directory().value;
+            is_dir : decimal = top_file.is_directory().value;
             if(was_opened || !is_dir) {
                 // cannot be deleted (or is not there): give up on this one
                 pending.pop_back();
@@ -267,8 +267,8 @@ mutate file {
 
             opened.put(opened.size().value - 1, new int(1));
             names := directory_listing.names(top);
-            count : var = names.size().value;
-            for(i : var = 0; i < count; i++) {
+            count : decimal = names.size().value;
+            for(i : decimal = 0; i < count; i++) {
                 pending.add(file_natives.join(top, names.at(i)));
                 opened.add(new int(0));
             }
@@ -321,8 +321,8 @@ mutate file {
         // refuse to copy a directory into itself: that would never end
         from := file_natives.absolute(path);
         to := file_natives.absolute(dest.path);
-        sep : var = file_natives.separator();
-        inside : var = 0;
+        sep : decimal = file_natives.separator();
+        inside : decimal = 0;
         if(io_strings.equals(from, to)) {
             inside = 1;
         } else if(io_strings.starts_with(to, from)) {
@@ -335,7 +335,7 @@ mutate file {
         }
 
         walker := new directory_walker(self).set_max_depth(walk_depth);
-        prefix : var = sizeof(path.data);
+        prefix : decimal = sizeof(path.data);
         if(path.data[prefix - 1] != sep) {
             prefix++;
         }

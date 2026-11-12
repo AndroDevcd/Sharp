@@ -16,11 +16,11 @@ import (
  *
  *     launch(numbers, { s: object ->                   // the producer (state object: THE CLOSURE RULE)
  *         out := s as channel<int>;
- *         for(i : var = 0; i < 100; i++) { out.send(i); }
+ *         for(i : decimal = 0; i < 100; i++) { out.send(i); }
  *         out.close();
  *     });
  *
- *     total : var = 0;
+ *     total : decimal = 0;
  *     for( ;; ) {                                      // the consumer
  *         n := numbers.receive_or_null();
  *         if(n == null) { break; }                     // closed and empty
@@ -42,7 +42,7 @@ import (
  *   cancel()  close() from the consumer side: also throws away what is in the
  *             channel and makes waiting senders fail.
  *
- * `t` must be an object type (channel<int>, not channel<var>).
+ * `t` must be an object type (channel<int>, not channel<decimal>).
  *
  * Kotlin equivalent: kotlinx.coroutines.channels.Channel<E>.
  * Java equivalent: java.util.concurrent.BlockingQueue (SynchronousQueue,
@@ -66,16 +66,16 @@ class channel<t> : send_channel<t>, receive_channel<t> {
 
     private lk : object = lock_stripes.next();
     /** 0 rendezvous, n > 0 buffered, -1 unlimited, -2 conflated (see `channels`) */
-    private capacity : var = 0;
+    private capacity : decimal = 0;
     /** 1 for channels.UNLIMITED */
-    private unlimited : var = 0;
+    private unlimited : decimal = 0;
     /** 1 for channels.CONFLATED */
-    private conflated : var = 0;
+    private conflated : decimal = 0;
     private buffer : deque<t> = new deque<t>();
     private senders : wait_queue = new wait_queue();
     private receivers : wait_queue = new wait_queue();
-    private closed : var = 0;
-    private cancelled : var = 0;
+    private closed : decimal = 0;
+    private cancelled : decimal = 0;
 
     /** A rendezvous channel: every send waits for a receive. Kotlin: Channel() */
     channel() {}
@@ -85,7 +85,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
      *                 or channels.CONFLATED
      * @throws illegal_argument_exception for any other negative number
      */
-    channel(capacity: var) {
+    channel(capacity: decimal) {
         // (compared with the named constants: a negative literal inside a longer
         //  condition, like `c == -1 || ...`, is parsed as -(1 || ...))
         if(capacity < channels.CONFLATED) {
@@ -101,13 +101,13 @@ class channel<t> : send_channel<t>, receive_channel<t> {
     }
 
     /** the capacity the channel was created with */
-    def get_capacity() : var {
+    def get_capacity() : decimal {
         return capacity;
     }
 
     /** number of elements waiting in the buffer right now */
-    def size() : var {
-        count : var = 0;
+    def size() : decimal {
+        count : decimal = 0;
         lock(lk) {
             count = buffer.size();
         }
@@ -139,7 +139,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
 
         w : waiter? = null;
         taker : waiter? = null;
-        refused : var = 0;
+        refused : decimal = 0;
 
         lock(lk) {
             if(closed != 0) {
@@ -171,7 +171,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
             return;
         }
 
-        outcome : var = await_waiter(w!!, -1);
+        outcome : decimal = await_waiter(w!!, -1);
         if(outcome == 1) {          // a receiver took the element
             return;
         }
@@ -194,7 +194,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
      */
     override def try_send(value: t) : bool {
         taker : waiter? = null;
-        accepted : var = 0;
+        accepted : decimal = 0;
 
         lock(lk) {
             if(closed == 0) {
@@ -245,14 +245,14 @@ class channel<t> : send_channel<t>, receive_channel<t> {
     }
 
     /** the one implementation of receive: `strict` decides between exception and null for a closed channel */
-    private def take(strict: var) : t? {
+    private def take(strict: decimal) : t? {
         ensure_active();
 
         w : waiter? = null;
         giver : waiter? = null;
         element : object? = null;
-        have : var = 0;
-        finished : var = 0;
+        have : decimal = 0;
+        finished : decimal = 0;
 
         lock(lk) {
             if(buffer.size() > 0) {
@@ -291,7 +291,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
             return null;
         }
 
-        outcome : var = await_waiter(w!!, -1);
+        outcome : decimal = await_waiter(w!!, -1);
         if(outcome == 1) {          // a sender handed its element over
             return w!!.item as t;
         }
@@ -318,7 +318,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
     override def try_receive() : t? {
         giver : waiter? = null;
         element : object? = null;
-        have : var = 0;
+        have : decimal = 0;
 
         lock(lk) {
             if(buffer.size() > 0) {
@@ -477,7 +477,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
 
     /** true when the channel is closed and nothing is left to receive. Kotlin: isClosedForReceive */
     override def is_closed_for_receive() : bool {
-        done : var = 0;
+        done : decimal = 0;
         lock(lk) {
             if(closed != 0 && buffer.size() == 0 && senders.size() == 0) {
                 done = 1;

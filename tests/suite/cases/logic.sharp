@@ -12,26 +12,26 @@ import ( testing )
  */
 
 /** how many times touch() has been called */
-calls : var = 0;
+calls : decimal = 0;
 
 /** gives back `result`, and counts the call so a test can see that it happened */
-def touch(result: var): var {
+def touch(result: decimal): decimal {
     calls++;
     return result;
 }
 
-def both(a: var, b: var): var { return a && b; }
-def either(a: var, b: var): var { return a || b; }
-def not(a: var): var { return !a; }
+def both(a: decimal, b: decimal): decimal { return a && b; }
+def either(a: decimal, b: decimal): decimal { return a || b; }
+def not(a: decimal): decimal { return !a; }
 
 /** true when n is from low to high */
-def between(n: var, low: var, high: var): var {
+def between(n: decimal, low: decimal, high: decimal): decimal {
     return n >= low && n <= high;
 }
 
 def main(args: string[]) {
-    t : var = true;
-    f : var = false;
+    t : decimal = true;
+    f : decimal = false;
 
     // ---- and
     expect("true && true", true && true, 1);
@@ -62,8 +62,8 @@ def main(args: string[]) {
     expect("!(!f)", !(!f), 0);
 
     // ---- any number that is not 0 counts as true; the answer is always 1 or 0
-    five : var = 5;
-    zero : var = 0;
+    five : decimal = 5;
+    zero : decimal = 0;
     expect("5 && 3", five && 3, 1);
     expect("5 && 0", five && zero, 0);
     expect_true("0 || 7", zero || 7);
@@ -157,13 +157,13 @@ def main(args: string[]) {
     expect("if(t && ...) called touch", calls, 1);
 
     // ---- short circuit protects the right side (5 / 0 is never reached for)
-    divisor : var = 0;
-    safe : var = divisor != 0 && touch(10 / divisor) > 1;
+    divisor : decimal = 0;
+    safe : decimal = divisor != 0 && touch(10 / divisor) > 1;
     expect("guarded division", safe, 0);
     expect("...touch was not called", calls, 1);
 
     // ---- with comparisons
-    x : var = 15;
+    x : decimal = 15;
     expect("x > 10 && x < 20", x > 10 && x < 20, 1);
     expect("x > 10 && x < 12", x > 10 && x < 12, 0);
     expect("x < 10 || x > 12", x < 10 || x > 12, 1);
@@ -176,8 +176,8 @@ def main(args: string[]) {
     expect("(x < 0 || x > 10) && x != 13", (x < 0 || x > 10) && x != 13, 1);
 
     // ---- stored in variables
-    in_range : var = x >= 0 && x <= 100;
-    out_of_range : var = !in_range;
+    in_range : decimal = x >= 0 && x <= 100;
+    out_of_range : decimal = !in_range;
     expect("in_range", in_range, 1);
     expect("out_of_range", out_of_range, 0);
     expect("in_range && !out_of_range", in_range && !out_of_range, 1);

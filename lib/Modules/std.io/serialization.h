@@ -19,6 +19,8 @@
 #define CLASS_SECTION_BEGIN (0x002)
 #define CLASS_SECTION_END (0x1c)
 #define NULL_OBJECT (0x008)
+// a number field of a class instance: followed by the 8 bytes of its slot
+#define NUMBER_FIELD (0x009)
 #define OBJECT_ID_START (0x0)
 #define STANDARD_OBJECT (0x009)
 #define NUMERIC_OBJECT (0x3a)
@@ -34,7 +36,7 @@ struct serialize_buffer_t
 
 struct deserialize_buffer_t
 {
-    long double *buf = nullptr;
+    unsigned char *buf = nullptr;   // the bytes being read (an _int8[]'s data)
     int32_t size = 0;
     int32_t pos = -1;
     sharp_object **references = nullptr;

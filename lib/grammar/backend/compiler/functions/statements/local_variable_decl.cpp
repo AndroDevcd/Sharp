@@ -104,6 +104,9 @@ sharp_field* compile_local_variable_statement(sharp_function *parent, sharp_type
                 }
             }
 
+            // the value becomes the kind of number the variable holds (`x : var = 3`)
+            convert_number_for(e, field->type);
+
             if(field_match_result == match_initializer) {
                 APPLY_TEMP_SCHEME_WITHOUT_INJECT(5,
                     compile_initialization_call(ast, initializer_function, e, &scheme_5);

@@ -3,7 +3,7 @@ mod std.math;
 /**
  * Turning native numbers into readable text.
  *
- * Concatenating a `var` to a string prints 16 decimals ("2.5000000000000000").
+ * Concatenating a `decimal` to a string prints 16 decimals ("2.5000000000000000").
  * The classes of this module (vector2, complex, matrix ...) use
  * number_to_string() for their to_string() so that 2.5 prints as "2.5" and
  * 3 prints as "3".
@@ -22,7 +22,7 @@ mod std.math;
  * decimals (very small, e.g. 1e-20) or a whole number beyond 9 * 10^18 is
  * printed in scientific notation with 6 decimals ("1.000000e-20").
  */
-def number_to_string(v: var): string {
+def number_to_string(v: decimal): string {
     if(v != v) return "NaN";
     if((v - v) != 0) {
         if(v > 0) return "Infinity";
@@ -36,7 +36,7 @@ def number_to_string(v: var): string {
         return snprintf('e', v, 0);
     }
 
-    for(decimals : var = 1; decimals <= 17; decimals++) {
+    for(decimals : decimal = 1; decimals <= 17; decimals++) {
         text := snprintf('f', v, decimals);
         if(strtod(text).value == v) {
             return text;
@@ -52,7 +52,7 @@ def number_to_string(v: var): string {
  *
  * Throws illegal_argument_exception when decimals is negative or above 100.
  */
-def number_to_fixed(v: var, decimals: var): string {
+def number_to_fixed(v: decimal, decimals: decimal): string {
     if(decimals < 0 || decimals > 100)
         throw new illegal_argument_exception("number_to_fixed: decimals must be in 0 .. 100");
 

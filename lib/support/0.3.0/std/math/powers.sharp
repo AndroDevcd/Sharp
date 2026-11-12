@@ -9,12 +9,12 @@ mod std.math;
  */
 
 /** v * v */
-def square(v: var): var {
+def square(v: decimal): decimal {
     return v * v;
 }
 
 /** v * v * v */
-def cube(v: var): var {
+def cube(v: decimal): decimal {
     return v * v * v;
 }
 
@@ -25,13 +25,13 @@ def cube(v: var): var {
  * r = r - (r^3 - |v|) / (3 r^2) which removes the rounding error of the
  * inexact exponent 1/3, so perfect cubes come out exact.
  */
-def cbrt(v: var): var {
+def cbrt(v: decimal): decimal {
     if(v == 0 || v != v) return v;
 
-    size : var = absolute(v);
+    size : decimal = absolute(v);
     if((size - size) != 0) return v;        // +-infinity
 
-    root : var = power(size, 1.0 / 3.0);
+    root : decimal = power(size, 1.0 / 3.0);
     root = root - (root * root * root - size) / (3 * root * root);
 
     if(v < 0) return 0 - root;
@@ -44,7 +44,7 @@ def cbrt(v: var): var {
  *
  * Throws illegal_argument_exception when n is 0.
  */
-def nth_root(v: var, n: var): var {
+def nth_root(v: decimal, n: decimal): decimal {
     if(n == 0)
         throw new illegal_argument_exception("nth_root: n is 0");
 
@@ -61,23 +61,23 @@ def nth_root(v: var, n: var): var {
  * Algorithm: with m the larger and s the smaller of |x| and |y|,
  * m * sqrt(1 + (s / m)^2) - the intermediate values never exceed the result.
  */
-def hypot(x: var, y: var): var {
-    ax : var = absolute(x);
-    ay : var = absolute(y);
-    large : var = ax;
-    small : var = ay;
+def hypot(x: decimal, y: decimal): decimal {
+    ax : decimal = absolute(x);
+    ay : decimal = absolute(y);
+    large : decimal = ax;
+    small : decimal = ay;
     if(ay > ax) {
         large = ay;
         small = ax;
     }
 
     if(large == 0) return 0;
-    ratio : var = small / large;
+    ratio : decimal = small / large;
     return large * square_root(1 + ratio * ratio);
 }
 
 /** the 3D version of hypot: sqrt(x^2 + y^2 + z^2); hypot(2, 3, 6) == 7 */
-def hypot(x: var, y: var, z: var): var {
+def hypot(x: decimal, y: decimal, z: decimal): decimal {
     return hypot(hypot(x, y), z);
 }
 
@@ -88,11 +88,11 @@ def hypot(x: var, y: var, z: var): var {
  * Whole powers of two (and their reciprocals) are returned exactly: the
  * result of ln(v) / LN2 is rounded and kept when 2^rounded == v.
  */
-def log2(v: var): var {
-    result : var = ln(v) / LN2;
+def log2(v: decimal): decimal {
+    result : decimal = ln(v) / LN2;
     if((result - result) != 0) return result;       // infinite or NaN
 
-    nearest : var = round_half_away(result);
+    nearest : decimal = round_half_away(result);
     if(nearest != result && absolute(nearest - result) < 0.000000001 && power(2, nearest) == v) {
         return nearest;
     }
@@ -106,14 +106,14 @@ def log2(v: var): var {
  * Throws illegal_argument_exception when base is <= 0 or is 1 (no such
  * logarithm exists).
  */
-def log_base(v: var, base_value: var): var {
+def log_base(v: decimal, base_value: decimal): decimal {
     if(base_value <= 0 || base_value == 1)
         throw new illegal_argument_exception("log_base: the base must be positive and not 1");
     return ln(v) / ln(base_value);
 }
 
 /** 2 raised to the power v: exp2(10) == 1024 */
-def exp2(v: var): var {
+def exp2(v: decimal): decimal {
     return power(2, v);
 }
 
@@ -125,13 +125,13 @@ def exp2(v: var): var {
  *
  * Throws illegal_argument_exception when exponent is negative or not whole.
  */
-def int_pow(base_value: var, exponent: var): var {
+def int_pow(base_value: decimal, exponent: decimal): decimal {
     if(exponent < 0 || floor_of(exponent) != exponent)
         throw new illegal_argument_exception("int_pow: the exponent must be a whole number >= 0");
 
-    result : var = 1;
-    factor : var = base_value;
-    remaining : var = exponent;
+    result : decimal = 1;
+    factor : decimal = base_value;
+    remaining : decimal = exponent;
 
     while(remaining > 0) {
         if((remaining % 2) == 1) {
@@ -154,11 +154,11 @@ def int_pow(base_value: var, exponent: var): var {
  *
  * Throws illegal_argument_exception when n is negative.
  */
-def isqrt(n: var): var {
+def isqrt(n: decimal): decimal {
     if(n < 0)
         throw new illegal_argument_exception("isqrt: n is negative");
 
-    root : var = floor_of(square_root(n));
+    root : decimal = floor_of(square_root(n));
     while(root * root > n) {
         root--;
     }
@@ -169,8 +169,8 @@ def isqrt(n: var): var {
 }
 
 /** true when n is the square of a whole number: 0, 1, 4, 9, 16 ... (false for negatives and fractions) */
-def is_perfect_square(n: var): bool {
+def is_perfect_square(n: decimal): bool {
     if(n < 0 || floor_of(n) != n) return false;
-    root : var = isqrt(n);
+    root : decimal = isqrt(n);
     return root * root == n;
 }

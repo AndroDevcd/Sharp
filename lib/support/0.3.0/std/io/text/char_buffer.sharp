@@ -24,7 +24,7 @@ class char_buffer {
     /** the characters; only the first `count` elements are in use */
     private data : _int8[];
     /** how many characters have been appended */
-    private count : var = 0;
+    private count : _int64 = 0;
 
     /** an empty buffer with room for 64 characters before it has to grow */
     char_buffer() {
@@ -35,7 +35,7 @@ class char_buffer {
      * An empty buffer with room for `capacity` characters before it has to
      * grow. A capacity below 16 is raised to 16.
      */
-    char_buffer(capacity: var) {
+    char_buffer(capacity: _int64) {
         if(capacity < 16) {
             capacity = 16;
         }
@@ -43,10 +43,10 @@ class char_buffer {
     }
 
     /** make sure `extra` more characters fit, growing the array (at least doubling it) when they do not */
-    private def reserve(extra: var) {
-        needed : var = count + extra;
+    private def reserve(extra: _int64) {
+        needed : _int64 = count + extra;
         if(needed > sizeof(data)) {
-            bigger : var = sizeof(data) * 2;
+            bigger : _int64 = sizeof(data) * 2;
             if(bigger < needed) {
                 bigger = needed;
             }
@@ -62,7 +62,7 @@ class char_buffer {
      * Append one character given as its code ('a', 10, ...). Only the low 8
      * bits are kept. Returns this buffer so calls can be chained.
      */
-    def append_char(ch: var) : char_buffer {
+    def append_char(ch: _int64) : char_buffer {
         if(count >= sizeof(data)) {
             reserve(1);
         }
@@ -83,7 +83,7 @@ class char_buffer {
         if(io_strings.is_null(text)) {
             return self;
         }
-        n : var = sizeof(text.data);
+        n : _int64 = sizeof(text.data);
         if(n > 0) {
             reserve(n);
             memcopy(text.data!!, data, count, 0, n);
@@ -99,13 +99,13 @@ class char_buffer {
      * Throws illegal_argument_exception when the range does not lie inside
      * the array.
      */
-    def append_range(chars: _int8[], start: var, end: var) : char_buffer {
+    def append_range(chars: _int8[], start: _int64, end: _int64) : char_buffer {
         if(start < 0 || end > sizeof(chars) || start > end) {
             throw new illegal_argument_exception("append_range: range " + io_strings.int_to_string(start)
                 + ".." + io_strings.int_to_string(end) + " is outside an array of size "
                 + io_strings.int_to_string(sizeof(chars)));
         }
-        n : var = end - start;
+        n : _int64 = end - start;
         if(n > 0) {
             reserve(n);
             memcopy(chars, data, count, start, end);
@@ -118,7 +118,7 @@ class char_buffer {
      * Append a whole number in decimal, e.g. 42 or -7. A fraction is cut off
      * (2.9 appends "2"). Returns this buffer.
      */
-    def append_int(value: var) : char_buffer {
+    def append_int(value: decimal) : char_buffer {
         return append(io_strings.int_to_string(value));
     }
 
@@ -127,18 +127,18 @@ class char_buffer {
      * ("3"), other numbers with as few digits as are needed to read the
      * same value back ("0.1", "2.5"). See io_strings.number_to_string().
      */
-    def append_number(value: var) : char_buffer {
+    def append_number(value: decimal) : char_buffer {
         return append(io_strings.number_to_string(value));
     }
 
     /** append the character `ch` `times` times (nothing when times <= 0) */
-    def append_repeated(ch: var, times: var) : char_buffer {
+    def append_repeated(ch: _int64, times: _int64) : char_buffer {
         if(times > 0) {
             reserve(times);
             if(ch > 127) {
                 ch = (ch & 0xff) - 256;
             }
-            for(i : var = 0; i < times; i++) {
+            for(i : _int64 = 0; i < times; i++) {
                 data[count++] = ch;
             }
         }
@@ -146,7 +146,7 @@ class char_buffer {
     }
 
     /** the number of characters appended so far */
-    def length() : var {
+    def length() : _int64 {
         return count;
     }
 
@@ -159,7 +159,7 @@ class char_buffer {
      * The code of the character at `index` (0 is the first).
      * Throws out_of_bounds_exception when index is not in 0 .. length() - 1.
      */
-    def char_at(index: var) : var {
+    def char_at(index: _int64) : _int64 {
         if(index < 0 || index >= count) {
             throw new out_of_bounds_exception("char_buffer index " + io_strings.int_to_string(index)
                 + " with length " + io_strings.int_to_string(count));
@@ -171,7 +171,7 @@ class char_buffer {
      * Replace the character at `index`.
      * Throws out_of_bounds_exception when index is not in 0 .. length() - 1.
      */
-    def set_char(index: var, ch: var) {
+    def set_char(index: _int64, ch: _int64) {
         if(index < 0 || index >= count) {
             throw new out_of_bounds_exception("char_buffer index " + io_strings.int_to_string(index)
                 + " with length " + io_strings.int_to_string(count));
@@ -189,7 +189,7 @@ class char_buffer {
      * Throws illegal_argument_exception when new_length is negative or larger
      * than length() (the buffer cannot be made longer this way).
      */
-    def truncate(new_length: var) {
+    def truncate(new_length: _int64) {
         if(new_length < 0 || new_length > count) {
             throw new illegal_argument_exception("truncate: " + io_strings.int_to_string(new_length)
                 + " is not between 0 and " + io_strings.int_to_string(count));
@@ -212,7 +212,7 @@ class char_buffer {
      * Throws illegal_argument_exception when the range is not inside
      * 0 .. length().
      */
-    def substring(start: var, end: var) : string {
+    def substring(start: _int64, end: _int64) : string {
         if(start < 0 || end > count || start > end) {
             throw new illegal_argument_exception("substring: range " + io_strings.int_to_string(start)
                 + ".." + io_strings.int_to_string(end) + " is outside a buffer of length "

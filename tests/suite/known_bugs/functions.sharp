@@ -7,25 +7,25 @@ import ( testing )
  * This file is EXPECTED to fail: it does not compile.
  *
  * A number LITERAL as an argument is ambiguous between an overload taking
- * `var` and an overload taking a class that can be built from a number
+ * `decimal` and an overload taking a class that can be built from a number
  * (string, or any class with a one-number constructor):
  *
  *     error S807: call to method `kind_of` is ambiguous
  *     Based on the parameters provided - (_int32)
- *         candidate #1: kind_of(var)
+ *         candidate #1: kind_of(decimal)
  *         candidate #2: kind_of(std#string)
  *
- * The same call with a `var` variable instead of the literal compiles and
- * picks kind_of(var). Expected: the literal picks kind_of(var) too, because
+ * The same call with a `decimal` variable instead of the literal compiles and
+ * picks kind_of(decimal). Expected: the literal picks kind_of(decimal) too, because
  * that needs no conversion. The same happens for constructors:
- * `new point(5)` is ambiguous between point(var) and point(point).
+ * `new point(5)` is ambiguous between point(decimal) and point(point).
  */
 
-def kind_of(a: var): var { return 1; }
-def kind_of(s: string): var { return 10; }
+def kind_of(a: decimal): decimal { return 1; }
+def kind_of(s: string): decimal { return 10; }
 
 def main(args: string[]) {
-    y : var = 5;
+    y : decimal = 5;
     expect("overload with a var variable", kind_of(y), 1);      // compiles
     expect("overload with a number literal", kind_of(5), 1);    // error S807: ambiguous
     finish("functions");

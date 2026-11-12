@@ -8,7 +8,7 @@ import ( testing )
  */
 def main(args: string[]) {
     bytes := new _int8[4];
-    v : var = 128;
+    v : decimal = 128;
     bytes[0] = v;
     bytes[1] = 129;
     bytes[2] = 200;
@@ -42,7 +42,7 @@ def main(args: string[]) {
     longs[0] = 2.75;
     expect("2.75 stored in _int64[]", longs[0], 2);
 
-    plain := new var[1];
+    plain := new decimal[1];
     plain[0] = 200.5;
     expect("var[] keeps the value", plain[0], 200.5);
     finish("arrays_sized_elements");

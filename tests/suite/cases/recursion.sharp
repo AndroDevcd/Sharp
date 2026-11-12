@@ -11,21 +11,21 @@ import ( testing )
  */
 
 // ---- one call per level
-def factorial(n: var): var {
+def factorial(n: decimal): decimal {
     if(n <= 1) {
         return 1;
     }
     return n * factorial(n - 1);
 }
 
-def sum_to(n: var): var {
+def sum_to(n: decimal): decimal {
     if(n == 0) {
         return 0;
     }
     return n + sum_to(n - 1);
 }
 
-def power(number: var, exponent: var): var {
+def power(number: decimal, exponent: decimal): decimal {
     if(exponent == 0) {
         return 1;
     }
@@ -33,18 +33,18 @@ def power(number: var, exponent: var): var {
 }
 
 /* halves the exponent on every call, so 2 to the 30th needs only 6 levels */
-def fast_power(number: var, exponent: var): var {
+def fast_power(number: decimal, exponent: decimal): decimal {
     if(exponent == 0) {
         return 1;
     }
     if(exponent % 2 == 1) {
         return number * fast_power(number, exponent - 1);
     }
-    half : var = fast_power(number, exponent / 2);
+    half : decimal = fast_power(number, exponent / 2);
     return half * half;
 }
 
-def gcd(a: var, b: var): var {
+def gcd(a: decimal, b: decimal): decimal {
     if(b == 0) {
         return a;
     }
@@ -52,7 +52,7 @@ def gcd(a: var, b: var): var {
 }
 
 /* the number of levels reached, counted on the way back up */
-def depth_of(levels: var): var {
+def depth_of(levels: decimal): decimal {
     if(levels == 0) {
         return 0;
     }
@@ -60,22 +60,22 @@ def depth_of(levels: var): var {
 }
 
 /* the result is carried down in a parameter instead of built on the way back */
-def sum_with_carry(n: var, carried: var): var {
+def sum_with_carry(n: decimal, carried: decimal): decimal {
     if(n == 0) {
         return carried;
     }
     return sum_with_carry(n - 1, carried + n);
 }
 
-def sum_of_digits(n: var): var {
+def sum_of_digits(n: decimal): decimal {
     if(n < 10) {
         return n;
     }
-    last : var = n % 10;
+    last : decimal = n % 10;
     return last + sum_of_digits((n - last) / 10);
 }
 
-def count_digits(n: var): var {
+def count_digits(n: decimal): decimal {
     if(n < 10) {
         return 1;
     }
@@ -83,7 +83,7 @@ def count_digits(n: var): var {
 }
 
 /* steps until the "halve it or triple it and add one" sequence reaches 1 */
-def collatz_steps(n: var): var {
+def collatz_steps(n: decimal): decimal {
     if(n == 1) {
         return 0;
     }
@@ -94,7 +94,7 @@ def collatz_steps(n: var): var {
 }
 
 // ---- two calls per level
-def fibonacci(n: var): var {
+def fibonacci(n: decimal): decimal {
     if(n < 2) {
         return n;
     }
@@ -102,7 +102,7 @@ def fibonacci(n: var): var {
 }
 
 /* moves needed to shift a tower of `discs` discs */
-def hanoi_moves(discs: var): var {
+def hanoi_moves(discs: decimal): decimal {
     if(discs == 0) {
         return 0;
     }
@@ -110,14 +110,14 @@ def hanoi_moves(discs: var): var {
 }
 
 /* ways to walk from one corner of a grid to the other going only right or down */
-def grid_paths(rows: var, columns: var): var {
+def grid_paths(rows: decimal, columns: decimal): decimal {
     if(rows == 0 || columns == 0) {
         return 1;
     }
     return grid_paths(rows - 1, columns) + grid_paths(rows, columns - 1);
 }
 
-def pascal(row: var, column: var): var {
+def pascal(row: decimal, column: decimal): decimal {
     if(column == 0 || column == row) {
         return 1;
     }
@@ -125,7 +125,7 @@ def pascal(row: var, column: var): var {
 }
 
 /* a call whose argument is itself a recursive call */
-def ackermann(m: var, n: var): var {
+def ackermann(m: decimal, n: decimal): decimal {
     if(m == 0) {
         return n + 1;
     }
@@ -136,14 +136,14 @@ def ackermann(m: var, n: var): var {
 }
 
 // ---- mutual recursion: two functions that call each other
-def is_even(n: var): var {
+def is_even(n: decimal): decimal {
     if(n == 0) {
         return 1;
     }
     return is_odd(n - 1);
 }
 
-def is_odd(n: var): var {
+def is_odd(n: decimal): decimal {
     if(n == 0) {
         return 0;
     }
@@ -151,14 +151,14 @@ def is_odd(n: var): var {
 }
 
 /* Hofstadter's "female" and "male" sequences: each is defined by the other */
-def female(n: var): var {
+def female(n: decimal): decimal {
     if(n == 0) {
         return 1;
     }
     return n - male(female(n - 1));
 }
 
-def male(n: var): var {
+def male(n: decimal): decimal {
     if(n == 0) {
         return 0;
     }
@@ -166,39 +166,39 @@ def male(n: var): var {
 }
 
 /* three functions in a ring: a -> b -> c -> a */
-def ring_a(n: var): var {
+def ring_a(n: decimal): decimal {
     if(n <= 0) { return 1; }
     return ring_b(n - 1);
 }
-def ring_b(n: var): var {
+def ring_b(n: decimal): decimal {
     if(n <= 0) { return 2; }
     return ring_c(n - 1);
 }
-def ring_c(n: var): var {
+def ring_c(n: decimal): decimal {
     if(n <= 0) { return 3; }
     return ring_a(n - 1);
 }
 
 // ---- recursion on arrays
-def sum_from(numbers: var[], index: var): var {
+def sum_from(numbers: decimal[], index: decimal): decimal {
     if(index == sizeof(numbers)) {
         return 0;
     }
     return numbers[index] + sum_from(numbers, index + 1);
 }
 
-def largest_from(numbers: var[], index: var): var {
+def largest_from(numbers: decimal[], index: decimal): decimal {
     if(index == sizeof(numbers) - 1) {
         return numbers[index];
     }
-    rest : var = largest_from(numbers, index + 1);
+    rest : decimal = largest_from(numbers, index + 1);
     if(numbers[index] > rest) {
         return numbers[index];
     }
     return rest;
 }
 
-def count_from(numbers: var[], wanted: var, index: var): var {
+def count_from(numbers: decimal[], wanted: decimal, index: decimal): decimal {
     if(index == sizeof(numbers)) {
         return 0;
     }
@@ -209,23 +209,23 @@ def count_from(numbers: var[], wanted: var, index: var): var {
 }
 
 /* swaps the two ends, then reverses what is between them */
-def reverse_between(numbers: var[], low: var, high: var) {
+def reverse_between(numbers: decimal[], low: decimal, high: decimal) {
     if(low >= high) {
         return;
     }
-    kept : var = numbers[low];
+    kept : decimal = numbers[low];
     numbers[low] = numbers[high];
     numbers[high] = kept;
     reverse_between(numbers, low + 1, high - 1);
 }
 
 /* the index of `wanted` in a sorted array, or -1 */
-def binary_search(sorted: var[], wanted: var, low: var, high: var): var {
+def binary_search(sorted: decimal[], wanted: decimal, low: decimal, high: decimal): decimal {
     if(low > high) {
         return 0 - 1;
     }
-    sum : var = low + high;
-    middle : var = (sum - sum % 2) / 2;
+    sum : decimal = low + high;
+    middle : decimal = (sum - sum % 2) / 2;
     if(sorted[middle] == wanted) {
         return middle;
     }
@@ -236,7 +236,7 @@ def binary_search(sorted: var[], wanted: var, low: var, high: var): var {
 }
 
 /* how many ways some of numbers[index...] add up to `target` */
-def subsets_adding_to(numbers: var[], index: var, target: var): var {
+def subsets_adding_to(numbers: decimal[], index: decimal, target: decimal): decimal {
     if(index == sizeof(numbers)) {
         if(target == 0) {
             return 1;
@@ -248,7 +248,7 @@ def subsets_adding_to(numbers: var[], index: var, target: var): var {
 }
 
 /* writes 1, 2, 3 ... into the array, one element per level */
-def fill_from(numbers: var[], index: var) {
+def fill_from(numbers: decimal[], index: decimal) {
     if(index == sizeof(numbers)) {
         return;
     }
@@ -257,7 +257,7 @@ def fill_from(numbers: var[], index: var) {
 }
 
 // ---- recursion on strings
-def count_letter(text: string, letter: var, index: var): var {
+def count_letter(text: string, letter: decimal, index: decimal): decimal {
     if(index == text.size().value) {
         return 0;
     }
@@ -267,7 +267,7 @@ def count_letter(text: string, letter: var, index: var): var {
     return count_letter(text, letter, index + 1);
 }
 
-def is_palindrome(text: string, low: var, high: var): var {
+def is_palindrome(text: string, low: decimal, high: decimal): decimal {
     if(low >= high) {
         return 1;
     }
@@ -278,8 +278,8 @@ def is_palindrome(text: string, low: var, high: var): var {
 }
 
 /* "1010" for 10: the digits for n / 2, then the last digit */
-def binary_digits(n: var): string {
-    last : var = n % 2;
+def binary_digits(n: decimal): string {
+    last : decimal = n % 2;
     digit : string = "0";
     if(last == 1) {
         digit = "1";
@@ -291,7 +291,7 @@ def binary_digits(n: var): string {
 }
 
 /* "ab" repeated: built on the way back up */
-def repeat(text: string, times: var): string {
+def repeat(text: string, times: decimal): string {
     if(times == 1) {
         return text;
     }
@@ -299,7 +299,7 @@ def repeat(text: string, times: var): string {
 }
 
 /* "(((x)))" for 3 */
-def nest(levels: var): string {
+def nest(levels: decimal): string {
     if(levels == 0) {
         return "x";
     }
@@ -308,23 +308,23 @@ def nest(levels: var): string {
 
 // ---- recursion on objects: a list of links and a tree
 class link {
-    number : var = 0;
+    number : decimal = 0;
     next : link?;
 
-    link(n: var, rest: link?) {
+    link(n: decimal, rest: link?) {
         number = n;
         next = rest;
     }
 }
 
-def length_of(first: link?): var {
+def length_of(first: link?): decimal {
     if(first == null) {
         return 0;
     }
     return 1 + length_of(first!!.next);
 }
 
-def total_of(first: link?): var {
+def total_of(first: link?): decimal {
     if(first == null) {
         return 0;
     }
@@ -332,7 +332,7 @@ def total_of(first: link?): var {
 }
 
 /* a list n, n-1, ... 1 built by recursion */
-def count_down_list(n: var): link? {
+def count_down_list(n: decimal): link? {
     if(n == 0) {
         return null;
     }
@@ -340,19 +340,19 @@ def count_down_list(n: var): link? {
 }
 
 class tree {
-    number : var = 0;
+    number : decimal = 0;
     left : tree?;
     right : tree?;
 
-    tree(n: var, l: tree?, r: tree?) {
+    tree(n: decimal, l: tree?, r: tree?) {
         number = n;
         left = l;
         right = r;
     }
 
     /* a method that calls itself on other objects */
-    def total(): var {
-        sum : var = number;
+    def total(): decimal {
+        sum : decimal = number;
         if(left != null) {
             sum += left!!.total();
         }
@@ -363,26 +363,26 @@ class tree {
     }
 }
 
-def total_of_tree(root: tree?): var {
+def total_of_tree(root: tree?): decimal {
     if(root == null) {
         return 0;
     }
     return root!!.number + total_of_tree(root!!.left) + total_of_tree(root!!.right);
 }
 
-def height_of(root: tree?): var {
+def height_of(root: tree?): decimal {
     if(root == null) {
         return 0;
     }
-    left_height : var = height_of(root!!.left);
-    right_height : var = height_of(root!!.right);
+    left_height : decimal = height_of(root!!.left);
+    right_height : decimal = height_of(root!!.right);
     if(left_height > right_height) {
         return 1 + left_height;
     }
     return 1 + right_height;
 }
 
-def leaves_of(root: tree?): var {
+def leaves_of(root: tree?): decimal {
     if(root == null) {
         return 0;
     }
@@ -481,7 +481,7 @@ def main(args: string[]) {
     expect("a ring of three, 100 steps", ring_a(100), 2);
 
     // ---- arrays
-    numbers : var[] = new var[] { 3, 1, 4, 1, 5, 9, 2, 6 };
+    numbers : decimal[] = new decimal[] { 3, 1, 4, 1, 5, 9, 2, 6 };
     expect("sum of an array", sum_from(numbers, 0), 31);
     expect("sum of the last three", sum_from(numbers, 5), 17);
     expect("sum of an empty rest", sum_from(numbers, 8), 0);
@@ -496,13 +496,13 @@ def main(args: string[]) {
     expect("reversed: element 3", numbers[3], 5);
     expect("reversed: element 4", numbers[4], 1);
     expect("reversed: element 7", numbers[7], 3);
-    odd_length : var[] = new var[] { 1, 2, 3 };
+    odd_length : decimal[] = new decimal[] { 1, 2, 3 };
     reverse_between(odd_length, 0, 2);
     expect("reversed odd length: first", odd_length[0], 3);
     expect("reversed odd length: middle stays", odd_length[1], 2);
     expect("reversed odd length: last", odd_length[2], 1);
 
-    primes : var[] = new var[] { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 };
+    primes : decimal[] = new decimal[] { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 };
     expect("binary search: first", binary_search(primes, 2, 0, 9), 0);
     expect("binary search: last", binary_search(primes, 29, 0, 9), 9);
     expect("binary search: middle", binary_search(primes, 11, 0, 9), 4);
@@ -511,14 +511,14 @@ def main(args: string[]) {
     expect("binary search: missing, too large", binary_search(primes, 31, 0, 9), 0 - 1);
     expect("binary search: missing, too small", binary_search(primes, 1, 0, 9), 0 - 1);
 
-    one_to_five : var[] = new var[] { 1, 2, 3, 4, 5 };
+    one_to_five : decimal[] = new decimal[] { 1, 2, 3, 4, 5 };
     expect("subsets adding to 5: {5} {1,4} {2,3}", subsets_adding_to(one_to_five, 0, 5), 3);
     expect("subsets adding to 10: {1,4,5} {2,3,5} {1,2,3,4}", subsets_adding_to(one_to_five, 0, 10), 3);
     expect("subsets adding to 15: all of them", subsets_adding_to(one_to_five, 0, 15), 1);
     expect("subsets adding to 16: none", subsets_adding_to(one_to_five, 0, 16), 0);
     expect("subsets adding to 0: the empty one", subsets_adding_to(one_to_five, 0, 0), 1);
 
-    filled : var[] = new var[100];
+    filled : decimal[] = new decimal[100];
     fill_from(filled, 0);
     expect("filled by recursion: first", filled[0], 1);
     expect("filled by recursion: 50th", filled[49], 50);

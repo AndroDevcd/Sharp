@@ -127,7 +127,7 @@ class file_utils {
     }
 
     /** milliseconds to whole seconds */
-    private static def floor_seconds(mills: var) : var {
+    private static def floor_seconds(mills: decimal) : decimal {
         return (mills - mills % 1000) / 1000;
     }
 
@@ -186,12 +186,12 @@ class file_utils {
      * The size in bytes of a file, or of all files in a directory tree
      * added up (file.tree_size). 0 when nothing exists at the path.
      */
-    static def size_of_tree(file_path: string) : var {
+    static def size_of_tree(file_path: string) : decimal {
         return new file(file_path).tree_size();
     }
 
     /** the number of plain files in a directory and all directories below it (0 when it does not exist; 1 for a plain file) */
-    static def count_files(dir_path: string) : var {
+    static def count_files(dir_path: string) : decimal {
         start := new file(dir_path);
         if(!start.exists()) {
             return 0;
@@ -212,14 +212,14 @@ class file_utils {
     static def list_tree(dir_path: string) : list<string> {
         start := new file(dir_path);
         result := new list<string>();
-        skip : var = sizeof(start.get_path().data);
-        last : var = start.get_path().data[skip - 1];
+        skip : decimal = sizeof(start.get_path().data);
+        last : decimal = start.get_path().data[skip - 1];
         if(last != '/' && last != 92) {
             skip++;
         }
         entries := start.walk();
-        count : var = entries.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = entries.size().value;
+        for(i : decimal = 0; i < count; i++) {
             relative := io_strings.slice_from(entries.at(i).get_path(), skip);
             result.add(io_strings.replace_char(relative, 92, '/'));
         }
@@ -260,8 +260,8 @@ class file_utils {
 
         first_root := new file(first_path);
         second_root := new file(second_path);
-        count : var = first.size().value;
-        for(i : var = 0; i < count; i++) {
+        count : decimal = first.size().value;
+        for(i : decimal = 0; i < count; i++) {
             if(!io_strings.equals(first.at(i), second.at(i))) {
                 return false;
             }

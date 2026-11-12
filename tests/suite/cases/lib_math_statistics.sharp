@@ -8,10 +8,10 @@ import ( testing, std.math )
  */
 
 def check_statistics() {
-    data := new var[] { 2, 4, 4, 4, 5, 5, 7, 9 };          // the textbook set: mean 5, std dev 2
-    odd := new var[] { 5, 1, 3 };
-    lone := new var[] { 42 };
-    nothing := new var[0];
+    data := new decimal[] { 2, 4, 4, 4, 5, 5, 7, 9 };          // the textbook set: mean 5, std dev 2
+    odd := new decimal[] { 5, 1, 3 };
+    lone := new decimal[] { 42 };
+    nothing := new decimal[0];
 
     expect("count", statistics.count(data), 8);
     expect("sum", statistics.sum(data), 40);
@@ -28,20 +28,20 @@ def check_statistics() {
     expect("variance of one", statistics.variance(lone), 0);
 
     // Kahan summation: ten times 0.1 is exactly 1
-    tenths := new var[10];
-    for(i : var = 0; i < 10; i++) { tenths[i] = 0.1; }
+    tenths := new decimal[10];
+    for(i : decimal = 0; i < 10; i++) { tenths[i] = 0.1; }
     expect("compensated sum of ten tenths", statistics.sum(tenths), 1);
 
     expect("median, even count", statistics.median(data), 4.5);
     expect("median, odd count", statistics.median(odd), 3);
     expect("median of one", statistics.median(lone), 42);
-    expect("median of two", statistics.median(new var[] { 1, 2 }), 1.5);
+    expect("median of two", statistics.median(new decimal[] { 1, 2 }), 1.5);
     expect("median does not change the array", odd[0] * 100 + odd[1] * 10 + odd[2], 513);
     expect("mode", statistics.mode(data), 4);
-    expect("mode with a tie is the smallest", statistics.mode(new var[] { 7, 3, 7, 3, 9 }), 3);
+    expect("mode with a tie is the smallest", statistics.mode(new decimal[] { 7, 3, 7, 3, 9 }), 3);
     expect("mode when all differ is the smallest", statistics.mode(odd), 1);
 
-    ordered := statistics.sorted(new var[] { 5, 0 - 1, 3.5, 0, 5, 2 });
+    ordered := statistics.sorted(new decimal[] { 5, 0 - 1, 3.5, 0, 5, 2 });
     expect("sorted [0]", ordered[0], 0 - 1);
     expect("sorted [1]", ordered[1], 0);
     expect("sorted [2]", ordered[2], 2);
@@ -50,32 +50,32 @@ def check_statistics() {
     expect("sorted [5]", ordered[5], 5);
     expect("sorted of nothing", sizeof(statistics.sorted(nothing)), 0);
     // a longer, descending run: 100 .. 1 must come back as 1 .. 100
-    falling := new var[100];
-    for(i : var = 0; i < 100; i++) { falling[i] = 100 - i; }
+    falling := new decimal[100];
+    for(i : decimal = 0; i < 100; i++) { falling[i] = 100 - i; }
     rising := statistics.sorted(falling);
-    in_order : var = 1;
-    for(i : var = 0; i < 100; i++) {
+    in_order : decimal = 1;
+    for(i : decimal = 0; i < 100; i++) {
         if(rising[i] != i + 1) in_order = 0;
     }
     expect_true("sorted 100 values", in_order);
 
-    quartiles := new var[] { 1, 2, 3, 4, 5 };
+    quartiles := new decimal[] { 1, 2, 3, 4, 5 };
     expect("percentile 0", statistics.percentile(quartiles, 0), 1);
     expect("percentile 25", statistics.percentile(quartiles, 25), 2);
     expect("percentile 50", statistics.percentile(quartiles, 50), 3);
     expect("percentile 100", statistics.percentile(quartiles, 100), 5);
     expect_near("percentile 90", statistics.percentile(quartiles, 90), 4.6, 0.000000000001);
-    expect("percentile interpolates", statistics.percentile(new var[] { 10, 20 }, 25), 12.5);
+    expect("percentile interpolates", statistics.percentile(new decimal[] { 10, 20 }, 25), 12.5);
     expect("percentile of one", statistics.percentile(lone, 75), 42);
 
-    expect_near("geometric_mean", statistics.geometric_mean(new var[] { 2, 8 }), 4, 0.000000000001);
-    expect_near("geometric_mean of three", statistics.geometric_mean(new var[] { 1, 3, 9 }), 3, 0.000000000001);
-    expect_near("harmonic_mean", statistics.harmonic_mean(new var[] { 40, 60 }), 48, 0.000000000001);
+    expect_near("geometric_mean", statistics.geometric_mean(new decimal[] { 2, 8 }), 4, 0.000000000001);
+    expect_near("geometric_mean of three", statistics.geometric_mean(new decimal[] { 1, 3, 9 }), 3, 0.000000000001);
+    expect_near("harmonic_mean", statistics.harmonic_mean(new decimal[] { 40, 60 }), 48, 0.000000000001);
 
-    xs := new var[] { 1, 2, 3, 4, 5 };
-    doubled := new var[] { 2, 4, 6, 8, 10 };
-    falling_ys := new var[] { 10, 8, 6, 4, 2 };
-    mixed := new var[] { 2, 1, 4, 3, 5 };
+    xs := new decimal[] { 1, 2, 3, 4, 5 };
+    doubled := new decimal[] { 2, 4, 6, 8, 10 };
+    falling_ys := new decimal[] { 10, 8, 6, 4, 2 };
+    mixed := new decimal[] { 2, 1, 4, 3, 5 };
     expect_near("correlation of a rising line", statistics.correlation(xs, doubled), 1, 0.000000000001);
     expect_near("correlation of a falling line", statistics.correlation(xs, falling_ys), 0 - 1, 0.000000000001);
     expect_near("correlation of mixed data", statistics.correlation(xs, mixed), 0.8, 0.000000000001);
@@ -92,7 +92,7 @@ def check_statistics() {
     expect("to_array size", sizeof(from_list), 3);
     expect("to_array mean", statistics.mean(from_list), 3);
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { statistics.mean(nothing); } catch(e: illegal_argument_exception) { caught++; }
     try { statistics.median(nothing); } catch(e: illegal_argument_exception) { caught++; }
     try { statistics.mode(nothing); } catch(e: illegal_argument_exception) { caught++; }
@@ -110,13 +110,13 @@ def check_statistics() {
     try { statistics.percentile(data, 0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { statistics.correlation(xs, data); } catch(e: illegal_argument_exception) { caught++; }
     try { statistics.covariance(xs, data); } catch(e: illegal_argument_exception) { caught++; }
-    try { statistics.geometric_mean(new var[] { 1, 0 }); } catch(e: illegal_argument_exception) { caught++; }
-    try { statistics.harmonic_mean(new var[] { 1, 0 - 2 }); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.geometric_mean(new decimal[] { 1, 0 }); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.harmonic_mean(new decimal[] { 1, 0 - 2 }); } catch(e: illegal_argument_exception) { caught++; }
     expect("bad arguments throw", caught, 7);
 
     caught = 0;
-    try { statistics.correlation(xs, new var[] { 3, 3, 3, 3, 3 }); } catch(e: arithmetic_exception) { caught++; }
-    try { statistics.z_score(new var[] { 3, 3 }, 3); } catch(e: arithmetic_exception) { caught++; }
+    try { statistics.correlation(xs, new decimal[] { 3, 3, 3, 3, 3 }); } catch(e: arithmetic_exception) { caught++; }
+    try { statistics.z_score(new decimal[] { 3, 3 }, 3); } catch(e: arithmetic_exception) { caught++; }
     expect("constant series throw arithmetic_exception", caught, 2);
 }
 
@@ -194,7 +194,7 @@ def check_rect() {
     expect_true("!=", (r != moved).value);
     expect_str("to_string", r.to_string()!!, "rect(0, 0, 10 x 5)");
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { new rect(0, 0, 0 - 1, 5); } catch(e: illegal_argument_exception) { caught++; }
     try { r.expanded(0 - 3); } catch(e: illegal_argument_exception) { caught++; }
     expect("negative sizes throw", caught, 2);
@@ -239,7 +239,7 @@ def check_circle() {
     expect_true("!=", (c != moved).value);
     expect_str("to_string", c.to_string()!!, "circle(0, 0, r=5)");
 
-    caught : var = 0;
+    caught : decimal = 0;
     try { new circle(0, 0, 0 - 1); } catch(e: illegal_argument_exception) { caught++; }
     try { c.scaled(0 - 2); } catch(e: illegal_argument_exception) { caught++; }
     expect("a negative radius throws", caught, 2);

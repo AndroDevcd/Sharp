@@ -6,10 +6,10 @@ mod std.math;
  * Descriptive statistics over arrays of native numbers. The class only has
  * static functions and is never instantiated:
  *
- *     data := new var[] { 2, 4, 4, 4, 5, 5, 7, 9 };
- *     m : var = statistics.mean(data);        // 5
- *     s : var = statistics.std_dev(data);     // 2
- *     q : var = statistics.median(data);      // 4.5
+ *     data := new decimal[] { 2, 4, 4, 4, 5, 5, 7, 9 };
+ *     m : decimal = statistics.mean(data);        // 5
+ *     s : decimal = statistics.std_dev(data);     // 2
+ *     q : decimal = statistics.median(data);      // 4.5
  *
  * No function changes the array it is given (the ones that need sorted
  * data sort a copy). Every function throws illegal_argument_exception for an
@@ -21,13 +21,13 @@ mod std.math;
  */
 class statistics {
 
-    private static def require_data(values: var[], function_name: string) {
+    private static def require_data(values: decimal[], function_name: string) {
         if(sizeof(values) == 0)
             throw new illegal_argument_exception("statistics." + function_name + ": the array is empty");
     }
 
     /** how many numbers the array holds */
-    static def count(values: var[]): var {
+    static def count(values: decimal[]): decimal {
         return sizeof(values);
     }
 
@@ -38,12 +38,12 @@ class statistics {
      * addition is carried along and fed back, so adding many small numbers to
      * a large one does not lose them. An empty array is allowed and gives 0.
      */
-    static def sum(values: var[]): var {
-        total : var = 0;
-        lost : var = 0;
-        for(i : var = 0; i < sizeof(values); i++) {
-            corrected : var = values[i] - lost;
-            next : var = total + corrected;
+    static def sum(values: decimal[]): decimal {
+        total : decimal = 0;
+        lost : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            corrected : decimal = values[i] - lost;
+            next : decimal = total + corrected;
             lost = (next - total) - corrected;
             total = next;
         }
@@ -51,33 +51,33 @@ class statistics {
     }
 
     /** the smallest value */
-    static def minimum(values: var[]): var {
+    static def minimum(values: decimal[]): decimal {
         require_data(values, "minimum");
-        best : var = values[0];
-        for(i : var = 1; i < sizeof(values); i++) {
+        best : decimal = values[0];
+        for(i : decimal = 1; i < sizeof(values); i++) {
             if(values[i] < best) best = values[i];
         }
         return best;
     }
 
     /** the largest value */
-    static def maximum(values: var[]): var {
+    static def maximum(values: decimal[]): decimal {
         require_data(values, "maximum");
-        best : var = values[0];
-        for(i : var = 1; i < sizeof(values); i++) {
+        best : decimal = values[0];
+        for(i : decimal = 1; i < sizeof(values); i++) {
             if(values[i] > best) best = values[i];
         }
         return best;
     }
 
     /** the spread: maximum - minimum */
-    static def range(values: var[]): var {
+    static def range(values: decimal[]): decimal {
         require_data(values, "range");
         return maximum(values) - minimum(values);
     }
 
     /** the arithmetic mean (average): sum / count */
-    static def mean(values: var[]): var {
+    static def mean(values: decimal[]): decimal {
         require_data(values, "mean");
         return sum(values) / sizeof(values);
     }
@@ -87,10 +87,10 @@ class statistics {
      * exp(mean(ln(x))) so the product cannot overflow.
      * Throws illegal_argument_exception when a value is <= 0.
      */
-    static def geometric_mean(values: var[]): var {
+    static def geometric_mean(values: decimal[]): decimal {
         require_data(values, "geometric_mean");
-        total : var = 0;
-        for(i : var = 0; i < sizeof(values); i++) {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
             if(values[i] <= 0)
                 throw new illegal_argument_exception("statistics.geometric_mean: all values must be > 0");
             total += ln(values[i]);
@@ -102,10 +102,10 @@ class statistics {
      * The harmonic mean: count / sum(1 / x), the right average for rates.
      * Throws illegal_argument_exception when a value is <= 0.
      */
-    static def harmonic_mean(values: var[]): var {
+    static def harmonic_mean(values: decimal[]): decimal {
         require_data(values, "harmonic_mean");
-        total : var = 0;
-        for(i : var = 0; i < sizeof(values); i++) {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
             if(values[i] <= 0)
                 throw new illegal_argument_exception("statistics.harmonic_mean: all values must be > 0");
             total += 1 / values[i];
@@ -120,25 +120,25 @@ class statistics {
      * 4 ... are merged pairwise between two buffers. O(n log n), stable.
      * An empty array gives an empty array.
      */
-    static def sorted(values: var[]): var[] {
-        n : var = sizeof(values);
-        from := new var[n];
-        to := new var[n];
-        for(i : var = 0; i < n; i++) {
+    static def sorted(values: decimal[]): decimal[] {
+        n : decimal = sizeof(values);
+        from := new decimal[n];
+        to := new decimal[n];
+        for(i : decimal = 0; i < n; i++) {
             from[i] = values[i];
         }
 
-        for(width : var = 1; width < n; width = width * 2) {
-            for(start : var = 0; start < n; start += 2 * width) {
-                middle : var = start + width;
+        for(width : decimal = 1; width < n; width = width * 2) {
+            for(start : decimal = 0; start < n; start += 2 * width) {
+                middle : decimal = start + width;
                 if(middle > n) middle = n;
-                end : var = start + 2 * width;
+                end : decimal = start + 2 * width;
                 if(end > n) end = n;
 
                 // merge from[start .. middle) and from[middle .. end) into to[start .. end)
-                left : var = start;
-                right : var = middle;
-                for(target : var = start; target < end; target++) {
+                left : decimal = start;
+                right : decimal = middle;
+                for(target : decimal = start; target < end; target++) {
                     if(left < middle && (right >= end || from[left] <= from[right])) {
                         to[target] = from[left++];
                     } else {
@@ -158,11 +158,11 @@ class statistics {
      * The middle value of the sorted data; for an even count the mean of the
      * two middle values: median of { 5, 1, 3 } is 3, of { 1, 2, 3, 4 } is 2.5.
      */
-    static def median(values: var[]): var {
+    static def median(values: decimal[]): decimal {
         require_data(values, "median");
         ordered := sorted(values);
-        n : var = sizeof(ordered);
-        half : var = floor_of(n / 2);
+        n : decimal = sizeof(ordered);
+        half : decimal = floor_of(n / 2);
 
         if((n % 2) == 1) return ordered[half];
         return (ordered[half - 1] + ordered[half]) / 2;
@@ -173,16 +173,16 @@ class statistics {
      * highest count, the smallest of them is returned (so the result does
      * not depend on the order of the data).
      */
-    static def mode(values: var[]): var {
+    static def mode(values: decimal[]): decimal {
         require_data(values, "mode");
         ordered := sorted(values);
 
-        best : var = ordered[0];
-        best_count : var = 0;
-        run_value : var = ordered[0];
-        run_count : var = 0;
+        best : decimal = ordered[0];
+        best_count : decimal = 0;
+        run_value : decimal = ordered[0];
+        run_count : decimal = 0;
 
-        for(i : var = 0; i < sizeof(ordered); i++) {
+        for(i : decimal = 0; i < sizeof(ordered); i++) {
             if(ordered[i] == run_value) {
                 run_count++;
             } else {
@@ -199,18 +199,18 @@ class statistics {
     }
 
     /** the sum of squared distances from the mean: sum((x - mean)^2) */
-    private static def squared_deviations(values: var[]): var {
-        average : var = mean(values);
-        total : var = 0;
-        for(i : var = 0; i < sizeof(values); i++) {
-            distance : var = values[i] - average;
+    private static def squared_deviations(values: decimal[]): decimal {
+        average : decimal = mean(values);
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            distance : decimal = values[i] - average;
             total += distance * distance;
         }
         return total;
     }
 
     /** population variance: sum((x - mean)^2) / n */
-    static def variance(values: var[]): var {
+    static def variance(values: decimal[]): decimal {
         require_data(values, "variance");
         return squared_deviations(values) / sizeof(values);
     }
@@ -219,14 +219,14 @@ class statistics {
      * Sample variance: sum((x - mean)^2) / (n - 1) (Bessel's correction).
      * Throws illegal_argument_exception for fewer than 2 values.
      */
-    static def sample_variance(values: var[]): var {
+    static def sample_variance(values: decimal[]): decimal {
         if(sizeof(values) < 2)
             throw new illegal_argument_exception("statistics.sample_variance: at least 2 values are needed");
         return squared_deviations(values) / (sizeof(values) - 1);
     }
 
     /** population standard deviation: the square root of variance() */
-    static def std_dev(values: var[]): var {
+    static def std_dev(values: decimal[]): decimal {
         require_data(values, "std_dev");
         return square_root(variance(values));
     }
@@ -235,7 +235,7 @@ class statistics {
      * Sample standard deviation: the square root of sample_variance().
      * Throws illegal_argument_exception for fewer than 2 values.
      */
-    static def sample_std_dev(values: var[]): var {
+    static def sample_std_dev(values: decimal[]): decimal {
         return square_root(sample_variance(values));
     }
 
@@ -251,15 +251,15 @@ class statistics {
      *
      * Throws illegal_argument_exception when p is outside 0 .. 100.
      */
-    static def percentile(values: var[], p: var): var {
+    static def percentile(values: decimal[], p: decimal): decimal {
         require_data(values, "percentile");
         if(p < 0 || p > 100 || p != p)
             throw new illegal_argument_exception("statistics.percentile: p must be in 0 .. 100");
 
         ordered := sorted(values);
-        rank : var = p / 100 * (sizeof(ordered) - 1);
-        low : var = floor_of(rank);
-        weight : var = rank - low;
+        rank : decimal = p / 100 * (sizeof(ordered) - 1);
+        low : decimal = floor_of(rank);
+        weight : decimal = rank - low;
 
         if(low + 1 >= sizeof(ordered)) return ordered[sizeof(ordered) - 1];
         return ordered[low] + (ordered[low + 1] - ordered[low]) * weight;
@@ -273,15 +273,15 @@ class statistics {
      * Throws illegal_argument_exception when the arrays are empty or differ
      * in length.
      */
-    static def covariance(xs: var[], ys: var[]): var {
+    static def covariance(xs: decimal[], ys: decimal[]): decimal {
         require_data(xs, "covariance");
         if(sizeof(xs) != sizeof(ys))
             throw new illegal_argument_exception("statistics.covariance: the arrays differ in length");
 
-        mean_x : var = mean(xs);
-        mean_y : var = mean(ys);
-        total : var = 0;
-        for(i : var = 0; i < sizeof(xs); i++) {
+        mean_x : decimal = mean(xs);
+        mean_y : decimal = mean(ys);
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(xs); i++) {
             total += (xs[i] - mean_x) * (ys[i] - mean_y);
         }
         return total / sizeof(xs);
@@ -298,20 +298,20 @@ class statistics {
      * in length, and arithmetic_exception when one series is constant (its
      * spread is 0, so the coefficient is undefined).
      */
-    static def correlation(xs: var[], ys: var[]): var {
+    static def correlation(xs: decimal[], ys: decimal[]): decimal {
         require_data(xs, "correlation");
         if(sizeof(xs) != sizeof(ys))
             throw new illegal_argument_exception("statistics.correlation: the arrays differ in length");
 
-        mean_x : var = mean(xs);
-        mean_y : var = mean(ys);
-        both : var = 0;
-        spread_x : var = 0;
-        spread_y : var = 0;
+        mean_x : decimal = mean(xs);
+        mean_y : decimal = mean(ys);
+        both : decimal = 0;
+        spread_x : decimal = 0;
+        spread_y : decimal = 0;
 
-        for(i : var = 0; i < sizeof(xs); i++) {
-            dx : var = xs[i] - mean_x;
-            dy : var = ys[i] - mean_y;
+        for(i : decimal = 0; i < sizeof(xs); i++) {
+            dx : decimal = xs[i] - mean_x;
+            dy : decimal = ys[i] - mean_y;
             both += dx * dy;
             spread_x += dx * dx;
             spread_y += dy * dy;
@@ -327,9 +327,9 @@ class statistics {
      * (negative) the mean of the data: (value - mean) / std_dev.
      * Throws arithmetic_exception when all values are equal (std_dev is 0).
      */
-    static def z_score(values: var[], value: var): var {
+    static def z_score(values: decimal[], value: decimal): decimal {
         require_data(values, "z_score");
-        deviation : var = std_dev(values);
+        deviation : decimal = std_dev(values);
         if(deviation == 0)
             throw new arithmetic_exception("statistics.z_score: the standard deviation is 0");
         return (value - mean(values)) / deviation;
@@ -339,10 +339,10 @@ class statistics {
      * The numbers of a list<double> as a native array, so list contents can
      * be passed to the functions above. An empty list gives an empty array.
      */
-    static def to_array(values: list<double>): var[] {
-        n : var = values.size().value;
-        result := new var[n];
-        for(i : var = 0; i < n; i++) {
+    static def to_array(values: list<double>): decimal[] {
+        n : decimal = values.size().value;
+        result := new decimal[n];
+        for(i : decimal = 0; i < n; i++) {
             result[i] = values.at(i).value;
         }
         return result;
