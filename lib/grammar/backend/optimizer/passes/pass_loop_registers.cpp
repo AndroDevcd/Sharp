@@ -56,13 +56,33 @@
 //   exception, the function is left with it (no try blocks here), and its
 //   locals are gone.
 //
+// PRECISION: WHICH LOCALS MAY BE PROMOTED
+//   A VM register is a `long double` (64 bits of precision on x86), a frame
+//   slot is a `double` (53 bits). Storing a value into a local therefore ROUNDS
+//   it, and a loop that stores on every trip rounds on every trip. Kept in a
+//   register instead, the value would not be rounded until the loop ends, and
+//   the result could differ in its last digits (`x = x * 1.1`), or once a whole
+//   number grows past 2^53 (`x = x * 2 + i`). So a local is promoted only if
+//   that cannot happen:
+//     - the loop only reads it                          (`n`, and constants)
+//     - or it is a whole-number counter: its value is a known whole number
+//       when the loop is entered, and the loop only sets it to a constant or
+//       steps it by a constant of at most MAX_COUNTER_STEP          (`i++`)
+//   Accumulators (`total += x`) stay in their frame slot.
+//   If VM registers ever become `double`, this restriction can simply go:
+//   register and slot would then round identically.
+//
 
 #include "passes.h"
 #include "../analysis/control_flow.h"
 #include "../analysis/loops.h"
 #include "../analysis/liveness.h"
+#include "../analysis/known_values.h"
 
 #define MAX_FUNCTION_INSTRUCTIONS 6000
+/* A counter stepped by at most this much needs 2^43 trips to leave the range in
+   which a double is exact - far more than any loop runs. */
+#define MAX_COUNTER_STEP 1024
 
 namespace {
 
@@ -132,6 +152,7 @@ bool promote_one(function_ir &ir, std::vector<int> &doneHeaders) {
     if(!forest.valid) return false;
 
     liveness live;
+    std::vector<machine_state> known;
     bool haveLiveness = false;
     int slots = ir.frameSlots > 0 ? ir.frameSlots : 1;
 
@@ -180,6 +201,7 @@ bool promote_one(function_ir &ir, std::vector<int> &doneHeaders) {
         register_set usedRegisters = 0;
         std::vector<int> uses(slots, 0);
         std::vector<char> written(slots, 0), blocked(slots, 0);
+        std::vector<char> rounded(slots, 0);    // written with a value that may need the slot's rounding
         bool suitable = true;
 
         for(int b : loop.blocks) {
@@ -210,7 +232,15 @@ bool promote_one(function_ir &ir, std::vector<int> &doneHeaders) {
                         if(n >= slots) { suitable = false; break; }
                         uses[n]++;
                     }
-                    if(suitable && writesFirst) written[first] = 1;
+                    if(suitable && writesFirst) {
+                        written[first] = 1;
+
+                        // a "counter" write: set to a whole number, or stepped by a small one
+                        bool counterWrite = instr.op == Opcode::ISTOREL
+                                || ((instr.op == Opcode::IADDL || instr.op == Opcode::ISUBL)
+                                    && instr.b >= -MAX_COUNTER_STEP && instr.b <= MAX_COUNTER_STEP);
+                        if(!counterWrite) rounded[first] = 1;
+                    }
                 } else {
                     // any other way of touching a local's number: hands off that local
                     const operand_kind kinds[3] = { info.a, info.b, info.c };
@@ -227,11 +257,24 @@ bool promote_one(function_ir &ir, std::vector<int> &doneHeaders) {
         }
         if(!suitable) continue;
 
-        // ---- free registers: untouched by the loop, and not carrying a value past it
         if(!haveLiveness) {
             compute_liveness(ir, cfg, live);
+            if(!analyze_known_values(ir, cfg, known)) return false;
             haveLiveness = true;
         }
+
+        // ---- locals the loop writes: only whole-number counters (see PRECISION in the header)
+        {
+            machine_state atEntry = known[loop.entries[0]];
+            for(int i = entry.first; i <= entry.last; i++)
+                apply_instruction(ir.code[i], atEntry);
+
+            for(int n = 0; n < slots; n++) {
+                if(written[n] && (rounded[n] || !is_known(atEntry.locals[n]))) blocked[n] = 1;
+            }
+        }
+
+        // ---- free registers: untouched by the loop, and not carrying a value past it
         register_set neededAfter = live.registersAfter[bottomIndex] | live.registersAfter[entry.last];
 
         static const int order[] = { ECF, EDF, EHF, ECX, CX, EGX, EBX, ADX };

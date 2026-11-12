@@ -268,7 +268,13 @@ void optimize_bytecode() {
     // passes above should see (and shrink, or remove) each loop first.
     if(level >= LOOP_LEVEL) {
         for(function_ir *ir : program.functions) {
-            // (first: it removes loops altogether, and it wants them as the generator laid them out)
+            // a formula beats any amount of loop tuning, so this one goes first
+            if(pass_enabled("loop formula") && pass_loop_closed_form(*ir)) {
+                program.loopsAsFormula++;
+                run_local_passes(*ir, level);
+            }
+
+            // (before rotation: it removes loops altogether, and it wants them as the generator laid them out)
             if(level >= INLINE_LEVEL && pass_enabled("loop unrolling") && pass_loop_unrolling(*ir)) {
                 program.loopsUnrolled++;
                 run_local_passes(*ir, level);
@@ -327,6 +333,8 @@ void optimize_bytecode() {
             cout << "  pass inline calls: " << program.callsInlined << " calls replaced by the callee's body\n"
                  << "  pass box elimination: " << program.boxesRemoved << " number objects replaced by a local\n";
 
+        if(level >= LOOP_LEVEL)
+            cout << "  pass loop formula: " << program.loopsAsFormula << " functions had loops replaced by a formula\n";
         if(level >= INLINE_LEVEL)
             cout << "  pass loop unrolling: " << program.loopsUnrolled << " functions had loops unrolled\n";
         if(level >= LOOP_LEVEL)

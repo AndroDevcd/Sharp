@@ -24,6 +24,7 @@ struct program_ir {
     std::map<Int, function_ir*> byAddress;   // function address (the operand of `call`) -> function
     Int callsInlined = 0;
     Int boxesRemoved = 0;
+    Int loopsAsFormula = 0;
     Int loopsUnrolled = 0;
     Int loopsRotated = 0;
     Int loopsInRegisters = 0;
@@ -48,6 +49,8 @@ bool pass_jump_cleanup(function_ir &ir);
 bool pass_unreachable_code(function_ir &ir);
 
 // ---- loop shaping, run by the driver once after everything else (at -O2 and up), in this order
+/** a counting loop that only adds things up is replaced by the formula for the sum (pass_loop_closed_form.cpp) */
+bool pass_loop_closed_form(function_ir &ir);
 /** a loop with a small known trip count becomes straight-line code (-O3)   (pass_loop_unrolling.cpp) */
 bool pass_loop_unrolling(function_ir &ir);
 /** the loop test moves to the bottom of the loop: one jump per trip instead of two  (pass_loop_rotation.cpp) */
