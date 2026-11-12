@@ -438,11 +438,32 @@ a lock counts re-entries by its holder (`memory/sharp_object.cpp`).
 
 ## 15. The garbage collector
 
-It counts references; it does not trace. `assign_slot` increments the new
-object's count and decrements the old one's; `mark_memory` marks objects whose
-count is 0; `sweep` frees them and decrements their children. There is no root
-scan. Consequences: a number slot holds no reference (an object reachable only
-through a number would be freed), and reference cycles are never freed.
+It traces; it does not count references (it did until November 2026). The
+code is `runtime/memory/tracing_collector.cpp`, and its header explains the
+design in full. In short:
+
+- A collection stops every thread that runs Sharp code at a safe point (the
+  `state_check` of the interpreter and of compiled code, signal `tsig_gc`),
+  marks everything reachable from the roots, frees the rest, and lets the
+  threads go on. Blocked threads are inside a `gc_safe_region` and are not
+  waited for.
+- Roots (`mark_roots`): static fields, permanent objects (`tgc_make_permanent`),
+  reflection objects, every thread's objects, every fiber's stack from the
+  bottom up to `sp`, its exception and fiber objects, the objects it has locked
+  or waits to lock, the object that contains `task->ptr`, and objects native
+  code holds (`tgc_pin`).
+- Stack slots above `sp` are set to null during a collection, so a leftover
+  slot never points at a freed object.
+- A collection never runs inside an allocation: allocating only asks for one,
+  and it happens at the thread's next safe point. That is why C++ code may hold
+  a new object in a local variable for the length of one instruction.
+- Assigning a reference (`copy_object`) is a plain pointer store. Reference
+  cycles are freed like everything else.
+- Still true: a number slot holds no reference, so an object reachable only
+  through a number (a handle stored as a number) is freed.
+- Adding a place in the runtime that keeps a `sharp_object*` longer than one
+  instruction means adding it to `mark_roots`. Check with `-gcstress <n>` and a
+  runtime built with `-fsanitize=address`.
 
 ## 16. Lazy library compilation, the parse cache, the optimizer
 
