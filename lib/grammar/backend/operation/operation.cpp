@@ -1666,6 +1666,10 @@ void create_instance_field_getter_operation(
         scheme->schemeType = scheme_call_getter_function;
         scheme->fun = instanceField->getter;
 
+        // The steps already in `scheme` produced the instance (`p` in `p.x`).
+        // A getter is an instance function: it takes that object from the stack.
+        scheme->steps.add(new operation_step(
+                operation_push_value_to_stack));
         scheme->steps.add(new operation_step(
                 operation_call_instance_function, instanceField->getter));
     }
