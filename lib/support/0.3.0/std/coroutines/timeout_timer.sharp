@@ -1,0 +1,44 @@
+mod std.coroutines;
+
+/**
+ * timeout_timer - the coroutine behind with_timeout { }: sleeps for the time
+ * limit, then cancels the scope it guards.
+ *
+ * USAGE (by timeouts.sharp only)
+ *     timer := new timeout_timer(scope_job, 500, error);
+ *     ticking := new job(timer);          // started on dispatchers.timers()
+ *     ...
+ *     ticking.cancel();                   // the block finished in time
+ *
+ * It is a coroutine_body object because the timer runs on another fiber and
+ * has to carry its data with it (THE CLOSURE RULE, builders.sharp).
+ *
+ * Kotlin equivalent: the TimeoutCoroutine that withTimeout schedules on the
+ * delay queue.
+ *
+ * No locking: the fields are written before the timer is started and only
+ * read by its own fiber.
+ */
+class timeout_timer : coroutine_body {
+
+    private target : job?;
+    private limit : var = 0;
+    private error : timeout_cancellation_exception?;
+
+    /**
+     * @param target the scope job to cancel
+     * @param limit  after how many milliseconds
+     * @param error  what the cancellation points of the scope throw then
+     */
+    timeout_timer(target: job, limit: var, error: timeout_cancellation_exception) {
+        self->target = target;
+        self->limit = limit;
+        self->error = error;
+    }
+
+    /** sleep, then cancel. Cancelling the timer's own job during the sleep ends it without doing anything. */
+    override def run_body() {
+        delay(limit);
+        target!!.cancel_with(error!!, 0);
+    }
+}

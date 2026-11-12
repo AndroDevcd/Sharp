@@ -1,0 +1,30 @@
+mod std.coroutines;
+
+import ( std.io )
+
+/**
+ * coroutine_dispatcher - decides which thread runs a coroutine.
+ *
+ * USAGE
+ *     launch_on(dispatchers.default_pool(), { -> crunch(); });     // any worker thread
+ *     ui := dispatchers.single_thread("ui");
+ *     launch_on(ui, { -> draw(); });                               // always the "ui" thread
+ *
+ * The runtime knows two kinds of fibers and a dispatcher simply picks one:
+ *     select_thread() returns null     an UNBOUND fiber: whichever thread is
+ *                                      free takes it (and it may continue on
+ *                                      another thread after it has slept)
+ *     select_thread() returns a thread a fiber BOUND to that thread: only that
+ *                                      thread ever runs it
+ *
+ * A coroutine started without a dispatcher uses the one of its parent.
+ *
+ * Kotlin equivalent: kotlinx.coroutines.CoroutineDispatcher (reduced to the
+ * one decision this runtime offers). Java equivalent: java.util.concurrent.Executor.
+ *
+ * select_thread() is called once per coroutine, by the fiber that starts it.
+ * It must not block for long and must be safe to call from several threads.
+ */
+interface coroutine_dispatcher {
+    def select_thread() : thread?;
+}

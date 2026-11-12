@@ -1,0 +1,42 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG (compiler): `x = x + n` on a localized (fiber-local) number stores
+ * garbage. Reading the variable into a local first works.
+ *
+ * WHAT std.coroutines DOES ABOUT IT
+ *   mark_scope() / unmark_scope() in std/coroutines/scope/scopes.sharp go
+ *   through a local variable.
+ *
+ * EXPECTED: all three checks pass.
+ * ACTUAL:   "direct" is a meaningless number instead of 4 (52, 1915, ...: interpreter and JIT;
+ *           the number differs from program to program); the other two pass.
+ */
+
+localized direct : var;
+localized through_local : var;
+
+def add_direct(n: var) {
+    direct = direct + n;
+}
+
+def add_through_local(n: var) {
+    current : var = through_local;
+    current = current + n;
+    through_local = current;
+}
+
+def main(args: string[]) {
+    add_direct(4);
+    add_through_local(4);
+
+    expect("through a local variable", through_local, 4);
+    expect("direct", direct, 4);
+
+    add_through_local(8);
+    expect("through a local variable, again", through_local, 12);
+
+    finish("lib_coroutines_localized_arithmetic");
+}

@@ -1,0 +1,91 @@
+mod std.coroutines;
+
+import (
+    std.io,
+    std.io.fiber
+)
+
+/**
+ * thread_dispatcher - runs every coroutine on one particular thread.
+ *
+ * USAGE
+ *     db := dispatchers.single_thread("database");     // a new thread of its own
+ *     launch_on(db, { -> run_query(); });              // never two of these at the same time
+ *     db.close();                                      // when it is no longer needed
+ *
+ *     here := dispatchers.current_thread();            // the thread that is running right now
+ *
+ * Coroutines of one thread_dispatcher never run in parallel with each other,
+ * so state that only they touch needs no lock (they still interleave at
+ * suspension points). Each is a fiber bound to the thread, and runs when the
+ * thread is free: for a thread you created yourself that means "while its
+ * current fiber is suspended" (delay, join, run_blocking, ...).
+ *
+ * Kotlin equivalents: newSingleThreadContext(name), and the event loop of
+ * runBlocking for current_thread().
+ *
+ * LOCKING DISCIPLINE: closed is written once (0 -> 1) by close() and read by
+ * the thread's own fiber without a lock; target never changes.
+ */
+class thread_dispatcher : coroutine_dispatcher {
+
+    private target : thread?;
+    /** 1 when this dispatcher created the thread and may end it */
+    private owned : var = 0;
+    private closed : var = 0;
+
+    /** Coroutines run on `target`, a thread that exists already. close() will not stop it. */
+    thread_dispatcher(target: thread) {
+        self->target = target;
+    }
+
+    /** Starts a new thread called `name` for the coroutines of this dispatcher. */
+    thread_dispatcher(name: string) {
+        owned = 1;
+        created := new thread(name, thread_dispatcher.keep_alive);
+        target = created;
+
+        args := new object[1];
+        args[0] = self;
+        created.start(args);
+    }
+
+    /** the thread the coroutines run on */
+    def get_thread() : thread {
+        return target!!;
+    }
+
+    override def select_thread() : thread? {
+        return target;
+    }
+
+    /** true after close() */
+    def is_closed() : bool {
+        return closed != 0;
+    }
+
+    /**
+     * Let the thread this dispatcher created end. Coroutines that are still
+     * bound to it keep it alive until they are finished; do not start new ones
+     * afterwards. Does nothing for a dispatcher of an existing thread.
+     * The thread notices within a quarter of a second (see keep_alive).
+     * Kotlin: ExecutorCoroutineDispatcher.close()
+     */
+    def close() {
+        closed = 1;
+    }
+
+    /**
+     * The function of a dispatcher thread: its first fiber only keeps the
+     * thread alive. The runtime does not tell the first fiber of a thread its
+     * id, so it cannot be parked and woken like other fibers (see
+     * waiter.polling); it looks at `closed` four times a second instead.
+     */
+    static def keep_alive(args: object[]) : int {
+        owner := args[0] as thread_dispatcher;
+        while(owner.closed == 0) {
+            waiter.sleep_raw(250);
+        }
+        return 0;
+    }
+}

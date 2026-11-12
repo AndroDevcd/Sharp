@@ -1,0 +1,69 @@
+mod main;
+
+import (
+    testing,
+    std.io.fiber
+)
+
+/**
+ * KNOWN BUGS (language / runtime) of the lock statement that shape every
+ * class of std.coroutines and std.concurrent:
+ *
+ *   1. An exception that leaves a lock(x) { } block does NOT release the lock
+ *      (return, break and continue do). The fiber keeps the lock until it ends.
+ *   2. The lock is not counted: lock(x) { lock(x) { } ... } is released at the
+ *      end of the INNER block, the rest of the outer block runs unprotected.
+ *
+ * WHAT THE LIBRARY DOES ABOUT IT
+ *   Inside a lock block the library only reads and writes fields: nothing that
+ *   can throw, no user code, and never a second lock (see the LOCKING
+ *   DISCIPLINE comment of every class). Exceptions are thrown after the block.
+ *
+ * EXPECTED: all checks pass.
+ * ACTUAL:   "after an exception" and "nested" fail.
+ */
+
+class box { value : var = 0; }
+
+probe_result := new box();
+
+def thrower(guard: object) {
+    lock(guard) {
+        throw new illegal_state_exception("leaves the lock block");
+    }
+}
+
+/** 1 when another fiber can take the lock within a second */
+def is_free(guard: object) : var {
+    probe_result.value = 0;
+    slice({ a: object[] -> (int)
+        lock(a[0]) { probe_result.value = 1; }
+        return 0;
+    }, new object[] { guard });
+
+    for(i : var = 0; i < 200 && probe_result.value == 0; i++) {
+        delay(5);
+    }
+    return probe_result.value;
+}
+
+def main(args: string[]) {
+    plain := new box();
+    lock(plain) { plain.value = 1; }
+    expect("free after a normal block", is_free(plain), 1);
+
+    thrown := new box();
+    try { thrower(thrown); } catch(e: illegal_state_exception) { }
+    expect("free after an exception left the block", is_free(thrown), 1);
+
+    nested := new box();
+    still_held : var = 0;
+    lock(nested) {
+        lock(nested) { }
+        // the outer block is not finished: nobody else may get the lock here
+        if(is_free(nested) == 0) { still_held = 1; }
+    }
+    expect("nested: the outer block still holds the lock after the inner one", still_held, 1);
+
+    finish("lib_coroutines_lock_exception");
+}

@@ -1,0 +1,222 @@
+mod std.coroutines;
+
+import ( std.io )
+
+/**
+ * scopes.sharp - structured concurrency: coroutine_scope { } and
+ * supervisor_scope { }.
+ *
+ * USAGE
+ *     def load_page() {
+ *         coroutine_scope({ ->
+ *             launch({ -> load_images(); });
+ *             launch({ -> load_text(); });
+ *         });
+ *         // here BOTH are finished. If one of them threw, the other one was
+ *         // cancelled and the exception was thrown again by coroutine_scope.
+ *     }
+ *
+ *     supervisor_scope({ ->
+ *         launch({ -> may_fail(); });          // its failure is reported, nothing else happens
+ *         launch({ -> must_still_run(); });
+ *     });
+ *
+ * Both run their block in-line in the calling fiber (so the block may capture
+ * locals) and return when the block and every coroutine started inside are
+ * finished. The calling fiber is suspended while it waits.
+ *
+ * Kotlin equivalents: coroutineScope { }, supervisorScope { }.
+ * (coroutine_scope is also a class: an object that owns coroutines and can be
+ * cancelled as a unit, see scope/coroutine_scope.sharp.)
+ *
+ * =============================================================================
+ * THE NESTING RULE
+ * =============================================================================
+ * The in-line scope functions are coroutine_scope, supervisor_scope,
+ * run_blocking, with_timeout and with_timeout_or_null (the rule also covers
+ * mutex.with_lock and semaphore.with_permit). Any of them may be
+ * used inside any OTHER of them. What is not possible is one of them inside
+ * ITSELF on the same fiber:
+ *
+ *     coroutine_scope({ ->
+ *         coroutine_scope({ -> ... });         // throws illegal_state_exception
+ *     });
+ *
+ * The reason is a bug of the runtime: a fiber that is switched out while one
+ * function is on its call stack twice never continues
+ * (tests/suite/known_bugs/lib_coroutines_recursive_suspend.sharp). The library
+ * refuses the call instead of letting the program hang. Ways around it:
+ *
+ *     coroutine_scope({ ->
+ *         supervisor_scope({ -> ... });        // a different scope function
+ *         launch({ -> coroutine_scope({ -> ... }); }).join();   // or a coroutine of its own
+ *     });
+ *
+ * A block that is started with launch/async runs on its own fiber and starts
+ * with a clean slate. For the same reason every one of these functions calls
+ * its block from its own body (the code looks repeated on purpose): a shared
+ * helper that called the block would be on the stack twice as soon as two
+ * different scope functions were nested.
+ * =============================================================================
+ */
+
+/**
+ * Which in-line scope functions the calling fiber is inside of right now, one
+ * bit each (fiber-local): 1 coroutine_scope, 2 supervisor_scope,
+ * 4 run_blocking, 8 with_timeout, 16 with_timeout_or_null,
+ * 32 mutex.with_lock, 64 semaphore.with_permit.
+ */
+localized scope_marks : var;
+
+/**
+ * Throw illegal_state_exception if the calling fiber is already inside the
+ * scope function with this bit (THE NESTING RULE). Changes nothing.
+ */
+def check_scope_nesting(bit: var, name: string) {
+    marks : var = scope_marks;
+    if((marks & bit) != 0) {
+        throw new illegal_state_exception("$name { } cannot be used directly inside another $name { } on the same fiber"
+            + " (a runtime bug stops a fiber from continuing when a function is on its call stack twice)."
+            + " Use a different scope function, or run the inner part in a coroutine of its own: launch(...).join()");
+    }
+}
+
+/** remember that the calling fiber is inside the scope function with this bit */
+def mark_scope(bit: var) {
+    // through a local on purpose: `scope_marks = scope_marks + bit` on a localized
+    // number stores garbage (tests/suite/known_bugs/lib_coroutines_localized_arithmetic.sharp)
+    marks : var = scope_marks;
+    marks = marks + bit;
+    scope_marks = marks;
+}
+
+/** the calling fiber left the scope function with this bit */
+def unmark_scope(bit: var) {
+    marks : var = scope_marks;
+    marks = marks - bit;
+    scope_marks = marks;
+}
+
+/**
+ * Run `block`, then wait for all the coroutines it launched.
+ *
+ * SUSPENDS (at the end, while children are still running).
+ * Cancellation: when the caller is cancelled, everything inside is cancelled
+ * and cancellation_exception is thrown.
+ * @throws the exception of the block or of the first child that failed (the
+ *         other children are cancelled first and have stopped by then)
+ * @throws illegal_state_exception directly inside another coroutine_scope { }
+ *         of the same fiber (THE NESTING RULE)
+ * Kotlin: coroutineScope { }
+ */
+def coroutine_scope(block: ()()) {
+    check_scope_nesting(1, "coroutine_scope");
+    scope_job := open_scope(0);
+
+    outer := current_job();
+    error : throwable? = null;
+    cancellation : var = 0;
+
+    mark_scope(1);
+    set_current_job(scope_job);
+    try {
+        block();
+    } catch(c: cancellation_exception) {
+        error = c;
+        cancellation = 1;
+    } catch(t: throwable) {
+        error = t;
+    }
+    set_current_job(outer);
+    unmark_scope(1);
+
+    close_scope(scope_job, error, cancellation);
+}
+
+/**
+ * coroutine_scope() whose children fail on their own: a child that throws
+ * does not cancel its siblings or the scope, its exception goes to
+ * coroutine_exceptions (async children keep theirs for await()). An exception
+ * of the BLOCK ITSELF still cancels all children and is thrown again.
+ *
+ * SUSPENDS; cancellation as for coroutine_scope().
+ * @throws illegal_state_exception directly inside another supervisor_scope { }
+ *         of the same fiber (THE NESTING RULE)
+ * Kotlin: supervisorScope { }
+ */
+def supervisor_scope(block: ()()) {
+    check_scope_nesting(2, "supervisor_scope");
+    scope_job := open_scope(1);
+
+    outer := current_job();
+    error : throwable? = null;
+    cancellation : var = 0;
+
+    mark_scope(2);
+    set_current_job(scope_job);
+    try {
+        block();
+    } catch(c: cancellation_exception) {
+        error = c;
+        cancellation = 1;
+    } catch(t: throwable) {
+        error = t;
+    }
+    set_current_job(outer);
+    unmark_scope(2);
+
+    close_scope(scope_job, error, cancellation);
+}
+
+/**
+ * Create the job of an in-line scope as a child of the current coroutine (a
+ * root when there is none). For the scope functions of this module.
+ * A cancellation point: throws when the current coroutine is cancelled.
+ */
+def open_scope(supervising: var) : job {
+    ensure_active();
+
+    outer := current_job();
+    scope_job := new job();
+    scope_job.has_body = 1;
+    scope_job.scoped = 1;
+    scope_job.supervisor = supervising;
+
+    if(outer != null) {
+        owner := outer!!;
+        scope_job.dispatcher = owner.dispatcher;
+        scope_job.parent = owner;
+        scope_job.attached = 1;
+        if(owner.attach_child(scope_job) == 0) {
+            // cancelled between the check above and here
+            scope_job.attached = 0;
+            throw_cancellation();
+        }
+    } else {
+        // outside any coroutine: children stay on the calling thread, like run_blocking
+        scope_job.dispatcher = dispatchers.current_thread();
+    }
+
+    return scope_job;
+}
+
+/**
+ * The block of an in-line scope is over: wait for the children and throw what
+ * the scope failed with. For the scope functions of this module; it is only
+ * ever on the stack of a fiber once, because an outer scope function is still
+ * inside its block while an inner one is here.
+ *
+ * @param error        what the block threw, or null
+ * @param cancellation 1 when `error` is a cancellation_exception
+ */
+def close_scope(scope_job: job, error: throwable?, cancellation: var) {
+    scope_job.finish_body(error, cancellation);
+
+    // not interruptible on purpose: a cancellation of the caller arrives through
+    // the parent link, cancels the children and ends this wait that way
+    scope_job.await_final();
+
+    if(scope_job.state == 5) {      // job.CANCELLED
+        throw scope_job.failure!!;
+    }
+}

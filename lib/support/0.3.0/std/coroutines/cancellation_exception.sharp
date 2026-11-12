@@ -1,0 +1,34 @@
+mod std.coroutines;
+
+/**
+ * cancellation_exception - thrown inside a coroutine at a cancellation point
+ * after its job was cancelled.
+ *
+ * USAGE
+ *     j := launch({ ->
+ *         try {
+ *             delay(10000);                 // a cancellation point
+ *         } catch(e: cancellation_exception) {
+ *             println("cancelled, cleaning up");
+ *             throw e;                      // let the coroutine end as cancelled
+ *         }
+ *     });
+ *     j.cancel();
+ *
+ * Cancellation is cooperative: nothing stops a coroutine by force. The
+ * cancellation points are delay(), yield(), ensure_active(), job.join(),
+ * deferred.await(), every channel operation, mutex.acquire() and
+ * semaphore.acquire(). A coroutine that never reaches one of them runs to its
+ * end even when it is cancelled.
+ *
+ * A coroutine that ends with a cancellation_exception counts as CANCELLED, not
+ * as failed: its parent is not cancelled and nothing is reported as an error.
+ * Catching it without throwing it again is allowed but makes the coroutine
+ * carry on although it is cancelled; the next cancellation point throws again.
+ *
+ * Kotlin equivalent: kotlinx.coroutines.CancellationException.
+ * Java equivalent: java.util.concurrent.CancellationException.
+ */
+class cancellation_exception base exception {
+    public cancellation_exception(message : string?) -> base(message) {}
+}

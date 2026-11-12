@@ -1,0 +1,529 @@
+mod main;
+
+import (
+    testing,
+    std.coroutines,
+    std.coroutines.channels,
+    std.concurrent
+)
+
+/**
+ * std.coroutines.channels: channel<t> with its four capacities, close and
+ * cancel, cancellation of waiting senders and receivers, for_each / to_list,
+ * produce, and pipelines that move 20,000 elements across worker threads.
+ *
+ * Asserted are only things that hold for every schedule: what one sender sent
+ * arrives in its order, totals and counts after everything was joined, the
+ * state of a channel after close.
+ *
+ * Coroutine blocks cannot see locals of the function that created them (the
+ * closure rule), so every coroutine here is given its channels in a state
+ * object (class link) or uses globals.
+ */
+
+class link {
+    input : channel<int>?;
+    output : channel<int>?;
+    count : var = 0;
+    first : var = 0;
+}
+
+class flag {
+    value : var = 0;
+}
+
+received_total := new atomic_counter();
+received_count := new atomic_counter();
+out_of_order := new atomic_counter();
+never_reached := new atomic_counter();
+closed_seen := new atomic_counter();
+
+def send_range(l: link) {
+    out := l.output!!;
+    for(i : var = 0; i < l.count; i++) {
+        out.send(l.first + i);
+    }
+}
+
+def drain(l: link) {
+    source := l.input!!;
+    for( ;; ) {
+        n := source.receive_or_null();
+        if(n == null) { break; }
+        received_total.add(n!!.value);
+        received_count.increment();
+    }
+}
+
+/** receives everything and counts elements that are not exactly previous + 1 */
+def drain_in_order(l: link) {
+    source := l.input!!;
+    expected : var = l.first;
+    for( ;; ) {
+        n := source.receive_or_null();
+        if(n == null) { break; }
+        if(n!!.value != expected) { out_of_order.increment(); }
+        expected++;
+        received_count.increment();
+    }
+}
+
+def square_stage(l: link) {
+    source := l.input!!;
+    out := l.output!!;
+    for( ;; ) {
+        n := source.receive_or_null();
+        if(n == null) { break; }
+        out.send(n!!.value * 2);
+    }
+    out.close();
+}
+
+/**
+ * Runs the coroutine machinery on ONE thread before any worker thread exists,
+ * so that the library functions are compiled by the JIT before several threads
+ * are inside them (see lib_coroutines_core.sharp warm_up() and
+ * known_bugs/lib_coroutines_jit_fiber_frames.sharp). It checks nothing itself.
+ */
+def warm_up() {
+    run_blocking({ ->
+        for(i : var = 0; i < 30; i++) {
+            w := async<int>.start({ -> (int) delay(1); return 10; });
+            w.await();
+            k := launch({ -> yield(); delay(1); });
+            k.join();
+            c := launch({ -> delay(1000000); });
+            yield();
+            c.cancel_and_join();
+            coroutine_scope({ -> launch({ -> yield(); }); });
+        }
+    });
+
+    // the channel itself, without any coroutine
+    ch := new channel<int>(4);
+    for(i : var = 0; i < 30; i++) {
+        ch.send(i);
+        ch.try_send(i);
+        ch.receive();
+        ch.receive_or_null();
+        ch.try_receive();
+    }
+}
+
+def test_capacities() {
+    // ---- buffered
+    b := new channel<int>(3);
+    expect("capacity", b.get_capacity(), 3);
+    expect_true("new channel is empty", b.is_empty().value);
+    expect_true("try_send 1", b.try_send(1).value);
+    expect_true("try_send 2", b.try_send(2).value);
+    expect_true("try_send 3", b.try_send(3).value);
+    expect_false("try_send on a full buffer", b.try_send(4).value);
+    expect("size of a full buffer", b.size(), 3);
+    expect("receive gives the oldest", b.receive().value, 1);
+    expect("try_receive gives the next", b.try_receive()!!.value, 2);
+    expect_true("room again", b.try_send(5).value);
+    expect("order kept", b.receive().value, 3);
+    expect("order kept (2)", b.receive().value, 5);
+    expect_null("try_receive on an empty channel", b.try_receive());
+    expect_true("empty again", b.is_empty().value);
+
+    // ---- rendezvous
+    r := new channel<int>();
+    expect("default capacity is rendezvous", r.get_capacity(), channels.RENDEZVOUS);
+    expect_false("try_send without a receiver", r.try_send(1).value);
+    expect_null("try_receive without a sender", r.try_receive());
+
+    run_blocking({ ->
+        l := new link();
+        l.output = r;
+        l.count = 5;
+        l.first = 10;
+        producer := launch(l, { s: object -> send_range(s as link); });
+        expect("rendezvous 1", r.receive().value, 10);
+        expect("rendezvous 2", r.receive().value, 11);
+        expect("rendezvous 3", r.receive().value, 12);
+        expect("rendezvous 4", r.receive().value, 13);
+        expect("rendezvous 5", r.receive().value, 14);
+        producer.join();
+        expect_true("producer finished after its last element was taken", producer.is_completed().value);
+    });
+
+    // a sender that waits does not finish before a receiver comes
+    run_blocking({ ->
+        l := new link();
+        l.output = r;
+        l.count = 1;
+        l.first = 77;
+        sender := launch(l, { s: object -> send_range(s as link); });
+        yield();
+        yield();
+        expect_true("rendezvous sender is still waiting", sender.is_active().value);
+        expect("try_receive takes from a waiting sender", r.try_receive()!!.value, 77);
+        sender.join();
+        expect_true("sender finished", sender.is_completed().value);
+    });
+
+    // ---- unlimited
+    u := new channel<int>(channels.UNLIMITED);
+    sent : var = 0;
+    for(i : var = 0; i < 1000; i++) {
+        if(u.try_send(i)) { sent++; }
+    }
+    expect("unlimited channel took 1000 elements without waiting", sent, 1000);
+    expect("unlimited size", u.size(), 1000);
+    sum : var = 0;
+    for(i : var = 0; i < 1000; i++) { sum += u.receive().value; }
+    expect("unlimited sum", sum, 499500);
+
+    // ---- conflated
+    c := new channel<int>(channels.CONFLATED);
+    c.send(1);
+    c.send(2);
+    c.send(3);
+    expect("conflated keeps one element", c.size(), 1);
+    expect("conflated keeps the newest", c.receive().value, 3);
+    expect_null("conflated is empty afterwards", c.try_receive());
+
+    try {
+        bad := new channel<int>(0 - 7);
+        fail("negative capacity", "accepted");
+    } catch(e: illegal_argument_exception) {
+        pass("negative capacity refused");
+    }
+}
+
+def test_close() {
+    ch := new channel<int>(4);
+    ch.send(1);
+    ch.send(2);
+    expect_false("open channel: not closed for send", ch.is_closed_for_send().value);
+    ch.close();
+    expect_true("closed for send", ch.is_closed_for_send().value);
+    expect_false("not closed for receive while elements remain", ch.is_closed_for_receive().value);
+    expect_false("try_send on a closed channel", ch.try_send(3).value);
+    try {
+        ch.send(3);
+        fail("send on a closed channel", "returned normally");
+    } catch(e: closed_channel_exception) {
+        pass("send on a closed channel throws");
+    }
+    expect("element sent before close (1)", ch.receive().value, 1);
+    expect("element sent before close (2)", ch.receive_or_null()!!.value, 2);
+    expect_true("closed for receive when drained", ch.is_closed_for_receive().value);
+    expect_null("receive_or_null on a closed, empty channel", ch.receive_or_null());
+    try {
+        ch.receive();
+        fail("receive on a closed, empty channel", "returned normally");
+    } catch(e: closed_channel_exception) {
+        pass("receive on a closed, empty channel throws");
+    }
+    ch.close();
+    pass("close twice is harmless");
+
+    // close wakes receivers that are waiting
+    closed_seen.write(0);
+    quiet := new channel<int>();
+    run_blocking({ ->
+        a := launch(quiet, { s: object ->
+            c := s as channel<int>;
+            try { c.receive(); never_reached.increment(); } catch(e: closed_channel_exception) { closed_seen.increment(); }
+        });
+        b := launch(quiet, { s: object ->
+            c := s as channel<int>;
+            if(c.receive_or_null() == null) { closed_seen.add(10); }
+        });
+        yield();
+        yield();
+        quiet.close();
+        a.join();
+        b.join();
+    });
+    expect("close woke both waiting receivers", closed_seen.read(), 11);
+
+    // a sender that is waiting when close() is called still delivers
+    late := new channel<int>();
+    run_blocking({ ->
+        l := new link();
+        l.output = late;
+        l.count = 1;
+        l.first = 5;
+        sender := launch(l, { s: object -> send_range(s as link); });
+        yield();
+        yield();
+        late.close();
+        expect("element of a waiting sender survives close", late.receive().value, 5);
+        expect_null("then the channel is finished", late.receive_or_null());
+        sender.join();
+    });
+
+    // cancel throws the buffer away and fails waiting senders
+    gone := new channel<int>(1);
+    gone.send(1);
+    closed_seen.write(0);
+    run_blocking({ ->
+        blocked := launch(gone, { s: object ->
+            c := s as channel<int>;
+            try { c.send(2); never_reached.increment(); } catch(e: closed_channel_exception) { closed_seen.increment(); }
+        });
+        yield();
+        yield();
+        gone.cancel();
+        blocked.join();
+    });
+    expect("cancel failed the waiting sender", closed_seen.read(), 1);
+    expect_true("cancelled channel", gone.is_cancelled().value);
+    expect_null("cancel discarded the buffer", gone.receive_or_null());
+    expect_true("cancelled channel is closed for receive", gone.is_closed_for_receive().value);
+}
+
+def test_cancellation() {
+    never_reached.write(0);
+    ch := new channel<int>();
+
+    // a receiver that is cancelled while it waits
+    receiver := launch(ch, { s: object -> c := s as channel<int>; c.receive(); never_reached.increment(); });
+    delay(5);
+    receiver.cancel_and_join();
+    expect_true("waiting receiver was cancelled", receiver.is_cancelled().value);
+    expect_false("the channel offers nothing to a cancelled receiver", ch.try_send(1).value);
+
+    // a sender that is cancelled while it waits takes its element back
+    sender := launch(ch, { s: object -> c := s as channel<int>; c.send(9); never_reached.increment(); });
+    delay(5);
+    sender.cancel_and_join();
+    expect_true("waiting sender was cancelled", sender.is_cancelled().value);
+    expect_null("the element of a cancelled sender is gone", ch.try_receive());
+
+    // the channel still works afterwards
+    run_blocking({ ->
+        l := new link();
+        l.output = ch;
+        l.count = 2;
+        l.first = 40;
+        p := launch(l, { s: object -> send_range(s as link); });
+        expect("channel works after cancelled waits (1)", ch.receive().value, 40);
+        expect("channel works after cancelled waits (2)", ch.receive().value, 41);
+        p.join();
+    });
+
+    // send and receive check for cancellation on entry
+    full := new channel<int>(channels.UNLIMITED);
+    busy := launch(full, { s: object ->
+        c := s as channel<int>;
+        for( ;; ) { c.send(1); c.receive(); }
+        never_reached.increment();
+    });
+    delay(5);
+    busy.cancel_and_join();
+    expect_true("a coroutine that never waits is cancelled at a channel operation", busy.is_cancelled().value);
+
+    // with_timeout around a receive that never gets anything
+    r := with_timeout_or_null(20, { -> (object) return ch.receive(); });
+    expect_null("receive under a time limit", r);
+    expect_false("no stale receiver left behind", ch.try_send(3).value);
+
+    expect("no cancelled wait ever continued", never_reached.read(), 0);
+}
+
+def test_iteration() {
+    ch := new channel<int>(channels.UNLIMITED);
+    for(i : var = 1; i <= 10; i++) { ch.send(i); }
+    ch.close();
+    total := new flag();
+    ch.for_each({ n: int -> total.value = total.value + n.value; });
+    expect("for_each visited every element", total.value, 55);
+
+    other := new channel<int>(channels.UNLIMITED);
+    for(i : var = 1; i <= 4; i++) { other.send(i * i); }
+    other.close();
+    items := other.to_list();
+    expect("to_list size", items.size().value, 4);
+    expect("to_list first", items.at(0).value, 1);
+    expect("to_list last", items.at(3).value, 16);
+
+    // for_each waits for elements that come later
+    live := new channel<int>();
+    count := new flag();
+    run_blocking({ ->
+        l := new link();
+        l.output = live;
+        l.count = 100;
+        p := launch(l, { s: object -> x := s as link; send_range(x); x.output!!.close(); });
+        live.for_each({ n: int -> count.value = count.value + 1; });
+        p.join();
+    });
+    expect("for_each over a live channel", count.value, 100);
+
+    // an exception of the action ends for_each
+    broken := new channel<int>(channels.UNLIMITED);
+    broken.send(1);
+    broken.send(2);
+    try {
+        broken.for_each({ n: int -> throw new illegal_state_exception("stop"); });
+        fail("for_each whose action throws", "returned normally");
+    } catch(e: illegal_state_exception) {
+        pass("for_each passed the exception on");
+    }
+    expect("the element after the failing one is still there", broken.receive().value, 2);
+}
+
+def test_produce() {
+    run_blocking({ ->
+        squares := produce<int>.start({ out: send_channel<int> ->
+            for(i : var = 1; i <= 5; i++) { out.send(i * i); }
+        });
+        expect("produce 1", squares.receive().value, 1);
+        expect("produce 2", squares.receive().value, 4);
+        expect("produce 3", squares.receive().value, 9);
+        expect("produce 4", squares.receive().value, 16);
+        expect("produce 5", squares.receive().value, 25);
+        expect_null("produce closes its channel at the end", squares.receive_or_null());
+        expect_true("produced channel is closed", squares.is_closed_for_receive().value);
+    });
+
+    // with a buffer and a state object
+    seed := new link();
+    seed.first = 100;
+    seed.count = 50;
+    sum := new flag();
+    run_blocking({ ->
+        source := produce<int>.start(8, seed, { out: send_channel<int>, s: object ->
+            l := s as link;
+            for(i : var = 0; i < l.count; i++) { out.send(l.first + i); }
+        });
+        source.for_each({ n: int -> sum.value = sum.value + n.value; });
+    });
+    expect("produce with state and buffer", sum.value, 6225);
+
+    // the consumer walks away: the producer ends and the scope can finish
+    taken := new flag();
+    run_blocking({ ->
+        endless := produce<int>.start({ out: send_channel<int> ->
+            for(i : var = 0; ; i++) { out.send(i); }
+        });
+        taken.value = endless.receive().value + endless.receive().value + endless.receive().value;
+        endless.cancel();
+    });
+    expect("an endless producer ended when its consumer cancelled", taken.value, 3);
+
+    // a producer that fails closes the channel and fails the scope
+    try {
+        coroutine_scope({ ->
+            failing := produce<int>.start({ out: send_channel<int> ->
+                out.send(1);
+                throw new illegal_state_exception("producer failed");
+            });
+            failing.for_each({ n: int -> taken.value = 1000 + n.value; });
+        });
+        fail("scope of a failing producer", "returned normally");
+    } catch(e: illegal_state_exception) {
+        expect_str("the producer's exception reached the scope", e.get_message(), "producer failed");
+    }
+    expect("the element sent before the failure arrived", taken.value, 1001);
+}
+
+def test_pipelines() {
+    // ---- one producer, one consumer, 20,000 elements through a buffer of 64, on the pool
+    received_total.write(0);
+    received_count.write(0);
+    out_of_order.write(0);
+    pipe := new channel<int>(channels.BUFFERED);
+    l := new link();
+    l.input = pipe;
+    l.output = pipe;
+    l.count = 20000;
+    coroutine_scope({ ->
+        launch_on(dispatchers.default_pool(), l, { s: object -> drain_in_order(s as link); });
+        launch_on(dispatchers.default_pool(), l, { s: object -> x := s as link; send_range(x); x.output!!.close(); });
+    });
+    expect("20,000 elements arrived", received_count.read(), 20000);
+    expect("...in the order they were sent", out_of_order.read(), 0);
+
+    // ---- 4 producers, 4 consumers, 5,000 elements each, rendezvous
+    received_total.write(0);
+    received_count.write(0);
+    shared := new channel<int>();
+    coroutine_scope({ ->
+        consumers := new job[4];
+        producers := new job[4];
+        for(i : var = 0; i < 4; i++) {
+            c := new link();
+            c.input = shared;
+            consumers[i] = launch_on(dispatchers.default_pool(), c, { s: object -> drain(s as link); });
+        }
+        for(i : var = 0; i < 4; i++) {
+            p := new link();
+            p.output = shared;
+            p.count = 5000;
+            p.first = 1;
+            producers[i] = launch_on(dispatchers.default_pool(), p, { s: object -> send_range(s as link); });
+        }
+        join_all(producers);
+        shared.close();
+        join_all(consumers);
+    });
+    expect("4x4: every element was received exactly once (count)", received_count.read(), 20000);
+    expect("4x4: every element was received exactly once (sum)", received_total.read(), 50010000);
+
+    // ---- three stages: numbers -> doubled -> summed
+    received_total.write(0);
+    received_count.write(0);
+    first := new channel<int>(32);
+    second := new channel<int>(32);
+    gen := new link();
+    gen.output = first;
+    gen.count = 20000;
+    gen.first = 1;
+    mid := new link();
+    mid.input = first;
+    mid.output = second;
+    last := new link();
+    last.input = second;
+    coroutine_scope({ ->
+        launch_on(dispatchers.default_pool(), last, { s: object -> drain(s as link); });
+        launch_on(dispatchers.default_pool(), mid, { s: object -> square_stage(s as link); });
+        launch_on(dispatchers.default_pool(), gen, { s: object -> x := s as link; send_range(x); x.output!!.close(); });
+    });
+    expect("three stage pipeline count", received_count.read(), 20000);
+    expect("three stage pipeline sum", received_total.read(), 400020000);
+
+    // ---- ping pong on one thread
+    ping := new channel<int>();
+    pong := new channel<int>();
+    echo := new link();
+    echo.input = ping;
+    echo.output = pong;
+    rounds := new flag();
+    run_blocking({ ->
+        launch(echo, { s: object ->
+            x := s as link;
+            for( ;; ) {
+                n := x.input!!.receive_or_null();
+                if(n == null) { break; }
+                x.output!!.send(n!!.value + 1);
+            }
+        });
+        value : var = 0;
+        for(i : var = 0; i < 2000; i++) {
+            ping.send(value);
+            value = pong.receive().value;
+        }
+        rounds.value = value;
+        ping.close();
+    });
+    expect("2,000 round trips through two rendezvous channels", rounds.value, 2000);
+}
+
+def main(args: string[]) {
+    warm_up();
+
+    test_capacities();
+    test_close();
+    test_cancellation();
+    test_iteration();
+    test_produce();
+    test_pipelines();
+
+    finish("lib_coroutines_channels");
+}

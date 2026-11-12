@@ -1,0 +1,33 @@
+mod std.coroutines.channels;
+
+/**
+ * receive_channel<t> - the receiving end of a channel: what a consumer is
+ * given, and what produce returns.
+ *
+ * USAGE
+ *     def print_all(source: receive_channel<int>) {
+ *         source.for_each({ n: int -> println("$n"); });     // ends when the channel is closed
+ *     }
+ *
+ * channel<t> implements it.
+ * Kotlin equivalent: kotlinx.coroutines.channels.ReceiveChannel<E>.
+ */
+interface receive_channel<t> {
+    /** Take the next element; SUSPENDS while there is none. Cancellation point. Throws closed_channel_exception when the channel is closed and empty. */
+    def receive() : t;
+
+    /** receive() that returns null instead of throwing when the channel is closed and empty. */
+    def receive_or_null() : t?;
+
+    /** receive() that never waits: null when nothing is there right now. */
+    def try_receive() : t?;
+
+    /** Call `action` for every element until the channel is closed. SUSPENDS between elements. */
+    def for_each(action: (t)());
+
+    /** The consumer is done: close the channel and throw away what is still waiting in it. */
+    def cancel();
+
+    /** true when the channel is closed and nothing is left to receive */
+    def is_closed_for_receive() : bool;
+}

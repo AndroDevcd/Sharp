@@ -1,0 +1,750 @@
+mod main;
+
+import (
+    testing,
+    std.io,
+    std.coroutines,
+    std.concurrent
+)
+
+/**
+ * std.coroutines core: launch / job / async / deferred / run_blocking /
+ * coroutine_scope / supervisor_scope / coroutine_scope objects / cancellation /
+ * with_timeout / dispatchers / exception handling.
+ *
+ * Everything asserted here holds for every schedule: totals after a join,
+ * states after a join, that the body of a cancelled coroutine never reaches
+ * its end, that a time limit fires for a wait that would never end.
+ *
+ * The blocks of launch/async run on other fibers and cannot see locals of the
+ * function that created them (the closure rule), so the tests keep their
+ * shared state in globals or hand it over as the state argument.
+ */
+
+class flag {
+    value : var = 0;
+    name : string = "";
+}
+
+class quiet_handler : coroutine_exception_handler {
+    seen : atomic_counter = new atomic_counter();
+    last_message : string = "";
+    override def handle_exception(failed: job, error: throwable) {
+        last_message = error.get_message();
+        seen.increment();
+    }
+}
+
+hits := new atomic_counter();
+finished_bodies := new atomic_counter();
+never_reached := new atomic_counter();
+handler_calls := new atomic_counter();
+handler := new quiet_handler();
+shared := new flag();
+plain_total := new flag();
+thread_names := new flag();
+
+class adder : coroutine_body {
+    amount : var = 0;
+    adder(amount: var) { self->amount = amount; }
+    override def run_body() { hits.add(amount); }
+}
+
+def sleeper() {
+    delay(1000000);
+    never_reached.increment();
+}
+
+def spinner() {
+    for( ;; ) {
+        yield();
+    }
+    never_reached.increment();
+}
+
+def checker() {
+    for( ;; ) {
+        ensure_active();
+    }
+    never_reached.increment();
+}
+
+def test_launch_and_join() {
+    hits.write(0);
+    j := launch({ -> hits.increment(); });
+    j.join();
+    expect("launch ran the block", hits.read(), 1);
+    expect_true("joined job is completed", j.is_completed().value);
+    expect_false("joined job is not active", j.is_active().value);
+    expect_false("joined job is not cancelled", j.is_cancelled().value);
+    expect_false("joined job has not failed", j.is_failed().value);
+    expect("final state is COMPLETED", j.get_state(), job.COMPLETED);
+    expect_null("no failure on a normal job", j.get_failure());
+    j.join();
+    pass("join on a finished job returns at once");
+
+    // a state object travels with the coroutine
+    box := new flag();
+    k := launch(box, { s: object -> f := s as flag; f.value = 7; });
+    k.join();
+    expect("state argument reached the coroutine", box.value, 7);
+
+    // a coroutine_body object
+    hits.write(0);
+    b := launch(new adder(5));
+    b.join();
+    expect("coroutine_body object ran", hits.read(), 5);
+
+    expect_null("no current job outside a coroutine", current_job());
+    expect_true("is_active() outside a coroutine", is_active().value);
+}
+
+def test_run_blocking() {
+    hits.write(0);
+    local_total := new flag();
+    run_blocking({ ->
+        // in-line block: capturing a local is fine
+        local_total.value = 3;
+        for(i : var = 0; i < 1000; i++) {
+            launch({ -> hits.increment(); });
+        }
+        if(current_job() != null) { local_total.value = local_total.value + 1; }
+    });
+    expect("run_blocking waited for 1000 children", hits.read(), 1000);
+    expect("in-line block captured a local and saw its job", local_total.value, 4);
+    expect_null("current job restored after run_blocking", current_job());
+
+    // children of run_blocking stay on the calling thread: unsynchronised state is safe
+    plain_total.value = 0;
+    run_blocking({ ->
+        for(i : var = 0; i < 500; i++) {
+            launch({ -> plain_total.value = plain_total.value + 1; });
+        }
+    });
+    expect("children of run_blocking never ran in parallel", plain_total.value, 500);
+
+    // nested
+    hits.write(0);
+    run_blocking({ ->
+        launch({ ->
+            launch({ -> delay(5); hits.add(10); });
+            hits.add(1);
+        });
+    });
+    expect("run_blocking waited for grandchildren", hits.read(), 11);
+}
+
+def test_scale() {
+    hits.write(0);
+    coroutine_scope({ ->
+        for(i : var = 0; i < 10000; i++) {
+            launch_on(dispatchers.default_pool(), { -> hits.increment(); });
+        }
+    });
+    expect("10,000 coroutines on the pool each added 1", hits.read(), 10000);
+
+    hits.write(0);
+    run_blocking({ ->
+        for(i : var = 0; i < 10000; i++) {
+            launch({ -> yield(); hits.increment(); });
+        }
+    });
+    expect("10,000 yielding coroutines on one thread each added 1", hits.read(), 10000);
+
+    hits.write(0);
+    coroutine_scope({ ->
+        for(i : var = 0; i < 2000; i++) {
+            launch_on(dispatchers.default_pool(), { -> delay(2); hits.increment(); });
+        }
+    });
+    expect("2,000 sleeping coroutines all came back", hits.read(), 2000);
+    expect_true("the default pool was started", dispatchers.shared_pool().is_started().value);
+    expect_true("the pool has at least one worker", dispatchers.shared_pool().get_parallelism() >= 1);
+}
+
+def test_async() {
+    run_blocking({ ->
+        a := async<int>.start({ -> (int) return 6 * 7; });
+        b := async<int>.start({ -> (int) delay(5); return 58; });
+        expect("await of a quick async", a.await().value, 42);
+        expect("await of a sleeping async", b.await().value, 58);
+        expect("await twice gives the same value", b.await().value, 58);
+        expect_true("awaited deferred is completed", b.is_completed().value);
+        expect("get_completed after completion", b.get_completed()!!.value, 58);
+
+        box := new flag();
+        box.value = 20;
+        c := async<int>.start(box, { s: object -> (int) f := s as flag; return f.value + 1; });
+        expect("async with a state object", c.await().value, 21);
+
+        s := async<string>.start({ -> (string) return "text"; });
+        expect_str("async of a string", s.await(), "text");
+
+        items := new deferred<int>[5];
+        for(i : var = 0; i < 5; i++) {
+            items[i] = async<int>.start_on(dispatchers.default_pool(), { -> (int) delay(3); return 10; });
+        }
+        results := deferred<int>.await_all(items);
+        sum : var = 0;
+        for(i : var = 0; i < results.size().value; i++) { sum += results.at(i).value; }
+        expect("await_all returned every result", results.size().value, 5);
+        expect("await_all sum", sum, 50);
+    });
+
+    // a failing async: await throws, and (not in a supervisor) the scope fails too
+    caught := new flag();
+    try {
+        coroutine_scope({ ->
+            d := async<int>.start({ -> (int) throw new illegal_state_exception("async failed"); });
+            try {
+                d.await();
+                fail("await of a failed async", "returned normally");
+            } catch(e: illegal_state_exception) {
+                caught.value = 1;
+            }
+        });
+        fail("scope with a failed async", "returned normally");
+    } catch(e: illegal_state_exception) {
+        expect_str("scope rethrew the async failure", e.get_message(), "async failed");
+    }
+    expect("await threw the failure", caught.value, 1);
+
+    // in a supervisor the failure stays in the deferred
+    before : var = handler.seen.read();
+    supervisor_scope({ ->
+        d := async<int>.start({ -> (int) throw new illegal_state_exception("kept"); });
+        try {
+            d.await();
+            fail("await of a failed async in a supervisor", "returned normally");
+        } catch(e: illegal_state_exception) {
+            expect_str("supervisor: await threw", e.get_message(), "kept");
+        }
+        expect_true("failed deferred is cancelled", d.is_cancelled().value);
+        expect_true("failed deferred has failed", d.is_failed().value);
+        expect_null("no result from a failed deferred", d.get_completed());
+    });
+    expect("a failed async is never reported as uncaught", handler.seen.read(), before);
+
+    // a cancelled deferred
+    run_blocking({ ->
+        d := async<int>.start({ -> (int) delay(1000000); return 1; });
+        yield();
+        d.cancel();
+        try {
+            d.await();
+            fail("await of a cancelled async", "returned normally");
+        } catch(e: cancellation_exception) {
+            pass("await of a cancelled async throws cancellation_exception");
+        }
+    });
+}
+
+def test_cancellation() {
+    never_reached.write(0);
+
+    // delay is a cancellation point
+    j := launch({ -> sleeper(); });
+    delay(10);
+    expect_true("sleeping job is active", j.is_active().value);
+    j.cancel();
+    expect_true("is_cancelled right after cancel", j.is_cancelled().value);
+    j.join();
+    expect_true("cancelled job is completed after join", j.is_completed().value);
+    expect("cancelled job ended in CANCELLED", j.get_state(), job.CANCELLED);
+    expect_false("cancellation is not a failure", j.is_failed().value);
+    expect_not_null("cancelled job has a cause", j.get_failure());
+    j.cancel();
+    pass("cancel twice is harmless");
+
+    // yield is a cancellation point
+    y := launch({ -> spinner(); });
+    delay(5);
+    y.cancel_and_join();
+    expect_true("yielding job was cancelled", y.is_cancelled().value);
+
+    // ensure_active is a cancellation point
+    c := launch({ -> checker(); });
+    delay(5);
+    c.cancel_and_join();
+    expect_true("checking job was cancelled", c.is_cancelled().value);
+
+    // join is a cancellation point for the caller
+    target := launch({ -> sleeper(); });
+    joiner := launch(target, { s: object -> t := s as job; t.join(); never_reached.increment(); });
+    delay(5);
+    joiner.cancel_and_join();
+    expect_true("a coroutine blocked in join was cancelled", joiner.is_cancelled().value);
+    expect_true("the job it waited for is untouched", target.is_active().value);
+    target.cancel_and_join();
+
+    // cancelling a parent cancels its children
+    parent_job := launch({ ->
+        launch({ -> sleeper(); });
+        launch({ -> sleeper(); });
+        sleeper();
+    });
+    delay(10);
+    expect("parent has two children", parent_job.child_count(), 2);
+    kids := parent_job.children();
+    expect("children() lists both", sizeof(kids), 2);
+    parent_job.cancel_and_join();
+    expect_true("child 0 cancelled with its parent", kids[0].is_cancelled().value);
+    expect_true("child 1 cancelled with its parent", kids[1].is_cancelled().value);
+    expect_true("child 0 finished before the parent's join returned", kids[0].is_completed().value);
+    expect("no children left", parent_job.child_count(), 0);
+
+    // a coroutine that catches the cancellation can clean up
+    shared.value = 0;
+    cleaner := launch({ ->
+        try {
+            delay(1000000);
+        } catch(e: cancellation_exception) {
+            shared.value = 99;
+            throw e;
+        }
+    });
+    delay(5);
+    cleaner.cancel_and_join();
+    expect("cancellation_exception was catchable for clean up", shared.value, 99);
+    expect_true("...and the job still ended cancelled", cleaner.is_cancelled().value);
+
+    // cancel with a reason
+    r := launch({ -> sleeper(); });
+    r.cancel("because");
+    r.join();
+    expect_str("cancel(reason) keeps the reason", r.get_failure()!!.get_message(), "because");
+
+    expect("no cancelled body ever reached its end", never_reached.read(), 0);
+}
+
+def test_scopes() {
+    never_reached.write(0);
+
+    // coroutine_scope waits
+    hits.write(0);
+    coroutine_scope({ ->
+        launch({ -> delay(10); hits.add(1); });
+        launch({ -> delay(5); hits.add(2); });
+    });
+    expect("coroutine_scope waited for both children", hits.read(), 3);
+
+    // a failing child cancels its sibling and the scope rethrows
+    sibling := new flag();
+    try {
+        coroutine_scope({ ->
+            launch({ -> sleeper(); });
+            launch({ -> delay(5); throw new illegal_state_exception("child failed"); });
+            sibling.value = 1;
+        });
+        fail("scope with a failing child", "returned normally");
+    } catch(e: illegal_state_exception) {
+        expect_str("scope rethrew the child's exception", e.get_message(), "child failed");
+    }
+    expect("the block itself had finished", sibling.value, 1);
+    expect("the sibling never reached its end", never_reached.read(), 0);
+
+    // an exception of the block cancels the children
+    try {
+        coroutine_scope({ ->
+            launch({ -> sleeper(); });
+            throw new illegal_argument_exception("block failed");
+        });
+        fail("scope whose block throws", "returned normally");
+    } catch(e: illegal_argument_exception) {
+        expect_str("scope rethrew the block's exception", e.get_message(), "block failed");
+    }
+    expect("the child of the failed block never reached its end", never_reached.read(), 0);
+
+    // supervisor_scope: children fail on their own
+    before : var = handler.seen.read();
+    hits.write(0);
+    supervisor_scope({ ->
+        launch({ -> throw new illegal_state_exception("lonely failure"); });
+        launch({ -> delay(10); hits.add(5); });
+    });
+    expect("the sibling of a failed child completed in a supervisor", hits.read(), 5);
+    expect("the failure went to the exception handler", handler.seen.read(), before + 1);
+    expect_str("the handler saw the exception", handler.last_message, "lonely failure");
+
+    // nested scopes (of different kinds, see THE NESTING RULE)
+    hits.write(0);
+    coroutine_scope({ ->
+        supervisor_scope({ ->
+            launch({ -> delay(5); hits.add(1); });
+        });
+        expect("inner scope finished before the outer block continued", hits.read(), 1);
+        launch({ -> hits.add(10); });
+    });
+    expect("nested scopes", hits.read(), 11);
+
+    hits.write(0);
+    run_blocking({ ->
+        coroutine_scope({ ->
+            supervisor_scope({ ->
+                with_timeout(60000, { ->
+                    launch({ -> delay(5); hits.add(1); });
+                    delay(2);
+                });
+                hits.add(10);
+            });
+            hits.add(100);
+        });
+        hits.add(1000);
+    });
+    expect("four different scope functions nested", hits.read(), 1111);
+
+    // a failure caught around an inner scope does not cancel the outer one
+    hits.write(0);
+    run_blocking({ ->
+        try {
+            coroutine_scope({ ->
+                launch({ -> throw new illegal_state_exception("inner"); });
+            });
+        } catch(e: illegal_state_exception) {
+            hits.add(1);
+        }
+        expect_true("outer scope still active after catching the inner failure", is_active().value);
+        launch({ -> hits.add(10); });
+    });
+    expect("outer scope went on", hits.read(), 11);
+
+    // the same scope function directly inside itself is refused (it would hang, see the known bug)
+    refused := new flag();
+    coroutine_scope({ ->
+        try {
+            coroutine_scope({ -> never_reached.increment(); });
+        } catch(e: illegal_state_exception) {
+            refused.value = refused.value + 1;
+        }
+    });
+    supervisor_scope({ ->
+        try {
+            supervisor_scope({ -> never_reached.increment(); });
+        } catch(e: illegal_state_exception) {
+            refused.value = refused.value + 1;
+        }
+    });
+    run_blocking({ ->
+        try {
+            run_blocking({ -> never_reached.increment(); });
+        } catch(e: illegal_state_exception) {
+            refused.value = refused.value + 1;
+        }
+    });
+    with_timeout(60000, { ->
+        try {
+            with_timeout(60000, { -> never_reached.increment(); });
+        } catch(e: illegal_state_exception) {
+            refused.value = refused.value + 1;
+        }
+    });
+    expect("a scope function nested in itself is refused", refused.value, 4);
+
+    // ...but through a coroutine of its own it works
+    hits.write(0);
+    coroutine_scope({ ->
+        inner := launch({ -> coroutine_scope({ -> launch({ -> hits.add(1); }); }); hits.add(10); });
+        inner.join();
+        hits.add(100);
+    });
+    expect("the same scope function inside a launched coroutine", hits.read(), 111);
+
+    // and the refusal leaves the fiber usable
+    hits.write(0);
+    coroutine_scope({ -> launch({ -> hits.add(1); }); });
+    expect("coroutine_scope still works after a refused nesting", hits.read(), 1);
+
+    // scope objects
+    scope := new coroutine_scope();
+    a := scope.launch({ -> sleeper(); });
+    b := scope.launch({ -> sleeper(); });
+    d := async<int>.start_in(scope, { -> (int) delay(1000000); return 1; });
+    expect_true("scope object is active", scope.is_active().value);
+    expect("scope object has three coroutines", scope.active_count(), 3);
+    scope.cancel_and_join();
+    expect_true("scope cancel reached coroutine a", a.is_cancelled().value);
+    expect_true("scope cancel reached coroutine b", b.is_completed().value);
+    expect_true("scope cancel reached the async", d.is_cancelled().value);
+    expect_false("cancelled scope is not active", scope.is_active().value);
+    late := scope.launch({ -> never_reached.increment(); });
+    expect_true("launch in a cancelled scope gives a cancelled job", late.is_cancelled().value);
+    expect_true("...that is already finished", late.is_completed().value);
+
+    hits.write(0);
+    open := new coroutine_scope();
+    for(i : var = 0; i < 50; i++) {
+        open.launch({ -> delay(3); hits.increment(); });
+    }
+    open.join_children();
+    expect("join_children waited for all", hits.read(), 50);
+    expect_true("the scope is still open", open.is_active().value);
+    open.launch({ -> hits.increment(); });
+    open.complete_and_join();
+    expect("complete_and_join waited for the last one", hits.read(), 51);
+    expect_true("completed scope job", open.get_job().is_completed().value);
+    expect_false("completed scope was not cancelled", open.get_job().is_cancelled().value);
+
+    // a failing coroutine cancels a normal scope object, not a supervisor one
+    failing := new coroutine_scope();
+    survivor := failing.launch({ -> sleeper(); });
+    failing.launch({ -> throw new illegal_state_exception("scope object failure"); });
+    survivor.join();
+    expect_true("a failure cancelled the other coroutine of the scope", survivor.is_cancelled().value);
+    expect_true("the scope job has failed", failing.get_job().is_failed().value);
+
+    before = handler.seen.read();
+    careful := coroutine_scope.supervisor();
+    steady := careful.launch({ -> delay(20); hits.add(100); });
+    broken := careful.launch({ -> throw new illegal_state_exception("supervised failure"); });
+    broken.join();
+    steady.join();
+    expect_false("supervisor scope: the other coroutine was not cancelled", steady.is_cancelled().value);
+    expect_true("supervisor scope is still active", careful.is_active().value);
+    expect("supervisor scope reported the failure", handler.seen.read(), before + 1);
+    careful.cancel();
+
+    expect("no cancelled body ever reached its end (scopes)", never_reached.read(), 0);
+}
+
+def on_done(done: job) {
+    handler_calls.increment();
+}
+
+def test_completion_handlers() {
+    handler_calls.write(0);
+    j := launch({ -> delay(10); });
+    j.invoke_on_completion(on_done);
+    j.invoke_on_completion({ done: job -> handler_calls.add(10); });
+    j.join();
+    // handlers run on a fiber of their own, shortly after the job finished
+    for(i : var = 0; i < 1000 && handler_calls.read() < 11; i++) { delay(1); }
+    expect("both completion handlers ran once", handler_calls.read(), 11);
+
+    j.invoke_on_completion(on_done);
+    for(i : var = 0; i < 1000 && handler_calls.read() < 12; i++) { delay(1); }
+    expect("handler registered on a finished job still runs", handler_calls.read(), 12);
+
+    c := launch({ -> sleeper(); });
+    c.invoke_on_completion({ done: job -> if(done.is_cancelled()) { handler_calls.add(100); } });
+    c.cancel_and_join();
+    for(i : var = 0; i < 1000 && handler_calls.read() < 112; i++) { delay(1); }
+    expect("handler of a cancelled job saw is_cancelled", handler_calls.read(), 112);
+}
+
+def test_timeouts() {
+    never_reached.write(0);
+
+    try {
+        with_timeout(20, { -> delay(1000000); never_reached.increment(); });
+        fail("with_timeout around an endless wait", "returned normally");
+    } catch(e: timeout_cancellation_exception) {
+        pass("with_timeout fired");
+    }
+
+    done := new flag();
+    with_timeout(60000, { -> delay(2); done.value = 1; });
+    expect("with_timeout lets a quick block finish", done.value, 1);
+
+    r := with_timeout_or_null(20, { -> (object) delay(1000000); return new flag(); });
+    expect_null("with_timeout_or_null gives null on time out", r);
+
+    v := with_timeout_or_null(60000, { -> (object) f := new flag(); f.value = 5; return f; });
+    expect_not_null("with_timeout_or_null gives the result", v);
+    expect("...the right result", (v as flag).value, 5);
+
+    // the children of the block are cancelled by the time out as well
+    try {
+        with_timeout(20, { ->
+            launch({ -> sleeper(); });
+            delay(1000000);
+        });
+        fail("with_timeout with children", "returned normally");
+    } catch(e: timeout_cancellation_exception) {
+        pass("with_timeout with children fired");
+    }
+
+    // an exception of the block is not turned into a time out
+    try {
+        with_timeout(60000, { -> throw new illegal_state_exception("not a timeout"); });
+        fail("with_timeout whose block throws", "returned normally");
+    } catch(e: illegal_state_exception) {
+        expect_str("with_timeout rethrew the block's exception", e.get_message(), "not a timeout");
+    }
+
+    // nested: the inner limit fires, the outer block carries on
+    outer_done := new flag();
+    with_timeout(60000, { ->
+        inner := with_timeout_or_null(20, { -> (object) delay(1000000); return new flag(); });
+        if(inner == null) { outer_done.value = 1; }
+        delay(2);
+        outer_done.value = outer_done.value + 1;
+    });
+    expect("inner time out did not cancel the outer block", outer_done.value, 2);
+
+    // nested the other way round: the outer limit fires through the inner one
+    try {
+        with_timeout(20, { ->
+            with_timeout_or_null(60000, { -> (object) delay(1000000); never_reached.increment(); return new flag(); });
+            never_reached.increment();
+        });
+        fail("outer time out through an inner with_timeout", "returned normally");
+    } catch(e: timeout_cancellation_exception) {
+        pass("outer time out passed through the inner with_timeout_or_null");
+    }
+
+    // inside a coroutine, and cancelling the coroutine wins over the limit
+    waiting := launch({ -> with_timeout(1000000, { -> delay(1000000); }); never_reached.increment(); });
+    delay(10);
+    waiting.cancel_and_join();
+    expect_true("a coroutine inside with_timeout can be cancelled", waiting.is_cancelled().value);
+
+    hits.write(0);
+    run_blocking({ ->
+        for(i : var = 0; i < 200; i++) {
+            launch({ ->
+                got := with_timeout_or_null(5, { -> (object) delay(1000000); return new flag(); });
+                if(got == null) { hits.increment(); }
+            });
+        }
+    });
+    expect("200 coroutines each timed out", hits.read(), 200);
+
+    expect("no timed out body ever reached its end", never_reached.read(), 0);
+}
+
+def remember_thread() {
+    // a copy: assigning to a string field writes INTO the string object it holds,
+    // so keeping the thread's own name object here would let the test overwrite it
+    thread_names.name = "" + thread.current().get_name();
+}
+
+def test_dispatchers() {
+    solo_thread := dispatchers.single_thread("solo");
+    expect_str("single_thread created its thread", solo_thread.get_thread().get_name(), "solo");
+
+    thread_names.name = "";
+    j := launch_on(solo_thread, { -> remember_thread(); });
+    j.join();
+    expect_str("coroutine ran on the dispatcher's thread", thread_names.name, "solo");
+
+    // all coroutines of a solo_thread thread dispatcher share one thread: no lock needed
+    plain_total.value = 0;
+    coroutine_scope({ ->
+        for(i : var = 0; i < 2000; i++) {
+            launch_on(solo_thread, { -> plain_total.value = plain_total.value + 1; });
+        }
+    });
+    expect("2,000 coroutines on one thread, unsynchronised counter", plain_total.value, 2000);
+
+    // children inherit the dispatcher
+    thread_names.name = "";
+    outer := launch_on(solo_thread, { -> launch({ -> remember_thread(); }); });
+    outer.join();
+    expect_str("a child inherits its parent's dispatcher", thread_names.name, "solo");
+
+    // with_context
+    thread_names.name = "";
+    with_context(solo_thread, { -> remember_thread(); });
+    expect_str("with_context ran the block on the dispatcher", thread_names.name, "solo");
+
+    box := new flag();
+    with_context(dispatchers.default_pool(), box, { s: object -> f := s as flag; f.value = 31; });
+    expect("with_context with a state object", box.value, 31);
+
+    try {
+        with_context(solo_thread, { -> throw new illegal_state_exception("context failed"); });
+        fail("with_context whose block throws", "returned normally");
+    } catch(e: illegal_state_exception) {
+        expect_str("with_context rethrew", e.get_message(), "context failed");
+    }
+
+    solo_thread.close();
+    expect_true("dispatcher closed", solo_thread.is_closed().value);
+
+    // current thread
+    thread_names.name = "";
+    mine := "" + thread.current().get_name();
+    run_blocking({ ->
+        launch({ -> remember_thread(); });
+    });
+    expect_str("children of run_blocking run on the calling thread", thread_names.name, mine);
+
+    hits.write(0);
+    u := launch_on(dispatchers.unconfined(), { -> hits.increment(); });
+    u.join();
+    expect("unconfined coroutine ran", hits.read(), 1);
+
+    all := new job[20];
+    hits.write(0);
+    for(i : var = 0; i < 20; i++) {
+        all[i] = launch({ -> delay(2); hits.increment(); });
+    }
+    join_all(all);
+    expect("join_all waited for 20 jobs", hits.read(), 20);
+}
+
+def test_uncaught() {
+    before : var = handler.seen.read();
+    j := launch({ -> throw new illegal_state_exception("top level failure"); });
+    j.join();
+    expect_true("a failed top level job is cancelled", j.is_cancelled().value);
+    expect_true("...and failed", j.is_failed().value);
+    expect_str("its failure is kept", j.get_failure()!!.get_message(), "top level failure");
+    for(i : var = 0; i < 1000 && handler.seen.read() == before; i++) { delay(1); }
+    expect("the handler was called once", handler.seen.read(), before + 1);
+    expect_str("with the exception", handler.last_message, "top level failure");
+    expect_true("coroutine_exceptions counted it", coroutine_exceptions.count() >= 1);
+
+    // a failure does not disturb other top level coroutines
+    hits.write(0);
+    ok := launch({ -> delay(5); hits.increment(); });
+    ok.join();
+    expect("global_scope is a supervisor", hits.read(), 1);
+
+    g := global_scope.launch({ -> hits.increment(); });
+    g.join();
+    expect("global_scope.launch", hits.read(), 2);
+}
+
+/**
+ * Runs the coroutine machinery on ONE thread before any worker thread exists.
+ *
+ * Why: the JIT compiles a function when it has been called ten times, and the
+ * runtime crashes now and then when that moment comes while several threads
+ * are inside the same function (see known_bugs/lib_coroutines_jit_fiber_frames).
+ * After this warm up the library functions are compiled already when the
+ * multi threaded tests start. It checks nothing itself.
+ */
+def warm_up() {
+    run_blocking({ ->
+        for(i : var = 0; i < 30; i++) {
+            w := async<int>.start({ -> (int) delay(1); return 10; });
+            w.await();
+            k := launch({ -> yield(); delay(1); });
+            k.join();
+            c := launch({ -> delay(1000000); });
+            yield();
+            c.cancel_and_join();
+            coroutine_scope({ -> launch({ -> yield(); }); });
+            supervisor_scope({ -> launch({ -> yield(); }); });
+        }
+    });
+}
+
+def main(args: string[]) {
+    coroutine_exceptions.set_handler(handler);
+    warm_up();
+
+    test_launch_and_join();
+    test_run_blocking();
+    test_async();
+    test_cancellation();
+    test_scopes();
+    test_completion_handlers();
+    test_timeouts();
+    test_dispatchers();
+    test_uncaught();
+    test_scale();
+
+    finish("lib_coroutines_core");
+}
