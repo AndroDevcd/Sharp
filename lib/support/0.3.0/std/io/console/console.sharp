@@ -1,4 +1,4 @@
-mod std;
+mod std.io.console;
 
 import ( std.io )
 
@@ -143,7 +143,7 @@ class console {
             buf.append_char(ch);
             ch = read_char().value;
         }
-        std#flush();
+        std.io.console#flush();
         return buf.to_string();
     }
 

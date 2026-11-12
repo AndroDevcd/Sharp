@@ -43,7 +43,7 @@ class console_writer : text_writer {
     /** make sure everything printed so far is visible. Throws io_exception when closed. */
     override def flush() {
         check_open();
-        std#flush();
+        std.io.console#flush();
     }
 
     /** finish with this writer; the console stays open. Closing twice is fine. */

@@ -14,11 +14,19 @@
 void process_imports() {
     sharp_file *file = currThread->currTask->file;
 
-    string modName = "std";
-    auto mod = get_module(modName);
+    // Modules every file can use without importing them:
+    //   std              the base classes (string, int, list, exceptions, ...)
+    //   std.io.console   print, println, read_line, ... - the library keeps
+    //                    them in std/io/console, and a program should not need
+    //                    an import to print a line
+    static const char *implicitModules[] = { "std", "std.io.console" };
+    for(const char *implicit : implicitModules) {
+        string modName = implicit;
+        auto mod = get_module(modName);
 
-    if(mod != nullptr)
-        file->imports.add(mod);
+        if(mod != nullptr)
+            file->imports.addif(mod);
+    }
     for(Int i = 0; i < file->p->size(); i++)
     {
         if(panic) return;
