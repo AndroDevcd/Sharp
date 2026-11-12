@@ -14,6 +14,7 @@
 #include "../../postprocessor/function_processor.h"
 #include "../mutate_compiler.h"
 #include "init_compiler.h"
+#include "lazy_functions.h"
 
 void check_main_method_signature(sharp_function *function) {
     if(get_primary_class(&current_context) != NULL && check_flag(get_primary_class(&current_context)->flags, flag_global)
@@ -280,6 +281,10 @@ void compile_class_mutations(sharp_class *with_class, Ast *block) {
 }
 
 void compile_function(sharp_function *function, Ast *ast) {
+    // A library function: its body waits until the program is known to use it.
+    if(defer_function_body(function, ast))
+        return;
+
     create_context(&current_context, function, check_flag(function->flags, flag_static));
     if(function->scheme == NULL)
         function->scheme = new operation_schema(scheme_master);

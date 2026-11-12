@@ -156,6 +156,15 @@ struct settings {
      */
     bool timings = false;
 
+    /**
+     * Compile the body of a library function only when the program uses the
+     * function (see backend/compiler/functions/lazy_functions.h). On by
+     * default; `-eager` compiles every body, which is what to use when
+     * working on the library itself: an error in a function that nothing
+     * calls is otherwise not reported.
+     */
+    bool lazy_library = true;
+
     /*
      * Easter egg to enable debug mode
      *

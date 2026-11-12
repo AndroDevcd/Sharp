@@ -106,6 +106,8 @@ struct sharp_file {
     compilation_stage stage;
     bool compilationFailed;
     bool used;
+    long long sizeInBytes = -1; // length of the source file, read once before the files are sorted (see compile() in main.cpp)
+    int isLibrary = -1;     // 1: under a -L folder, 0: the user's own file, -1: not worked out yet (see is_library_file())
     List<dependency> dependencies;
     List<sharp_module*> imports;
     ErrorManager *errors;

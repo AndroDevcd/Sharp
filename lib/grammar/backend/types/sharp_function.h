@@ -153,6 +153,19 @@ struct sharp_function {
     bool used;
     obfuscation_modifier obfuscateModifier;
     bool returnProtected;
+
+    // Lazy compilation (compiler/functions/lazy_functions.h): the body of a
+    // library function is not compiled where it is met, only when something
+    // that is used turns out to need it. Until then this says where the
+    // compiler was: the syntax tree of the function, the file and module that
+    // were current, and the class context it was in.
+    bool bodyPending = false;
+    Ast *pendingAst = NULL;
+    sharp_file *pendingFile = NULL;
+    sharp_module *pendingModule = NULL;
+    sharp_class *pendingClass = NULL;
+    bool pendingStatic = false;
+
     code_info *ci;
     uInt flags;
     uInt uid;

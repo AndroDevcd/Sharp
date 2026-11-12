@@ -7,6 +7,7 @@
 #include "../../types/types.h"
 #include "optimizer.h"
 #include "../generation/generator.h"
+#include "../../compiler/functions/lazy_functions.h"
 
 void run_and_mark_tree(List<dependency> &dependencies);
 
@@ -24,6 +25,10 @@ void mark(sharp_function *fun) {
             int i = 0;
         }
         fun->used = true;
+        // Safety net for lazy compilation: every used library function got its
+        // body in compile_reachable_function_bodies(), which walks the same
+        // graph as this function. Should one still be without, it gets it here.
+        compile_deferred_function_body(fun);
         for(Int i = 0; i < fun->locals.size(); i++) {
             mark(fun->locals.get(i));
         }

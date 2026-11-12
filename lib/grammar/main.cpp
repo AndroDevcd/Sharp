@@ -20,6 +20,8 @@
 #include "backend/finalizer/finalizer.h"
 
 int compile();
+long deferred_function_count();             // backend/compiler/functions/lazy_functions.h
+long deferred_function_compiled_count();
 
 /** "loop rotation" -> "loop-rotation": how an optimization is written after -n on the command line */
 static std::string dashed_optimization_name(const std::string &name) {
@@ -66,6 +68,9 @@ void help() {
         cout << endl;
     }
     cout <<               "    -Oreport             print what the bytecode optimizer did"                         << endl;
+    cout <<               "    -timings             print how long each stage of the compile took"                 << endl;
+    cout <<               "    -eager               compile every library function, also the ones never called"    << endl;
+    cout <<               "                         (reports errors in unused library code; slower)"                << endl;
     cout <<               "    --hw                 display help message for warning options"                  << endl;
     cout <<               "    --h -?               display this help message"                                 << endl;
 }
@@ -220,6 +225,9 @@ int _bootstrap(int argc, const char* args[])
         }
         else if(opt("-timings")){
             options.timings = true;
+        }
+        else if(opt("-eager")){
+            options.lazy_library = false;
         }
         else if(opt("-magic")){
             enable_magic_mode(true);
@@ -386,8 +394,17 @@ int _bootstrap(int argc, const char* args[])
     return compile();
 }
 
+/**
+ * Order for the list of source files (by size).
+ *
+ * The sizes are read ONCE, in compile(), before sorting. This comparison used
+ * to ask the operating system for both file lengths every time it was called,
+ * and the sort calls it about n * n / 2 times: with the 285 files of the
+ * standard library that was some 40,000 pairs of file-system calls and took
+ * 0.97 s - more than half of a whole compile.
+ */
 bool isFileLarger(sharp_file *f1, sharp_file *f2) {
-    return File::length(f1->name.c_str()) < File::length(f2->name.c_str());
+    return f1->sizeInBytes < f2->sizeInBytes;
 }
 
 void run_pre_processing_tasks() {
@@ -505,21 +522,47 @@ int compile()
 {
     stage_timer whole("TOTAL");
 
-    for(Int i = 0; i < options.source_files.size(); i++) {
-        sharpFiles.add(
-                new sharp_file(options.source_files.get(i), uniqueId++));
+    // The "[phase]" rows of -timings are wall-clock time around a whole phase:
+    // the stage rows inside it plus everything in between (handing tasks out,
+    // waiting for them). A phase that is much larger than its stages is time
+    // lost outside of any real work.
+    {
+        TIME_STAGE("[phase] list + sort the source files");
+        for(Int i = 0; i < options.source_files.size(); i++) {
+            sharpFiles.add(
+                    new sharp_file(options.source_files.get(i), uniqueId++));
+        }
+
+        for(Int i = 0; i < sharpFiles.size(); i++) {
+            sharpFiles.get(i)->sizeInBytes = File::length(sharpFiles.get(i)->name.c_str());
+        }
+
+        sharpFiles.linearSort(isFileLarger);
+    }
+    start_task_delegator();
+    {
+        TIME_STAGE("[phase] tokenize, parse, declare");
+        run_pre_processing_tasks();
     }
 
-    sharpFiles.linearSort(isFileLarger);
-    start_task_delegator();
-    run_pre_processing_tasks();
-
     if(all_files_parsed()) {
-        run_post_processing_tasks();
-        run_compilation_tasks();
-        run_compile_global_mutations_tasks();
-        run_compile_global_members_tasks();
-        run_compile_classes_tasks();
+        {
+            TIME_STAGE("[phase] imports, types, generics");
+            run_post_processing_tasks();
+        }
+        {
+            TIME_STAGE("[phase] components, delegates");
+            run_compilation_tasks();
+        }
+        {
+            TIME_STAGE("[phase] mutations, global members");
+            run_compile_global_mutations_tasks();
+            run_compile_global_members_tasks();
+        }
+        {
+            TIME_STAGE("[phase] classes");
+            run_compile_classes_tasks();
+        }
         {
             TIME_STAGE("setup core functions");
             setup_core_functions();
@@ -535,6 +578,10 @@ int compile()
         whole.~stage_timer();       // close TOTAL now, so it is in the table
         whole.active = false;
         print_stage_timings();
+        if(options.lazy_library) {
+            cout << "library function bodies: " << deferred_function_count() << " put aside, "
+                 << deferred_function_compiled_count() << " of them needed and compiled" << endl;
+        }
     }
     return 0;
 }

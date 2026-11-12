@@ -2,6 +2,7 @@
 // Created by bknun on 7/4/2022.
 //
 
+#include "../compiler/functions/lazy_functions.h"
 #include "finalizer.h"
 #include "../../taskdelegator/task_delegator.h"
 #include "../types/types.h"
@@ -152,6 +153,10 @@ void setup_core_functions() {
 }
 
 void finalize_compilation() {
+    // Library functions the program turns out to use get their bodies now
+    // (lazy compilation). Before the check below: they can contain errors too.
+    compile_reachable_function_bodies();
+
     if(all_files_compiled_successfully())
     {
         optimize();
