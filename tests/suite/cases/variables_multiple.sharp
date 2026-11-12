@@ -3,7 +3,7 @@ mod main;
 import ( testing )
 
 /**
- * KNOWN BUGS in variable declarations. This file is expected to FAIL.
+ * Formerly a known bug: variable declarations. It passes now.
  *
  * Declaring several LOCAL variables in one statement goes wrong as soon as
  * a later variable has a value of its own. (Globals are right, and so is

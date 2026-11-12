@@ -3,7 +3,7 @@ mod main;
 import ( testing )
 
 /**
- * KNOWN BUGS in && and ||. This file is expected to FAIL.
+ * Formerly a known bug: && and ||. It passes now.
  * (Same result with and without -O, with and without the JIT.)
  */
 
