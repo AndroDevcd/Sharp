@@ -73,6 +73,9 @@ extern recursive_mutex errorMutex;
 extern task_delegator delegator;
 extern thread_local worker_thread *currThread;
 
+/** Sleep for the short moment an idle thread of the task system waits before looking for work again. */
+void task_idle_wait();
+
 int start_task_delegator();
 uInt start_worker(worker_thread*);
 worker_thread* create_worker();

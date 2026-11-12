@@ -11,6 +11,7 @@
 #include "../util/zip/zlib.h"
 #include "../util/File.h"
 #include "settings/settings.h"
+#include "compiler_timings.h"
 #include "backend/optimizer/bytecode_optimizer.h"
 #include "settings/settings_processor.h"
 #include "sharp_file.h"
@@ -216,6 +217,9 @@ int _bootstrap(int argc, const char* args[])
         }
         else if(opt("-Oreport")){
             options.optimize_report = true;
+        }
+        else if(opt("-timings")){
+            options.timings = true;
         }
         else if(opt("-magic")){
             enable_magic_mode(true);
@@ -499,6 +503,8 @@ void run_compilation_tasks() {
 
 int compile()
 {
+    stage_timer whole("TOTAL");
+
     for(Int i = 0; i < options.source_files.size(); i++) {
         sharpFiles.add(
                 new sharp_file(options.source_files.get(i), uniqueId++));
@@ -514,10 +520,21 @@ int compile()
         run_compile_global_mutations_tasks();
         run_compile_global_members_tasks();
         run_compile_classes_tasks();
-        setup_core_functions();
-        finalize_compilation();
+        {
+            TIME_STAGE("setup core functions");
+            setup_core_functions();
+        }
+        {
+            TIME_STAGE("finalize (generate + write)");
+            finalize_compilation();
+        }
     }
 
     cout << "done" << endl;
+    if(options.timings) {
+        whole.~stage_timer();       // close TOTAL now, so it is in the table
+        whole.active = false;
+        print_stage_timings();
+    }
     return 0;
 }

@@ -173,6 +173,29 @@ void  compile_binary_string_expression(
     }
 }
 
+/**
+ * The type of `left <operand> right` for number operands that are not both
+ * literals.
+ *
+ * It used to be _int32 for everything, so `n + 1` with n = 2.5 was treated as a
+ * whole number wherever the type matters (in a string: "${n + 1}" printed 3).
+ * Now: + - * ** give a `var` when either side can hold a fraction (a var or a
+ * fractional literal), `/` always gives a `var` (7 / 2 is 3.5), and everything
+ * else (comparisons, logic, bit operations, %) stays _int32.
+ */
+static data_type arithmetic_result_type(Token &operand, sharp_type &left, sharp_type &right) {
+    if(operand == "/")
+        return type_var;
+
+    if(operand == "+" || operand == "-" || operand == "*" || operand == "**") {
+        sharp_type l = get_real_type(left), r = get_real_type(right);
+        if(l.type == type_var || l.type == type_decimal || r.type == type_var || r.type == type_decimal)
+            return type_var;
+    }
+
+    return type_int32;
+}
+
 void compile_binary_integer_expression(
         expression *e,
         expression &left,
@@ -345,9 +368,17 @@ void compile_binary_integer_expression(
                 ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
                       create_get_value_operation(&e->scheme, &right.scheme, false);
                       create_push_to_stack_operation(&e->scheme);
-                      create_get_integer_constant_operation(&e->scheme,
-                                                            get_numeric_expression_value_as_int(
-                                                                    left), false);
+                      // (a fractional literal used to be loaded as an integer here:
+                      //  `0.5 - v` was computed as `0 - v`)
+                      if(left.type.type == type_decimal) {
+                          create_get_decimal_constant_operation(&e->scheme,
+                                                                get_numeric_expression_value_as_decimal(
+                                                                        left), false);
+                      } else {
+                          create_get_integer_constant_operation(&e->scheme,
+                                                                get_numeric_expression_value_as_int(
+                                                                        left), false);
+                      }
                       create_retain_numeric_value_operation(&e->scheme, register_0);
                       create_pop_direct_numeric_value_from_stack_operation(&e->scheme, register_1);
                       create_unused_data_operation(&e->scheme);
@@ -392,7 +423,7 @@ void compile_binary_integer_expression(
                 )
             }
 
-            e->type.type = type_int32;
+            e->type.type = arithmetic_result_type(operand, left.type, right.type);
             break;
         }
 
@@ -544,7 +575,7 @@ void compile_binary_numeric_expression(
                 }
             }
 
-            e->type.type = type_int32;
+            e->type.type = arithmetic_result_type(operand, left.type, right.type);
             break;
         }
 

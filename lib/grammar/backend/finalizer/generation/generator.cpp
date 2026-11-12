@@ -3,6 +3,7 @@
 //
 
 #include "generator.h"
+#include "../../../compiler_timings.h"
 #include "../optimization/optimizer.h"
 #include "file_generator.h"
 #include "../../../compiler_info.h"
@@ -67,14 +68,18 @@ void pre_generate_addresses() {
 }
 
 void generate() {
-    for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
-        generate(compressedCompilationFunctions.get(i));
+    {
+        TIME_STAGE("  generate bytecode");
+        for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
+            generate(compressedCompilationFunctions.get(i));
+        }
     }
 
     // Every function now has its bytecode. With -O on the command line, optimize
     // it before the .aout listing and the executable are written. Without -O the
     // optimizer is not entered at all and the code stays exactly as generated.
     if(options.optimize_level > 0) {
+        TIME_STAGE("  optimize bytecode (-O)");
         optimize_bytecode();
     }
 
@@ -102,6 +107,7 @@ void generate() {
         }
     }
 
+    stage_timer listingTimer("  build + write .aout listing");
     stringstream ss;
     for(Int i = 0; i < compressedCompilationFunctions.size(); i++) {
         auto sf = compressedCompilationFunctions.get(i);
@@ -158,8 +164,17 @@ void generate() {
         }
     }
 
-    generate_native_code();
-    generate_exe();
+    listingTimer.~stage_timer();
+    listingTimer.active = false;
+
+    {
+        TIME_STAGE("  generate native glue");
+        generate_native_code();
+    }
+    {
+        TIME_STAGE("  write executable");
+        generate_exe();
+    }
 }
 
 void generation_error(string message) {

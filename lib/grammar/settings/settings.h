@@ -152,6 +152,11 @@ struct settings {
     bool optimize_report = false;
 
     /*
+     * Print how long each stage of the compile took (-timings), see compiler_timings.h
+     */
+    bool timings = false;
+
+    /*
      * Easter egg to enable debug mode
      *
      * Allows you to see a little information

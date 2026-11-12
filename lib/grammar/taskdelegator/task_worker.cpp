@@ -2,6 +2,7 @@
 // Created by bnunnally on 8/30/21.
 //
 #include "task_delegator.h"
+#include "../compiler_timings.h"
 #include "../../util/File.h"
 #include "../compiler_info.h"
 #include "../backend/preprocessor/class_preprocessor.h"
@@ -39,14 +40,13 @@ workerStart(void *arg) {
             execute_task();
             currThread->currTask = NULL;
             currThread->state = worker_idle;
+            continue;   // look for the next task right away
         }
 
-#ifdef WIN32_
-        Sleep(5);
-#endif
-#ifdef POSIX_
-        usleep(5*POSIX_USEC_INTERVAL);
-#endif
+        // Nothing to do. This used to sleep 5 ms after EVERY task; a compile
+        // hands out several hundred tasks (files x stages), so the naps added
+        // up to seconds in which nothing was computed (see sharpc -timings).
+        task_idle_wait();
     } while(true);
 
 #ifdef WIN32_
@@ -167,46 +167,57 @@ void execute_task() {
     switch(currThread->currTask->type) {
         case task_none_: { break; }
         case task_tokenize_: {
+            TIME_STAGE("tokenize");
             tokenize_file();
             break;
         }
         case task_parse_: {
+            TIME_STAGE("parse");
             parse_file();
             break;
         }
         case task_preprocess_: {
+            TIME_STAGE("pre-process (declare classes)");
             pre_process_();
             break;
         }
         case task_process_imports: {
+            TIME_STAGE("process imports");
             pre_process_imports_();
             break;
         }
         case task_post_process_: {
+            TIME_STAGE("post-process (resolve types)");
             post_process_();
             break;
         }
         case task_process_generics_: {
+            TIME_STAGE("process generics");
             process_generics_();
             break;
         }
         case task_compile_components_: {
+            TIME_STAGE("compile components");
             compile_components_();
             break;
         }
         case task_process_delegates_: {
+            TIME_STAGE("process delegates");
             process_delegates_();
             break;
         }
         case task_compile_mutations_: {
+            TIME_STAGE("compile mutations");
             compile_mutations_();
             break;
         }
         case task_compile_global_members_: {
+            TIME_STAGE("compile global members");
             compile_members_();
             break;
         }
         case task_compile_classes_: {
+            TIME_STAGE("compile classes (function bodies)");
             compile_classes_();
             break;
         }

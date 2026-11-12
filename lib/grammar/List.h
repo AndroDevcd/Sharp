@@ -8,6 +8,21 @@
 #include "../../stdimports.h"
 #include <algorithm>
 
+/**
+ * The compiler's growable array.
+ *
+ * STORAGE: `_Data` has room for `cap` elements, of which the first `len` are in
+ * use. When the room runs out it is doubled, so adding n elements one by one
+ * copies each element a constant number of times on average.
+ *
+ * (Until 2026 every add() allocated a new array exactly one element larger and
+ * copied everything over: adding n elements copied about n*n/2 of them. The
+ * tokenizer adds one token at a time, and that alone was three quarters of the
+ * compiler's run time - see `sharpc -timings`.)
+ *
+ * Slots between len and cap hold default-constructed values: a slot is reset
+ * when its element is removed, so nothing stale is kept alive there.
+ */
 template <class T>
 class List {
 public:
@@ -23,6 +38,7 @@ public:
     void init(){
         _Data=NULL;
         len=0;
+        cap=0;
     }
 
     void push_back(T& data) {
@@ -37,6 +53,7 @@ public:
 
     T& __new() {
         __expand();
+        _Data[len-1] = T();     // a fresh element, whatever the slot held before
         return _Data[len-1];
     }
 
@@ -52,21 +69,12 @@ public:
             throw std::runtime_error(ss.str());
         }
 
-        if(len == 0) {
-            push_back(data);
-        } else {
-            T* result = new T[len+1];
-            uint32_t newLen=len+1;
-            for(uint32_t i = 0; i < pos; i++)
-                result[i] = _Data[i];
-            result[pos] = data;
-            for(uint32_t i = pos + 1; i < newLen; i++)
-                result[i] = _Data[i - 1];
-
-            free();
-            len=newLen;
-            _Data=result;
-        }
+        // (a copy first: `data` may refer to an element of this list, which moves below)
+        T value = data;
+        __expand();
+        for(uint32_t i = len - 1; i > pos; i--)
+            _Data[i] = _Data[i - 1];
+        _Data[pos] = value;
 
     }
 
@@ -82,26 +90,9 @@ public:
             throw std::runtime_error(ss.str());
         }
 
-        if(len==1){
-            free();
-        }
-        else if(len==2) {
-            if(_X==0) {
-                _Data[0]=_Data[1];
-            }
-            __shrink();
-        } else {
-            T* result = new T[len-1];
-            uint32_t newLen=len-1,iter=0;
-            for(uint32_t i = 0; i < _X; i++)
-                result[iter++] = _Data[i];
-            for(uint32_t i = _X+1; i < len; i++)
-                result[iter++] = _Data[i];
-
-            free();
-            len=newLen;
-            _Data=result;
-        }
+        for(uint32_t i = _X; i + 1 < len; i++)
+            _Data[i] = _Data[i + 1];
+        __shrink();
 
 
     }
@@ -171,6 +162,7 @@ public:
             delete[] (_Data);
         _Data = NULL;
         len=0;
+        cap=0;
     }
 
     uint32_t size() const { return len; }
@@ -345,43 +337,35 @@ public:
 private:
     CXX11_INLINE
     void __expand() {
-        try{
-            T* newbuf = new T[len+1];
+        // make room for one more element (the caller fills _Data[len-1])
+        if(len == cap) {
+            uint32_t newCap = cap == 0 ? 4 : cap * 2;
+            T* newbuf = new T[newCap];
             for(uint32_t i = 0; i < len; i++) {
                 newbuf[i] = _Data[i];
             }
             delete[] _Data;
             _Data = newbuf;
-            len++;
-        } catch(std::exception &e){
-            len--;
-            throw e;
+            cap = newCap;
         }
+        len++;
     }
 
     CXX11_INLINE
     void __shrink(){
-        try {
-            if(len <= 0) return;
-            else if(len == 1) {
-                free();
-                return;
-            }
-
-            T* newbuf = new T[len-1];
-			for (uint32_t i = 0; i < len-1; i++) {
-				newbuf[i] = _Data[i];
-			}
-            delete[] _Data;
-            _Data = newbuf;
-            len--;
-        } catch(std::exception &e) {
-            len++;
-            throw e;
+        // drop the last element
+        if(len == 0) return;
+        if(len == 1) {
+            free();
+            return;
         }
+
+        _Data[len-1] = T();     // let go of whatever it held
+        len--;
     }
 
-    uint32_t len;
+    uint32_t len;   // elements in use
+    uint32_t cap;   // elements _Data has room for
     T* _Data;
 };
 

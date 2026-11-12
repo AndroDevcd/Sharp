@@ -3,6 +3,8 @@
 //
 
 #include "task_delegator.h"
+#include <chrono>
+#include <thread>
 #include "../settings/settings.h"
 #include "../../core/thread_state.h"
 
@@ -13,6 +15,18 @@ recursive_mutex taskMutex;
 recursive_mutex errorMutex;
 task_delegator delegator;
 Int workerId = 0;
+
+/*
+ * How long a thread of the task system sleeps when it finds nothing to do
+ * before it looks again. Short enough that handing a task from the dispatcher
+ * to a worker costs a fraction of a millisecond, long enough that an idle
+ * thread uses next to no CPU.
+ */
+#define TASK_IDLE_MICROSECONDS 100
+
+void task_idle_wait() {
+    std::this_thread::sleep_for(std::chrono::microseconds(TASK_IDLE_MICROSECONDS));
+}
 
 int start_task_delegator() {
 #ifdef WIN32_
@@ -96,13 +110,9 @@ delegatorStart(void *) {
 
         delegator.allWorkersFree = panic || (allTasksFinished && allWorkersIdle);
 
-        __os_yield();
-#ifdef WIN32_
-        Sleep(10);
-#endif
-#ifdef POSIX_
-        usleep(10*POSIX_USEC_INTERVAL);
-#endif
+        // (was a 10 ms sleep per round: with one task handed out per round that
+        //  alone cost about 10 ms per task)
+        task_idle_wait();
     } while(true);
 
 #ifdef WIN32_
@@ -186,6 +196,8 @@ void wait_for_tasks() {
 
     while (!delegator.allWorkersFree)
     {
+        task_idle_wait();   // (instead of spinning a core at 100% between the sleeps below)
+
         if (retryCount++ == sMaxRetries)
         {
             retryCount = 0;
