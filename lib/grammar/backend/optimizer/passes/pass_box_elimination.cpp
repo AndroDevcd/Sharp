@@ -43,6 +43,9 @@
 //       so nothing about the std number classes is hard coded here)
 //     - calls that do nothing at all with it (the empty init<T>() functions)
 //     - reading field 0 back: movn #0 ; iload
+//     - writing field 0 with a small whole number: movn #0 ; mov32 r, r ; imov r
+//       (what `n += 2` on an `int` compiles to once the operator is inlined)
+//     - a cast to the class it was created as (always succeeds)
 //
 //   Anything else - returned, passed to a function, stored in a field or an
 //   array, compared, locked, type-tested, thrown, reachable through two
@@ -108,7 +111,7 @@ struct flow_state {
 };
 
 /** What to do with one instruction if its candidate survives */
-enum action_kind : uint8_t { a_none, a_delete, a_load, a_construct };
+enum action_kind : uint8_t { a_none, a_delete, a_load, a_store, a_construct };
 struct action { action_kind kind = a_none; int site = 0; };
 
 struct analysis {
@@ -117,6 +120,7 @@ struct analysis {
     control_flow cfg;
 
     std::vector<int> siteOf;                // per instruction index: candidate number of a new_class, else 0
+    std::vector<int32_t> classOf;           // per site: the class its new_class creates
     int sites = 0;
     site_set escaped;
 
@@ -173,6 +177,7 @@ struct analysis {
     }
 
     void object_liveness();
+    bool stores_small_whole_number(size_t index);
     void forget_dead(flow_state &s, int block);
     bool merge_into(flow_state &into, flow_state &from);
     void step(size_t index, flow_state &s, action *act);
@@ -244,6 +249,25 @@ void analysis::object_liveness() {
             if(liveObjectsIn[b].merge(live)) changed = true;
             if(ptrLive && !ptrLiveIn[b]) { ptrLiveIn[b] = 1; changed = true; }
         }
+    }
+}
+
+/**
+ * Is the register that the IMOV at `index` stores the result of a cast to an
+ * integer type of at most 32 bits, done right before it?
+ *     mov32 bmr, bmr ; imov bmr          (what `int`'s operators generate)
+ */
+bool analysis::stores_small_whole_number(size_t index) {
+    if(index == 0 || cfg.blockOf[index] != cfg.blockOf[index - 1]) return false;
+
+    const ir_instruction &store = ir.code[index];
+    const ir_instruction &cast = ir.code[index - 1];
+    switch(cast.op) {
+        case Opcode::MOV8: case Opcode::MOV16: case Opcode::MOV32:
+        case Opcode::MOVU8: case Opcode::MOVU16: case Opcode::MOVU32:
+            return cast.a == store.a;
+        default:
+            return false;
     }
 }
 
@@ -400,6 +424,26 @@ void analysis::step(size_t index, flow_state &s, action *act) {
                 escape(deref(s));
             }
             return;
+        case Opcode::IMOV:                              // *ptr = regs[a] (a number)
+            // `n += 2` on a boxed local: the new value goes to the value slot instead.
+            // Only when the number being stored was just cut down to a whole number
+            // of at most 32 bits: an object's field keeps a `long double`, the slot
+            // is a `double`, and such a number is the same in both.
+            if(s.ptr == p_field && stores_small_whole_number(index)) {
+                set(a_store, s.ptrValue);
+                return;
+            }
+            break;                                      // anything else: the generic rules (the box escapes)
+        case Opcode::CAST: {                            // check that *ptr is of class a
+            // a tracked object's class is known: it is the class its new_class created
+            if(s.ptr != p_local && s.ptr != p_slot) break;
+            int value = deref(s);
+            if(value > 0) {
+                if(classOf[value] == instr.a) set(a_delete, value);
+                else escape(value);
+            }
+            return;
+        }
         case Opcode::PUSHOBJ: {                         // push *ptr
             int value = 0;
             if(s.ptr == p_field) escape(s.ptrValue);
@@ -525,6 +569,10 @@ bool analysis::run() {
     for(size_t i = 0; i < ir.code.size() && sites < MAX_SITES; i++) {
         if(ir.code[i].op == Opcode::NEWCLASS) siteOf[i] = ++sites;
     }
+    classOf.assign(sites + 1, -1);
+    for(size_t i = 0; i < ir.code.size(); i++) {
+        if(siteOf[i] > 0) classOf[siteOf[i]] = ir.code[i].a;
+    }
     if(sites == 0) return false;
     constructors.assign(sites + 1, nullptr);
 
@@ -623,6 +671,11 @@ bool analysis::rewrite() {
 
         if(act.kind == a_delete) {
             remove_instruction(ir, i);
+        } else if(act.kind == a_store) {
+            // box.value = regs[a]   ->   local = regs[a]
+            instr.op = Opcode::SMOVR_2;
+            instr.b = slot; instr.c = 0;
+            instr.modified = true;
         } else if(act.kind == a_load) {
             // regs[a] = box.value   ->   regs[a] = local
             instr.op = Opcode::LOADL;
