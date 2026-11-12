@@ -6,6 +6,16 @@
 #include "../types/types.h"
 #include "expressions/expression.h"
 
+/*
+ * The value the next enum member gets when it has none of its own.
+ *
+ *   - An enum starts at a number that depends on when it is compiled
+ *     (uniqueId, see compile_enum_fields) - on purpose: members without
+ *     explicit values are only meant to be told apart, not to be 0, 1, 2.
+ *   - A member with an explicit value sets it, and the members after it count
+ *     on from there:   enum { first = 5, second, third }   is 5, 6, 7.
+ *     (The explicit value was not stepped past, so `second` was 5 again.)
+ */
 Int lastEnumValue = 0;
 void compile_enum_field(sharp_class *with_class, Ast *ast) {
     string name = ast->getToken(0).getValue();
@@ -26,19 +36,19 @@ void compile_enum_field(sharp_class *with_class, Ast *ast) {
             } else {
                 if(e.type == type_integer) {
                     lastEnumValue = e.type.integer;
-                    enum_field->constValue = lastEnumValue;
+                    enum_field->constValue = lastEnumValue++;   // ++: the next member without a value continues from here
                     enum_field->hasConstValue = true;
                 } else if(e.type == type_char) {
                     lastEnumValue = e.type._char;
-                    enum_field->constValue = lastEnumValue;
+                    enum_field->constValue = lastEnumValue++;   // ++: the next member without a value continues from here
                     enum_field->hasConstValue = true;
                 } else if(e.type == type_bool) {
                     lastEnumValue = e.type._bool;
-                    enum_field->constValue = lastEnumValue;
+                    enum_field->constValue = lastEnumValue++;   // ++: the next member without a value continues from here
                     enum_field->hasConstValue = true;
                 } else if(e.type == type_decimal) {
                     lastEnumValue = e.type.decimal;
-                    enum_field->constValue = lastEnumValue;
+                    enum_field->constValue = lastEnumValue++;   // ++: the next member without a value continues from here
                     enum_field->hasConstValue = true;
                 }
 

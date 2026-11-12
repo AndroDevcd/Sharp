@@ -37,8 +37,7 @@ sharp /tmp/bug
 |---|---|
 | A sized parameter is not cut to its size: `def f(x: _int8)` called with 200 sees 200. (A callee-side fix was tried and reverted: the `long` box picks an `_int32` constructor for big literals and relied on this.) | `casts.sharp` |
 | `0.1 + 0.2 == 0.3` differs between folded literals and run time. | `comparison.sharp` |
-| The member after an explicit enum value repeats it: `enum { first = 5, second }` gives 5, 5. | `enums.sharp` |
-| An enum declared inside a class cannot be named from outside (`holder.inner.off`). | `enums.sharp` |
+| An enum declared inside a class cannot be named from outside (`holder.inner.off`). | - |
 | An interface method overridden in a subclass is ignored when called through the intermediate class type, or from a method of that class. | `interfaces.sharp` |
 | A field with both `get` and `set`: assignments from outside are lost under `-O`; an assignment also runs the getter; `p.value++` gives a wrong number. | `properties.sharp` |
 | A try/finally inside a finally body drops the pending exception. | `finally.sharp` |

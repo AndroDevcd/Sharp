@@ -1,0 +1,54 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Enum members after an explicit value count on from it.
+ *
+ * Members of an enum WITHOUT any explicit value are numbered from a number
+ * that depends on when the enum is compiled (that is by design): only the
+ * steps between them are checked here, never the first value.
+ */
+
+enum mixed {
+    first = 5,
+    second,
+    third
+}
+
+enum gaps {
+    low = 10,
+    low_next,
+    high = 100,
+    high_next,
+    high_after
+}
+
+enum letters {
+    a_letter = 'a',
+    after_a
+}
+
+enum color {
+    red,
+    green,
+    blue
+}
+
+def main(args: string[]) {
+    expect("explicit value", mixed.first.ordinal, 5);
+    expect("the member after it is one higher", mixed.second.ordinal, 6);
+    expect("...and the next one higher again", mixed.third.ordinal, 7);
+    expect("first and second are different members", (mixed.first == mixed.second).value, 0);
+
+    expect("after 10", gaps.low_next.ordinal, 11);
+    expect("a second explicit value", gaps.high.ordinal, 100);
+    expect("after 100", gaps.high_next.ordinal, 101);
+    expect("two after 100", gaps.high_after.ordinal, 102);
+
+    expect("after a char value", letters.after_a.ordinal, 98);
+
+    expect("without values: green is one after red", color.green.ordinal - color.red.ordinal, 1);
+    expect("without values: blue is two after red", color.blue.ordinal - color.red.ordinal, 2);
+    finish("enums_explicit_values");
+}
