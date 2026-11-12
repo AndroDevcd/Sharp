@@ -1,0 +1,233 @@
+mod main;
+
+import ( testing, std.io )
+
+/**
+ * std.io file: create, write, read, the questions (exists, is_file,
+ * is_directory, length ...), rename, delete, and listing a directory.
+ *
+ * Everything happens inside one folder made for this test,
+ *     /tmp/sharp_suite_std_files
+ * which is removed again at the end (and at the start, in case an earlier run
+ * was stopped half way).
+ *
+ * mkdir, write, rename and delete return 0 when it worked; create returns
+ * true when it made the file. list() gives the NAMES of the files and folders
+ * in a directory, sorted by character code.
+ */
+
+FOLDER : string = "/tmp/sharp_suite_std_files";
+
+/** how many entries of `names` are exactly `name` */
+def count_named(names: list<string>, name: string): var {
+    found : var = 0;
+    foreach(entry in names) {
+        if(entry == name) found++;
+    }
+    return found;
+}
+
+def main(args: string[]) {
+    sys("rm -rf " + FOLDER);
+
+    // ================= a folder
+    folder := new file(FOLDER);
+    expect_false("the folder does not exist yet", folder.exists().value);
+    expect_false("something that does not exist is not a directory", folder.is_directory().value);
+    expect_false("something that does not exist is not a file", folder.is_file().value);
+
+    expect("mkdir returns 0", folder.mkdir().value, 0);
+    expect_true("the folder exists after mkdir", folder.exists().value);
+    expect_true("it is a directory", folder.is_directory().value);
+    expect_false("it is not a file", folder.is_file().value);
+    expect("a new folder lists no entries", folder.list().size().value, 0);
+    expect_true("mkdir of a folder that exists does not return 0", folder.mkdir().value != 0);
+
+    // ================= a new file
+    notes := new file(FOLDER + "/notes.txt");
+    expect_false("the file does not exist before create()", notes.exists().value);
+    expect_true("create() returns true when it made the file", notes.create().value);
+    expect_true("it exists after create()", notes.exists().value);
+    expect_true("it is a file", notes.is_file().value);
+    expect_false("it is not a directory", notes.is_directory().value);
+    expect("a new file has length 0", notes.length().value, 0);
+    expect_true("a new file is_empty()", notes.is_empty().value);
+    expect_true("a new file is readable", notes.is_readable().value);
+    expect_true("a new file is writeable", notes.is_writeable().value);
+    expect_false("a file whose name does not start with a dot is not hidden", notes.is_hidden().value);
+    expect_null("read() of an empty file gives null", notes.read());
+
+    // ---- names and paths
+    expect_str("get_name(): the last part of the path", notes.get_name()!!, "notes.txt");
+    expect_str("get_path(): the path it was made with", notes.get_path(), "/tmp/sharp_suite_std_files/notes.txt");
+    expect_str("get_absolute_path()", notes.get_absolute_path(), "/tmp/sharp_suite_std_files/notes.txt");
+    expect_str("to_string() is the path", notes.to_string()!!, "/tmp/sharp_suite_std_files/notes.txt");
+    expect_str("get_parent_file(): the folder", notes.get_parent_file()!!.get_path(), "/tmp/sharp_suite_std_files");
+    expect_str("get_name() of the folder", folder.get_name()!!, "sharp_suite_std_files");
+
+    // ================= write and read back
+    expect("write returns 0", notes.write("hello file").value, 0);
+    expect("length after writing 10 characters", notes.length().value, 10);
+    expect_false("not empty any more", notes.is_empty().value);
+    expect_str("read gives back what was written", notes.read()!!, "hello file");
+    expect_str("reading twice gives the same", notes.read()!!, "hello file");
+
+    // ---- writing again replaces the content (it does not append)
+    notes.write("second");
+    expect_str("a second write replaces the content", notes.read()!!, "second");
+    expect("...and the length is the new length", notes.length().value, 6);
+
+    // ---- several lines
+    notes.write("line one\nline two\n");
+    expect("length of two lines with their line ends", notes.length().value, 18);
+    expect_str("two lines read back", notes.read()!!, "line one\nline two\n");
+
+    // ---- a longer text: 1000 times "0123456789"
+    chunk : string = "0123456789";
+    long_text : string = "";
+    for(i : var = 0; i < 1000; i++) {
+        long_text = long_text + chunk;
+    }
+    notes.write(long_text);
+    expect("length of a 10000 character file", notes.length().value, 10000);
+    read_back := notes.read()!!;
+    expect("10000 characters read back", read_back.size().value, 10000);
+    expect_true("...and they are the same characters", (read_back == long_text).value);
+    expect("character 9999 of what was read", read_back.at(9999).value, '9');
+
+    // ---- text built at run time, with punctuation
+    amount : int = 42;
+    notes.write("total = " + amount + "; done.");
+    expect_str("text built at run time", notes.read()!!, "total = 42; done.");
+
+    // ---- a second file object for the same path sees the same file
+    same_file := new file(FOLDER + "/notes.txt");
+    expect_true("another object for the same path: exists", same_file.exists().value);
+    expect_str("another object for the same path: content", same_file.read()!!, "total = 42; done.");
+    same_file.write("written through the other object");
+    expect_str("written through one object, read through the other", notes.read()!!, "written through the other object");
+
+    // ---- create() on a file that exists leaves it alone
+    expect_false("create() returns false when the file is already there", notes.create().value);
+    expect_str("...and the content is kept", notes.read()!!, "written through the other object");
+
+    // ================= a file that does not exist
+    ghost := new file(FOLDER + "/ghost.txt");
+    expect_false("exists() is false", ghost.exists().value);
+    expect_false("is_file() is false", ghost.is_file().value);
+    expect_false("is_hidden() is false", ghost.is_hidden().value);
+    expect_null("read() gives null", ghost.read());
+    expect_true("delete() does not return 0", ghost.delete().value != 0);
+    expect_false("asking about it did not create it", ghost.exists().value);
+
+    // ---- write() makes the file when it is not there
+    expect("write to a file that was never created returns 0", ghost.write("now I exist").value, 0);
+    expect_true("...and the file is there", ghost.exists().value);
+    expect_str("...with the text", ghost.read()!!, "now I exist");
+    expect("delete of it", ghost.delete().value, 0);
+
+    // ---- a file in a folder that does not exist cannot be made
+    lost := new file(FOLDER + "/no_such_folder/lost.txt");
+    expect_false("create() in a missing folder returns false", lost.create().value);
+    expect_false("...and nothing exists", lost.exists().value);
+
+    // ---- an empty path is refused
+    threw : var = 0;
+    try {
+        nameless := new file("");
+    } catch(e: nullptr_exception) {
+        threw = 1;
+    }
+    expect("new file(\"\") throws nullptr_exception", threw, 1);
+
+    // ================= listing the folder
+    data := new file(FOLDER + "/data.bin");
+    data.create();
+    data.write("abc");
+    hidden := new file(FOLDER + "/.hidden");
+    hidden.create();
+    expect_true("a name that starts with a dot is hidden", hidden.is_hidden().value);
+
+    names := folder.list();
+    expect("three entries in the folder", names.size().value, 3);
+    expect("list has notes.txt (the name, not the path)", count_named(names, "notes.txt"), 1);
+    expect("list has data.bin", count_named(names, "data.bin"), 1);
+    expect("list has .hidden", count_named(names, ".hidden"), 1);
+    expect("list does not have a file that was deleted", count_named(names, "ghost.txt"), 0);
+    expect_str("the list is sorted: first", names.at(0), ".hidden");
+    expect_str("the list is sorted: second", names.at(1), "data.bin");
+    expect_str("the list is sorted: third", names.at(2), "notes.txt");
+
+    // ---- list() of something that is not a directory throws
+    threw = 0;
+    try {
+        notes.list();
+    } catch(e: io_exception) {
+        threw = 1;
+    }
+    expect("list() of a plain file throws io_exception", threw, 1);
+
+    // ---- a folder inside the folder
+    inner := new file(FOLDER + "/inner");
+    expect("mkdir of a folder in the folder", inner.mkdir().value, 0);
+    expect_true("the inner folder is a directory", inner.is_directory().value);
+    deep := new file(FOLDER + "/inner/deep.txt");
+    deep.create();
+    deep.write("deep");
+    expect_str("a file in the inner folder", deep.read()!!, "deep");
+    expect_str("its parent is the inner folder", deep.get_parent_file()!!.get_name()!!, "inner");
+    expect("the inner folder lists one entry", inner.list().size().value, 1);
+    expect_str("...by its name", inner.list().at(0), "deep.txt");
+    expect("the outer folder now lists four entries", folder.list().size().value, 4);
+    expect("...one of them the inner folder", count_named(folder.list(), "inner"), 1);
+    expect("...and not the file inside it", count_named(folder.list(), "deep.txt"), 0);
+
+    // ---- a folder that is not empty cannot be deleted
+    expect_true("delete of a folder with a file in it does not return 0", inner.delete().value != 0);
+    expect_true("...the folder is still there", inner.exists().value);
+    expect_true("...and so is the file", deep.exists().value);
+
+    // ================= rename
+    renamed := new file(FOLDER + "/renamed.txt");
+    expect("rename returns 0", notes.rename(renamed).value, 0);
+    expect_true("the new name exists", renamed.exists().value);
+    expect_false("the old name is gone", new file(FOLDER + "/notes.txt").exists().value);
+    expect_str("the content moved with the file", renamed.read()!!, "written through the other object");
+    expect_str("the file object that was renamed now has the new path", notes.get_path(), "/tmp/sharp_suite_std_files/renamed.txt");
+    expect_str("...and reads the same file", notes.read()!!, "written through the other object");
+    expect("still four entries after the rename", folder.list().size().value, 4);
+    expect("the list has the new name", count_named(folder.list(), "renamed.txt"), 1);
+    expect("the list does not have the old name", count_named(folder.list(), "notes.txt"), 0);
+
+    // ---- rename into another folder moves the file
+    moved := new file(FOLDER + "/inner/moved.bin");
+    expect("rename into the inner folder", data.rename(moved).value, 0);
+    expect_true("it is in the inner folder now", moved.exists().value);
+    expect_str("with its content", moved.read()!!, "abc");
+    expect("the inner folder lists two entries", inner.list().size().value, 2);
+    expect("the outer folder lists three", folder.list().size().value, 3);
+
+    // ================= delete
+    expect("delete of a file returns 0", hidden.delete().value, 0);
+    expect_false("a deleted file does not exist", hidden.exists().value);
+    expect("two entries left in the outer folder", folder.list().size().value, 2);
+    expect("delete of the renamed file", renamed.delete().value, 0);
+    expect_false("it is gone", renamed.exists().value);
+
+    // a deleted file can be created again, empty
+    expect_true("created again after delete", renamed.create().value);
+    expect("...and empty", renamed.length().value, 0);
+    renamed.delete();
+
+    // ================= clean up: files first, then the folders
+    expect("delete deep.txt", deep.delete().value, 0);
+    expect("delete moved.bin", moved.delete().value, 0);
+    expect("the inner folder is empty", inner.list().size().value, 0);
+    expect("delete of the empty inner folder", inner.delete().value, 0);
+    expect_false("the inner folder is gone", inner.exists().value);
+    expect("the outer folder is empty", folder.list().size().value, 0);
+    expect("delete of the empty outer folder", folder.delete().value, 0);
+    expect_false("the outer folder is gone", folder.exists().value);
+
+    finish("std_files");
+}

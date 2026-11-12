@@ -1,0 +1,234 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std string_builder: collects text piece by piece.
+ *
+ * This file reads what is in the builder one character at a time with at(),
+ * through text_of() below (it was written when size(), to_string(), ==, +,
+ * ends_with, substring and the copy constructor were wrong; those are checked
+ * in std_string_builder_fixes.sharp).
+ * Everything that is checked here is the content: appending
+ * every supported type, replacing a character, starting again with `=`, and
+ * building long texts.
+ */
+
+class version : printable {
+    major : var = 0;
+
+    version(m: var) { major = m; }
+
+    override def to_string() : string? = new string("version");
+}
+
+/** the first `count` characters of the builder, as a string */
+def text_of(builder: string_builder, count: var): string {
+    text : string = "";
+    for(i : var = 0; i < count; i++) {
+        text = text + builder.at(i);
+    }
+    return text;
+}
+
+def main(args: string[]) {
+    // ---- append a string
+    sb := new string_builder();
+    sb.append("abc");
+    expect_str("append(string)", text_of(sb, 3), "abc");
+    sb.append("de");
+    expect_str("a second append goes after the first", text_of(sb, 5), "abcde");
+    sb.append("");
+    sb.append("f");
+    expect_str("appending an empty string adds nothing", text_of(sb, 6), "abcdef");
+
+    // ---- at: one character
+    expect("at(0)", sb.at(0).value, 'a');
+    expect("at(3)", sb.at(3).value, 'd');
+    expect("at(5), the last character", sb.at(5).value, 'f');
+    expect("[] is the same as at", sb[1].value, 'b');
+
+    // ---- append a character
+    letters := new string_builder();
+    letters.append('x');
+    letters.append('y');
+    boxed : char = 'z';
+    letters.append(boxed);
+    expect_str("append of character literals and of a char object", text_of(letters, 3), "xyz");
+
+    // ---- append a string variable and a string built at run time
+    word : string = "left";
+    other := "right";
+    joined := new string_builder();
+    joined.append(word);
+    joined.append("-" + other);
+    expect_str("append of string variables", text_of(joined, 10), "left-right");
+    expect_str("the appended string itself is unchanged", word, "left");
+
+    // ---- append returns the builder, so calls can be chained
+    chain := new string_builder();
+    chain.append("one").append(",").append("two").append(',').append("three");
+    expect_str("chained appends", text_of(chain, 13), "one,two,three");
+    returned := chain.append("!");
+    returned.append("?");                       // goes into `chain`: append returned the builder itself
+    expect("append returns the builder: first append", chain.at(13).value, '!');
+    expect("append returns the builder: append through the returned value", chain.at(14).value, '?');
+
+    // ---- += with a string
+    plus := new string_builder();
+    plus += "ab";
+    plus += "cd";
+    expect_str("+= string", text_of(plus, 4), "abcd");
+
+    // ---- += with numbers and other printable objects: their text is appended
+    whole : int = 42;
+    typed := new string_builder();
+    typed += "n=";
+    typed += whole;
+    expect_str("+= int", text_of(typed, 4), "n=42");
+
+    negative : int = 0 - 7;
+    typed += negative;
+    expect_str("+= negative int", text_of(typed, 6), "n=42-7");
+
+    big_number : long = 1234567890;
+    longs := new string_builder();
+    longs += big_number;
+    expect_str("+= long", text_of(longs, 10), "1234567890");
+
+    yes : bool = true;
+    no : bool = false;
+    flags := new string_builder();
+    flags += yes;
+    flags += "/";
+    flags += no;
+    expect_str("+= bool", text_of(flags, 10), "true/false");
+
+    fraction : double = 1.5;
+    doubles := new string_builder();
+    doubles += fraction;
+    expect_str("+= double starts with its digits", text_of(doubles, 3), "1.5");
+
+    letter : char = 'q';
+    chars := new string_builder();
+    chars += "<";
+    chars.append(letter);
+    chars += ">";
+    expect_str("a char object between two strings", text_of(chars, 3), "<q>");
+
+    custom := new string_builder();
+    release : printable = new version(3);
+    custom += release;
+    expect_str("+= an object of a printable class uses its to_string()", text_of(custom, 7), "version");
+
+    // ---- += with another builder
+    front := new string_builder("front");
+    back := new string_builder("back");
+    front += "+";
+    expect_str("constructor text followed by +=", text_of(front, 6), "front+");
+    expect_str("the other builder is not touched", text_of(back, 4), "back");
+
+    // ---- constructors
+    from_text := new string_builder("hello");
+    expect_str("string_builder(string)", text_of(from_text, 5), "hello");
+    from_text.append(" world");
+    expect_str("append after the constructor text", text_of(from_text, 11), "hello world");
+
+    from_variable := new string_builder(word);
+    expect_str("string_builder(string variable)", text_of(from_variable, 4), "left");
+
+    // ---- starts_with
+    expect_true("starts_with: the first characters", from_text.starts_with("hello").value);
+    expect_true("starts_with: one character", from_text.starts_with("h").value);
+    expect_true("starts_with: the whole text", from_text.starts_with("hello world").value);
+    expect_false("starts_with: other text", from_text.starts_with("world").value);
+    expect_false("starts_with: a difference in the last character", from_text.starts_with("hellp").value);
+    expect_false("starts_with: longer than the text", from_text.starts_with("hello world and more").value);
+
+    // ---- replace one character
+    from_text.replace(0, 'J');
+    expect_str("replace(0)", text_of(from_text, 11), "Jello world");
+    from_text.replace(10, 'D').replace(5, '_');
+    expect_str("replace is chainable", text_of(from_text, 11), "Jello_worlD");
+
+    // ---- at past the end throws
+    caught : var = 0;
+    short_text := new string_builder("abc");
+    try {
+        short_text.at(10);
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("at() far past the end throws out_of_bounds_exception", caught, 1);
+    expect_str("...and the builder is unchanged", text_of(short_text, 3), "abc");
+
+    // ---- starting again with =
+    reused := new string_builder("first text");
+    reused = "second";
+    expect_str("= replaces the text", text_of(reused, 6), "second");
+    reused.append("!");
+    expect_str("append after =", text_of(reused, 7), "second!");
+
+    // ---- two builders are independent
+    one := new string_builder();
+    two := new string_builder();
+    one.append("111");
+    two.append("222");
+    one.append("1");
+    expect_str("builder one", text_of(one, 4), "1111");
+    expect_str("builder two", text_of(two, 3), "222");
+
+    // ---- building a long text: past the first capacity (255 characters)
+    digits := new string_builder();
+    for(i : var = 0; i < 1000; i++) {
+        digits.append("0123456789");
+    }
+    expect_str("long text: the start", text_of(digits, 12), "012345678901");
+    expect("long text: character 254", digits.at(254).value, '4');
+    expect("long text: character 255 (first one past the first capacity)", digits.at(255).value, '5');
+    expect("long text: character 256", digits.at(256).value, '6');
+    expect("long text: character 5005", digits.at(5005).value, '5');
+    expect("long text: the last character, 9999", digits.at(9999).value, '9');
+
+    // every one of the 10000 characters: 1000 times the digits 0..9, their sum is 45000
+    sum : var = 0;
+    for(i : var = 0; i < 10000; i++) {
+        sum += digits.at(i).value - '0';
+    }
+    expect("long text: every character is the right digit", sum, 45000);
+
+    // ---- a long text built one character at a time
+    stars := new string_builder();
+    for(i : var = 0; i < 3000; i++) {
+        stars.append('*');
+    }
+    stars.append('#');
+    count : var = 0;
+    for(i : var = 0; i < 3000; i++) {
+        if(stars.at(i).value == '*') count++;
+    }
+    expect("3000 single characters", count, 3000);
+    expect("...and the one after them", stars.at(3000).value, '#');
+
+    // ---- a long text made of long pieces
+    piece : string = "The quick brown fox jumps over the lazy dog. ";      // 45 characters
+    story := new string_builder();
+    for(i : var = 0; i < 200; i++) {
+        story.append(piece);
+    }
+    expect("long pieces: first character", story.at(0).value, 'T');
+    expect("long pieces: start of the last piece (199 * 45)", story.at(8955).value, 'T');
+    expect("long pieces: the last full stop (9000 - 2)", story.at(8998).value, '.');
+    expect_true("long pieces: starts_with", story.starts_with("The quick brown fox").value);
+
+    // ---- many builders
+    made : var = 0;
+    for(i : var = 0; i < 200; i++) {
+        temp := new string_builder("item");
+        temp.append("-ok");
+        if(temp.at(6).value == 'k') made++;
+    }
+    expect("200 short-lived builders", made, 200);
+
+    finish("std_string_builder");
+}

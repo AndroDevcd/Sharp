@@ -1,0 +1,36 @@
+mod main;
+
+import ( testing, std.math )
+
+/**
+ * std.math: NEGATIVE_INFINITY, is_nan, round of negative numbers and abs of a
+ * large long - all of which used to be wrong and were fixed. Kept as its own
+ * file so the old bugs stay covered. (Everything else is in std_math.sharp.)
+ */
+
+def main(args: string[]) {
+    // ---- fixed, used to be wrong (1): NEGATIVE_INFINITY is -2147483648, not minus infinity
+    // (it is declared as `-1.0 / 0.0`; POSITIVE_INFINITY, `1.0 / 0.0`, is right)
+    expect_true("NEGATIVE_INFINITY is smaller than any number", NEGATIVE_INFINITY.value < 0 - 1000000000000);
+    expect_true("log(0) is NEGATIVE_INFINITY", is_infinite(log(0)).value);
+
+    // ---- fixed, used to be wrong (2): is_nan() is false for NaN. It is written `v != v` on double
+    // OBJECTS, and != between two double objects does not give true for NaN
+    // (on native numbers `x != x` is true for NaN, as it should be).
+    expect_true("is_nan(NaN)", is_nan(NaN).value);
+    expect_true("is_nan(sqrt(-1))", is_nan(sqrt(0 - 1)).value);
+    expect_true("is_nan(log(-1))", is_nan(log(0 - 1)).value);
+
+    // ---- fixed, used to be wrong (3): round() rounds negative numbers towards zero
+    // (it cuts off the fraction and only looks for a fraction >= 0.5)
+    below : double = 0 - 2.6;
+    expect("round(-2.6)", round(below).value, 0 - 3);
+
+    // ---- fixed, used to be wrong (4): a long that does not fit 32 bits: -5000000000 becomes -2147483648
+    // before abs() ever sees it (the long object already prints as -2147483648)
+    large : long = 0 - 5000000000;
+    expect("a long holds -5000000000", large.value, 0 - 5000000000);
+    expect("abs of a long object", abs(large).value, 5000000000);
+
+    finish("std_math_fixes");
+}

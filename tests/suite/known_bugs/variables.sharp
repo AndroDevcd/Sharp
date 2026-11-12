@@ -1,0 +1,38 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUGS in variable declarations. This file is expected to FAIL.
+ *
+ * Declaring several LOCAL variables in one statement goes wrong as soon as
+ * a later variable has a value of its own. (Globals are right, and so is
+ * `a : var = 1, b;` where only the first has a value.)
+ *
+ * Not in this file because it does not compile at all: unary plus,
+ * `y : var = +x;` gives "expected expression".
+ */
+
+def main(args: string[]) {
+    // ---- BUG 1: the later values are stored in the FIRST variable
+    //      today: a is 2 and b was never assigned
+    //      (b is whatever was in its slot: 0 or a leftover number)
+    a : var = 1, b = 2;
+    expect("a of `a : var = 1, b = 2;`", a, 1);
+    expect("b of `a : var = 1, b = 2;`", b, 2);
+
+    //      today: c is 7, d and e were never assigned
+    c : var = 5, d = 6, e = 7;
+    expect("c of `c : var = 5, d = 6, e = 7;`", c, 5);
+    expect("d of `c : var = 5, d = 6, e = 7;`", d, 6);
+    expect("e of `c : var = 5, d = 6, e = 7;`", e, 7);
+
+    // ---- BUG 2: with := the first variable loses its value
+    //      today: p is 0 (q is right)
+    p := 1, q;
+    q = 2;
+    expect("p of `p := 1, q;`", p.value, 1);
+    expect_str("q of `p := 1, q;` after q = 2", "$q", "2");
+
+    finish("variables");
+}

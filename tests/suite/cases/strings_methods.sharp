@@ -1,0 +1,267 @@
+mod main;
+
+import ( testing )
+
+/**
+ * The methods of the standard library class `string`.
+ *
+ * A string is an OBJECT that owns its characters. `append`, `replace`, `+=`
+ * and `=` with a literal change that object, so every variable that refers
+ * to it sees the change; `+`, `substring` and `to_lower` make a new string.
+ *
+ * (Methods cannot be called on a literal - `"abc".size()` is not valid
+ * Sharp - so the checks go through variables.)
+ */
+
+def count_char(text: string, wanted: char) : var {
+    found : var = 0;
+    foreach(ch in text) {
+        if(ch == wanted.value) {
+            found++;
+        }
+    }
+    return found;
+}
+
+def main(args: string[]) {
+    hello := "hello world";
+    abc := new string("abc");
+    also_abc := new string("abc");
+
+    // ---- size and empty
+    expect("size", hello.size().value, 11);
+    expect("size of \"abc\"", abc.size().value, 3);
+    nothing := "";
+    expect("size of \"\"", nothing.size().value, 0);
+    expect_true("\"\" is empty", nothing.empty().value);
+    expect_false("\"\" is not not_empty", nothing.not_empty().value);
+    expect_false("\"hello world\" is not empty", hello.empty().value);
+    expect_true("\"hello world\" is not_empty", hello.not_empty().value);
+    fresh := new string();
+    expect_true("new string() is empty", fresh.empty().value);
+    expect("new string() has size 0", fresh.size().value, 0);
+
+    // ---- at and [] give the character as a char object
+    expect("at(0) is 'h'", hello.at(0).value, 104);
+    expect("at(4) is 'o'", hello.at(4).value, 111);
+    expect("at(5) is the space", hello.at(5).value, 32);
+    expect("at(10) is the last character 'd'", hello.at(10).value, 100);
+    expect("[0] is the same as at(0)", hello[0].value, 104);
+    expect_true("at(0) == 'h'", (hello.at(0) == 'h').value);
+    expect_false("'h' < 'e'", (hello.at(0) < hello.at(1)).value);
+    expect_true("the two l's are equal", (hello.at(2) == hello.at(3)).value);
+
+    // ---- substring(start, end): end is NOT included
+    expect_str("substring(0, 4)", hello.substring(0, 4), "hell");
+    expect_str("substring(0, 5)", hello.substring(0, 5), "hello");
+    expect_str("substring(6, 10)", hello.substring(6, 10), "worl");
+    expect_str("substring(6, 11) goes to the end", hello.substring(6, 11), "world");
+    expect_str("substring(4, 7)", hello.substring(4, 7), "o w");
+    expect("size of a substring", hello.substring(2, 9).size().value, 7);
+    expect_str("substring leaves the original alone", hello, "hello world");
+
+    // ---- find: is the text somewhere inside?
+    expect_true("find \"world\"", hello.find("world").value);
+    expect_true("find \"o w\"", hello.find("o w").value);
+    expect_true("find the first character", hello.find("h").value);
+    expect_true("find the last character", hello.find("d").value);
+    expect_true("find itself", hello.find("hello world").value);
+    expect_true("find the empty string", hello.find("").value);
+    expect_false("find \"xyz\"", hello.find("xyz").value);
+    expect_false("find \"worlds\"", hello.find("worlds").value);
+    expect_false("find is case sensitive", hello.find("World").value);
+    expect_false("find something longer than the string", abc.find("abcd").value);
+
+    // ---- starts_with
+    expect_true("starts_with \"hello\"", hello.starts_with("hello").value);
+    expect_true("starts_with \"h\"", hello.starts_with("h").value);
+    expect_true("starts_with itself", hello.starts_with("hello world").value);
+    expect_false("starts_with \"world\"", hello.starts_with("world").value);
+    expect_false("starts_with \"Hello\"", hello.starts_with("Hello").value);
+    expect_false("starts_with something longer", abc.starts_with("abcd").value);
+
+    // ---- ends_with
+    expect_true("ends_with \"world\"", hello.ends_with("world").value);
+    expect_true("ends_with \"d\"", hello.ends_with("d").value);
+    expect_false("ends_with \"hello\"", hello.ends_with("hello").value);
+    expect_false("ends_with \"World\"", hello.ends_with("World").value);
+
+    // ---- to_lower makes a new string
+    mixed := "MiXed 12 Z";
+    expect_str("to_lower", mixed.to_lower(), "mixed 12 z");
+    expect_str("to_lower leaves the original alone", mixed, "MiXed 12 Z");
+    expect_str("to_lower of lower case", hello.to_lower(), "hello world");
+
+    // ---- comparing
+    expect_true("string == literal", (abc == "abc").value);
+    expect_false("string != the same literal", (abc != "abc").value);
+    expect_false("one character differs", (abc == "abd").value);
+    expect_false("a shorter literal", (abc == "ab").value);
+    expect_false("a longer literal", (abc == "abcd").value);
+    expect_false("upper and lower case differ", (abc == "ABC").value);
+    expect_true("two objects with the same characters are ==", (abc == also_abc).value);
+    expect_false("different strings", (abc == hello).value);
+    expect_true("different strings are !=", (abc != hello).value);
+    taken : var = 0;
+    if(abc == also_abc) { taken = 1; }
+    expect("if(a == b)", taken, 1);
+    taken = 0;
+    if(abc != hello) { taken = 1; }
+    expect("if(a != b)", taken, 1);
+
+    // ---- append changes the string
+    a := new string("abc");
+    a.append("def");
+    expect_str("append a literal", a, "abcdef");
+    a.append('g');
+    expect_str("append a character", a, "abcdefg");
+    expect("size after appending", a.size().value, 7);
+    chained := a.append("1").append("2");
+    expect_str("append returns the string, so calls chain", a, "abcdefg12");
+    expect_str("...the result is that same string", chained, "abcdefg12");
+    start_empty := new string();
+    start_empty.append("x");
+    expect_str("append to an empty string", start_empty, "x");
+
+    // ---- += changes the string too
+    b := new string("abc");
+    b += "hi";
+    expect_str("+= literal", b, "abchi");
+    b += also_abc;
+    expect_str("+= string", b, "abchiabc");
+
+    // ---- replace(position, character) changes one character
+    r := new string("abc");
+    r.replace(0, 'X');
+    expect_str("replace the first", r, "Xbc");
+    r.replace(2, 'Z');
+    expect_str("replace the last", r, "XbZ");
+    expect("replace keeps the size", r.size().value, 3);
+
+    // ---- + makes a new string
+    joined := abc + also_abc;
+    expect_str("string + string", joined, "abcabc");
+    expect_str("...the left side is unchanged", abc, "abc");
+    expect_str("string + literal + string", abc + "-" + also_abc, "abc-abc");
+    expect_str("literal + literal + literal", "a" + "b" + "c", "abc");
+
+    // ---- building strings from numbers and characters
+    expect_str("+ whole number", "n=" + 5, "n=5");
+    expect_str("+ two numbers appends each", "a" + 1 + 2, "a12");
+    x : var = 2.5;
+    expect_str("+ native variable has 16 decimals", "x=" + x, "x=2.5000000000000000");
+    forty_two := 42;
+    expect_str("+ int object", "i=" + forty_two, "i=42");
+    one_and_half := new double(1.5);
+    expect_str("+ double object", "d=" + one_and_half, "d=1.5000000000000000");
+    big := new long(1234567890123);
+    expect_str("+ long object", "l=" + big, "l=1234567890123");
+    expect_str("+ character", "c=" + 'q', "c=q");
+    zed := new char('z');
+    expect_str("+ char object", "c=" + zed, "c=z");
+    n := 3;
+    expect_str("interpolation", "${n} and ${n + 1} and $n.", "3 and 4 and 3.");
+    expect_str("interpolating a string", "<$abc>", "<abc>");
+    from_char := new string('q');
+    expect_str("new string(character)", from_char, "q");
+    expect("...has size 1", from_char.size().value, 1);
+    from_chars := new string(new char[] { 'h', 'i' });
+    expect_str("new string(char[])", from_chars, "hi");
+
+    // a string built in a loop
+    grown := "";
+    for(k : var = 0; k < 100; k++) {
+        grown += "ab";
+    }
+    expect("100 times \"ab\"", grown.size().value, 200);
+    expect_true("...starts with abab", grown.starts_with("abab").value);
+    expect("...last character is 'b'", grown.at(199).value, 98);
+
+    // ---- escapes inside a literal are one character each
+    escapes := "a\nb\tc";
+    expect("size of \"a\\nb\\tc\"", escapes.size().value, 5);
+    expect("\\n is 10", escapes.at(1).value, 10);
+    expect("\\t is 9", escapes.at(3).value, 9);
+    quoted := "say \"hi\"";
+    expect("size with escaped quotes", quoted.size().value, 8);
+    expect("\\\" is 34", quoted.at(4).value, 34);
+    slash := "a\\b";
+    expect("size of a\\\\b", slash.size().value, 3);
+    expect("\\\\ is 92", slash.at(1).value, 92);
+
+    // ---- two variables, one string
+    first := "same";
+    second := first;
+    second += "!";
+    expect_str("+= through the other name", first, "same!");
+    one := "one";
+    two := one;
+    two = "two";
+    expect_str("= with a literal writes into the shared string", one, "two");
+    original := "one";
+    separate := new string(original);
+    separate += "x";
+    expect_str("new string(s) is a separate copy", original, "one");
+    expect_str("...the copy", separate, "onex");
+    expect_str("to_string is a separate copy too", hello.to_string()!!, "hello world");
+
+    // ---- the characters as an array
+    elements := hello.get_elements();
+    expect("get_elements size", sizeof(elements), 11);
+    expect("get_elements [0]", elements[0], 104);
+    raw : _int8[] = "raw";
+    expect("a literal is an _int8[]", sizeof(raw), 3);
+    expect("...of character codes", raw[2], 119);
+
+    // ---- to_char_array is a copy of the characters
+    letters := abc.to_char_array()!!;
+    copy_of_chars := letters.get_elements();
+    expect("to_char_array size", sizeof(copy_of_chars), 3);
+    expect("to_char_array [1] is 'b'", copy_of_chars[1], 98);
+    copy_of_chars[1] = 'Z';
+    expect_str("changing the copy leaves the string alone", abc, "abc");
+    expect_str("char_array back to a string", letters.to_string(), "aZc");
+
+    // ---- foreach walks the characters
+    expect("two o's in hello world", count_char(hello, 'o'), 2);
+    expect("three l's in hello world", count_char(hello, 'l'), 3);
+    expect("no z", count_char(hello, 'z'), 0);
+    expect("nothing to walk in \"\"", count_char(nothing, 'a'), 0);
+
+    // ---- hash: the same characters always give the same number
+    expect_true("equal strings have equal hashes", (abc.hash() == also_abc.hash()).value);
+    expect_false("different strings (here) have different hashes", (abc.hash() == hello.hash()).value);
+    again := hello.hash();
+    expect_true("asking twice gives the same hash", (again == hello.hash()).value);
+    // 'a' counts 1, 'b' 2, 'c' 3; each position is worth 31 times the one before: 1 + 2 * 31 + 3 * 961
+    expect("hash of \"abc\"", abc.hash().value, 2946);
+
+    // ---- errors
+    try {
+        hello.at(50);
+        fail("at(50)", "no exception");
+    } catch(e: out_of_bounds_exception) {
+        pass("at(50)");
+    }
+    try {
+        hello.substring(50, 51);
+        fail("substring(50, 51)", "no exception");
+    } catch(e: out_of_bounds_exception) {
+        pass("substring(50, 51)");
+    }
+    try {
+        hello.substring(4, 2);
+        fail("substring(4, 2)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("substring(4, 2)");
+    }
+    try {
+        abc.replace(9, 'q');
+        fail("replace(9, ...)", "no exception");
+    } catch(e: out_of_bounds_exception) {
+        pass("replace(9, ...)");
+    }
+    expect_str("the strings are intact after the errors", abc + hello, "abchello world");
+
+    finish("strings_methods");
+}

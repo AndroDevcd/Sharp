@@ -1,0 +1,355 @@
+mod main;
+
+import ( testing )
+
+/**
+ * The lock statement, used from ONE thread:
+ *
+ *     lock(some_object) { ... }
+ *
+ * With one thread nobody ever waits, so what is checked here is that the
+ * statement behaves like a plain block - and that the lock is given back
+ * however the block is left (end of block, return, break, continue, exception).
+ * A lock that was not given back would make a later lock() on the same object
+ * from another thread wait forever; here it shows up as a wrong count in
+ * threads.sharp, and in this file the same object is locked again and again.
+ */
+
+class vault {
+    coins : var = 0;
+
+    def deposit(amount: var) {
+        lock(self) {
+            coins += amount;
+        }
+    }
+
+    def balance(): var {
+        lock(self) {
+            return coins;
+        }
+    }
+
+    /** locks self, then calls methods that lock self again */
+    def deposit_twice(amount: var): var {
+        lock(self) {
+            deposit(amount);
+            deposit(amount);
+            return balance();
+        }
+    }
+
+    def withdraw(amount: var) {
+        lock(self) {
+            if(amount > coins) throw new illegal_argument_exception("not enough coins");
+            coins -= amount;
+        }
+    }
+}
+
+class key { id : var = 0; }
+
+guard := new key();
+shared : var = 0;
+
+def return_from_lock(k: key): var {
+    lock(k) {
+        return 42;
+    }
+}
+
+def return_expression_from_lock(k: key, a: var, b: var): var {
+    lock(k) {
+        return a * b;
+    }
+}
+
+def early_return_from_lock(k: key, early: var): var {
+    lock(k) {
+        if(early == 1) return 1;
+    }
+    return 2;
+}
+
+def throw_from_lock(k: key) {
+    lock(k) {
+        shared = 5;
+        throw new illegal_state_exception("out of the lock");
+    }
+}
+
+def throw_from_nested_lock(k: key) {
+    lock(k) {
+        lock(k) {
+            throw new illegal_state_exception("out of two locks");
+        }
+    }
+}
+
+def thrower() {
+    throw new illegal_state_exception("from a call inside the lock");
+}
+
+def call_thrower_in_lock(k: key) {
+    lock(k) {
+        thrower();
+    }
+}
+
+def return_from_nested_lock(k: key): var {
+    lock(k) {
+        lock(k) {
+            lock(k) {
+                return 3;
+            }
+        }
+    }
+}
+
+def lock_global(): var {
+    lock(guard) {
+        shared++;
+        return shared;
+    }
+}
+
+def count_down_locked(k: key, n: var): var {
+    if(n == 0) return 0;
+    lock(k) {
+        return 1 + count_down_locked(k, n - 1);
+    }
+}
+
+def main(args: string[]) {
+    k := new key();
+
+    // ---- the body runs, once
+    runs : var = 0;
+    lock(k) {
+        runs++;
+    }
+    expect("the body of a lock runs once", runs, 1);
+
+    // ---- the body sees and changes the variables around it
+    a : var = 3;
+    b : var = 4;
+    c : var = 0;
+    lock(k) {
+        c = a * b;
+        a = 10;
+    }
+    expect("assignment inside the lock", c, 12);
+    expect("variable changed inside the lock", a, 10);
+
+    // ---- an empty body
+    lock(k) {
+    }
+    expect("an empty lock body", 1, 1);
+
+    // ---- code after the lock runs
+    order : var = 0;
+    order = order * 10 + 1;
+    lock(k) {
+        order = order * 10 + 2;
+    }
+    order = order * 10 + 3;
+    expect("before, inside, after", order, 123);
+
+    // ---- the same object can be locked again after the lock was left
+    runs = 0;
+    lock(k) { runs++; }
+    lock(k) { runs++; }
+    lock(k) { runs++; }
+    expect("three locks on the same object, one after the other", runs, 3);
+
+    // ---- return from inside a lock
+    expect("return from a lock", return_from_lock(k), 42);
+    expect("return of an expression from a lock", return_expression_from_lock(k, 6, 7), 42);
+    expect("early return from a lock", early_return_from_lock(k, 1), 1);
+    expect("no early return: falls out of the lock", early_return_from_lock(k, 0), 2);
+    lock(k) { runs++; }
+    expect("the object can be locked again after a return from inside", runs, 4);
+
+    // ---- nested locks on the same object (the lock is reentrant)
+    depth : var = 0;
+    lock(k) {
+        depth = 1;
+        lock(k) {
+            depth = 2;
+            lock(k) {
+                depth = 3;
+            }
+        }
+    }
+    expect("three nested locks on the same object", depth, 3);
+    expect("return from three nested locks", return_from_nested_lock(k), 3);
+    lock(k) { runs++; }
+    expect("lockable again after nested locks", runs, 5);
+
+    // ---- nested locks on different objects
+    k2 := new key();
+    k3 := new key();
+    reached : var = 0;
+    lock(k) {
+        lock(k2) {
+            lock(k3) {
+                reached = 1;
+            }
+        }
+    }
+    expect("nested locks on three different objects", reached, 1);
+    reached = 0;
+    lock(k3) {
+        lock(k) {
+            reached = 1;
+        }
+    }
+    expect("...and in another order", reached, 1);
+
+    // ---- an exception leaves the lock
+    caught : var = 0;
+    try {
+        throw_from_lock(k);
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+        expect_str("exception out of a lock: message", e.get_message(), "out of the lock");
+    }
+    expect("exception out of a lock", caught, 1);
+    expect("the work before the throw was done", shared, 5);
+    lock(k) { runs++; }
+    expect("lockable again after an exception left the lock", runs, 6);
+
+    caught = 0;
+    try {
+        throw_from_nested_lock(k);
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+    }
+    expect("exception out of two nested locks", caught, 1);
+
+    caught = 0;
+    try {
+        call_thrower_in_lock(k);
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+        expect_str("exception from a call inside a lock", e.get_message(), "from a call inside the lock");
+    }
+    expect("exception from a call inside a lock was caught", caught, 1);
+
+    // ---- try/catch inside a lock: the exception never leaves it
+    caught = 0;
+    after_catch : var = 0;
+    lock(k) {
+        try {
+            throw new exception("stays inside");
+        } catch(e: exception) {
+            caught = 1;
+        }
+        after_catch = 1;
+    }
+    expect("try/catch inside a lock", caught, 1);
+    expect("the rest of the lock body runs after the catch", after_catch, 1);
+
+    // ---- a lock inside try/finally
+    order = 0;
+    try {
+        lock(k) {
+            order = order * 10 + 1;
+            throw new exception("e");
+        }
+    } catch(e: exception) {
+        order = order * 10 + 2;
+    } finally {
+        order = order * 10 + 3;
+    }
+    expect("lock inside try/catch/finally", order, 123);
+
+    // ---- locks in loops
+    sum : var = 0;
+    for(i : var = 1; i <= 100; i++) {
+        lock(k) {
+            sum += i;
+        }
+    }
+    expect("a lock inside a loop, 100 trips", sum, 5050);
+
+    sum = 0;
+    lock(k) {
+        for(i : var = 1; i <= 100; i++) {
+            sum += i;
+        }
+    }
+    expect("a loop inside a lock", sum, 5050);
+
+    sum = 0;
+    for(i : var = 0; i < 10; i++) {
+        lock(k) {
+            if(i == 5) break;
+            sum += 1;
+        }
+    }
+    expect("break out of a lock in a loop", sum, 5);
+
+    sum = 0;
+    for(i : var = 0; i < 10; i++) {
+        lock(k) {
+            if(i % 2 == 0) continue;
+            sum += i;                           // 1 + 3 + 5 + 7 + 9
+        }
+    }
+    expect("continue out of a lock in a loop", sum, 25);
+    lock(k) { runs++; }
+    expect("lockable again after break and continue", runs, 7);
+
+    // ---- lock on a global object, from a function
+    shared = 0;
+    expect("lock on a global, first call", lock_global(), 1);
+    expect("lock on a global, second call", lock_global(), 2);
+    for(i : var = 0; i < 1000; i++) {
+        lock_global();
+    }
+    expect("lock on a global, 1002 calls", shared, 1002);
+
+    // ---- lock(self) in methods
+    v := new vault();
+    v.deposit(10);
+    v.deposit(5);
+    expect("lock(self) in a method", v.balance(), 15);
+    expect("a locked method calling locked methods on the same object", v.deposit_twice(20), 55);
+
+    caught = 0;
+    try {
+        v.withdraw(1000);
+    } catch(e: illegal_argument_exception) {
+        caught = 1;
+    }
+    expect("exception out of lock(self)", caught, 1);
+    v.withdraw(50);
+    expect("the object is usable after that exception", v.balance(), 5);
+
+    // ---- two objects have two separate locks
+    v2 := new vault();
+    lock(v) {
+        v2.deposit(7);
+        lock(v2) {
+            v.deposit(1);
+        }
+    }
+    expect("locks of two objects do not get in each other's way (first)", v.balance(), 6);
+    expect("locks of two objects do not get in each other's way (second)", v2.balance(), 7);
+
+    // ---- any class object can be locked, e.g. a string (arrays cannot: that is a compile error)
+    text := "a string";
+    reached = 0;
+    lock(text) {
+        reached++;
+    }
+    expect("lock on a string", reached, 1);
+
+    // ---- the same lock taken once per call, 50 calls deep
+    expect("recursion that locks at every level", count_down_locked(k, 50), 50);
+    lock(k) { runs++; }
+    expect("lockable again after the recursion", runs, 8);
+
+    finish("lock");
+}

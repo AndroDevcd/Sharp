@@ -1,0 +1,233 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Casts with `as`.
+ *
+ * Numbers:  `x as _int8`, `_uint8`, `_int16`, `_uint16`, `_int32`, `_uint32`,
+ *           `_int64` cut the fraction off (towards zero) and then keep only
+ *           the low bits, exactly like a cast in C.
+ * Objects:  `thing as dog` views an object through another class of its
+ *           hierarchy; `value as var[]` gets an array back out of an `object`.
+ */
+
+class animal {
+    name : string;
+    animal(n: string) { name = n; }
+}
+
+class dog base animal {
+    tricks : var = 3;
+    dog(n: string) -> base(n) {}
+    def fetch() : var { return 1; }
+}
+
+class puppy base dog {
+    age : var = 2;
+    puppy(n: string) -> base(n) {}
+    def chew() : var { return 7; }
+}
+
+class sized_fields {
+    tiny : _int8;
+    small : _int16;
+}
+
+def name_of(a: animal) : string { return a.name; }
+def give(x: var) : var { return x; }
+def as_tiny(x: var) : _int8 { return x; }
+def as_small(x: var) : _int16 { return x; }
+
+def main(args: string[]) {
+    x : var = 0;
+
+    // ---- _int8: -128 .. 127
+    x = 127;
+    expect("127 as _int8 fits", x as _int8, 127);
+    x = 128;
+    expect("128 as _int8", x as _int8, 0 - 128);
+    x = 200;
+    expect("200 as _int8", x as _int8, 0 - 56);
+    x = 255;
+    expect("255 as _int8", x as _int8, 0 - 1);
+    x = 256;
+    expect("256 as _int8", x as _int8, 0);
+    x = 300;
+    expect("300 as _int8", x as _int8, 44);
+    x = 0 - 1;
+    expect("-1 as _int8 fits", x as _int8, 0 - 1);
+    x = 0 - 128;
+    expect("-128 as _int8 fits", x as _int8, 0 - 128);
+    x = 0 - 129;
+    expect("-129 as _int8", x as _int8, 127);
+
+    // ---- _uint8: 0 .. 255
+    x = 255;
+    expect("255 as _uint8 fits", x as _uint8, 255);
+    x = 256;
+    expect("256 as _uint8", x as _uint8, 0);
+    x = 511;
+    expect("511 as _uint8", x as _uint8, 255);
+    x = 0 - 1;
+    expect("-1 as _uint8", x as _uint8, 255);
+
+    // ---- _int16: -32768 .. 32767
+    x = 32767;
+    expect("32767 as _int16 fits", x as _int16, 32767);
+    x = 32768;
+    expect("32768 as _int16", x as _int16, 0 - 32768);
+    x = 40000;
+    expect("40000 as _int16", x as _int16, 0 - 25536);
+    x = 65535;
+    expect("65535 as _int16", x as _int16, 0 - 1);
+    x = 70000;
+    expect("70000 as _int16", x as _int16, 4464);
+
+    // ---- _uint16: 0 .. 65535
+    x = 65535;
+    expect("65535 as _uint16 fits", x as _uint16, 65535);
+    x = 65536;
+    expect("65536 as _uint16", x as _uint16, 0);
+    x = 100000;
+    expect("100000 as _uint16", x as _uint16, 34464);
+    x = 0 - 1;
+    expect("-1 as _uint16", x as _uint16, 65535);
+
+    // ---- _int32: -2147483648 .. 2147483647
+    x = 2147483647;
+    expect("2^31 - 1 as _int32 fits", x as _int32, 2147483647);
+    x = 2147483648;
+    expect("2^31 as _int32", x as _int32, 0 - 2147483648);
+    x = 3000000000;
+    expect("3000000000 as _int32", x as _int32, 0 - 1294967296);
+    x = 4294967295;
+    expect("2^32 - 1 as _int32", x as _int32, 0 - 1);
+    x = 4294967297;
+    expect("2^32 + 1 as _int32", x as _int32, 1);
+
+    // ---- _uint32: 0 .. 4294967295
+    x = 4294967295;
+    expect("2^32 - 1 as _uint32 fits", x as _uint32, 4294967295);
+    x = 4294967296;
+    expect("2^32 as _uint32", x as _uint32, 0);
+    x = 0 - 1;
+    expect("-1 as _uint32", x as _uint32, 4294967295);
+
+    // ---- fractions are cut off towards zero
+    x = 3.99;
+    expect("3.99 as _int32", x as _int32, 3);
+    expect("3.99 as _int16", x as _int16, 3);
+    expect("3.99 as _int8", x as _int8, 3);
+    expect("3.99 as _uint8", x as _uint8, 3);
+    expect("3.99 as _int64", x as _int64, 3);
+    x = 0 - 3.99;
+    expect("-3.99 as _int32", x as _int32, 0 - 3);
+    expect("-3.99 as _int64", x as _int64, 0 - 3);
+    x = 1000.5;
+    expect("1000.5 as _int8: 1000 is cut to 8 bits", x as _int8, 0 - 24);
+    x = 5.5;
+    expect("5.5 as var changes nothing", x as var, 5.5);
+
+    // ---- _int64 holds large whole numbers
+    x = 1099511627776;
+    expect("2^40 as _int64 fits", x as _int64, 1099511627776);
+    x = 1099511627776.75;
+    expect("2^40 + 0.75 as _int64", x as _int64, 1099511627776);
+
+    // ---- what is being cast can be any expression
+    expect("a literal expression", (100 + 100) as _int8, 0 - 56);
+    x = 100;
+    expect("a variable expression", (x + x) as _int8, 0 - 56);
+    expect("a function call", give(300) as _uint8, 44);
+    box := new int(300);
+    expect("the value of an int object", box.value as _int8, 44);
+    expect("one cast after another", (70000 as _int16) as _int8, 112);
+    x = 300;
+    expect("the result used in arithmetic", (x as _int8) + 1000, 1044);
+    tiny_local : _int8 = 100;
+    expect("widening keeps the value", (tiny_local as _int16) * 400, 40000);
+    kept : var = x as _int8;
+    expect("the result stored in a var", kept, 44);
+    expect("the variable that was cast is unchanged", x, 300);
+
+    // ---- storing into a sized variable cuts the same way, without `as`
+    x = 200;
+    local8 : _int8 = x;
+    expect("_int8 local = 200", local8, 0 - 56);
+    local8 = local8 + 100;
+    expect("_int8 local -56 + 100", local8, 44);
+    local8 = 127;
+    local8++;
+    expect("_int8 local 127 ++", local8, 0 - 128);
+    local8 += 300;
+    expect("_int8 local -128 + 300", local8, 0 - 84);
+    localu8 : _uint8 = 255;
+    localu8++;
+    expect("_uint8 local 255 ++", localu8, 0);
+    fields := new sized_fields();
+    fields.tiny = x;
+    expect("_int8 field = 200", fields.tiny, 0 - 56);
+    fields.small = 40000;
+    expect("_int16 field = 40000", fields.small, 0 - 25536);
+    fields.small = 32767;
+    fields.small++;
+    expect("_int16 field 32767 ++", fields.small, 0 - 32768);
+    expect("returned as _int8", as_tiny(200), 0 - 56);
+    expect("returned as _int16", as_small(70000), 4464);
+
+    // ---- objects: up the hierarchy (always allowed, no cast needed)
+    rex := new puppy("rex");
+    as_animal : animal = rex;
+    expect_str("a puppy where an animal is expected", name_of(rex), "rex");
+    expect_str("puppy in an animal variable", as_animal.name, "rex");
+    explicit := rex as animal;
+    expect_str("explicit cast up", explicit.name, "rex");
+    as_dog : dog = rex;
+    expect("puppy in a dog variable", as_dog.fetch(), 1);
+    expect_true("it is still the same object", as_animal == rex);
+
+    // ---- objects: down the hierarchy
+    back_to_dog := as_animal as dog;
+    expect("animal as dog: method", back_to_dog.fetch(), 1);
+    expect("animal as dog: field", back_to_dog.tricks, 3);
+    back_to_puppy := as_animal as puppy;
+    expect("animal as puppy (two levels): method", back_to_puppy.chew(), 7);
+    expect("animal as puppy: its own field", back_to_puppy.age, 2);
+    expect("animal as puppy: inherited field", back_to_puppy.tricks, 3);
+    expect_str("animal as puppy: field of the base class", back_to_puppy.name, "rex");
+    expect("cast used directly", (as_animal as puppy).chew(), 7);
+    expect("cast used directly, one level", (as_animal as dog).fetch(), 1);
+    expect_true("casting does not copy the object", back_to_puppy == rex);
+    back_to_dog.tricks = 10;
+    expect("a change through the cast is seen by all names", rex.tricks, 10);
+
+    // ---- out of an `object` variable
+    anything : object = rex;
+    from_object := anything as dog;
+    expect("object as dog", from_object.fetch(), 1);
+    expect("object as puppy", (anything as puppy).chew(), 7);
+    anything = new string("txt");
+    text := anything as string;
+    expect_str("object as string", text, "txt");
+    anything = new int(12);
+    number := anything as int;
+    expect("object as int", number.value, 12);
+    anything = new var[3];
+    numbers := anything as var[];
+    expect("object as var[]", sizeof(numbers), 3);
+    numbers[2] = 8;
+    expect("...is the same array", (anything as var[])[2], 8);
+
+    // ---- a cast that cannot work raises an exception
+    try {
+        wrong := anything as dog;
+        fail("var[] as dog", "no exception");
+    } catch(e: exception) {
+        pass("var[] as dog");
+    }
+    // ...and the program carries on
+    expect("after the failed cast", (anything as var[])[2], 8);
+
+    finish("casts");
+}

@@ -1,0 +1,45 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std list<T>: behaviour that used to be wrong and was fixed - kept as its own
+ * file so the old bugs stay covered. (The everyday behaviour is in std_list.sharp.)
+ */
+
+def main(args: string[]) {
+    // ---- fixed, used to be wrong (1): add_all REPLACES what is in the list instead of adding to it
+    // (std/list.sharp, add_all(): `data = copy(...)`, `n_elements = lst.size()`).
+    // append_all is the one that adds; add_all only behaves on an empty list.
+    letters := new list<string>();
+    letters.add("a");
+    letters.add("b");
+    more := new list<string>();
+    more.add("c");
+    letters.add_all(more);
+    expect("add_all keeps what was in the list: size", letters.size().value, 3);
+    expect_str("add_all keeps what was in the list: first", letters.first(), "a");
+    expect_str("add_all puts the new elements at the end", letters.last(), "c");
+
+    // ---- fixed, used to be wrong (2): add_all of an EMPTY list throws nullptr_exception
+    // (get_elements() of an empty list is null and add_all uses it with `!!`).
+    threw : var = 0;
+    target := new list<string>();
+    target.add("x");
+    try {
+        target.add_all(new list<string>());
+    } catch(e: nullptr_exception) {
+        threw = 1;
+    }
+    expect("add_all of an empty list does not throw", threw, 0);
+
+    // ---- fixed, used to be wrong (3): the message of the out_of_bounds_exception prints the size as a
+    // native number with 16 decimals: "Index: 5, size: 1.0000000000000000".
+    try {
+        target.at(5);
+    } catch(e: out_of_bounds_exception) {
+        expect_str("out of bounds message", e.get_message(), "Index: 5, size: 1");
+    }
+
+    finish("std_list_fixes");
+}

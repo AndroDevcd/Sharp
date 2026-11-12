@@ -31,6 +31,52 @@ static Int array_element_store_position(expression &left) {
     return -1;
 }
 
+/**
+ * `left = right` where the types only fit through a function of left's class
+ * (`text = "abc"`: string.operator=(_int8[])).
+ *
+ * operator= is called ON the object that `left` holds. That cannot work when
+ * there may be no object: an element of an object array starts out null, and
+ * so does a variable of a nullable type (`text : string?`). For those two
+ * kinds of target a new object is constructed from the value and stored -
+ * when the class has a fitting constructor:
+ *
+ *      names[1] = "one";       ->   names[1] = new string("one");
+ *      maybe = "x";            ->   maybe = new string("x");      (maybe : string?)
+ *
+ * It used to call operator= on null and throw nullptr_exception.
+ * Returns false when this does not apply (operator= is used as before).
+ */
+static bool assign_by_construction(expression *e, expression &left, expression &right, Ast *ast) {
+    sharp_type target = get_real_type(left.type);
+    if(!(left.type.arrayElement || target.nullable) || target.isArray)
+        return false;
+
+    sharp_function *constructor = NULL;
+    uInt match = is_implicit_type_match(left.type, right.type, constructor_only, constructor);
+    if(match != match_constructor || constructor == NULL)
+        return false;
+
+    operation_schema created;
+    {
+        APPLY_TEMP_SCHEME_WITHOUT_INJECT(5,
+            compile_initialization_call(ast, constructor, right, &scheme_5);
+        )
+        created.copy(scheme_5);
+    }
+
+    Int lastPos = array_element_store_position(left);
+    if(lastPos != -1) {
+        left.scheme.steps.at(lastPos)->type = operation_set_array_element_at_index;
+        create_array_index_assignment_operation(&e->scheme, &left.scheme, &created);
+    } else {
+        create_value_assignment_operation(&e->scheme, &left.scheme, &created);
+    }
+
+    e->type.copy(left.type);
+    return true;
+}
+
 void compile_assign_expression(expression *e, Ast *ast) {
     expression left, right;
     Token &operand = ast->getToken(0);
@@ -166,6 +212,8 @@ void compile_assign_expression(expression *e, Ast *ast) {
 
                 e->type.copy(left.type);
 
+            } else if(is_match_function(match_result) && assign_by_construction(e, left, right, ast)) {
+                // done: `names[i] = "text"` / `maybe_text = "text"` made a new object
             } else if(is_match_function(match_result)){
                 List<sharp_field *> params;
                 List<operation_schema *> paramOperations;

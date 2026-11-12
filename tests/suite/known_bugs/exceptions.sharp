@@ -1,0 +1,29 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG in exception handling. This file is EXPECTED TO FAIL.
+ * It behaves the same with and without -O, with and without the JIT.
+ * (The bugs that were here and are fixed moved to cases/exceptions_fixes.sharp.)
+ */
+
+class shape { sides : var = 0; }
+
+def main(args: string[]) {
+    // ---- BUG: a failing cast raises illegal_state_exception; std defines
+    // class_cast_exception for this but the runtime never throws it
+    // (cast_object in lib/runtime/memory/sharp_object.cpp uses vm.ill_state_except).
+    where : var = 0;
+    try {
+        anything : object = new var[2];         // an array of numbers is not a shape
+        s := anything as shape;
+    } catch(e: class_cast_exception) {
+        where = 1;                              // expected
+    } catch(e: exception) {
+        where = 2;                              // actual (an illegal_state_exception)
+    }
+    expect("a failing cast throws class_cast_exception", where, 1);
+
+    finish("exceptions");
+}

@@ -1,0 +1,86 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Known bugs found while writing cases/properties.sharp. This file is
+ * EXPECTED to fail.
+ *
+ * BUG 1 - a field with BOTH a getter and a setter loses assignments made
+ *         from outside the class when compiled with -O.
+ *   Without -O the checks on `both` below pass. With -O (JIT and -nojit)
+ *   `b.value = 10` leaves the field at 5. In a longer test (read, assign,
+ *   read again on a class like both_counted) the -O build threw
+ *   nullptr_exception in main instead. A field with only a getter, or only
+ *   a setter, works in all four configurations.
+ *
+ * BUG 2 - with a getter and a setter on one field, an assignment also runs
+ *         the getter (all four configurations; `reads` in both_counted is 1
+ *         after one assignment and no read).
+ *
+ * BUG 3 - `p.value++` on a property gives a wrong number.
+ *   Without -O the field becomes an unrelated number (43, 112, ... it
+ *   depends on the program) instead of 6; with -O it stays 5.
+ *
+ * BUG 4 - `p.value += 5` on a property stops the compiler:
+ *       <code-generator> fatal error: attempting to set temporary data from register!
+ *   (kept as a comment below, or nothing else in this file could run)
+ *
+ * BUG 5 - assigning, from outside the class, a field that has only a getter
+ *         stops the compiler:
+ *       <code-generator> fatal error: attempting to assign temporary numeric function data!
+ *   The same assignment inside a method of the class compiles and stores the
+ *   value. (kept as a comment below)
+ */
+
+class both {
+    value : var = 5;
+        get { return value; }
+        set v -> { value = v; }
+}
+
+class both_counted {
+    value : var = 5;
+        get { reads = reads + 1; return value; }
+        set v -> { writes = writes + 1; value = v; }
+
+    reads : var = 0;
+    writes : var = 0;
+}
+
+class getter_only {
+    value : var = 5;
+        get { return value; }
+}
+
+def main(args: string[]) {
+    // ---- bug 1: getter and setter on one field, -O
+    b := new both();
+    expect("read through the getter", b.value, 5);
+    b.value = 10;
+    expect("assigned through the setter", b.value, 10);                 // -O: 5
+
+    // ---- bugs 1 and 2: the same with counters
+    c := new both_counted();
+    c.value = 10;
+    expect("the setter ran once", c.writes, 1);
+    expect("the getter did not run for the assignment", c.reads, 0);    // 1
+    expect("the new value", c.value, 10);
+
+    // ---- bug 3: ++ on a property
+    p := new both();
+    p.value++;
+    expect("++ on a property", p.value, 6);                             // no -O: 43, -O: 5
+
+    // ---- bug 4: += on a property (compiler stops)
+    // q := new both();
+    // q.value += 5;
+    // expect("+= on a property", q.value, 10);
+
+    // ---- bug 5: assigning a getter-only field from outside (compiler stops)
+    // g := new getter_only();
+    // g.value = 50;
+    // expect("assigned from outside", g.value, 50);
+
+    finish("properties");
+}

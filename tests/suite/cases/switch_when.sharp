@@ -1,0 +1,387 @@
+mod main;
+
+import ( testing )
+
+/**
+ * The `when` statement: Sharp's multi-way branch.
+ *
+ *     when(value) {
+ *         1 -> { ... }          runs when value == 1
+ *         2, 3 -> { ... }       runs when value is 2 or 3
+ *         else -> { ... }       runs when nothing above matched (optional)
+ *     }
+ *
+ * Only the first clause that matches runs; there is no fall through into the
+ * next clause. Without a value, `when { condition -> { ... } }` runs the
+ * first clause whose condition is true.
+ *
+ * (Sharp has no `switch` / `case` statement: `when` is used instead.)
+ */
+
+enum color {
+    red,
+    green,
+    blue
+}
+
+/** counts calls, to show what was (and was not) evaluated */
+calls : var = 0;
+
+def touch(result: var): var {
+    calls++;
+    return result;
+}
+
+/** the number of days in a month of an ordinary year, 0 for a month that does not exist */
+def days_in_month(month: var): var {
+    when(month) {
+        2 -> { return 28; }
+        4, 6, 9, 11 -> { return 30; }
+        1, 3, 5, 7, 8, 10, 12 -> { return 31; }
+    }
+    return 0;
+}
+
+def color_number(c: color): var {
+    when(c) {
+        color.red -> { return 10; }
+        color.green -> { return 20; }
+        else -> { return 30; }
+    }
+    return 0;
+}
+
+def animal_legs(animal: string): var {
+    when(animal) {
+        "bird" -> { return 2; }
+        "dog", "cat" -> { return 4; }
+        "spider" -> { return 8; }
+        else -> { return 0 - 1; }
+    }
+    return 0;
+}
+
+/** a when without a value: the first true condition wins */
+def size_class(n: var): var {
+    when {
+        n < 10 -> { return 1; }
+        n < 100 -> { return 2; }
+        n < 1000 -> { return 3; }
+        else -> { return 4; }
+    }
+    return 0;
+}
+
+def is_vowel(letter: var): var {
+    when(letter) {
+        'a', 'e', 'i', 'o', 'u' -> { return 1; }
+    }
+    return 0;
+}
+
+def main(args: string[]) {
+    r : var = 0;
+    n : var = 2;
+
+    // ---- the matching clause runs
+    when(n) {
+        1 -> { r = 10; }
+        2 -> { r = 20; }
+        3 -> { r = 30; }
+    }
+    expect("the second clause", r, 20);
+
+    n = 1;
+    when(n) {
+        1 -> { r = 10; }
+        2 -> { r = 20; }
+        3 -> { r = 30; }
+    }
+    expect("the first clause", r, 10);
+
+    n = 3;
+    when(n) {
+        1 -> { r = 10; }
+        2 -> { r = 20; }
+        3 -> { r = 30; }
+    }
+    expect("the last clause", r, 30);
+
+    // ---- nothing matches
+    n = 9;
+    r = 0;
+    when(n) {
+        1 -> { r = 10; }
+        2 -> { r = 20; }
+    }
+    expect("no match and no else does nothing", r, 0);
+
+    when(n) {
+        1 -> { r = 10; }
+        2 -> { r = 20; }
+        else -> { r = 99; }
+    }
+    expect("no match runs the else", r, 99);
+
+    n = 2;
+    when(n) {
+        1 -> { r = 10; }
+        2 -> { r = 20; }
+        else -> { r = 99; }
+    }
+    expect("a match does not run the else", r, 20);
+
+    // ---- no fall through: only one clause runs
+    n = 1;
+    r = 0;
+    when(n) {
+        1 -> { r += 1; }
+        2 -> { r += 10; }
+        else -> { r += 100; }
+    }
+    expect("only the matching clause runs", r, 1);
+
+    r = 0;
+    when(n) {
+        1 -> { r += 1; }
+        1 -> { r += 10; }
+        else -> { r += 100; }
+    }
+    expect("of two clauses with the same value, only the first runs", r, 1);
+
+    // ---- several values in one clause
+    r = 0;
+    for(i : var = 1; i <= 6; i++) {
+        when(i) {
+            1, 2 -> { r += 1; }
+            3, 4, 5 -> { r += 10; }
+            else -> { r += 100; }
+        }
+    }
+    expect("1, 2 / 3, 4, 5 / else over 1 to 6", r, 132);
+
+    // ---- a single clause
+    r = 0;
+    n = 5;
+    when(n) {
+        5 -> { r = 1; }
+    }
+    expect("a when with one clause", r, 1);
+
+    // ---- expressions as the value and in the clauses
+    a : var = 4;
+    b : var = 6;
+    r = 0;
+    when(a + b) {
+        a -> { r = 1; }
+        b -> { r = 2; }
+        a * 2 + 2 -> { r = 3; }
+        else -> { r = 4; }
+    }
+    expect("when(a + b) against expressions", r, 3);
+
+    r = 0;
+    when(a) {
+        b - 2 -> { r = 1; }
+        else -> { r = 2; }
+    }
+    expect("a clause that is a variable expression", r, 1);
+
+    // ---- fractions and negative numbers
+    half : var = 0.5;
+    r = 0;
+    when(half) {
+        0.25 -> { r = 1; }
+        0.5 -> { r = 2; }
+        else -> { r = 3; }
+    }
+    expect("when on a fraction", r, 2);
+
+    minus : var = 0 - 3;
+    r = 0;
+    when(minus) {
+        3 -> { r = 1; }
+        -3 -> { r = 2; }
+        else -> { r = 3; }
+    }
+    expect("when on a negative number", r, 2);
+
+    // ---- the value is evaluated once, clauses only until one matches
+    calls = 0;
+    r = 0;
+    when(touch(2)) {
+        1 -> { r = 1; }
+        2 -> { r = 2; }
+        3 -> { r = 3; }
+    }
+    expect("when(touch(2))", r, 2);
+    expect("...called touch once", calls, 1);
+
+    calls = 0;
+    when(n) {
+        touch(5) -> { r = 1; }
+        touch(6) -> { r = 2; }
+    }
+    expect("the first clause matched", r, 1);
+    expect("...so the second clause was not evaluated", calls, 1);
+
+    // ---- when without a value
+    v : var = 15;
+    r = 0;
+    when {
+        v < 10 -> { r = 1; }
+        v < 20 -> { r = 2; }
+        v < 30 -> { r = 3; }
+        else -> { r = 4; }
+    }
+    expect("the first true condition", r, 2);
+
+    v = 50;
+    when {
+        v < 10 -> { r = 1; }
+        v < 20 -> { r = 2; }
+        else -> { r = 4; }
+    }
+    expect("no true condition runs the else", r, 4);
+
+    r = 0;
+    when {
+        v < 10 -> { r = 1; }
+        v < 20 -> { r = 2; }
+    }
+    expect("no true condition and no else does nothing", r, 0);
+
+    when {
+        v > 10 && v < 100 -> { r = 1; }
+        else -> { r = 2; }
+    }
+    expect("a condition with &&", r, 1);
+
+    when {
+        v == 1, v == 50 -> { r = 5; }
+        else -> { r = 6; }
+    }
+    expect("two conditions in one clause: either may be true", r, 5);
+
+    // ---- several statements in a clause
+    x : var = 0;
+    y : var = 0;
+    n = 2;
+    when(n) {
+        1 -> {
+            x = 1;
+            y = 1;
+        }
+        2 -> {
+            x = 2;
+            y = x * 10;
+            if(y == 20) {
+                y++;
+            }
+        }
+    }
+    expect("x set in the clause", x, 2);
+    expect("y set in the clause", y, 21);
+
+    // ---- nested
+    r = 0;
+    a = 1;
+    b = 2;
+    when(a) {
+        1 -> {
+            when(b) {
+                1 -> { r = 11; }
+                2 -> { r = 12; }
+                else -> { r = 19; }
+            }
+        }
+        2 -> { r = 20; }
+        else -> { r = 90; }
+    }
+    expect("a when inside a when", r, 12);
+
+    // ---- inside a loop
+    ones : var = 0;
+    twos : var = 0;
+    others : var = 0;
+    for(i : var = 0; i < 9; i++) {
+        when(i % 3) {
+            1 -> { ones++; }
+            2 -> { twos += 2; }
+            else -> { others += 3; }
+        }
+    }
+    expect("clause 1 ran 3 times", ones, 3);
+    expect("clause 2 ran 3 times", twos, 6);
+    expect("else ran 3 times", others, 9);
+
+    // ---- continue inside a clause continues the loop around the when
+    r = 0;
+    for(i : var = 0; i < 5; i++) {
+        when(i) {
+            1, 3 -> { continue; }
+        }
+        r += i;
+    }
+    expect("continue from a clause", r, 6);
+
+    // ---- characters
+    expect("is_vowel('a')", is_vowel('a'), 1);
+    expect("is_vowel('u')", is_vowel('u'), 1);
+    expect("is_vowel('x')", is_vowel('x'), 0);
+    vowels : var = 0;
+    foreach(letter in "a quick brown fox") {
+        vowels += is_vowel(letter);
+    }
+    expect("vowels in a sentence", vowels, 5);
+
+    // ---- returning from a clause
+    expect("days_in_month(2)", days_in_month(2), 28);
+    expect("days_in_month(4)", days_in_month(4), 30);
+    expect("days_in_month(11)", days_in_month(11), 30);
+    expect("days_in_month(1)", days_in_month(1), 31);
+    expect("days_in_month(12)", days_in_month(12), 31);
+    expect("days_in_month(13)", days_in_month(13), 0);
+    days : var = 0;
+    for(month : var = 1; month <= 12; month++) {
+        days += days_in_month(month);
+    }
+    expect("days in a year", days, 365);
+    expect("size_class(5)", size_class(5), 1);
+    expect("size_class(10)", size_class(10), 2);
+    expect("size_class(999)", size_class(999), 3);
+    expect("size_class(1000)", size_class(1000), 4);
+
+    // ---- enums
+    expect("color.red", color_number(color.red), 10);
+    expect("color.green", color_number(color.green), 20);
+    expect("color.blue falls to the else", color_number(color.blue), 30);
+    favourite := color.green;
+    r = 0;
+    when(favourite) {
+        color.red -> { r = 1; }
+        color.green -> { r = 2; }
+        color.blue -> { r = 3; }
+    }
+    expect("an enum in a variable", r, 2);
+
+    // ---- strings
+    expect("animal_legs(bird)", animal_legs("bird"), 2);
+    expect("animal_legs(dog)", animal_legs("dog"), 4);
+    expect("animal_legs(cat)", animal_legs("cat"), 4);
+    expect("animal_legs(spider)", animal_legs("spider"), 8);
+    expect("animal_legs(fish)", animal_legs("fish"), 0 - 1);
+    expect("animal_legs of an empty string", animal_legs(""), 0 - 1);
+
+    // ---- number objects
+    boxed : int = 7;
+    r = 0;
+    when(boxed) {
+        6 -> { r = 1; }
+        7 -> { r = 2; }
+        else -> { r = 3; }
+    }
+    expect("when on an int object", r, 2);
+
+    finish("switch_when");
+}

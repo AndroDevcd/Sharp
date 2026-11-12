@@ -1,0 +1,327 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Properties: a field followed by `get { }` runs that block every time the
+ * field is read, and a field followed by `set name -> { }` runs that block
+ * every time the field is assigned, with the new value in `name`. This is so
+ * for code outside the class and for the class's own methods; only the get
+ * and set blocks themselves reach the stored value directly.
+ *
+ * Every field here has a getter OR a setter. A field with both, ++ / += on a
+ * property, and assigning a getter-only field from outside the class are in
+ * known_bugs/properties.sharp.
+ */
+
+/* getters that compute their value from another field */
+class thermometer {
+    celsius : var = 20;
+
+    fahrenheit : var = 0;
+        get { return celsius * 9 / 5 + 32; }
+
+    kelvin : var = 0;
+        get { return celsius + 273; }
+
+    is_freezing : var = 0;
+        get {
+            if(celsius <= 0) {
+                return 1;
+            }
+            return 0;
+        }
+
+    /* a getter that uses another getter */
+    fahrenheit_doubled : var = 0;
+        get { return fahrenheit * 2; }
+
+    /* a method of the class reading a property */
+    def describe(): string {
+        if(is_freezing) {
+            return "freezing";
+        }
+        return "not freezing";
+    }
+
+    def kelvin_plus(extra: var): var {
+        return kelvin + extra;
+    }
+}
+
+/* a getter that changes what is stored, and counts how often it runs */
+class counted {
+    value : var = 5;
+        get {
+            reads = reads + 1;
+            return value * 2;
+        }
+
+    reads : var = 0;
+
+    def read_inside(): var {
+        return value;
+    }
+
+    def read_inside_with_self(): var {
+        return self->value;
+    }
+
+    /* no setter: an assignment stores the value as it is */
+    def store(v: var) {
+        value = v;
+    }
+}
+
+/* a setter that checks the value, and counts how often it runs */
+class account {
+    balance : var = 10;
+        set amount -> {
+            if(amount < 0) {
+                balance = 0;
+            } else {
+                balance = amount;
+            }
+            changes = changes + 1;
+        }
+
+    changes : var = 0;
+
+    def deposit(amount: var) {
+        balance = balance + amount;
+    }
+
+    def empty() {
+        self->balance = 0;
+    }
+
+    def overdraw() {
+        balance = 0 - 500;
+    }
+}
+
+/* a setter that stores something other than what it was given */
+class scaled {
+    percent : var = 0;
+        set fraction -> { percent = fraction * 100; }
+
+    last_given : var = 0;
+
+    doubled : var = 1;
+        set v -> {
+            last_given = v;
+            doubled = v * 2;
+        }
+}
+
+/* string properties */
+class badge {
+    name : string = "nobody";
+        get { return name + "!"; }
+
+    label : string = "none";
+        set text -> { label = "[" + text + "]"; }
+
+    def rename(new_name: string) {
+        name = new_name;
+    }
+
+    def greeting(): string {
+        return "hello " + name;
+    }
+}
+
+/* a private setter: only the class itself may assign, and its setter still runs */
+class id_card {
+    number : var = 0;
+        private set v -> {
+            number = v;
+            assigned = assigned + 1;
+        }
+
+    assigned : var = 0;
+
+    id_card(n: var) {
+        number = n;
+    }
+
+    def renumber(n: var) {
+        number = n;
+    }
+}
+
+/* a setter that keeps a second field in step, and a getter over an array */
+class series {
+    items : var[]?;
+        set new_items -> {
+            items = new_items;
+            count = sizeof(new_items);
+        }
+
+    count : var = 0;
+
+    total : var = 0;
+        get {
+            sum : var = 0;
+            for(i : var = 0; i < count; i++) {
+                sum += items[i];
+            }
+            return sum;
+        }
+}
+
+def fahrenheit_of(t: thermometer): var {
+    return t.fahrenheit;
+}
+
+def main(args: string[]) {
+    // ---- computed getters
+    t := new thermometer();
+    expect("a plain field next to the properties", t.celsius, 20);
+    expect("computed getter: fahrenheit", t.fahrenheit, 68);
+    expect("computed getter: kelvin", t.kelvin, 293);
+    expect("getter with an if: not freezing", t.is_freezing, 0);
+    t.celsius = 100;
+    expect("the getter follows the field it reads: fahrenheit", t.fahrenheit, 212);
+    expect("the getter follows the field it reads: kelvin", t.kelvin, 373);
+    t.celsius = 0 - 40;
+    expect("minus 40 is the same on both scales", t.fahrenheit, 0 - 40);
+    expect("getter with an if: freezing", t.is_freezing, 1);
+    t.celsius = 0;
+    expect("getter with an if: on the edge", t.is_freezing, 1);
+    expect("fahrenheit at zero", t.fahrenheit, 32);
+    t.celsius = 36.6;
+    expect_near("getter result with a fraction", t.fahrenheit, 97.88, 0.000001);
+
+    // ---- a getter result is an ordinary value
+    t.celsius = 10;
+    expect("in arithmetic", t.fahrenheit + 1, 51);
+    expect("a getter that uses another getter", t.fahrenheit_doubled, 100);
+    expect("two getters in one expression", t.kelvin - t.fahrenheit, 233);
+    expect("in a comparison", t.fahrenheit > t.celsius, 1);
+    copied : var = t.kelvin;
+    t.celsius = 50;
+    expect("a value read earlier does not change afterwards", copied, 283);
+    expect("...the property does", t.kelvin, 323);
+    expect("as an argument, read inside a function", fahrenheit_of(t), 122);
+    if(t.is_freezing) {
+        fail("a getter as an if condition", "the if branch ran");
+    } else {
+        pass("a getter as an if condition");
+    }
+
+    // ---- a getter read by the class's own methods
+    expect_str("a method reading a property: not freezing", t.describe(), "not freezing");
+    t.celsius = 0 - 5;
+    expect_str("a method reading a property: freezing", t.describe(), "freezing");
+    expect("a method computing with a property", t.kelvin_plus(2), 270);
+
+    // ---- the getter runs on every read, inside and outside
+    c := new counted();
+    expect("nothing read yet", c.reads, 0);
+    expect("read from outside goes through the getter", c.value, 10);
+    expect("...which ran once", c.reads, 1);
+    expect("read again", c.value, 10);
+    expect("...ran twice", c.reads, 2);
+    expect("read by a method of the class goes through the getter too", c.read_inside(), 10);
+    expect("...ran three times", c.reads, 3);
+    expect("read with self-> as well", c.read_inside_with_self(), 10);
+    expect("...ran four times", c.reads, 4);
+    expect("two reads in one expression", c.value + c.value, 20);
+    expect("...ran six times", c.reads, 6);
+
+    // ---- a field with only a getter is stored as given
+    c.store(7);
+    expect("stored by a method, read through the getter", c.value, 14);
+    expect("storing does not run the getter: 6 + the read above", c.reads, 7);
+
+    // ---- a setter runs on every assignment from outside
+    a := new account();
+    expect("the initial value does not go through the setter", a.balance, 10);
+    expect("...so it has not run", a.changes, 0);
+    a.balance = 250;
+    expect("assigned from outside", a.balance, 250);
+    expect("...the setter ran once", a.changes, 1);
+    a.balance = 0 - 30;
+    expect("the setter replaced a negative value", a.balance, 0);
+    expect("...and ran twice", a.changes, 2);
+    a.balance = 75.5;
+    expect("a fraction passes through", a.balance, 75.5);
+    amount : var = 40;
+    a.balance = amount * 2 + 1;
+    expect("an expression is worked out before the setter gets it", a.balance, 81);
+    expect("...ran four times", a.changes, 4);
+    expect("reading does not run the setter", a.changes, 4);
+
+    // ---- a setter runs for assignments inside the class too
+    a.deposit(19);
+    expect("assigned by a method", a.balance, 100);
+    expect("...the setter ran for it", a.changes, 5);
+    a.overdraw();
+    expect("a method cannot get past the check either", a.balance, 0);
+    expect("...ran six times", a.changes, 6);
+    a.balance = 5;
+    a.empty();
+    expect("assigned through self->", a.balance, 0);
+    expect("...ran eight times", a.changes, 8);
+
+    // ---- a setter that stores something else
+    s := new scaled();
+    s.percent = 0.25;
+    expect("the setter stored a converted value", s.percent, 25);
+    s.percent = 1;
+    expect("...again", s.percent, 100);
+    s.doubled = 21;
+    expect("a setter writing two fields: its own", s.doubled, 42);
+    expect("a setter writing two fields: the other", s.last_given, 21);
+    expect("the initial value was not converted", new scaled().doubled, 1);
+
+    // ---- string properties
+    b := new badge();
+    expect_str("a getter that returns a changed string", b.name, "nobody!");
+    b.rename("ann");
+    expect_str("...after the class stored a new one", b.name, "ann!");
+    expect_str("a method of the class sees the getter's result", b.greeting(), "hello ann!");
+    expect_str("a string field with a setter: initial value", b.label, "none");
+    b.label = "staff";
+    expect_str("a setter that changes the string it is given", b.label, "[staff]");
+    b.label = "guest";
+    expect_str("...again", b.label, "[guest]");
+
+    // ---- a private setter
+    card := new id_card(1001);
+    expect("assigned in the constructor", card.number, 1001);
+    expect("...through the setter", card.assigned, 1);
+    card.renumber(2002);
+    expect("assigned by a method", card.number, 2002);
+    expect("...through the setter again", card.assigned, 2);
+
+    // ---- a setter and a getter working together on different fields
+    list := new series();
+    expect("no items yet", list.count, 0);
+    expect("getter over no items", list.total, 0);
+    list.items = new var[] { 4, 8, 15, 16, 23, 42 };
+    expect("the setter kept the count in step", list.count, 6);
+    expect("the getter adds up the array", list.total, 108);
+    list.items = new var[] { 1, 2 };
+    expect("a second assignment: count", list.count, 2);
+    expect("a second assignment: total", list.total, 3);
+
+    // ---- every object has its own properties
+    first := new account();
+    second := new account();
+    first.balance = 1;
+    first.balance = 2;
+    second.balance = 0 - 9;
+    expect("first object: value", first.balance, 2);
+    expect("first object: its setter ran twice", first.changes, 2);
+    expect("second object: value", second.balance, 0);
+    expect("second object: its setter ran once", second.changes, 1);
+    warm := new thermometer();
+    cold := new thermometer();
+    cold.celsius = 0 - 10;
+    expect("one thermometer", warm.fahrenheit, 68);
+    expect("another thermometer", cold.fahrenheit, 14);
+
+    finish("properties");
+}

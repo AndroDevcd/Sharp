@@ -1,0 +1,48 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG in try/finally. This file is EXPECTED TO FAIL.
+ *
+ * A try/finally nested INSIDE a finally body drops the pending exception:
+ * when the outer finally was entered because an exception is on its way to a
+ * caller, and that finally body contains its own try/finally, the exception is
+ * gone after the inner statement - execution simply continues after the outer
+ * statement as if nothing had been thrown.
+ */
+
+trail : string = "";
+
+def mark(letter: string) {
+    trail = trail + letter;
+}
+
+def cleanup_with_its_own_finally() {
+    try {
+        mark("1");
+        throw new illegal_state_exception("pending");
+    } finally {
+        mark("2");
+        try {
+            mark("3");
+        } finally {
+            mark("4");
+        }
+        mark("5");
+    }
+    mark("X");                                  // must NOT run: the exception is still pending
+}
+
+def main(args: string[]) {
+    caught : var = 0;
+    try {
+        cleanup_with_its_own_finally();
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+    }
+    expect("the exception still reaches the caller", caught, 1);
+    expect_str("nothing after the outer statement runs", trail, "12345");
+
+    finish("finally");
+}

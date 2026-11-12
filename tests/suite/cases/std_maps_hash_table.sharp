@@ -1,0 +1,152 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std hash_table<k, v>: the key/value container whose every operation runs
+ * inside lock(self) - put, at, contains_key, remove, size, clear, keys, values.
+ *
+ * (It used to not compile at all: the constructors were spelled `hashtable`.)
+ * hash_map, the container without the lock, is in std_maps.sharp.
+ */
+
+class city {
+    name : string = "";
+    population : var = 0;
+
+    city(city_name: string, people: var) {
+        name = city_name;
+        population = people;
+    }
+}
+
+def main(args: string[]) {
+    // ================= string keys, number values
+    ages := new hash_table<string, int>();
+    expect("a new table has size 0", ages.size, 0);
+    expect_false("a new table contains no key", ages.contains_key("ann").value);
+
+    // ---- put says whether the key is new
+    expect_true("put of a new key returns true", ages.put("ann", 31).value);
+    expect_true("put of a second key returns true", ages.put("bob", 45).value);
+    expect_true("put of a third key returns true", ages.put("cy", 8).value);
+    expect("size after three puts", ages.size, 3);
+
+    // ---- at and contains_key
+    expect("at(ann)", ages.at("ann")!!.value, 31);
+    expect("at(bob)", ages.at("bob")!!.value, 45);
+    expect("at(cy)", ages.at("cy")!!.value, 8);
+    expect_true("contains_key of a key that was put", ages.contains_key("bob").value);
+    expect_false("contains_key of another key", ages.contains_key("dora").value);
+    built := "a" + "nn";
+    expect("a key built at run time finds the entry", ages.at(built)!!.value, 31);
+
+    // ---- overwrite
+    expect_false("put of an existing key returns false", ages.put("bob", 46).value);
+    expect("the value was replaced", ages.at("bob")!!.value, 46);
+    expect("overwriting does not change the size", ages.size, 3);
+    expect("the other entries are untouched", ages.at("ann")!!.value + ages.at("cy")!!.value, 39);
+
+    // ---- remove
+    expect_true("remove of an existing key returns true", ages.remove("bob").value);
+    expect("remove makes the table smaller", ages.size, 2);
+    expect_false("a removed key is not contained", ages.contains_key("bob").value);
+    expect_null("at() of a removed key is null", ages.at("bob"));
+    expect_false("remove of a key that is not there returns false", ages.remove("bob").value);
+    expect("...and changes nothing", ages.size, 2);
+    expect("the other keys survive a remove", ages.at("ann")!!.value, 31);
+    expect_true("a removed key can be put again as a new key", ages.put("bob", 50).value);
+    expect("...with its new value", ages.at("bob")!!.value, 50);
+
+    // ---- clear
+    ages.clear();
+    expect("clear: size 0", ages.size, 0);
+    expect_false("clear: the keys are gone", ages.contains_key("ann").value);
+    expect_true("after clear a key is new again", ages.put("ann", 1).value);
+    expect("value put after clear", ages.at("ann")!!.value, 1);
+
+    // ================= object values
+    cities := new hash_table<string, city>();
+    paris := new city("paris", 2100000);
+    cities.put("fr", paris);
+    cities.put("it", new city("rome", 2800000));
+    expect_str("object values: field of at(fr)", cities.at("fr")!!.name, "paris");
+    expect("object values: field of at(it)", cities.at("it")!!.population, 2800000);
+    expect_true("at gives the object that was put, not a copy", cities.at("fr") == paris);
+    expect_null("a missing key gives null", cities.at("de"));
+    expect("looking up a missing key adds nothing", cities.size, 2);
+
+    // ================= int keys, also ones that share a bucket (1, 129, 257)
+    names := new hash_table<int, string>();
+    names.put(1, "one");
+    names.put(129, "one hundred twenty nine");
+    names.put(257, "two hundred fifty seven");
+    names.put(0, "zero");
+    names.put(0 - 7, "minus seven");
+    expect("int keys: size", names.size, 5);
+    expect_str("first key of the bucket", names.at(1)!!, "one");
+    expect_str("second key of the bucket", names.at(129)!!, "one hundred twenty nine");
+    expect_str("third key of the bucket", names.at(257)!!, "two hundred fifty seven");
+    expect_str("key 0", names.at(0)!!, "zero");
+    expect_str("key -7", names.at(0 - 7)!!, "minus seven");
+    expect_false("a missing key of the same bucket is not contained", names.contains_key(385).value);
+    expect_true("remove of the middle key of a bucket", names.remove(129).value);
+    expect_str("...keeps the one before it", names.at(1)!!, "one");
+    expect_str("...and the one after it", names.at(257)!!, "two hundred fifty seven");
+    expect_false("...and the removed one is gone", names.contains_key(129).value);
+
+    // ================= many entries
+    squares := new hash_table<int, int>();
+    new_keys : var = 0;
+    for(i : var = 0; i < 500; i++) {
+        if(squares.put(i, i * i).value) new_keys++;
+    }
+    expect("500 puts: every key was new", new_keys, 500);
+    expect("500 puts: size", squares.size, 500);
+    expect("500 puts: at(0)", squares.at(0)!!.value, 0);
+    expect("500 puts: at(321)", squares.at(321)!!.value, 103041);
+    expect("500 puts: at(499)", squares.at(499)!!.value, 249001);
+    sum : var = 0;
+    for(i : var = 0; i < 500; i++) {
+        sum += squares.at(i)!!.value;
+    }
+    expect("500 puts: the sum of all values", sum, 41541750);
+
+    // remove every second key
+    removed : var = 0;
+    for(i : var = 0; i < 500; i += 2) {
+        if(squares.remove(i).value) removed++;
+    }
+    expect("250 removes all found their key", removed, 250);
+    expect("250 entries left", squares.size, 250);
+    expect_false("a removed key", squares.contains_key(200).value);
+    expect("a key that was kept", squares.at(201)!!.value, 40401);
+
+    // ================= keys() and values()
+    small := new hash_table<string, int>();
+    small.put("a", 1);
+    small.put("b", 2);
+    small.put("c", 3);
+    expect("keys(): one per entry", small.keys().size().value, 3);
+    expect("values(): one per entry", small.values().size().value, 3);
+    total : var = 0;
+    foreach(v in small.values()) {
+        total += v.value;
+    }
+    expect("values(): 1 + 2 + 3", total, 6);
+    found : var = 0;
+    foreach(k in small.keys()) {
+        if(k == "a" || k == "b" || k == "c") found++;
+    }
+    expect("keys(): every key is one that was put", found, 3);
+
+    // ================= two tables are independent
+    first := new hash_table<string, int>();
+    second := new hash_table<string, int>();
+    first.put("k", 1);
+    second.put("k", 2);
+    expect("same key in two tables (first)", first.at("k")!!.value, 1);
+    expect("same key in two tables (second)", second.at("k")!!.value, 2);
+
+    finish("std_maps_hash_table");
+}

@@ -1,0 +1,342 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std list<T>: a growable array. Tested with three kinds of element:
+ * a user class (planet), string, and the number box int.
+ *
+ * (list<var> - a list of native numbers - is known not to work and is not used here.)
+ */
+
+class planet {
+    name : string = "";
+    moons : var = 0;
+
+    planet(planet_name: string, moon_count: var) {
+        name = planet_name;
+        moons = moon_count;
+    }
+}
+
+def more_moons(a: planet, b: planet): bool {
+    return a.moons > b.moons;
+}
+
+def same_name(a: planet, b: planet): bool {
+    return a.name == b.name;
+}
+
+/** adds up a list of int with foreach */
+def total_of(numbers: list<int>): var {
+    total : var = 0;
+    foreach(n in numbers) {
+        total += n.value;
+    }
+    return total;
+}
+
+/** the moons of every planet as digits, e.g. 0, 2, 1 -> 21 -> 021 */
+def moon_digits(planets: list<planet>): var {
+    digits : var = 0;
+    for(i : var = 0; i < planets.size().value; i++) {
+        digits = digits * 10 + planets.at(i).moons;
+    }
+    return digits;
+}
+
+def main(args: string[]) {
+    // ---- a new list is empty
+    planets := new list<planet>();
+    expect("new list: size 0", planets.size().value, 0);
+    expect_true("new list: empty()", planets.empty().value);
+
+    // ---- add, size, at
+    mercury := new planet("mercury", 0);
+    earth := new planet("earth", 1);
+    mars := new planet("mars", 2);
+    planets.add(mercury);
+    expect("size after one add", planets.size().value, 1);
+    expect_false("not empty after an add", planets.empty().value);
+    planets.add(earth);
+    planets.add(mars);
+    expect("size after three adds", planets.size().value, 3);
+    expect_str("at(0)", planets.at(0).name, "mercury");
+    expect_str("at(1)", planets.at(1).name, "earth");
+    expect_str("at(2)", planets.at(2).name, "mars");
+    expect("field of an element", planets.at(2).moons, 2);
+    expect_true("at() gives the object that was added, not a copy", planets.at(1) == earth);
+
+    // ---- [] is the same as at
+    expect_str("list[0]", planets[0].name, "mercury");
+    expect_str("list[2]", planets[2].name, "mars");
+
+    // ---- first and last
+    expect_str("first()", planets.first().name, "mercury");
+    expect_str("last()", planets.last().name, "mars");
+
+    // ---- changing an element through the list changes the object
+    planets.at(1).moons = 5;
+    expect("element changed through the list", earth.moons, 5);
+    earth.moons = 1;
+
+    // ---- put replaces an element and gives back the old one
+    venus := new planet("venus", 0);
+    old := planets.put(1, venus);
+    expect_str("put: the new element is there", planets.at(1).name, "venus");
+    expect_str("put: returns the element that was replaced", old.name, "earth");
+    expect("put does not change the size", planets.size().value, 3);
+    planets.put(1, earth);
+
+    // ---- indexof
+    expect("indexof the first element", planets.indexof(mercury).value, 0);
+    expect("indexof the last element", planets.indexof(mars).value, 2);
+    expect("indexof something that is not in the list", planets.indexof(venus).value, 0 - 1);
+    expect("indexof with a compare function", planets.indexof(new planet("earth", 0), same_name).value, 1);
+    expect("indexof with a compare function, no match", planets.indexof(new planet("pluto", 0), same_name).value, 0 - 1);
+
+    // ---- find
+    found := planets.find(new planet("mars", 0), same_name);
+    expect_not_null("find: a match", found);
+    expect("find: it is the element in the list", found!!.moons, 2);
+    expect_null("find: no match", planets.find(new planet("pluto", 0), same_name));
+
+    // ---- insert
+    planets.insert(1, venus);                   // mercury venus earth mars
+    expect("insert: size", planets.size().value, 4);
+    expect_str("insert: the new element", planets.at(1).name, "venus");
+    expect_str("insert: the element before", planets.at(0).name, "mercury");
+    expect_str("insert: the elements after moved up", planets.at(2).name, "earth");
+    expect_str("insert: the last element moved up", planets.at(3).name, "mars");
+    jupiter := new planet("jupiter", 9);
+    planets.insert(4, jupiter);                 // at the end
+    expect_str("insert at size() appends", planets.last().name, "jupiter");
+    sun := new planet("sun", 8);
+    planets.insert(0, sun);                     // sun mercury venus earth mars jupiter
+    expect_str("insert at 0", planets.first().name, "sun");
+    expect("size after three inserts", planets.size().value, 6);
+    expect("order after the inserts (moons as digits)", moon_digits(planets), 800129);
+
+    // ---- remove_at
+    planets.remove_at(0);                       // mercury venus earth mars jupiter
+    expect("remove_at(0): size", planets.size().value, 5);
+    expect_str("remove_at(0): the next element is first now", planets.first().name, "mercury");
+    planets.remove_at(4);                       // mercury venus earth mars
+    expect_str("remove_at(last)", planets.last().name, "mars");
+    planets.remove_at(1);                       // mercury earth mars
+    expect("remove_at(middle): size", planets.size().value, 3);
+    expect_str("remove_at(middle): element 1", planets.at(1).name, "earth");
+    expect_str("remove_at(middle): element 2", planets.at(2).name, "mars");
+
+    // ---- remove by value
+    planets.remove(earth);                      // mercury mars
+    expect("remove(element): size", planets.size().value, 2);
+    expect_str("remove(element): what is left, 0", planets.at(0).name, "mercury");
+    expect_str("remove(element): what is left, 1", planets.at(1).name, "mars");
+    planets.remove(venus);                      // not in the list: nothing happens
+    expect("remove of something that is not there", planets.size().value, 2);
+    planets.remove(new planet("mars", 0), same_name);
+    expect("remove with a compare function", planets.size().value, 1);
+    expect_str("...removed the right one", planets.at(0).name, "mercury");
+
+    // ---- pop_last, pop_first, pop_back
+    planets.add(earth);
+    planets.add(mars);
+    planets.add(jupiter);                       // mercury earth mars jupiter
+    expect_str("pop_last gives the last element", planets.pop_last().name, "jupiter");
+    expect("pop_last removes it", planets.size().value, 3);
+    expect_str("pop_first gives the first element", planets.pop_first().name, "mercury");
+    expect("pop_first removes it", planets.size().value, 2);
+    expect_str("first after pop_first", planets.first().name, "earth");
+    planets.pop_back();
+    expect("pop_back removes the last element", planets.size().value, 1);
+    expect_str("what is left", planets.first().name, "earth");
+
+    // ---- clear
+    planets.clear();
+    expect("clear: size 0", planets.size().value, 0);
+    expect_true("clear: empty()", planets.empty().value);
+    planets.add(mars);
+    expect("add after clear", planets.size().value, 1);
+    expect_str("element added after clear", planets.at(0).name, "mars");
+    planets.clear();
+    planets.clear();                            // clearing an empty list is fine
+    expect("clear twice", planets.size().value, 0);
+
+    // ---- linear_sort: swap(a, b) says whether a must come after b
+    planets.add(mars);                          // 2 moons
+    planets.add(jupiter);                       // 9
+    planets.add(mercury);                       // 0
+    planets.add(earth);                         // 1
+    planets.linear_sort(more_moons);
+    expect("sorted by moons", moon_digits(planets), 129);
+    expect_str("sorted: first", planets.first().name, "mercury");
+    expect_str("sorted: last", planets.last().name, "jupiter");
+
+    // ---- out of range access raises out_of_bounds_exception
+    caught : var = 0;
+    try {
+        planets.at(4);
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("at(size) throws", caught, 1);
+
+    caught = 0;
+    try {
+        planets.at(0 - 1);
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("at(-1) throws", caught, 1);
+
+    caught = 0;
+    try {
+        planets[100];
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("list[100] throws", caught, 1);
+
+    caught = 0;
+    try {
+        planets.put(4, venus);
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("put past the end throws", caught, 1);
+
+    caught = 0;
+    try {
+        planets.remove_at(4);
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("remove_at past the end throws", caught, 1);
+
+    caught = 0;
+    try {
+        planets.insert(6, venus);
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("insert past size() throws", caught, 1);
+    expect("the failed calls changed nothing", moon_digits(planets), 129);
+
+    // ---- an empty list: everything that needs an element throws
+    nothing := new list<planet>();
+    caught = 0;
+    try { nothing.at(0); } catch(e: out_of_bounds_exception) { caught++; }
+    try { nothing.first(); } catch(e: out_of_bounds_exception) { caught++; }
+    try { nothing.last(); } catch(e: out_of_bounds_exception) { caught++; }
+    try { nothing.pop_first(); } catch(e: out_of_bounds_exception) { caught++; }
+    try { nothing.pop_last(); } catch(e: out_of_bounds_exception) { caught++; }
+    try { nothing.remove_at(0); } catch(e: out_of_bounds_exception) { caught++; }
+    expect("at, first, last, pop_first, pop_last, remove_at on an empty list all throw", caught, 6);
+    nothing.pop_back();                         // this one is allowed to do nothing
+    expect("pop_back on an empty list does nothing", nothing.size().value, 0);
+    expect("indexof on an empty list", nothing.indexof(mars).value, 0 - 1);
+    expect_null("get_elements of an empty list is null", nothing.get_elements());
+    trips_through_nothing : var = 0;
+    foreach(p in nothing) {
+        trips_through_nothing++;
+    }
+    expect("foreach over an empty list makes no trips", trips_through_nothing, 0);
+
+    // ---- a list of strings
+    words := new list<string>();
+    words.add("alpha");
+    words.add("beta");
+    words.add("gamma");
+    expect("strings: size", words.size().value, 3);
+    expect_str("strings: at(0)", words.at(0), "alpha");
+    expect_str("strings: last()", words.last(), "gamma");
+    expect("strings: indexof compares the characters", words.indexof("beta").value, 1);
+    expect("strings: indexof of a missing word", words.indexof("delta").value, 0 - 1);
+    words.remove("alpha");
+    expect("strings: remove by value", words.size().value, 2);
+    expect_str("strings: first after remove", words.first(), "beta");
+    words.put(0, "BETA");
+    expect_str("strings: put", words.at(0), "BETA");
+
+    sentence : string = "";
+    foreach(word in words) {
+        sentence = sentence + word + ".";
+    }
+    expect_str("strings: foreach visits every element in order", sentence, "BETA.gamma.");
+
+    // ---- a list of int (number boxes)
+    numbers := new list<int>();
+    numbers.add(10);
+    numbers.add(20);
+    numbers.add(30);
+    expect("ints: size", numbers.size().value, 3);
+    expect("ints: at(1)", numbers.at(1).value, 20);
+    expect("ints: first", numbers.first().value, 10);
+    expect("ints: last", numbers.last().value, 30);
+    expect("ints: indexof compares the numbers", numbers.indexof(30).value, 2);
+    expect("ints: indexof of a missing number", numbers.indexof(99).value, 0 - 1);
+    expect("ints: foreach total", total_of(numbers), 60);
+    numbers.put(0, 11);
+    expect("ints: put", numbers.at(0).value, 11);
+    numbers.remove(20);
+    expect("ints: remove by value", numbers.size().value, 2);
+    expect("ints: total after put and remove", total_of(numbers), 41);
+
+    // ---- foreach counts exactly size() elements, also after removals
+    trips : var = 0;
+    foreach(n in numbers) {
+        trips++;
+    }
+    expect("foreach makes size() trips", trips, 2);
+
+    // ---- growing: far more elements than the first capacity (10)
+    big := new list<int>();
+    for(i : var = 0; i < 1000; i++) {
+        big.add(i * 2);
+    }
+    expect("1000 adds: size", big.size().value, 1000);
+    expect("1000 adds: first", big.at(0).value, 0);
+    expect("1000 adds: element 10 (first one past the first capacity)", big.at(10).value, 20);
+    expect("1000 adds: element 500", big.at(500).value, 1000);
+    expect("1000 adds: last", big.last().value, 1998);
+    expect("1000 adds: total", total_of(big), 999000);
+    for(i : var = 0; i < 990; i++) {
+        big.pop_back();
+    }
+    expect("990 pop_back: size", big.size().value, 10);
+    expect("990 pop_back: last", big.last().value, 18);
+    expect("990 pop_back: total", total_of(big), 90);
+
+    // ---- a list with a starting capacity
+    capacity : int = 500;
+    roomy := new list<int>(capacity);
+    expect("starting capacity is not size", roomy.size().value, 0);
+    roomy.add(1);
+    expect("add to a list with starting capacity", roomy.at(0).value, 1);
+
+    // ---- add_all copies another list; append_all adds one list to the end of another
+    copy_of_big := new list<int>();
+    copy_of_big.add_all(big);
+    expect("add_all into an empty list: size", copy_of_big.size().value, 10);
+    expect("add_all: total", total_of(copy_of_big), 90);
+    copy_of_big.put(0, 100);
+    expect("add_all made a copy: the original is unchanged", big.at(0).value, 0);
+
+    tail := new list<int>();
+    tail.add(1);
+    tail.add(2);
+    tail.append_all(big);
+    expect("append_all: size", tail.size().value, 12);
+    expect("append_all: the old elements stay", tail.at(1).value, 2);
+    expect("append_all: the new ones follow", tail.at(2).value, 0);
+    expect("append_all: total", total_of(tail), 93);
+
+    // ---- two lists are independent
+    one := new list<string>();
+    two := new list<string>();
+    one.add("only in one");
+    expect("adding to one list leaves another alone", two.size().value, 0);
+
+    finish("std_list");
+}

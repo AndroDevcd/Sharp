@@ -1,0 +1,292 @@
+mod main;
+
+import ( testing )
+
+/**
+ * The small classes and functions of std:
+ *
+ *   pair, triplet, quad, quint     fixed groups of values
+ *   result<T, E>                   a value together with a possible error
+ *   unique                         interface: hash() and guid()
+ *   deferred_init<T>               a value that is made the first time it is asked for
+ *   char_array                     a wrapper around the characters of a text
+ *   rand, rand_int, rand_double    random numbers - only what ALWAYS holds is
+ *                                  checked: the range, and that the same seed
+ *                                  gives the same numbers
+ *   time                           only the unit conversions, which do not look
+ *                                  at the clock
+ */
+
+class point {
+    x : var = 0;
+    y : var = 0;
+
+    point(px: var, py: var) {
+        x = px;
+        y = py;
+    }
+}
+
+// ---- a class that implements unique
+class badge : unique {
+    number : var = 0;
+
+    badge(n: var) { number = n; }
+
+    override def hash() : int { return number * 31; }
+    override def guid() : int { return number; }
+}
+
+def hash_of(u: unique): var {
+    return u.hash().value;
+}
+
+// ---- for deferred_init: a function that makes the value and counts how often it ran
+class settings {
+    port : var = 0;
+
+    settings(p: var) { port = p; }
+}
+
+times_made := new int(0);
+
+def make_settings(): settings {
+    times_made.value++;
+    return new settings(8080);
+}
+
+// ---- functions that give back several values at once
+def min_and_max(a: var, b: var, c: var): pair<int, int> {
+    low : var = a;
+    high : var = a;
+    if(b < low) low = b;
+    if(c < low) low = c;
+    if(b > high) high = b;
+    if(c > high) high = c;
+    return new pair<int, int>(low, high);
+}
+
+/** a division that reports a zero divisor as an error instead of throwing */
+def checked_divide(a: var, b: var): result<double, exception> {
+    if(b == 0) {
+        return new result<double, exception>(0, new illegal_argument_exception("division by zero"));
+    }
+    no_error : exception;                       // stays null: no error
+    return new result<double, exception>(a / b, no_error);
+}
+
+def main(args: string[]) {
+    // ================= pair
+    p := new pair<string, int>("apples", 3);
+    expect_str("pair.first", p.first, "apples");
+    expect("pair.second", p.second.value, 3);
+
+    // the fields can be changed
+    p.first = "pears";
+    p.second = 4;
+    expect_str("pair.first after assignment", p.first, "pears");
+    expect("pair.second after assignment", p.second.value, 4);
+
+    // objects as members: the pair holds the objects themselves
+    origin := new point(0, 0);
+    corner := new point(3, 4);
+    line := new pair<point, point>(origin, corner);
+    expect("pair of objects: field of second", line.second.y, 4);
+    expect_true("pair holds the object, not a copy", line.first == origin);
+    corner.x = 30;
+    expect("a change of the object is seen through the pair", line.second.x, 30);
+
+    // a pair as a return value
+    range := min_and_max(7, 2, 9);
+    expect("pair returned from a function: first", range.first.value, 2);
+    expect("pair returned from a function: second", range.second.value, 9);
+    range = min_and_max(5, 5, 5);
+    expect("all equal: first", range.first.value, 5);
+    expect("all equal: second", range.second.value, 5);
+
+    // two pairs are independent
+    other := new pair<string, int>("plums", 1);
+    expect_str("a second pair has its own values", other.first, "plums");
+    expect_str("...and the first one is untouched", p.first, "pears");
+
+    // pairs inside a pair
+    nested := new pair<pair<string, int>, string>(other, "outer");
+    expect_str("pair in a pair: inner first", nested.first.first, "plums");
+    expect("pair in a pair: inner second", nested.first.second.value, 1);
+    expect_str("pair in a pair: outer second", nested.second, "outer");
+
+    // ================= triplet, quad, quint
+    t := new triplet<string, int, point>("label", 2, corner);
+    expect_str("triplet.first", t.first, "label");
+    expect("triplet.second", t.second.value, 2);
+    expect("triplet.third", t.third.y, 4);
+
+    q := new quad<int, int, int, int>(10, 20, 30, 40);
+    expect("quad.first", q.first.value, 10);
+    expect("quad.second", q.second.value, 20);
+    expect("quad.third", q.third.value, 30);
+    expect("quad.fourth", q.fourth.value, 40);
+
+    five := new quint<string, string, string, string, string>("a", "b", "c", "d", "e");
+    expect_str("quint.first", five.first, "a");
+    expect_str("quint.third", five.third, "c");
+    expect_str("quint.fifth", five.fifth, "e");
+    expect_str("quint: all five in order", five.first + five.second + five.third + five.fourth + five.fifth, "abcde");
+    five.third = "C";
+    expect_str("quint: a field assigned", five.second + five.third + five.fourth, "bCd");
+
+    // ================= result
+    good := checked_divide(10, 4);
+    expect_true("result without an error: is_success", good.is_success.value);
+    expect("result without an error: data", good.data.value, 2.5);
+    expect_null("result without an error: error is null", good.error);
+
+    failed := checked_divide(1, 0);
+    expect_false("result with an error: is_success", failed.is_success.value);
+    expect_not_null("result with an error: error", failed.error);
+    expect_str("result with an error: its message", failed.error!!.get_message(), "division by zero");
+    expect("result with an error: the data that was given", failed.data.value, 0);
+
+    // a result with other types: text as data, text as error
+    parsed := new result<string, string>("parsed", "unexpected end");
+    expect_false("result<string, string> with an error", parsed.is_success.value);
+    expect_str("its data", parsed.data, "parsed");
+    expect_str("its error", parsed.error!!, "unexpected end");
+
+    // ================= unique
+    b := new badge(5);
+    expect("hash() of a class that implements unique", b.hash().value, 155);
+    expect("guid()", b.guid().value, 5);
+    u : unique = new badge(2);
+    expect("called through the interface: hash()", u.hash().value, 62);
+    expect("called through the interface: guid()", u.guid().value, 2);
+    expect("passed to a function that takes a unique", hash_of(b), 155);
+    expect("two objects, two hashes", hash_of(new badge(1)) + hash_of(new badge(10)), 341);
+
+    // ================= deferred_init
+    lazy := new deferred_init<settings>(make_settings);
+    expect("nothing is made when the deferred_init is created", times_made.value, 0);
+    expect("the first read of .value makes the object", lazy.value.port, 8080);
+    expect("the function ran once", times_made.value, 1);
+    expect("the second read gives the same value", lazy.value.port, 8080);
+    expect("...without running the function again", times_made.value, 1);
+    first_read := lazy.value;
+    second_read := lazy.value;
+    expect_true("every read gives the same object", first_read == second_read);
+    first_read.port = 9090;
+    expect("a change made through one read is seen by the next", lazy.value.port, 9090);
+
+    another := new deferred_init<settings>(make_settings);
+    expect("a second deferred_init makes its own object", another.value.port, 8080);
+    expect("the function ran a second time for it", times_made.value, 2);
+
+    never_read := new deferred_init<settings>(make_settings);
+    expect("one that is never read never runs the function", times_made.value, 2);
+
+    // ================= char_array
+    hello := new char_array("hello");
+    expect("char_array from a string: number of characters", sizeof(hello.data), 5);
+    expect("first character", hello.data[0], 'h');
+    expect("last character", hello.data[4], 'o');
+    expect_str("to_string gives the text back", hello.to_string(), "hello");
+
+    // foreach goes through the characters: h + e + l + l + o = 104 + 101 + 108 + 108 + 111
+    sum : var = 0;
+    count : var = 0;
+    foreach(c in hello) {
+        sum += c;
+        count++;
+    }
+    expect("foreach over a char_array: trips", count, 5);
+    expect("foreach over a char_array: sum of the character codes", sum, 532);
+
+    // from an array of numbers (character codes)
+    codes := new var[3];
+    codes[0] = 'a';
+    codes[1] = 'b';
+    codes[2] = 'c';
+    abc := new char_array(codes);
+    expect("char_array from a number array: size", sizeof(abc.data), 3);
+    expect_str("char_array from a number array: text", abc.to_string(), "abc");
+    codes[0] = 'z';
+    expect("it made its own copy of the numbers", abc.data[0], 'a');
+
+    // from another char_array
+    again := new char_array(hello);
+    expect_str("char_array from a char_array", again.to_string(), "hello");
+
+    // get_elements is the same array as data
+    expect("get_elements: size", sizeof(hello.get_elements()), 5);
+    expect("get_elements: a character", hello.get_elements()[1], 'e');
+
+    // ================= time: unit conversions (whole numbers, the rest is cut off)
+    expect("nano_to_micro(5000000)", time.nano_to_micro(5000000).value, 5000);
+    expect("nano_to_micro(1000)", time.nano_to_micro(1000).value, 1);
+    expect("nano_to_micro(1999) cuts off", time.nano_to_micro(1999).value, 1);
+    expect("nano_to_micro(999)", time.nano_to_micro(999).value, 0);
+    expect("nano_to_micro(0)", time.nano_to_micro(0).value, 0);
+    expect("nano_to_mills(5000000)", time.nano_to_mills(5000000).value, 5);
+    expect("nano_to_mills(1000000)", time.nano_to_mills(1000000).value, 1);
+    expect("nano_to_mills(1999999) cuts off", time.nano_to_mills(1999999).value, 1);
+    expect("nano_to_mills(999999)", time.nano_to_mills(999999).value, 0);
+    expect("nano_to_secs(3000000000)", time.nano_to_secs(3000000000).value, 3);
+    expect("nano_to_secs(1000000000)", time.nano_to_secs(1000000000).value, 1);
+    expect("nano_to_secs(999999999)", time.nano_to_secs(999999999).value, 0);
+    expect("one hour of nanoseconds in seconds", time.nano_to_secs(3600000000000).value, 3600);
+    expect("one day of nanoseconds in milliseconds", time.nano_to_mills(86400000000000).value, 86400000);
+
+    // the clock itself: only that it gives a positive number
+    expect_true("nano_time() is positive", time.nano_time().value > 0);
+    expect_true("mills_time() is positive", time.mills_time().value > 0);
+    expect_true("micro_time() is positive", time.micro_time().value > 0);
+
+    // the units are numbered in this order
+    expect("time_unit.seconds", time_unit.seconds.ordinal, 0);
+    expect("time_unit.milliseconds", time_unit.milliseconds.ordinal, 1);
+    expect("time_unit.microseconds", time_unit.microseconds.ordinal, 2);
+    expect("time_unit.nanoseconds", time_unit.nanoseconds.ordinal, 3);
+
+    // ================= random numbers: always inside the range that was asked for
+    outside : var = 0;
+    fractions : var = 0;
+    for(i : var = 0; i < 2000; i++) {
+        r : var = rand().value;                         // 0 .. 1
+        if(r < 0 || r > 1) outside++;
+
+        k : var = rand_int(5, 10).value;                // a whole number, 5 .. 10
+        if(k < 5 || k > 10) outside++;
+        if(k % 1 != 0) fractions++;
+
+        d : var = rand_double(2, 3).value;              // 2 .. 3
+        if(d < 2 || d > 3) outside++;
+
+        n : var = rand_int(0 - 3, 3).value;             // a range around zero
+        if(n < 0 - 3 || n > 3) outside++;
+
+        big : var = rand_int().value;                   // 0 .. 1e9
+        if(big < 0 || big > 1000000000) outside++;
+
+        wide : var = rand_double().value;               // 0 .. 1e9
+        if(wide < 0 || wide > 1000000000) outside++;
+    }
+    expect("12000 random numbers, none outside its range", outside, 0);
+    expect("rand_int gives whole numbers", fractions, 0);
+
+    one_value : var = rand_int(7, 7).value;
+    expect("rand_int(7, 7) can only be 7", one_value, 7);
+
+    // the same seed gives the same numbers again
+    set_seed(1234);
+    a1 : var = rand_int(0, 1000000).value;
+    a2 : var = rand_int(0, 1000000).value;
+    a3 : var = rand().value;
+    set_seed(1234);
+    b1 : var = rand_int(0, 1000000).value;
+    b2 : var = rand_int(0, 1000000).value;
+    b3 : var = rand().value;
+    expect_true("same seed: first number repeats", a1 == b1);
+    expect_true("same seed: second number repeats", a2 == b2);
+    expect_true("same seed: third number (a double) repeats", a3 == b3);
+
+    finish("std_misc");
+}

@@ -1,0 +1,46 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUGS in && and ||. This file is expected to FAIL.
+ * (Same result with and without -O, with and without the JIT.)
+ */
+
+def yes(): var { return 1; }
+def no(): var { return 0; }
+
+def main(args: string[]) {
+    t : var = 1;
+    f : var = 0;
+
+    // ---- BUG 1: && does not bind tighter than ||
+    //      `a && b || c` should group as `(a && b) || c`.
+    //      today it groups from the right, as `a && (b || c)`,
+    //      so `f && f || t` is 0 instead of 1.
+    expect("f && f || t", f && f || t, 1);
+    expect("f && t || t", f && t || t, 1);
+    expect("f && t || t && t", f && t || t && t, 1);
+    expect("no() && no() || yes()", no() && no() || yes(), 1);
+    if(f && f || t) {
+        pass("if(f && f || t)");
+    } else {
+        fail("if(f && f || t)", "the else branch ran");
+    }
+    // (these group the same either way, and pass)
+    expect("t || f && f", t || f && f, 1);
+    expect("(f && f) || t", (f && f) || t, 1);
+
+    // ---- BUG 2: || on variables gives back the operand instead of 1
+    //      today: 0 || 7 is 7 and 0.5 || 0 is 0.5
+    //      (&& gives 1, and so does || on literals: `0 || 7` is 1)
+    zero : var = 0;
+    seven : var = 7;
+    half : var = 0.5;
+    expect("0 || 7", zero || seven, 1);
+    expect("7 || 0", seven || zero, 1);
+    expect("0.5 || 0", half || zero, 1);
+    expect("counting with ||", (zero || seven) + (seven || zero), 2);
+
+    finish("logic");
+}
