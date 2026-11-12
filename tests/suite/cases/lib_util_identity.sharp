@@ -1,0 +1,304 @@
+mod main;
+
+import ( testing, std.util )
+
+/**
+ * std.util - hashing (fnv1a, djb2, crc32, adler32, combine), uuid and
+ * version (semantic versions).
+ *
+ * The expected hash values are the published test vectors of the
+ * algorithms (e.g. crc32("123456789") == 0xCBF43926) or were computed with
+ * an independent implementation.
+ */
+
+def check_hashing() {
+    expect("fnv1a of nothing", hashing.fnv1a(""), 2166136261);
+    expect("fnv1a(a)", hashing.fnv1a("a"), 3826002220);                 // 0xE40C292C
+    expect("fnv1a(hello)", hashing.fnv1a("hello"), 1335831723);
+    expect("fnv1a(foobar)", hashing.fnv1a("foobar"), 3214735720);       // 0xBF9CF968
+    expect("fnv1a(123456789)", hashing.fnv1a("123456789"), 3146166556);
+    expect("fnv1a(pangram)", hashing.fnv1a("The quick brown fox jumps over the lazy dog"), 76545936);
+
+    expect("djb2 of nothing", hashing.djb2(""), 5381);
+    expect("djb2(a)", hashing.djb2("a"), 177670);                       // 5381 * 33 + 97
+    expect("djb2(hello)", hashing.djb2("hello"), 261238937);
+    expect("djb2(foobar)", hashing.djb2("foobar"), 4259602622);
+    expect("djb2(pangram)", hashing.djb2("The quick brown fox jumps over the lazy dog"), 885799134);
+
+    expect("crc32 of nothing", hashing.crc32(""), 0);
+    expect("crc32(a)", hashing.crc32("a"), 3904355907);                 // 0xE8B7BE43
+    expect("crc32(123456789)", hashing.crc32("123456789"), 3421780262); // 0xCBF43926, the standard check value
+    expect("crc32(hello)", hashing.crc32("hello"), 907060870);
+    expect("crc32(pangram)", hashing.crc32("The quick brown fox jumps over the lazy dog"), 1095738169);   // 0x414FA339
+
+    expect("adler32 of nothing", hashing.adler32(""), 1);
+    expect("adler32(a)", hashing.adler32("a"), 6422626);                // 0x00620062
+    expect("adler32(Wikipedia)", hashing.adler32("Wikipedia"), 300286872);     // 0x11E60398
+    expect("adler32(123456789)", hashing.adler32("123456789"), 152961502);
+    expect("adler32(pangram)", hashing.adler32("The quick brown fox jumps over the lazy dog"), 1541148634);
+
+    // byte arrays, including bytes above 127 (stored as negative _int8 values)
+    data := new _int8[4];
+    data[0] = 200;
+    data[1] = 255;
+    data[2] = 0;
+    data[3] = 128;
+    expect("fnv1a of bytes", hashing.fnv1a(data), 1494859608);
+    expect("djb2 of bytes", hashing.djb2(data), 2093938828);
+    expect("crc32 of bytes", hashing.crc32(data), 3248336440);
+    expect("adler32 of bytes", hashing.adler32(data), 111215176);
+    empty := new _int8[0];
+    expect("fnv1a of no bytes", hashing.fnv1a(empty), 2166136261);
+    expect("crc32 of no bytes", hashing.crc32(empty), 0);
+    expect("adler32 of no bytes", hashing.adler32(empty), 1);
+    expect("djb2 of no bytes", hashing.djb2(empty), 5381);
+    text : string = "hello";
+    expect("a text and its bytes hash the same", hashing.crc32(text.data!!), 907060870);
+
+    expect_true("different texts, different hashes", hashing.fnv1a("abc") != hashing.fnv1a("acb"));
+    expect("hashing is repeatable", hashing.fnv1a("repeat"), hashing.fnv1a("repeat"));
+
+    expect("multiply small", hashing.multiply(6, 7), 42);
+    expect("multiply wraps at 2^32", hashing.multiply(65537, 65537), 131073);
+    expect("multiply large", hashing.multiply(4000000000, 3000000000), 3635412992);
+    expect("multiply largest", hashing.multiply(4294967295, 4294967295), 1);
+    expect("multiply by 0", hashing.multiply(4294967295, 0), 0);
+
+    expect("combine", hashing.combine(17, 5), 532);                     // 17 * 31 + 5
+    expect("combine twice", hashing.combine(hashing.combine(17, 5), 7), 16499);
+    expect("combine wraps", hashing.combine(4294967295, 4294967295), 4294967264);
+    expect("combine ignores the sign of the value", hashing.combine(17, 0 - 5), 532);
+    expect_true("combine depends on the order", hashing.combine(hashing.combine(17, 1), 2) != hashing.combine(hashing.combine(17, 2), 1));
+    expect("combine_all", hashing.combine_all(new var[] { 1, 2, 3 }), 507473);
+    expect("combine_all of nothing", hashing.combine_all(new var[0]), 17);
+
+    expect_str("to_hex", hashing.to_hex(3421780262), "cbf43926");
+    expect_str("to_hex pads with zeros", hashing.to_hex(255), "000000ff");
+    expect_str("to_hex(0)", hashing.to_hex(0), "00000000");
+    expect_str("to_hex of the largest word", hashing.to_hex(4294967295), "ffffffff");
+    expect_str("to_hex of a crc", hashing.to_hex(hashing.crc32("The quick brown fox jumps over the lazy dog")), "414fa339");
+    caught : var = 0;
+    try { hashing.to_hex(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { hashing.to_hex(4294967296); } catch(e: illegal_argument_exception) { caught++; }
+    try { hashing.to_hex(1.5); } catch(e: illegal_argument_exception) { caught++; }
+    expect("to_hex outside a word throws", caught, 3);
+}
+
+def check_uuid() {
+    id := uuid.parse("123e4567-e89b-42d3-a456-426614174000");
+    expect_str("parse and to_string", id.to_string()!!, "123e4567-e89b-42d3-a456-426614174000");
+    expect("version_number", id.version_number(), 4);
+    expect("variant", id.variant(), 2);
+    expect_false("is_nil", id.is_nil().value);
+    expect_str("capital letters are accepted and printed small", uuid.parse("ABCDEF01-2345-6789-ABCD-EF0123456789").to_string()!!, "abcdef01-2345-6789-abcd-ef0123456789");
+    expect("version 1 is recognised", uuid.parse("c232ab00-9414-11ec-b3c8-9f6bdeced846").version_number(), 1);
+    expect("the old NCS variant", uuid.parse("00000000-0000-0000-7000-000000000000").variant(), 0);
+    expect("the Microsoft variant", uuid.parse("00000000-0000-0000-c000-000000000000").variant(), 6);
+    expect("the reserved variant", uuid.parse("00000000-0000-0000-e000-000000000000").variant(), 7);
+
+    zero := uuid.nil_uuid();
+    expect_str("nil", zero.to_string()!!, "00000000-0000-0000-0000-000000000000");
+    expect_true("nil is_nil", zero.is_nil().value);
+    expect("nil has version 0", zero.version_number(), 0);
+
+    bytes := id.to_bytes();
+    expect("to_bytes size", sizeof(bytes), 16);
+    expect("to_bytes first", bytes[0], 18);          // 0x12
+    expect("to_bytes byte 3", bytes[3], 103);        // 0x67
+    expect("to_bytes last", bytes[15], 0);
+    bytes[0] = 255;
+    expect_str("to_bytes is a copy", id.to_string()!!, "123e4567-e89b-42d3-a456-426614174000");
+    rebuilt := uuid.from_bytes(id.to_bytes());
+    expect_true("from_bytes", (rebuilt == id).value);
+    counting := new var[16];
+    for(i : var = 0; i < 16; i++) { counting[i] = i * 17; }
+    expect_str("from_bytes text", uuid.from_bytes(counting).to_string()!!, "00112233-4455-6677-8899-aabbccddeeff");
+
+    same := uuid.parse("123E4567-E89B-42D3-A456-426614174000");
+    later := uuid.parse("123e4567-e89b-42d3-a456-426614174001");
+    expect_true("==", (id == same).value);
+    expect_false("== different", (id == later).value);
+    expect_true("!=", (id != later).value);
+    expect("compare_to smaller", id.compare_to(later), 0 - 1);
+    expect("compare_to larger", later.compare_to(id), 1);
+    expect("compare_to equal", id.compare_to(same), 0);
+    expect_true("<", (id < later).value);
+    expect_true(">", (later > id).value);
+    expect_true("the first byte decides", (uuid.parse("10000000-0000-0000-0000-000000000000") > uuid.parse("0fffffff-ffff-ffff-ffff-ffffffffffff")).value);
+    expect_true("equal uuids have equal hashes", (id.hash() == same.hash()).value);
+
+    expect_true("is_valid", uuid.is_valid("123e4567-e89b-42d3-a456-426614174000").value);
+    expect_false("is_valid: too short", uuid.is_valid("123e4567-e89b-42d3-a456-42661417400").value);
+    expect_false("is_valid: no dashes", uuid.is_valid("123e4567e89b42d3a456426614174000xxxx").value);
+    expect_false("is_valid: a dash in the wrong place", uuid.is_valid("123e45678-e89-42d3-a456-426614174000").value);
+    expect_false("is_valid: not hexadecimal", uuid.is_valid("123e4567-e89b-42d3-a456-42661417400g").value);
+    expect_false("is_valid: empty", uuid.is_valid("").value);
+    expect_null("parse_or_null of bad text", uuid.parse_or_null("nope"));
+    expect_not_null("parse_or_null of good text", uuid.parse_or_null("123e4567-e89b-42d3-a456-426614174000"));
+    caught : var = 0;
+    try { uuid.parse("nope"); } catch(e: parse_exception) { caught++; }
+    try { uuid.parse("123e4567-e89b-42d3-a456_426614174000"); } catch(e: parse_exception) { caught++; }
+    try { uuid.parse("z23e4567-e89b-42d3-a456-426614174000"); } catch(e: parse_exception) { caught++; }
+    expect("bad text throws parse_exception", caught, 3);
+    caught = 0;
+    try { uuid.from_bytes(new var[15]); } catch(e: illegal_argument_exception) { caught++; }
+    wrong := new var[16];
+    wrong[5] = 256;
+    try { uuid.from_bytes(wrong); } catch(e: illegal_argument_exception) { caught++; }
+    expect("bad bytes throw", caught, 2);
+
+    // random uuids from a seeded generator are an exact, reproducible sequence
+    rng := new seeded_random(1);
+    expect_str("seeded uuid 1", uuid.random(rng).to_string()!!, "00049d12-8e2c-4519-b7ad-9e59b40405c9");
+    expect_str("seeded uuid 2", uuid.random(rng).to_string()!!, "35c613ff-8ee3-42d9-825d-91133da503cb");
+    rng.seed(42);
+    expect_str("seeded uuid, seed 42", uuid.random(rng).to_string()!!, "00a91cd9-e055-4d90-b93f-b2c9b6427440");
+    expect_str("seeded uuid 2, seed 42", uuid.random(rng).to_string()!!, "2002cfa1-c090-4f92-b615-c18390452656");
+
+    // random uuids from the runtime's generator: only what always holds
+    well_formed : var = 1;
+    for(i : var = 0; i < 50; i++) {
+        made := uuid.random();
+        text := made.to_string()!!;
+        if(made.version_number() != 4 || made.variant() != 2) well_formed = 0;
+        if(text.size() != 36 || text.at(14).value != '4') well_formed = 0;
+        if(!uuid.is_valid(text).value) well_formed = 0;
+        if((uuid.parse(text) != made).value) well_formed = 0;
+    }
+    expect_true("50 random uuids are well formed version 4 ids", well_formed);
+}
+
+def v(text: string): version {
+    return version.parse(text);
+}
+
+/* -1, 0 or 1 for a pair of version texts */
+def order(a: string, b: string): var {
+    return v(a).compare_to(v(b));
+}
+
+def check_version() {
+    plain := v("1.4.2");
+    expect("major", plain.major, 1);
+    expect("minor", plain.minor, 4);
+    expect("patch", plain.patch, 2);
+    expect_str("no pre-release", plain.pre_release, "");
+    expect_str("no build", plain.build, "");
+    expect_str("to_string", plain.to_string()!!, "1.4.2");
+    expect_false("is_pre_release", plain.is_pre_release().value);
+    expect_true("is_stable", plain.is_stable().value);
+
+    full := v("2.0.0-rc.1+build.42");
+    expect("full: major", full.major, 2);
+    expect_str("full: pre_release", full.pre_release, "rc.1");
+    expect_str("full: build", full.build, "build.42");
+    expect_str("full: to_string", full.to_string()!!, "2.0.0-rc.1+build.42");
+    expect_true("full: is_pre_release", full.is_pre_release().value);
+    expect_false("full: is_stable", full.is_stable().value);
+    expect_false("0.x is not stable", v("0.9.5").is_stable().value);
+    expect_str("build without pre-release", v("1.0.0+exp.sha.5114f85").build, "exp.sha.5114f85");
+    expect_str("build without pre-release has no pre-release", v("1.0.0+exp.sha.5114f85").pre_release, "");
+    expect_str("a dash inside an identifier", v("1.0.0-x-y.z--").pre_release, "x-y.z--");
+    expect("large numbers", v("10.200.3000").patch, 3000);
+    expect_str("zeros", v("0.0.0").to_string()!!, "0.0.0");
+
+    built := new version(3, 1, 4);
+    expect_str("constructor", built.to_string()!!, "3.1.4");
+    expect_str("constructor with a pre-release", new version(1, 0, 0, "alpha.1").to_string()!!, "1.0.0-alpha.1");
+    expect_str("constructor with an empty pre-release", new version(1, 0, 0, "").to_string()!!, "1.0.0");
+
+    // ---- precedence: the example chain from the specification
+    expect("1.0.0-alpha < 1.0.0-alpha.1", order("1.0.0-alpha", "1.0.0-alpha.1"), 0 - 1);
+    expect("1.0.0-alpha.1 < 1.0.0-alpha.beta", order("1.0.0-alpha.1", "1.0.0-alpha.beta"), 0 - 1);
+    expect("1.0.0-alpha.beta < 1.0.0-beta", order("1.0.0-alpha.beta", "1.0.0-beta"), 0 - 1);
+    expect("1.0.0-beta < 1.0.0-beta.2", order("1.0.0-beta", "1.0.0-beta.2"), 0 - 1);
+    expect("1.0.0-beta.2 < 1.0.0-beta.11", order("1.0.0-beta.2", "1.0.0-beta.11"), 0 - 1);
+    expect("1.0.0-beta.11 < 1.0.0-rc.1", order("1.0.0-beta.11", "1.0.0-rc.1"), 0 - 1);
+    expect("1.0.0-rc.1 < 1.0.0", order("1.0.0-rc.1", "1.0.0"), 0 - 1);
+    expect("1.0.0 > 1.0.0-rc.1", order("1.0.0", "1.0.0-rc.1"), 1);
+
+    expect("numbers, not text: 1.9.0 < 1.10.0", order("1.9.0", "1.10.0"), 0 - 1);
+    expect("major decides first", order("2.0.0", "1.99.99"), 1);
+    expect("minor decides second", order("1.2.9", "1.3.0"), 0 - 1);
+    expect("patch decides third", order("1.2.4", "1.2.3"), 1);
+    expect("equal", order("1.2.3", "1.2.3"), 0);
+    expect("the build part is ignored", order("1.0.0+a", "1.0.0+b"), 0);
+    expect("the build part is ignored with a pre-release", order("1.0.0-rc.1+x", "1.0.0-rc.1"), 0);
+    expect("equal pre-releases", order("1.0.0-rc.1", "1.0.0-rc.1"), 0);
+    expect("a number comes before a word", order("1.0.0-1", "1.0.0-a"), 0 - 1);
+    expect("numeric identifiers of equal length", order("1.0.0-rc.12", "1.0.0-rc.13"), 0 - 1);
+    expect("words by character code", order("1.0.0-Beta", "1.0.0-alpha"), 0 - 1);
+    expect("a longer word is not a number", order("1.0.0-rc1", "1.0.0-rc.1"), 1);
+
+    a := v("1.2.3");
+    b := v("1.3.0");
+    expect_true("<", (a < b).value);
+    expect_false("< reversed", (b < a).value);
+    expect_true(">", (b > a).value);
+    expect_true("<=", (a <= v("1.2.3")).value);
+    expect_true(">=", (b >= a).value);
+    expect_true("==", (a == v("1.2.3+meta")).value);
+    expect_true("!=", (a != b).value);
+    expect_true("equal versions have equal hashes", (a.hash() == v("1.2.3+meta").hash()).value);
+
+    expect_str("next_major", a.next_major().to_string()!!, "2.0.0");
+    expect_str("next_minor", a.next_minor().to_string()!!, "1.3.0");
+    expect_str("next_patch", a.next_patch().to_string()!!, "1.2.4");
+    expect_str("next_patch drops the pre-release", full.next_patch().to_string()!!, "2.0.1");
+    expect_str("release", full.release().to_string()!!, "2.0.0");
+    expect_str("the original is unchanged", a.to_string()!!, "1.2.3");
+
+    expect_true("compatible: same major, newer", v("1.4.0").is_compatible_with(v("1.2.3")).value);
+    expect_true("compatible: the same version", v("1.2.3").is_compatible_with(v("1.2.3")).value);
+    expect_false("not compatible: older", v("1.2.2").is_compatible_with(v("1.2.3")).value);
+    expect_false("not compatible: another major", v("2.0.0").is_compatible_with(v("1.2.3")).value);
+    expect_true("0.x: the same minor", v("0.3.5").is_compatible_with(v("0.3.1")).value);
+    expect_false("0.x: another minor", v("0.4.0").is_compatible_with(v("0.3.1")).value);
+
+    expect_true("is_valid", version.is_valid("1.2.3-beta+build").value);
+    expect_null("parse_or_null of bad text", version.parse_or_null("1.2"));
+    expect_not_null("parse_or_null of good text", version.parse_or_null("1.2.3"));
+    bad := new string[14];
+    bad[0] = new string("");
+    bad[1] = new string("1.2");
+    bad[2] = new string("1.2.3.4");
+    bad[3] = new string("01.2.3");
+    bad[4] = new string("1.2.x");
+    bad[5] = new string("1.2.3-");
+    bad[6] = new string("1.2.3-a..b");
+    bad[7] = new string("v1.2.3");
+    bad[8] = new string("1.2.3+");
+    bad[9] = new string("1.2.3-01");
+    bad[10] = new string("1..3");
+    bad[11] = new string("1.2.3-beta!");
+    bad[12] = new string("1.2.3 ");
+    bad[13] = new string("-1.2.3");
+    rejected : var = 0;
+    for(i : var = 0; i < 14; i++) {
+        if(!version.is_valid(bad[i]).value) {
+            rejected++;
+        } else {
+            fail("is_valid", "accepted: " + bad[i]);
+        }
+    }
+    expect("14 malformed versions are rejected", rejected, 14);
+    expect_true("a leading zero is fine in a word", version.is_valid("1.2.3-0a").value);
+    expect_true("a leading zero is fine in the build part", version.is_valid("1.2.3+001").value);
+    expect_true("a single zero is a valid number", version.is_valid("1.2.3-0").value);
+
+    caught : var = 0;
+    try { version.parse("1.2"); } catch(e: parse_exception) { caught++; }
+    try { new version(1, 0, 0, "a..b"); } catch(e: parse_exception) { caught++; }
+    expect("parse_exception", caught, 2);
+    caught = 0;
+    try { new version(0 - 1, 0, 0); } catch(e: illegal_argument_exception) { caught++; }
+    try { new version(1, 2.5, 0); } catch(e: illegal_argument_exception) { caught++; }
+    expect("bad numbers throw illegal_argument_exception", caught, 2);
+}
+
+def main(args: string[]) {
+    check_hashing();
+    check_uuid();
+    check_version();
+    finish("lib_util_identity");
+}

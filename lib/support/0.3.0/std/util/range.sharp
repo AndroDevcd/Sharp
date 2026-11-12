@@ -1,0 +1,202 @@
+mod std.util;
+
+import ( std.math )
+
+/**
+ * @class range
+ *
+ * An arithmetic progression of native numbers: first, first + step,
+ * first + 2 * step ... up to and INCLUDING the last value (Kotlin's
+ * IntRange / IntProgression).
+ *
+ *     foreach(i in new range(1, 5)) { ... }            // 1 2 3 4 5
+ *     foreach(i in new range(10, 1, 0 - 3)) { ... }    // 10 7 4 1
+ *     foreach(i in range.until(0, 4)) { ... }          // 0 1 2 3
+ *     new range(1, 10).contains(7).value               // true
+ *     new range(1, 10).stepped(2).to_array()           // { 1, 3, 5, 7, 9 }
+ *
+ * A range is a VALUE: it cannot be changed after it is made; reversed()
+ * and stepped() return new ranges.
+ *
+ * The end is normalised: `last` is always a value the range really
+ * reaches, so new range(1, 10, 4) has last == 9 (1, 5, 9). A range whose
+ * start lies beyond its end in the direction of the step is EMPTY (size 0),
+ * e.g. new range(5, 1) - that is not an error, loops over it just do not run.
+ *
+ * Steps and bounds need not be whole numbers (new range(0, 1, 0.25) is
+ * 0, 0.25, 0.5, 0.75, 1), but then the usual floating point caveats apply.
+ */
+class range : loopable<var> {
+    /** the first value (read only) */
+    first : var = 0;
+        private set v -> { first = v; }
+
+    /** the last value the range reaches (read only); meaningless when the range is empty */
+    last : var = 0;
+        private set v -> { last = v; }
+
+    /** the distance between two neighbouring values; never 0, negative for a falling range (read only) */
+    step : var = 1;
+        private set v -> { step = v; }
+
+    private count : var = 0;
+
+    /** the range first, first + 1, ... last (empty when first > last) */
+    range(first: var, last: var) {
+        setup(first, last, 1);
+    }
+
+    /**
+     * The range first, first + step, ... not going past `last`. A negative
+     * step counts down.
+     * Throws illegal_argument_exception when step is 0.
+     */
+    range(first: var, last: var, step: var) {
+        if(step == 0)
+            throw new illegal_argument_exception("range: the step cannot be 0");
+        setup(first, last, step);
+    }
+
+    private def setup(first: var, last: var, step: var) {
+        self->first = first;
+        self->step = step;
+
+        // how many values fit: floor((last - first) / step) + 1, or none
+        // when `last` lies on the wrong side of `first`
+        steps : var = (last - first) / step;
+        if(steps < 0) {
+            count = 0;
+            self->last = last;
+        } else {
+            whole_steps : var = floor_of(steps);
+            count = whole_steps + 1;
+            self->last = first + whole_steps * step;
+        }
+    }
+
+    /** the range first .. end - 1: the end is NOT included (Kotlin `until`). Empty when first >= end. */
+    static def until(first: var, end: var): range {
+        return new range(first, end - 1);
+    }
+
+    /** the falling range first, first - 1, ... last (Kotlin `downTo`). Empty when first < last. */
+    static def down_to(first: var, last: var): range {
+        return new range(first, last, 0 - 1);
+    }
+
+    /** the range 0 .. count - 1: the valid indexes of something with `count` elements */
+    static def indices(count: var): range {
+        return new range(0, count - 1);
+    }
+
+    /** how many values the range has */
+    def size(): var {
+        return count;
+    }
+
+    /** true when the range has no values */
+    def is_empty(): bool {
+        return count == 0;
+    }
+
+    /**
+     * True when `value` is one of the values of the range: inside the
+     * bounds AND on the step grid. new range(1, 9, 2).contains(4) is false.
+     */
+    def contains(value: var): bool {
+        if(count == 0) return false;
+
+        position : var = (value - first) / step;
+        if(position < 0 || position > count - 1) return false;
+        return floor_of(position) == position && first + position * step == value;
+    }
+
+    /**
+     * The value at position `index` (0 is the first): first + index * step.
+     * Throws out_of_bounds_exception when index is outside 0 .. size() - 1.
+     */
+    def at(index: var): var {
+        if(index < 0 || index >= count)
+            throw new out_of_bounds_exception("range: index outside the range");
+        return first + index * step;
+    }
+
+    /**
+     * The position of `value` in the range (0 for the first value), or -1
+     * when the range does not contain it.
+     */
+    def index_of(value: var): var {
+        if(!contains(value).value) return 0 - 1;
+        return (value - first) / step;
+    }
+
+    /** the same values in the opposite order: (1, 3, 5) becomes (5, 3, 1) */
+    def reversed(): range {
+        if(count == 0) return new range(first, last, step);     // empty stays empty
+        return new range(last, first, 0 - step);
+    }
+
+    /**
+     * The same range walked with a different step size, keeping the
+     * direction (Kotlin `step`): new range(1, 10).stepped(3) is 1, 4, 7, 10
+     * and range.down_to(10, 1).stepped(3) is 10, 7, 4, 1.
+     * Throws illegal_argument_exception when new_step is not positive.
+     */
+    def stepped(new_step: var): range {
+        if(new_step <= 0)
+            throw new illegal_argument_exception("range: the step must be positive");
+        if(step < 0) return new range(first, last, 0 - new_step);
+        return new range(first, last, new_step);
+    }
+
+    /** the sum of all values: size * (first + last) / 2 (0 for an empty range) */
+    def sum(): var {
+        if(count == 0) return 0;
+        return count * (first + last) / 2;
+    }
+
+    /** all values as a new array (of length 0 for an empty range) */
+    def to_array(): var[] {
+        result := new var[count];
+        for(i : var = 0; i < count; i++) {
+            result[i] = first + i * step;
+        }
+        return result;
+    }
+
+    /**
+     * The values for a foreach loop: `foreach(i in some_range) { ... }`.
+     * (The loopable interface; the same array as to_array().)
+     */
+    override def get_elements(): var[]? {
+        return to_array();
+    }
+
+    /** call `action` with every value, in order */
+    def for_each(action: (var)()) {
+        for(i : var = 0; i < count; i++) {
+            action(first + i * step);
+        }
+    }
+
+    /** true when both ranges produce exactly the same values in the same order (two empty ranges are equal) */
+    def operator==(other: range): bool {
+        if(count != other.count) return false;
+        if(count == 0) return true;
+        return first == other.first && (count == 1 || step == other.step);
+    }
+
+    /** true when the ranges produce different values */
+    def operator!=(other: range): bool {
+        return !operator==(other).value;
+    }
+
+    /** "1..10", "1..9 step 2", "10..1 step -3" */
+    override def to_string(): string? {
+        text : string = number_to_string(first) + ".." + number_to_string(last);
+        if(step != 1) {
+            text = text + " step " + number_to_string(step);
+        }
+        return text;
+    }
+}

@@ -1,0 +1,84 @@
+mod std.util;
+
+/**
+ * @class counter
+ *
+ * A number in an object: something to count with that can be shared.
+ *
+ * A lambda can use the objects around it but cannot assign to an outer
+ * native variable, so `total += x` inside a lambda does not work on a
+ * `var`. A counter is an object, so this does:
+ *
+ *     seen := new counter();
+ *     items.for_each({ item: string -> seen.increment(); });
+ *     println("" + seen.value);
+ *
+ * It is also handy as a tally that several functions update, or as a
+ * running total (add() takes any number, not only 1).
+ *
+ * `value` is a public field and may be read or assigned directly. The
+ * class does no locking; guard it when several threads count together.
+ */
+class counter {
+    /** the current count */
+    value : var = 0;
+
+    /** the value reset() returns to */
+    private start : var = 0;
+
+    /** a counter that starts at 0 */
+    counter() {
+    }
+
+    /** a counter that starts at `start` (and returns there on reset()) */
+    counter(start: var) {
+        value = start;
+        self->start = start;
+    }
+
+    /** add 1 and return the new value */
+    def increment(): var {
+        value = value + 1;
+        return value;
+    }
+
+    /** subtract 1 and return the new value */
+    def decrement(): var {
+        value = value - 1;
+        return value;
+    }
+
+    /** add `amount` (which may be negative or fractional) and return the new value */
+    def add(amount: var): var {
+        value = value + amount;
+        return value;
+    }
+
+    /**
+     * Return the current value and THEN add 1 (like value++): calling
+     * next() repeatedly on a new counter gives 0, 1, 2 ...
+     */
+    def next(): var {
+        current : var = value;
+        value = value + 1;
+        return current;
+    }
+
+    /** go back to the starting value */
+    def reset() {
+        value = start;
+    }
+
+    /** true when the count is exactly 0 */
+    def is_zero(): bool {
+        return value == 0;
+    }
+
+    /** the count as text, without decimals for whole numbers: "42" */
+    override def to_string(): string? {
+        if(value == (value as _int64)) {
+            return snprintf('l', value, 0);
+        }
+        return snprintf('g', value, 0);
+    }
+}

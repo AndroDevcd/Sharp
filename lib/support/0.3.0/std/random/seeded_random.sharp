@@ -1,0 +1,304 @@
+mod std;
+
+import ( std.math )
+
+/**
+ * @class seeded_random
+ *
+ * A random number generator written in Sharp whose whole sequence is
+ * decided by its seed: two generators made with the same seed produce
+ * exactly the same numbers, on every machine and in every run. Use it when
+ * results must be reproducible - tests, simulations, procedurally generated
+ * content, replays.
+ *
+ *     rng := new seeded_random(42);
+ *     roll : var = rng.next_int(1, 6);        // a die: 1 .. 6
+ *     chance : var = rng.next_double();       // 0 <= chance < 1
+ *     rng.shuffle(cards);
+ *
+ * (rand(), rand_int() ... in std/random.sharp use the runtime's generator
+ * instead, which is seeded from the clock unless set_seed() is called.)
+ *
+ * ALGORITHM: xorshift32 (George Marsaglia, 2003). The state is one 32-bit
+ * word x, never 0, and each step is
+ *
+ *     x ^= x << 13;     x ^= x >> 17;     x ^= x << 5;      (all modulo 2^32)
+ *
+ * It visits every value 1 .. 2^32 - 1 once before repeating. It is fast and
+ * good enough for games, tests and simulations, but it is NOT
+ * cryptographically secure: do not use it for passwords, keys or tokens.
+ *
+ * The class does no locking; give each thread its own generator.
+ */
+class seeded_random {
+    private static const WORD : var = 4294967296;       // 2^32
+    private static const MASK : var = 4294967295;       // 2^32 - 1
+
+    /** used instead of a seed that reduces to 0, which xorshift cannot leave */
+    private static const ZERO_SEED_REPLACEMENT : var = 2463534242;
+
+    private state : var = 1;
+
+    /** a second gaussian value is produced with every first one and kept here */
+    private spare_gaussian : var = 0;
+    private has_spare_gaussian : var = 0;
+
+    /** a generator with the fixed seed 1 (so it, too, is reproducible) */
+    seeded_random() {
+        seed(1);
+    }
+
+    /** a generator started from `seed_value` (see seed()) */
+    seeded_random(seed_value: var) {
+        seed(seed_value);
+    }
+
+    /**
+     * Restart the sequence from `seed_value`. Any number is accepted: the
+     * sign and the fractional part are dropped and the rest is reduced
+     * modulo 2^32; a result of 0 is replaced by a fixed non-zero constant.
+     * Throws illegal_argument_exception for NaN or an infinite seed.
+     */
+    def seed(seed_value: var) {
+        if((seed_value - seed_value) != 0)
+            throw new illegal_argument_exception("seeded_random: the seed must be a finite number");
+
+        whole : var = seed_value;
+        if(whole < 0) whole = 0 - whole;
+        // drop the fraction, then reduce modulo 2^32 without the % operator
+        // (which is limited to 63 bits)
+        whole = whole - math_fraction(whole);
+        whole = whole - math_floor(whole / WORD) * WORD;
+
+        if(whole == 0) whole = ZERO_SEED_REPLACEMENT;
+        state = whole;
+        has_spare_gaussian = 0;
+    }
+
+    /** floor for a non-negative number below 2^63 */
+    private static def math_floor(v: var): var {
+        return v as _int64;
+    }
+
+    /** the fractional part of a non-negative number (0 for numbers too large to have one) */
+    private static def math_fraction(v: var): var {
+        if(v >= 9007199254740992) return 0;
+        return v - (v as _int64);
+    }
+
+    /** the current internal state: pass it to seed() later to continue from this exact point */
+    def get_state(): var {
+        return state;
+    }
+
+    /**
+     * The next raw value: a whole number in 1 .. 4294967295 (one xorshift32
+     * step). All other functions are built on this one.
+     */
+    def next_u32(): var {
+        x : var = state;
+        x = x ^ ((x << 13) & MASK);
+        x = x ^ (x >> 17);
+        x = x ^ ((x << 5) & MASK);
+        state = x;
+        return x;
+    }
+
+    /** a number in 0 <= result < 1, evenly spread: next_u32() / 2^32 */
+    def next_double(): var {
+        return next_u32() / WORD;
+    }
+
+    /**
+     * A number in low <= result < high.
+     * Throws illegal_argument_exception when low > high.
+     */
+    def next_double(low: var, high: var): var {
+        if(low > high)
+            throw new illegal_argument_exception("seeded_random: low is greater than high");
+        return low + next_double() * (high - low);
+    }
+
+    /**
+     * A whole number in 0 .. bound - 1 (Java nextInt(bound)): an index into
+     * something with `bound` elements.
+     * Throws illegal_argument_exception when bound is < 1 or above 2^32.
+     */
+    def next_int(bound: var): var {
+        if(bound < 1 || bound > WORD)
+            throw new illegal_argument_exception("seeded_random: the bound must be in 1 .. 4294967296");
+        return (next_double() * bound) as _int64;
+    }
+
+    /**
+     * A whole number in low .. high, BOTH ends included: next_int(1, 6) is
+     * a die roll.
+     * Throws illegal_argument_exception when low > high or the range holds
+     * more than 2^32 numbers.
+     */
+    def next_int(low: var, high: var): var {
+        if(low > high)
+            throw new illegal_argument_exception("seeded_random: low is greater than high");
+        return low + next_int(high - low + 1);
+    }
+
+    /** true or false with equal chance */
+    def next_bool(): bool {
+        return next_double() < 0.5;
+    }
+
+    /**
+     * true with the given probability (0 = never, 1 = always).
+     * Throws illegal_argument_exception when probability is outside 0 .. 1.
+     */
+    def next_bool(probability: var): bool {
+        if(probability < 0 || probability > 1 || probability != probability)
+            throw new illegal_argument_exception("seeded_random: a probability must be in 0 .. 1");
+        return next_double() < probability;
+    }
+
+    /**
+     * A normally distributed number with mean 0 and standard deviation 1
+     * (the "bell curve": about 68% of the results lie in -1 .. 1).
+     *
+     * Algorithm: the Marsaglia polar method. Pick points (u, v) in the
+     * square -1 .. 1 until one falls inside the unit circle (s = u^2 + v^2
+     * with 0 < s < 1); then u * f and v * f with f = sqrt(-2 ln(s) / s) are
+     * two independent normal values. The second one is kept for the next call.
+     */
+    def next_gaussian(): var {
+        if(has_spare_gaussian) {
+            has_spare_gaussian = 0;
+            return spare_gaussian;
+        }
+
+        u : var = 0;
+        v : var = 0;
+        s : var = 0;
+        do {
+            u = next_double() * 2 - 1;
+            v = next_double() * 2 - 1;
+            s = u * u + v * v;
+        } while(s >= 1 || s == 0);
+
+        factor : var = square_root(0 - 2 * ln(s) / s);
+        spare_gaussian = v * factor;
+        has_spare_gaussian = 1;
+        return u * factor;
+    }
+
+    /**
+     * A normally distributed number with the given mean and standard
+     * deviation: mean + deviation * next_gaussian().
+     * Throws illegal_argument_exception when deviation is negative.
+     */
+    def next_gaussian(mean: var, deviation: var): var {
+        if(deviation < 0)
+            throw new illegal_argument_exception("seeded_random: the standard deviation cannot be negative");
+        return mean + deviation * next_gaussian();
+    }
+
+    /**
+     * One of the numbers of the array, each with equal chance.
+     * Throws illegal_argument_exception when the array is empty.
+     */
+    def pick(values: var[]): var {
+        if(sizeof(values) == 0)
+            throw new illegal_argument_exception("seeded_random: cannot pick from an empty array");
+        return values[next_int(sizeof(values))];
+    }
+
+    /**
+     * One of the objects of the array, each with equal chance. The result
+     * has the type `object`; cast it back (`rng.pick_object(names) as string`).
+     * Throws illegal_argument_exception when the array is empty.
+     */
+    def pick_object(values: object[]): object {
+        if(sizeof(values) == 0)
+            throw new illegal_argument_exception("seeded_random: cannot pick from an empty array");
+        return values[next_int(sizeof(values))];
+    }
+
+    /**
+     * One of the strings of the list, each with equal chance.
+     * Throws illegal_argument_exception when the list is empty.
+     */
+    def pick(values: list<string>): string {
+        if(values.size() == 0)
+            throw new illegal_argument_exception("seeded_random: cannot pick from an empty list");
+        return values.at(next_int(values.size().value));
+    }
+
+    /**
+     * Put the numbers of the array into a random order, in place.
+     *
+     * Algorithm: Fisher-Yates. Walk from the last position down; swap each
+     * element with a randomly chosen one at or before it. Every one of the
+     * n! orders is equally likely (as far as the generator allows).
+     */
+    def shuffle(values: var[]) {
+        for(i : var = sizeof(values) - 1; i > 0; i--) {
+            j : var = next_int(i + 1);
+            held : var = values[i];
+            values[i] = values[j];
+            values[j] = held;
+        }
+    }
+
+    /** put the objects of the array (strings, your own classes ...) into a random order, in place (Fisher-Yates) */
+    def shuffle_objects(values: object[]) {
+        for(i : var = sizeof(values) - 1; i > 0; i--) {
+            j : var = next_int(i + 1);
+            held := values[i];
+            values[i] = values[j];
+            values[j] = held;
+        }
+    }
+
+    /**
+     * The numbers 0 .. count - 1 in a random order: a shuffled list of
+     * indexes, usable to visit ANY collection in random order.
+     * Throws illegal_argument_exception when count is negative.
+     */
+    def permutation(count: var): var[] {
+        if(count < 0)
+            throw new illegal_argument_exception("seeded_random: the count cannot be negative");
+
+        result := new var[count];
+        for(i : var = 0; i < count; i++) {
+            result[i] = i;
+        }
+        shuffle(result);
+        return result;
+    }
+
+    /**
+     * A text of `length` characters drawn from the letters a-z, A-Z and the
+     * digits 0-9.
+     * Throws illegal_argument_exception when length is negative.
+     */
+    def next_string(length: var): string {
+        return next_string(length, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+    }
+
+    /**
+     * A text of `length` characters, each drawn with equal chance from the
+     * characters of `alphabet`: next_string(8, "01") is 8 binary digits.
+     * Throws illegal_argument_exception when length is negative or the
+     * alphabet is empty.
+     */
+    def next_string(length: var, alphabet: string): string {
+        if(length < 0)
+            throw new illegal_argument_exception("seeded_random: the length cannot be negative");
+        choices : var = alphabet.size().value;
+        if(choices == 0)
+            throw new illegal_argument_exception("seeded_random: the alphabet is empty");
+        if(length == 0) return "";
+
+        text := new _int8[length];
+        for(i : var = 0; i < length; i++) {
+            text[i] = alphabet.at(next_int(choices)).value;
+        }
+        return new string(text);
+    }
+}

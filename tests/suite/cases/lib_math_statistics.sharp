@@ -1,0 +1,253 @@
+mod main;
+
+import ( testing, std.math )
+
+/**
+ * std.math - the statistics class (statistics.sharp) and the geometry
+ * classes rect and circle (geometry/).
+ */
+
+def check_statistics() {
+    data := new var[] { 2, 4, 4, 4, 5, 5, 7, 9 };          // the textbook set: mean 5, std dev 2
+    odd := new var[] { 5, 1, 3 };
+    lone := new var[] { 42 };
+    nothing := new var[0];
+
+    expect("count", statistics.count(data), 8);
+    expect("sum", statistics.sum(data), 40);
+    expect("sum of nothing", statistics.sum(nothing), 0);
+    expect("minimum", statistics.minimum(data), 2);
+    expect("maximum", statistics.maximum(data), 9);
+    expect("range", statistics.range(data), 7);
+    expect("mean", statistics.mean(data), 5);
+    expect("mean of one", statistics.mean(lone), 42);
+    expect("variance", statistics.variance(data), 4);
+    expect("std_dev", statistics.std_dev(data), 2);
+    expect_near("sample_variance", statistics.sample_variance(data), 4.571428571428571, 0.000000000001);      // 32 / 7
+    expect_near("sample_std_dev", statistics.sample_std_dev(data), 2.13808993529939, 0.00000000001);
+    expect("variance of one", statistics.variance(lone), 0);
+
+    // Kahan summation: ten times 0.1 is exactly 1
+    tenths := new var[10];
+    for(i : var = 0; i < 10; i++) { tenths[i] = 0.1; }
+    expect("compensated sum of ten tenths", statistics.sum(tenths), 1);
+
+    expect("median, even count", statistics.median(data), 4.5);
+    expect("median, odd count", statistics.median(odd), 3);
+    expect("median of one", statistics.median(lone), 42);
+    expect("median of two", statistics.median(new var[] { 1, 2 }), 1.5);
+    expect("median does not change the array", odd[0] * 100 + odd[1] * 10 + odd[2], 513);
+    expect("mode", statistics.mode(data), 4);
+    expect("mode with a tie is the smallest", statistics.mode(new var[] { 7, 3, 7, 3, 9 }), 3);
+    expect("mode when all differ is the smallest", statistics.mode(odd), 1);
+
+    ordered := statistics.sorted(new var[] { 5, 0 - 1, 3.5, 0, 5, 2 });
+    expect("sorted [0]", ordered[0], 0 - 1);
+    expect("sorted [1]", ordered[1], 0);
+    expect("sorted [2]", ordered[2], 2);
+    expect("sorted [3]", ordered[3], 3.5);
+    expect("sorted [4]", ordered[4], 5);
+    expect("sorted [5]", ordered[5], 5);
+    expect("sorted of nothing", sizeof(statistics.sorted(nothing)), 0);
+    // a longer, descending run: 100 .. 1 must come back as 1 .. 100
+    falling := new var[100];
+    for(i : var = 0; i < 100; i++) { falling[i] = 100 - i; }
+    rising := statistics.sorted(falling);
+    in_order : var = 1;
+    for(i : var = 0; i < 100; i++) {
+        if(rising[i] != i + 1) in_order = 0;
+    }
+    expect_true("sorted 100 values", in_order);
+
+    quartiles := new var[] { 1, 2, 3, 4, 5 };
+    expect("percentile 0", statistics.percentile(quartiles, 0), 1);
+    expect("percentile 25", statistics.percentile(quartiles, 25), 2);
+    expect("percentile 50", statistics.percentile(quartiles, 50), 3);
+    expect("percentile 100", statistics.percentile(quartiles, 100), 5);
+    expect_near("percentile 90", statistics.percentile(quartiles, 90), 4.6, 0.000000000001);
+    expect("percentile interpolates", statistics.percentile(new var[] { 10, 20 }, 25), 12.5);
+    expect("percentile of one", statistics.percentile(lone, 75), 42);
+
+    expect_near("geometric_mean", statistics.geometric_mean(new var[] { 2, 8 }), 4, 0.000000000001);
+    expect_near("geometric_mean of three", statistics.geometric_mean(new var[] { 1, 3, 9 }), 3, 0.000000000001);
+    expect_near("harmonic_mean", statistics.harmonic_mean(new var[] { 40, 60 }), 48, 0.000000000001);
+
+    xs := new var[] { 1, 2, 3, 4, 5 };
+    doubled := new var[] { 2, 4, 6, 8, 10 };
+    falling_ys := new var[] { 10, 8, 6, 4, 2 };
+    mixed := new var[] { 2, 1, 4, 3, 5 };
+    expect_near("correlation of a rising line", statistics.correlation(xs, doubled), 1, 0.000000000001);
+    expect_near("correlation of a falling line", statistics.correlation(xs, falling_ys), 0 - 1, 0.000000000001);
+    expect_near("correlation of mixed data", statistics.correlation(xs, mixed), 0.8, 0.000000000001);
+    expect("covariance", statistics.covariance(xs, doubled), 4);
+    expect("covariance falling", statistics.covariance(xs, falling_ys), 0 - 4);
+    expect("z_score above", statistics.z_score(data, 9), 2);
+    expect("z_score below", statistics.z_score(data, 4), 0 - 0.5);
+
+    boxes := new list<double>();
+    boxes.add(1.5);
+    boxes.add(2.5);
+    boxes.add(5);
+    from_list := statistics.to_array(boxes);
+    expect("to_array size", sizeof(from_list), 3);
+    expect("to_array mean", statistics.mean(from_list), 3);
+
+    caught : var = 0;
+    try { statistics.mean(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.median(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.mode(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.variance(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.std_dev(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.minimum(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.maximum(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.percentile(nothing, 50); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.range(nothing); } catch(e: illegal_argument_exception) { caught++; }
+    expect("empty input throws", caught, 9);
+
+    caught = 0;
+    try { statistics.sample_variance(lone); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.percentile(data, 101); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.percentile(data, 0 - 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.correlation(xs, data); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.covariance(xs, data); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.geometric_mean(new var[] { 1, 0 }); } catch(e: illegal_argument_exception) { caught++; }
+    try { statistics.harmonic_mean(new var[] { 1, 0 - 2 }); } catch(e: illegal_argument_exception) { caught++; }
+    expect("bad arguments throw", caught, 7);
+
+    caught = 0;
+    try { statistics.correlation(xs, new var[] { 3, 3, 3, 3, 3 }); } catch(e: arithmetic_exception) { caught++; }
+    try { statistics.z_score(new var[] { 3, 3 }, 3); } catch(e: arithmetic_exception) { caught++; }
+    expect("constant series throw arithmetic_exception", caught, 2);
+}
+
+def check_rect() {
+    r := new rect(0, 0, 10, 5);
+
+    expect("area", r.area(), 50);
+    expect("perimeter", r.perimeter(), 30);
+    expect("left", r.left(), 0);
+    expect("right", r.right(), 10);
+    expect("low_y", r.low_y(), 0);
+    expect("high_y", r.high_y(), 5);
+    expect("center x", r.center().x, 5);
+    expect("center y", r.center().y, 2.5);
+    expect("diagonal", new rect(1, 1, 3, 4).diagonal(), 5);
+    expect_false("is_empty", r.is_empty().value);
+    expect_true("is_empty with no width", new rect(1, 1, 0, 4).is_empty().value);
+    expect_false("is_square", r.is_square().value);
+    expect_true("is_square 3 x 3", new rect(0, 0, 3, 3).is_square().value);
+    expect("copy", new rect(r).width, 10);
+
+    expect_true("contains an inner point", r.contains(3, 4).value);
+    expect_true("contains a border point", r.contains(10, 5).value);
+    expect_false("does not contain an outer point", r.contains(11, 2).value);
+    expect_false("does not contain a point below", r.contains(3, 0 - 0.1).value);
+    expect_true("contains a vector2", r.contains(new vector2(1, 1)).value);
+    expect_true("contains an inner rect", r.contains(new rect(2, 1, 3, 3)).value);
+    expect_true("contains itself", r.contains(r).value);
+    expect_false("does not contain an overlapping rect", r.contains(new rect(8, 3, 5, 5)).value);
+
+    expect_true("intersects an overlapping rect", r.intersects(new rect(8, 3, 5, 5)).value);
+    expect_true("intersects a touching rect", r.intersects(new rect(10, 0, 2, 2)).value);
+    expect_false("does not intersect a distant rect", r.intersects(new rect(11, 0, 2, 2)).value);
+    expect_false("does not intersect a rect above", r.intersects(new rect(0, 6, 2, 2)).value);
+    common := r.intersection(new rect(8, 3, 5, 5));
+    expect("intersection x", common.x, 8);
+    expect("intersection y", common.y, 3);
+    expect("intersection width", common.width, 2);
+    expect("intersection height", common.height, 2);
+    try {
+        r.intersection(new rect(20, 20, 1, 1));
+        fail("intersection of distant rects", "no exception");
+    } catch(e: arithmetic_exception) {
+        pass("intersection of distant rects throws");
+    }
+    both := r.union_with(new rect(8, 3, 5, 5));
+    expect("union x", both.x, 0);
+    expect("union width", both.width, 13);
+    expect("union height", both.height, 8);
+
+    moved := r.translated(2, 0 - 1);
+    expect("translated x", moved.x, 2);
+    expect("translated y", moved.y, 0 - 1);
+    expect("translated keeps the size", moved.area(), 50);
+    grown := r.expanded(1);
+    expect("expanded x", grown.x, 0 - 1);
+    expect("expanded width", grown.width, 12);
+    expect("expanded height", grown.height, 7);
+    nearest := r.closest_point(15, 2);
+    expect("closest_point x", nearest.x, 10);
+    expect("closest_point y", nearest.y, 2);
+    inside := r.closest_point(3, 3);
+    expect("closest_point of an inner point", inside.x + inside.y, 6);
+
+    corners := rect.from_corners(5, 7, 1, 2);
+    expect("from_corners x", corners.x, 1);
+    expect("from_corners y", corners.y, 2);
+    expect("from_corners width", corners.width, 4);
+    expect("from_corners height", corners.height, 5);
+    centered := rect.from_center(0, 0, 4, 2);
+    expect("from_center x", centered.x, 0 - 2);
+    expect("from_center y", centered.y, 0 - 1);
+
+    expect_true("==", (r == new rect(0, 0, 10, 5)).value);
+    expect_true("!=", (r != moved).value);
+    expect_str("to_string", r.to_string()!!, "rect(0, 0, 10 x 5)");
+
+    caught : var = 0;
+    try { new rect(0, 0, 0 - 1, 5); } catch(e: illegal_argument_exception) { caught++; }
+    try { r.expanded(0 - 3); } catch(e: illegal_argument_exception) { caught++; }
+    expect("negative sizes throw", caught, 2);
+}
+
+def check_circle() {
+    c := new circle(0, 0, 5);
+
+    expect_near("area", c.area(), 78.53981633974483, 0.000000000001);
+    expect_near("circumference", c.circumference(), 31.41592653589793, 0.000000000001);
+    expect("diameter", c.diameter(), 10);
+    expect("center", c.center().x + c.center().y, 0);
+    expect("from a vector2", new circle(new vector2(1, 2), 3).y, 2);
+    expect("copy", new circle(c).radius, 5);
+
+    expect_true("contains an inner point", c.contains(1, 1).value);
+    expect_true("contains a border point", c.contains(3, 4).value);
+    expect_false("does not contain an outer point", c.contains(4, 4).value);
+    expect_true("contains a vector2", c.contains(new vector2(0, 5)).value);
+    expect_true("contains an inner circle", c.contains(new circle(1, 0, 2)).value);
+    expect_false("does not contain a crossing circle", c.contains(new circle(4, 0, 2)).value);
+
+    expect_true("intersects an overlapping circle", c.intersects(new circle(6, 0, 3)).value);
+    expect_true("intersects a touching circle", c.intersects(new circle(8, 0, 3)).value);
+    expect_false("does not intersect a distant circle", c.intersects(new circle(9, 0, 3)).value);
+    expect_true("intersects a rect it overlaps", c.intersects(new rect(4, 0 - 1, 5, 2)).value);
+    expect_true("intersects a rect around it", c.intersects(new rect(0 - 10, 0 - 10, 20, 20)).value);
+    expect_false("does not intersect a rect past the corner", c.intersects(new rect(4, 4, 2, 2)).value);
+    expect_true("intersects a rect at the corner", c.intersects(new rect(3, 4, 2, 2)).value);
+
+    expect("distance_to", c.distance_to(6, 8), 10);
+    box := c.bounding_rect();
+    expect("bounding_rect x", box.x, 0 - 5);
+    expect("bounding_rect size", box.width + box.height, 20);
+    top := c.point_at(HALF_PI);
+    expect_near("point_at x", top.x, 0, 0.000000000001);
+    expect_near("point_at y", top.y, 5, 0.000000000001);
+    moved := c.translated(2, 3);
+    expect("translated", moved.x * 10 + moved.y, 23);
+    expect("scaled", c.scaled(2).radius, 10);
+    expect_true("==", (c == new circle(0, 0, 5)).value);
+    expect_true("!=", (c != moved).value);
+    expect_str("to_string", c.to_string()!!, "circle(0, 0, r=5)");
+
+    caught : var = 0;
+    try { new circle(0, 0, 0 - 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { c.scaled(0 - 2); } catch(e: illegal_argument_exception) { caught++; }
+    expect("a negative radius throws", caught, 2);
+}
+
+def main(args: string[]) {
+    check_statistics();
+    check_rect();
+    check_circle();
+    finish("lib_math_statistics");
+}

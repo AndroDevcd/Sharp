@@ -1,0 +1,251 @@
+mod main;
+
+import ( testing, std.math )
+
+/**
+ * std.math - number_theory.sharp (gcd, lcm, factorial, binomial, primes,
+ * Fibonacci, mod_pow, digits) and the bits class (bits.sharp).
+ */
+
+def check_divisors() {
+    expect_true("is_even(4)", is_even(4).value);
+    expect_false("is_even(7)", is_even(7).value);
+    expect_true("is_even(0)", is_even(0).value);
+    expect_true("is_even(-6)", is_even(0 - 6).value);
+    expect_true("is_odd(7)", is_odd(7).value);
+    expect_true("is_odd(-7)", is_odd(0 - 7).value);
+    expect_false("is_odd(8)", is_odd(8).value);
+
+    expect("gcd(12, 18)", gcd(12, 18), 6);
+    expect("gcd(18, 12)", gcd(18, 12), 6);
+    expect("gcd(-12, 18)", gcd(0 - 12, 18), 6);
+    expect("gcd(17, 5)", gcd(17, 5), 1);
+    expect("gcd(0, 5)", gcd(0, 5), 5);
+    expect("gcd(5, 0)", gcd(5, 0), 5);
+    expect("gcd(0, 0)", gcd(0, 0), 0);
+    expect("gcd(1071, 462)", gcd(1071, 462), 21);
+    expect("gcd of large numbers", gcd(600851475143, 6857), 6857);
+    expect("lcm(4, 6)", lcm(4, 6), 12);
+    expect("lcm(21, 6)", lcm(21, 6), 42);
+    expect("lcm(-4, 6)", lcm(0 - 4, 6), 12);
+    expect("lcm(0, 9)", lcm(0, 9), 0);
+    expect("lcm(7, 13)", lcm(7, 13), 91);
+}
+
+def check_counting() {
+    expect("factorial(0)", factorial(0), 1);
+    expect("factorial(1)", factorial(1), 1);
+    expect("factorial(5)", factorial(5), 120);
+    expect("factorial(10)", factorial(10), 3628800);
+    expect("factorial(18)", factorial(18), 6402373705728000);
+    try {
+        factorial(0 - 1);
+        fail("factorial(-1)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("factorial(-1) throws");
+    }
+    try {
+        factorial(2.5);
+        fail("factorial(2.5)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("factorial(2.5) throws");
+    }
+
+    expect("binomial(5, 2)", binomial(5, 2), 10);
+    expect("binomial(5, 0)", binomial(5, 0), 1);
+    expect("binomial(5, 5)", binomial(5, 5), 1);
+    expect("binomial(5, 6)", binomial(5, 6), 0);
+    expect("binomial(10, 3)", binomial(10, 3), 120);
+    expect("binomial(52, 5)", binomial(52, 5), 2598960);
+    expect("binomial(40, 20)", binomial(40, 20), 137846528820);
+    expect("permutations(5, 2)", permutations(5, 2), 20);
+    expect("permutations(5, 5)", permutations(5, 5), 120);
+    expect("permutations(5, 0)", permutations(5, 0), 1);
+    expect("permutations(3, 4)", permutations(3, 4), 0);
+    expect("permutations(10, 3)", permutations(10, 3), 720);
+    try {
+        binomial(0 - 1, 2);
+        fail("binomial(-1, 2)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("binomial(-1, 2) throws");
+    }
+}
+
+def check_primes() {
+    expect_false("is_prime(0)", is_prime(0).value);
+    expect_false("is_prime(1)", is_prime(1).value);
+    expect_true("is_prime(2)", is_prime(2).value);
+    expect_true("is_prime(3)", is_prime(3).value);
+    expect_false("is_prime(4)", is_prime(4).value);
+    expect_true("is_prime(5)", is_prime(5).value);
+    expect_false("is_prime(9)", is_prime(9).value);
+    expect_false("is_prime(25)", is_prime(25).value);
+    expect_false("is_prime(49)", is_prime(49).value);
+    expect_true("is_prime(97)", is_prime(97).value);
+    expect_false("is_prime(91)", is_prime(91).value);
+    expect_true("is_prime(7919)", is_prime(7919).value);
+    expect_true("is_prime(1000003)", is_prime(1000003).value);
+    expect_false("is_prime(1000001)", is_prime(1000001).value);
+    expect_true("is_prime(2147483647)", is_prime(2147483647).value);
+    expect_false("is_prime(-7)", is_prime(0 - 7).value);
+    expect_false("is_prime(7.5)", is_prime(7.5).value);
+
+    // count the primes below 100: there are 25
+    count : var = 0;
+    for(n : var = 0; n < 100; n++) {
+        if(is_prime(n).value) count++;
+    }
+    expect("25 primes below 100", count, 25);
+
+    expect("next_prime(7)", next_prime(7), 11);
+    expect("next_prime(8)", next_prime(8), 11);
+    expect("next_prime(-5)", next_prime(0 - 5), 2);
+    expect("next_prime(1)", next_prime(1), 2);
+    expect("next_prime(100)", next_prime(100), 101);
+
+    factors := prime_factors(360);
+    expect("360 has six prime factors", sizeof(factors), 6);
+    expect("360 factor 0", factors[0], 2);
+    expect("360 factor 2", factors[2], 2);
+    expect("360 factor 3", factors[3], 3);
+    expect("360 factor 4", factors[4], 3);
+    expect("360 factor 5", factors[5], 5);
+    expect("prime_factors(1) is empty", sizeof(prime_factors(1)), 0);
+    alone := prime_factors(97);
+    expect("a prime has one factor", sizeof(alone), 1);
+    expect("...itself", alone[0], 97);
+    semi := prime_factors(1000001);          // 101 * 9901
+    expect("1000001 has two factors", sizeof(semi), 2);
+    expect("1000001 = 101 * ...", semi[0], 101);
+    expect("... * 9901", semi[1], 9901);
+    try {
+        prime_factors(0);
+        fail("prime_factors(0)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("prime_factors(0) throws");
+    }
+}
+
+def check_sequences() {
+    expect("fibonacci(0)", fibonacci(0), 0);
+    expect("fibonacci(1)", fibonacci(1), 1);
+    expect("fibonacci(2)", fibonacci(2), 1);
+    expect("fibonacci(10)", fibonacci(10), 55);
+    expect("fibonacci(20)", fibonacci(20), 6765);
+    expect("fibonacci(50)", fibonacci(50), 12586269025);
+    expect("fibonacci(78)", fibonacci(78), 8944394323791464);
+    try {
+        fibonacci(0 - 1);
+        fail("fibonacci(-1)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("fibonacci(-1) throws");
+    }
+
+    expect("mod_pow(4, 13, 497)", mod_pow(4, 13, 497), 445);
+    expect("mod_pow(2, 10, 1000)", mod_pow(2, 10, 1000), 24);
+    expect("mod_pow(3, 0, 7)", mod_pow(3, 0, 7), 1);
+    expect("mod_pow(5, 3, 1)", mod_pow(5, 3, 1), 0);
+    expect("mod_pow(2, 30, largest modulus)", mod_pow(2, 30, 94906265), 29772909);     // 2^30 - 11 * 94906265
+    expect("fermat: 3^(p-1) mod p", mod_pow(3, 7918, 7919), 1);
+    try {
+        mod_pow(2, 3, 0);
+        fail("mod_pow modulus 0", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("mod_pow modulus 0 throws");
+    }
+
+    expect("digit_count(0)", digit_count(0), 1);
+    expect("digit_count(9)", digit_count(9), 1);
+    expect("digit_count(10)", digit_count(10), 2);
+    expect("digit_count(999)", digit_count(999), 3);
+    expect("digit_count(-1000)", digit_count(0 - 1000), 4);
+    expect("digit_sum(1234)", digit_sum(1234), 10);
+    expect("digit_sum(0)", digit_sum(0), 0);
+    expect("digit_sum(-999)", digit_sum(0 - 999), 27);
+}
+
+def check_bits() {
+    expect("count_ones(0)", bits.count_ones(0), 0);
+    expect("count_ones(13)", bits.count_ones(13), 3);
+    expect("count_ones(255)", bits.count_ones(255), 8);
+    expect("count_ones(2^32 - 1)", bits.count_ones(4294967295), 32);
+    expect("count_ones(2^52)", bits.count_ones(4503599627370496), 1);
+    expect("bit_length(0)", bits.bit_length(0), 0);
+    expect("bit_length(1)", bits.bit_length(1), 1);
+    expect("bit_length(255)", bits.bit_length(255), 8);
+    expect("bit_length(256)", bits.bit_length(256), 9);
+    expect("highest_one_bit(100)", bits.highest_one_bit(100), 64);
+    expect("highest_one_bit(64)", bits.highest_one_bit(64), 64);
+    expect("highest_one_bit(0)", bits.highest_one_bit(0), 0);
+    expect("lowest_one_bit(12)", bits.lowest_one_bit(12), 4);
+    expect("lowest_one_bit(7)", bits.lowest_one_bit(7), 1);
+    expect("lowest_one_bit(0)", bits.lowest_one_bit(0), 0);
+    expect("trailing_zeros(8)", bits.trailing_zeros(8), 3);
+    expect("trailing_zeros(1)", bits.trailing_zeros(1), 0);
+    expect("trailing_zeros(0)", bits.trailing_zeros(0), 32);
+    expect("leading_zeros(1)", bits.leading_zeros(1), 31);
+    expect("leading_zeros(0)", bits.leading_zeros(0), 32);
+    expect("leading_zeros(2^32 - 1)", bits.leading_zeros(4294967295), 0);
+    expect("leading_zeros(65536)", bits.leading_zeros(65536), 15);
+
+    expect_true("is_power_of_two(1)", bits.is_power_of_two(1).value);
+    expect_true("is_power_of_two(64)", bits.is_power_of_two(64).value);
+    expect_false("is_power_of_two(0)", bits.is_power_of_two(0).value);
+    expect_false("is_power_of_two(96)", bits.is_power_of_two(96).value);
+    expect_false("is_power_of_two(-4)", bits.is_power_of_two(0 - 4).value);
+    expect_false("is_power_of_two(0.5)", bits.is_power_of_two(0.5).value);
+    expect("next_power_of_two(100)", bits.next_power_of_two(100), 128);
+    expect("next_power_of_two(64)", bits.next_power_of_two(64), 64);
+    expect("next_power_of_two(0)", bits.next_power_of_two(0), 1);
+    expect("next_power_of_two(65)", bits.next_power_of_two(65), 128);
+
+    expect_true("test_bit(5, 2)", bits.test_bit(5, 2).value);
+    expect_false("test_bit(5, 1)", bits.test_bit(5, 1).value);
+    expect_true("test_bit(5, 0)", bits.test_bit(5, 0).value);
+    expect("set_bit(4, 0)", bits.set_bit(4, 0), 5);
+    expect("set_bit(5, 0) stays", bits.set_bit(5, 0), 5);
+    expect("clear_bit(5, 0)", bits.clear_bit(5, 0), 4);
+    expect("clear_bit(4, 0) stays", bits.clear_bit(4, 0), 4);
+    expect("toggle_bit(5, 1)", bits.toggle_bit(5, 1), 7);
+    expect("toggle_bit(7, 1)", bits.toggle_bit(7, 1), 5);
+    expect("set_bit(0, 40)", bits.set_bit(0, 40), 1099511627776);
+
+    expect("rotate_left(1, 31)", bits.rotate_left(1, 31), 2147483648);
+    expect("rotate_left(2^31, 1)", bits.rotate_left(2147483648, 1), 1);
+    expect("rotate_left(0x12345678, 8)", bits.rotate_left(305419896, 8), 878082066);     // 0x34567812
+    expect("rotate_left by 0", bits.rotate_left(12345, 0), 12345);
+    expect("rotate_left by 32", bits.rotate_left(12345, 32), 12345);
+    expect("rotate_right(1, 1)", bits.rotate_right(1, 1), 2147483648);
+    expect("rotate_right(0x12345678, 8)", bits.rotate_right(305419896, 8), 2014458966);  // 0x78123456
+    expect("rotate_left by -8 is rotate_right by 8", bits.rotate_left(305419896, 0 - 8), 2014458966);
+    expect("reverse(1)", bits.reverse(1), 2147483648);
+    expect("reverse(2^32 - 1)", bits.reverse(4294967295), 4294967295);
+    expect("reverse(6)", bits.reverse(6), 1610612736);                                    // 0x60000000
+    expect("invert(0)", bits.invert(0), 4294967295);
+    expect("invert(255)", bits.invert(255), 4294967040);
+
+    expect_str("to_binary_string(10)", bits.to_binary_string(10), "1010");
+    expect_str("to_binary_string(0)", bits.to_binary_string(0), "0");
+    expect_str("to_binary_string(255)", bits.to_binary_string(255), "11111111");
+    expect("parse_binary(1010)", bits.parse_binary("1010"), 10);
+    expect("parse_binary(0)", bits.parse_binary("0"), 0);
+    expect("parse_binary(11111111)", bits.parse_binary("11111111"), 255);
+
+    caught : var = 0;
+    try { bits.count_ones(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.count_ones(1.5); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.rotate_left(4294967296, 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.test_bit(1, 53); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.parse_binary("102"); } catch(e: number_format_exception) { caught++; }
+    try { bits.parse_binary(""); } catch(e: number_format_exception) { caught++; }
+    expect("misuse throws", caught, 6);
+}
+
+def main(args: string[]) {
+    check_divisors();
+    check_counting();
+    check_primes();
+    check_sequences();
+    check_bits();
+    finish("lib_math_number_theory");
+}

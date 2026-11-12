@@ -1,0 +1,57 @@
+mod std.util;
+
+/**
+ * @class ref
+ *
+ * A mutable holder for one object: a variable you can pass around.
+ *
+ * Its main use is with lambdas. A closure can read and call the objects
+ * around it but cannot assign to an outer variable; put the value in a ref
+ * and the closure can change what the ref holds:
+ *
+ *     longest := new ref<string>("");
+ *     words.for_each({ w: string -> if(w.size() > longest.value.size()) longest.value = w; });
+ *     println(longest.value);
+ *
+ * It also serves as an "out parameter": a function that needs to hand back
+ * a second result can fill a ref the caller passed in.
+ *
+ * `value` is a public field: read and assign it directly.
+ *
+ * LIMITATION: T must be an object type. For a native number use
+ * std.util#counter, which is the same idea for a `var`.
+ */
+class ref<T> {
+    /** the object currently held */
+    value : T;
+
+    /** a holder that starts out holding `value` */
+    ref(value: T) {
+        self->value = value;
+    }
+
+    /** store `new_value` and return what was held before */
+    def replace(new_value: T): T {
+        old := value;
+        value = new_value;
+        return old;
+    }
+
+    /** exchange the contents of this holder and `other` */
+    def swap(other: ref<T>) {
+        held := value;
+        value = other.value;
+        other.value = held;
+    }
+
+    /** replace the held object by `transform(held object)` and return the new one */
+    def update(transform: (T)(T)): T {
+        value = transform(value);
+        return value;
+    }
+
+    /** true when both holders hold the very same object (identity, not equality) */
+    def same_as(other: ref<T>): bool {
+        return (value as object) == (other.value as object);
+    }
+}

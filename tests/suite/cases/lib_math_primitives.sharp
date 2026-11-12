@@ -1,0 +1,420 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std - the additions to the number classes (the files in std/primitives/, added
+ * with `mutate`) and the exception classes of std/exceptions/.
+ */
+
+def check_common() {
+    n : int = 15;
+    m : int = 0 - 4;
+    zero : int = 0;
+
+    expect("compare_to smaller", n.compare_to(20), 0 - 1);
+    expect("compare_to larger", n.compare_to(3), 1);
+    expect("compare_to equal", n.compare_to(15), 0);
+    expect("compare_to another box", m.compare_to(n), 0 - 1);
+    expect_true("is_odd", n.is_odd().value);
+    expect_false("is_even", n.is_even().value);
+    expect_true("is_even of a negative number", m.is_even().value);
+    expect_true("is_even(0)", zero.is_even().value);
+    minus_three : int = 0 - 3;
+    expect_true("is_odd of a negative number", minus_three.is_odd().value);
+    expect_true("is_zero", zero.is_zero().value);
+    expect_false("is_zero of 15", n.is_zero().value);
+    expect_true("is_positive", n.is_positive().value);
+    expect_false("is_positive of 0", zero.is_positive().value);
+    expect_true("is_negative", m.is_negative().value);
+    expect_false("is_negative of 15", n.is_negative().value);
+    expect("sign positive", n.sign(), 1);
+    expect("sign negative", m.sign(), 0 - 1);
+    expect("sign zero", zero.sign(), 0);
+    expect("abs of a negative number", m.abs().value, 4);
+    expect("abs of a positive number", n.abs().value, 15);
+    expect("abs leaves the original alone", m.value, 0 - 4);
+
+    expect("coerce_in above", n.coerce_in(0, 10).value, 10);
+    expect("coerce_in below", m.coerce_in(0, 10).value, 0);
+    expect("coerce_in inside", n.coerce_in(0, 100).value, 15);
+    expect("coerce_at_least", m.coerce_at_least(0).value, 0);
+    expect("coerce_at_least when larger", n.coerce_at_least(0).value, 15);
+    expect("coerce_at_most", n.coerce_at_most(10).value, 10);
+    expect("coerce_at_most when smaller", m.coerce_at_most(10).value, 0 - 4);
+    try {
+        n.coerce_in(10, 0);
+        fail("coerce_in(10, 0)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("coerce_in(10, 0) throws");
+    }
+    expect_true("is_between", n.is_between(10, 20).value);
+    expect_true("is_between includes the ends", n.is_between(15, 15).value);
+    expect_false("is_between outside", n.is_between(16, 20).value);
+    expect("max_with", n.max_with(40).value, 40);
+    expect("max_with a smaller number", n.max_with(m).value, 15);
+    expect("min_with", n.min_with(m).value, 0 - 4);
+
+    // the same methods on the other number classes
+    big : long = 5000000000;
+    expect("long.compare_to", big.compare_to(4999999999), 1);
+    expect_true("long.is_even", big.is_even().value);
+    expect("long.coerce_in", big.coerce_in(0, 1000).value, 1000);
+    small : short = 0 - 300;
+    expect("short.abs", small.abs().value, 300);
+    expect("short.sign", small.sign(), 0 - 1);
+    b : byte = 200;
+    expect("byte.coerce_at_most", b.coerce_at_most(100).value, 100);
+    expect_true("byte.is_between", b.is_between(0, 255).value);
+    d : double = 0 - 2.5;
+    expect("double.abs", d.abs().value, 2.5);
+    expect("double.compare_to", d.compare_to(0 - 2.25), 0 - 1);
+    expect("double.coerce_in", d.coerce_in(0 - 1, 1).value, 0 - 1);
+    expect("double.sign", d.sign(), 0 - 1);
+    c : char = 'x';
+    expect("char.compare_to", c.compare_to('y'), 0 - 1);
+}
+
+def check_text() {
+    n : int = 255;
+    expect_str("to_hex_string", n.to_hex_string(), "ff");
+    expect_str("to_binary_string", n.to_binary_string(), "11111111");
+    expect_str("to_octal_string", n.to_octal_string(), "377");
+    expect_str("to_string_radix(36)", n.to_string_radix(36), "73");
+    expect_str("to_string_radix(10)", n.to_string_radix(10), "255");
+    ten : int = 10;
+    expect_str("10 in binary", ten.to_binary_string(), "1010");
+    zero : int = 0;
+    expect_str("0 in hexadecimal", zero.to_hex_string(), "0");
+    minus : int = 0 - 5;
+    expect_str("a negative number in binary", minus.to_binary_string(), "-101");
+    big : long = 4294967296;
+    expect_str("2^32 in hexadecimal", big.to_hex_string(), "100000000");
+    thirty_five : int = 35;
+    expect_str("the last digit of base 36", thirty_five.to_string_radix(36), "z");
+    fraction : double = 10.75;
+    expect_str("the whole part of a double", fraction.to_binary_string(), "1010");
+
+    seven : int = 7;
+    expect_str("to_padded_string", seven.to_padded_string(3), "007");
+    expect_str("to_padded_string of a negative number", minus.to_padded_string(3), "-05");
+    expect_str("to_padded_string when already wide enough", n.to_padded_string(2), "255");
+    expect_str("to_padded_string exact width", n.to_padded_string(3), "255");
+    expect_str("to_padded_string of 0", zero.to_padded_string(4), "0000");
+
+    caught : var = 0;
+    try { n.to_string_radix(1); } catch(e: illegal_argument_exception) { caught++; }
+    try { n.to_string_radix(37); } catch(e: illegal_argument_exception) { caught++; }
+    try { int.parse_radix("11", 1); } catch(e: illegal_argument_exception) { caught++; }
+    expect("a radix outside 2 .. 36 throws", caught, 3);
+}
+
+def check_parsing() {
+    expect("parse_radix hexadecimal", int.parse_radix("ff", 16).value, 255);
+    expect("parse_radix capital letters", int.parse_radix("FF", 16).value, 255);
+    expect("parse_radix binary", int.parse_radix("1010", 2).value, 10);
+    expect("parse_radix negative", int.parse_radix("-101", 2).value, 0 - 5);
+    expect("parse_radix with a plus sign", int.parse_radix("+17", 8).value, 15);
+    expect("parse_radix base 36", int.parse_radix("zz", 36).value, 1295);
+    expect("parse_radix decimal", int.parse_radix("1234", 10).value, 1234);
+    expect("long.parse_radix", long.parse_radix("100000000", 16).value, 4294967296);
+    expect("double.parse_radix", double.parse_radix("11", 2).value, 3);
+
+    caught : var = 0;
+    try { int.parse_radix("12", 2); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("fg", 16); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("", 10); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("-", 10); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("1 2", 10); } catch(e: number_format_exception) { caught++; }
+    expect("bad digits throw number_format_exception", caught, 5);
+
+    expect("parse_or_null", int.parse_or_null("42")!!.value, 42);
+    expect("parse_or_null negative", int.parse_or_null("-42")!!.value, 0 - 42);
+    expect_null("parse_or_null of letters", int.parse_or_null("12x"));
+    expect_null("parse_or_null of nothing", int.parse_or_null(""));
+    expect_null("parse_or_null of a sign alone", int.parse_or_null("+"));
+    expect_null("parse_or_null of a fraction", int.parse_or_null("1.5"));
+    expect("long.parse_or_null", long.parse_or_null("5000000000")!!.value, 5000000000);
+    expect_true("is_parsable", int.is_parsable("007").value);
+    expect_true("is_parsable with a sign", int.is_parsable("-7").value);
+    expect_false("is_parsable of a blank", int.is_parsable(" 7").value);
+    expect_false("is_parsable of nothing", int.is_parsable("").value);
+    expect("parse_or", int.parse_or("19", 0).value, 19);
+    expect("parse_or falls back", int.parse_or("x", 7).value, 7);
+
+    // the parse() that was already there still works
+    expect("int.parse", int.parse("321").value, 321);
+    expect("int.parse negative", int.parse("-321").value, 0 - 321);
+}
+
+def check_limits() {
+    expect("int.max_value", int.max_value, 2147483647);
+    expect("int.min_value", int.min_value + 2147483647, 0 - 1);
+    expect("uint.max_value", uint.max_value, 4294967295);
+    expect("uint.min_value", uint.min_value, 0);
+    expect("short.max_value", short.max_value, 32767);
+    expect("short.min_value", short.min_value, 0 - 32768);
+    expect("ushort.max_value", ushort.max_value, 65535);
+    expect("ushort.min_value", ushort.min_value, 0);
+    expect("char.max_value", char.max_value, 127);
+    expect("char.min_value", char.min_value, 0 - 128);
+    expect("uchar.max_value", uchar.max_value, 255);
+    expect("uchar.min_value", uchar.min_value, 0);
+    expect("byte.max_value", byte.max_value, 255);
+    expect("long.max_exact_value", long.max_exact_value, 9007199254740991);
+    expect("long.min_exact_value", long.min_exact_value + long.max_exact_value, 0);
+    expect("ulong.max_exact_value", ulong.max_exact_value, 9007199254740991);
+    expect("ulong.min_value", ulong.min_value, 0);
+    expect("double.max_exact_value", double.max_exact_value, 9007199254740991);
+    expect_true("double.max_value is huge", double.max_value > 1000000000000000000000);
+    expect_true("double.max_value is finite", (double.max_value - double.max_value) == 0);
+    expect_true("twice double.max_value is infinite", (double.max_value * 2 - double.max_value * 2) != 0);
+    expect("double.min_value", double.min_value + double.max_value, 0);
+    expect_true("double.min_positive_value is above 0", double.min_positive_value > 0);
+    expect("half of double.min_positive_value is 0", double.min_positive_value / 2, 0);
+    one_more : var = 1 + double.epsilon;
+    expect_true("1 + epsilon is above 1", one_more > 1);
+    half_more : var = 1 + double.epsilon / 2;
+    expect("1 + epsilon / 2 is 1", half_more, 1);
+
+    // the limits really are the limits of the types
+    top : int = int.max_value;
+    expect("an int can hold int.max_value", top.value, 2147483647);
+    wrapped : _int32 = int.max_value + 1;
+    expect_true("one more wraps around", wrapped < 0);
+    top_byte : _uint8 = uchar.max_value;
+    expect("a byte can hold 255", top_byte, 255);
+    over_byte : _uint8 = uchar.max_value + 1;
+    expect("256 wraps to 0", over_byte, 0);
+}
+
+def check_double() {
+    d : double = 3.14159;
+    nan : double = 0;
+    nan = nan / 0;
+    infinite : double = 1;
+    infinite = infinite / 0;
+
+    expect_true("is_nan", nan.is_nan().value);
+    expect_false("is_nan of a number", d.is_nan().value);
+    expect_false("is_nan of infinity", infinite.is_nan().value);
+    expect_true("is_infinite", infinite.is_infinite().value);
+    expect_false("is_infinite of a number", d.is_infinite().value);
+    expect_false("is_infinite of NaN", nan.is_infinite().value);
+    expect_true("is_finite", d.is_finite().value);
+    expect_false("is_finite of infinity", infinite.is_finite().value);
+    expect_false("is_finite of NaN", nan.is_finite().value);
+    whole : double = 0 - 7;
+    expect_true("is_whole", whole.is_whole().value);
+    expect_false("is_whole of a fraction", d.is_whole().value);
+    expect_false("is_whole of infinity", infinite.is_whole().value);
+
+    low : double = 0 - 2.5;
+    expect("floor", d.floor().value, 3);
+    expect("floor of a negative number", low.floor().value, 0 - 3);
+    expect("ceil", d.ceil().value, 4);
+    expect("ceil of a negative number", low.ceil().value, 0 - 2);
+    half : double = 2.5;
+    expect("round", half.round().value, 3);
+    expect("round of a negative tie", low.round().value, 0 - 3);
+    expect("round down", d.round().value, 3);
+    expect("truncate", low.truncate().value, 0 - 2);
+    expect("fraction_part", half.fraction_part().value, 0.5);
+    expect("fraction_part of a negative number", low.fraction_part().value, 0 - 0.5);
+    expect_near("round_to", d.round_to(2).value, 3.14, 0.000000000001);
+    expect("the original is unchanged", d.value, 3.14159);
+    expect_true("approx_equals", d.approx_equals(3.1416, 0.0001).value);
+    expect_false("approx_equals too far", d.approx_equals(3.2, 0.0001).value);
+
+    expect_str("to_fixed", d.to_fixed(3), "3.142");
+    expect_str("to_fixed pads", half.to_fixed(3), "2.500");
+    expect_str("to_short_string", d.to_short_string(), "3.14159");
+    expect_str("to_short_string of a whole number", whole.to_short_string(), "-7");
+    expect_str("to_short_string of NaN", nan.to_short_string(), "NaN");
+    expect_str("to_short_string of infinity", infinite.to_short_string(), "Infinity");
+}
+
+def check_char_and_bool() {
+    capital : char = 'G';
+    small : char = 'g';
+    digit : char = '7';
+    blank : char = ' ';
+    dash : char = '-';
+
+    expect_true("is_upper_case", capital.is_upper_case().value);
+    expect_false("is_upper_case of a small letter", small.is_upper_case().value);
+    expect_true("is_lower_case", small.is_lower_case().value);
+    expect_false("is_lower_case of a digit", digit.is_lower_case().value);
+    expect_true("is_letter", capital.is_letter().value);
+    expect_false("is_letter of a digit", digit.is_letter().value);
+    expect_true("is_decimal_digit", digit.is_decimal_digit().value);
+    expect_false("is_decimal_digit of a letter", small.is_decimal_digit().value);
+    expect_true("is_letter_or_digit", digit.is_letter_or_digit().value);
+    expect_false("is_letter_or_digit of a dash", dash.is_letter_or_digit().value);
+    expect_true("is_hex_digit of 7", digit.is_hex_digit().value);
+    hex_letter : char = 'F';
+    expect_true("is_hex_digit of F", hex_letter.is_hex_digit().value);
+    expect_false("is_hex_digit of G", capital.is_hex_digit().value);
+    expect_true("is_whitespace of a blank", blank.is_whitespace().value);
+    tab : char = 9;
+    expect_true("is_whitespace of a tab", tab.is_whitespace().value);
+    newline : char = 10;
+    expect_true("is_whitespace of a line feed", newline.is_whitespace().value);
+    expect_false("is_whitespace of a letter", small.is_whitespace().value);
+    expect("upper_case", small.upper_case().value, 'G');
+    expect("upper_case of a capital", capital.upper_case().value, 'G');
+    expect("lower_case", capital.lower_case().value, 'g');
+    expect("lower_case of a digit", digit.lower_case().value, '7');
+    expect("digit_value", digit.digit_value(), 7);
+    expect("digit_value of a letter", small.digit_value(), 16);
+    expect("digit_value of a capital letter", hex_letter.digit_value(), 15);
+    expect("digit_value of a dash", dash.digit_value(), 0 - 1);
+    expect("from_digit", char.from_digit(7).value, '7');
+    expect("from_digit above 9", char.from_digit(11).value, 'b');
+    expect("from_digit(35)", char.from_digit(35).value, 'z');
+    try {
+        char.from_digit(36);
+        fail("from_digit(36)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("from_digit(36) throws");
+    }
+    // the static functions that were already there still work
+    expect_true("char.is_digit", char.is_digit(digit).value);
+    expect_true("char.is_alpha", char.is_alpha(small).value);
+    expect("char.to_upper", char.to_upper(small).value, 'G');
+
+    yes : bool = true;
+    no : bool = false;
+    expect_false("negate true", yes.negate().value);
+    expect_true("negate false", no.negate().value);
+    expect_true("xor: one of them", yes.xor(no).value);
+    expect_false("xor: both", yes.xor(yes).value);
+    expect_false("xor: neither", no.xor(no).value);
+    expect_true("same_as", no.same_as(no).value);
+    expect_false("same_as differs", yes.same_as(no).value);
+    expect("to_var of true", yes.to_var(), 1);
+    expect("to_var of false", no.to_var(), 0);
+    expect_true("from_string(true)", bool.from_string("true").value);
+    expect_false("from_string(false)", bool.from_string("false").value);
+    expect_true("from_string ignores case", bool.from_string("TRUE").value);
+    expect_false("from_string ignores case (False)", bool.from_string("False").value);
+    expect_null("from_string_or_null of other text", bool.from_string_or_null("maybe"));
+    expect_null("from_string_or_null of nothing", bool.from_string_or_null(""));
+    expect_not_null("from_string_or_null of true", bool.from_string_or_null("true"));
+    try {
+        bool.from_string("yes");
+        fail("from_string(yes)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("from_string(yes) throws");
+    }
+    expect_str("to_string still works", yes.to_string(), "true");
+}
+
+/* throws exception number `kind` with the message "m" */
+def throw_kind(kind: var) {
+    if(kind == 0) throw new unsupported_operation_exception("m");
+    if(kind == 1) throw new no_such_element_exception("m");
+    if(kind == 2) throw new number_format_exception("m");
+    if(kind == 3) throw new arithmetic_exception("m");
+    if(kind == 4) throw new division_by_zero_exception("m");
+    if(kind == 5) throw new overflow_exception("m");
+    if(kind == 6) throw new timeout_exception("m");
+    if(kind == 7) throw new concurrent_modification_exception("m");
+    if(kind == 8) throw new not_found_exception("m");
+    if(kind == 9) throw new parse_exception("m");
+    if(kind == 10) throw new interrupted_exception("m");
+}
+
+/* which catch clause takes exception number `kind`? */
+def caught_by(kind: var): var {
+    try {
+        throw_kind(kind);
+    } catch(e: unsupported_operation_exception) {
+        return 0;
+    } catch(e: no_such_element_exception) {
+        return 1;
+    } catch(e: number_format_exception) {
+        return 2;
+    } catch(e: division_by_zero_exception) {
+        return 4;
+    } catch(e: overflow_exception) {
+        return 5;
+    } catch(e: arithmetic_exception) {
+        return 3;
+    } catch(e: timeout_exception) {
+        return 6;
+    } catch(e: concurrent_modification_exception) {
+        return 7;
+    } catch(e: not_found_exception) {
+        return 8;
+    } catch(e: parse_exception) {
+        return 9;
+    } catch(e: interrupted_exception) {
+        return 10;
+    }
+    return 0 - 1;
+}
+
+def check_exceptions() {
+    for(kind : var = 0; kind <= 10; kind++) {
+        expect("each exception reaches its own catch clause", caught_by(kind), kind);
+    }
+
+    try {
+        throw new not_found_exception("no user with id 42");
+    } catch(e: not_found_exception) {
+        expect_str("the message is kept", e.get_message(), "no user with id 42");
+    }
+
+    // every one of them is an exception
+    reached : var = 0;
+    for(kind : var = 0; kind <= 10; kind++) {
+        try {
+            throw_kind(kind);
+        } catch(e: exception) {
+            reached++;
+        }
+    }
+    expect("catch(exception) takes all eleven", reached, 11);
+
+    // the hierarchy: a base class clause takes its subclasses
+    where : var = 0;
+    try {
+        throw new division_by_zero_exception("x");
+    } catch(e: arithmetic_exception) {
+        where = 1;
+    }
+    expect("division_by_zero_exception is an arithmetic_exception", where, 1);
+    where = 0;
+    try {
+        throw new overflow_exception("x");
+    } catch(e: arithmetic_exception) {
+        where = 1;
+    }
+    expect("overflow_exception is an arithmetic_exception", where, 1);
+    where = 0;
+    try {
+        throw new number_format_exception("x");
+    } catch(e: illegal_argument_exception) {
+        where = 1;
+    }
+    expect("number_format_exception is an illegal_argument_exception", where, 1);
+    where = 0;
+    try {
+        throw new parse_exception("x");
+    } catch(e: illegal_argument_exception) {
+        where = 1;
+    }
+    expect("parse_exception is an illegal_argument_exception", where, 1);
+}
+
+def main(args: string[]) {
+    check_common();
+    check_text();
+    check_parsing();
+    check_limits();
+    check_double();
+    check_char_and_bool();
+    check_exceptions();
+    finish("lib_math_primitives");
+}

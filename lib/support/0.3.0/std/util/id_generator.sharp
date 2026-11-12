@@ -1,0 +1,91 @@
+mod std.util;
+
+/**
+ * @class id_generator
+ *
+ * Hands out identifiers that are unique within one generator: 1, 2, 3 ...
+ * or, with a prefix, "order-1", "order-2" ...
+ *
+ *     ids := new id_generator();
+ *     first : var = ids.next_id();            // 1
+ *     second : var = ids.next_id();           // 2
+ *
+ *     tickets := new id_generator("T-", 1000);
+ *     name := tickets.next_text();            // "T-1000"
+ *
+ * The sequence is fully predictable (no clock, no random numbers), which
+ * makes it suitable for tests and for anything that must be reproducible.
+ * For identifiers that must be unique across programs or machines use
+ * std.util#uuid instead.
+ *
+ * Ids are whole native numbers; they stay exact up to 2^53. The class does
+ * no locking: guard next_id() when several threads share a generator.
+ */
+class id_generator {
+    private prefix : string = "";
+    private following : var = 1;
+    private first_id : var = 1;
+
+    /** a generator whose first id is 1 */
+    id_generator() {
+    }
+
+    /**
+     * A generator whose first id is `first_id`.
+     * Throws illegal_argument_exception when first_id is not a whole number.
+     */
+    id_generator(first_id: var) {
+        check_whole(first_id);
+        following = first_id;
+        self->first_id = first_id;
+    }
+
+    /**
+     * A generator whose text ids are `prefix` followed by the number,
+     * starting at `first_id`.
+     * Throws illegal_argument_exception when first_id is not a whole number.
+     */
+    id_generator(prefix: string, first_id: var) {
+        check_whole(first_id);
+        self->prefix = prefix;
+        following = first_id;
+        self->first_id = first_id;
+    }
+
+    private static def check_whole(n: var) {
+        if(n != (n as _int64))
+            throw new illegal_argument_exception("id_generator: the first id must be a whole number");
+    }
+
+    /** the next id as a number; every call returns a number one higher than the call before */
+    def next_id(): var {
+        id : var = following;
+        following = following + 1;
+        return id;
+    }
+
+    /** the next id as text: the prefix followed by the number ("order-17"). Advances the same sequence as next_id(). */
+    def next_text(): string {
+        return prefix + snprintf('l', next_id(), 0);
+    }
+
+    /** the id the next call will return, without using it up */
+    def peek(): var {
+        return following;
+    }
+
+    /** the id handed out most recently; first id - 1 when none has been handed out */
+    def last_id(): var {
+        return following - 1;
+    }
+
+    /** how many ids have been handed out since the generator was made or reset */
+    def issued(): var {
+        return following - first_id;
+    }
+
+    /** start again from the first id (ids will then repeat) */
+    def reset() {
+        following = first_id;
+    }
+}

@@ -1,0 +1,265 @@
+mod main;
+
+import ( testing, std.math )
+
+/**
+ * std.math - the number classes complex and fraction
+ * (lib/support/0.3.0/std/math/numbers/). big_integer has its own file.
+ */
+
+def check_complex() {
+    a := new complex(3, 4);
+    b := new complex(1, 0 - 2);
+
+    expect("default constructor", new complex().re + new complex().im, 0);
+    expect("copy constructor", new complex(a).im, 4);
+    expect("zero", complex.zero().re, 0);
+    expect("one", complex.one().re, 1);
+    expect("i", complex.i().im, 1);
+    expect("of_real", complex.of_real(7).re, 7);
+    expect("of_real has no imaginary part", complex.of_real(7).im, 0);
+
+    sum := a + b;
+    expect("a + b: re", sum.re, 4);
+    expect("a + b: im", sum.im, 2);
+    difference := a - b;
+    expect("a - b: re", difference.re, 2);
+    expect("a - b: im", difference.im, 6);
+    product := a * b;                                   // 3 - 6i + 4i - 8i^2 = 11 - 2i
+    expect("a * b: re", product.re, 11);
+    expect("a * b: im", product.im, 0 - 2);
+    quotient := a / b;                                  // (3 + 4i)(1 + 2i) / 5 = (-5 + 10i) / 5
+    expect("a / b: re", quotient.re, 0 - 1);
+    expect("a / b: im", quotient.im, 2);
+    negated := -a;
+    expect("-a: re", negated.re, 0 - 3);
+    expect("-a: im", negated.im, 0 - 4);
+    expect("a + 2", (a + 2).re, 5);
+    expect("a + 2 keeps im", (a + 2).im, 4);
+    expect("a - 2", (a - 2).re, 1);
+    expect("a * 2: re", (a * 2).re, 6);
+    expect("a * 2: im", (a * 2).im, 8);
+    expect("a / 2: re", (a / 2).re, 1.5);
+    expect("a / 2: im", (a / 2).im, 2);
+    i_squared := complex.i() * complex.i();
+    expect("i * i: re", i_squared.re, 0 - 1);
+    expect("i * i: im", i_squared.im, 0);
+    expect_true("==", (a == new complex(3, 4)).value);
+    expect_false("== different", (a == b).value);
+    expect_true("!=", (a != b).value);
+    expect_true("approx_equals", a.approx_equals(new complex(3.0000001, 4), 0.000001).value);
+
+    caught : var = 0;
+    try { a / complex.zero(); } catch(e: division_by_zero_exception) { caught++; }
+    try { a / 0; } catch(e: division_by_zero_exception) { caught++; }
+    try { complex.zero().reciprocal(); } catch(e: division_by_zero_exception) { caught++; }
+    expect("division by zero throws", caught, 3);
+
+    expect("magnitude", a.magnitude(), 5);
+    expect("magnitude_squared", a.magnitude_squared(), 25);
+    expect_near("phase of i", complex.i().phase(), HALF_PI, 0.000000000001);
+    expect_near("phase of -1", new complex(0 - 1, 0).phase(), PI_VALUE, 0.000000000001);
+    expect("conjugate re", a.conjugate().re, 3);
+    expect("conjugate im", a.conjugate().im, 0 - 4);
+    expect("a * conjugate is |a|^2", (a * a.conjugate()).re, 25);
+    r := a.reciprocal();                                // (3 - 4i) / 25
+    expect_near("reciprocal re", r.re, 0.12, 0.000000000001);
+    expect_near("reciprocal im", r.im, 0 - 0.16, 0.000000000001);
+    expect_true("is_real", complex.of_real(2).is_real().value);
+    expect_false("is_real of a", a.is_real().value);
+    expect_true("is_zero", complex.zero().is_zero().value);
+    expect_false("is_zero of a", a.is_zero().value);
+
+    polar := complex.from_polar(2, HALF_PI);
+    expect_near("from_polar re", polar.re, 0, 0.000000000001);
+    expect_near("from_polar im", polar.im, 2, 0.000000000001);
+
+    euler := new complex(0, PI_VALUE).exp();            // e^(i pi) = -1
+    expect_near("e^(i pi): re", euler.re, 0 - 1, 0.000000000001);
+    expect_near("e^(i pi): im", euler.im, 0, 0.000000000001);
+    log := new complex(0 - 1, 0).log();                 // ln(-1) = i pi
+    expect_near("ln(-1): re", log.re, 0, 0.000000000001);
+    expect_near("ln(-1): im", log.im, PI_VALUE, 0.000000000001);
+    try {
+        complex.zero().log();
+        fail("ln(0)", "no exception");
+    } catch(e: arithmetic_exception) {
+        pass("ln(0) throws");
+    }
+
+    squared := a.pow(2);                                // 9 - 16 + 24i
+    expect_near("(3 + 4i)^2: re", squared.re, 0 - 7, 0.00000000001);
+    expect_near("(3 + 4i)^2: im", squared.im, 24, 0.00000000001);
+    expect("0^0", complex.zero().pow(0).re, 1);
+    expect("0^3", complex.zero().pow(3).re, 0);
+    root := a.sqrt();                                   // 2 + i
+    expect_near("sqrt(3 + 4i): re", root.re, 2, 0.000000000001);
+    expect_near("sqrt(3 + 4i): im", root.im, 1, 0.000000000001);
+    imaginary_root := new complex(0 - 4, 0).sqrt();     // 2i
+    expect_near("sqrt(-4): re", imaginary_root.re, 0, 0.000000000001);
+    expect_near("sqrt(-4): im", imaginary_root.im, 2, 0.000000000001);
+    low_root := new complex(3, 0 - 4).sqrt();           // 2 - i
+    expect_near("sqrt(3 - 4i): im", low_root.im, 0 - 1, 0.000000000001);
+
+    expect_str("to_string", a.to_string()!!, "3 + 4i");
+    expect_str("to_string negative im", b.to_string()!!, "1 - 2i");
+    expect_str("to_string fractions", new complex(0.5, 0 - 1.25).to_string()!!, "0.5 - 1.25i");
+    expect_true("equal numbers have equal hashes", (a.hash() == new complex(3, 4).hash()).value);
+}
+
+def check_fraction() {
+    half := new fraction(1, 2);
+    third := new fraction(1, 3);
+
+    // ---- normalisation
+    f := new fraction(6, 8);
+    expect("6/8 numerator", f.numerator, 3);
+    expect("6/8 denominator", f.denominator, 4);
+    g := new fraction(1, 0 - 2);
+    expect("1/-2 numerator", g.numerator, 0 - 1);
+    expect("1/-2 denominator", g.denominator, 2);
+    h := new fraction(0 - 4, 0 - 6);
+    expect("-4/-6 numerator", h.numerator, 2);
+    expect("-4/-6 denominator", h.denominator, 3);
+    z := new fraction(0, 5);
+    expect("0/5 numerator", z.numerator, 0);
+    expect("0/5 denominator", z.denominator, 1);
+    whole := fraction.of(7);
+    expect("whole numerator", whole.numerator, 7);
+    expect("whole denominator", whole.denominator, 1);
+    expect("copy", new fraction(f).denominator, 4);
+    expect("zero", fraction.zero().numerator, 0);
+    expect("one", fraction.one().numerator, 1);
+
+    caught : var = 0;
+    try { new fraction(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    try { new fraction(1.5, 2); } catch(e: illegal_argument_exception) { caught++; }
+    try { fraction.of(2.5); } catch(e: illegal_argument_exception) { caught++; }
+    try { half / fraction.zero(); } catch(e: division_by_zero_exception) { caught++; }
+    try { fraction.zero().reciprocal(); } catch(e: division_by_zero_exception) { caught++; }
+    try { fraction.zero().pow(0 - 1); } catch(e: division_by_zero_exception) { caught++; }
+    try { half.pow(0.5); } catch(e: illegal_argument_exception) { caught++; }
+    expect("misuse throws", caught, 7);
+
+    // ---- arithmetic
+    sum := half + third;
+    expect("1/2 + 1/3 numerator", sum.numerator, 5);
+    expect("1/2 + 1/3 denominator", sum.denominator, 6);
+    exact := third + new fraction(1, 6);
+    expect_true("1/3 + 1/6 == 1/2", (exact == half).value);
+    difference := half - third;
+    expect("1/2 - 1/3 numerator", difference.numerator, 1);
+    expect("1/2 - 1/3 denominator", difference.denominator, 6);
+    two_thirds := new fraction(2, 3);
+    product := two_thirds * new fraction(3, 4);
+    expect("2/3 * 3/4 numerator", product.numerator, 1);
+    expect("2/3 * 3/4 denominator", product.denominator, 2);
+    quotient := half / third;
+    expect("1/2 / 1/3 numerator", quotient.numerator, 3);
+    expect("1/2 / 1/3 denominator", quotient.denominator, 2);
+    negated := -half;
+    expect("-(1/2)", negated.numerator, 0 - 1);
+    plus_one := half + 1;
+    expect("1/2 + 1", plus_one.numerator, 3);
+    times_four := half * 4;
+    expect("1/2 * 4 numerator", times_four.numerator, 2);
+    expect_true("1/2 * 4 is whole", times_four.is_whole().value);
+
+    // ten times one tenth is exactly one (it is not in floating point)
+    total := fraction.zero();
+    tenth := new fraction(1, 10);
+    for(i : var = 0; i < 10; i++) {
+        total = total + tenth;
+    }
+    expect_true("ten tenths are exactly one", (total == fraction.one()).value);
+
+    // ---- comparison
+    expect("compare_to smaller", third.compare_to(half), 0 - 1);
+    expect("compare_to larger", half.compare_to(third), 1);
+    expect("compare_to equal", half.compare_to(new fraction(2, 4)), 0);
+    expect_true("==", (half == new fraction(2, 4)).value);
+    expect_true("!=", (half != third).value);
+    expect_true("<", (third < half).value);
+    expect_false("< reversed", (half < third).value);
+    expect_true(">", (half > third).value);
+    expect_true("<=", (half <= new fraction(1, 2)).value);
+    expect_true(">=", (half >= third).value);
+    minus_half := new fraction(0 - 1, 2);
+    expect_true("negative < positive", (minus_half < third).value);
+
+    // ---- other operations
+    expect("reciprocal", new fraction(3, 4).reciprocal().numerator, 4);
+    expect("reciprocal of a negative keeps the sign on top", new fraction(0 - 3, 4).reciprocal().numerator, 0 - 4);
+    expect("abs", new fraction(0 - 3, 4).abs().numerator, 3);
+    squared := new fraction(2, 3).pow(2);
+    expect("(2/3)^2 numerator", squared.numerator, 4);
+    expect("(2/3)^2 denominator", squared.denominator, 9);
+    inverted := new fraction(2, 3).pow(0 - 2);
+    expect("(2/3)^-2 numerator", inverted.numerator, 9);
+    expect("(2/3)^-2 denominator", inverted.denominator, 4);
+    expect("anything^0", new fraction(5, 7).pow(0).numerator, 1);
+    expect("sign negative", new fraction(0 - 1, 2).sign(), 0 - 1);
+    expect("sign zero", fraction.zero().sign(), 0);
+    expect("sign positive", half.sign(), 1);
+    expect_true("is_zero", fraction.zero().is_zero().value);
+    expect_false("is_whole of 1/2", half.is_whole().value);
+    expect("to_var", new fraction(3, 8).to_var(), 0.375);
+    expect("floor(7/2)", new fraction(7, 2).floor(), 3);
+    expect("floor(-7/2)", new fraction(0 - 7, 2).floor(), 0 - 4);
+    expect("ceil(7/2)", new fraction(7, 2).ceil(), 4);
+    expect("ceil(-7/2)", new fraction(0 - 7, 2).ceil(), 0 - 3);
+    expect("round(5/2)", new fraction(5, 2).round(), 3);
+    expect("round(-5/2)", new fraction(0 - 5, 2).round(), 0 - 3);
+    expect("round(7/3)", new fraction(7, 3).round(), 2);
+    expect("whole_part(7/4)", new fraction(7, 4).whole_part(), 1);
+    expect("whole_part(-7/4)", new fraction(0 - 7, 4).whole_part(), 0 - 1);
+
+    // ---- text
+    expect_str("to_string", new fraction(3, 4).to_string()!!, "3/4");
+    expect_str("to_string negative", new fraction(3, 0 - 4).to_string()!!, "-3/4");
+    expect_str("to_string whole", new fraction(10, 2).to_string()!!, "5");
+    expect_str("to_mixed_string", new fraction(7, 4).to_mixed_string(), "1 3/4");
+    expect_str("to_mixed_string negative", new fraction(0 - 7, 4).to_mixed_string(), "-1 3/4");
+    expect_str("to_mixed_string proper", new fraction(3, 4).to_mixed_string(), "3/4");
+    expect_str("to_mixed_string whole", new fraction(8, 4).to_mixed_string(), "2");
+
+    p := fraction.parse("3/4");
+    expect("parse 3/4", p.numerator * 10 + p.denominator, 34);
+    q := fraction.parse("-6/8");
+    expect("parse -6/8 numerator", q.numerator, 0 - 3);
+    expect("parse -6/8 denominator", q.denominator, 4);
+    expect("parse whole", fraction.parse("5").numerator, 5);
+    expect("parse +12/-4", fraction.parse("+12/-4").numerator, 0 - 3);
+    caught = 0;
+    try { fraction.parse("abc"); } catch(e: number_format_exception) { caught++; }
+    try { fraction.parse("1/"); } catch(e: number_format_exception) { caught++; }
+    try { fraction.parse("/2"); } catch(e: number_format_exception) { caught++; }
+    try { fraction.parse("1.5/2"); } catch(e: number_format_exception) { caught++; }
+    try { fraction.parse("1/0"); } catch(e: division_by_zero_exception) { caught++; }
+    expect("bad text throws", caught, 5);
+
+    d := fraction.from_decimal(0.75, 100);
+    expect("from_decimal(0.75)", d.numerator * 10 + d.denominator, 34);
+    pi := fraction.from_decimal(3.14159265358979, 1000);
+    expect("pi is about 355/113: numerator", pi.numerator, 355);
+    expect("pi is about 355/113: denominator", pi.denominator, 113);
+    coarse := fraction.from_decimal(3.14159265358979, 10);
+    expect("pi with denominator <= 10 is 22/7", coarse.numerator * 10 + coarse.denominator, 227);
+    minus := fraction.from_decimal(0 - 0.125, 1000);
+    expect("from_decimal(-0.125) numerator", minus.numerator, 0 - 1);
+    expect("from_decimal(-0.125) denominator", minus.denominator, 8);
+    expect("from_decimal of a whole number", fraction.from_decimal(4, 10).numerator, 4);
+    try {
+        fraction.from_decimal(NaN.value, 10);
+        fail("from_decimal(NaN)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("from_decimal(NaN) throws");
+    }
+    expect_true("equal fractions have equal hashes", (half.hash() == new fraction(2, 4).hash()).value);
+}
+
+def main(args: string[]) {
+    check_complex();
+    check_fraction();
+    finish("lib_math_numbers");
+}

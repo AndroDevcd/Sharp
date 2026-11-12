@@ -1,0 +1,259 @@
+mod main;
+
+import ( testing, std.math )
+
+/**
+ * std.math - big_integer (lib/support/0.3.0/std/math/numbers/big_integer.sharp):
+ * arbitrary precision whole numbers. Values are compared as decimal text.
+ */
+
+def text_of(n: big_integer): string {
+    return n.to_string()!!;
+}
+
+def big(text: string): big_integer {
+    return new big_integer(text);
+}
+
+def check_construction() {
+    expect_str("of(0)", text_of(big_integer.of(0)), "0");
+    expect_str("of(42)", text_of(big_integer.of(42)), "42");
+    expect_str("of(-42)", text_of(big_integer.of(0 - 42)), "-42");
+    expect_str("of(one limb limit)", text_of(big_integer.of(9999999)), "9999999");
+    expect_str("of(two limbs)", text_of(big_integer.of(10000000)), "10000000");
+    expect_str("of(inner zeros are padded)", text_of(big_integer.of(50000003)), "50000003");
+    expect_str("of(2^53)", text_of(big_integer.of(9007199254740992)), "9007199254740992");
+    safe : var = 9007199254740991;          // (a large literal cannot follow a minus sign: known bug)
+    expect_str("of(-(2^53 - 1))", text_of(big_integer.of(0 - safe)), "-9007199254740991");
+    expect_str("zero()", text_of(big_integer.zero()), "0");
+    expect_str("one()", text_of(big_integer.one()), "1");
+    expect_str("ten()", text_of(big_integer.ten()), "10");
+
+    expect_str("text", text_of(big("123456789012345678901234567890")), "123456789012345678901234567890");
+    expect_str("negative text", text_of(big("-5")), "-5");
+    expect_str("plus sign", text_of(big("+77")), "77");
+    expect_str("leading zeros", text_of(big("000123")), "123");
+    expect_str("-0 is 0", text_of(big("-0")), "0");
+    expect_str("zeros inside", text_of(big("1000000000000000000000")), "1000000000000000000000");
+    expect_str("parse", text_of(big_integer.parse("98765432109876543210")), "98765432109876543210");
+    expect_str("copy", text_of(new big_integer(big("-31415926535897932384626"))), "-31415926535897932384626");
+
+    caught : var = 0;
+    try { big(""); } catch(e: number_format_exception) { caught++; }
+    try { big("-"); } catch(e: number_format_exception) { caught++; }
+    try { big("12a4"); } catch(e: number_format_exception) { caught++; }
+    try { big("1.5"); } catch(e: number_format_exception) { caught++; }
+    try { big(" 12"); } catch(e: number_format_exception) { caught++; }
+    expect("bad text throws number_format_exception", caught, 5);
+    caught = 0;
+    try { big_integer.of(1.5); } catch(e: illegal_argument_exception) { caught++; }
+    try { big_integer.of(9007199254740994); } catch(e: illegal_argument_exception) { caught++; }
+    expect("of() rejects fractions and inexact numbers", caught, 2);
+}
+
+def check_add_subtract() {
+    a := big("123456789012345678901234567890");
+    b := big("987654321");
+
+    expect_str("a + b", text_of(a + b), "123456789012345678902222222211");
+    expect_str("a - b", text_of(a - b), "123456789012345678900246913569");
+    expect_str("b - a", text_of(b - a), "-123456789012345678900246913569");
+    expect_str("a - a", text_of(a - a), "0");
+    expect_str("carry through every limb", text_of(big("99999999999999999999999999999") + big_integer.one()), "100000000000000000000000000000");
+    expect_str("borrow through every limb", text_of(big("100000000000000000000000000000") - big_integer.one()), "99999999999999999999999999999");
+    expect_str("negative + positive", text_of(big("-100") + big("30")), "-70");
+    expect_str("positive + negative", text_of(big("30") + big("-100")), "-70");
+    expect_str("negative + negative", text_of(big("-100") + big("-30")), "-130");
+    expect_str("negative - negative", text_of(big("-100") - big("-130")), "30");
+    expect_str("a + 1 (number)", text_of(a + 1), "123456789012345678901234567891");
+    expect_str("a - 1 (number)", text_of(a - 1), "123456789012345678901234567889");
+    expect_str("0 - 5 (number)", text_of(big_integer.zero() - 5), "-5");
+    expect_str("-a", text_of(-a), "-123456789012345678901234567890");
+    expect_str("negate twice", text_of(a.negate().negate()), "123456789012345678901234567890");
+    expect_str("negate zero", text_of(big_integer.zero().negate()), "0");
+    expect_str("abs", text_of(big("-12345678901234567890").abs()), "12345678901234567890");
+    expect_str("operands are unchanged", text_of(a), "123456789012345678901234567890");
+}
+
+def check_multiply() {
+    a := big("123456789012345678901234567890");
+    b := big("987654321");
+
+    expect_str("a * b + 1", text_of(a * b + 1), "121932631124828532112482853211126352691");
+    expect_str("a * a", text_of(a * a), "15241578753238836750495351562536198787501905199875019052100");
+    expect_str("a * 0", text_of(a * big_integer.zero()), "0");
+    expect_str("a * 1", text_of(a * big_integer.one()), "123456789012345678901234567890");
+    expect_str("a * -1", text_of(a * (0 - 1)), "-123456789012345678901234567890");
+    expect_str("negative * negative", text_of(big("-12") * big("-12")), "144");
+    expect_str("negative * positive", text_of(big("-12") * big("12")), "-144");
+    expect_str("(10^14 - 1)^2", text_of(big("99999999999999") * big("99999999999999")), "9999999999999800000000000001");
+    expect_str("largest limb cubed", text_of(big("9999999") * big("9999999") * big("9999999")), "999999700000029999999");
+    expect_str("a * 2 (number)", text_of(a * 2), "246913578024691357802469135780");
+
+    expect_str("2^200", text_of(big_integer.of(2).pow(200)), "1606938044258990275541962092341162602522202993782792835301376");
+    expect_str("3^100", text_of(big_integer.of(3).pow(100)), "515377520732011331036461129765621272702107522001");
+    expect_str("x^0", text_of(a.pow(0)), "1");
+    expect_str("x^1", text_of(a.pow(1)), "123456789012345678901234567890");
+    expect_str("(-2)^3", text_of(big_integer.of(0 - 2).pow(3)), "-8");
+    expect_str("(-2)^4", text_of(big_integer.of(0 - 2).pow(4)), "16");
+    expect_str("10^30", text_of(big_integer.ten().pow(30)), "1000000000000000000000000000000");
+    try {
+        a.pow(0 - 1);
+        fail("pow(-1)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("pow(-1) throws");
+    }
+
+    expect_str("factorial(0)", text_of(big_integer.factorial(0)), "1");
+    expect_str("factorial(10)", text_of(big_integer.factorial(10)), "3628800");
+    expect_str("factorial(25)", text_of(big_integer.factorial(25)), "15511210043330985984000000");
+    expect_str("factorial(30)", text_of(big_integer.factorial(30)), "265252859812191058636308480000000");
+    expect_str("fibonacci(0)", text_of(big_integer.fibonacci(0)), "0");
+    expect_str("fibonacci(1)", text_of(big_integer.fibonacci(1)), "1");
+    expect_str("fibonacci(100)", text_of(big_integer.fibonacci(100)), "354224848179261915075");
+    expect_str("fibonacci(200)", text_of(big_integer.fibonacci(200)), "280571172992510140037611932413038677189525");
+    try {
+        big_integer.factorial(0 - 1);
+        fail("factorial(-1)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("factorial(-1) throws");
+    }
+}
+
+def check_divide() {
+    a := big("123456789012345678901234567890");
+    b := big("987654321");
+
+    expect_str("a / b", text_of(a / b), "124999998873437499901");
+    expect_str("a % b", text_of(a % b), "574845669");
+    expect_str("small / large", text_of(b / a), "0");
+    expect_str("small % large", text_of(b % a), "987654321");
+    expect_str("a / a", text_of(a / a), "1");
+    expect_str("a % a", text_of(a % a), "0");
+    expect_str("a / 10^7", text_of(a / big("10000000")), "12345678901234567890123");
+    expect_str("a % 10^7", text_of(a % big("10000000")), "4567890");
+    expect_str("a / 20 digit divisor", text_of(a / big("12345678901234567890")), "10000000000");
+    expect_str("a % 20 digit divisor", text_of(a % big("12345678901234567890")), "1234567890");
+    expect_str("(10^30 + 7) / (10^15 + 3)", text_of(big("1000000000000000000000000000007") / big("1000000000000003")), "999999999999997");
+    expect_str("(10^30 + 7) % (10^15 + 3)", text_of(big("1000000000000000000000000000007") % big("1000000000000003")), "16");
+    expect_str("10^21 / (10^7 - 1)", text_of(big("1000000000000000000000") / big("9999999")), "100000010000001");
+    expect_str("10^21 % (10^7 - 1)", text_of(big("1000000000000000000000") % big("9999999")), "1");
+    expect_str("(10^28 - 1) / (10^14 + 1)", text_of(big("9999999999999999999999999999") / big("100000000000001")), "99999999999999");
+    expect_str("(10^28 - 1) % (10^14 + 1)", text_of(big("9999999999999999999999999999") % big("100000000000001")), "0");
+    expect_str("a / 2 (number)", text_of(a / 2), "61728394506172839450617283945");
+    expect_str("a % 1000 (number)", text_of(a % 1000), "890");
+
+    // rounding toward zero; the remainder has the sign of the dividend
+    expect_str("7 / 2", text_of(big("7") / big("2")), "3");
+    expect_str("-7 / 2", text_of(big("-7") / big("2")), "-3");
+    expect_str("7 / -2", text_of(big("7") / big("-2")), "-3");
+    expect_str("-7 / -2", text_of(big("-7") / big("-2")), "3");
+    expect_str("7 % 2", text_of(big("7") % big("2")), "1");
+    expect_str("-7 % 2", text_of(big("-7") % big("2")), "-1");
+    expect_str("7 % -2", text_of(big("7") % big("-2")), "1");
+    expect_str("-7 % -2", text_of(big("-7") % big("-2")), "-1");
+    expect_str("modulo of a negative number", text_of(big("-7").modulo(big("3"))), "2");
+    expect_str("modulo of a positive number", text_of(big("7").modulo(big("3"))), "1");
+
+    both := a.divide_and_remainder(b);
+    expect_str("divide_and_remainder [0]", text_of(both[0]), "124999998873437499901");
+    expect_str("divide_and_remainder [1]", text_of(both[1]), "574845669");
+    // quotient * divisor + remainder gives the dividend back
+    expect_str("q * b + r == a", text_of(both[0] * b + both[1]), "123456789012345678901234567890");
+
+    caught : var = 0;
+    try { a / big_integer.zero(); } catch(e: division_by_zero_exception) { caught++; }
+    try { a % big_integer.zero(); } catch(e: division_by_zero_exception) { caught++; }
+    try { a.divide_and_remainder(big_integer.zero()); } catch(e: division_by_zero_exception) { caught++; }
+    try { a / 0; } catch(e: division_by_zero_exception) { caught++; }
+    expect("division by zero throws", caught, 4);
+    try {
+        a.modulo(big("-3"));
+        fail("modulo(-3)", "no exception");
+    } catch(e: illegal_argument_exception) {
+        pass("modulo(-3) throws");
+    }
+
+    expect_str("gcd", text_of(a.gcd(big("9876543210"))), "90");
+    expect_str("gcd(2^100, 6^50) is 2^50", text_of(big_integer.of(2).pow(100).gcd(big_integer.of(6).pow(50))), "1125899906842624");
+    expect_str("gcd with zero", text_of(big("-42").gcd(big_integer.zero())), "42");
+    expect_str("sqrt", text_of(a.sqrt()), "351364182882014");
+    expect_str("sqrt(10^40)", text_of(big_integer.ten().pow(40).sqrt()), "100000000000000000000");
+    expect_str("sqrt(0)", text_of(big_integer.zero().sqrt()), "0");
+    expect_str("sqrt(15)", text_of(big("15").sqrt()), "3");
+    expect_str("sqrt(16)", text_of(big("16").sqrt()), "4");
+    try {
+        big("-4").sqrt();
+        fail("sqrt(-4)", "no exception");
+    } catch(e: arithmetic_exception) {
+        pass("sqrt(-4) throws");
+    }
+}
+
+def check_compare() {
+    a := big("123456789012345678901234567890");
+    b := big("987654321");
+    same := big("123456789012345678901234567890");
+    minus := big("-123456789012345678901234567890");
+
+    expect("compare_to larger", a.compare_to(b), 1);
+    expect("compare_to smaller", b.compare_to(a), 0 - 1);
+    expect("compare_to equal", a.compare_to(same), 0);
+    expect("negative < positive", minus.compare_to(b), 0 - 1);
+    expect("positive > negative", b.compare_to(minus), 1);
+    expect("among negatives the larger magnitude is smaller", minus.compare_to(big("-5")), 0 - 1);
+    expect("same length, different top limb", big("20000000000000").compare_to(big("10000000000001")), 1);
+    expect_true("==", (a == same).value);
+    expect_false("== different", (a == b).value);
+    expect_true("!=", (a != b).value);
+    expect_true("<", (b < a).value);
+    expect_false("< reversed", (a < b).value);
+    expect_true(">", (a > b).value);
+    expect_true("<=", (a <= same).value);
+    expect_true(">=", (a >= b).value);
+    expect_true("equals_var", b.equals_var(987654321).value);
+    expect_false("equals_var different", b.equals_var(5).value);
+
+    expect("sign positive", a.sign(), 1);
+    expect("sign negative", minus.sign(), 0 - 1);
+    expect("sign zero", big_integer.zero().sign(), 0);
+    expect_true("is_zero", big_integer.zero().is_zero().value);
+    expect_false("is_zero of a", a.is_zero().value);
+    expect_true("is_negative", minus.is_negative().value);
+    expect_false("is_negative of a", a.is_negative().value);
+    expect_true("is_even", a.is_even().value);
+    expect_true("is_odd", b.is_odd().value);
+    expect_false("is_odd of an even number", a.is_odd().value);
+    expect("digit_count", a.digit_count(), 30);
+    expect("digit_count of 0", big_integer.zero().digit_count(), 1);
+    expect("digit_count ignores the sign", big("-1000").digit_count(), 4);
+    expect("digit_count 10^7", big("10000000").digit_count(), 8);
+
+    expect("to_var", b.to_var(), 987654321);
+    safe : var = 9007199254740991;
+    expect("to_var negative", big("-9007199254740991").to_var(), 0 - safe);
+    // 1.2345678901234568 * 10^29, checked after scaling down by 10^15 twice
+    expect_near("to_var of a large number", a.to_var() / 1000000000000000 / 1000000000000000, 0.12345678901234568, 0.000000000000001);
+    expect_true("fits_in_var", b.fits_in_var().value);
+    expect_true("2^53 fits", big("9007199254740992").fits_in_var().value);
+    expect_false("2^53 + 1 does not fit", big("9007199254740993").fits_in_var().value);
+    expect_false("30 digits do not fit", a.fits_in_var().value);
+    expect("to_var_exact", b.to_var_exact(), 987654321);
+    try {
+        a.to_var_exact();
+        fail("to_var_exact of a large number", "no exception");
+    } catch(e: overflow_exception) {
+        pass("to_var_exact of a large number throws");
+    }
+    expect_true("equal numbers have equal hashes", (a.hash() == same.hash()).value);
+    expect_false("the sign changes the hash", (a.hash() == minus.hash()).value);
+}
+
+def main(args: string[]) {
+    check_construction();
+    check_add_subtract();
+    check_multiply();
+    check_divide();
+    check_compare();
+    finish("lib_math_big_integer");
+}

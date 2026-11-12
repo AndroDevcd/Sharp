@@ -1,0 +1,294 @@
+mod std;
+
+/**
+ * Extra methods for ALL number classes (int, long, short, byte, char,
+ * double, uint ...), added to their common base class `number<T, NT>` with
+ * a `mutate` declaration so that std/primatives.sharp itself stays as it is
+ * (the compiler and the optimizer rely on its fields and constructors).
+ *
+ * T is the native type the box holds (_int32 for int, var for double ...)
+ * and NT is the box class itself, so a method declared as returning NT
+ * returns an int when called on an int and a double when called on a double.
+ *
+ *     n : int = 15;
+ *     n.is_odd().value                // true
+ *     n.coerce_in(0, 10).value        // 10
+ *     n.compare_to(20)                // -1
+ *     n.to_hex_string()               // "f"
+ *     n.to_binary_string()            // "1111"
+ *     int.parse_or_null("12x")        // null instead of an exception
+ *     int.parse_radix("ff", 16).value // 255
+ *
+ * Where a method takes NT, a native number or a literal may be passed too
+ * (it is boxed automatically).
+ */
+mutate number {
+
+    /**
+     * Three-way comparison with another number: -1 when this one is
+     * smaller, 1 when it is larger, 0 when they are equal (the convention
+     * of comparators and of Kotlin's compareTo).
+     */
+    def compare_to(other: NT): var {
+        if(value < other.value) return 0 - 1;
+        if(value > other.value) return 1;
+        return 0;
+    }
+
+    /** true when the value is divisible by 2 (the fractional part of a double is ignored) */
+    def is_even(): bool {
+        return (value % 2) == 0;
+    }
+
+    /** true when the value is not divisible by 2, also for negative numbers (the fractional part of a double is ignored) */
+    def is_odd(): bool {
+        return (value % 2) != 0;
+    }
+
+    /** true when the value is 0 */
+    def is_zero(): bool {
+        return value == 0;
+    }
+
+    /** true when the value is above 0 */
+    def is_positive(): bool {
+        return value > 0;
+    }
+
+    /** true when the value is below 0 */
+    def is_negative(): bool {
+        return value < 0;
+    }
+
+    /** -1, 0 or 1 as a native number: the sign of the value */
+    def sign(): var {
+        if(value > 0) return 1;
+        if(value < 0) return 0 - 1;
+        return 0;
+    }
+
+    /** the value without its sign, as a new box: (-4).abs() is 4 */
+    def abs(): NT {
+        if(value < 0) return new NT(0 - value);
+        return new NT(value);
+    }
+
+    /**
+     * The value limited to low .. high (Kotlin coerceIn): the value itself
+     * when it lies in the range, otherwise the nearer end.
+     * 15.coerce_in(0, 10) is 10, (-3).coerce_in(0, 10) is 0.
+     * Throws illegal_argument_exception when low > high.
+     */
+    def coerce_in(low: NT, high: NT): NT {
+        if(low.value > high.value)
+            throw new illegal_argument_exception("coerce_in: low is greater than high");
+
+        if(value < low.value) return new NT(low.value);
+        if(value > high.value) return new NT(high.value);
+        return new NT(value);
+    }
+
+    /** the value, or `low` when the value is smaller (Kotlin coerceAtLeast) */
+    def coerce_at_least(low: NT): NT {
+        if(value < low.value) return new NT(low.value);
+        return new NT(value);
+    }
+
+    /** the value, or `high` when the value is larger (Kotlin coerceAtMost) */
+    def coerce_at_most(high: NT): NT {
+        if(value > high.value) return new NT(high.value);
+        return new NT(value);
+    }
+
+    /** true when low <= value <= high (both ends included) */
+    def is_between(low: NT, high: NT): bool {
+        return value >= low.value && value <= high.value;
+    }
+
+    /** the larger of this number and `other`, as a new box */
+    def max_with(other: NT): NT {
+        if(other.value > value) return new NT(other.value);
+        return new NT(value);
+    }
+
+    /** the smaller of this number and `other`, as a new box */
+    def min_with(other: NT): NT {
+        if(other.value < value) return new NT(other.value);
+        return new NT(value);
+    }
+
+    /**
+     * The whole part of the value in another number base (2 .. 36), using
+     * the digits 0-9 and then a-z; negative values get a leading "-":
+     * 255 in base 16 is "ff", -5 in base 2 is "-101", 0 is "0".
+     *
+     * Algorithm: repeated division by the radix; the remainders are the
+     * digits from the right.
+     * Throws illegal_argument_exception when radix is outside 2 .. 36, or
+     * the value is too large to hold exactly (above 2^53).
+     */
+    def to_string_radix(radix: var): string {
+        if(radix < 2 || radix > 36 || radix != (radix as _int64))
+            throw new illegal_argument_exception("to_string_radix: the radix must be a whole number in 2 .. 36");
+
+        size : var = value;
+        negative : var = 0;
+        if(size < 0) {
+            size = 0 - size;
+            negative = 1;
+        }
+        if(size > 9007199254740992)
+            throw new illegal_argument_exception("to_string_radix: the value is too large");
+        size = size as _int64;          // drop the fraction of a double
+
+        // count the digits first, then fill the text from the right
+        digits : var = 1;
+        rest : var = size;
+        while(rest >= radix) {
+            rest = (rest / radix) as _int64;
+            digits++;
+        }
+
+        text := new _int8[digits + negative];
+        rest = size;
+        for(i : var = digits + negative - 1; i >= negative; i--) {
+            high : var = (rest / radix) as _int64;
+            digit : var = rest - high * radix;
+            if(digit < 10) {
+                text[i] = '0' + digit;
+            } else {
+                text[i] = 'a' + (digit - 10);
+            }
+            rest = high;
+        }
+        if(negative) {
+            text[0] = '-';
+        }
+        return new string(text);
+    }
+
+    /** the value in hexadecimal (base 16) with small letters: 255 is "ff" */
+    def to_hex_string(): string {
+        return to_string_radix(16);
+    }
+
+    /** the value in binary (base 2): 10 is "1010" */
+    def to_binary_string(): string {
+        return to_string_radix(2);
+    }
+
+    /** the value in octal (base 8): 8 is "10" */
+    def to_octal_string(): string {
+        return to_string_radix(8);
+    }
+
+    /**
+     * The whole part of the value in decimal, padded on the left with zeros
+     * to at least `width` characters: 7 with width 3 is "007", -7 is "-07",
+     * 1234 with width 3 stays "1234".
+     */
+    def to_padded_string(width: var): string {
+        plain := to_string_radix(10);
+        length : var = plain.size().value;
+        if(length >= width) return plain;
+
+        negative : var = value < 0;
+        text := new _int8[width];
+        // the digits go to the right end, zeros fill the gap, a sign stays first
+        for(i : var = 0; i < width; i++) {
+            text[i] = '0';
+        }
+        for(i : var = negative; i < length; i++) {
+            text[width - length + i] = plain.at(i).value;
+        }
+        if(negative) {
+            text[0] = '-';
+        }
+        return new string(text);
+    }
+
+    /**
+     * Read a whole number written in the given base (2 .. 36): digits 0-9
+     * and letters a-z / A-Z, with an optional leading + or -.
+     * int.parse_radix("ff", 16) is 255, int.parse_radix("-101", 2) is -5.
+     *
+     * Throws number_format_exception when the text is empty or contains a
+     * character that is not a digit of that base, and
+     * illegal_argument_exception when radix is outside 2 .. 36.
+     */
+    static def parse_radix(text: string, radix: var): NT {
+        if(radix < 2 || radix > 36 || radix != (radix as _int64))
+            throw new illegal_argument_exception("parse_radix: the radix must be a whole number in 2 .. 36");
+
+        length : var = text.size().value;
+        position : var = 0;
+        negative : var = 0;
+
+        if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {
+            negative = text.at(0).value == '-';
+            position = 1;
+        }
+        if(position >= length)
+            throw new number_format_exception("not a number: " + text);
+
+        result : var = 0;
+        while(position < length) {
+            ch : var = text.at(position).value;
+            digit : var = 99;
+            if(ch >= '0' && ch <= '9') {
+                digit = ch - '0';
+            } else if(ch >= 'a' && ch <= 'z') {
+                digit = ch - 'a' + 10;
+            } else if(ch >= 'A' && ch <= 'Z') {
+                digit = ch - 'A' + 10;
+            }
+
+            if(digit >= radix)
+                throw new number_format_exception("not a number in base " + snprintf('l', radix, 0) + ": " + text);
+            result = result * radix + digit;
+            position++;
+        }
+
+        if(negative) return new NT(0 - result);
+        return new NT(result);
+    }
+
+    /**
+     * Read a decimal whole number, or return null when the text is not one
+     * (Kotlin toIntOrNull). Accepted: an optional + or - followed by one or
+     * more digits. Nothing else - no spaces, no decimal point - so for
+     * double.parse_or_null only whole numbers are accepted (use parse() for
+     * fractions).
+     */
+    static def parse_or_null(text: string): NT? {
+        if(!is_parsable(text).value) return null;
+        return parse_radix(text, 10);
+    }
+
+    /** true when the text is an optional + or - followed by one or more decimal digits */
+    static def is_parsable(text: string): bool {
+        length : var = text.size().value;
+        position : var = 0;
+
+        if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {
+            position = 1;
+        }
+        if(position >= length) return false;
+
+        while(position < length) {
+            ch : var = text.at(position).value;
+            if(ch < '0' || ch > '9') return false;
+            position++;
+        }
+        return true;
+    }
+
+    /**
+     * Read a decimal whole number, or return `fallback` when the text is
+     * not one: int.parse_or("x", 0) is 0.
+     */
+    static def parse_or(text: string, fallback: NT): NT {
+        if(!is_parsable(text).value) return fallback;
+        return parse_radix(text, 10);
+    }
+}

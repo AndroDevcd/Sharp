@@ -23,7 +23,19 @@ public const POSITIVE_INFINITY := 1.0 / 0.0;
  * {@code float}. It is equal to the value returned by
  * {@code Float.intBitsToFloat(0xff800000)}.
  */
-public const NEGATIVE_INFINITY := -1.0 / 0.0;
+public const NEGATIVE_INFINITY : double = negative_infinity_value();
+
+/**
+ * Negative infinity, computed while the program runs. The constant
+ * expression `-1.0 / 0.0` is folded by the compiler to -2147483648 instead
+ * of -infinity (see tests/suite/known_bugs/lib_math_literals.sharp), so the
+ * division is done on variables here.
+ */
+local def negative_infinity_value(): var {
+    zero : var = 0;
+    one : var = 1;
+    return (0 - one) / zero;
+}
 
 /**
  * A constant holding a Not-a-Number (NaN) value of type
@@ -42,7 +54,9 @@ public const NaN := 0.0 / 0.0;
  *          {@code false} otherwise.
  */
 public def is_nan(v: double): bool {
-    return (v != v);
+    // compare the native values: `number` has no operator!=(double), so `v != v`
+    // on the two objects did not perform a floating point comparison
+    return v.value != v.value;
 }
 
 /**
@@ -54,7 +68,7 @@ public def is_nan(v: double): bool {
  *          negative infinity; {@code false} otherwise.
  */
 public def is_infinite(v: double): bool {
-    return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
+    return v.value == POSITIVE_INFINITY.value || v.value == NEGATIVE_INFINITY.value;
 }
 
 def sin(num: double) : double {
@@ -161,12 +175,14 @@ def fmod(num: double, num2: double) : double {
     return math_proc(num, num2, 0x13);
 }
 
+/**
+ * Round to the nearest whole number; a tie (x.5) goes away from zero:
+ * round(2.5) == 3, round(2.4) == 2, round(-2.5) == -3, round(-2.7) == -3.
+ * (Negative numbers used to be rounded toward zero; round_half_away() in
+ * rounding.sharp is the native version of this function.)
+ */
 def round(num: double) : double {
-    int_val := num.to_long();
-    num -= int_val;
-
-    if(num >= 0.5) return (int_val + 1).to_double();
-    else return int_val.to_double();
+    return round_half_away(num.value);
 }
 
 local def math_proc(num: double, proc: double) : double {

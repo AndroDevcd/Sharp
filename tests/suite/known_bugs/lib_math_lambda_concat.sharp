@@ -1,0 +1,30 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG: this file is EXPECTED TO FAIL - the COMPILER crashes
+ * (segmentation fault) on it.
+ *
+ * A lambda whose body assigns `"literal" + parameter` to a field of a
+ * captured object crashes the compiler. Assigning the parameter alone
+ * (`note.text = s;`) works, and so does returning the concatenation from a
+ * lambda with a return type (`{ s: string -> (string) return s + "!"; }`).
+ */
+
+class holder {
+    text : string = "";
+}
+
+def run(action: (string)(), argument: string) {
+    action(argument);
+}
+
+def main(args: string[]) {
+    note := new holder();
+
+    run({ s: string -> note.text = "left " + s; }, "side");     // the compiler crashes here
+    expect_str("literal + parameter assigned inside a lambda", note.text, "left side");
+
+    finish("lib_math_lambda_concat");
+}

@@ -1,0 +1,166 @@
+mod std.math;
+
+/**
+ * Rounding native numbers, and whole number division.
+ *
+ * floor() and ceil() in math.sharp return `double` objects; the functions
+ * here return native `var` numbers (floor_of / ceil_of in native_math.sharp
+ * are the native floor and ceil).
+ *
+ *     value   floor_of  ceil_of  trunc  round_half_away  round_half_even
+ *      2.5       2         3       2          3                2
+ *      3.5       3         4       3          4                4
+ *     -2.5      -3        -2      -2         -3               -2
+ *     -2.7      -3        -2      -2         -3               -3
+ */
+
+/**
+ * Drop the fractional part (round toward zero): trunc(2.9) == 2,
+ * trunc(-2.9) == -2. NaN and the infinities are returned unchanged.
+ */
+def trunc(v: var): var {
+    if(v < 0) return ceil_of(v);
+    return floor_of(v);
+}
+
+/**
+ * The fractional part, with the sign of v: fract(2.75) == 0.75,
+ * fract(-2.75) == -0.75. Always v == trunc(v) + fract(v).
+ */
+def fract(v: var): var {
+    return v - trunc(v);
+}
+
+/**
+ * Round to the nearest whole number; a tie (x.5) goes AWAY from zero, which
+ * is what people usually call rounding: 2.5 -> 3, -2.5 -> -3, 2.4 -> 2.
+ */
+def round_half_away(v: var): var {
+    if(v < 0) return ceil_of(v - 0.5);
+    return floor_of(v + 0.5);
+}
+
+/**
+ * Round to the nearest whole number; a tie (x.5) goes to the EVEN neighbour
+ * ("banker's rounding", the rule Kotlin's round() uses): 2.5 -> 2, 3.5 -> 4,
+ * -2.5 -> -2. Over many values this does not drift upward the way
+ * round_half_away does.
+ */
+def round_half_even(v: var): var {
+    low : var = floor_of(v);
+    difference : var = v - low;
+
+    if(difference < 0.5) return low;
+    if(difference > 0.5) return low + 1;
+
+    // exactly half way: pick whichever of low and low + 1 is even
+    if(low - 2 * floor_of(low / 2) == 0) return low;
+    return low + 1;
+}
+
+/**
+ * Round to `decimals` digits after the decimal point (ties away from zero):
+ * round_to(3.14159, 2) == 3.14, round_to(2.5, 0) == 3.
+ * A negative count rounds to the left of the point: round_to(1234, -2) == 1200.
+ *
+ * Formula: round_half_away(v * 10^decimals) / 10^decimals.
+ * The usual floating point caveat applies: 1.005 is stored as
+ * 1.00499999999999989..., so round_to(1.005, 2) is 1 and not 1.01.
+ */
+def round_to(v: var, decimals: var): var {
+    if(decimals < 0) {
+        scale : var = power(10, 0 - decimals);
+        return round_half_away(v / scale) * scale;
+    }
+
+    scale : var = power(10, decimals);
+    return round_half_away(v * scale) / scale;
+}
+
+/** round DOWN to `decimals` digits after the point: floor_to(3.149, 2) == 3.14 */
+def floor_to(v: var, decimals: var): var {
+    scale : var = power(10, decimals);
+    return floor_of(v * scale) / scale;
+}
+
+/** round UP to `decimals` digits after the point: ceil_to(3.141, 2) == 3.15 */
+def ceil_to(v: var, decimals: var): var {
+    scale : var = power(10, decimals);
+    return ceil_of(v * scale) / scale;
+}
+
+/**
+ * Round v to the nearest multiple of `step` (ties away from zero):
+ * round_to_multiple(17, 5) == 15, round_to_multiple(18, 5) == 20.
+ *
+ * Throws division_by_zero_exception when step is 0.
+ */
+def round_to_multiple(v: var, step: var): var {
+    if(step == 0)
+        throw new division_by_zero_exception("round_to_multiple: step is 0");
+    return round_half_away(v / step) * step;
+}
+
+/**
+ * Whole number division that rounds toward zero, the way integer division
+ * works in C, Java and Kotlin: int_div(7, 2) == 3, int_div(-7, 2) == -3.
+ *
+ * Throws division_by_zero_exception when divisor is 0.
+ */
+def int_div(dividend: var, divisor: var): var {
+    if(divisor == 0)
+        throw new division_by_zero_exception("int_div: division by zero");
+    return trunc(dividend / divisor);
+}
+
+/**
+ * The remainder that goes with int_div; it has the sign of the dividend
+ * (the same as the % operator on whole numbers): int_rem(7, 3) == 1,
+ * int_rem(-7, 3) == -1. Always dividend == int_div(a, b) * b + int_rem(a, b).
+ *
+ * Throws division_by_zero_exception when divisor is 0.
+ */
+def int_rem(dividend: var, divisor: var): var {
+    if(divisor == 0)
+        throw new division_by_zero_exception("int_rem: division by zero");
+    return dividend - trunc(dividend / divisor) * divisor;
+}
+
+/**
+ * Division that rounds toward negative infinity (Kotlin floorDiv):
+ * floor_div(7, 2) == 3, floor_div(-7, 2) == -4, floor_div(7, -2) == -4.
+ *
+ * Throws division_by_zero_exception when divisor is 0.
+ */
+def floor_div(dividend: var, divisor: var): var {
+    if(divisor == 0)
+        throw new division_by_zero_exception("floor_div: division by zero");
+    return floor_of(dividend / divisor);
+}
+
+/**
+ * The remainder that goes with floor_div (Kotlin mod / Java floorMod); it
+ * has the sign of the DIVISOR, so for a positive divisor it is never
+ * negative, which is what indexing and clock arithmetic need:
+ * floor_mod(7, 3) == 1, floor_mod(-7, 3) == 2, floor_mod(7, -3) == -2.
+ *
+ * Formula: dividend - floor(dividend / divisor) * divisor.
+ * Throws division_by_zero_exception when divisor is 0.
+ */
+def floor_mod(dividend: var, divisor: var): var {
+    if(divisor == 0)
+        throw new division_by_zero_exception("floor_mod: division by zero");
+    return dividend - floor_of(dividend / divisor) * divisor;
+}
+
+/**
+ * Division that rounds toward positive infinity: ceil_div(7, 2) == 4,
+ * ceil_div(-7, 2) == -3. Useful for "how many pages of size n do I need".
+ *
+ * Throws division_by_zero_exception when divisor is 0.
+ */
+def ceil_div(dividend: var, divisor: var): var {
+    if(divisor == 0)
+        throw new division_by_zero_exception("ceil_div: division by zero");
+    return ceil_of(dividend / divisor);
+}

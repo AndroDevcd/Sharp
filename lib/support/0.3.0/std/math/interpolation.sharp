@@ -1,0 +1,77 @@
+mod std.math;
+
+/**
+ * Interpolation: moving between two values, and mapping a value from one
+ * range onto another. Native numbers throughout.
+ */
+
+/**
+ * Linear interpolation: the value a fraction t of the way from a to b.
+ * lerp(10, 20, 0) == 10, lerp(10, 20, 1) == 20, lerp(10, 20, 0.25) == 12.5.
+ * t outside 0 .. 1 extrapolates along the same line.
+ *
+ * Formula: a + (b - a) * t.
+ */
+def lerp(a: var, b: var, t: var): var {
+    return a + (b - a) * t;
+}
+
+/**
+ * The opposite of lerp: how far v is along the way from a to b, as a
+ * fraction. inverse_lerp(10, 20, 12.5) == 0.25.
+ *
+ * Throws arithmetic_exception when a == b (every v is then "nowhere" on a
+ * line of length 0).
+ */
+def inverse_lerp(a: var, b: var, v: var): var {
+    if(a == b)
+        throw new arithmetic_exception("inverse_lerp: a and b are equal");
+    return (v - a) / (b - a);
+}
+
+/**
+ * Re-scale v from the range in_low .. in_high to the range
+ * out_low .. out_high, keeping its relative position:
+ * map_range(5, 0, 10, 100, 200) == 150 (half way stays half way).
+ * Values outside the input range land outside the output range; the output
+ * range may run backwards (map_range(2, 0, 10, 10, 0) == 8).
+ *
+ * Throws arithmetic_exception when in_low == in_high.
+ */
+def map_range(v: var, in_low: var, in_high: var, out_low: var, out_high: var): var {
+    if(in_low == in_high)
+        throw new arithmetic_exception("map_range: the input range is empty");
+    return out_low + (v - in_low) * (out_high - out_low) / (in_high - in_low);
+}
+
+/**
+ * A smooth 0 -> 1 transition as x goes from edge0 to edge1: 0 at or below
+ * edge0, 1 at or above edge1, and an S shaped curve with zero slope at both
+ * ends in between (smoothstep(0, 10, 5) == 0.5).
+ *
+ * Formula: t = clamp((x - edge0) / (edge1 - edge0), 0, 1); t * t * (3 - 2 t).
+ * Throws arithmetic_exception when edge0 == edge1.
+ */
+def smoothstep(edge0: var, edge1: var, x: var): var {
+    if(edge0 == edge1)
+        throw new arithmetic_exception("smoothstep: the edges are equal");
+
+    t : var = (x - edge0) / (edge1 - edge0);
+    if(t < 0) t = 0;
+    if(t > 1) t = 1;
+    return t * t * (3 - 2 * t);
+}
+
+/**
+ * Wrap v into low <= result < high, like the hands of a clock:
+ * wrap(370, 0, 360) == 10, wrap(-1, 0, 5) == 4, wrap(7, 2, 5) == 4.
+ *
+ * Throws illegal_argument_exception when low >= high.
+ */
+def wrap(v: var, low: var, high: var): var {
+    if(low >= high)
+        throw new illegal_argument_exception("wrap: low must be less than high");
+
+    span : var = high - low;
+    return low + ((v - low) - floor_of((v - low) / span) * span);
+}

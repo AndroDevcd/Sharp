@@ -1,0 +1,168 @@
+mod std.math;
+
+/**
+ * @class circle
+ *
+ * A circle: a centre (x, y) and a radius, all native numbers.
+ *
+ *     c := new circle(0, 0, 5);
+ *     c.area()                         // 25 pi = 78.5398...
+ *     c.contains(3, 4).value           // true (the point is on the border)
+ *     c.intersects(new circle(8, 0, 3)).value     // true (they touch)
+ *
+ * The border counts as inside: contains() is true on the circle line, and
+ * circles (or a circle and a rectangle) that merely touch do intersect.
+ * Circles are values: methods return new circles.
+ */
+class circle {
+    /** x of the centre */
+    x : var = 0;
+
+    /** y of the centre */
+    y : var = 0;
+
+    /** distance from the centre to the border; never negative */
+    radius : var = 0;
+
+    /**
+     * The circle around (x, y) with the given radius.
+     * Throws illegal_argument_exception when radius is negative.
+     */
+    circle(x: var, y: var, radius: var) {
+        if(radius < 0)
+            throw new illegal_argument_exception("circle: the radius cannot be negative");
+        self->x = x;
+        self->y = y;
+        self->radius = radius;
+    }
+
+    /**
+     * The circle around `center` with the given radius.
+     * Throws illegal_argument_exception when radius is negative.
+     */
+    circle(center: vector2, radius: var) {
+        if(radius < 0)
+            throw new illegal_argument_exception("circle: the radius cannot be negative");
+        x = center.x;
+        y = center.y;
+        self->radius = radius;
+    }
+
+    /** a copy of another circle */
+    circle(other: circle) {
+        x = other.x;
+        y = other.y;
+        radius = other.radius;
+    }
+
+    /** the centre point */
+    def center(): vector2 {
+        return new vector2(x, y);
+    }
+
+    /** 2 * radius */
+    def diameter(): var {
+        return 2 * radius;
+    }
+
+    /** pi * radius^2 */
+    def area(): var {
+        return PI_VALUE * radius * radius;
+    }
+
+    /** the length of the border: 2 * pi * radius */
+    def circumference(): var {
+        return TAU * radius;
+    }
+
+    /** true when the point (px, py) is inside the circle or on its border: distance^2 <= radius^2 */
+    def contains(px: var, py: var): bool {
+        dx : var = px - x;
+        dy : var = py - y;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    /** true when the point is inside the circle or on its border */
+    def contains(point: vector2): bool {
+        return contains(point.x, point.y);
+    }
+
+    /**
+     * True when `other` lies completely inside this circle: the distance of
+     * the centres plus the other radius is at most this radius.
+     */
+    def contains(other: circle): bool {
+        return hypot(other.x - x, other.y - y) + other.radius <= radius;
+    }
+
+    /**
+     * True when the two circles share at least one point (touching counts):
+     * the centres are at most radius1 + radius2 apart. Compared on the
+     * squared distance, so no square root is taken.
+     */
+    def intersects(other: circle): bool {
+        dx : var = other.x - x;
+        dy : var = other.y - y;
+        reach : var = radius + other.radius;
+        return dx * dx + dy * dy <= reach * reach;
+    }
+
+    /**
+     * True when the circle and the rectangle share at least one point.
+     * Method: take the point of the rectangle closest to the centre (the
+     * centre clamped to the rectangle) and test whether it is inside the circle.
+     */
+    def intersects(box: rect): bool {
+        nearest_x : var = clamp(x, box.x, box.x + box.width);
+        nearest_y : var = clamp(y, box.y, box.y + box.height);
+        return contains(nearest_x, nearest_y);
+    }
+
+    /** the distance from the centre to the point (px, py) */
+    def distance_to(px: var, py: var): var {
+        return hypot(px - x, py - y);
+    }
+
+    /** the smallest axis-aligned rectangle that contains the circle (a square of side 2 * radius) */
+    def bounding_rect(): rect {
+        return new rect(x - radius, y - radius, 2 * radius, 2 * radius);
+    }
+
+    /** the point on the border in direction `radians` from the centre (0 = +x, counter clockwise) */
+    def point_at(radians: var): vector2 {
+        return new vector2(x + radius * cos_of(radians), y + radius * sin_of(radians));
+    }
+
+    /** the same circle moved by (dx, dy) */
+    def translated(dx: var, dy: var): circle {
+        return new circle(x + dx, y + dy, radius);
+    }
+
+    /**
+     * The same circle with its radius multiplied by `factor`.
+     * Throws illegal_argument_exception when factor is negative.
+     */
+    def scaled(factor: var): circle {
+        return new circle(x, y, radius * factor);
+    }
+
+    /** true when centre and radius are exactly equal */
+    def operator==(other: circle): bool {
+        return x == other.x && y == other.y && radius == other.radius;
+    }
+
+    /** true when centre or radius differ */
+    def operator!=(other: circle): bool {
+        return x != other.x || y != other.y || radius != other.radius;
+    }
+
+    /** "circle(x, y, r=radius)", e.g. "circle(0, 0, r=5)" */
+    override def to_string(): string? {
+        return "circle(" + number_to_string(x) + ", " + number_to_string(y) + ", r=" + number_to_string(radius) + ")";
+    }
+
+    /** a hash code built from centre and radius (equal circles have equal hashes) */
+    override def hash(): int {
+        return ((x * 31 + y) * 31 + radius) % 2147483647;
+    }
+}

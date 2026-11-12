@@ -1,0 +1,125 @@
+mod std.util;
+
+/**
+ * @class preconditions
+ *
+ * One-line checks that throw the right exception when something is wrong
+ * (Kotlin's require / check / requireNotNull / error / TODO). Only static
+ * functions; never instantiated.
+ *
+ *     def withdraw(amount: var) {
+ *         preconditions.require(amount > 0, "amount must be positive");
+ *         preconditions.check(is_open, "the account is closed");
+ *         ...
+ *     }
+ *
+ * Which function to use:
+ *
+ *     require(...)          the CALLER passed a bad argument   -> illegal_argument_exception
+ *     check(...)            the OBJECT is in the wrong state   -> illegal_state_exception
+ *     require_not_null(...) an argument is null                -> nullptr_exception
+ *     require_index(...)    an index is outside 0 .. size - 1  -> out_of_bounds_exception
+ *     error(...)            "this cannot happen" was reached   -> illegal_state_exception
+ *     todo(...)             the code is not written yet        -> not_implemented_error
+ *
+ * Note: a catch clause currently matches the exact class of the exception
+ * only, so catch the class named in the table.
+ */
+class preconditions {
+
+    /**
+     * Throws illegal_argument_exception with `message` when `condition` is false.
+     * Use it to validate the arguments of a function.
+     */
+    static def require(condition: bool, message: string) {
+        if(!condition.value)
+            throw new illegal_argument_exception(message);
+    }
+
+    /** like require(condition, message) with the message "requirement failed" */
+    static def require(condition: bool) {
+        if(!condition.value)
+            throw new illegal_argument_exception("requirement failed");
+    }
+
+    /**
+     * Throws illegal_state_exception with `message` when `condition` is false.
+     * Use it to validate the state of the object a method was called on.
+     */
+    static def check(condition: bool, message: string) {
+        if(!condition.value)
+            throw new illegal_state_exception(message);
+    }
+
+    /** like check(condition, message) with the message "check failed" */
+    static def check(condition: bool) {
+        if(!condition.value)
+            throw new illegal_state_exception("check failed");
+    }
+
+    /**
+     * Returns `value` when it is not null, so the call can be used inline;
+     * throws nullptr_exception with `message` when it is null.
+     */
+    static def require_not_null(value: object, message: string): object {
+        if(value == null)
+            throw new nullptr_exception(message);
+        return value;
+    }
+
+    /**
+     * Throws out_of_bounds_exception unless 0 <= index < size; returns the
+     * index otherwise. The message names the index and the size.
+     */
+    static def require_index(index: var, size: var): var {
+        if(index < 0 || index >= size || index != index) {
+            shown : int = index;
+            limit : int = size;
+            throw new out_of_bounds_exception("index " + shown + " is outside 0 .. " + limit + " (exclusive)");
+        }
+        return index;
+    }
+
+    /**
+     * Throws illegal_argument_exception with `message` unless
+     * low <= value <= high; returns the value otherwise.
+     */
+    static def require_in_range(value: var, low: var, high: var, message: string): var {
+        if(value < low || value > high || value != value)
+            throw new illegal_argument_exception(message);
+        return value;
+    }
+
+    /**
+     * Throws illegal_argument_exception with `message` when the text is
+     * null or has no characters; returns the text otherwise.
+     */
+    static def require_not_empty(text: string?, message: string): string {
+        if((text as object) == null)
+            throw new illegal_argument_exception(message);
+        if(text!!.size() == 0)
+            throw new illegal_argument_exception(message);
+        return text!!;
+    }
+
+    /**
+     * Always throws illegal_state_exception with `message`. For branches
+     * that must never be reached ("unknown shape kind").
+     */
+    static def error(message: string) {
+        throw new illegal_state_exception(message);
+    }
+
+    /**
+     * Always throws not_implemented_error: marks code that still has to be
+     * written. The message is "not implemented: " followed by `what`.
+     */
+    static def todo(what: string) {
+        throw new not_implemented_error("not implemented: " + what);
+    }
+
+    /** like todo(what) with the plain message "not implemented" */
+    static def todo() {
+        throw new not_implemented_error("not implemented");
+    }
+}

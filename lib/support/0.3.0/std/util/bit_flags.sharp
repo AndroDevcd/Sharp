@@ -1,0 +1,184 @@
+mod std.util;
+
+/**
+ * @class bit_flags
+ *
+ * A small set of on/off options packed into one number, one bit per option.
+ * Define the options as powers of two and combine them with add():
+ *
+ *     const READ : var = 1;       // bit_flags.flag(0)
+ *     const WRITE : var = 2;      // bit_flags.flag(1)
+ *     const EXECUTE : var = 4;    // bit_flags.flag(2)
+ *
+ *     access := new bit_flags(READ);
+ *     access.add(WRITE);
+ *     access.has(WRITE).value         // true
+ *     access.has(READ + EXECUTE).value    // false: not ALL of them are set
+ *     access.has_any(READ + EXECUTE).value    // true: one of them is
+ *     access.value                    // 3, e.g. to store in a file
+ *
+ * A "mask" is any combination of flags (their sum, as long as each flag
+ * appears once). Up to 32 flags are supported: masks are whole numbers in
+ * 0 .. 4294967295. Unlike most classes in this library a bit_flags object
+ * is MUTABLE: add / remove / toggle / clear change it (and return it, so
+ * calls can be chained).
+ *
+ * Every method throws illegal_argument_exception for a mask that is
+ * negative, fractional or above 4294967295.
+ */
+class bit_flags {
+    /** all flags that are currently set, as one number (read only; use add / remove / assign) */
+    value : var = 0;
+        private set v -> { value = v; }
+
+    /** no flag set */
+    bit_flags() {
+    }
+
+    /** the flags of `mask` set */
+    bit_flags(mask: var) {
+        check(mask);
+        value = mask;
+    }
+
+    private static def check(mask: var) {
+        if(mask < 0 || mask > 4294967295 || mask != (mask as _int64))
+            throw new illegal_argument_exception("bit_flags: a mask must be a whole number in 0 .. 4294967295");
+    }
+
+    /**
+     * The mask for flag number `position` (0 .. 31): 2^position, so
+     * flag(0) == 1, flag(1) == 2, flag(5) == 32.
+     * Throws illegal_argument_exception for any other position.
+     */
+    static def flag(position: var): var {
+        if(position < 0 || position > 31 || position != (position as _int64))
+            throw new illegal_argument_exception("bit_flags: a flag position must be in 0 .. 31");
+
+        result : var = 1;
+        for(i : var = 0; i < position; i++) {
+            result = result * 2;
+        }
+        return result;
+    }
+
+    /** switch on every flag of `mask`; flags that are already on stay on */
+    def add(mask: var): bit_flags {
+        check(mask);
+        value = value | mask;
+        return self;
+    }
+
+    /** switch off every flag of `mask`; flags that are already off stay off */
+    def remove(mask: var): bit_flags {
+        check(mask);
+        value = value - (value & mask);
+        return self;
+    }
+
+    /** flip every flag of `mask`: on becomes off, off becomes on */
+    def toggle(mask: var): bit_flags {
+        check(mask);
+        value = value ^ mask;
+        return self;
+    }
+
+    /** switch the flags of `mask` on (enabled true) or off (enabled false) */
+    def assign(mask: var, enabled: bool): bit_flags {
+        if(enabled.value) return add(mask);
+        return remove(mask);
+    }
+
+    /** switch every flag off */
+    def clear(): bit_flags {
+        value = 0;
+        return self;
+    }
+
+    /** true when ALL flags of `mask` are on (true for the empty mask 0) */
+    def has(mask: var): bool {
+        check(mask);
+        return (value & mask) == mask;
+    }
+
+    /** true when AT LEAST ONE flag of `mask` is on (false for the empty mask 0) */
+    def has_any(mask: var): bool {
+        check(mask);
+        return (value & mask) != 0;
+    }
+
+    /** true when NO flag of `mask` is on */
+    def has_none(mask: var): bool {
+        check(mask);
+        return (value & mask) == 0;
+    }
+
+    /** true when no flag at all is on */
+    def is_empty(): bool {
+        return value == 0;
+    }
+
+    /** how many flags are on */
+    def count(): var {
+        remaining : var = value;
+        total : var = 0;
+        while(remaining > 0) {
+            total += remaining & 1;
+            remaining = remaining >> 1;
+        }
+        return total;
+    }
+
+    /** a new set with the flags that are on in this set OR in `other` */
+    def union_with(other: bit_flags): bit_flags {
+        return new bit_flags(value | other.value);
+    }
+
+    /** a new set with the flags that are on in this set AND in `other` */
+    def intersection(other: bit_flags): bit_flags {
+        return new bit_flags(value & other.value);
+    }
+
+    /** an independent copy of this set */
+    def copy_of(): bit_flags {
+        return new bit_flags(value);
+    }
+
+    /** true when both sets have exactly the same flags on */
+    def operator==(other: bit_flags): bool {
+        return value == other.value;
+    }
+
+    /** true when the sets differ in at least one flag */
+    def operator!=(other: bit_flags): bool {
+        return value != other.value;
+    }
+
+    /**
+     * The flags as binary digits, the highest set flag first: a set with
+     * flags 0 and 2 on is "101"; the empty set is "0".
+     */
+    override def to_string(): string? {
+        if(value == 0) return "0";
+
+        length : var = 0;
+        remaining : var = value;
+        while(remaining > 0) {
+            remaining = remaining >> 1;
+            length++;
+        }
+
+        text := new _int8[length];
+        remaining = value;
+        for(i : var = length - 1; i >= 0; i--) {
+            text[i] = '0' + (remaining & 1);
+            remaining = remaining >> 1;
+        }
+        return new string(text);
+    }
+
+    /** the hash code is the mask itself (equal sets have equal hashes) */
+    override def hash(): int {
+        return value % 2147483647;
+    }
+}

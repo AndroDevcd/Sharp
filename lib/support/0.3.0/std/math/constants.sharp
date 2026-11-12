@@ -1,0 +1,88 @@
+mod std.math;
+
+/**
+ * Mathematical constants as NATIVE numbers (var).
+ *
+ * The two constants in math.sharp, PI and E, are `double` objects and need
+ * `.value` when a native number is wanted (PI.value * 2). Everything in this
+ * file is a plain `var`, so it can be used in arithmetic directly:
+ *
+ *     circumference : var = TAU * radius;
+ *
+ * All values are written with 17 significant digits, which is enough to
+ * select the nearest 64-bit floating point number.
+ */
+
+/** pi as a native number (the same value as PI.value): 3.14159... */
+public const PI_VALUE : var = 3.1415926535897932;
+
+/** e as a native number (the same value as E.value): 2.71828... */
+public const E_VALUE : var = 2.7182818284590452;
+
+/** tau = 2 * pi, the number of radians in a full turn */
+public const TAU : var = 6.2831853071795865;
+
+/** pi / 2, a quarter turn (90 degrees) in radians */
+public const HALF_PI : var = 1.5707963267948966;
+
+/** pi / 4, an eighth of a turn (45 degrees) in radians */
+public const QUARTER_PI : var = 0.78539816339744831;
+
+/** the square root of 2 */
+public const SQRT2 : var = 1.4142135623730951;
+
+/** the square root of 1/2, which is also 1 / sqrt(2) and sin(45 degrees) */
+public const SQRT1_2 : var = 0.70710678118654752;
+
+/** the square root of 3 */
+public const SQRT3 : var = 1.7320508075688773;
+
+/** the natural logarithm of 2 */
+public const LN2 : var = 0.69314718055994531;
+
+/** the natural logarithm of 10 */
+public const LN10 : var = 2.3025850929940457;
+
+/** the base 2 logarithm of e, which is 1 / LN2 */
+public const LOG2E : var = 1.4426950408889634;
+
+/** the base 10 logarithm of e, which is 1 / LN10 */
+public const LOG10E : var = 0.43429448190325183;
+
+/** the golden ratio phi = (1 + sqrt(5)) / 2 */
+public const GOLDEN_RATIO : var = 1.6180339887498949;
+
+/** multiply an angle in degrees by this to get radians (pi / 180) */
+public const RADIANS_PER_DEGREE : var = 0.017453292519943296;
+
+/** multiply an angle in radians by this to get degrees (180 / pi) */
+public const DEGREES_PER_RADIAN : var = 57.295779513082321;
+
+/**
+ * The gap between 1 and the next larger native number (2^-52). Two results
+ * that differ by a few multiples of EPSILON * their size are "equal up to
+ * rounding"; see approx_equals() in comparison.sharp.
+ */
+public const EPSILON : var = 0.0000000000000002220446049250313;
+
+/**
+ * The largest whole number n for which n and n + 1 are both exact in a
+ * native number: 2^53 - 1 = 9007199254740991. Whole number arithmetic is
+ * exact as long as every intermediate result stays within
+ * MIN_SAFE_INTEGER .. MAX_SAFE_INTEGER.
+ */
+public const MAX_SAFE_INTEGER : var = 9007199254740991;
+
+/** the most negative exactly representable whole number: -(2^53 - 1) */
+public const MIN_SAFE_INTEGER : var = negated(9007199254740991);
+
+/**
+ * 0 - v, computed while the program runs. The compiler folds a constant
+ * expression such as `0 - 9007199254740991` to -2147483648 (large literals
+ * with a leading minus are broken, see
+ * tests/suite/known_bugs/lib_math_literals.sharp), so the constant above
+ * cannot be written as a literal.
+ */
+local def negated(v: var): var {
+    return 0 - v;
+}
