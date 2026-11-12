@@ -462,6 +462,14 @@ void sched_thread_exit(sharp_thread *thread) {
 // ---------------------------------------------------------------------------------
 
 void sched_unsched_threads() {
+    // Lock order: thread_mutex first, then unsched_mutex - the order
+    // get_thread() (thread_controller.cpp) uses. This function used to take
+    // unsched_mutex and then, inside queue_thread(), thread_mutex: with a Sharp
+    // thread in get_thread() at the same moment each side held the mutex the
+    // other one waited for, and the VM hung (about 1 run in 40 of a program
+    // that starts many threads). Both mutexes are recursive, so queue_thread()
+    // locking thread_mutex again is fine.
+    std::lock_guard<recursive_mutex> threadListGuard(thread_mutex);
     guard_mutex(unsched_mutex)
 
     while (unsched_threads != nullptr) {
