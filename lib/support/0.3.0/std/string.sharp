@@ -152,7 +152,10 @@ class string : loopable<_int8> {
     def operator+(obj : printable?) : string {
         s := new string(data);
         objstr := obj?.to_string();
-        if(objstr == null) {
+        // `objstr == null` would call operator==(_int8[]?) and be true for every EMPTY
+        // string (an empty string and null both have size 0), which made "" print as
+        // "null". Comparing the reference itself asks the real question.
+        if((objstr as object) == null) {
             return s.append("null");
         } else if(objstr?.data == null) {
             return s;
@@ -162,7 +165,8 @@ class string : loopable<_int8> {
 
    def operator+(str : string?) : string {
        s := new string(data);
-        if(str == null) {
+        // reference comparison: an empty string is not null (see operator+(printable?))
+        if((str as object) == null) {
             return s.append("null");
         } else if(str?.data == null) {
             return s;
@@ -212,7 +216,7 @@ class string : loopable<_int8> {
     }
 
     def at(pos : int) : char {
-        if(pos.value >= sizeof(data))
+        if(pos.value >= sizeof(data) || pos.value < 0)
             throw bounds_error(pos.value);
         return data[pos.value];
     }
@@ -264,7 +268,8 @@ class string : loopable<_int8> {
     }
 
     def ends_with(postfix: string) : bool {
-        if(sizeof(postfix.data) >= sizeof(data))
+        // (a postfix as long as the string itself can still match: "abc" ends with "abc")
+        if(sizeof(postfix.data) > sizeof(data))
             return false;
 
         index := 0;
@@ -318,12 +323,13 @@ class string : loopable<_int8> {
     def operator+=( obj: printable? ) : string
     {
         str := obj?.to_string();
-        if(str == null) {
+        // reference comparison: an empty string is not null (see operator+(printable?))
+        if((str as object) == null) {
             return append("null");
         } else if(str?.data == null) {
             return self;
         } else {
-            return append(?.data);
+            return append(str?.data);
         }
     }
 

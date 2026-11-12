@@ -1,0 +1,21 @@
+mod std;
+
+/**
+ * @class unsupported_operation_exception
+ *
+ * Thrown when an object is asked to do something it does not support at all,
+ * for example adding to a read-only view or calling an optional method a
+ * class chose not to provide (Java/Kotlin: UnsupportedOperationException).
+ *
+ * Use illegal_state_exception instead when the operation is supported but the
+ * object is currently in the wrong state for it.
+ *
+ * Example:
+ *     throw new unsupported_operation_exception("this list is read only");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class unsupported_operation_exception base exception {
+    public unsupported_operation_exception(message : string?) -> base(message) {}
+}

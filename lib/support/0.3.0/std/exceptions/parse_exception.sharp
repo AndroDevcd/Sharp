@@ -1,0 +1,20 @@
+mod std;
+
+/**
+ * @class parse_exception
+ *
+ * Thrown when text does not follow the format it is supposed to have: a
+ * malformed version string, uuid, fraction, date ... (Java: ParseException).
+ *
+ * It is an illegal_argument_exception; number_format_exception is the more
+ * specific type for text that should have been a plain number.
+ *
+ * Example:
+ *     throw new parse_exception("not a version: 1..2");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class parse_exception base illegal_argument_exception {
+    public parse_exception(message : string?) -> base(message) {}
+}

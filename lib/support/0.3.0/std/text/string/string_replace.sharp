@@ -1,0 +1,197 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - replacing and removing (part of the `string` class, see string_core.sharp)
+ *
+ * replace_all / replace_first / replace_last (text), replace_char (single
+ * characters), replace_range, remove, remove_chars, retain_chars.
+ *
+ * All of these return a NEW string. Do not confuse them with the older
+ * `replace(pos, ch)` in std/string.sharp, which overwrites one character of
+ * the string itself (that is also why the text forms are not simply called
+ * `replace`: `s.replace('a', 'b')` would be ambiguous).
+ */
+mutate string {
+
+    /**
+     * INTERNAL (public only because helpers must be shared between the string_*.sharp files; not part of the API). Builds the result of replacing `matches` occurrences of `old`
+     * (found left to right, starting at `first_at`) with `replacement`.
+     * The result is allocated once at its final size.
+     */
+    private def rebuild(old: _int8[]?, replacement: _int8[]?, first_at: var, matches: var): string {
+        n : var = sizeof(data);
+        m : var = sizeof(old);
+        r : var = sizeof(replacement);
+        total : var = n + matches * (r - m);
+        if(total == 0) return new string();
+
+        out := new _int8[total];
+        src : var = 0;              // next character of this string to copy
+        dst : var = 0;              // next free position in out
+        at : var = first_at;
+        done : var = 0;
+        while(done < matches && at >= 0) {
+            if(at > src) {
+                memcopy(data!!, out, dst, src, at);
+                dst += at - src;
+            }
+            if(r > 0) {
+                memcopy(replacement!!, out, dst, 0, r);
+                dst += r;
+            }
+            src = at + m;
+            done++;
+            if(done < matches) at = string_support.find_forward(data, old, src);
+        }
+        if(src < n) memcopy(data!!, out, dst, src, n);
+        return string_support.of_buffer(out, total);
+    }
+
+    /**
+     * Every occurrence of `old` replaced by `replacement`, searching left to
+     * right without overlaps: "aaa".replace_all("aa", "b") is "ba".
+     * If `old` does not occur an unchanged copy is returned. The replacement
+     * may be "" (which removes the occurrences).
+     * Throws illegal_argument_exception if `old` is empty.
+     */
+    def replace_all(old: string, replacement: string): string {
+        if(sizeof(old.data) == 0)
+            throw new ill_arg_except("replace_all: the text to replace cannot be empty");
+
+        first_at : var = string_support.find_forward(data, old.data, 0);
+        if(first_at < 0) return string_support.slice(data, 0, sizeof(data));
+        return rebuild(old.data, replacement.data, first_at, string_support.count(data, old.data));
+    }
+
+    /**
+     * The FIRST occurrence of `old` replaced by `replacement`
+     * ("a-b-c".replace_first("-", "+") is "a+b-c").
+     * If `old` does not occur an unchanged copy is returned.
+     * Throws illegal_argument_exception if `old` is empty.
+     */
+    def replace_first(old: string, replacement: string): string {
+        if(sizeof(old.data) == 0)
+            throw new ill_arg_except("replace_first: the text to replace cannot be empty");
+
+        at : var = string_support.find_forward(data, old.data, 0);
+        if(at < 0) return string_support.slice(data, 0, sizeof(data));
+        return rebuild(old.data, replacement.data, at, 1);
+    }
+
+    /**
+     * The LAST occurrence of `old` replaced by `replacement`
+     * ("a-b-c".replace_last("-", "+") is "a-b+c").
+     * If `old` does not occur an unchanged copy is returned.
+     * Throws illegal_argument_exception if `old` is empty.
+     */
+    def replace_last(old: string, replacement: string): string {
+        if(sizeof(old.data) == 0)
+            throw new ill_arg_except("replace_last: the text to replace cannot be empty");
+
+        at : var = string_support.find_backward(data, old.data, sizeof(data));
+        if(at < 0) return string_support.slice(data, 0, sizeof(data));
+        return rebuild(old.data, replacement.data, at, 1);
+    }
+
+    /**
+     * Every character equal to `old` replaced by the character `replacement`
+     * ("a.b.c".replace_char('.', '/') is "a/b/c"). Returns a new string.
+     */
+    def replace_char(old: char, replacement: char): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        from : var = old.value;
+        to : var = replacement.value;
+        out := new _int8[n];
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(c == from) out[i] = to;
+            else out[i] = c;
+        }
+        return string_support.of_buffer(out, n);
+    }
+
+    /**
+     * The characters from `start` up to (not including) `end` replaced by
+     * `replacement`: "abcdef".replace_range(1, 3, "XYZ") is "aXYZdef".
+     * start == end inserts the replacement at that position.
+     * Throws out_of_bounds_exception if the range is not inside the string
+     * (start < 0, end > length or end < start).
+     */
+    def replace_range(start: int, end: int, replacement: string): string {
+        n : var = sizeof(data);
+        from : var = start.value;
+        to : var = end.value;
+        if(from < 0 || to > n || to < from)
+            throw new bounds_except("replace_range: range $start..$end is not inside a string of ${size()} characters");
+
+        r : var = sizeof(replacement.data);
+        total : var = n - (to - from) + r;
+        if(total == 0) return new string();
+
+        out := new _int8[total];
+        if(from > 0) memcopy(data!!, out, 0, 0, from);
+        if(r > 0) memcopy(replacement.data!!, out, from, 0, r);
+        if(to < n) memcopy(data!!, out, from + r, to, n);
+        return string_support.of_buffer(out, total);
+    }
+
+    /**
+     * The string with `text` inserted before position `position`
+     * ("held".insert(3, "lo wor") is "hello word"). position == length appends.
+     * Throws out_of_bounds_exception if position is negative or > length.
+     */
+    def insert(position: int, text: string): string {
+        if(position.value < 0 || position.value > sizeof(data))
+            throw new bounds_except("insert: position $position is outside of a string of ${size()} characters");
+        return replace_range(position, position, text);
+    }
+
+    /**
+     * The string with every occurrence of `text` taken out
+     * ("a, b, c".remove(", ") is "abc").
+     * Throws illegal_argument_exception if `text` is empty.
+     */
+    def remove(text: string): string {
+        if(sizeof(text.data) == 0)
+            throw new ill_arg_except("remove: the text to remove cannot be empty");
+        return replace_all(text, "");
+    }
+
+    /**
+     * The string without any character that is one of the characters in `chars`
+     * ("(555) 123-4567".remove_chars("() -") is "5551234567").
+     */
+    def remove_chars(chars: string): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        used : var = 0;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(!string_support.in_set(c, chars.data)) out[used++] = c;
+        }
+        return string_support.of_buffer(out, used);
+    }
+
+    /**
+     * Only the characters that are one of the characters in `chars`, in their
+     * original order ("a1b2c3".retain_chars("0123456789") is "123").
+     */
+    def retain_chars(chars: string): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        used : var = 0;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(string_support.in_set(c, chars.data)) out[used++] = c;
+        }
+        return string_support.of_buffer(out, used);
+    }
+}

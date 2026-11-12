@@ -1,0 +1,181 @@
+mod main;
+
+import ( testing, std.text )
+
+/**
+ * std.text - the `string` class, part 3:
+ *   - string_split.sharp    split, split_any, split_whitespace, lines, chunked, join
+ *   - string_case.sharp     to_upper, capitalize, decapitalize, swap_case, title_case, is_upper / is_lower
+ *   - string_compare.sharp  compare_to, equals_ignore_case, is_digits, is_letters, is_palindrome ...
+ *
+ * Arrays of strings are checked through show(): the number of parts, a colon,
+ * and the parts with '|' between them, so empty parts and counts are visible.
+ */
+
+def show(parts: string[]): string {
+    joined := string.join("|", parts);
+    // (an empty string is not appended: the uncorrected std/string.sharp would add "null",
+    //  see lib_text_string_fixes.sharp)
+    if(joined.is_empty()) return string.of_int(sizeof(parts)) + ":";
+    return string.of_int(sizeof(parts)) + ":" + joined;
+}
+
+def main(args: string[]) {
+    empty : string = "";
+    hello : string = "hello";
+
+    // ---- split
+    csv : string = "a,b,c";
+    expect_str("split", show(csv.split(",")), "3:a|b|c");
+    expect_str("split with a char literal", show(csv.split(',')), "3:a|b|c");
+    gaps : string = ",a,,b,";
+    expect_str("split keeps empty parts", show(gaps.split(",")), "5:|a||b|");
+    expect_str("split, delimiter not found", show(csv.split(";")), "1:a,b,c");
+    expect_str("split of \"\"", show(empty.split(",")), "1:");
+    only : string = ",";
+    expect_str("split of just the delimiter", show(only.split(",")), "2:|");
+    arrows : string = "a->b->c";
+    expect_str("split by a longer delimiter", show(arrows.split("->")), "3:a|b|c");
+    expect_str("split by the whole string", show(csv.split("a,b,c")), "2:|");
+    expect_str("split with a limit", show(csv.split(",", 2)), "2:a|b,c");
+    expect_str("split with limit 1", show(csv.split(",", 1)), "1:a,b,c");
+    expect_str("split with limit 0 = no limit", show(csv.split(",", 0)), "3:a|b|c");
+    expect_str("split with a limit larger than the parts", show(csv.split(",", 10)), "3:a|b|c");
+    expect_str("split with a limit keeps empty parts", show(gaps.split(",", 3)), "3:|a|,b,");
+    try {
+        csv.split("");
+        fail("split by \"\"", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("split by \"\"");
+    }
+    try {
+        csv.split(",", 0 - 1);
+        fail("split with a negative limit", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("split with a negative limit");
+    }
+    many := hello.repeat(1000);
+    expect("split of a long string", sizeof(many.split("h")), 1001);
+
+    // ---- split_any, split_whitespace
+    mixed : string = "a,b;c";
+    expect_str("split_any", show(mixed.split_any(",;")), "3:a|b|c");
+    expect_str("split_any with neighbours", show(gaps.split_any(",")), "5:|a||b|");
+    expect_str("split_any, none found", show(mixed.split_any("#")), "1:a,b;c");
+    expect_str("split_any of \"\"", show(empty.split_any(",")), "1:");
+    words : string = "  to be\tor  not \n";
+    expect_str("split_whitespace", show(words.split_whitespace()), "4:to|be|or|not");
+    expect_str("split_whitespace of one word", show(hello.split_whitespace()), "1:hello");
+    expect_str("split_whitespace of \"\"", show(empty.split_whitespace()), "0:");
+    spaces : string = "   ";
+    expect_str("split_whitespace of spaces", show(spaces.split_whitespace()), "0:");
+
+    // ---- lines
+    text : string = "a\nb\r\nc\rd";
+    expect_str("lines with all three line ends", show(text.lines()), "4:a|b|c|d");
+    trailing : string = "a\n";
+    expect_str("lines: a final line end gives a last empty line", show(trailing.lines()), "2:a|");
+    expect_str("lines of \"\"", show(empty.lines()), "1:");
+    expect_str("lines of a single line", show(hello.lines()), "1:hello");
+    blank_lines : string = "a\n\nb";
+    expect_str("lines keeps empty lines", show(blank_lines.lines()), "3:a||b");
+    crlf : string = "\r\n";
+    expect_str("lines: \\r\\n is one line end", show(crlf.lines()), "2:|");
+
+    // ---- chunked
+    abcdefg : string = "abcdefg";
+    expect_str("chunked", show(abcdefg.chunked(3)), "3:abc|def|g");
+    expect_str("chunked, exact fit", show(abcdefg.chunked(7)), "1:abcdefg");
+    expect_str("chunked larger than the string", show(abcdefg.chunked(50)), "1:abcdefg");
+    expect_str("chunked(1)", show(hello.chunked(1)), "5:h|e|l|l|o");
+    expect_str("chunked of \"\"", show(empty.chunked(3)), "0:");
+    try {
+        abcdefg.chunked(0);
+        fail("chunked(0)", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("chunked(0)");
+    }
+
+    // ---- join
+    expect_str("join", string.join(", ", new string[] { "a", "b", "c" }), "a, b, c");
+    expect_str("join of one", string.join(", ", new string[] { "a" }), "a");
+    expect_str("join of none", string.join(", ", new string[0]), "");
+    expect_str("join with \"\"", string.join("", new string[] { "a", "b", "c" }), "abc");
+    expect_str("join keeps empty parts", string.join("-", new string[] { "", "a", "", "" }), "-a--");
+    expect_str("join undoes split", string.join(",", gaps.split(",")), ",a,,b,");
+    names := new list<string>();
+    expect_str("join_list of an empty list", string.join_list("+", names), "");
+    names.add("x");
+    names.add("y");
+    expect_str("join_list", string.join_list("+", names), "x+y");
+
+    // ---- case
+    mixed_case : string = "Hello World 42";
+    expect_str("to_upper", mixed_case.to_upper(), "HELLO WORLD 42");
+    expect_str("to_lower", mixed_case.to_lower(), "hello world 42");
+    expect_str("to_upper of \"\"", empty.to_upper(), "");
+    expect_str("to_upper leaves the original alone", mixed_case, "Hello World 42");
+    symbols : string = "@[`{";
+    expect_str("to_upper leaves the neighbours of the letters alone", symbols.to_upper(), "@[`{");
+    expect_str("capitalize", hello.capitalize(), "Hello");
+    expect_str("capitalize of \"\"", empty.capitalize(), "");
+    digits_first : string = "1abc";
+    expect_str("capitalize of a non-letter", digits_first.capitalize(), "1abc");
+    expect_str("decapitalize", mixed_case.decapitalize(), "hello World 42");
+    expect_str("capitalize leaves the original alone", hello, "hello");
+    expect_str("swap_case", mixed_case.swap_case(), "hELLO wORLD 42");
+    shouting : string = "the QUICK brown-fox";
+    expect_str("title_case", shouting.title_case(), "The Quick Brown-Fox");
+    expect_str("title_case of \"\"", empty.title_case(), "");
+    upper : string = "ABC 12";
+    expect_true("is_upper", upper.is_upper());
+    expect_false("is_upper of mixed case", mixed_case.is_upper());
+    expect_false("is_upper of \"\"", empty.is_upper());
+    numbers : string = "123";
+    expect_false("is_upper without letters", numbers.is_upper());
+    expect_true("is_lower", hello.is_lower());
+    expect_false("is_lower of capitals", upper.is_lower());
+    expect_false("is_lower without letters", numbers.is_lower());
+
+    // ---- compare
+    apple : string = "apple";
+    apply : string = "apply";
+    app : string = "app";
+    zebra : string = "Zebra";
+    expect("compare_to, smaller", apple.compare_to(apply), 0 - 1);
+    expect("compare_to, larger", apply.compare_to(apple), 1);
+    expect("compare_to, equal", apple.compare_to("apple"), 0);
+    expect("compare_to: a prefix comes first", app.compare_to(apple), 0 - 1);
+    expect("compare_to: the longer one comes last", apple.compare_to(app), 1);
+    expect("compare_to with \"\"", empty.compare_to(apple), 0 - 1);
+    expect("compare_to of two \"\"", empty.compare_to(""), 0);
+    expect("compare_to: capitals come first", zebra.compare_to(apple), 0 - 1);
+    expect("compare_to_ignore_case", zebra.compare_to_ignore_case(apple), 1);
+    expect("compare_to_ignore_case, equal", zebra.compare_to_ignore_case("zEBRA"), 0);
+    expect_true("equals_ignore_case", zebra.equals_ignore_case("ZEBRA"));
+    expect_false("equals_ignore_case, different length", zebra.equals_ignore_case("zebras"));
+    expect_false("equals_ignore_case, different text", zebra.equals_ignore_case("zebrx"));
+    expect_true("equals_ignore_case of two \"\"", empty.equals_ignore_case(""));
+
+    // ---- what a string is made of
+    expect_true("is_digits", numbers.is_digits());
+    signed : string = "-12";
+    expect_false("is_digits with a sign", signed.is_digits());
+    expect_false("is_digits of \"\"", empty.is_digits());
+    expect_true("is_letters", hello.is_letters());
+    expect_false("is_letters with a space", mixed_case.is_letters());
+    expect_false("is_letters of \"\"", empty.is_letters());
+    abc1 : string = "abc1";
+    expect_true("is_letters_or_digits", abc1.is_letters_or_digits());
+    expect_false("is_letters_or_digits with punctuation", shouting.is_letters_or_digits());
+    expect_true("is_ascii", mixed_case.is_ascii());
+    expect_true("is_ascii of \"\"", empty.is_ascii());
+    level : string = "level";
+    expect_true("is_palindrome", level.is_palindrome());
+    expect_false("is_palindrome, not one", hello.is_palindrome());
+    expect_true("is_palindrome of \"\"", empty.is_palindrome());
+    abba : string = "Abba";
+    expect_false("is_palindrome is case sensitive", abba.is_palindrome());
+
+    finish("lib_text_string_split");
+}

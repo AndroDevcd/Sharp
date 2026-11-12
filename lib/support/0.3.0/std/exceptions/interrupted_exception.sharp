@@ -1,0 +1,17 @@
+mod std;
+
+/**
+ * @class interrupted_exception
+ *
+ * Thrown when a waiting or long running operation was asked to stop before
+ * it finished (Java: InterruptedException).
+ *
+ * Example:
+ *     throw new interrupted_exception("wait cancelled");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class interrupted_exception base exception {
+    public interrupted_exception(message : string?) -> base(message) {}
+}

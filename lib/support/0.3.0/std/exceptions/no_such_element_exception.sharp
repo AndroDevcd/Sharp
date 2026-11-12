@@ -1,0 +1,18 @@
+mod std;
+
+/**
+ * @class no_such_element_exception
+ *
+ * Thrown when an element is asked for but there is none: reading the value of
+ * an empty optional, taking the first item of an empty sequence, calling
+ * next() on a finished iteration (Java/Kotlin: NoSuchElementException).
+ *
+ * Example:
+ *     throw new no_such_element_exception("the optional is empty");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class no_such_element_exception base exception {
+    public no_such_element_exception(message : string?) -> base(message) {}
+}

@@ -1,0 +1,69 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std/string.sharp - three corrections to the existing `string` class:
+ *   - an EMPTY string was concatenated and interpolated as "null"
+ *     ("head" + "" gave "headnull"), because `str == null` inside the class
+ *     called operator==(_int8[]?), which is true for every empty string
+ *   - ends_with() was false for a postfix as long as the string itself
+ *   - at() accepted a negative position
+ *
+ * NEEDS the corrected std/string.sharp; with the old one the checks below fail.
+ */
+
+def main(args: string[]) {
+    hello : string = "hello";
+    empty : string = "";
+
+    // ---- std/string.sharp: an empty string used to be printed as "null"
+    expect_str("literal + empty", "head" + empty, "head");
+    expect_str("empty + literal", empty + "tail", "tail");
+    expect_str("empty + empty", empty + empty, "");
+    expect_str("empty string in the middle", "[" + empty + "]", "[]");
+    expect_str("empty string interpolated", "[$empty]", "[]");
+    fresh := new string();
+    expect_str("new string() concatenated", "<" + fresh + ">", "<>");
+    cut := hello.substring(2, 2);
+    expect_str("empty substring concatenated", "<" + cut + ">", "<>");
+    grown : string = "a";
+    grown += empty;
+    expect_str("+= with an empty string", grown, "a");
+    nothing : string? = null;
+    expect_str("a null string still prints as null", "is " + nothing, "is null");
+
+    // ---- std/string.sharp: ends_with with a postfix as long as the string
+    expect_true("ends_with the whole string", hello.ends_with("hello").value);
+    expect_true("ends_with a real postfix", hello.ends_with("llo").value);
+    expect_false("ends_with something longer", hello.ends_with("xhello").value);
+    expect_false("ends_with a different postfix", hello.ends_with("lla").value);
+
+    // ---- std/string.sharp: at() with a negative position
+    try {
+        hello.at(0 - 1);
+        fail("at(-1)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("at(-1)");
+    }
+
+    // ---- the same through other paths
+    expect_str("empty string returned by a method", "[" + hello.substring(3, 3) + "]", "[]");
+    joined : string = "";
+    joined = joined + empty;
+    joined = joined + "x";
+    joined = joined + empty;
+    expect_str("several empty strings in a row", joined, "x");
+    expect("size after adding empty strings", joined.size().value, 1);
+    expect_true("an empty string still equals \"\"", (empty == "").value);
+    expect_true("ends_with \"\"", hello.ends_with("").value);
+    expect("at(4) still works", hello.at(4).value, 'o');
+    try {
+        hello.at(5);
+        fail("at(length)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("at(length)");
+    }
+
+    finish("lib_text_string_fixes");
+}

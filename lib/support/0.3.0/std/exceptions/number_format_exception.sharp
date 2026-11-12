@@ -1,0 +1,20 @@
+mod std;
+
+/**
+ * @class number_format_exception
+ *
+ * Thrown when text that should hold a number cannot be read as one, e.g.
+ * parsing "12x4" as a whole number (Java/Kotlin: NumberFormatException).
+ *
+ * It is an illegal_argument_exception, so code that already catches that
+ * type for bad input keeps working.
+ *
+ * Example:
+ *     throw new number_format_exception("not a number: 12x4");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class number_format_exception base illegal_argument_exception {
+    public number_format_exception(message : string?) -> base(message) {}
+}

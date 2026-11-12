@@ -1,0 +1,243 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - taking parts of a string (part of the `string` class, see string_core.sharp)
+ *
+ * substring(start), substring_before / substring_after (Kotlin style),
+ * take / drop, remove_prefix / remove_suffix, remove_range, reversed, repeat.
+ * None of these change the string they are called on.
+ */
+mutate string {
+
+    /**
+     * Everything from position `start` to the end.
+     * start == length gives "".
+     * Throws out_of_bounds_exception if start is negative or > length.
+     */
+    def substring(start: int): string {
+        n : var = sizeof(data);
+        from : var = start.value;
+        if(from < 0 || from > n)
+            throw new bounds_except("substring: start $start is outside of a string of ${size()} characters");
+        return string_support.slice(data, from, n);
+    }
+
+    /**
+     * The first `count` characters ("hello".take(2) is "he").
+     * A count larger than the string gives the whole string.
+     * Throws illegal_argument_exception if count is negative.
+     */
+    def take(count: int): string {
+        c : var = count.value;
+        n : var = sizeof(data);
+        if(c < 0) throw new ill_arg_except("take: count cannot be negative: $count");
+        if(c > n) c = n;
+        return string_support.slice(data, 0, c);
+    }
+
+    /**
+     * The last `count` characters ("hello".take_last(2) is "lo").
+     * A count larger than the string gives the whole string.
+     * Throws illegal_argument_exception if count is negative.
+     */
+    def take_last(count: int): string {
+        c : var = count.value;
+        n : var = sizeof(data);
+        if(c < 0) throw new ill_arg_except("take_last: count cannot be negative: $count");
+        if(c > n) c = n;
+        return string_support.slice(data, n - c, n);
+    }
+
+    /**
+     * The string without its first `count` characters ("hello".drop(2) is "llo").
+     * A count larger than the string gives "".
+     * Throws illegal_argument_exception if count is negative.
+     */
+    def drop(count: int): string {
+        c : var = count.value;
+        n : var = sizeof(data);
+        if(c < 0) throw new ill_arg_except("drop: count cannot be negative: $count");
+        if(c > n) c = n;
+        return string_support.slice(data, c, n);
+    }
+
+    /**
+     * The string without its last `count` characters ("hello".drop_last(2) is "hel").
+     * A count larger than the string gives "".
+     * Throws illegal_argument_exception if count is negative.
+     */
+    def drop_last(count: int): string {
+        c : var = count.value;
+        n : var = sizeof(data);
+        if(c < 0) throw new ill_arg_except("drop_last: count cannot be negative: $count");
+        if(c > n) c = n;
+        return string_support.slice(data, 0, n - c);
+    }
+
+    /**
+     * The part before the FIRST occurrence of `delimiter`
+     * ("key=value".substring_before("=") is "key").
+     * If the delimiter does not occur the whole string is returned.
+     */
+    def substring_before(delimiter: string): string {
+        at : var = string_support.find_forward(data, delimiter.data, 0);
+        if(at < 0) return string_support.slice(data, 0, sizeof(data));
+        return string_support.slice(data, 0, at);
+    }
+
+    /** Like substring_before(delimiter), but returns `missing` if the delimiter does not occur. */
+    def substring_before(delimiter: string, missing: string): string {
+        at : var = string_support.find_forward(data, delimiter.data, 0);
+        if(at < 0) return missing;
+        return string_support.slice(data, 0, at);
+    }
+
+    /**
+     * The part after the FIRST occurrence of `delimiter`
+     * ("key=value".substring_after("=") is "value").
+     * If the delimiter does not occur the whole string is returned.
+     */
+    def substring_after(delimiter: string): string {
+        at : var = string_support.find_forward(data, delimiter.data, 0);
+        if(at < 0) return string_support.slice(data, 0, sizeof(data));
+        return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
+    }
+
+    /** Like substring_after(delimiter), but returns `missing` if the delimiter does not occur. */
+    def substring_after(delimiter: string, missing: string): string {
+        at : var = string_support.find_forward(data, delimiter.data, 0);
+        if(at < 0) return missing;
+        return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
+    }
+
+    /**
+     * The part before the LAST occurrence of `delimiter`
+     * ("a.b.c".substring_before_last(".") is "a.b").
+     * If the delimiter does not occur the whole string is returned.
+     */
+    def substring_before_last(delimiter: string): string {
+        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        if(at < 0) return string_support.slice(data, 0, sizeof(data));
+        return string_support.slice(data, 0, at);
+    }
+
+    /** Like substring_before_last(delimiter), but returns `missing` if the delimiter does not occur. */
+    def substring_before_last(delimiter: string, missing: string): string {
+        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        if(at < 0) return missing;
+        return string_support.slice(data, 0, at);
+    }
+
+    /**
+     * The part after the LAST occurrence of `delimiter`
+     * ("a.b.c".substring_after_last(".") is "c").
+     * If the delimiter does not occur the whole string is returned.
+     */
+    def substring_after_last(delimiter: string): string {
+        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        if(at < 0) return string_support.slice(data, 0, sizeof(data));
+        return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
+    }
+
+    /** Like substring_after_last(delimiter), but returns `missing` if the delimiter does not occur. */
+    def substring_after_last(delimiter: string, missing: string): string {
+        at : var = string_support.find_backward(data, delimiter.data, sizeof(data));
+        if(at < 0) return missing;
+        return string_support.slice(data, at + sizeof(delimiter.data), sizeof(data));
+    }
+
+    /**
+     * The string without `prefix` at the start, if it starts with it;
+     * otherwise an unchanged copy. An empty prefix changes nothing.
+     */
+    def remove_prefix(prefix: string): string {
+        n : var = sizeof(data);
+        if(string_support.region_equals(data, 0, prefix.data)) return string_support.slice(data, sizeof(prefix.data), n);
+        return string_support.slice(data, 0, n);
+    }
+
+    /**
+     * The string without `suffix` at the end, if it ends with it;
+     * otherwise an unchanged copy. An empty suffix changes nothing.
+     */
+    def remove_suffix(suffix: string): string {
+        n : var = sizeof(data);
+        m : var = sizeof(suffix.data);
+        if(m <= n && string_support.region_equals(data, n - m, suffix.data)) return string_support.slice(data, 0, n - m);
+        return string_support.slice(data, 0, n);
+    }
+
+    /**
+     * Removes `prefix` from the start AND `suffix` from the end, but only if the
+     * string has both (and they do not overlap); otherwise an unchanged copy.
+     * "(abc)".remove_surrounding("(", ")") is "abc".
+     */
+    def remove_surrounding(prefix: string, suffix: string): string {
+        n : var = sizeof(data);
+        p : var = sizeof(prefix.data);
+        m : var = sizeof(suffix.data);
+        if(n >= p + m && string_support.region_equals(data, 0, prefix.data) && string_support.region_equals(data, n - m, suffix.data))
+            return string_support.slice(data, p, n - m);
+        return string_support.slice(data, 0, n);
+    }
+
+    /** remove_surrounding(delimiter, delimiter): "'abc'".remove_surrounding("'") is "abc". */
+    def remove_surrounding(delimiter: string): string {
+        return remove_surrounding(delimiter, delimiter);
+    }
+
+    /**
+     * The string without the characters from `start` up to (not including) `end`.
+     * "abcdef".remove_range(1, 3) is "adef". start == end removes nothing.
+     * Throws out_of_bounds_exception if the range is not inside the string
+     * (start < 0, end > length or end < start).
+     */
+    def remove_range(start: int, end: int): string {
+        n : var = sizeof(data);
+        from : var = start.value;
+        to : var = end.value;
+        if(from < 0 || to > n || to < from)
+            throw new bounds_except("remove_range: range $start..$end is not inside a string of ${size()} characters");
+
+        kept : var = n - (to - from);
+        if(kept == 0) return new string();
+
+        out := new _int8[kept];
+        if(from > 0) memcopy(data!!, out, 0, 0, from);
+        if(to < n) memcopy(data!!, out, from, to, n);
+        return string_support.of_buffer(out, kept);
+    }
+
+    /** The characters in opposite order ("abc".reversed() is "cba"). */
+    def reversed(): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        for(i : var = 0; i < n; i++) {
+            out[i] = data[n - 1 - i];
+        }
+        return string_support.of_buffer(out, n);
+    }
+
+    /**
+     * The string `count` times in a row ("ab".repeat(3) is "ababab").
+     * repeat(0), and repeating an empty string, give "".
+     * Throws illegal_argument_exception if count is negative.
+     */
+    def repeat(count: int): string {
+        c : var = count.value;
+        n : var = sizeof(data);
+        if(c < 0) throw new ill_arg_except("repeat: count cannot be negative: $count");
+        if(c == 0 || n == 0) return new string();
+
+        // one buffer of the final size, filled block by block: no growing copies
+        out := new _int8[n * c];
+        for(i : var = 0; i < c; i++) {
+            memcopy(data!!, out, i * n, 0, n);
+        }
+        return string_support.of_buffer(out, n * c);
+    }
+}

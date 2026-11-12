@@ -1,0 +1,123 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - upper and lower case (part of the `string` class, see string_core.sharp)
+ *
+ * to_upper, capitalize / decapitalize, swap_case, title_case, is_upper / is_lower.
+ * (`to_lower()` is in std/string.sharp.)
+ *
+ * Only the ASCII letters A-Z / a-z are changed; every other character,
+ * including letters with accents, is copied as it is.
+ * None of these change the string they are called on.
+ * For snake_case / camelCase conversions see std.text#case_format.
+ */
+mutate string {
+
+    /** The string with every small letter replaced by its capital ("Hello 1".to_upper() is "HELLO 1"). */
+    def to_upper(): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        for(i : var = 0; i < n; i++) {
+            out[i] = string_support.upper_of(data[i]);
+        }
+        return string_support.of_buffer(out, n);
+    }
+
+    /**
+     * The string with its FIRST character made a capital letter
+     * ("hello world".capitalize() is "Hello world"). The rest is not changed.
+     * An empty string, or one that does not start with a small letter, is
+     * returned as an unchanged copy.
+     */
+    def capitalize(): string {
+        result := string_support.slice(data, 0, sizeof(data));
+        if(sizeof(data) > 0) result.data[0] = string_support.upper_of(data[0]);
+        return result;
+    }
+
+    /**
+     * The string with its FIRST character made a small letter
+     * ("Hello World".decapitalize() is "hello World"). The rest is not changed.
+     */
+    def decapitalize(): string {
+        result := string_support.slice(data, 0, sizeof(data));
+        if(sizeof(data) > 0) result.data[0] = string_support.lower_of(data[0]);
+        return result;
+    }
+
+    /** Capital letters made small and small letters made capital ("Hello".swap_case() is "hELLO"). */
+    def swap_case(): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(c >= 'a' && c <= 'z') out[i] = c - 32;
+            else if(c >= 'A' && c <= 'Z') out[i] = c + 32;
+            else out[i] = c;
+        }
+        return string_support.of_buffer(out, n);
+    }
+
+    /**
+     * Every word starting with a capital letter and continuing in small
+     * letters: "the QUICK brown-fox".title_case() is "The Quick Brown-Fox".
+     * A word is a run of letters and digits; anything else (spaces, dashes,
+     * punctuation) separates words and is copied as it is.
+     */
+    def title_case(): string {
+        n : var = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        at_word_start : var = 1;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            is_word_char : var = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+            if(!is_word_char) {
+                out[i] = c;
+                at_word_start = 1;
+            } else {
+                if(at_word_start) out[i] = string_support.upper_of(c);
+                else out[i] = string_support.lower_of(c);
+                at_word_start = 0;
+            }
+        }
+        return string_support.of_buffer(out, n);
+    }
+
+    /**
+     * 1 if the string has at least one letter and none of its letters is a
+     * small letter ("ABC 12".is_upper() is 1; "" and "123" give 0).
+     */
+    def is_upper(): var {
+        n : var = sizeof(data);
+        letters : var = 0;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(c >= 'a' && c <= 'z') return 0;
+            if(c >= 'A' && c <= 'Z') letters++;
+        }
+        return letters > 0;
+    }
+
+    /**
+     * 1 if the string has at least one letter and none of its letters is a
+     * capital letter ("abc 12".is_lower() is 1; "" and "123" give 0).
+     */
+    def is_lower(): var {
+        n : var = sizeof(data);
+        letters : var = 0;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(c >= 'A' && c <= 'Z') return 0;
+            if(c >= 'a' && c <= 'z') letters++;
+        }
+        return letters > 0;
+    }
+}

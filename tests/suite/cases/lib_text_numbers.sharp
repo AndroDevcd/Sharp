@@ -1,0 +1,282 @@
+mod main;
+
+import ( testing, std.text )
+
+/**
+ * std.text - numbers and text:
+ *   - number_parser         parse_int / long / double / bool (+ _or_null, _or), radix, decode
+ *   - string_convert.sharp  to_int / to_long / to_double / to_bool on string
+ *   - number_format         integer, padded, hex / binary / octal / to_radix, fixed, trimmed,
+ *                           grouped, percent, scientific, ordinal, bytes, roman
+ *   - string_format.sharp   format, escape / unescape / quote, ellipsize, string.of_...
+ *
+ * (Large negative numbers are computed from a variable: a large literal with
+ * a minus sign in front of it, and `0 - 12345678901`, are compiled as -2147483648.)
+ */
+
+def main(args: string[]) {
+    empty : string = "";
+    big : var = 12345678901;        // (a variable: `0 - 12345678901` is folded to -2147483648 as well)
+
+    // ---- number_parser: whole numbers
+    expect("parse_int", number_parser.parse_int("42"), 42);
+    expect("parse_int negative", number_parser.parse_int("-42"), 0 - 42);
+    expect("parse_int with a plus sign", number_parser.parse_int("+7"), 7);
+    expect("parse_int zero", number_parser.parse_int("0"), 0);
+    expect("parse_int with leading zeros", number_parser.parse_int("007"), 7);
+    expect("parse_int largest", number_parser.parse_int("2147483647"), 2147483647);
+    expect("parse_int smallest", number_parser.parse_int("-2147483648"), 0 - 2147483648);
+    expect("parse_int hexadecimal", number_parser.parse_int("ff", 16), 255);
+    expect("parse_int hexadecimal capitals", number_parser.parse_int("FF", 16), 255);
+    expect("parse_int binary", number_parser.parse_int("-101", 2), 0 - 5);
+    expect("parse_int radix 36", number_parser.parse_int("z", 36), 35);
+    expect("parse_int octal", number_parser.parse_int("17", 8), 15);
+    expect_true("is_int", number_parser.is_int("123"));
+    expect_false("is_int with a letter", number_parser.is_int("12a"));
+    expect_false("is_int of \"\"", number_parser.is_int(""));
+    expect_false("is_int of a sign only", number_parser.is_int("-"));
+    expect_false("is_int with spaces", number_parser.is_int(" 1"));
+    expect_false("is_int with a decimal point", number_parser.is_int("1.5"));
+    expect_false("is_int too large", number_parser.is_int("2147483648"));
+    expect_true("is_long of the same number", number_parser.is_long("2147483648"));
+    expect("parse_long", number_parser.parse_long("9007199254740991"), 9007199254740991);
+    expect("parse_long negative", number_parser.parse_long("-12345678901"), 0 - big);
+    expect_false("is_long too large", number_parser.is_long("9007199254740992"));
+    expect_null("parse_int_or_null of text", number_parser.parse_int_or_null("abc"));
+    expect_null("parse_int_or_null of \"\"", number_parser.parse_int_or_null(""));
+    expect_null("parse_int_or_null out of range", number_parser.parse_int_or_null("99999999999"));
+    maybe := number_parser.parse_int_or_null("123");
+    expect_not_null("parse_int_or_null of a number", maybe);
+    expect("parse_int_or_null: the value", maybe!!.value, 123);
+    expect_null("parse_int_or_null with a radix", number_parser.parse_int_or_null("12", 2));
+    expect("parse_int_or: good text", number_parser.parse_int_or("5", 9), 5);
+    expect("parse_int_or: bad text", number_parser.parse_int_or("five", 9), 9);
+    expect_null("parse_long_or_null of text", number_parser.parse_long_or_null("1e3"));
+    expect("parse_long_or: bad text", number_parser.parse_long_or("", 0 - 1), 0 - 1);
+    expect("decode decimal", number_parser.decode("42"), 42);
+    expect("decode hexadecimal", number_parser.decode("0xFF"), 255);
+    expect("decode binary", number_parser.decode("-0b101"), 0 - 5);
+    expect("decode octal", number_parser.decode("0o17"), 15);
+
+    // ---- number_parser: what is thrown
+    try {
+        number_parser.parse_int("12a4");
+        fail("parse_int of \"12a4\"", "did not throw");
+    } catch(e: number_format_exception) {
+        expect_str("the message names the character and position", e.get_message(),
+            "\"12a4\" is not a valid integer: unexpected character 'a' at position 2");
+    }
+    try {
+        number_parser.parse_int("99999999999");
+        fail("parse_int out of range", "did not throw");
+    } catch(e: number_format_exception) {
+        expect_true("the message says out of range", e.get_message().contains("out of range"));
+    }
+    try {
+        number_parser.parse_int("");
+        fail("parse_int of \"\"", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("number_format_exception is an illegal_argument_exception");
+    }
+    try {
+        number_parser.parse_int("10", 1);
+        fail("radix 1", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("radix 1");
+    }
+    try {
+        number_parser.decode("0x");
+        fail("decode of a prefix only", "did not throw");
+    } catch(e: number_format_exception) {
+        pass("decode of a prefix only");
+    }
+
+    // ---- number_parser: decimals and bools
+    expect("parse_double", number_parser.parse_double("3.25"), 3.25);
+    expect("parse_double negative", number_parser.parse_double("-0.5"), 0 - 0.5);
+    expect("parse_double whole", number_parser.parse_double("7"), 7);
+    expect("parse_double with an exponent", number_parser.parse_double("1e3"), 1000);
+    expect("parse_double with a negative exponent", number_parser.parse_double("25E-2"), 0.25);
+    expect("parse_double without leading digits", number_parser.parse_double(".5"), 0.5);
+    expect("parse_double without trailing digits", number_parser.parse_double("5."), 5);
+    expect_true("is_double", number_parser.is_double("-1.5e+3"));
+    expect_false("is_double of a point only", number_parser.is_double("."));
+    expect_false("is_double with two points", number_parser.is_double("1.2.3"));
+    expect_false("is_double with an empty exponent", number_parser.is_double("1e"));
+    expect_false("is_double of text", number_parser.is_double("abc"));
+    expect_false("is_double of \"\"", number_parser.is_double(""));
+    expect_false("is_double with trailing text", number_parser.is_double("1.5x"));
+    expect_null("parse_double_or_null of text", number_parser.parse_double_or_null("x"));
+    expect("parse_double_or_null of a number", number_parser.parse_double_or_null("2.5")!!.value, 2.5);
+    expect("parse_double_or: bad text", number_parser.parse_double_or("?", 1.5), 1.5);
+    expect("parse_bool true", number_parser.parse_bool("true"), 1);
+    expect("parse_bool false", number_parser.parse_bool("false"), 0);
+    expect("parse_bool ignores case", number_parser.parse_bool("TRUE"), 1);
+    expect_null("parse_bool_or_null of yes", number_parser.parse_bool_or_null("yes"));
+    expect("parse_bool_or: bad text", number_parser.parse_bool_or("1", true), 1);
+    try {
+        number_parser.parse_bool("yes");
+        fail("parse_bool of yes", "did not throw");
+    } catch(e: number_format_exception) {
+        pass("parse_bool of yes");
+    }
+
+    // ---- the same through string
+    n123 : string = "123";
+    bad : string = "12a";
+    expect("to_int", n123.to_int(), 123);
+    expect("to_int with a radix", n123.to_int(8), 83);
+    expect("to_int_or", bad.to_int_or(7), 7);
+    expect_null("to_int_or_null", bad.to_int_or_null());
+    expect("to_int_or_null of a number", n123.to_int_or_null()!!.value, 123);
+    expect("to_long", n123.to_long(), 123);
+    expect("to_long_or", bad.to_long_or(0 - 1), 0 - 1);
+    expect_null("to_long_or_null", empty.to_long_or_null());
+    expect("to_double", n123.to_double(), 123);
+    half : string = "0.5";
+    expect("to_double of a fraction", half.to_double(), 0.5);
+    expect("to_double_or", bad.to_double_or(2.5), 2.5);
+    expect_null("to_double_or_null", bad.to_double_or_null());
+    yes : string = "True";
+    expect("to_bool", yes.to_bool(), 1);
+    expect("to_bool_or", bad.to_bool_or(false), 0);
+    expect_null("to_bool_or_null", bad.to_bool_or_null());
+    expect_true("is_number", half.is_number());
+    expect_false("is_number of text", bad.is_number());
+    expect_true("is_integer", n123.is_integer());
+    expect_false("is_integer of a fraction", half.is_integer());
+    try {
+        bad.to_int();
+        fail("to_int of \"12a\"", "did not throw");
+    } catch(e: number_format_exception) {
+        pass("to_int of \"12a\"");
+    }
+
+    // ---- number_format: whole numbers
+    expect_str("integer", number_format.integer(42), "42");
+    expect_str("integer zero", number_format.integer(0), "0");
+    expect_str("integer negative", number_format.integer(0 - 7), "-7");
+    expect_str("integer cuts the fraction off", number_format.integer(2.9), "2");
+    expect_str("integer cuts towards zero", number_format.integer(0 - 2.9), "-2");
+    expect_str("integer beyond 32 bit", number_format.integer(12345678901), "12345678901");
+    expect_str("integer negative beyond 32 bit", number_format.integer(0 - big), "-12345678901");
+    expect_str("integer, largest exact", number_format.integer(9007199254740991), "9007199254740991");
+    expect_str("padded", number_format.padded(7, 3), "007");
+    expect_str("padded, already wide", number_format.padded(1234, 3), "1234");
+    expect_str("padded negative", number_format.padded(0 - 7, 3), "-007");
+    expect_str("hex", number_format.hex(255), "ff");
+    expect_str("hex zero", number_format.hex(0), "0");
+    expect_str("hex with a width", number_format.hex(255, 4), "00ff");
+    expect_str("hex_upper", number_format.hex_upper(48879), "BEEF");
+    expect_str("hex_upper with a width", number_format.hex_upper(10, 2), "0A");
+    expect_str("hex negative", number_format.hex(0 - 255), "-ff");
+    expect_str("binary", number_format.binary(5), "101");
+    expect_str("binary with a width", number_format.binary(5, 8), "00000101");
+    expect_str("octal", number_format.octal(8), "10");
+    expect_str("to_radix 36", number_format.to_radix(35, 36), "z");
+    expect_str("to_radix with a width", number_format.to_radix(5, 3, 4), "0012");
+    expect("hex and parse_int agree", number_parser.parse_int(number_format.hex(123456), 16), 123456);
+    try {
+        number_format.to_radix(5, 37);
+        fail("to_radix 37", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("to_radix 37");
+    }
+
+    // ---- number_format: decimals
+    expect_str("fixed", number_format.fixed(3.14159, 2), "3.14");
+    expect_str("fixed rounds up", number_format.fixed(3.146, 2), "3.15");
+    expect_str("fixed adds zeros", number_format.fixed(2, 2), "2.00");
+    expect_str("fixed with 0 decimals", number_format.fixed(2.5, 0), "3");
+    expect_str("fixed negative", number_format.fixed(0 - 2.5, 0), "-3");
+    expect_str("fixed of a small fraction", number_format.fixed(0.05, 1), "0.1");
+    expect_str("fixed never prints -0", number_format.fixed(0 - 0.001, 2), "0.00");
+    expect_str("fixed carries into the whole part", number_format.fixed(9.999, 2), "10.00");
+    expect_str("fixed with many decimals", number_format.fixed(0.125, 5), "0.12500");
+    expect_str("trimmed", number_format.trimmed(2.5, 4), "2.5");
+    expect_str("trimmed whole number", number_format.trimmed(2, 4), "2");
+    expect_str("trimmed rounds", number_format.trimmed(1.23456, 2), "1.23");
+    expect_str("trimmed keeps zeros before the point", number_format.trimmed(100, 2), "100");
+    expect_str("plain whole", number_format.plain(42), "42");
+    expect_str("plain fraction", number_format.plain(0.1), "0.1");
+    expect_str("grouped", number_format.grouped(1234567), "1,234,567");
+    expect_str("grouped small", number_format.grouped(999), "999");
+    expect_str("grouped exactly four digits", number_format.grouped(1000), "1,000");
+    expect_str("grouped negative, rounded", number_format.grouped(0 - 1234.5), "-1,235");
+    expect_str("grouped with decimals", number_format.grouped(1234567.891, 2), "1,234,567.89");
+    expect_str("grouped with other characters", number_format.grouped(1234567.891, 2, '.', ','), "1.234.567,89");
+    expect_str("grouped zero", number_format.grouped(0), "0");
+    expect_str("percent", number_format.percent(0.256, 1), "25.6%");
+    expect_str("percent whole", number_format.percent(1, 0), "100%");
+    expect_str("scientific", number_format.scientific(31415.9, 2), "3.14e+04");
+    expect_str("scientific small", number_format.scientific(0.00012, 1), "1.2e-04");
+    expect_str("scientific zero", number_format.scientific(0, 2), "0.00e+00");
+    expect_str("scientific negative", number_format.scientific(0 - 1500, 1), "-1.5e+03");
+    expect_str("scientific carries", number_format.scientific(9.99, 1), "1.0e+01");
+    try {
+        number_format.fixed(1, 16);
+        fail("fixed with 16 decimals", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("fixed with 16 decimals");
+    }
+
+    // ---- number_format: for people
+    expect_str("ordinal 1", number_format.ordinal(1), "1st");
+    expect_str("ordinal 2", number_format.ordinal(2), "2nd");
+    expect_str("ordinal 3", number_format.ordinal(3), "3rd");
+    expect_str("ordinal 4", number_format.ordinal(4), "4th");
+    expect_str("ordinal 11", number_format.ordinal(11), "11th");
+    expect_str("ordinal 12", number_format.ordinal(12), "12th");
+    expect_str("ordinal 13", number_format.ordinal(13), "13th");
+    expect_str("ordinal 22", number_format.ordinal(22), "22nd");
+    expect_str("ordinal 113", number_format.ordinal(113), "113th");
+    expect_str("bytes", number_format.bytes(512), "512 B");
+    expect_str("bytes KB", number_format.bytes(1536), "1.5 KB");
+    expect_str("bytes MB", number_format.bytes(1048576), "1.0 MB");
+    expect_str("bytes GB", number_format.bytes(3221225472), "3.0 GB");
+    expect_str("roman", number_format.roman(1994), "MCMXCIV");
+    expect_str("roman 4", number_format.roman(4), "IV");
+    expect_str("roman 3999", number_format.roman(3999), "MMMCMXCIX");
+    try {
+        number_format.roman(0);
+        fail("roman(0)", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("roman(0)");
+    }
+
+    // ---- string_format.sharp
+    sentence : string = "{} has {} items";
+    expect_str("format", sentence.format(new string[] { "cart", "3" }), "cart has 3 items");
+    indexed : string = "{1} before {0}, {1} again";
+    expect_str("format with indexes", indexed.format(new string[] { "a", "b" }), "b before a, b again");
+    braces : string = "{{literal}} {}";
+    expect_str("format with doubled braces", braces.format_one("x"), "{literal} x");
+    named : string = "{name} stays, {} goes";
+    expect_str("format leaves other braces alone", named.format_one("this"), "{name} stays, this goes");
+    try {
+        sentence.format_one("only one");
+        fail("format with too few arguments", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("format with too few arguments");
+    }
+    raw : string = "a\tb\n\"c\"\\";
+    expect_str("escape", raw.escape(), "a\\tb\\n\\\"c\\\"\\\\");
+    expect_str("unescape undoes escape", raw.escape().unescape(), raw);
+    plain_text : string = "plain";
+    expect_str("escape with nothing to do", plain_text.escape(), "plain");
+    expect_str("quote", plain_text.quote(), "\"plain\"");
+    expect_str("quote of \"\"", empty.quote(), "\"\"");
+    fox : string = "The quick brown fox";
+    expect_str("ellipsize", fox.ellipsize(10), "The qui...");
+    expect_str("ellipsize, already short", plain_text.ellipsize(10), "plain");
+    expect_str("ellipsize to the exact length", plain_text.ellipsize(5), "plain");
+    expect_str("ellipsize with a marker", fox.ellipsize(5, "~"), "The ~");
+    expect_str("of_int", string.of_int(42), "42");
+    expect_str("of_number", string.of_number(2.5), "2.5");
+    expect_str("of_char", string.of_char('x'), "x");
+    expect_str("of_bool true", string.of_bool(1), "true");
+    expect_str("of_bool false", string.of_bool(0), "false");
+    expect_str("of_chars", string.of_chars(plain_text.chars()), "plain");
+
+    finish("lib_text_numbers");
+}

@@ -1,0 +1,158 @@
+mod std.text;
+
+/**
+ * string_tokenizer
+ *
+ * Walks through a text token by token, where tokens are the runs of
+ * characters between delimiter characters (Java's StringTokenizer):
+ *
+ *     t := new string_tokenizer("a, b;c", ",; ");
+ *     while(t.has_more_tokens()) {
+ *         println(t.next_token());            // a   b   c
+ *     }
+ *
+ * Every character of the delimiter string is a delimiter on its own. Unlike
+ * string.split, several delimiters in a row do NOT give empty tokens, and
+ * delimiters at the start or end are skipped - which is what is wanted for
+ * words and lists typed by people. Use split when empty fields matter (CSV).
+ *
+ * With return_delimiters switched on, each delimiter character is returned
+ * as a one-character token too ("1+2" with "+" gives "1", "+", "2"), which is
+ * enough for a simple expression reader.
+ *
+ * The default delimiters are the whitespace characters: space, tab, \n, \r, form feed.
+ */
+class string_tokenizer {
+    private text : string = "";
+    private delimiters : string = " \t\n\r";
+    private return_delimiters : var = 0;
+
+    /* position of the next character to look at */
+    private position : var = 0;
+
+    /** A tokenizer over `text` that splits at whitespace. */
+    string_tokenizer(text: string) {
+        self->text = text;
+    }
+
+    /** A tokenizer over `text` that splits at any character of `delimiters`. An empty set makes the whole text one token. */
+    string_tokenizer(text: string, delimiters: string) {
+        self->text = text;
+        self->delimiters = delimiters;
+    }
+
+    /**
+     * A tokenizer over `text` that splits at any character of `delimiters`;
+     * if `return_delimiters` is true the delimiter characters are returned as
+     * tokens as well.
+     */
+    string_tokenizer(text: string, delimiters: string, return_delimiters: bool) {
+        self->text = text;
+        self->delimiters = delimiters;
+        self->return_delimiters = return_delimiters.value;
+    }
+
+    /** 1 if the character `c` is one of the delimiters. */
+    private def is_delimiter(c: var): var {
+        m : var = sizeof(delimiters.data);
+        for(j : var = 0; j < m; j++) {
+            if(delimiters.data[j] == c) return 1;
+        }
+        return 0;
+    }
+
+    /** Position of the start of the next token at or after `from` (the length of the text if there is none). */
+    private def skip_delimiters(from: var): var {
+        if(return_delimiters) return from;      // delimiters are tokens themselves: nothing to skip
+
+        n : var = sizeof(text.data);
+        while(from < n && is_delimiter(text.data[from])) {
+            from++;
+        }
+        return from;
+    }
+
+    /** Position just after the token that starts at `from`. */
+    private def scan_token(from: var): var {
+        n : var = sizeof(text.data);
+        if(return_delimiters && from < n && is_delimiter(text.data[from])) return from + 1;
+
+        while(from < n && !is_delimiter(text.data[from])) {
+            from++;
+        }
+        return from;
+    }
+
+    /** 1 if there is at least one more token. Does not move forward. */
+    def has_more_tokens(): var {
+        return skip_delimiters(position) < sizeof(text.data);
+    }
+
+    /**
+     * The next token; the tokenizer moves past it.
+     * Throws no_such_element_exception if there are no more tokens.
+     */
+    def next_token(): string {
+        start : var = skip_delimiters(position);
+        if(start >= sizeof(text.data))
+            throw new no_such_element_exception("next_token: there are no more tokens");
+
+        end : var = scan_token(start);
+        position = end;
+        return new string(text.data!!, start, end);
+    }
+
+    /**
+     * The next token, using `new_delimiters` from now on (they stay in effect
+     * for the following calls as well).
+     * Throws no_such_element_exception if there are no more tokens.
+     */
+    def next_token(new_delimiters: string): string {
+        delimiters = new_delimiters;
+        return next_token();
+    }
+
+    /** The next token, or `fallback` if there are no more tokens. */
+    def next_token_or(fallback: string): string {
+        if(!has_more_tokens()) return fallback;
+        return next_token();
+    }
+
+    /** How many tokens next_token() can still return. Does not move forward. */
+    def count_tokens(): var {
+        n : var = sizeof(text.data);
+        total : var = 0;
+        at : var = skip_delimiters(position);
+        while(at < n) {
+            total++;
+            at = skip_delimiters(scan_token(at));
+        }
+        return total;
+    }
+
+    /**
+     * Everything that has not been read yet, exactly as it is in the text
+     * (including the delimiters in front of the next token). "" at the end.
+     */
+    def remaining(): string {
+        n : var = sizeof(text.data);
+        if(position >= n) return new string();
+        return new string(text.data!!, position, n);
+    }
+
+    /** All remaining tokens as an array; the tokenizer is at the end afterwards. No tokens gives an array of length 0. */
+    def to_array(): string[] {
+        result := new string[count_tokens()];
+        i : var = 0;
+        while(has_more_tokens()) {
+            result[i++] = next_token();
+        }
+        return result;
+    }
+
+    /** Starts again from the beginning of the text. */
+    def reset(): string_tokenizer {
+        position = 0;
+        return self;
+    }
+}

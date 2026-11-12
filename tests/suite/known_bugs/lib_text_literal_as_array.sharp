@@ -1,0 +1,33 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG found while writing std.text (expected to FAIL today: the program
+ * crashes with SIGSEGV instead of being rejected by the compiler).
+ *
+ * A string literal is accepted where a `string[]` parameter is expected. The
+ * call compiles, the function receives the raw characters as if they were an
+ * array of string objects, and the first use of an element crashes the VM.
+ *
+ * Expected: a compile error "could not resolve symbol count_all(_int8[])".
+ *
+ * (Found through string.format(args: string[]): `text.format("x")` compiled
+ * and crashed. With a second overload format(string) the call is reported as
+ * ambiguous instead, which is why the one-argument form is called format_one.)
+ */
+
+def count_all(parts: string[]): var {
+    total : var = 0;
+    for(i : var = 0; i < sizeof(parts); i++) {
+        total = total + parts[i].size().value;
+    }
+    return total;
+}
+
+def main(args: string[]) {
+    expect("an array of two strings (correct today)", count_all(new string[] { "ab", "cde" }), 5);
+    // should not compile; today it compiles and crashes here
+    expect("a literal passed as string[]", count_all("x"), 1);
+    finish("lib_text_literal_as_array");
+}

@@ -1,0 +1,180 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std.text - the `string` class, part 2:
+ *   - string_search.sharp   index_of / last_index_of (text, char, any of a set),
+ *                           contains, count, starts_with_at, ignore-case forms
+ *   - string_replace.sharp  replace_all / first / last, replace_char, replace_range,
+ *                           insert, remove, remove_chars, retain_chars
+ *
+ * Positions are native numbers, -1 = not found.
+ */
+
+def main(args: string[]) {
+    banana : string = "banana";
+    empty : string = "";
+    one : string = "x";
+    hello : string = "Hello World";
+
+    // ---- index_of
+    expect("index_of", banana.index_of("an"), 1);
+    expect("index_of at the start", banana.index_of("ban"), 0);
+    expect("index_of at the end", banana.index_of("na"), 2);
+    expect("index_of the whole string", banana.index_of("banana"), 0);
+    expect("index_of, not found", banana.index_of("xyz"), 0 - 1);
+    expect("index_of something longer than the string", banana.index_of("bananas"), 0 - 1);
+    expect("index_of \"\"", banana.index_of(""), 0);
+    expect("index_of in \"\"", empty.index_of("a"), 0 - 1);
+    expect("index_of \"\" in \"\"", empty.index_of(""), 0);
+    expect("index_of with a char literal", banana.index_of('n'), 2);
+    expect("index_of with a start", banana.index_of("an", 2), 3);
+    expect("index_of with a start on a match", banana.index_of("an", 1), 1);
+    expect("index_of with a start after the last match", banana.index_of("an", 4), 0 - 1);
+    expect("index_of with a negative start", banana.index_of("an", 0 - 5), 1);
+    expect("index_of with a start beyond the end", banana.index_of("a", 99), 0 - 1);
+    expect("index_of \"\" with a start", banana.index_of("", 3), 3);
+    expect("index_of \"\" with a start beyond the end", banana.index_of("", 99), 6);
+    aaab : string = "aaab";
+    expect("index_of after partial matches", aaab.index_of("ab"), 2);
+
+    // ---- last_index_of
+    expect("last_index_of", banana.last_index_of("an"), 3);
+    expect("last_index_of one character", banana.last_index_of("a"), 5);
+    expect("last_index_of, not found", banana.last_index_of("x"), 0 - 1);
+    expect("last_index_of \"\"", banana.last_index_of(""), 6);
+    expect("last_index_of with a start", banana.last_index_of("an", 2), 1);
+    expect("last_index_of with a start on a match", banana.last_index_of("an", 3), 3);
+    expect("last_index_of with a start before every match", banana.last_index_of("an", 0), 0 - 1);
+    expect("last_index_of with a negative start", banana.last_index_of("b", 0 - 1), 0 - 1);
+    expect("last_index_of the whole string", banana.last_index_of("banana"), 0);
+
+    // ---- single characters
+    expect("index_of_char", banana.index_of_char('n'), 2);
+    expect("index_of_char, not found", banana.index_of_char('z'), 0 - 1);
+    expect("index_of_char with a start", banana.index_of_char('n', 3), 4);
+    expect("index_of_char from a variable", banana.index_of_char(banana.char_at(1)), 1);
+    expect("last_index_of_char", banana.last_index_of_char('n'), 4);
+    expect("last_index_of_char with a start", banana.last_index_of_char('n', 3), 2);
+    expect("last_index_of_char, not found", banana.last_index_of_char('z'), 0 - 1);
+    expect("index_of_char in \"\"", empty.index_of_char('a'), 0 - 1);
+    expect("last_index_of_char in \"\"", empty.last_index_of_char('a'), 0 - 1);
+
+    // ---- any of a set
+    setting : string = "a=b;c";
+    expect("index_of_any", setting.index_of_any(";="), 1);
+    expect("index_of_any with a start", setting.index_of_any(";=", 2), 3);
+    expect("index_of_any, none present", setting.index_of_any("#!"), 0 - 1);
+    expect("index_of_any with an empty set", setting.index_of_any(""), 0 - 1);
+    expect("last_index_of_any", setting.last_index_of_any(";="), 3);
+    expect("last_index_of_any, none present", setting.last_index_of_any("#"), 0 - 1);
+    indented : string = "   x  ";
+    expect("index_of_none", indented.index_of_none(" "), 3);
+    expect("index_of_none when all are in the set", indented.index_of_none(" x"), 0 - 1);
+    expect("index_of_none in \"\"", empty.index_of_none(" "), 0 - 1);
+
+    // ---- contains, count
+    expect_true("contains", banana.contains("nan"));
+    expect_false("contains, not there", banana.contains("nab"));
+    expect_true("contains \"\"", banana.contains(""));
+    expect_true("\"\" contains \"\"", empty.contains(""));
+    expect_false("\"\" contains text", empty.contains("a"));
+    expect_true("contains a char literal", banana.contains('b'));
+    expect_true("contains_char", banana.contains_char('b'));
+    expect_false("contains_char, not there", banana.contains_char('z'));
+    expect_true("contains_any", banana.contains_any("xyzn"));
+    expect_false("contains_any, none there", banana.contains_any("xyz"));
+    expect_true("contains_ignore_case", hello.contains_ignore_case("WORLD"));
+    expect_false("contains is case sensitive", hello.contains("WORLD"));
+    expect("index_of_ignore_case", hello.index_of_ignore_case("WORLD"), 6);
+    expect("index_of_ignore_case, not found", hello.index_of_ignore_case("words"), 0 - 1);
+    expect("count", banana.count("an"), 2);
+    expect("count of single characters", banana.count("a"), 3);
+    aaaa : string = "aaaa";
+    expect("count does not overlap", aaaa.count("aa"), 2);
+    expect("count, not there", banana.count("x"), 0);
+    expect("count \"\"", banana.count(""), 0);
+    expect("count the whole string", banana.count("banana"), 1);
+    expect("count_char", banana.count_char('a'), 3);
+    expect("count_char, not there", banana.count_char('z'), 0);
+
+    // ---- starts / ends
+    expect_true("starts_with_at", banana.starts_with_at("nan", 2));
+    expect_false("starts_with_at, wrong position", banana.starts_with_at("nan", 1));
+    expect_false("starts_with_at, does not fit", banana.starts_with_at("nana", 4));
+    expect_false("starts_with_at a negative position", banana.starts_with_at("b", 0 - 1));
+    expect_true("starts_with_ignore_case", hello.starts_with_ignore_case("hELLO"));
+    expect_false("starts_with_ignore_case, different text", hello.starts_with_ignore_case("help"));
+    expect_true("ends_with_ignore_case", hello.ends_with_ignore_case("WORLD"));
+    expect_false("ends_with_ignore_case, too long", hello.ends_with_ignore_case("xhello world"));
+    expect_true("ends_with_ignore_case, the whole string", hello.ends_with_ignore_case("HELLO WORLD"));
+
+    // ---- replace_all / first / last
+    dashed : string = "a-b-c";
+    expect_str("replace_all", dashed.replace_all("-", "+"), "a+b+c");
+    expect_str("replace_all with something longer", dashed.replace_all("-", " and "), "a and b and c");
+    expect_str("replace_all with \"\"", dashed.replace_all("-", ""), "abc");
+    expect_str("replace_all, not found", dashed.replace_all("#", "+"), "a-b-c");
+    expect_str("replace_all leaves the original alone", dashed, "a-b-c");
+    expect_str("replace_all does not overlap", aaaa.replace_all("aa", "b"), "bb");
+    aaa : string = "aaa";
+    expect_str("replace_all, left to right", aaa.replace_all("aa", "b"), "ba");
+    expect_str("replace_all of the whole string", banana.replace_all("banana", ""), "");
+    expect_str("replace_all at both ends", banana.replace_all("a", "o").replace_all("b", "B"), "Bonono");
+    expect_str("replace_all does not rescan the replacement", aaa.replace_all("a", "aa"), "aaaaaa");
+    expect_str("replace_all in \"\"", empty.replace_all("a", "b"), "");
+    expect_str("replace_first", dashed.replace_first("-", "+"), "a+b-c");
+    expect_str("replace_first, not found", dashed.replace_first("#", "+"), "a-b-c");
+    expect_str("replace_last", dashed.replace_last("-", "+"), "a-b+c");
+    expect_str("replace_last, not found", dashed.replace_last("#", "+"), "a-b-c");
+    expect_str("replace_first with \"\"", banana.replace_first("an", ""), "bana");
+    try {
+        dashed.replace_all("", "x");
+        fail("replace_all of \"\"", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("replace_all of \"\"");
+    }
+    long_text := one.repeat(2000);
+    expect("replace_all on a long string", long_text.replace_all("x", "yz").length(), 4000);
+
+    // ---- characters and ranges
+    dotted : string = "a.b.c";
+    expect_str("replace_char", dotted.replace_char('.', '/'), "a/b/c");
+    expect_str("replace_char, not there", dotted.replace_char('#', '/'), "a.b.c");
+    expect_str("replace_char in \"\"", empty.replace_char('a', 'b'), "");
+    abcdef : string = "abcdef";
+    expect_str("replace_range", abcdef.replace_range(1, 3, "XYZ"), "aXYZdef");
+    expect_str("replace_range with \"\"", abcdef.replace_range(1, 3, ""), "adef");
+    expect_str("replace_range of nothing inserts", abcdef.replace_range(2, 2, "-"), "ab-cdef");
+    expect_str("replace_range of everything", abcdef.replace_range(0, 6, "z"), "z");
+    try {
+        abcdef.replace_range(3, 2, "x");
+        fail("replace_range with end before start", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("replace_range with end before start");
+    }
+    held : string = "held";
+    expect_str("insert", held.insert(3, "lo wor"), "hello word");
+    expect_str("insert at the start", held.insert(0, ">"), ">held");
+    expect_str("insert at the end", held.insert(4, "!"), "held!");
+    try {
+        held.insert(5, "x");
+        fail("insert beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("insert beyond the end");
+    }
+
+    // ---- remove
+    list_text : string = "a, b, c";
+    expect_str("remove", list_text.remove(", "), "abc");
+    expect_str("remove, not there", list_text.remove("#"), "a, b, c");
+    phone : string = "(555) 123-4567";
+    expect_str("remove_chars", phone.remove_chars("() -"), "5551234567");
+    expect_str("remove_chars with an empty set", phone.remove_chars(""), "(555) 123-4567");
+    expect_str("retain_chars", phone.retain_chars("0123456789"), "5551234567");
+    expect_str("retain_chars, nothing kept", phone.retain_chars("abc"), "");
+    expect_str("remove_chars removing everything", one.remove_chars("x"), "");
+
+    finish("lib_text_string_search");
+}

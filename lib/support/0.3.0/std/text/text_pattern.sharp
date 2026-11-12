@@ -1,0 +1,328 @@
+mod std.text;
+
+/**
+ * text_pattern
+ *
+ * Wildcard ("glob") matching, the kind used for file names:
+ *
+ *     *        any run of characters, including none
+ *     ?        exactly one character
+ *     [abc]    one character out of the set
+ *     [a-z0-9] one character out of the ranges (sets and ranges can be mixed)
+ *     [!abc]   one character that is NOT in the set ( [^abc] means the same )
+ *     \x       the character x itself, e.g. \* for a real star
+ *
+ * Inside brackets a ']' directly after the '[' (or after the '!') is a
+ * normal member of the set, and a '-' at the start or end is a normal minus.
+ *
+ *     p := new text_pattern("*.sharp");
+ *     p.matches("main.sharp")        1
+ *     p.matches("main.cpp")          0
+ *     text_pattern.matches("data_??.csv", "data_07.csv")     1
+ *
+ * A pattern always has to match the WHOLE text (use "*abc*" to ask whether
+ * "abc" occurs somewhere). The '*' also matches '/' - there is no special
+ * treatment of path separators.
+ *
+ * Making a text_pattern checks and translates the pattern once; matching is
+ * then a single pass over the text with no recursion, so long texts and
+ * patterns with many stars are safe. Keep the object when the same pattern
+ * is used many times.
+ *
+ * For patterns that need repetition counts, groups or alternatives see std.text#regex.
+ */
+class text_pattern {
+    // what one element of the translated pattern is
+    private static const kind_char : var = 0;       // one given character      (value = the character)
+    private static const kind_any : var = 1;        // ?                        (value unused)
+    private static const kind_star : var = 2;       // *                        (value unused)
+    private static const kind_set : var = 3;        // [...]                    (value = first range, see below)
+
+    private source : string = "";
+    private ignore_case : var = 0;
+
+    /* the translated pattern: kinds[i] / values[i] describe element i; `elements` of them are in use */
+    private kinds : var[]? = null;
+    private values : var[]? = null;
+    private elements : var = 0;
+
+    /*
+     * Sets are stored as ranges from..to (a single member is a range of one).
+     * An element of kind_set owns the ranges values[i] .. values[i] + set_sizes[i] - 1;
+     * set_negated[i] is 1 for [!...].
+     */
+    private set_sizes : var[]? = null;
+    private set_negated : var[]? = null;
+    private range_from : var[]? = null;
+    private range_to : var[]? = null;
+    private ranges : var = 0;
+
+    /**
+     * Translates `pattern`. Capital and small letters are different.
+     * Throws parse_exception if the pattern is malformed: a '[' without its
+     * ']', an empty set "[]", or a '\' at the very end.
+     */
+    text_pattern(pattern: string) {
+        source = pattern;
+        compile();
+    }
+
+    /**
+     * Translates `pattern`; if `ignore_case` is true, ASCII capital and small
+     * letters are treated as equal when matching ("*.TXT" matches "a.txt").
+     * Throws parse_exception if the pattern is malformed.
+     */
+    text_pattern(pattern: string, ignore_case: bool) {
+        source = pattern;
+        self->ignore_case = ignore_case.value;
+        compile();
+    }
+
+    /** `c` in lower case if case is ignored and it is a capital letter, otherwise `c`. */
+    private def fold(c: var): var {
+        if(ignore_case && c >= 'A' && c <= 'Z') return c + 32;
+        return c;
+    }
+
+    /** Translates `source` into the element arrays. */
+    private def compile() {
+        p := source.data;
+        n : var = sizeof(p);
+        // no element or range can need more than one pattern character, so n is always enough room
+        room : var = n > 0 ? n : 1;
+        kinds = new var[room];
+        values = new var[room];
+        set_sizes = new var[room];
+        set_negated = new var[room];
+        range_from = new var[room];
+        range_to = new var[room];
+
+        i : var = 0;
+        while(i < n) {
+            c : var = p[i];
+            if(c == '*') {
+                // several stars in a row mean the same as one
+                if(elements == 0 || kinds[elements - 1] != kind_star) {
+                    kinds[elements] = kind_star;
+                    elements++;
+                }
+                i++;
+            } else if(c == '?') {
+                kinds[elements] = kind_any;
+                elements++;
+                i++;
+            } else if(c == '\\') {
+                if(i + 1 >= n)
+                    throw new parse_exception("pattern \"" + source + "\": '\\' at the end has nothing to escape");
+                kinds[elements] = kind_char;
+                values[elements] = fold(p[i + 1]);
+                elements++;
+                i += 2;
+            } else if(c == '[') {
+                i = compile_set(p, n, i);
+            } else {
+                kinds[elements] = kind_char;
+                values[elements] = fold(c);
+                elements++;
+                i++;
+            }
+        }
+    }
+
+    /**
+     * Translates the set that starts with the '[' at position `open`.
+     * Returns the position just after its ']'.
+     */
+    private def compile_set(p: _int8[]?, n: var, open: var): var {
+        i : var = open + 1;
+        negated : var = 0;
+        if(i < n && (p[i] == '!' || p[i] == '^')) {
+            negated = 1;
+            i++;
+        }
+
+        first_range : var = ranges;
+        first_member : var = i;             // a ']' here is a member, not the end
+        closed : var = 0;
+        while(i < n) {
+            c : var = p[i];
+            if(c == ']' && i > first_member) {
+                closed = 1;
+                i++;
+                break;
+            }
+            if(c == '\\' && i + 1 < n) {    // escaped member
+                i++;
+                c = p[i];
+            }
+            low : var = fold(c);
+            high : var = low;
+            // "a-z": a range, unless the '-' is the last member ("[a-]")
+            if(i + 2 < n && p[i + 1] == '-' && p[i + 2] != ']') {
+                high = fold(p[i + 2]);
+                i += 2;
+            }
+            if(high < low) {                // "[z-a]" is read as "[a-z]"
+                swap : var = low;
+                low = high;
+                high = swap;
+            }
+            range_from[ranges] = low;
+            range_to[ranges] = high;
+            ranges++;
+            i++;
+        }
+
+        if(!closed)
+            throw new parse_exception("pattern \"" + source + "\": '[' at position "
+                + number_format.integer(open) + " has no closing ']'");
+
+        kinds[elements] = kind_set;
+        values[elements] = first_range;
+        set_sizes[elements] = ranges - first_range;
+        set_negated[elements] = negated;
+        elements++;
+        return i;
+    }
+
+    /** 1 if element `e` (not a star) accepts the character `c`. */
+    private def accepts(e: var, c: var): var {
+        kind : var = kinds[e];
+        if(kind == kind_any) return 1;
+        c = fold(c);
+        if(kind == kind_char) return values[e] == c;
+
+        // a set: is c inside one of its ranges?
+        first : var = values[e];
+        last : var = first + set_sizes[e];
+        inside : var = 0;
+        for(r : var = first; r < last; r++) {
+            if(c >= range_from[r] && c <= range_to[r]) {
+                inside = 1;
+                break;
+            }
+        }
+        if(set_negated[e]) return !inside;
+        return inside;
+    }
+
+    /**
+     * 1 if the whole of `text` fits the pattern, otherwise 0.
+     * An empty pattern only matches ""; "*" matches everything, including "".
+     */
+    def matches(text: string): var {
+        t := text.data;
+        n : var = sizeof(t);
+        ti : var = 0;               // next character of the text
+        pi : var = 0;               // next element of the pattern
+        // where to come back to when the match fails after a star:
+        star_pi : var = -1;         // the element after the last star seen
+        star_ti : var = 0;          // the text position that star currently reaches to
+
+        while(ti < n) {
+            if(pi < elements && kinds[pi] == kind_star) {
+                // first try the star matching nothing; remember it in case that fails
+                star_pi = pi + 1;
+                star_ti = ti;
+                pi++;
+            } else if(pi < elements && accepts(pi, t[ti])) {
+                pi++;
+                ti++;
+            } else if(star_pi >= 0) {
+                // mismatch: let the last star swallow one more character and try again
+                star_ti++;
+                ti = star_ti;
+                pi = star_pi;
+            } else {
+                return 0;
+            }
+        }
+
+        // the text is used up: only stars may be left in the pattern
+        while(pi < elements && kinds[pi] == kind_star) {
+            pi++;
+        }
+        return pi == elements;
+    }
+
+    /** The strings of `items` that match, in their original order (an array of length 0 if none do). Null elements are skipped. */
+    def filter(items: string[]): string[] {
+        count : var = sizeof(items);
+        hits : var = 0;
+        for(i : var = 0; i < count; i++) {
+            item := items[i];
+            if((item as object) != null && matches(item)) hits++;
+        }
+
+        result := new string[hits];
+        used : var = 0;
+        for(i : var = 0; i < count; i++) {
+            item := items[i];
+            if((item as object) != null && matches(item)) result[used++] = item;
+        }
+        return result;
+    }
+
+    /** How many strings of `items` match. */
+    def count_matches(items: string[]): var {
+        count : var = sizeof(items);
+        hits : var = 0;
+        for(i : var = 0; i < count; i++) {
+            item := items[i];
+            if((item as object) != null && matches(item)) hits++;
+        }
+        return hits;
+    }
+
+    /** The pattern text this object was made from. */
+    def pattern(): string {
+        return source;
+    }
+
+    /** 1 if the pattern has no wildcards at all, so that it matches exactly one text (apart from letter case). */
+    def is_literal(): var {
+        for(e : var = 0; e < elements; e++) {
+            if(kinds[e] != kind_char) return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * One-off match: 1 if the whole of `text` fits `pattern`.
+     * Throws parse_exception if the pattern is malformed.
+     */
+    static def matches(pattern: string, text: string): var {
+        return new text_pattern(pattern).matches(text);
+    }
+
+    /** One-off match that treats ASCII capital and small letters as equal. */
+    static def matches_ignore_case(pattern: string, text: string): var {
+        return new text_pattern(pattern, true).matches(text);
+    }
+
+    /** 1 if `text` contains a character that is special in a pattern: * ? [ or \ */
+    static def has_wildcards(text: string): var {
+        n : var = sizeof(text.data);
+        for(i : var = 0; i < n; i++) {
+            c : var = text.data[i];
+            if(c == '*' || c == '?' || c == '[' || c == '\\') return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * `text` with a '\' in front of every character that is special in a
+     * pattern, so that the result matches exactly that text:
+     * escape("what?") is "what\?".
+     */
+    static def escape(text: string): string {
+        n : var = sizeof(text.data);
+        out := new text_buffer();
+        for(i : var = 0; i < n; i++) {
+            c : var = text.data[i];
+            if(c == '*' || c == '?' || c == '[' || c == ']' || c == '\\') out.append_char('\\');
+            out.append_char(c);
+        }
+        return out.build();
+    }
+}

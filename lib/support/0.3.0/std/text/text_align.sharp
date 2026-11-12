@@ -1,0 +1,160 @@
+mod std.text;
+
+/**
+ * text_align
+ *
+ * Puts one line of text into a field of a given width. All functions are static:
+ *
+ *     text_align.left("abc", 7)        "abc    "
+ *     text_align.right("abc", 7)       "    abc"
+ *     text_align.center("abc", 7)      "  abc  "
+ *     text_align.justify("a b c", 9)   "a   b   c"
+ *     text_align.fit("abcdefgh", 5)    "ab..."
+ *
+ * left / right / center / justify never cut text off: a text that is already
+ * as wide as the field, or wider, is returned unchanged. Use fit when the
+ * result must be EXACTLY the given width.
+ *
+ * Width is counted in characters (bytes), which is right for ASCII text in a
+ * fixed-width font. For whole paragraphs see std.text#text_wrap, for columns
+ * std.text#text_table.
+ */
+class text_align {
+
+    /** Throws illegal_argument_exception if the width is negative. */
+    private static def check_width(width: var) {
+        if(width < 0)
+            throw new ill_arg_except("the width cannot be negative: " + number_format.integer(width));
+    }
+
+    /** `left` copies of fill, the text, `right` copies of fill. */
+    private static def pad(text: string, left: var, right: var, fill: var): string {
+        out := new text_buffer();
+        out.ensure_capacity(left + sizeof(text.data) + right);
+        for(i : var = 0; i < left; i++) {
+            out.append_char(fill);
+        }
+        out.append(text);
+        for(i : var = 0; i < right; i++) {
+            out.append_char(fill);
+        }
+        return out.build();
+    }
+
+    /**
+     * The text at the left of a field of `width` characters, filled up with
+     * spaces on the right. Throws illegal_argument_exception if width is negative.
+     */
+    static def left(text: string, width: int): string {
+        return left(text, width, ' ');
+    }
+
+    /** left with the character to fill with: left("abc", 6, '.') is "abc...". */
+    static def left(text: string, width: int, fill: char): string {
+        check_width(width.value);
+        missing : var = width.value - sizeof(text.data);
+        if(missing < 0) missing = 0;
+        return pad(text, 0, missing, fill.value);
+    }
+
+    /**
+     * The text at the right of a field of `width` characters, filled up with
+     * spaces on the left. Throws illegal_argument_exception if width is negative.
+     */
+    static def right(text: string, width: int): string {
+        return right(text, width, ' ');
+    }
+
+    /** right with the character to fill with: right("42", 6, '0') is "000042". */
+    static def right(text: string, width: int, fill: char): string {
+        check_width(width.value);
+        missing : var = width.value - sizeof(text.data);
+        if(missing < 0) missing = 0;
+        return pad(text, missing, 0, fill.value);
+    }
+
+    /**
+     * The text in the middle of a field of `width` characters. When the
+     * spaces cannot be split evenly the extra one goes on the right:
+     * center("ab", 5) is " ab  ".
+     * Throws illegal_argument_exception if width is negative.
+     */
+    static def center(text: string, width: int): string {
+        return center(text, width, ' ');
+    }
+
+    /** center with the character to fill with: center(" title ", 15, '=') is "==== title ====". */
+    static def center(text: string, width: int, fill: char): string {
+        check_width(width.value);
+        missing : var = width.value - sizeof(text.data);
+        if(missing < 0) missing = 0;
+        left_part : var = (missing - missing % 2) / 2;
+        return pad(text, left_part, missing - left_part, fill.value);
+    }
+
+    /**
+     * The words of the line spread out so that it is exactly `width`
+     * characters wide, with the extra spaces shared between the gaps (gaps
+     * further left get the leftover spaces first): justify("a b c", 8) is
+     * "a   b  c". Existing runs of whitespace count as one gap each.
+     * A line with a single word (or none), or one that is already too wide
+     * with single spaces, cannot be justified: its words are returned joined
+     * by single spaces.
+     * Throws illegal_argument_exception if width is negative.
+     */
+    static def justify(text: string, width: int): string {
+        check_width(width.value);
+        words := text.split_whitespace();
+        count : var = sizeof(words);
+        if(count == 0) return new string();
+
+        letters : var = 0;
+        for(i : var = 0; i < count; i++) {
+            letters += sizeof(words[i].data);
+        }
+        gaps : var = count - 1;
+        spaces : var = width.value - letters;
+        if(gaps == 0 || spaces < gaps) return string.join(" ", words);
+
+        leftover : var = spaces % gaps;                 // this many gaps get one space more
+        each : var = (spaces - leftover) / gaps;
+        out := new text_buffer();
+        for(i : var = 0; i < count; i++) {
+            out.append(words[i]);
+            if(i < gaps) {
+                gap : var = each;
+                if(i < leftover) gap++;
+                for(s : var = 0; s < gap; s++) {
+                    out.append_char(' ');
+                }
+            }
+        }
+        return out.build();
+    }
+
+    /**
+     * The text made EXACTLY `width` characters wide: a shorter text is filled
+     * up with spaces on the right, a longer one is cut off and ends in "..."
+     * (or is just cut off if the width is below 3).
+     * fit("abcdefgh", 5) is "ab...", fit("ab", 5) is "ab   ".
+     * Throws illegal_argument_exception if width is negative.
+     */
+    static def fit(text: string, width: int): string {
+        check_width(width.value);
+        w : var = width.value;
+        n : var = sizeof(text.data);
+        if(n <= w) return pad(text, 0, w - n, ' ');
+        if(w < 3) return text.take(w);
+        return text.take(w - 3) + "...";
+    }
+
+    /**
+     * A horizontal rule: the character `c` repeated `width` times
+     * (rule('-', 20) draws a line under a heading). A width of 0 gives "".
+     * Throws illegal_argument_exception if width is negative.
+     */
+    static def rule(c: char, width: int): string {
+        check_width(width.value);
+        return character.repeat(c, width);
+    }
+}

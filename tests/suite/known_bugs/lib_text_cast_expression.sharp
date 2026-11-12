@@ -1,0 +1,36 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG found while writing std.text (expected to FAIL today: this file
+ * does not compile).
+ *
+ * Casting an expression in parentheses to a number type aborts the compiler:
+ *
+ *     sharp: <code-generator> fatal error: previous machine data not consumed!
+ *     note: in function: tens(var, var): var
+ *
+ * Both functions below trigger it. Casting a plain variable works, so the
+ * library computes into a variable first and casts that:
+ *
+ *     result : var = (value - digit) / radix;
+ *     result = result as _int64;
+ */
+
+def tens(value: var, radix: var): var {
+    digit : var = value % radix;
+    result : var = ((value - digit) / radix) as _int64;
+    return result;
+}
+
+def magnitude(number: var): var {
+    whole : var = (number < 0 ? 0 - number : number) as _int64;
+    return whole;
+}
+
+def main(args: string[]) {
+    expect("cast of a parenthesised division", tens(1234, 10), 123);
+    expect("cast of a parenthesised conditional", magnitude(0 - 7.9), 7);
+    finish("lib_text_cast_expression");
+}

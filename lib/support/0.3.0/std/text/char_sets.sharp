@@ -1,0 +1,152 @@
+mod std.text;
+
+/**
+ * char_sets
+ *
+ * Ready-made sets of characters, as strings, for the many functions that take
+ * "any of these characters": string.trim_chars, split_any, index_of_any,
+ * remove_chars, retain_chars, string_reader.read_while_in, string_tokenizer ...
+ *
+ *     digits_only := phone.retain_chars(char_sets.digits());
+ *     word := reader.read_while_in(char_sets.letters());
+ *     if(password.contains_any(char_sets.punctuation())) ...
+ *
+ * and helpers to build and combine sets: range, union, difference,
+ * intersection, and tests such as all_in / none_in.
+ *
+ * A set is simply a string; the order of the characters does not matter to
+ * the functions that use it, and a character listed twice counts once.
+ * Everything is static. All sets are ASCII.
+ */
+class char_sets {
+
+    /** "0123456789" */
+    static def digits(): string {
+        return "0123456789";
+    }
+
+    /** The small letters "abcdefghijklmnopqrstuvwxyz". */
+    static def lower(): string {
+        return "abcdefghijklmnopqrstuvwxyz";
+    }
+
+    /** The capital letters "ABCDEFGHIJKLMNOPQRSTUVWXYZ". */
+    static def upper(): string {
+        return "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    }
+
+    /** All 52 ASCII letters, small ones first. */
+    static def letters(): string {
+        return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    }
+
+    /** All ASCII letters and the digits. */
+    static def letters_and_digits(): string {
+        return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    }
+
+    /** The characters allowed inside a program name: letters, digits and '_'. */
+    static def identifier(): string {
+        return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+    }
+
+    /** The hexadecimal digits in both cases: "0123456789abcdefABCDEF". */
+    static def hex_digits(): string {
+        return "0123456789abcdefABCDEF";
+    }
+
+    /** The whitespace characters: space, tab, line feed, vertical tab, form feed, carriage return. */
+    static def whitespace(): string {
+        return range(9, 13) + " ";
+    }
+
+    /** The 32 ASCII punctuation marks and symbols: every visible character that is not a letter or digit. */
+    static def punctuation(): string {
+        return range(33, 47) + range(58, 64) + range(91, 96) + range(123, 126);
+    }
+
+    /** The vowels in both cases: "aeiouAEIOU". */
+    static def vowels(): string {
+        return "aeiouAEIOU";
+    }
+
+    /**
+     * The characters with the codes `first` to `last`, both included, in
+     * order: range('a', 'f') is "abcdef". first == last gives one character.
+     * Throws illegal_argument_exception if last is before first.
+     */
+    static def range(first: char, last: char): string {
+        from : var = first.value;
+        to : var = last.value;
+        if(to < from)
+            throw new ill_arg_except("range: the last character comes before the first");
+
+        buffer := new _int8[to - from + 1];
+        for(c : var = from; c <= to; c++) {
+            buffer[c - from] = c;
+        }
+        return new string(buffer);
+    }
+
+    /** 1 if the character `c` is in `set_chars`. */
+    static def contains(set_chars: string, c: char): var {
+        return set_chars.index_of_char(c) >= 0;
+    }
+
+    /**
+     * Every character that is in `a` or in `b`, each once: the characters of
+     * `a` in their order (without repeats), then those of `b` that are new.
+     */
+    static def union(a: string, b: string): string {
+        out := new text_buffer();
+        append_new(out, a);
+        append_new(out, b);
+        return out.build();
+    }
+
+    /** Appends the characters of `text` that `out` does not hold yet. */
+    private static def append_new(out: text_buffer, text: string) {
+        n : var = sizeof(text.data);
+        for(i : var = 0; i < n; i++) {
+            c : var = text.data[i];
+            known : var = 0;
+            have : var = out.length();
+            for(k : var = 0; k < have; k++) {
+                if(out.data[k] == c) {
+                    known = 1;
+                    break;
+                }
+            }
+            if(!known) out.append_char(c);
+        }
+    }
+
+    /** The characters of `a` that are NOT in `b`, each once, in the order of `a`. */
+    static def difference(a: string, b: string): string {
+        out := new text_buffer();
+        append_new(out, a.remove_chars(b));
+        return out.build();
+    }
+
+    /** The characters of `a` that are ALSO in `b`, each once, in the order of `a`. */
+    static def intersection(a: string, b: string): string {
+        out := new text_buffer();
+        append_new(out, a.retain_chars(b));
+        return out.build();
+    }
+
+    /** 1 if every character of `text` is in `set_chars` ("" gives 1). */
+    static def all_in(text: string, set_chars: string): var {
+        return text.index_of_none(set_chars) < 0;
+    }
+
+    /** 1 if no character of `text` is in `set_chars` ("" gives 1). */
+    static def none_in(text: string, set_chars: string): var {
+        return text.index_of_any(set_chars) < 0;
+    }
+
+    /** How many characters of `text` are in `set_chars` (count_in("a1b22", digits()) is 3). */
+    static def count_in(text: string, set_chars: string): var {
+        return sizeof(text.retain_chars(set_chars).data);
+    }
+}

@@ -1,0 +1,213 @@
+mod main;
+
+import ( testing )
+
+/**
+ * std.text - the `string` class, part 1:
+ *   - string_core.sharp   length, is_empty / is_blank, char_at, first / last, chars, to_bytes
+ *   - string_slice.sharp  substring(start), take / drop, substring_before / after,
+ *                         remove_prefix / suffix / surrounding, remove_range, reversed, repeat
+ *   - string_trim.sharp   trim, trim_chars, collapse_whitespace, pad_start / pad_end, center
+ *
+ * (Methods cannot be called on a literal, so the checks go through variables.)
+ */
+
+def main(args: string[]) {
+    hello : string = "hello";
+    empty : string = "";
+    one : string = "x";
+    blank : string = " \t\n ";
+
+    // ---- length, is_empty, is_blank
+    expect("length", hello.length(), 5);
+    expect("length of \"\"", empty.length(), 0);
+    expect("length of one character", one.length(), 1);
+    expect_true("\"\" is_empty", empty.is_empty());
+    expect_false("\"hello\" is_empty", hello.is_empty());
+    expect_true("\"hello\" is_not_empty", hello.is_not_empty());
+    expect_false("\"\" is_not_empty", empty.is_not_empty());
+    expect_true("\"\" is_blank", empty.is_blank());
+    expect_true("whitespace is_blank", blank.is_blank());
+    expect_false("\"hello\" is_blank", hello.is_blank());
+    expect_false("whitespace is_empty", blank.is_empty());
+    expect_true("\"hello\" is_not_blank", hello.is_not_blank());
+    expect_false("whitespace is_not_blank", blank.is_not_blank());
+
+    // ---- char_at, first, last
+    expect("char_at(0)", hello.char_at(0), 'h');
+    expect("char_at(4)", hello.char_at(4), 'o');
+    expect("char_at_or inside", hello.char_at_or(1, '?'), 'e');
+    expect("char_at_or beyond the end", hello.char_at_or(5, '?'), '?');
+    expect("char_at_or negative", hello.char_at_or(0 - 1, '?'), '?');
+    expect("first", hello.first(), 'h');
+    expect("last", hello.last(), 'o');
+    expect("first of one character", one.first(), 'x');
+    expect("last of one character", one.last(), 'x');
+    expect("first_or on \"\"", empty.first_or('-'), '-');
+    expect("last_or on \"\"", empty.last_or('-'), '-');
+    expect("first_or on text", hello.first_or('-'), 'h');
+    try {
+        hello.char_at(5);
+        fail("char_at(length)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("char_at(length)");
+    }
+    try {
+        empty.first();
+        fail("first of \"\"", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("first of \"\"");
+    }
+    try {
+        empty.last();
+        fail("last of \"\"", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("last of \"\"");
+    }
+
+    // ---- chars, to_bytes
+    letters := hello.chars();
+    expect("chars: length", sizeof(letters), 5);
+    expect("chars: first", letters[0].value, 'h');
+    expect("chars: last", letters[4].value, 'o');
+    expect("chars of \"\"", sizeof(empty.chars()), 0);
+    bytes := hello.to_bytes();
+    expect("to_bytes: length", sizeof(bytes), 5);
+    expect("to_bytes: element", bytes[1], 'e');
+    bytes[0] = 'j';
+    expect("to_bytes is a copy", hello.char_at(0), 'h');
+
+    // ---- substring(start), take, drop
+    expect_str("substring(2)", hello.substring(2), "llo");
+    expect_str("substring(0)", hello.substring(0), "hello");
+    expect_str("substring(length)", hello.substring(5), "");
+    try {
+        hello.substring(6);
+        fail("substring beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("substring beyond the end");
+    }
+    expect_str("take(2)", hello.take(2), "he");
+    expect_str("take(0)", hello.take(0), "");
+    expect_str("take more than there is", hello.take(99), "hello");
+    expect_str("take_last(2)", hello.take_last(2), "lo");
+    expect_str("take_last more than there is", hello.take_last(99), "hello");
+    expect_str("drop(2)", hello.drop(2), "llo");
+    expect_str("drop everything", hello.drop(5), "");
+    expect_str("drop more than there is", hello.drop(99), "");
+    expect_str("drop_last(2)", hello.drop_last(2), "hel");
+    expect_str("drop_last(0)", hello.drop_last(0), "hello");
+    expect_str("take on \"\"", empty.take(3), "");
+    try {
+        hello.take(0 - 1);
+        fail("take(-1)", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("take(-1)");
+    }
+
+    // ---- substring_before / after
+    pair : string = "key=value=more";
+    expect_str("substring_before", pair.substring_before("="), "key");
+    expect_str("substring_after", pair.substring_after("="), "value=more");
+    expect_str("substring_before_last", pair.substring_before_last("="), "key=value");
+    expect_str("substring_after_last", pair.substring_after_last("="), "more");
+    expect_str("substring_before, not found", pair.substring_before("#"), "key=value=more");
+    expect_str("substring_after, not found", pair.substring_after("#"), "key=value=more");
+    expect_str("substring_before with a missing value", pair.substring_before("#", "none"), "none");
+    expect_str("substring_after with a missing value", pair.substring_after("#", "none"), "none");
+    expect_str("substring_before_last with a missing value", pair.substring_before_last("#", ""), "");
+    expect_str("substring_after_last with a missing value", pair.substring_after_last("#", "none"), "none");
+    expect_str("substring_before with a char literal", pair.substring_before('='), "key");
+    expect_str("substring_after a longer delimiter", pair.substring_after("ue="), "more");
+    expect_str("substring_before a delimiter at the start", pair.substring_before("key"), "");
+    expect_str("substring_after a delimiter at the end", pair.substring_after("more"), "");
+
+    // ---- remove_prefix / suffix / surrounding / range
+    path : string = "src/main.sharp";
+    expect_str("remove_prefix", path.remove_prefix("src/"), "main.sharp");
+    expect_str("remove_prefix that is not there", path.remove_prefix("lib/"), "src/main.sharp");
+    expect_str("remove_suffix", path.remove_suffix(".sharp"), "src/main");
+    expect_str("remove_suffix that is not there", path.remove_suffix(".cpp"), "src/main.sharp");
+    expect_str("remove_prefix of the whole string", path.remove_prefix("src/main.sharp"), "");
+    expect_str("remove_prefix \"\"", path.remove_prefix(""), "src/main.sharp");
+    quoted : string = "(abc)";
+    expect_str("remove_surrounding", quoted.remove_surrounding("(", ")"), "abc");
+    expect_str("remove_surrounding, only one side present", quoted.remove_surrounding("(", "]"), "(abc)");
+    ticks : string = "'it'";
+    expect_str("remove_surrounding with one delimiter", ticks.remove_surrounding("'"), "it");
+    expect_str("remove_surrounding must not overlap", one.remove_surrounding("x"), "x");
+    abcdef : string = "abcdef";
+    expect_str("remove_range", abcdef.remove_range(1, 3), "adef");
+    expect_str("remove_range of nothing", abcdef.remove_range(2, 2), "abcdef");
+    expect_str("remove_range of everything", abcdef.remove_range(0, 6), "");
+    expect_str("remove_range at the end", abcdef.remove_range(4, 6), "abcd");
+    try {
+        abcdef.remove_range(4, 7);
+        fail("remove_range beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("remove_range beyond the end");
+    }
+
+    // ---- reversed, repeat
+    expect_str("reversed", hello.reversed(), "olleh");
+    expect_str("reversed \"\"", empty.reversed(), "");
+    expect_str("reversed one character", one.reversed(), "x");
+    expect_str("reversed leaves the original alone", hello, "hello");
+    ab : string = "ab";
+    expect_str("repeat(3)", ab.repeat(3), "ababab");
+    expect_str("repeat(1)", ab.repeat(1), "ab");
+    expect_str("repeat(0)", ab.repeat(0), "");
+    expect_str("repeat of \"\"", empty.repeat(5), "");
+    expect("repeat: a long result", ab.repeat(5000).length(), 10000);
+    try {
+        ab.repeat(0 - 1);
+        fail("repeat(-1)", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("repeat(-1)");
+    }
+
+    // ---- trim
+    padded : string = "  a b \t\n";
+    expect_str("trim", padded.trim(), "a b");
+    expect_str("trim_start", padded.trim_start(), "a b \t\n");
+    expect_str("trim_end", padded.trim_end(), "  a b");
+    expect_str("trim with nothing to trim", hello.trim(), "hello");
+    expect_str("trim of whitespace only", blank.trim(), "");
+    expect_str("trim of \"\"", empty.trim(), "");
+    expect_str("trim_start of whitespace only", blank.trim_start(), "");
+    expect_str("trim_end of whitespace only", blank.trim_end(), "");
+    dashes : string = "--a-b--";
+    expect_str("trim_chars", dashes.trim_chars("-"), "a-b");
+    expect_str("trim_start_chars", dashes.trim_start_chars("-"), "a-b--");
+    expect_str("trim_end_chars", dashes.trim_end_chars("-"), "--a-b");
+    mixed : string = "xyAyx";
+    expect_str("trim_chars with a set", mixed.trim_chars("xy"), "A");
+    expect_str("trim_chars with an empty set", mixed.trim_chars(""), "xyAyx");
+    expect_str("trim_chars removing everything", dashes.trim_chars("-ab"), "");
+    messy : string = "  to   be \t\n or  not ";
+    expect_str("collapse_whitespace", messy.collapse_whitespace(), "to be or not");
+    expect_str("collapse_whitespace of whitespace", blank.collapse_whitespace(), "");
+    expect_str("collapse_whitespace with nothing to do", hello.collapse_whitespace(), "hello");
+
+    // ---- pad, center
+    n42 : string = "42";
+    expect_str("pad_start", n42.pad_start(5), "   42");
+    expect_str("pad_start with a character", n42.pad_start(5, '0'), "00042");
+    expect_str("pad_end", n42.pad_end(5), "42   ");
+    expect_str("pad_end with a character", n42.pad_end(5, '.'), "42...");
+    expect_str("pad_start never shortens", hello.pad_start(3), "hello");
+    expect_str("pad_end to the exact length", hello.pad_end(5), "hello");
+    expect_str("pad_start of \"\"", empty.pad_start(3, '*'), "***");
+    expect_str("center, even padding", n42.center(6), "  42  ");
+    expect_str("center, odd padding goes right", n42.center(5), " 42  ");
+    expect_str("center with a character", n42.center(6, '*'), "**42**");
+    expect_str("center never shortens", hello.center(2), "hello");
+    try {
+        n42.pad_start(0 - 1);
+        fail("pad_start(-1)", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("pad_start(-1)");
+    }
+
+    finish("lib_text_string_core");
+}

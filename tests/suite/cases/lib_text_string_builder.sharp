@@ -1,0 +1,234 @@
+mod main;
+
+import ( testing )
+
+/**
+ * string_builder and char_array - the rewritten core and the added operations:
+ *   - std/string_builder.sharp                   append, size, to_string / build, ==, at,
+ *                                                starts_with / ends_with / find, substring
+ *   - std/text/builder/string_builder_edit.sharp   insert, delete, replace_range, reverse, clear,
+ *                                                set_length, append_line / _int / _number / _repeat
+ *   - std/text/builder/string_builder_query.sharp  length, capacity, char_at, index_of, contains, slice
+ *   - std/char_array.sharp                       at, put, fill, reverse, sort, slice ...
+ *
+ * NEEDS the corrected std/string_builder.sharp and std/char_array.sharp (the
+ * old builder counted one character too many: "abc" had size 4 and its
+ * to_string() ended in a NUL character).
+ */
+
+def main(args: string[]) {
+    // ---- the core: size and text are exact
+    sb := new string_builder();
+    expect("a new builder is empty", sb.size().value, 0);
+    expect_str("a new builder builds \"\"", sb.build(), "");
+    expect_true("is_empty", sb.is_empty());
+    sb.append("abc");
+    sb.append("def");
+    expect("size after two appends", sb.size().value, 6);
+    expect("length", sb.length(), 6);
+    expect_str("build", sb.build(), "abcdef");
+    expect_str("to_string", sb.to_string()!!, "abcdef");
+    expect("the built string has no extra character", sb.build().size().value, 6);
+    expect_false("is_empty with text", sb.is_empty());
+    expect_true("is_not_empty", sb.is_not_empty());
+    sb.append('g');
+    expect_str("append of a character", sb.build(), "abcdefg");
+    text : string = "hi";
+    sb.append(text).append_char('!');
+    expect_str("append of a string and append_char", sb.build(), "abcdefghi!");
+    empty : string = "";
+    sb.append(empty);
+    expect("appending \"\" changes nothing", sb.length(), 10);
+    expect_true("== with a literal", (sb == "abcdefghi!").value);
+    expect_false("== with other text", (sb == "abcdefghi").value);
+    expect_true("!= with other text", (sb != "abc").value);
+    expect("at", sb.at(0).value, 'a');
+    expect("[] ", sb[9].value, '!');
+    expect("char_at", sb.char_at(1), 'b');
+    expect("first", sb.first(), 'a');
+    expect("last", sb.last(), '!');
+    try {
+        sb.at(10);
+        fail("at(length)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("at(length)");
+    }
+    try {
+        sb.char_at(0 - 1);
+        fail("char_at(-1)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("char_at(-1)");
+    }
+
+    // ---- growing far beyond the first buffer
+    big := new string_builder();
+    for(i : var = 0; i < 5000; i++) {
+        big.append("0123456789");
+    }
+    expect("50000 characters appended", big.length(), 50000);
+    expect("the last one is right", big.char_at(49999), '9');
+    expect("one in the middle is right", big.char_at(25003), '3');
+    expect_true("capacity covers the text", big.capacity() >= 50000);
+    big.trim_to_size();
+    expect("trim_to_size", big.capacity(), 50000);
+    expect("trim_to_size keeps the text", big.char_at(49999), '9');
+    big.ensure_capacity(60000);
+    expect_true("ensure_capacity", big.capacity() >= 60000);
+    expect("ensure_capacity keeps the length", big.length(), 50000);
+
+    // ---- searching
+    words := new string_builder("one two one");
+    expect_true("starts_with", words.starts_with("one").value);
+    expect_false("starts_with other text", words.starts_with("two").value);
+    expect_true("ends_with", words.ends_with("one").value);
+    expect_true("ends_with the whole text", words.ends_with("one two one").value);
+    expect_false("ends_with other text", words.ends_with("two").value);
+    // (find(...) with a literal is ambiguous between find(string) and find(string_builder))
+    two : string = "two";
+    three : string = "three";
+    expect_true("find", words.find(two).value);
+    expect_false("find, not there", words.find(three).value);
+    expect("index_of", words.index_of("one"), 0);
+    expect("index_of with a start", words.index_of("one", 1), 8);
+    expect("index_of, not found", words.index_of("x"), 0 - 1);
+    expect("last_index_of", words.last_index_of("one"), 8);
+    expect("last_index_of, not found", words.last_index_of("x"), 0 - 1);
+    expect_true("contains", words.contains(" two "));
+    expect_false("contains, not there", words.contains("twoo"));
+    expect_true("equals_text", words.equals_text("one two one"));
+    expect_false("equals_text of a prefix", words.equals_text("one two"));
+    expect_str("slice", words.slice(4, 7), "two");
+    expect_str("slice of nothing", words.slice(3, 3), "");
+    expect_str("substring gives a builder", words.substring(4, 7).build(), "two");
+    try {
+        words.slice(4, 99);
+        fail("slice beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("slice beyond the end");
+    }
+
+    // ---- editing
+    ed := new string_builder("held");
+    ed.insert(3, "lo wor");
+    expect_str("insert", ed.build(), "hello word");
+    ed.insert(0, ">> ");
+    expect_str("insert at the start", ed.build(), ">> hello word");
+    ed.insert(ed.length(), "!");
+    expect_str("insert at the end", ed.build(), ">> hello word!");
+    ed.insert_char(3, '[');
+    expect_str("insert_char", ed.build(), ">> [hello word!");
+    ed.delete(0, 4);
+    expect_str("delete", ed.build(), "hello word!");
+    ed.delete(5, 5);
+    expect_str("delete of nothing", ed.build(), "hello word!");
+    ed.delete_char_at(10);
+    expect_str("delete_char_at", ed.build(), "hello word");
+    ed.replace_range(6, 10, "there");
+    expect_str("replace_range with longer text", ed.build(), "hello there");
+    ed.replace_range(0, 5, "hi");
+    expect_str("replace_range with shorter text", ed.build(), "hi there");
+    ed.replace_range(2, 3, "_");
+    expect_str("replace_range with the same length", ed.build(), "hi_there");
+    ed.set_char_at(0, 'H');
+    expect_str("set_char_at", ed.build(), "Hi_there");
+    ed.reverse();
+    expect_str("reverse", ed.build(), "ereht_iH");
+    ed.set_length(5);
+    expect_str("set_length cuts", ed.build(), "ereht");
+    ed.set_length(8, '.');
+    expect_str("set_length fills", ed.build(), "ereht...");
+    ed.clear();
+    expect("clear", ed.length(), 0);
+    expect_str("clear builds \"\"", ed.build(), "");
+    ed.append("again");
+    expect_str("a cleared builder can be reused", ed.build(), "again");
+    try {
+        ed.insert(6, "x");
+        fail("insert beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("insert beyond the end");
+    }
+    try {
+        ed.delete(3, 2);
+        fail("delete with end before start", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("delete with end before start");
+    }
+    try {
+        ed.delete_char_at(5);
+        fail("delete_char_at(length)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("delete_char_at(length)");
+    }
+
+    // ---- the extra appends, chained
+    report := new string_builder();
+    report.append("n=").append_int(42).append_line().append_number(3.14159, 2).append_line("!").append_bool(1);
+    expect_str("append_int, append_line, append_number, append_bool", report.build(), "n=42\n3.14!\ntrue");
+    rule := new string_builder();
+    rule.append_repeat("-=", 3).append_repeat("x", 0);
+    expect_str("append_repeat", rule.build(), "-=-=-=");
+    listing := new string_builder();
+    listing.append_all(new string[] { "a", "b", "c" }, ", ");
+    expect_str("append_all", listing.build(), "a, b, c");
+    copy_of := new string_builder(listing);
+    copy_of.append("!");
+    expect_str("a copy is independent", listing.build(), "a, b, c");
+    expect_str("the copy has the new text", copy_of.build(), "a, b, c!");
+    sum := listing + "?";
+    expect_str("+ makes a new builder", sum.build(), "a, b, c?");
+    expect_str("+ leaves the original alone", listing.build(), "a, b, c");
+    listing += " d";
+    expect_str("+=", listing.build(), "a, b, c d");
+
+    // ---- char_array
+    chars := new char_array("hello");
+    expect("char_array length", chars.length(), 5);
+    expect("char_array at", chars.at(1), 'e');
+    expect("char_array index_of", chars.index_of('l'), 2);
+    expect("char_array last_index_of", chars.last_index_of('l'), 3);
+    expect("char_array index_of, not found", chars.index_of('z'), 0 - 1);
+    expect_true("char_array contains", chars.contains('o'));
+    expect("char_array count", chars.count('l'), 2);
+    own := chars.duplicate();
+    own.put(0, 'j');
+    expect_str("char_array put", own.to_string(), "jello");
+    expect_str("duplicate is independent", chars.to_string(), "hello");
+    own.reverse();
+    expect_str("char_array reverse", own.to_string(), "ollej");
+    own.sort();
+    expect_str("char_array sort", own.to_string(), "ejllo");
+    own.to_upper();
+    expect_str("char_array to_upper", own.to_string(), "EJLLO");
+    own.to_lower().swap(0, 4);
+    expect_str("char_array to_lower and swap", own.to_string(), "ojlle");
+    expect_str("char_array slice", own.slice(1, 3).to_string(), "jl");
+    expect("char_array slice of nothing", own.slice(2, 2).length(), 0);
+    expect_true("char_array content_equals", chars.content_equals(new char_array("hello")));
+    expect_false("char_array content_equals, different", chars.content_equals(own));
+    own.fill('z');
+    expect_str("char_array fill", own.to_string(), "zzzzz");
+    expect("char_array to_chars", sizeof(chars.to_chars()), 5);
+    unsorted := new char_array("the quick brown fox jumps over the lazy dog");
+    unsorted.sort();
+    expect_str("char_array sort of a longer text", unsorted.to_string(), "        abcdeeefghhijklmnoooopqrrsttuuvwxyz");
+    nothing := new char_array(new string());
+    expect("empty char_array length", nothing.length(), 0);
+    expect_true("empty char_array is_empty", nothing.is_empty());
+    nothing.reverse().sort();
+    expect("empty char_array survives reverse and sort", nothing.length(), 0);
+    try {
+        chars.at(5);
+        fail("char_array at(length)", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("char_array at(length)");
+    }
+    try {
+        chars.slice(2, 9);
+        fail("char_array slice beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("char_array slice beyond the end");
+    }
+
+    finish("lib_text_string_builder");
+}

@@ -1,0 +1,304 @@
+mod main;
+
+import ( testing, std.text )
+
+/**
+ * std.text - matching text against patterns:
+ *   - text_pattern   wildcards: * ? [abc] [a-z] [!abc] and \ to escape
+ *   - regex          regular expressions: matches, contains, find, find_all,
+ *                    replace_all / replace_first, split, count
+ *   - regex_match    start / end / value / group
+ *
+ * Two things about writing patterns in Sharp source:
+ *   - a backslash in a string literal is written twice ("\\d" is the pattern \d)
+ *   - a dollar sign cannot be written in a string literal at all, so the
+ *     end anchor is appended as a character:  "abc" + '$'
+ */
+
+def show(parts: string[]): string {
+    joined := string.join("|", parts);
+    if(joined.is_empty()) return string.of_int(sizeof(parts)) + ":";
+    return string.of_int(sizeof(parts)) + ":" + joined;
+}
+
+/** the first match of `pattern` in `text` as "value@start", or "none" */
+def first(pattern: string, text: string): string {
+    m := new regex(pattern).find(text);
+    if((m as object) == null) return "none";
+    return m!!.value() + "@" + string.of_int(m!!.start());
+}
+
+/** all matches of `pattern` in `text`, as show() of their values */
+def all(pattern: string, text: string): string {
+    found := new regex(pattern).find_all(text);
+    values := new string[sizeof(found)];
+    for(i : var = 0; i < sizeof(found); i++) {
+        values[i] = found[i].value();
+    }
+    return show(values);
+}
+
+def main(args: string[]) {
+    // ================================================================ text_pattern
+    expect_true("star", text_pattern.matches("*.sharp", "main.sharp"));
+    expect_false("star, other ending", text_pattern.matches("*.sharp", "main.cpp"));
+    expect_true("star matches nothing", text_pattern.matches("*.sharp", ".sharp"));
+    expect_true("star alone matches everything", text_pattern.matches("*", "anything at all"));
+    expect_true("star alone matches \"\"", text_pattern.matches("*", ""));
+    expect_true("empty pattern matches \"\"", text_pattern.matches("", ""));
+    expect_false("empty pattern does not match text", text_pattern.matches("", "a"));
+    expect_true("literal", text_pattern.matches("abc", "abc"));
+    expect_false("literal must match the whole text", text_pattern.matches("abc", "abcd"));
+    expect_false("literal is case sensitive", text_pattern.matches("abc", "ABC"));
+    expect_true("question mark", text_pattern.matches("data_??.csv", "data_07.csv"));
+    expect_false("question mark needs a character", text_pattern.matches("data_??.csv", "data_7.csv"));
+    expect_false("question mark does not match \"\"", text_pattern.matches("?", ""));
+    expect_true("star in the middle", text_pattern.matches("a*z", "a to z"));
+    expect_true("star in the middle matching nothing", text_pattern.matches("a*z", "az"));
+    expect_true("two stars", text_pattern.matches("*ab*cd*", "xxabyycdzz"));
+    expect_false("two stars, wrong order", text_pattern.matches("*ab*cd*", "xxcdyyabzz"));
+    expect_true("several stars in a row", text_pattern.matches("a***b", "ab"));
+    expect_true("star has to back up", text_pattern.matches("*aab", "aaaab"));
+    expect_true("star with repeated text", text_pattern.matches("*.tar.gz", "a.tar.tar.gz"));
+    expect_true("set", text_pattern.matches("[abc]at", "cat"));
+    expect_false("set, not a member", text_pattern.matches("[abc]at", "rat"));
+    expect_true("range", text_pattern.matches("file[0-9].txt", "file7.txt"));
+    expect_false("range, outside", text_pattern.matches("file[0-9].txt", "fileA.txt"));
+    expect_true("mixed set", text_pattern.matches("[a-cx-z_]", "y"));
+    expect_true("mixed set, single member", text_pattern.matches("[a-cx-z_]", "_"));
+    expect_false("mixed set, outside", text_pattern.matches("[a-cx-z_]", "m"));
+    expect_true("negated set", text_pattern.matches("[!abc]at", "rat"));
+    expect_false("negated set, member", text_pattern.matches("[!abc]at", "cat"));
+    expect_true("negated set with ^", text_pattern.matches("[^0-9]", "x"));
+    expect_true("']' first in a set is a member", text_pattern.matches("[]x]", "]"));
+    expect_true("'-' last in a set is a member", text_pattern.matches("[a-]", "-"));
+    expect_true("escaped star", text_pattern.matches("a\\*b", "a*b"));
+    expect_false("escaped star is not a wildcard", text_pattern.matches("a\\*b", "axb"));
+    expect_true("escaped question mark", text_pattern.matches("what\\?", "what?"));
+    expect_true("ignore case", text_pattern.matches_ignore_case("*.TXT", "notes.txt"));
+    expect_true("ignore case in a set", text_pattern.matches_ignore_case("[a-c]", "B"));
+    expect_false("ignore case still needs the right letters", text_pattern.matches_ignore_case("*.TXT", "notes.md"));
+    long_text := character.repeat('a', 5000);
+    expect_false("many stars on a long text stay fast", text_pattern.matches("*a*a*a*a*a*b", long_text));
+    expect_true("a long text that matches", text_pattern.matches("*a*a*a*a*a", long_text));
+
+    source_files := new text_pattern("*.sharp");
+    names := new string[] { "a.sharp", "b.cpp", "c.sharp", "sharp" };
+    expect_str("filter", show(source_files.filter(names)), "2:a.sharp|c.sharp");
+    expect("count_matches", source_files.count_matches(names), 2);
+    expect_str("filter with no match", show(new text_pattern("*.md").filter(names)), "0:");
+    expect_str("pattern", source_files.pattern(), "*.sharp");
+    expect_false("is_literal with a wildcard", source_files.is_literal());
+    expect_true("is_literal", new text_pattern("plain.txt").is_literal());
+    expect_true("has_wildcards", text_pattern.has_wildcards("a?b"));
+    expect_false("has_wildcards of plain text", text_pattern.has_wildcards("a.b"));
+    expect_str("escape", text_pattern.escape("what?"), "what\\?");
+    expect_true("an escaped text matches itself", text_pattern.matches(text_pattern.escape("[a]*?"), "[a]*?"));
+    try {
+        new text_pattern("file[0-9");
+        fail("unclosed set", "did not throw");
+    } catch(e: parse_exception) {
+        pass("unclosed set");
+    }
+    try {
+        new text_pattern("abc\\");
+        fail("backslash at the end", "did not throw");
+    } catch(e: parse_exception) {
+        pass("backslash at the end");
+    }
+
+    // ================================================================ regex: matches (the whole text)
+    digits := new regex("\\d+");
+    expect_true("matches", digits.matches("12345"));
+    expect_false("matches needs the whole text", digits.matches("123a"));
+    expect_false("matches of \"\" with +", digits.matches(""));
+    expect_true("matches of \"\" with *", new regex("\\d*").matches(""));
+    expect_true("literal", regex.matches("abc", "abc"));
+    expect_false("literal, longer text", regex.matches("abc", "abcd"));
+    expect_true("dot", regex.matches("a.c", "axc"));
+    expect_false("dot does not match a line feed", regex.matches("a.c", "a\nc"));
+    expect_true("escaped dot", regex.matches("a\\.c", "a.c"));
+    expect_false("escaped dot is literal", regex.matches("a\\.c", "axc"));
+    expect_true("set", regex.matches("[abc]+", "abcabc"));
+    expect_false("set, not a member", regex.matches("[abc]+", "abd"));
+    expect_true("range", regex.matches("[a-f0-9]+", "c0ffee"));
+    expect_true("negated set", regex.matches("[^0-9]+", "abc"));
+    expect_false("negated set, member", regex.matches("[^0-9]+", "ab1"));
+    expect_true("class in a set", regex.matches("[\\d.]+", "3.14"));
+    expect_true("word class", regex.matches("\\w+", "snake_case1"));
+    expect_false("word class, space", regex.matches("\\w+", "two words"));
+    expect_true("space class", regex.matches("a\\s+b", "a \t\nb"));
+    expect_true("negated classes", regex.matches("\\D\\W\\S", "a b"));
+    expect_true("optional, present", regex.matches("colou?r", "colour"));
+    expect_true("optional, absent", regex.matches("colou?r", "color"));
+    expect_true("exact count", regex.matches("a{3}", "aaa"));
+    expect_false("exact count, too few", regex.matches("a{3}", "aa"));
+    expect_false("exact count, too many", regex.matches("a{3}", "aaaa"));
+    expect_true("count range, low end", regex.matches("a{2,4}", "aa"));
+    expect_true("count range, high end", regex.matches("a{2,4}", "aaaa"));
+    expect_false("count range, above", regex.matches("a{2,4}", "aaaaa"));
+    expect_true("open count range", regex.matches("a{2,}", "aaaaaaa"));
+    expect_false("open count range, below", regex.matches("a{2,}", "a"));
+    expect_true("a brace that is no count is literal", regex.matches("a{x}", "a{x}"));
+    expect_true("alternation, first", regex.matches("cat|dog", "cat"));
+    expect_true("alternation, second", regex.matches("cat|dog", "dog"));
+    expect_false("alternation, neither", regex.matches("cat|dog", "cow"));
+    expect_true("alternation in a group", regex.matches("(cat|dog)s", "dogs"));
+    expect_true("empty alternative", regex.matches("ab(c|)", "ab"));
+    expect_true("group with a count", regex.matches("(ab){2}c", "ababc"));
+    expect_true("nested groups", regex.matches("((a|b)c)+", "acbc"));
+    expect_true("ignore case", new regex("hello", true).matches("HeLLo"));
+    expect_true("ignore case in a set", new regex("[a-c]+", true).matches("AbC"));
+    expect_true("hex escape", regex.matches("\\x41+", "AAA"));
+    expect_true("escaped tab", regex.matches("a\\tb", "a\tb"));
+    expect_true("the empty pattern matches \"\"", regex.matches("", ""));
+    expect_false("the empty pattern does not match text", regex.matches("", "a"));
+
+    // ================================================================ regex: searching
+    expect_true("contains", digits.contains("abc 42 def"));
+    expect_false("contains, no match", digits.contains("no digits"));
+    expect_true("is_match", regex.is_match("b+", "aabbcc"));
+    expect("index_of", digits.index_of("abc 42 def"), 4);
+    expect("index_of, no match", digits.index_of("none"), 0 - 1);
+    expect_str("find", first("\\d+", "abc 42 def 7"), "42@4");
+    expect_str("find, no match", first("\\d+", "none"), "none");
+    expect_str("find is leftmost", first("b|ab", "xab"), "ab@1");
+    expect_str("greedy", first("<.+>", "<a><b>"), "<a><b>@0");
+    expect_str("lazy", first("<.+?>", "<a><b>"), "<a>@0");
+    expect_str("lazy star", first("a*?b", "aaab"), "aaab@0");
+    expect_str("lazy optional", first("ab??", "ab"), "a@0");
+    expect_str("start anchor", first("^ab", "abab"), "ab@0");
+    expect_str("start anchor fails later", first("^b", "ab"), "none");
+    expect_str("end anchor", first("ab" + '$', "abab"), "ab@2");
+    expect_str("both anchors", first("^a.c" + '$', "abc"), "abc@0");
+    expect_str("word boundary", first("\\bcat\\b", "concat cat"), "cat@7");
+    expect_str("not a word boundary", first("\\Bcat", "concat cat"), "cat@3");
+    expect_str("an empty match", first("x*", "abc"), "@0");
+    expect_str("backing out of a star", first("a*ab", "aaab"), "aaab@0");
+    later := digits.find("a1 b22 c333", 3);
+    expect_str("find from a start", later!!.value(), "22");
+    expect_null("find from a start, nothing left", digits.find("a1 b", 2));
+    expect_str("find_all", all("\\d+", "a1 b22 c333"), "3:1|22|333");
+    expect_str("find_all, no match", all("\\d+", "none"), "0:");
+    expect_str("find_all does not overlap", all("aa", "aaaaa"), "2:aa|aa");
+    expect("find_all with empty matches", sizeof(new regex("x*").find_all("abc")), 4);
+    expect("count", digits.count("a1 b22 c333"), 3);
+    expect("count, no match", digits.count("none"), 0);
+
+    // ================================================================ regex: groups
+    pair := new regex("(\\w+)@(\\w+)");
+    expect("group_count", pair.group_count(), 2);
+    found := pair.find("mail ada@example now");
+    expect_not_null("a match", found);
+    m := found!!;
+    expect_str("value", m.value(), "ada@example");
+    expect("start", m.start(), 5);
+    expect("end", m.end(), 16);
+    expect("length", m.length(), 11);
+    expect_str("group(0) is the whole match", m.group(0), "ada@example");
+    expect_str("group(1)", m.group(1), "ada");
+    expect_str("group(2)", m.group(2), "example");
+    expect("group_start", m.group_start(2), 9);
+    expect("group_end", m.group_end(2), 16);
+    expect("match group_count", m.group_count(), 2);
+    expect_str("groups_array", show(m.groups_array()), "3:ada@example|ada|example");
+    try {
+        m.group(3);
+        fail("group(3) of two", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("group(3) of two");
+    }
+    either := new regex("a|(b)").find("a");
+    expect_false("a group that took no part", either!!.has_group(1));
+    expect("its start is -1", either!!.group_start(1), 0 - 1);
+    expect_str("its text is \"\"", either!!.group(1), "");
+    other := new regex("a|(b)").find("b");
+    expect_true("the same group when it took part", other!!.has_group(1));
+    repeated := new regex("(a|b)+").find("abab");
+    expect_str("a repeated group keeps its last text", repeated!!.group(1), "b");
+    inner := new regex("(a(b)?)+").find("aba");
+    expect_str("outer group", inner!!.group(1), "a");
+    expect_str("non-capturing groups are not counted", string.of_int(new regex("(?:a)(b)").group_count()), "1");
+    date := new regex("(\\d{4})-(\\d{2})-(\\d{2})").find("on 2024-03-15.");
+    expect_str("three groups", date!!.group(1) + "/" + date!!.group(2) + "/" + date!!.group(3), "2024/03/15");
+
+    // ================================================================ regex: replace and split
+    expect_str("replace_all", digits.replace_all("a1 b22 c333", "#"), "a# b# c#");
+    expect_str("replace_first", digits.replace_first("a1 b22 c333", "#"), "a# b22 c333");
+    expect_str("replace_all, no match", digits.replace_all("none", "#"), "none");
+    expect_str("replace_all with \"\"", digits.replace_all("a1b22", ""), "ab");
+    expect_str("replace_all with groups", pair.replace_all("ada@example", "\\2 at \\1"), "example at ada");
+    expect_str("replace_all with the whole match", digits.replace_all("7 8", "[\\0]"), "[7] [8]");
+    expect_str("replace_all with an escaped backslash", digits.replace_all("7", "\\\\"), "\\");
+    expect_str("replace_all with empty matches", new regex("x*").replace_all("abc", "-"), "-a-b-c-");
+    expect_str("replace_all ignoring case", new regex("[a-c]+", true).replace_all("xabcABCx", "#"), "x#x");
+    expect_str("replace_all of \"\"", digits.replace_all("", "#"), "");
+    try {
+        digits.replace_all("7", "\\1");
+        fail("replacement with a missing group", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("replacement with a missing group");
+    }
+    commas := new regex("\\s*,\\s*");
+    expect_str("split", show(commas.split("a , b,c")), "3:a|b|c");
+    expect_str("split keeps empty parts", show(commas.split(",a,,b,")), "5:|a||b|");
+    expect_str("split, no match", show(commas.split("abc")), "1:abc");
+    expect_str("split of \"\"", show(commas.split("")), "1:");
+    expect_str("split with a limit", show(commas.split("a,b,c,d", 2)), "2:a|b,c,d");
+    expect_str("split by the empty pattern", show(new regex("").split("abc")), "3:a|b|c");
+    expect_str("split by whitespace", show(new regex("\\s+").split("to  be\tor")), "3:to|be|or");
+
+    // ================================================================ regex: bad patterns, hard patterns
+    try {
+        new regex("(ab");
+        fail("unclosed group", "did not throw");
+    } catch(e: parse_exception) {
+        expect_true("the message names the problem", e.get_message().contains("'(' without a matching ')'"));
+    }
+    try {
+        new regex("ab)");
+        fail("unopened group", "did not throw");
+    } catch(e: parse_exception) {
+        pass("unopened group");
+    }
+    try {
+        new regex("[abc");
+        fail("unclosed set", "did not throw");
+    } catch(e: parse_exception) {
+        pass("unclosed set");
+    }
+    try {
+        new regex("*a");
+        fail("nothing to repeat", "did not throw");
+    } catch(e: parse_exception) {
+        pass("nothing to repeat");
+    }
+    try {
+        new regex("a{3,2}");
+        fail("count range backwards", "did not throw");
+    } catch(e: parse_exception) {
+        pass("count range backwards");
+    }
+    try {
+        new regex("\\q");
+        fail("unknown escape", "did not throw");
+    } catch(e: parse_exception) {
+        pass("unknown escape");
+    }
+    try {
+        new regex("(a)\\1");
+        fail("back-reference", "did not throw");
+    } catch(e: parse_exception) {
+        pass("back-reference");
+    }
+    many_a := character.repeat('a', 2000);
+    expect_false("nested stars do not blow up", new regex("(a*)*b").contains(many_a));
+    expect_false("alternation in a star does not blow up", new regex("(a|aa)+" + '$').matches(many_a + "b"));
+    expect_true("a long match", new regex("a+").matches(many_a));
+    expect("find_all on a long text", sizeof(new regex("a{100}").find_all(many_a)), 20);
+    expect_str("escape", regex.escape("1+1=2?"), "1\\+1=2\\?");
+    expect_true("an escaped text matches itself", regex.matches(regex.escape("a.b*(c)[d]"), "a.b*(c)[d]"));
+    expect_str("pattern", digits.pattern(), "\\d+");
+
+    finish("lib_text_patterns");
+}

@@ -1,0 +1,157 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string_support
+ *
+ * INTERNAL helpers shared by the string_*.sharp files in this folder (the
+ * files that add methods to the `string` class). Not meant to be called from
+ * programs: everything here is available in a friendlier form as a method of
+ * `string` (index_of, contains, trim ...).
+ *
+ * Why this is a class and not a set of private methods of `string`: a method
+ * added to a class by one `mutate` file is not reliably visible inside
+ * another `mutate` file of the same class - whether it resolves depends on
+ * the order in which the compiler happens to process the files. A separate
+ * class is always visible, so the shared code lives here and works on the raw
+ * character arrays (`string.data`, which is null for an empty string).
+ *
+ * All functions are static, take native numbers and never throw: the callers
+ * have already checked their arguments.
+ */
+class string_support {
+
+    /**
+     * The characters from `from` up to (not including) `to` of `data` as a new
+     * string. The caller guarantees 0 <= from, to <= length. from >= to gives "".
+     */
+    static def slice(data: _int8[]?, from: var, to: var): string {
+        if(to <= from) return new string();
+        return new string(data!!, from, to);
+    }
+
+    /** A string of the first `len` characters of `buffer`; len <= 0 gives "". */
+    static def of_buffer(buffer: _int8[]?, len: var): string {
+        if(len <= 0) return new string();
+        return new string(buffer!!, 0, len);
+    }
+
+    /** 1 if `c` is whitespace: space, tab, \n, vertical tab (11), form feed (12), \r. */
+    static def is_space(c: var): var {
+        return c == ' ' || (c >= 9 && c <= 13);
+    }
+
+    /** `c` in lower case if it is an ASCII capital letter, otherwise `c`. */
+    static def lower_of(c: var): var {
+        if(c >= 'A' && c <= 'Z') return c + 32;
+        return c;
+    }
+
+    /** `c` in upper case if it is an ASCII small letter, otherwise `c`. */
+    static def upper_of(c: var): var {
+        if(c >= 'a' && c <= 'z') return c - 32;
+        return c;
+    }
+
+    /** 1 if the character `c` is one of the characters in `chars`. */
+    static def in_set(c: var, chars: _int8[]?): var {
+        m : var = sizeof(chars);
+        for(j : var = 0; j < m; j++) {
+            if(chars[j] == c) return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * 1 if `needle` occurs in `data` exactly at position `at`. Never reads
+     * outside of `data`: a needle that does not fit gives 0. An empty needle
+     * fits everywhere from 0 to the length.
+     */
+    static def region_equals(data: _int8[]?, at: var, needle: _int8[]?): var {
+        m : var = sizeof(needle);
+        if(at < 0 || at + m > sizeof(data)) return 0;
+        for(j : var = 0; j < m; j++) {
+            if(data[at + j] != needle[j]) return 0;
+        }
+        return 1;
+    }
+
+    /** region_equals that treats ASCII capital and small letters as equal. */
+    static def region_equals_ignore_case(data: _int8[]?, at: var, needle: _int8[]?): var {
+        m : var = sizeof(needle);
+        if(at < 0 || at + m > sizeof(data)) return 0;
+        for(j : var = 0; j < m; j++) {
+            if(lower_of(data[at + j]) != lower_of(needle[j])) return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * Position of the first occurrence of `needle` in `data` that starts at
+     * `from` or later, -1 if there is none. `from` below 0 counts as 0.
+     * An empty needle is found at `from` (or at the length if from is beyond it).
+     */
+    static def find_forward(data: _int8[]?, needle: _int8[]?, from: var): var {
+        n : var = sizeof(data);
+        m : var = sizeof(needle);
+        if(from < 0) from = 0;
+        if(m == 0) {
+            if(from > n) return n;
+            return from;
+        }
+
+        last_start : var = n - m;
+        first_char : var = needle[0];
+        for(i : var = from; i <= last_start; i++) {
+            // only look closer where the first character already fits
+            if(data[i] == first_char) {
+                j : var = 1;
+                while(j < m && data[i + j] == needle[j]) {
+                    j++;
+                }
+                if(j == m) return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Position of the last occurrence of `needle` in `data` that starts at
+     * `from` or earlier, -1 if there is none. `from` beyond the last possible
+     * start counts as that start.
+     */
+    static def find_backward(data: _int8[]?, needle: _int8[]?, from: var): var {
+        n : var = sizeof(data);
+        m : var = sizeof(needle);
+        if(from > n - m) from = n - m;
+        if(from < 0) return -1;
+        if(m == 0) return from;
+
+        first_char : var = needle[0];
+        for(i : var = from; i >= 0; i--) {
+            if(data[i] == first_char) {
+                j : var = 1;
+                while(j < m && data[i + j] == needle[j]) {
+                    j++;
+                }
+                if(j == m) return i;
+            }
+        }
+        return -1;
+    }
+
+    /** How many times `needle` occurs in `data`, not counting overlaps; 0 for an empty needle. */
+    static def count(data: _int8[]?, needle: _int8[]?): var {
+        m : var = sizeof(needle);
+        if(m == 0) return 0;
+
+        total : var = 0;
+        at : var = find_forward(data, needle, 0);
+        while(at >= 0) {
+            total++;
+            at = find_forward(data, needle, at + m);
+        }
+        return total;
+    }
+}

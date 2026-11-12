@@ -1,0 +1,135 @@
+mod std.text;
+
+/**
+ * ascii
+ *
+ * Names for the ASCII characters that cannot be typed as a character literal,
+ * and a few helpers for working with character codes. Everything is static.
+ *
+ *     sb.append_char(ascii.escape).append("[1m");      // start bold on a terminal
+ *     if(c == ascii.form_feed) ...
+ *     ascii.name_of(10)        "LF"
+ *     ascii.caret(3)           "^C"
+ *
+ * The constants are native numbers and can be used wherever a character is
+ * expected (append_char, comparisons with char_at, `char` parameters).
+ * For questions such as "is this a digit" see std.text#character.
+ */
+class ascii {
+    /** code 0: the NUL character */
+    static const nul : var = 0;
+    /** code 7: bell (makes a terminal beep) */
+    static const bell : var = 7;
+    /** code 8: backspace */
+    static const backspace : var = 8;
+    /** code 9: horizontal tab, '\t' */
+    static const tab : var = 9;
+    /** code 10: line feed, '\n' - the line end on Linux and macOS */
+    static const line_feed : var = 10;
+    /** code 11: vertical tab */
+    static const vertical_tab : var = 11;
+    /** code 12: form feed (page break) */
+    static const form_feed : var = 12;
+    /** code 13: carriage return, '\r' - Windows line ends are carriage return + line feed */
+    static const carriage_return : var = 13;
+    /** code 27: escape, the start of terminal control sequences */
+    static const escape : var = 27;
+    /** code 32: the space */
+    static const space : var = 32;
+    /** code 34: the double quote " */
+    static const double_quote : var = 34;
+    /** code 36: the dollar sign, which cannot be written inside a Sharp string literal */
+    static const dollar : var = 36;
+    /** code 39: the single quote ' */
+    static const single_quote : var = 39;
+    /** code 92: the backslash */
+    static const backslash : var = 92;
+    /** code 127: delete */
+    static const delete_char : var = 127;
+    /** the largest ASCII code, 127 */
+    static const max_code : var = 127;
+
+    /* the standard short names of the control characters 0 .. 32 */
+    private static def control_name(code: var): string {
+        names := new string[] {
+            "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI",
+            "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US",
+            "SPACE"
+        };
+        return names[code];
+    }
+
+    /** 1 if `code` is an ASCII code, 0 to 127. */
+    static def is_ascii(code: char): var {
+        return code.value >= 0 && code.value <= 127;
+    }
+
+    /** 1 if every character of `text` is ASCII ("" gives 1). */
+    static def is_ascii_text(text: string): var {
+        n : var = sizeof(text.data);
+        for(i : var = 0; i < n; i++) {
+            if(text.data[i] < 0) return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * A readable name for the character: the standard abbreviation for
+     * control characters ("NUL", "HT", "LF", "CR", "ESC" ...), "SPACE" for the
+     * space, "DEL" for 127, the character itself for visible characters
+     * ("A", "~"), and "0x" plus two hexadecimal digits for bytes outside of
+     * ASCII ("0xe9"). Useful in error messages and hex dumps.
+     */
+    static def name_of(c: char): string {
+        v : var = c.value;
+        if(v >= 0 && v <= 32) return control_name(v);
+        if(v == 127) return "DEL";
+        if(v > 32 && v < 127) return new string(v as _int8);
+        // a byte above 127 is stored as a negative number
+        return "0x" + number_format.hex(v + 256, 2);
+    }
+
+    /**
+     * Caret notation, as terminals show control characters: "^@" for 0, "^A"
+     * for 1 ... "^Z" for 26, "^[" for escape, "^?" for delete. A character
+     * that is not a control character is returned as it is.
+     */
+    static def caret(c: char): string {
+        v : var = c.value;
+        if(v >= 0 && v < 32) {
+            shown : var = v + 64;
+            return "^" + new string(shown as _int8);
+        }
+        if(v == 127) return "^?";
+        return new string(v as _int8);
+    }
+
+    /**
+     * The code of the character as an unsigned number, 0 to 255. Characters
+     * are stored as signed bytes, so a byte above 127 reads as a negative
+     * number; this gives the value a hex dump would show.
+     */
+    static def unsigned_code(c: char): var {
+        v : var = c.value;
+        if(v < 0) return v + 256;
+        return v;
+    }
+
+    /**
+     * `text` with every character that is not visible ASCII replaced by
+     * `replacement`: control characters, delete and bytes above 127. Spaces
+     * are kept. printable("a\tb", '.') is "a.b".
+     */
+    static def printable(text: string, replacement: char): string {
+        n : var = sizeof(text.data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        for(i : var = 0; i < n; i++) {
+            c : var = text.data[i];
+            if(c >= 32 && c <= 126) out[i] = c;
+            else out[i] = replacement.value;
+        }
+        return new string(out);
+    }
+}

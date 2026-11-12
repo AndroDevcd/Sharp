@@ -1,0 +1,134 @@
+mod std.text;
+
+/**
+ * string_joiner
+ *
+ * Collects pieces of text and joins them with a separator, optionally between
+ * a prefix and a suffix (Java's StringJoiner):
+ *
+ *     j := new string_joiner(", ", "[", "]");
+ *     j.add("a").add("b").add("c");
+ *     j.build()                       "[a, b, c]"
+ *
+ * With nothing added the result is prefix + suffix ("[]"), unless another
+ * text was chosen with set_empty_value("none").
+ *
+ * The separator is only put BETWEEN pieces, so there is never one at the
+ * start or the end. Pieces may be empty strings; they still count as pieces
+ * ("a", "", "b" joined with "," is "a,,b").
+ */
+class string_joiner {
+    private separator : string = "";
+    private prefix : string = "";
+    private suffix : string = "";
+
+    /* the pieces joined so far, without prefix and suffix */
+    private body : text_buffer = new text_buffer();
+
+    /* how many pieces were added */
+    private pieces : var = 0;
+
+    /* what build() returns when nothing was added; only used if has_empty_value is set */
+    private empty_value : string = "";
+    private has_empty_value : var = 0;
+
+    /** A joiner that puts `separator` between the pieces, with no prefix or suffix. */
+    string_joiner(separator: string) {
+        self->separator = separator;
+    }
+
+    /** A joiner that puts `separator` between the pieces and wraps the result in `prefix` ... `suffix`. */
+    string_joiner(separator: string, prefix: string, suffix: string) {
+        self->separator = separator;
+        self->prefix = prefix;
+        self->suffix = suffix;
+    }
+
+    /** Adds one piece. Returns this joiner, so calls can be chained. */
+    def add(piece: string): string_joiner {
+        if(pieces > 0) body.append(separator);
+        body.append(piece);
+        pieces++;
+        return self;
+    }
+
+    /** Adds a whole number as a piece, without decimals: add_int(3) adds "3". */
+    def add_int(number: var): string_joiner {
+        return add(number_format.integer(number));
+    }
+
+    /** Adds every string of the array as a piece of its own (null elements are skipped). */
+    def add_all(items: string[]): string_joiner {
+        count : var = sizeof(items);
+        for(i : var = 0; i < count; i++) {
+            item := items[i];
+            if((item as object) != null) add(item);
+        }
+        return self;
+    }
+
+    /**
+     * Adds the pieces of another joiner as ONE piece of this one: its pieces
+     * joined with ITS separator, without its prefix and suffix (as in Java).
+     * An empty joiner adds nothing.
+     */
+    def merge(other: string_joiner): string_joiner {
+        if(other.pieces > 0) add(other.body.build());
+        return self;
+    }
+
+    /**
+     * Sets the text build() returns while nothing has been added, instead of
+     * prefix + suffix. Returns this joiner.
+     */
+    def set_empty_value(value: string): string_joiner {
+        empty_value = value;
+        has_empty_value = 1;
+        return self;
+    }
+
+    /** How many pieces were added. */
+    def count(): var {
+        return pieces;
+    }
+
+    /** 1 if nothing was added yet. */
+    def is_empty(): var {
+        return pieces == 0;
+    }
+
+    /**
+     * The number of characters build() would return (prefix, pieces,
+     * separators and suffix; or the empty value if nothing was added).
+     */
+    def length(): var {
+        if(pieces == 0 && has_empty_value) return sizeof(empty_value.data);
+        return sizeof(prefix.data) + body.length() + sizeof(suffix.data);
+    }
+
+    /** Forgets all pieces. Separator, prefix, suffix and the empty value are kept. */
+    def clear(): string_joiner {
+        body.clear();
+        pieces = 0;
+        return self;
+    }
+
+    /**
+     * The joined text: prefix, the pieces with the separator between them,
+     * suffix. The joiner is not changed and more pieces can be added afterwards.
+     */
+    def build(): string {
+        if(pieces == 0 && has_empty_value) return empty_value;
+
+        out := new text_buffer();
+        out.append(prefix);
+        out.append(body.build());
+        out.append(suffix);
+        return out.build();
+    }
+
+    /** Same as build(), so a joiner can be printed or put in a "$text" directly. */
+    override def to_string() : string? {
+        return build();
+    }
+}

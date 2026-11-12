@@ -1,0 +1,241 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - splitting and joining (part of the `string` class, see string_core.sharp)
+ *
+ * split (by a text, with an optional limit), split_any (by any of a set of
+ * characters), split_whitespace, lines, chunked, and the static join.
+ *
+ * The parts are returned as a `string[]`. As in Kotlin, splitting never drops
+ * empty parts: ",a,,b,".split(",") is ["", "a", "", "b", ""], and splitting a
+ * string that does not contain the delimiter (including "") gives an array
+ * with that one string in it. split_whitespace is the exception: it returns
+ * only the words.
+ *
+ * A character literal can be used as the delimiter: `line.split(',')`.
+ */
+mutate string {
+
+    /**
+     * The parts of the string between occurrences of `delimiter`.
+     * "a,b,c".split(",") is ["a", "b", "c"]; "".split(",") is [""].
+     * Throws illegal_argument_exception if the delimiter is empty.
+     */
+    def split(delimiter: string): string[] {
+        return split(delimiter, 0);
+    }
+
+    /**
+     * Like split(delimiter), but returns at most `limit` parts: the last part
+     * holds the rest of the string, delimiters included.
+     * "a,b,c,d".split(",", 2) is ["a", "b,c,d"]. A limit of 0 means no limit.
+     * Throws illegal_argument_exception if the delimiter is empty or the limit
+     * is negative.
+     */
+    def split(delimiter: string, limit: int): string[] {
+        m : var = sizeof(delimiter.data);
+        max_parts : var = limit.value;
+        if(m == 0) throw new ill_arg_except("split: the delimiter cannot be empty");
+        if(max_parts < 0) throw new ill_arg_except("split: the limit cannot be negative: $limit");
+
+        // pass 1: how many parts will there be?
+        n : var = sizeof(data);
+        parts : var = 1;
+        at : var = string_support.find_forward(data, delimiter.data, 0);
+        while(at >= 0 && (max_parts == 0 || parts < max_parts)) {
+            parts++;
+            at = string_support.find_forward(data, delimiter.data, at + m);
+        }
+
+        // pass 2: cut them out
+        result := new string[parts];
+        start : var = 0;
+        for(i : var = 0; i < parts - 1; i++) {
+            at = string_support.find_forward(data, delimiter.data, start);
+            result[i] = string_support.slice(data, start, at);
+            start = at + m;
+        }
+        result[parts - 1] = string_support.slice(data, start, n);
+        return result;
+    }
+
+    /**
+     * The parts of the string between characters that are one of the
+     * characters in `delimiters`: "a,b;c".split_any(",;") is ["a", "b", "c"].
+     * Two delimiters in a row give an empty part between them.
+     * Throws illegal_argument_exception if `delimiters` is empty.
+     */
+    def split_any(delimiters: string): string[] {
+        if(sizeof(delimiters.data) == 0)
+            throw new ill_arg_except("split_any: the set of delimiters cannot be empty");
+
+        n : var = sizeof(data);
+        parts : var = 1;
+        for(i : var = 0; i < n; i++) {
+            if(string_support.in_set(data[i], delimiters.data)) parts++;
+        }
+
+        result := new string[parts];
+        start : var = 0;
+        used : var = 0;
+        for(i : var = 0; i < n; i++) {
+            if(string_support.in_set(data[i], delimiters.data)) {
+                result[used++] = string_support.slice(data, start, i);
+                start = i + 1;
+            }
+        }
+        result[used] = string_support.slice(data, start, n);
+        return result;
+    }
+
+    /**
+     * The words of the string: the parts between runs of whitespace, without
+     * empty parts. "  to be\tor  not ".split_whitespace() is ["to", "be", "or", "not"].
+     * An empty or blank string gives an array of length 0.
+     */
+    def split_whitespace(): string[] {
+        n : var = sizeof(data);
+
+        // pass 1: count the words (a word starts where a non-space follows a space or the start)
+        words : var = 0;
+        in_word : var = 0;
+        for(i : var = 0; i < n; i++) {
+            if(string_support.is_space(data[i])) {
+                in_word = 0;
+            } else if(!in_word) {
+                in_word = 1;
+                words++;
+            }
+        }
+
+        // pass 2: cut them out
+        result := new string[words];
+        used : var = 0;
+        start : var = -1;           // start of the word being read, -1 = between words
+        for(i : var = 0; i < n; i++) {
+            if(string_support.is_space(data[i])) {
+                if(start >= 0) {
+                    result[used++] = string_support.slice(data, start, i);
+                    start = -1;
+                }
+            } else if(start < 0) {
+                start = i;
+            }
+        }
+        if(start >= 0) result[used] = string_support.slice(data, start, n);
+        return result;
+    }
+
+    /**
+     * The lines of the string. A line ends at "\n", "\r\n" or a lone "\r";
+     * the line ends are not part of the result.
+     * "a\nb\r\nc".lines() is ["a", "b", "c"]. As in Kotlin a line end at the
+     * very end gives a last empty line: "a\n".lines() is ["a", ""], and
+     * "".lines() is [""].
+     */
+    def lines(): string[] {
+        n : var = sizeof(data);
+
+        total_lines : var = 1;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(c == '\n') {
+                total_lines++;
+            } else if(c == '\r') {
+                total_lines++;
+                if(i + 1 < n && data[i + 1] == '\n') i++;      // \r\n is one line end
+            }
+        }
+
+        result := new string[total_lines];
+        used : var = 0;
+        start : var = 0;
+        for(i : var = 0; i < n; i++) {
+            c : var = data[i];
+            if(c == '\n') {
+                result[used++] = string_support.slice(data, start, i);
+                start = i + 1;
+            } else if(c == '\r') {
+                result[used++] = string_support.slice(data, start, i);
+                if(i + 1 < n && data[i + 1] == '\n') i++;
+                start = i + 1;
+            }
+        }
+        result[used] = string_support.slice(data, start, n);
+        return result;
+    }
+
+    /**
+     * The string cut into pieces of `size` characters; the last piece holds
+     * what is left and may be shorter. "abcdefg".chunked(3) is ["abc", "def", "g"].
+     * An empty string gives an array of length 0.
+     * Throws illegal_argument_exception if size is not at least 1.
+     */
+    def chunked(chunk_size: int): string[] {
+        step : var = chunk_size.value;
+        if(step < 1) throw new ill_arg_except("chunked: the size must be at least 1: $chunk_size");
+
+        n : var = sizeof(data);
+        // n / step rounded up (the remainder decides whether there is a last, shorter piece)
+        rest : var = n % step;
+        pieces : var = (n - rest) / step;
+        if(rest > 0) pieces++;
+        result := new string[pieces];
+        for(i : var = 0; i < pieces; i++) {
+            end : var = (i + 1) * step;
+            if(end > n) end = n;
+            result[i] = string_support.slice(data, i * step, end);
+        }
+        return result;
+    }
+
+    /**
+     * The strings in `parts` put together with `separator` between them:
+     * string.join(", ", parts) with ["a", "b", "c"] is "a, b, c".
+     * No parts gives ""; one part gives that part; a null element is skipped
+     * as if it were "" (its separators stay).
+     * The result is built in one buffer of the final size.
+     */
+    static def join(separator: string, parts: string[]): string {
+        count : var = sizeof(parts);
+        if(count == 0) return new string();
+
+        sep : var = sizeof(separator.data);
+        total : var = sep * (count - 1);
+        for(i : var = 0; i < count; i++) {
+            part := parts[i];
+            if((part as object) != null) total += sizeof(part.data);
+        }
+        if(total == 0) return new string();
+
+        out := new _int8[total];
+        at : var = 0;
+        for(i : var = 0; i < count; i++) {
+            if(i > 0 && sep > 0) {
+                memcopy(separator.data!!, out, at, 0, sep);
+                at += sep;
+            }
+            part := parts[i];
+            if((part as object) != null) {
+                len : var = sizeof(part.data);
+                if(len > 0) {
+                    memcopy(part.data!!, out, at, 0, len);
+                    at += len;
+                }
+            }
+        }
+        return string_support.of_buffer(out, total);
+    }
+
+    /**
+     * join for a list of strings: see join(separator, string[]). An empty list gives "".
+     * (It has its own name because an array converts to a list automatically,
+     * which would make a call to an overloaded `join` ambiguous.)
+     */
+    static def join_list(separator: string, parts: list<string>): string {
+        if(parts.empty()) return new string();
+        return join(separator, parts.get_elements()!!);
+    }
+}

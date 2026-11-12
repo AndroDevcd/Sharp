@@ -1,0 +1,337 @@
+mod main;
+
+import ( testing, std.text )
+
+/**
+ * std.text - characters and reading text piece by piece:
+ *   - character         is_digit, is_letter, to_upper, digit_value, for_digit ...
+ *   - ascii, char_sets  names of control characters, ready-made character sets
+ *   - text_buffer       the append-only buffer the package builds strings with
+ *   - string_joiner     separator / prefix / suffix
+ *   - string_tokenizer  tokens between delimiter characters
+ *   - string_reader     a cursor: peek, next, match, read_while_in, read_until ...
+ *   - scanner           next word / int / double / line
+ */
+
+def show(parts: string[]): string {
+    joined := string.join("|", parts);
+    if(joined.is_empty()) return string.of_int(sizeof(parts)) + ":";
+    return string.of_int(sizeof(parts)) + ":" + joined;
+}
+
+def is_not_semicolon(c: char): bool {
+    return c.value != ';';
+}
+
+def main(args: string[]) {
+    // ---- character
+    expect_true("is_digit", character.is_digit('7'));
+    expect_false("is_digit of a letter", character.is_digit('a'));
+    expect_false("is_digit just below '0'", character.is_digit('/'));
+    expect_false("is_digit just above '9'", character.is_digit(':'));
+    expect_true("is_letter small", character.is_letter('z'));
+    expect_true("is_letter capital", character.is_letter('A'));
+    expect_false("is_letter of a digit", character.is_letter('1'));
+    expect_false("is_letter between Z and a", character.is_letter('['));
+    expect_true("is_letter_or_digit", character.is_letter_or_digit('0'));
+    expect_false("is_letter_or_digit of '_'", character.is_letter_or_digit('_'));
+    expect_true("is_whitespace space", character.is_whitespace(' '));
+    expect_true("is_whitespace tab", character.is_whitespace('\t'));
+    expect_true("is_whitespace newline", character.is_whitespace('\n'));
+    expect_false("is_whitespace of a letter", character.is_whitespace('x'));
+    expect_true("is_upper", character.is_upper('Q'));
+    expect_false("is_upper of small", character.is_upper('q'));
+    expect_true("is_lower", character.is_lower('q'));
+    expect_false("is_lower of a digit", character.is_lower('5'));
+    expect("to_upper", character.to_upper('a'), 'A');
+    expect("to_upper of a capital", character.to_upper('A'), 'A');
+    expect("to_upper of a digit", character.to_upper('1'), '1');
+    expect("to_lower", character.to_lower('Z'), 'z');
+    expect("to_lower of punctuation", character.to_lower('!'), '!');
+    expect_true("is_hex_digit", character.is_hex_digit('F'));
+    expect_false("is_hex_digit of 'g'", character.is_hex_digit('g'));
+    expect_true("is_octal_digit", character.is_octal_digit('7'));
+    expect_false("is_octal_digit of '8'", character.is_octal_digit('8'));
+    expect_true("is_binary_digit", character.is_binary_digit('1'));
+    expect_false("is_binary_digit of '2'", character.is_binary_digit('2'));
+    expect_true("is_punctuation", character.is_punctuation('!'));
+    expect_true("is_punctuation of '~'", character.is_punctuation('~'));
+    expect_false("is_punctuation of a space", character.is_punctuation(' '));
+    expect_false("is_punctuation of a letter", character.is_punctuation('a'));
+    expect_true("is_control", character.is_control('\n'));
+    expect_false("is_control of a letter", character.is_control('a'));
+    expect_true("is_printable", character.is_printable(' '));
+    expect_false("is_printable of a tab", character.is_printable('\t'));
+    expect_true("is_ascii", character.is_ascii('a'));
+    expect_true("is_vowel", character.is_vowel('E'));
+    expect_false("is_vowel of a consonant", character.is_vowel('x'));
+    expect_true("is_identifier_start", character.is_identifier_start('_'));
+    expect_false("is_identifier_start of a digit", character.is_identifier_start('1'));
+    expect_true("is_identifier_part of a digit", character.is_identifier_part('1'));
+    expect("digit_value", character.digit_value('7'), 7);
+    expect("digit_value of a letter", character.digit_value('a'), 0 - 1);
+    expect("digit_value in radix 16", character.digit_value('f', 16), 15);
+    expect("digit_value in radix 16, capital", character.digit_value('F', 16), 15);
+    expect("digit_value outside of the radix", character.digit_value('8', 8), 0 - 1);
+    expect("for_digit", character.for_digit(7, 10), '7');
+    expect("for_digit in radix 16", character.for_digit(11, 16), 'b');
+    expect_true("equals_ignore_case", character.equals_ignore_case('a', 'A'));
+    expect_false("equals_ignore_case of different letters", character.equals_ignore_case('a', 'b'));
+    expect_str("to_string", character.to_string('x'), "x");
+    expect_str("repeat", character.repeat('-', 4), "----");
+    expect_str("repeat zero times", character.repeat('-', 0), "");
+    hello : string = "hello";
+    expect_true("a char_at value is accepted", character.is_letter(hello.char_at(0)));
+    expect_true("a char object is accepted", character.is_letter(hello[0]));
+    try {
+        character.for_digit(10, 10);
+        fail("for_digit(10, 10)", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("for_digit(10, 10)");
+    }
+    try {
+        character.digit_value('1', 1);
+        fail("digit_value with radix 1", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("digit_value with radix 1");
+    }
+
+    // ---- ascii, char_sets
+    expect("ascii.tab", ascii.tab, 9);
+    expect("ascii.line_feed", ascii.line_feed, '\n');
+    expect("ascii.dollar", ascii.dollar, 36);
+    expect_str("name_of a control character", ascii.name_of(10), "LF");
+    expect_str("name_of NUL", ascii.name_of(0), "NUL");
+    expect_str("name_of the space", ascii.name_of(' '), "SPACE");
+    expect_str("name_of a letter", ascii.name_of('A'), "A");
+    expect_str("name_of delete", ascii.name_of(127), "DEL");
+    expect_str("caret", ascii.caret(3), "^C");
+    expect_str("caret of a letter", ascii.caret('x'), "x");
+    expect_true("is_ascii_text", ascii.is_ascii_text("plain"));
+    expect_str("printable", ascii.printable("a\tb\n", '.'), "a.b.");
+    expect_str("digits", char_sets.digits(), "0123456789");
+    expect("letters: how many", char_sets.letters().length(), 52);
+    expect("punctuation: how many", char_sets.punctuation().length(), 32);
+    expect("whitespace: how many", char_sets.whitespace().length(), 6);
+    expect_str("range", char_sets.range('a', 'f'), "abcdef");
+    expect_str("range of one", char_sets.range('x', 'x'), "x");
+    expect_true("contains", char_sets.contains(char_sets.hex_digits(), 'F'));
+    expect_false("contains, not there", char_sets.contains(char_sets.digits(), 'a'));
+    expect_str("union", char_sets.union("abc", "cde"), "abcde");
+    expect_str("union removes repeats", char_sets.union("aab", ""), "ab");
+    expect_str("difference", char_sets.difference("abcd", "bd"), "ac");
+    expect_str("intersection", char_sets.intersection("abcd", "dbx"), "bd");
+    expect_true("all_in", char_sets.all_in("2024", char_sets.digits()));
+    expect_false("all_in with a stranger", char_sets.all_in("20x4", char_sets.digits()));
+    expect_true("none_in", char_sets.none_in("abc", char_sets.digits()));
+    expect("count_in", char_sets.count_in("a1b22", char_sets.digits()), 3);
+    try {
+        char_sets.range('z', 'a');
+        fail("range backwards", "did not throw");
+    } catch(e: illegal_argument_exception) {
+        pass("range backwards");
+    }
+
+    // ---- text_buffer
+    buffer := new text_buffer();
+    expect("a new buffer is empty", buffer.length(), 0);
+    expect_str("a new buffer builds \"\"", buffer.build(), "");
+    expect("last of an empty buffer", buffer.last(), 0 - 1);
+    buffer.append("ab").append_char('c').append_repeat('.', 3);
+    expect_str("append, append_char, append_repeat", buffer.build(), "abc...");
+    expect("length", buffer.length(), 6);
+    expect("char_at", buffer.char_at(2), 'c');
+    expect("char_at outside", buffer.char_at(6), 0 - 1);
+    expect("last", buffer.last(), '.');
+    buffer.drop_last();
+    expect_str("drop_last", buffer.build(), "abc..");
+    for(i : var = 0; i < 10000; i++) {
+        buffer.append_char('a' + i % 26);
+    }
+    expect("growing", buffer.length(), 10005);
+    expect("the last appended character", buffer.last(), 'a' + 9999 % 26);
+    buffer.clear();
+    expect_true("clear", buffer.is_empty());
+    buffer.append("again");
+    expect_str("reuse after clear", buffer.build(), "again");
+
+    // ---- string_joiner
+    joiner := new string_joiner(", ", "[", "]");
+    expect_str("an empty joiner", joiner.build(), "[]");
+    expect_true("is_empty", joiner.is_empty());
+    joiner.add("a").add("b").add("c");
+    expect_str("three pieces", joiner.build(), "[a, b, c]");
+    expect("count", joiner.count(), 3);
+    expect("length", joiner.length(), 9);
+    joiner.add_int(4);
+    expect_str("add_int", joiner.build(), "[a, b, c, 4]");
+    plain := new string_joiner("-");
+    plain.add("x");
+    expect_str("one piece has no separator", plain.build(), "x");
+    plain.add("").add("y");
+    expect_str("an empty piece still counts", plain.build(), "x--y");
+    plain.add_all(new string[] { "p", "q" });
+    expect_str("add_all", plain.build(), "x--y-p-q");
+    outer := new string_joiner(" | ", "<", ">");
+    outer.add("first").merge(plain);
+    expect_str("merge adds the other pieces as one", outer.build(), "<first | x--y-p-q>");
+    nothing := new string_joiner(", ", "{", "}");
+    nothing.set_empty_value("none");
+    expect_str("set_empty_value", nothing.build(), "none");
+    nothing.add("x");
+    expect_str("the empty value is only for an empty joiner", nothing.build(), "{x}");
+    nothing.clear();
+    expect_str("clear", nothing.build(), "none");
+
+    // ---- string_tokenizer
+    tokens := new string_tokenizer("  to be\tor  not ");
+    expect("count_tokens", tokens.count_tokens(), 4);
+    expect_true("has_more_tokens", tokens.has_more_tokens());
+    expect_str("next_token", tokens.next_token(), "to");
+    expect_str("next_token again", tokens.next_token(), "be");
+    expect("count_tokens after two", tokens.count_tokens(), 2);
+    expect_str("remaining", tokens.remaining(), "\tor  not ");
+    expect_str("to_array", show(tokens.to_array()), "2:or|not");
+    expect_false("has_more_tokens at the end", tokens.has_more_tokens());
+    expect_str("next_token_or at the end", tokens.next_token_or("-"), "-");
+    try {
+        tokens.next_token();
+        fail("next_token at the end", "did not throw");
+    } catch(e: no_such_element_exception) {
+        pass("next_token at the end");
+    }
+    tokens.reset();
+    expect_str("reset", tokens.next_token(), "to");
+    listed := new string_tokenizer("a, b;;c", ",; ");
+    expect_str("several delimiters give no empty tokens", show(listed.to_array()), "3:a|b|c");
+    sum := new string_tokenizer("12+3*4", "+*", true);
+    expect_str("return_delimiters", show(sum.to_array()), "5:12|+|3|*|4");
+    none := new string_tokenizer("");
+    expect("count_tokens of \"\"", none.count_tokens(), 0);
+    only_delimiters := new string_tokenizer(",,,", ",");
+    expect_false("only delimiters: no tokens", only_delimiters.has_more_tokens());
+    switching := new string_tokenizer("a b,c d");
+    expect_str("first token by whitespace", switching.next_token(), "a");
+    expect_str("next_token with new delimiters", switching.next_token(","), " b");
+
+    // ---- string_reader
+    reader := new string_reader("width = 42;\nnext");
+    expect("peek", reader.peek(), 'w');
+    expect("peek(1)", reader.peek(1), 'i');
+    expect("position at the start", reader.position(), 0);
+    expect_str("read_identifier", reader.read_identifier(), "width");
+    expect("position after the name", reader.position(), 5);
+    expect("skip_whitespace", reader.skip_whitespace(), 1);
+    expect_false("match of other text", reader.match(":="));
+    expect_true("match", reader.match("="));
+    reader.skip_whitespace();
+    expect_true("looking_at", reader.looking_at("42"));
+    expect_str("read_digits", reader.read_digits(), "42");
+    expect_str("read_digits when there are none", reader.read_digits(), "");
+    expect_true("match_char", reader.match_char(';'));
+    expect("line before the line end", reader.line(), 1);
+    expect("column before the line end", reader.column(), 12);
+    expect("next", reader.next(), '\n');
+    expect("line after the line end", reader.line(), 2);
+    expect("column after the line end", reader.column(), 1);
+    expect("remaining", reader.remaining(), 4);
+    reader.mark();
+    expect_str("read_rest", reader.read_rest(), "next");
+    expect_true("at_end", reader.at_end());
+    expect("peek at the end", reader.peek(), 0 - 1);
+    expect("next at the end", reader.next(), 0 - 1);
+    expect_str("read_line at the end", reader.read_line(), "");
+    reader.reset();
+    expect_str("reset goes back to the mark", reader.rest(), "next");
+    reader.back();
+    expect("back", reader.peek(), '\n');
+    reader.seek(0);
+    expect_str("read_until", reader.read_until(" = "), "width");
+    expect_str("read_until_any", reader.read_until_any(";\n"), " = 42");
+    expect_str("read_while_in", reader.read_while_in(";"), ";");
+    expect("skip", reader.skip(1), 1);
+    expect_str("read", reader.read(2), "ne");
+    expect("skip beyond the end", reader.skip(99), 2);
+    lines := new string_reader("one\r\ntwo\n\nlast");
+    expect_str("read_line", lines.read_line(), "one");
+    expect_str("read_line after \\r\\n", lines.read_line(), "two");
+    expect_str("read_line of an empty line", lines.read_line(), "");
+    expect_str("read_line of the last line", lines.read_line(), "last");
+    expect_false("has_next at the end", lines.has_next());
+    fields := new string_reader("abc;def");
+    expect_str("read_while with a function", fields.read_while(is_not_semicolon), "abc");
+    expect("skip_while with a lambda", fields.skip_while({ c: char -> (bool) return c.value == ';'; }), 1);
+    expect_str("read_until without the delimiter reads to the end", fields.read_until("#"), "def");
+    strict := new string_reader("a b");
+    strict.expect("a");
+    try {
+        strict.expect("x");
+        fail("expect of other text", "did not throw");
+    } catch(e: parse_exception) {
+        expect_true("the message has line and column", e.get_message().contains("line 1, column 2"));
+    }
+    try {
+        strict.seek(4);
+        fail("seek beyond the end", "did not throw");
+    } catch(e: out_of_bounds_exception) {
+        pass("seek beyond the end");
+    }
+    try {
+        new string_reader("x").reset();
+        fail("reset without a mark", "did not throw");
+    } catch(e: illegal_state_exception) {
+        pass("reset without a mark");
+    }
+
+    // ---- scanner
+    input := new scanner("width 42 3.5 true\nsecond line\n");
+    expect_true("has_next", input.has_next());
+    expect_str("peek", input.peek(), "width");
+    expect_false("has_next_int on a word", input.has_next_int());
+    expect_str("next", input.next(), "width");
+    expect_true("has_next_int", input.has_next_int());
+    expect("next_int", input.next_int(), 42);
+    expect_false("has_next_int on a fraction", input.has_next_int());
+    expect_true("has_next_double", input.has_next_double());
+    expect("next_double", input.next_double(), 3.5);
+    expect_true("has_next_bool", input.has_next_bool());
+    expect("next_bool", input.next_bool(), 1);
+    expect_str("next_line gives the rest of the line", input.next_line(), "");
+    expect_true("has_next_line", input.has_next_line());
+    expect_str("next_line", input.next_line(), "second line");
+    expect_false("has_next_line at the end", input.has_next_line());
+    expect_false("has_next at the end", input.has_next());
+    expect_str("next_or at the end", input.next_or("none"), "none");
+    expect("next_int_or at the end", input.next_int_or(0 - 1), 0 - 1);
+    try {
+        input.next();
+        fail("next at the end", "did not throw");
+    } catch(e: no_such_element_exception) {
+        pass("next at the end");
+    }
+    numbers := new scanner("1 2 x 4");
+    total : var = 0;
+    while(numbers.has_next_int()) {
+        total = total + numbers.next_int();
+    }
+    expect("summing ints stops at the word", total, 3);
+    try {
+        numbers.next_int();
+        fail("next_int on a word", "did not throw");
+    } catch(e: number_format_exception) {
+        pass("next_int on a word");
+    }
+    expect_str("the word is still there", numbers.next(), "x");
+    expect("next_double_or on an int", numbers.next_double_or(0.5), 4);
+    csv := new scanner("a,b;c", ",;");
+    expect_str("scanner with separators", show(csv.to_array()), "3:a|b|c");
+    cmd := new scanner("set x 1");
+    expect_true("skip of the expected word", cmd.skip("set"));
+    expect_false("skip of another word", cmd.skip("y"));
+    expect_str("remaining", cmd.remaining(), " x 1");
+    expect("position", cmd.position(), 3);
+    cmd.reset();
+    expect_str("reset", cmd.next(), "set");
+
+    finish("lib_text_readers");
+}

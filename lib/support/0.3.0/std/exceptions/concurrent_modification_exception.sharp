@@ -1,0 +1,18 @@
+mod std;
+
+/**
+ * @class concurrent_modification_exception
+ *
+ * Thrown when a collection is changed while it is being walked over, so the
+ * walk can no longer give a meaningful result
+ * (Java/Kotlin: ConcurrentModificationException).
+ *
+ * Example:
+ *     throw new concurrent_modification_exception("list changed during iteration");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class concurrent_modification_exception base exception {
+    public concurrent_modification_exception(message : string?) -> base(message) {}
+}
