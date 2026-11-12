@@ -238,6 +238,15 @@ sharp_function* compile_class_function_overload(
         data_type prevType = fun->returnType.type;
         process_function_return_type(fun);
 
+        // The operator function is called ON the value `e`, by appending the
+        // call to the steps that produce it. When those steps are more than a
+        // plain access - a call, a `new`, arithmetic: `!new box().is_ok()` -
+        // they are first made ONE "get value" step, so the call has a single
+        // finished value to work on. (Without this the generator stopped with
+        // "attempting to consume empty machine data".)
+        if(e.scheme.steps.size() > 1 || scheme_has_own_layout(e.scheme.schemeType))
+            wrap_scheme_as_value(e.scheme);
+
         compile_function_call(&e.scheme, params, paramOperations, fun, false, false,
                               false);
 

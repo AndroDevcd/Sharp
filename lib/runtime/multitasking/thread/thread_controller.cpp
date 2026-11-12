@@ -624,7 +624,11 @@ void setup_thread(sharp_thread* thread) {
             auto fiberName = resolve_field("name", fib->o);
             copy_object(fiberName, name);
             assign_numeric_field(resolve_field("main", fib->o)->o, 0, main->o->HEAD[0]);
-            assign_numeric_class_field(resolve_field("id", fib->o)->o, thread->task->id);
+            // fiber.id is a native number field (`id : var`), written like `main`
+            // above. assign_numeric_class_field() is for number OBJECTS (int,
+            // long, ...): it stored the id somewhere else and the first fiber
+            // of every new thread kept reporting id 0 - the main fiber's id.
+            assign_numeric_field(resolve_field("id", fib->o)->o, 0, thread->task->id);
         }
     }
 }

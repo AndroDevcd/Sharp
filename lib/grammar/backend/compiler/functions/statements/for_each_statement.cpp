@@ -38,7 +38,9 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
         && inherits_generic_class(get_class_type(arrayExpr.type), loopableClass)) {
         List<sharp_field*> params;
         List<operation_schema*> paramOperations;
-        sharp_function *get_elements = resolve_function("get_elements", get_class_type(arrayExpr.type), params, normal_function, 0, ast, false, false);
+        // (true: also look in the base classes - a class whose BASE implements
+        //  loopable<> passed the check above and then had no get_elements())
+        sharp_function *get_elements = resolve_function("get_elements", get_class_type(arrayExpr.type), params, normal_function, 0, ast, true, false);
 
         if(get_elements != NULL) {
             if(check_flag(get_elements->flags, flag_static)) {
@@ -50,6 +52,12 @@ void compile_for_each_statement(Ast *ast, operation_schema *scheme, bool *contro
                 create_new_error(GENERIC, ast->line, ast->col,
                                        " support function `" + function_to_str(get_elements) + "` must return an array.");
             }
+
+            // get_elements() is called ON the loop expression. `foreach(n in new x())`,
+            // `foreach(n in make())`: an expression that is more than a plain
+            // access is first made one "get value" step (see wrap_scheme_as_value).
+            if(arrayExpr.scheme.steps.size() > 1 || scheme_has_own_layout(arrayExpr.scheme.schemeType))
+                wrap_scheme_as_value(arrayExpr.scheme);
 
             compile_function_call(&arrayExpr.scheme, params, paramOperations, get_elements, false, false,
                                   false);

@@ -51,6 +51,7 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
     if(keepOnStack)
         add_instruction(Opcode::Builder::rstore((_register)valueRegister->address));
 
+    operation_step *asigneeStep = scheme->steps.get(stepPos);
     process_get_value(next_step);
     machine_data asignee(cc.machineData);
 
@@ -63,6 +64,19 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
     // The array and the index expression are evaluated once, as in C++.
     bool arrayElement = !cc.instructions.empty()
                         && cc.instructions.last() == Opcode::Builder::iaload(EBX, ADX);
+
+    // the element type, for sized arrays (`bytes[i] += 100` wraps like any
+    // other store into an _int8): the type recorded on the step that read it
+    Int elementType = type_var;
+    if(arrayElement && asigneeStep->scheme != NULL) {
+        for(Int i = asigneeStep->scheme->steps.size() - 1; i >= 0; i--) {
+            operation_step *s = asigneeStep->scheme->steps.get(i);
+            if(s->type == operation_get_array_element_at_index) {
+                elementType = s->nativeType;
+                break;
+            }
+        }
+    }
 
     if(keepOnStack)
         add_instruction(Opcode::Builder::loadValue((_register)valueRegister->address));
@@ -94,6 +108,8 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
 
     if(arrayElement) {
         stepPos++;  // the assign step: done here instead
+        if(elementType < type_function_ptr)
+            cast_machine_data(BMR, (data_type)elementType);
         add_instruction(Opcode::Builder::rmov(ADX, BMR));
         // (the machine data already says "the value is in bmr": the result of
         //  the statement, like any other compound assignment)

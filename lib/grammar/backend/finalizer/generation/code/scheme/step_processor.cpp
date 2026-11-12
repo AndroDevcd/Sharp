@@ -582,6 +582,13 @@ void process_set_array_element_at_index(operation_step *step) {
     if(step->nativeType <= type_var) {
         set_machine_data(numeric_instance_field);
         add_instruction(Opcode::Builder::loadValue(EBX));
+        // An element of a sized array holds a value of that size, exactly like
+        // a local or a field of the type:  bytes[0] = 200  stores (int8_t)200,
+        // which is -56. (`var` and function pointer elements are stored as they
+        // are. Without this an _int8[] could hold 129, which then did not
+        // compare equal to the same byte read back from a file.)
+        if(step->nativeType < type_function_ptr)
+            cast_machine_data(EBX, (data_type)step->nativeType);
         add_instruction(Opcode::Builder::rmov(ADX, EBX));
     } else {
         add_instruction(Opcode::Builder::movnd(ADX));

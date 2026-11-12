@@ -130,7 +130,13 @@ class string : loopable<_int8> {
 
     def operator+(immstr : _int8[]?) : string {
         s := new string(data);
-        return s.append(immstr ?: "null");
+        // An empty string literal arrives here as null (an array of no
+        // characters), so null means "nothing to add": "abc" + "" is "abc".
+        // (It used to append the text "null".)
+        if(immstr == null) {
+            return s;
+        }
+        return s.append(immstr!!);
     }
 
     def to_lower() : string {
