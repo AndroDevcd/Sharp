@@ -28,7 +28,62 @@ void task_idle_wait() {
     std::this_thread::sleep_for(std::chrono::microseconds(TASK_IDLE_MICROSECONDS));
 }
 
+/**
+ * -j 1: no delegator thread and no worker thread at all. The thread that
+ * submits the tasks runs them itself, inside wait_for_tasks().
+ *
+ * With threads a task travels  queue -> delegator -> worker -> "idle again"
+ * -> delegator -> "all free" -> waiting thread, and each arrow is a thread
+ * polling a flag with a short sleep in between. A compile hands out
+ * files x stages tasks (over 3000 with the standard library), most of them
+ * taking well under a millisecond, so the hand-overs cost more than the work:
+ * about 1.5 of the 3.3 seconds of a hello-world compile.
+ */
+static bool run_tasks_inline() {
+    return options.target_threads == 1;
+}
+
+/** Run every queued task on the calling thread, in the order they were submitted. */
+static void run_queued_tasks_inline() {
+    while(!panic && !task_queue.empty()) {
+        // the first task whose file is ready for it (stages run strictly in
+        // order per file, see post_task())
+        Int next = -1;
+        for(Int i = 0; i < task_queue.size(); i++) {
+            task &candidate = task_queue.get(i);
+            if(candidate.file->compilationFailed && candidate.file->stage <= parsed) {
+                task_queue.removeAt(i); i--;    // its file did not survive parsing: dropped, as post_task() does
+                continue;
+            }
+            if((candidate.file->stage + 1) == candidate.type) {
+                next = i;
+                break;
+            }
+        }
+
+        if(next == -1)
+            break;      // nothing left that can run
+
+        task current = task_queue.get(next);
+        task_queue.removeAt(next);  // before running: a failing task removes its file's other tasks itself
+
+        currThread->currTask = &current;
+        execute_task();
+        currThread->currTask = NULL;
+    }
+
+    task_queue.free();  // whatever could not run (only after a failure)
+    delegator.allWorkersFree = true;
+}
+
 int start_task_delegator() {
+    if(run_tasks_inline()) {
+        currThread = create_worker();   // the calling thread is the one worker
+        currThread->state = worker_idle;
+        delegator.alive = true;
+        return RESULT_OK;
+    }
+
 #ifdef WIN32_
     delegator.thread = CreateThread(
             NULL,                   // default security attributes
@@ -190,6 +245,11 @@ worker_thread* create_worker() {
 }
 
 void wait_for_tasks() {
+    if(run_tasks_inline()) {
+        run_queued_tasks_inline();
+        return;
+    }
+
     const int sMaxRetries = 1000000;
 
     int retryCount = 0;
