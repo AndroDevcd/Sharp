@@ -165,13 +165,33 @@ static void restore(code_info *ci, function_backup &backup) {
 // Driver
 // ---------------------------------------------------------------------------------
 
+/* the optimizations that are not part of OPTIMIZER_PASS_LIST (the driver runs them itself) */
+static const char *const driverPasses[] = {
+    "inline calls", "box elimination", "loop formula", "loop unrolling", "loop rotation", "loop registers"
+};
+
+const std::vector<std::string>& optimization_names() {
+    static std::vector<std::string> names;
+    if(names.empty()) {
+        for(int p = 0; p < passCount; p++) names.push_back(passes[p].name);
+        for(const char *name : driverPasses) names.push_back(name);
+    }
+    return names;
+}
+
 /**
- * Debugging aid: the environment variable SHARP_OPT_SKIP holds pass names
- * (as printed by -Oreport, any separator) that are not run, e.g.
- *     SHARP_OPT_SKIP="loop rotation,box elimination" sharpc -O3 ...
- * Use it to find which pass is behind a wrong result, or to measure one pass.
+ * Is this optimization switched on? Everything is, unless it was left out with
+ * -n<name> on the command line (options.optimize_disabled), e.g.
+ *     sharpc -O -nloop-rotation -nbox-elimination ...
+ * Use that to find which optimization is behind a wrong result, or to measure one.
+ * (The environment variable SHARP_OPT_SKIP="loop rotation,box elimination" does
+ * the same without touching the command line.)
  */
 static bool pass_enabled(const char *name) {
+    for(const std::string &disabled : options.optimize_disabled) {
+        if(disabled == name) return false;
+    }
+
     static const char *skip = getenv("SHARP_OPT_SKIP");
     return skip == nullptr || strstr(skip, name) == nullptr;
 }
@@ -198,7 +218,9 @@ static void run_local_passes(function_ir &ir, int level) {
 }
 
 void optimize_bytecode() {
-    int level = (int)options.optimize_level;
+    // -O means "everything": the levels the passes are registered with (1..3)
+    // only say how aggressive each one is, they are no longer selectable.
+    int level = options.optimize_level > 0 ? 3 : 0;
     if(level <= 0)
         return;
 
@@ -319,7 +341,12 @@ void optimize_bytecode() {
     }
 
     if(options.optimize_report) {
-        cout << "\n-- bytecode optimizer (-O" << level << ") --\n";
+        cout << "\n-- bytecode optimizer (-O) --\n";
+        if(!options.optimize_disabled.empty()) {
+            cout << "switched off        :";
+            for(const std::string &disabled : options.optimize_disabled) cout << " [" << disabled << "]";
+            cout << "\n";
+        }
         cout << "functions with code : " << functions << "\n";
         cout << "functions changed   : " << optimized << "\n";
         cout << "code size           : " << wordsBefore << " -> " << wordsAfter << " words\n";

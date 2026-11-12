@@ -70,7 +70,7 @@ bool pass_box_elimination(function_ir &ir, program_ir &program);
     X("constant propagation", 2, pass_constant_propagation) \
     X("dead stores",      1, pass_dead_stores) \
     X("dead code",        2, pass_dead_code) \
-    X("jump clean-up",    1, pass_jump_cleanup) \
+    X("jump cleanup",     1, pass_jump_cleanup) \
     X("unreachable code", 1, pass_unreachable_code)
 
 #endif //SHARP_OPT_PASSES_H

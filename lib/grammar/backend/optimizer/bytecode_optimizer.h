@@ -40,7 +40,17 @@
 #ifndef SHARP_BYTECODE_OPTIMIZER_H
 #define SHARP_BYTECODE_OPTIMIZER_H
 
-/** Optimize every generated function according to options.optimize_level */
+#include <string>
+#include <vector>
+
+/** Optimize every generated function (does nothing unless options.optimize_level is set by -O) */
 void optimize_bytecode();
+
+/**
+ * The name of every optimization, as -Oreport prints it ("loop rotation").
+ * On the command line the same name with dashes switches it off:
+ *     sharpc -O -nloop-rotation -ninline-calls ...
+ */
+const std::vector<std::string>& optimization_names();
 
 #endif //SHARP_BYTECODE_OPTIMIZER_H

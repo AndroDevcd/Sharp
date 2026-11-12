@@ -6,6 +6,8 @@
 #define SHARP_SETTINGS_H
 
 #include "../../../stdimports.h"
+#include <vector>
+#include <string>
 #include "../compiler_info.h"
 #include "../platform.h"
 #include "../List.h"
@@ -132,10 +134,17 @@ struct settings {
     bool magic = false;
 
     /*
-     * How hard the bytecode optimizer works (-O0 .. -O3), see
-     * backend/optimizer/bytecode_optimizer.h. 0 = off.
+     * Bytecode optimizer (-O), see backend/optimizer/bytecode_optimizer.h.
+     * 0 = off, anything else = on. `-O` turns every optimization on; single
+     * ones are left out again with -n<name> (optimize_disabled).
      */
     int optimize_level = 0;
+
+    /*
+     * Optimizations switched off with -n<name>, by the name -Oreport prints
+     * (words separated by spaces: "loop rotation").
+     */
+    std::vector<std::string> optimize_disabled;
 
     /*
      * Print what the bytecode optimizer did (-Oreport)
