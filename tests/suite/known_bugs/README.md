@@ -20,10 +20,16 @@ sharp /tmp/bug
 
 | Behaviour | Where |
 |---|---|
-| Enum members without a value do not start at 0; they are numbered from an internal compiler id (`lastEnumValue = uniqueId++` in `enum_compiler.cpp`). | `enums.sharp` |
 | Binary operands are evaluated right to left: `mark(1) + mark(2)` runs `mark(2)` first. | `operators.sharp` |
 | Assigning to a non-nullable string variable/field calls `operator=` on the object it holds, so every other reference to that string changes too. (Null elements and nullable targets now get a new object.) | described in `lib_coroutines` report; no file |
 | `override` only applies to interface / delegate methods; a plain base-class method is bound statically. Documented as the current design in `cases/inheritance.sharp`. | - |
+
+## By design (not bugs)
+
+- Enum members without an explicit value get a value that depends on when the
+  enum is compiled; they do not count up from 0. Give members explicit values
+  when the number matters.
+- `override` only applies to interface / delegate methods.
 
 ## Compiler: wrong code or wrong result
 
@@ -80,7 +86,6 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 
 | Bug | File |
 |---|---|
-| `thread.join()` returns at once (result 6) and `thread.start()` usually returns 255 although the thread runs. Cause: `platform/kernel/vm.sharp` passes the handle object instead of its number (`id := t.get_native_handle();` without `.value`) in `thread_join`, `suspend`, `unsuspend`, `bind_fiber`. `is_started()` is false after a thread finished. | `threads.sharp` |
 | A fiber switched out while one function is on its stack twice never continues (hang without the JIT, crash with it): `main_vm_loop` finds a frame by function, not by index. This is why coroutine scope functions cannot be nested directly. | `lib_coroutines_recursive_suspend.sharp` |
 | The first fiber of every non-main thread reports id 0 (`setup_thread` writes the id as if `fiber.id` were a number object). | `lib_coroutines_thread_fiber_id.sharp` |
 | JIT crash in `return_method()` when two sibling coroutines take turns and one yields twice. | `lib_coroutines_jit_fiber_frames.sharp` |
@@ -100,6 +105,7 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 
 ## Fixed (kept here so the history is easy to find)
 
-Moved into `../cases/` after they started to pass: `logic_precedence.sharp`,
+Moved into `../cases/` after they started to pass: `threads.sharp` (scheduler
+deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
 `variables_multiple.sharp`, `operators_on_new.sharp`, `casts_of_expressions.sharp`,
 and the `*_fixes.sharp` files.

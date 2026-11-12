@@ -294,8 +294,18 @@ uInt join_thread(sharp_thread* thread) {
     if(thread->state == THREAD_STARTED)
         wait_for_thread_start(thread);
 
+    // A thread that has already finished needs no waiting: joining it is a
+    // success. (This used to fall through to "join failed", so join() on a
+    // short thread reported an error although the work was done.)
+    if (thread->state == THREAD_KILLED || thread->exited)
+        return RESULT_OK;
+
+    // Running, suspended, or put to sleep by the scheduler (THREAD_SCHED - a
+    // thread waiting in delay() or on a lock is as joinable as a running one,
+    // but was refused before).
     if (thread->state == THREAD_RUNNING
-        || thread->state == THREAD_SUSPENDED)
+        || thread->state == THREAD_SUSPENDED
+        || thread->state == THREAD_SCHED)
     {
 #ifdef WIN32_
         WaitForSingleObject(thread->thread, INFINITE);
@@ -722,7 +732,14 @@ uInt wait_for_thread_start(sharp_thread* thread) {
     int spinCount = 0;
     int retryCount = 0;
 
-    while (thread->state != THREAD_RUNNING)
+    // Wait until the new thread has LEFT the "started" state - not until it is
+    // seen in the "running" state. A thread does not stay "running": it is put
+    // to sleep by the scheduler (THREAD_SCHED), suspends, or simply finishes
+    // (THREAD_KILLED). When that happened before this loop looked, the loop
+    // never saw THREAD_RUNNING, spun until it gave up and start() returned
+    // result_max_spin (255) for a thread that had started fine - which was
+    // the usual outcome for a short thread.
+    while (thread->state == THREAD_STARTED)
     {
         if (retryCount++ == sMaxRetries)
         {

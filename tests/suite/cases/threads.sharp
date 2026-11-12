@@ -14,30 +14,11 @@ import ( testing, std.io )
  *
  * Nothing here depends on which thread runs first or how long anything takes.
  *
- * WHY THIS FILE IS IN known_bugs - three runtime bugs:
- *
- * BUG 1 (the reason the whole file is here): about one run in 40 HANGS, in
- * every configuration, at a different place each time. It is a deadlock inside
- * the runtime, not in this program: the thread that starts a thread sits in
- *     exec_interrupt() -> get_thread()             waiting for unsched_mutex
- * while the scheduler thread sits in
- *     run_scheduler() -> sched_unsched_threads()   waiting for thread_mutex
- * - each holds the lock the other one wants (seen with gdb on a hung process).
- * A hung VM also ignores SIGTERM; it has to be killed with SIGKILL.
- * Every check before the last section passes on the runs that do not hang; when
- * the deadlock is fixed, everything except that last section belongs in
- * cases/threads.sharp.
- *
- * BUG 2: thread.join() does not wait. It returns result_ill_thread_join (6)
- * at once (vm.thread_join in platform/kernel/vm.sharp hands the VM the int
- * OBJECT of the native handle instead of its number: `.value` is missing).
- * So the main thread waits with wait_for() below: it gives up its turn until
- * the thread reports is_exited().
- *
- * BUG 3: thread.start() returns result_max_spin (255) nearly always, although
- * the thread runs; result_ok (0) only now and then.
- *
- * Bugs 2 and 3 are checked in the last section of main().
+ * History: this file sat in known_bugs until three runtime bugs were fixed -
+ * a lock-order deadlock between the scheduler and get_thread() that hung about
+ * one run in 40, join() returning result_ill_thread_join at once, and start()
+ * returning result_max_spin for a thread that had started. The last section
+ * of main() checks the values start() and join() give back.
  */
 
 /** a place for one thread to leave its result */
@@ -373,7 +354,7 @@ def main(args: string[]) {
     expect_true("the main thread is started", thread.current().is_started().value);
     expect_false("the main thread has not exited", thread.current().is_exited().value);
 
-    // ================= BUG 2 and BUG 3: the values start() and join() give back
+    // ================= the values start() and join() give back
     answer := new slot();
     joined := new thread("joined", sum_to_thousand);
     started := joined.start(one_argument(answer));

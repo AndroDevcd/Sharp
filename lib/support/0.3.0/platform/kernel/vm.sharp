@@ -156,10 +156,10 @@ class vm {
 
     static def bind_fiber(fib: fiber, t: thread?) : int {
         id := fib.id;
-        threadid := -1; // -1 to unbind from thread
+        threadid : var = -1; // -1 to unbind from thread (a number: it is pushed with ipushl)
 
         if(t != null)
-           threadid = t!!.get_native_handle();
+           threadid = t!!.get_native_handle().value;
         result: var;
 
         asm {
@@ -214,7 +214,7 @@ class vm {
     }
 
     static def suspend(t: thread) : thread_result {
-        id := t.get_native_handle();
+        id : var = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
         result: var;
 
         asm {
@@ -227,7 +227,7 @@ class vm {
     }
 
     static def unsuspend(t: thread, wait: var) : thread_result {
-        id := t.get_native_handle();
+        id : var = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
         result: var;
 
         asm {
@@ -251,8 +251,19 @@ class vm {
        return result;
     }
 
+    /**
+     * Wait until thread `t` has finished.
+     *
+     * A thread that has already finished gives result_ok: there is nothing
+     * left to wait for. (When a thread finishes it gives up its native handle,
+     * so the runtime no longer knows it and would answer "illegal join".)
+     */
     static def thread_join(t: thread) : thread_result {
-        id := t.get_native_handle();
+        if(t.is_exited()) {
+            return result_ok;
+        }
+
+        id : var = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
         result: var;
 
         asm {
@@ -261,11 +272,16 @@ class vm {
             smovr2 [result], cmt
         }
 
+        // it may have finished between the check above and the call
+        if(result != 0 && t.is_exited()) {
+            return result_ok;
+        }
+
         return thread_result.at(result);
     }
 
     static def kill(t: thread) : thread_result {
-        id := t.get_native_handle();
+        id : var = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
         result: var;
 
         asm {
@@ -313,7 +329,10 @@ class vm {
         if(result == 0) {
            while(!t.is_started()) {
                if(t.is_exited()) {
-                   return result_thread_not_started;
+                   // It started AND already finished (a short thread; `started`
+                   // is cleared again when a thread ends). That is a successful
+                   // start - it used to be reported as result_thread_not_started.
+                   break;
                } else {
                   delay(0);
                }
@@ -324,7 +343,7 @@ class vm {
     }
 
     static def set_thread_priority(t: thread, priority: var) : thread_result {
-        id := t.get_native_handle();
+        id : var = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
         result: var;
 
         asm {
