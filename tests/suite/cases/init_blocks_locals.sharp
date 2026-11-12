@@ -1,0 +1,20 @@
+mod main;
+
+import ( testing )
+
+class c {
+    a : var;
+    b : var;
+    total : var = 10;
+    init { i : var = 4; a = i; for(k : var = 0; k < 3; k++) { total += k; } }
+    init { b = 2; j : var = a + b; total += j; }
+    c() { }
+}
+
+def main(args: string[]) {
+    x := new c();
+    expect("first init block with a local", x.a, 4);
+    expect("second init block", x.b, 2);
+    expect("both blocks ran in order after the initial value", x.total, 19);
+    finish("init_blocks_locals");
+}

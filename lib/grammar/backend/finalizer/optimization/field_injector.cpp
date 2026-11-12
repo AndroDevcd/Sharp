@@ -39,7 +39,19 @@ void inject_field_initialization(sharp_class *with_class, Ast *ast, sharp_field 
         }
 
         mark(function);
-        function->scheme->steps.add(new operation_step(operation_step_scheme, field->scheme));
+
+        // Initial values come BEFORE the code of the class's init blocks, in
+        // the order the fields are declared (as in C++, where member
+        // initializers run before the constructor body). They used to be
+        // appended after the blocks: an init block read fields that had no
+        // value yet, and whatever it stored in a field with an initial value
+        // was overwritten afterwards.
+        operation_step *initialValue = new operation_step(operation_step_scheme, field->scheme);
+        if(function->fieldInitPos >= 0 && function->fieldInitPos <= (Int)function->scheme->steps.size()) {
+            function->scheme->steps.insert(function->fieldInitPos++, initialValue);
+        } else {
+            function->scheme->steps.add(initialValue);
+        }
     } else if(field->scheme) {
         sharp_function *function;
         List<sharp_field*> params;

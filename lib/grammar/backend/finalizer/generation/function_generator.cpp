@@ -34,6 +34,13 @@ void generate(sharp_function *sf) {
     }
 
     for(Int i = 0; i < sf->locals.size(); i++) {
+        // A function that is generated needs a frame slot for every one of its
+        // locals. generate_address() only gives one to locals marked as used,
+        // and the marking runs once per function: a local added afterwards -
+        // the second `init { }` block of a class is compiled into an init
+        // function that may already be marked - had no slot, and the generator
+        // crashed on it (segmentation fault, no message).
+        sf->locals.get(i)->used = true;
         generate_address(sf->locals.get(i), i, check_flag(sf->flags, flag_static));
     }
 

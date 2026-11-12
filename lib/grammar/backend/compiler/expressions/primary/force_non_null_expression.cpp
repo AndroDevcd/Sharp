@@ -2,6 +2,7 @@
 // Created by bknun on 8/3/2022.
 //
 
+#include "post_ast_expression.h"
 #include "force_non_null_expression.h"
 #include "../expression.h"
 #include "../../../../frontend/ErrorManager.h"
@@ -38,4 +39,9 @@ void compile_force_non_null_expression(expression *e, Ast *ast) {
                 + type_to_str(e->type) + "`");
         }
     }
+
+    // what follows the `!!` inside this expression: x!![i], x!![i].name
+    // (sub tree 0 is the expression the `!!` belongs to)
+    if(ast->getSubAstCount() > 1)
+        compile_post_ast_expression(e, ast, 1);
 }

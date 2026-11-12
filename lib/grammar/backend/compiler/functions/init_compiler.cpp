@@ -97,7 +97,21 @@ void compile_init_declaration(sharp_class* with_class, Ast *ast) {
             function->parameters.get(i)->block = 0;
         }
 
-        function->locals.addAll(function->parameters);
+        // Only for a function that has no locals yet. List::addAll() EMPTIES
+        // the list first, and this code runs for every `init { }` block of the
+        // class: the locals of the earlier blocks were thrown away, so they
+        // had no frame slot and the code generator crashed on the first use
+        // (two init blocks, the first with a local: segmentation fault).
+        if(function->locals.empty())
+            function->locals.addAll(function->parameters);
+    }
+
+    // The first `init { }` / `static init { }` block of the class: remember
+    // where its code starts (after whatever the function begins with, such as
+    // the "already initialized?" check of a static init). The field injector
+    // puts the fields' initial values at this position - before the blocks.
+    if(ast->getType() != ast_init_func_decl && function != NULL && function->fieldInitPos == -1) {
+        function->fieldInitPos = function->scheme != NULL ? function->scheme->steps.size() : 0;
     }
 
     compile_function(function, ast);

@@ -2216,10 +2216,8 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary, bool ignoreInlineLambd
         branch->freeLastSub();
     }
 
-    if(peek(1)->getType() == DOUBLEBANG)
+    if(parseNonNullSuffix(branch))
     {
-        advance();
-        branch->encapsulate(ast_force_non_null_e);
         if(!isExprSymbol(peek(1)->getValue()))
             return true;
     }
@@ -2589,8 +2587,49 @@ bool parser::unary(Ast *ast) {
         return false;
     } else {
         errors->fail();
+        // an operand of a binary operator can be asserted non-null as well:
+        // a!![0] + b!![1]   (only the first operand of an expression could)
+        parseNonNullSuffix(branch);
         return true;
     }
+}
+
+/**
+ * `!!` after a value, and an index right after that:
+ *
+ *      x!!        x!![i]        x!![i].name
+ *
+ * `branch` is the expression holding the value just parsed. Returns true if
+ * there was a `!!`. The index (and a member access after it) becomes part of
+ * the non-null expression; it used to be left unparsed, so `numbers!![1]` was
+ * typed as the whole array.
+ */
+bool parser::parseNonNullSuffix(Ast *branch) {
+    if(peek(1)->getType() != DOUBLEBANG)
+        return false;
+
+    advance();
+    branch->encapsulate(ast_force_non_null_e);
+
+    Ast *nonNull = branch->getLastSubAst();
+    while(peek(1)->getType() == LEFTBRACE) {
+        Ast *arrayBranch = getBranch(nonNull, ast_arry_e);
+        parseArrayItems(arrayBranch);
+
+        if(peek(1)->getType() == DOT) {
+            errors->enterProtectedMode();
+            Token *before = _current;
+            if(!parseDotNotCallExpr(arrayBranch)) {
+                _current = before;
+                errors->pass();
+                arrayBranch->freeLastSub();
+            } else {
+                errors->fail();
+            }
+        }
+    }
+
+    return true;
 }
 
 bool parser::parseAsmLiteral(Ast* ast) {

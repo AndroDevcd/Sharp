@@ -143,6 +143,7 @@ private:
     bool parseFunctionPtr(Ast* ast);
     bool addition(Ast*);
     bool unary(Ast*);
+    bool parseNonNullSuffix(Ast *branch);
     bool binary(Ast*);
     bool binaryLevel(Ast*, int level);
     bool parsePrimaryExpr(Ast*, bool ignoreInlineLambda);

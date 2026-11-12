@@ -272,6 +272,13 @@ void process_scheme_steps(operation_schema *scheme) {
 }
 
 void process_scheme(operation_schema *scheme, code_info* ci, sharp_function *container) {
+    // SHARP_GEN_DEBUG=1: name every function before its code is generated, so
+    // a crash in the generator can be tied to a function.
+    static const bool traceFunctions = getenv("SHARP_GEN_DEBUG") != NULL;
+    if(traceFunctions) {
+        cerr << "generate: " << container->fullName << " (" << container->locals.size() << " locals)" << endl;
+    }
+
     update_context(ci, container);
     generate_initial_closure_setup(container);
 

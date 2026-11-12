@@ -159,6 +159,12 @@ struct sharp_function {
     // that is used turns out to need it. Until then this says where the
     // compiler was: the syntax tree of the function, the file and module that
     // were current, and the class context it was in.
+    // For the init function of a class (the one all `init { }` blocks are
+    // compiled into): the step at which the code of the first init block
+    // starts. The initial values of the fields are put in front of it, so
+    // `width : var = 80; init { seen = width; }` sees 80. -1: no init block.
+    Int fieldInitPos = -1;
+
     bool bodyPending = false;
     Ast *pendingAst = NULL;
     sharp_file *pendingFile = NULL;
