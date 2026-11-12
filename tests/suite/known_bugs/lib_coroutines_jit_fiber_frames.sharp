@@ -2,7 +2,7 @@ mod main;
 
 import (
     testing,
-    std.coroutines
+    std.io.coroutines
 )
 
 /**
@@ -31,7 +31,7 @@ import (
  * sometimes crashes in the same place. tests/suite/cases/lib_coroutines_core.sharp
  * without its warm_up() crashed in 7 of 12 runs compiled with -O (in
  * test_async, at the first coroutines on the worker threads) and in 0 of 15
- * runs with the warm up. The suite tests of std.coroutines therefore run the
+ * runs with the warm up. The suite tests of std.io.coroutines therefore run the
  * library once on one thread before they use the worker threads.
  *
  * EXPECTED: prints "RESULT PASS".

@@ -2,13 +2,13 @@ mod main;
 
 import (
     testing,
-    std.coroutines,
-    std.coroutines.channels,
-    std.concurrent
+    std.io.coroutines,
+    std.io.coroutines.channels,
+    std.io
 )
 
 /**
- * std.coroutines.channels: channel<t> with its four capacities, close and
+ * std.io.coroutines.channels: channel<t> with its four capacities, close and
  * cancel, cancellation of waiting senders and receivers, for_each / to_list,
  * produce, and pipelines that move 20,000 elements across worker threads.
  *

@@ -5,206 +5,877 @@ import (
     std.io.fiber
 )
 
-public class job {
+/**
+ * job - the handle of one coroutine (or of a scope that owns coroutines):
+ * ask what it is doing, wait for it, cancel it.
+ *
+ * USAGE
+ *     j := launch({ -> do_work(); });
+ *     j.is_active();           // true until the work and all its children are done
+ *     j.join();                // suspends the caller until then
+ *     j.cancel();              // asks it to stop (cooperative, see cancellation_exception)
+ *     j.cancel_and_join();     // cancel, then wait until it really has stopped
+ *     j.invoke_on_completion({ done: job -> println("finished: ${done.is_cancelled()}"); });
+ *
+ * Kotlin equivalent: kotlinx.coroutines.Job. C++ has no direct equivalent
+ * (the closest is a std::jthread with its stop_token, for a fiber instead of a
+ * thread).
+ *
+ * LIFE CYCLE
+ *     ACTIVE ------> COMPLETING ------> COMPLETED
+ *       |  (body done,     |   (all children done)
+ *       |   children run)  |
+ *       +------------------+---> CANCELLING ------> CANCELLED
+ *              cancel() or a failure     (body and all children done)
+ *
+ *     state        is_active   is_completed   is_cancelled
+ *     ACTIVE         true         false          false
+ *     COMPLETING     true         false          false
+ *     CANCELLING     false        false          true
+ *     COMPLETED      false        true           false
+ *     CANCELLED      false        true           true
+ *
+ * PARENTS AND CHILDREN (structured concurrency)
+ *   - a job started inside a coroutine or a scope is a CHILD of it
+ *   - a parent is not complete before all its children are
+ *   - cancelling a parent cancels all its children
+ *   - a child that FAILS (ends with an exception that is not a
+ *     cancellation_exception) cancels its parent, and with it its siblings,
+ *     unless the parent is a supervisor (supervisor_scope, global_scope)
+ *   - a child that was merely cancelled does not affect its parent
+ *
+ * LOCKING DISCIPLINE
+ *   Every job is given one of the shared lock objects of lock_stripes (`lk`)
+ *   when it is created.
+ *   guarded by this job's `lk`:
+ *       state, cancel_flag, body_done, failure, failed, waiting, joiners,
+ *       handlers, first_child, n_children, and the hand-over fields out_kids,
+ *       out_sleeper, out_joiners, out_handlers (written under the lock by the
+ *       one fiber that made the state change, read by that same fiber right
+ *       after it released the lock)
+ *   guarded by the PARENT's `lk`:
+ *       next_sibling, prev_sibling
+ *   written once before the job is started, read only afterwards:
+ *       parent, attached, supervisor, scoped, has_body, quiet, dispatcher,
+ *       block0, block1, arg, body, fib
+ *   state, cancel_flag and failed are also READ without the lock (one number
+ *   each): the answer can be out of date by the time it is used, which is all
+ *   a predicate like is_active() can promise anyway. cancel_flag only ever
+ *   goes from 0 to 1.
+ *   RULES: no second lock is ever taken while `lk` is held (two jobs may share
+ *   a stripe, see lock_stripes), nothing that can throw and no user code runs
+ *   inside a lock block (an exception that leaves a lock block does not
+ *   release the lock).
+ *
+ * NO RECURSION
+ *   The runtime cannot continue a fiber that was switched out while one
+ *   function was on its call stack twice (known bug, see
+ *   tests/suite/known_bugs/lib_coroutines_recursive_suspend.sharp). A job tree
+ *   is therefore never walked by recursion: cancelling downwards and finishing
+ *   upwards are both done by ONE loop with a work list (settle()). For the
+ *   same reason completion handlers never run inside that loop: they get a
+ *   fiber of their own, so whatever they call starts on a fresh stack.
+ *
+ * Suspends: join(), cancel_and_join(). Everything else returns at once.
+ */
+class job : coroutine_body {
 
-	private job() {}
+    /** the body is running, or has not started yet */
+    static const ACTIVE : var = 1;
+    /** the body is finished, children are still running */
+    static const COMPLETING : var = 2;
+    /** cancelled or failed; waiting for the body and the children to stop */
+    static const CANCELLING : var = 3;
+    /** finished normally (final) */
+    static const COMPLETED : var = 4;
+    /** finished after a cancellation or a failure (final) */
+    static const CANCELLED : var = 5;
 
-	job(name : string) {
-		self->name = name;
-		self->tag = rand_int();
-	}
+    // ---- set before the job starts ---------------------------------------------------
+    protected lk : object = lock_stripes.next();
+    protected parent : job?;
+    /** 1 when this job is in its parent's list of children (0: no parent, or the parent was finished already) */
+    protected attached : var = 0;
+    /** 1: failing children do not cancel this job */
+    protected supervisor : var = 0;
+    /** 1: an in-line scope (coroutine_scope { }, with_timeout { }): its failure is rethrown to the caller, not pushed to the parent */
+    protected scoped : var = 0;
+    /** 0: there is no code to run (a scope object); the job completes when complete() or cancel() is called */
+    protected has_body : var = 1;
+    /** 1: a failure is kept for whoever asks (deferred.await) and never reported as uncaught */
+    protected quiet : var = 0;
+    /** where children of this job run unless they ask for something else */
+    protected dispatcher : coroutine_dispatcher?;
+    protected block0 : ()();
+    protected block1 : (object)();
+    protected arg : object?;
+    protected body : coroutine_body?;
+    protected fib : fiber?;
 
-    public override def to_string() : string {
-        return "job($name): $tag";
+    // ---- guarded by lk ----------------------------------------------------------------
+    protected state : var = 1;
+    /** 1 once the job was cancelled or failed; what the cancellation points look at */
+    protected cancel_flag : var = 0;
+    protected body_done : var = 0;
+    /** why the job was cancelled: the exception of the failure, or the cancellation_exception */
+    protected failure : throwable?;
+    /** 1 when `failure` is a real error and not a cancellation */
+    protected failed : var = 0;
+    /** the waiter the fiber of this job is sleeping on right now (so cancel() can wake it) */
+    protected waiting : waiter?;
+    protected joiners : wait_queue?;
+    protected handlers : completion_node?;
+    protected first_child : job?;
+    protected n_children : var = 0;
+
+    // ---- results of begin_cancel() / make_final(), see LOCKING DISCIPLINE ----------------
+    private out_kids : job[]?;
+    private out_sleeper : waiter?;
+    private out_joiners : waiter?;
+    private out_handlers : completion_node?;
+
+    // ---- guarded by the parent's lk ---------------------------------------------------
+    protected next_sibling : job?;
+    protected prev_sibling : job?;
+
+    /** A job without code: active until complete() or cancel() is called. Kotlin: Job(). */
+    job() {
+        has_body = 0;
     }
 
-	protected def execute_async() : int {
-		if(state == created) {
-            if(!host?.is_active()) {
-                if(host?.start() != result_ok)
-                {
-                  return 2;
+    /** A job for a coroutine that runs `block`. Not started yet (the builders in builders.sharp do that). */
+    job(block: ()()) {
+        block0 = block;
+    }
+
+    /** A job for a coroutine that runs `block(state)`. */
+    job(state: object?, block: (object)()) {
+        block1 = block;
+        arg = state;
+    }
+
+    /** A job for a coroutine that runs `task.run_body()`. */
+    job(task: coroutine_body) {
+        body = task;
+    }
+
+    // ------------------------------------------------------------------------------
+    // state
+    // ------------------------------------------------------------------------------
+
+    /** true while the job is neither finished nor cancelled. Kotlin: Job.isActive */
+    def is_active() : bool {
+        return state < 3;
+    }
+
+    /** true when the job is finished for good, normally or not. Kotlin: Job.isCompleted */
+    def is_completed() : bool {
+        return state > 3;
+    }
+
+    /** true once the job was cancelled or has failed, even if it has not stopped yet. Kotlin: Job.isCancelled */
+    def is_cancelled() : bool {
+        return state == 3 || state == 5;
+    }
+
+    /** true when the job ended (or is ending) because of an exception that is not a cancellation */
+    def is_failed() : bool {
+        return failed != 0;
+    }
+
+    /** ACTIVE, COMPLETING, CANCELLING, COMPLETED or CANCELLED as a number */
+    def get_state() : var {
+        return state;
+    }
+
+    /**
+     * Why the job was cancelled: the exception its coroutine (or a child) failed
+     * with, or the cancellation_exception it was cancelled with. Null for a job
+     * that is active or completed normally.
+     * Kotlin: Job.getCancellationException() (without wrapping).
+     */
+    def get_failure() : throwable? {
+        cause : throwable? = null;
+        lock(lk) {
+            cause = failure;
+        }
+        return cause;
+    }
+
+    /** the job this one is a child of, or null. Kotlin: Job.parent */
+    def get_parent() : job? {
+        return parent;
+    }
+
+    /** the children that are not finished yet. Kotlin: Job.children */
+    def children() : job[] {
+        kids : job[]? = null;
+        lock(lk) {
+            kids = snapshot_children();
+        }
+        return kids!!;
+    }
+
+    /** how many children are not finished yet */
+    def child_count() : var {
+        return n_children;
+    }
+
+    // ------------------------------------------------------------------------------
+    // cancelling
+    // ------------------------------------------------------------------------------
+
+    /**
+     * Ask the job and all its children to stop. Returns at once; the coroutine
+     * notices at its next cancellation point (see cancellation_exception). Does
+     * nothing when the job is finished or cancelled already.
+     * Kotlin: Job.cancel()
+     */
+    def cancel() {
+        cancel_with(new cancellation_exception("job was cancelled"), 0);
+    }
+
+    /** cancel() with a text that says why (it is the message of the cancellation_exception) */
+    def cancel(reason: string) {
+        cancel_with(new cancellation_exception(reason), 0);
+    }
+
+    /** Cancel the children but not this job. Kotlin: Job.cancelChildren() */
+    def cancel_children() {
+        kids : job[]? = null;
+        lock(lk) {
+            kids = snapshot_children();
+        }
+
+        cause := new cancellation_exception("job was cancelled by its parent");
+        work := push_cancels(null, kids!!, cause);
+        settle(null, work);
+    }
+
+    /**
+     * cancel(), then wait until the job has really stopped.
+     * SUSPENDS. A cancellation point for the CALLER (throws
+     * cancellation_exception when the caller's own job is cancelled).
+     * Kotlin: Job.cancelAndJoin()
+     */
+    def cancel_and_join() {
+        cancel();
+        join();
+    }
+
+    /**
+     * For a job without code (new job(), a coroutine_scope object): no more
+     * work will be added, finish as soon as the children are done.
+     * @return true when this call made the difference
+     * Kotlin: CompletableJob.complete()
+     */
+    def complete() : bool {
+        changed : var = 0;
+        lock(lk) {
+            if(has_body == 0 && body_done == 0 && state == 1) {
+                body_done = 1;
+                state = 2;
+                changed = 1;
+            }
+        }
+
+        if(changed != 0) {
+            settle(self, null);
+        }
+        return changed;
+    }
+
+    // ------------------------------------------------------------------------------
+    // waiting
+    // ------------------------------------------------------------------------------
+
+    /**
+     * Wait until the job is finished (normally, cancelled or failed - join does
+     * not tell and never throws the job's own exception).
+     *
+     * SUSPENDS the calling fiber; returns at once when the job is finished.
+     * A cancellation point for the CALLER: throws cancellation_exception when
+     * the caller's own job is cancelled before or while it waits.
+     * Kotlin: Job.join()
+     */
+    def join() {
+        ensure_active();
+
+        w : waiter? = null;
+        lock(lk) {
+            if(state < 4) {
+                w = new waiter(lk);
+                if(joiners == null) {
+                    joiners = new wait_queue();
                 }
+                joiners!!.add(w!!);
+            }
+        }
+
+        if(w == null) {
+            return;
+        }
+
+        if(await_waiter(w!!, -1) == 2) {     // waiter.CANCELLED
+            lock(lk) {
+                joiners!!.remove(w!!);
+            }
+            throw_cancellation();
+        }
+    }
+
+    /**
+     * join() that cannot be interrupted by a cancellation of the caller. For
+     * the library itself (the end of coroutine_scope { }): there the caller's
+     * cancellation reaches this job as its parent and ends the wait that way.
+     */
+    protected def await_final() {
+        w : waiter? = null;
+        lock(lk) {
+            if(state < 4) {
+                w = new waiter(lk);
+                if(joiners == null) {
+                    joiners = new wait_queue();
+                }
+                joiners!!.add(w!!);
+            }
+        }
+
+        if(w != null) {
+            w!!.park();
+        }
+    }
+
+    /**
+     * Call `handler(this job)` once when the job is finished (right away when
+     * it is finished already).
+     *
+     * The handler ALWAYS runs on a fiber of its own, shortly after the job
+     * finished - never inside the fiber that calls this function and never
+     * inside the fiber that finished the job. So it must not use local
+     * variables of the function that created it (THE CLOSURE RULE,
+     * builders.sharp): it gets the job as its argument and may use globals.
+     * An exception thrown by a handler is dropped. Handlers of one job run in
+     * the order they were registered.
+     * Kotlin: Job.invokeOnCompletion { cause -> }  (the cause is job.get_failure())
+     */
+    def invoke_on_completion(handler: (job)()) {
+        node := new completion_node();
+        node.fn = handler;
+
+        run_now : var = 0;
+        lock(lk) {
+            if(state > 3) {
+                run_now = 1;
+            } else {
+                // newest first; reversed again when they are run
+                node.next = handlers;
+                handlers = node;
+            }
+        }
+
+        if(run_now != 0) {
+            start_handlers(node);
+        }
+    }
+
+    // ------------------------------------------------------------------------------
+    // the body
+    // ------------------------------------------------------------------------------
+
+    /** runs the code this job was created with; deferred<t> replaces it to keep the result */
+    override def run_body() {
+        if(block0 != 0) {
+            block0();
+        } else if(block1 != 0) {
+            block1(arg);
+        } else if(body != null) {
+            task : coroutine_body = body!!;
+            task.run_body();
+        }
+    }
+
+    // ==============================================================================
+    // Everything below is the machinery the builders and scopes use.
+    // ==============================================================================
+
+    /**
+     * Make `child` a child of this job. Returns 0 when this job is cancelled or
+     * finished already: the child is then not attached and must not start.
+     */
+    protected def attach_child(child: job) : var {
+        ok : var = 0;
+        lock(lk) {
+            if(state < 3) {
+                child.prev_sibling = null;
+                child.next_sibling = first_child;
+                if(first_child != null) {
+                    first_child!!.prev_sibling = child;
+                }
+                first_child = child;
+                n_children++;
+                ok = 1;
+            }
+        }
+        return ok;
+    }
+
+    /** take a finished child out of the list of children */
+    private def remove_child(child: job) {
+        lock(lk) {
+            before := child.prev_sibling;
+            after := child.next_sibling;
+            if(before == null) {
+                first_child = after;
+            } else {
+                before!!.next_sibling = after;
+            }
+            if(after != null) {
+                after!!.prev_sibling = before;
+            }
+            child.prev_sibling = null;
+            child.next_sibling = null;
+            n_children--;
+        }
+    }
+
+    /** the children as an array. Hold `lk`. */
+    private def snapshot_children() : job[] {
+        kids := new job[n_children];
+        index : var = 0;
+        child := first_child;
+        while(child != null) {
+            kids[index] = child!!;
+            index++;
+            child = child!!.next_sibling;
+        }
+        return kids;
+    }
+
+    /**
+     * Put the job into CANCELLING, wake its fiber if it sleeps at a
+     * cancellation point, cancel the children, finish whatever is finished now.
+     *
+     * @param cause   what cancellation points throw / what a scope rethrows
+     * @param failing 1 when `cause` is a real error (a child failed), 0 for a cancellation
+     */
+    protected def cancel_with(cause: throwable, failing: var) {
+        first := new step();
+        first.kind = 1;
+        first.target = self;
+        first.cause = cause;
+        first.failing = failing;
+        settle(null, first);
+    }
+
+    /**
+     * The state change of a cancellation, under the lock. Returns 1 when this
+     * call moved the job to CANCELLING; out_kids and out_sleeper then hold the
+     * children to cancel and the waiter to wake.
+     */
+    private def begin_cancel(cause: throwable, failing: var) : var {
+        changed : var = 0;
+        lock(lk) {
+            if(state < 3) {
+                state = 3;
+                cancel_flag = 1;
+                changed = 1;
+
+                if(failing != 0) {
+                    failure = cause;
+                    failed = 1;
+                } else if(failure == null) {
+                    failure = cause;
+                }
+
+                if(has_body == 0) {
+                    body_done = 1;
+                }
+
+                out_sleeper = waiting;
+                waiting = null;
+                out_kids = snapshot_children();
+            } else if(state == 3 && failing != 0 && failed == 0) {
+                // already being cancelled, but now there is a real error to report
+                failure = cause;
+                failed = 1;
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * The move to the final state, under the lock: happens when the body and
+     * all children are done. Returns 1 when this call made the job final;
+     * out_joiners and out_handlers then hold who has to be told.
+     */
+    private def make_final() : var {
+        finished : var = 0;
+        lock(lk) {
+            if(state < 4 && body_done != 0 && n_children == 0) {
+                if(state == 3) {
+                    state = 5;
+                } else {
+                    state = 4;
+                }
+                finished = 1;
+
+                // claim every joiner; they are chained through waiter.next, which is free once a waiter left its queue
+                chain : waiter? = null;
+                if(joiners != null) {
+                    queue := joiners!!;
+                    for( ;; ) {
+                        w := queue.pop_waiting(1);      // waiter.RESUMED
+                        if(w == null) {
+                            break;
+                        }
+                        w!!.next = chain;
+                        chain = w;
+                    }
+                }
+                out_joiners = chain;
+
+                out_handlers = handlers;
+                handlers = null;
+            }
+        }
+        return finished;
+    }
+
+    /**
+     * THE ENGINE: carries a state change through the job tree without
+     * recursion (see NO RECURSION in the class comment).
+     *
+     * @param first_final a job that may have become final (its body just ended,
+     *                    or it lost a child), or null
+     * @param work        a stack of steps: kind 1 = cancel `target` with `cause`,
+     *                    kind 2 = see whether `target` can be made final
+     *
+     * Cancelling goes DOWN the tree (a cancel step pushes one cancel step per
+     * child), finishing goes UP (a job that became final is taken out of its
+     * parent, and the parent is looked at next). A failed child pushes a cancel
+     * step for its parent. The loop ends when nothing is left to do.
+     * Holds no lock while it calls anything; never suspends by itself.
+     */
+    protected static def settle(first_final: job?, work: step?) {
+        pending := work;
+        current := first_final;
+
+        for( ;; ) {
+            if(current == null) {
+                if(pending == null) {
+                    break;
+                }
+
+                next_step := pending!!;
+                pending = next_step.next;
+                target := next_step.target!!;
+
+                if(next_step.kind == 2) {
+                    current = target;
+                } else if(target.begin_cancel(next_step.cause!!, next_step.failing) != 0) {
+                    sleeper := target.out_sleeper;
+                    kids := target.out_kids!!;
+                    target.out_sleeper = null;
+                    target.out_kids = null;
+
+                    if(sleeper != null) {
+                        wake_cancelled(sleeper!!);
+                    }
+
+                    // after its children (pushed on top of this step) are dealt with, the job itself may be final
+                    after := new step();
+                    after.kind = 2;
+                    after.target = target;
+                    after.next = pending;
+                    pending = after;
+
+                    if(next_step.failing != 0) {
+                        pending = push_cancels(pending, kids, new cancellation_exception("a sibling coroutine failed"));
+                    } else {
+                        pending = push_cancels(pending, kids, next_step.cause!!);
+                    }
+                }
+                continue;
             }
 
-            running_host : thread?;
-            if(!unconfined) running_host = host;
+            finished := current!!;
+            current = null;
 
-            slice({ args: object[] -> (int)
-               schdj := args[0] as job;
-               schdj.execute();
-               return 0;
-            }, running_host!!, new object[]{ self });
-            return 0;
-		} else if(state == active) {
-			return 1;
-		}
+            if(finished.make_final() == 0) {
+                continue;
+            }
 
-		return 2;
-	}
+            woken := finished.out_joiners;
+            todo := finished.out_handlers;
+            finished.out_joiners = null;
+            finished.out_handlers = null;
 
-	public def cancel() {
-	    cancel_task();
-	    launcher.cancel_jobs_by_tag(tag);
-	}
+            while(woken != null) {
+                following := woken!!.next;
+                woken!!.next = null;
+                woken!!.unpark();
+                woken = following;
+            }
 
-	protected def cancel_task() {
-	    lock(self) {
-            if(state == active) {
-                state = cancelled;
-                if(fiber.current() != fib) {
-                   fib.kill();
-                   launcher.cleanup_job(self);
+            if(todo != null) {
+                finished.start_handlers(todo!!);
+            }
+
+            if(finished.attached != 0) {
+                owner := finished.parent!!;
+                owner.remove_child(finished);
+
+                // an in-line scope hands its failure to the code that called it instead
+                if(finished.failed != 0 && finished.scoped == 0) {
+                    if(owner.supervisor == 0) {
+                        // the parent is cancelled first (this step is on top), then looked at again
+                        again := new step();
+                        again.kind = 2;
+                        again.target = owner;
+                        again.next = pending;
+
+                        fail_parent := new step();
+                        fail_parent.kind = 1;
+                        fail_parent.target = owner;
+                        fail_parent.cause = finished.failure;
+                        fail_parent.failing = 1;
+                        fail_parent.next = again;
+                        pending = fail_parent;
+                        continue;
+                    } else if(finished.quiet == 0) {
+                        coroutine_exceptions.report(finished, finished.failure!!);
+                    }
                 }
-                else {
-                   throw new cancellation_exception();
-                }
-            } else if(state == created) {
-                state = cancelled;
+
+                current = owner;
+            } else if(finished.failed != 0 && finished.quiet == 0 && finished.scoped == 0 && finished.has_body != 0) {
+                // a coroutine without a parent failed: nobody else will ever see the exception
+                coroutine_exceptions.report(finished, finished.failure!!);
             }
         }
     }
 
-	public def join() {
-	    if(block_caller
-	        || state == cancelled
-	        || state == completed)
-	        return;
-
-        while(!is_finished()) {
-           delay(0);
+    /** push one cancel step per job on the work stack and return the new top */
+    private static def push_cancels(top: step?, kids: job[], cause: throwable) : step? {
+        result := top;
+        for(i : var = 0; i < sizeof(kids); i++) {
+            s := new step();
+            s.kind = 1;
+            s.target = kids[i];
+            s.cause = cause;
+            s.next = result;
+            result = s;
         }
-	}
+        return result;
+    }
 
-	public def get_state() := state;
-	public def get_name() := name;
-	public def get_tag() := tag;
+    /** end the sleep of a fiber whose job was cancelled; it finds waiter.CANCELLED and throws */
+    private static def wake_cancelled(sleeper: waiter) {
+        won : var = 0;
+        guard := sleeper.guard;
+        lock(guard) {
+            won = sleeper.resume(2);        // waiter.CANCELLED
+        }
 
-	protected def operator=(block: ()()) {
-		self->main0 = block;
-	}
+        if(won != 0) {
+            sleeper.unpark();
+        }
+    }
 
-	protected def operator=(block: (args : object[])()) {
-		main1 = block;
-	}
+    /**
+     * The fiber of this job is about to sleep on `w`: remember it so that
+     * cancel() can wake it. Returns 0 when the job is cancelled already (the
+     * fiber must not sleep).
+     */
+    protected def set_waiter(w: waiter) : var {
+        ok : var = 0;
+        lock(lk) {
+            if(cancel_flag == 0) {
+                waiting = w;
+                ok = 1;
+            }
+        }
+        return ok;
+    }
 
-	protected def operator=(block: (deferred : object, args : object[])()) {
-		main2 = block;
-	}
+    protected def clear_waiter() {
+        lock(lk) {
+            waiting = null;
+        }
+    }
 
-	protected def operator=(block: (deferred : object)()) {
-		main3 = block;
-	}
+    /** throw what a cancellation point of this job throws */
+    protected def throw_cancelled() {
+        cause : throwable? = null;
+        real_error : var = 0;
+        lock(lk) {
+            cause = failure;
+            real_error = failed;
+        }
 
-	protected static def job_main(args : object[]) : int {
-        for(;;) { // instead add a "perma lock" here with a mutex to be more efficent
-            delay(10000);
+        // the error of a failed child is rethrown by the scope, not by every cancellation point
+        if(cause == null || real_error != 0) {
+            throw new cancellation_exception("job was cancelled");
+        }
+        throw cause!!;
+    }
+
+    /** create the fiber and let it run the body */
+    protected def start() {
+        target : thread? = null;
+        if(dispatcher != null) {
+            placer : coroutine_dispatcher = dispatcher!!;
+            target = placer.select_thread();
+        }
+
+        runner : fiber? = null;
+        if(target == null) {
+            runner = new fiber("coroutine", job.fiber_entry);
+        } else {
+            runner = new fiber("coroutine", target!!, job.fiber_entry);
+        }
+
+        fib = runner;
+        args := new object[1];
+        args[0] = self;
+        runner!!.start(args);
+    }
+
+    /** the first function of every coroutine fiber */
+    protected static def fiber_entry(args: object[]) : int {
+        coroutine := args[0] as job;
+        coroutine.run();
+        return 0;
+    }
+
+    private def run() {
+        set_current_job(self);
+
+        error : throwable? = null;
+        cancellation : var = 0;
+
+        // a coroutine that was cancelled before it got to run never runs its body
+        if(cancel_flag == 0) {
+            try {
+                code : coroutine_body = self;
+                code.run_body();
+            } catch(c: cancellation_exception) {
+                error = c;
+                cancellation = 1;
+            } catch(t: throwable) {
+                error = t;
+            }
+        }
+
+        set_current_job(null);
+        finish_body(error, cancellation);
+    }
+
+    /**
+     * The body returned (error == null) or threw.
+     * @param cancellation 1 when `error` is a cancellation_exception
+     */
+    protected def finish_body(error: throwable?, cancellation: var) {
+        kids : job[]? = null;
+
+        lock(lk) {
+            body_done = 1;
+
+            if(error != null) {
+                if(cancellation == 0) {
+                    // a real failure wins over a cancellation that was recorded before
+                    if(failed == 0) {
+                        failure = error;
+                        failed = 1;
+                    }
+                } else if(failure == null) {
+                    failure = error;
+                }
+
+                if(state < 3) {
+                    state = 3;
+                    cancel_flag = 1;
+                    kids = snapshot_children();
+                }
+            } else if(state == 1) {
+                state = 2;
+            }
+        }
+
+        work : step? = null;
+        if(kids != null) {
+            work = push_cancels(null, kids!!, new cancellation_exception("the parent coroutine ended with an exception"));
+        }
+
+        // the children on the work stack are cancelled first, then this job is looked at
+        last := new step();
+        last.kind = 2;
+        last.target = self;
+        if(work == null) {
+            settle(self, null);
+        } else {
+            // append `last` at the bottom of the stack
+            bottom := work!!;
+            while(bottom.next != null) {
+                bottom = bottom.next!!;
+            }
+            bottom.next = last;
+            settle(null, work);
+        }
+    }
+
+    /**
+     * Run a chain of completion handlers (newest first, as they are stored) on
+     * a fiber of their own, bound to the thread that is running now.
+     */
+    private def start_handlers(chain: completion_node) {
+        args := new object[2];
+        args[0] = self;
+        args[1] = chain;
+
+        runner := new fiber("coroutine-handlers", thread.current(), job.handler_entry);
+        runner.start(args);
+    }
+
+    /** the function of a handler fiber: calls the handlers in the order they were registered */
+    protected static def handler_entry(args: object[]) : int {
+        finished := args[0] as job;
+        newest : completion_node? = args[1] as completion_node;
+
+        // the chain is newest first: turn it round
+        ordered : completion_node? = null;
+        while(newest != null) {
+            following := newest!!.next;
+            newest!!.next = ordered;
+            ordered = newest;
+            newest = following;
+        }
+
+        while(ordered != null) {
+            try {
+                ordered!!.fn(finished);
+            } catch(t: throwable) {
+                // a completion handler has nobody to report to
+            }
+            ordered = ordered!!.next;
         }
         return 0;
-	}
-
-	protected def execute() {
-	    start_time = time.mills_time();
-		launcher.add_job(self);
-		fib = fiber.current();
-		state = active;
-
-		try {
-           if(delay_time > 0)
-               delay(delay_time);
-
-           when {
-               main0 != 0 -> main0();
-               main1 != 0-> main1(args!!);
-               main2 != 0 -> main2(deferred_obj!!, args!!);
-               main3 != 0 -> main3(deferred_obj!!);
-           }
-
-		   if(recurring)
-		       reschedule();
-
-		   state = completed;
-		   launcher.cleanup_job(self);
-		} catch(cancellation_exception) {
-            state = cancelled;
-            launcher.cleanup_job(self);
-        } catch(t: throwable) {
-           state = cancelled;
-           launcher.cleanup_job(self);
-           if(!block_caller)
-		      fib.unbind(); // protect against crashing the thread
-		   throw t;
-		}
-	}
-
-    def is_finished() := state == completed || state == cancelled;
-    def is_active() := state == active;
-
-    public def update_interval(tm: long, interval: time_unit) {
-        if(!recurring)
-	        throw new ill_state_except("cannot set update restart interval on non-recurring job");
-
-        if(interval == nanoseconds) {
-            sched_time = time.nano_to_mills(tm);
-        } else if(interval == microseconds) {
-            sched_time = tm / 1000;
-        } else if(interval == milliseconds) {
-            sched_time = tm;
-        } else if(interval == seconds) {
-            sched_time = tm * 1000;
-        }
-
-        if(state == active)
-           reschedule();
     }
 
-    protected def reschedule() {
-
-        delay := (start_time + sched_time) - time.mills_time().value;
-        jb := coroutine.builder()
-            .with_name(name!!)
-            .with_tag(tag)
-            .recurring(sched_time, milliseconds);
-
-        user_args := new object[sizeof(args) - 1];
-        index := 0;
-        for(i := 1; i < sizeof(args); i++) {
-            user_args[index++] = args[i];
-        }
-
-        if(long_term)
-            jb.long_term();
-        jb.with_args(user_args);
-
-        when {
-            main0 != 0 -> jb.scheduled_job.main0 = main0;
-            main1 != 0 -> jb.scheduled_job.main1 = main1;
-            main2 != 0 -> jb.scheduled_job.main2 = main2;
-            main3 != 0 -> jb.scheduled_job.main3 = main3;
-        }
-
-        if(delay > 0)
-           jb.schedule(delay);
-
-        jb.master.start_job(jb.scheduled_job);
+    /** one registered completion handler (a linked list, newest first) */
+    class completion_node {
+        fn : (job)();
+        next : completion_node?;
     }
 
-	protected excuse main0: ()();
-	protected excuse main1: (args : object[])();
-	protected excuse main2: (object, object[])();
-	protected excuse main3: (object)();
-	protected host : thread?;
-	protected excuse fib : fiber;
-	protected name : string?;
-	protected args : object[]?;
-	protected deferred_obj : object?;
-	protected start_time : long = 0;
-	protected sched_time : long = 0;
-	protected delay_time : long = 0;
-	protected recurring := false;
-	protected tag : int = 0;
-	protected block_caller := false;
-	protected long_term := false;
-	protected unconfined := false;
-	protected state := created;
+    /** one entry of the work stack of settle() */
+    class step {
+        /** 1 = cancel `target` with `cause`, 2 = see whether `target` can be made final */
+        kind : var = 0;
+        target : job?;
+        cause : throwable?;
+        failing : var = 0;
+        next : step?;
+    }
 }

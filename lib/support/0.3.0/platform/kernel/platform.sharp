@@ -2,8 +2,7 @@ mod platform.kernel;
 
 import (
     std.io,
-    platform,
-    std.io.coroutines
+    platform
 )
 
 class platform
@@ -28,7 +27,9 @@ class platform
         static_init();
         setup_build_config(args); // build config gets overridden on static init
         tls_init();
-        start_scheduler();
+        // (The old coroutine package started a scheduler thread here in every
+        //  program. std.io.coroutines starts its worker threads the first time
+        //  a coroutine is launched on the default pool, and not before.)
 
 
         main_thread := args[4] as thread;

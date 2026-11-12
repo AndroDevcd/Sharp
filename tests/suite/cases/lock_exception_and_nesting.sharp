@@ -7,7 +7,7 @@ import (
 
 /**
  * Formerly known bugs (runtime), fixed: of the lock statement that shape every
- * class of std.coroutines and std.concurrent:
+ * class of std.io.coroutines and std.io:
  *
  *   1. An exception that leaves a lock(x) { } block does NOT release the lock
  *      (return, break and continue do). The fiber keeps the lock until it ends.

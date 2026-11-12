@@ -1,0 +1,213 @@
+mod std.io.coroutines.sync;
+
+import (
+    std.io.fiber,
+    std.io.coroutines
+)
+
+/**
+ * semaphore - a counter of permits: at most N coroutines inside at the same
+ * time, the others are suspended until a permit comes back.
+ *
+ * USAGE
+ *     downloads := new semaphore(4);           // at most 4 at once
+ *
+ *     for(i : var = 0; i < 100; i++) {
+ *         launch(downloads, { s: object ->
+ *             limit := s as semaphore;
+ *             limit.acquire();
+ *             try { fetch_next(); } finally { limit.release(); }
+ *         });
+ *     }
+ *
+ *     downloads.with_permit({ -> fetch_next(); });     // the same, for an in-line block
+ *
+ * A semaphore with 0 permits is a signal: one side waits in acquire(), the
+ * other wakes it with release().
+ * It works from plain fibers and threads as well.
+ *
+ * Kotlin equivalent: kotlinx.coroutines.sync.Semaphore (with_permit = withPermit).
+ * Java equivalent: java.util.concurrent.Semaphore (fair).
+ * C++ equivalent: std::counting_semaphore whose acquire() suspends a fiber.
+ *
+ * LOCKING DISCIPLINE
+ *   `lk` (a stripe of lock_stripes, picked once) guards permits and waiters,
+ *   and is the guard of every waiter queued here. No other lock is taken while
+ *   it is held, nothing throws and no user code runs inside a lock block.
+ *   release() with waiters hands the permit straight to the oldest waiter
+ *   instead of increasing the count (first come first served).
+ *
+ * Suspends: acquire(), with_permit(). Cancellation: acquire() is a
+ * cancellation point; a cancelled wait does not take a permit.
+ */
+class semaphore {
+
+    private lk : object = lock_stripes.next();
+    private permits : var = 0;
+    private waiters : wait_queue = new wait_queue();
+
+    /**
+     * @param permits how many permits are available at the start (0 or more)
+     * @throws illegal_argument_exception for a negative number
+     */
+    semaphore(permits: var) {
+        if(permits < 0) {
+            throw new illegal_argument_exception("a semaphore cannot start with a negative number of permits");
+        }
+        self->permits = permits;
+    }
+
+    /**
+     * Take one permit, waiting for one if there is none.
+     *
+     * SUSPENDS while no permit is available. A cancellation point: checked on
+     * entry; a cancelled wait is taken out of the queue and throws
+     * cancellation_exception (no permit is taken then).
+     * Kotlin: Semaphore.acquire()
+     */
+    def acquire() {
+        ensure_active();
+
+        w : waiter? = null;
+        lock(lk) {
+            if(permits > 0) {
+                permits--;
+            } else {
+                w = new waiter(lk);
+                waiters.add(w!!);
+            }
+        }
+
+        if(w == null) {
+            return;
+        }
+
+        // RESUMED means release() gave its permit to this fiber
+        if(await_waiter(w!!, -1) != 1) {
+            lock(lk) {
+                waiters.remove(w!!);
+            }
+            throw_cancellation();
+        }
+    }
+
+    /**
+     * acquire() that gives up after `ms` milliseconds.
+     * @return true when a permit was taken, false when the time ran out
+     * SUSPENDS for at most `ms`. A cancellation point.
+     * Java: tryAcquire(timeout, MILLISECONDS)
+     */
+    def acquire_for(ms: var) : bool {
+        ensure_active();
+
+        w : waiter? = null;
+        lock(lk) {
+            if(permits > 0) {
+                permits--;
+            } else {
+                w = new waiter(lk);
+                waiters.add(w!!);
+            }
+        }
+
+        if(w == null) {
+            return true;
+        }
+
+        outcome : var = await_waiter(w!!, ms);
+        if(outcome == 1) {
+            return true;
+        }
+
+        lock(lk) {
+            waiters.remove(w!!);
+        }
+        if(outcome == 2) {      // waiter.CANCELLED
+            throw_cancellation();
+        }
+        return false;
+    }
+
+    /**
+     * Take a permit if one is available right now.
+     * @return true when a permit was taken
+     * Never suspends, not a cancellation point. Kotlin: Semaphore.tryAcquire()
+     */
+    def try_acquire() : bool {
+        got : var = 0;
+        lock(lk) {
+            if(permits > 0) {
+                permits--;
+                got = 1;
+            }
+        }
+        return got;
+    }
+
+    /**
+     * Give one permit back (or add one: a semaphore does not remember who took
+     * what). The coroutine that has waited longest gets it. Never suspends.
+     * Kotlin: Semaphore.release()
+     */
+    def release() {
+        receiver : waiter? = null;
+        lock(lk) {
+            receiver = waiters.pop_waiting(1);      // waiter.RESUMED
+            if(receiver == null) {
+                permits++;
+            }
+        }
+
+        if(receiver != null) {
+            receiver!!.unpark();
+        }
+    }
+
+    /**
+     * acquire(), run `block`, release() - also when the block throws.
+     *
+     * The block runs in-line and may capture locals. SUSPENDS while it waits
+     * for a permit; a cancellation point.
+     * @throws illegal_state_exception when called from inside the block of
+     *         another with_permit() on the same fiber (THE NESTING RULE,
+     *         std/io/coroutines/scope/scopes.sharp); use acquire() / release()
+     *         for the inner one.
+     * Kotlin: semaphore.withPermit { }
+     */
+    def with_permit(block: ()()) {
+        check_scope_nesting(64, "semaphore.with_permit");
+        acquire();
+
+        error : throwable? = null;
+        mark_scope(64);
+        try {
+            block();
+        } catch(t: throwable) {
+            error = t;
+        }
+        unmark_scope(64);
+
+        release();
+        if(error != null) {
+            throw error!!;
+        }
+    }
+
+    /** number of permits that can be taken without waiting. Kotlin: availablePermits */
+    def available_permits() : var {
+        count : var = 0;
+        lock(lk) {
+            count = permits;
+        }
+        return count;
+    }
+
+    /** number of coroutines waiting for a permit right now */
+    def waiting_count() : var {
+        count : var = 0;
+        lock(lk) {
+            count = waiters.size();
+        }
+        return count;
+    }
+}

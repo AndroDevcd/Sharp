@@ -6,8 +6,8 @@ import ( testing )
  * KNOWN BUG (compiler): `x = x + n` on a localized (fiber-local) number stores
  * garbage. Reading the variable into a local first works.
  *
- * WHAT std.coroutines DOES ABOUT IT
- *   mark_scope() / unmark_scope() in std/coroutines/scope/scopes.sharp go
+ * WHAT std.io.coroutines DOES ABOUT IT
+ *   mark_scope() / unmark_scope() in std/io/coroutines/scope/scopes.sharp go
  *   through a local variable.
  *
  * EXPECTED: all three checks pass.

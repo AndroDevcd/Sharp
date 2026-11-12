@@ -18,13 +18,13 @@ import (
  *   create_closure_field / staticClosureRef; platform.tls_init() gives every
  *   new fiber a fresh, empty closure object).
  *
- * WHAT std.coroutines DOES ABOUT IT
+ * WHAT std.io.coroutines DOES ABOUT IT
  *   Everything that runs a block on another fiber (launch, async, produce,
  *   launch_on, with_context, invoke_on_completion) has an overload that takes
  *   a state object and hands it to the block: launch(state, { s: object -> ... }).
  *   Blocks that run in-line in the caller (coroutine_scope, run_blocking,
  *   with_timeout, mutex.with_lock, channel.for_each) capture normally.
- *   See "THE CLOSURE RULE" in std/coroutines/builders.sharp.
+ *   See "THE CLOSURE RULE" in std/io/coroutines/builders.sharp.
  *
  * EXPECTED: both checks pass.
  * ACTUAL:   the lambda on the other fiber dies with a nullptr_exception (it is

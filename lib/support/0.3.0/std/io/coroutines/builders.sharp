@@ -1,0 +1,258 @@
+mod std.io.coroutines;
+
+import ( std.io )
+
+/**
+ * builders.sharp - starting coroutines: launch, launch_on, run_blocking,
+ * with_context, join_all. (async lives in async.sharp, the scope functions in
+ * scope/scopes.sharp.)
+ *
+ * USAGE
+ *     import ( std.io.coroutines )
+ *
+ *     hits := new atomic_counter();                 // a global: every fiber can see it
+ *
+ *     def main(args: string[]) {
+ *         run_blocking({ ->                         // returns when everything inside is done
+ *             for(i : var = 0; i < 10000; i++) {
+ *                 launch({ -> hits.increment(); }); // 10,000 coroutines, children of run_blocking
+ *             }
+ *
+ *             d := async<int>.start({ -> (int) return 6 * 7; });
+ *             println("answer ${d.await()}");
+ *         });
+ *     }
+ *
+ * =============================================================================
+ * THE CLOSURE RULE  (read this once, it applies to every builder)
+ * =============================================================================
+ * A coroutine runs on its own fiber, and in this version of the language a
+ * lambda can only see the local variables of the function that created it
+ * while it runs ON THE FIBER THAT CREATED IT. On another fiber they read as
+ * null (the compiler keeps captured variables in fiber-local storage).
+ *
+ *     total := new counter();
+ *     launch({ -> total.add(1); });                 // WRONG: `total` is null inside the coroutine
+ *
+ * So the block of launch / async / produce / launch_on may use
+ *   - global variables and static fields,
+ *   - its own parameters and locals,
+ *   - and ONE object handed over explicitly, the `state` argument:
+ *
+ *     total := new counter();
+ *     launch(total, { s: object ->                  // RIGHT: the state travels with the coroutine
+ *         c := s as counter;
+ *         c.add(1);
+ *     });
+ *
+ * or it can be an object that implements coroutine_body and carries its data
+ * in its fields:  launch(new my_task(a, b));
+ *
+ * Blocks that run IN-LINE in the calling fiber are not affected and may
+ * capture locals as usual: coroutine_scope { }, supervisor_scope { },
+ * run_blocking { }, with_timeout { }, mutex.with_lock { }, the flow operators,
+ * channel.for_each { }.
+ * =============================================================================
+ *
+ * WHO IS THE PARENT
+ *   launch(...) called inside a coroutine or an in-line scope: a child of it.
+ *   launch(...) called anywhere else (plain main, a thread): a child of
+ *   global_scope, running on the default pool, living until it is done or
+ *   the program ends.
+ *   scope.launch(...) on a coroutine_scope object: a child of that scope.
+ *
+ * Kotlin equivalents: launch { }, runBlocking { }, withContext(dispatcher) { },
+ * joinAll(...).
+ */
+
+/**
+ * Start a coroutine that runs `block` and return its job at once.
+ *
+ * Does not suspend. The block runs on another fiber: THE CLOSURE RULE applies
+ * (no captured locals). An exception thrown by the block cancels the parent
+ * scope (see job); in global_scope it goes to coroutine_exceptions.
+ * In a scope that is already cancelled the coroutine is not started and the
+ * returned job is cancelled.
+ * Kotlin: launch { }
+ */
+def launch(block: ()()) : job {
+    return start_coroutine(new job(block), null, null);
+}
+
+/**
+ * launch() with one object handed to the coroutine: `block(state)`.
+ *
+ *     launch(account, { s: object -> a := s as bank_account; a.deposit(5); });
+ */
+def launch(state: object?, block: (object)()) : job {
+    return start_coroutine(new job(state, block), null, null);
+}
+
+/** launch() for an object that implements coroutine_body: runs task.run_body(). */
+def launch(task: coroutine_body) : job {
+    return start_coroutine(new job(task), null, null);
+}
+
+/**
+ * launch() on a particular dispatcher instead of the parent's.
+ *
+ *     launch_on(dispatchers.default_pool(), { -> crunch(); });
+ * Kotlin: launch(dispatcher) { }
+ */
+def launch_on(where: coroutine_dispatcher, block: ()()) : job {
+    return start_coroutine(new job(block), null, where);
+}
+
+/** launch_on() with a state object, see launch(state, block). */
+def launch_on(where: coroutine_dispatcher, state: object?, block: (object)()) : job {
+    return start_coroutine(new job(state, block), null, where);
+}
+
+/** launch_on() for a coroutine_body object. */
+def launch_on(where: coroutine_dispatcher, task: coroutine_body) : job {
+    return start_coroutine(new job(task), null, where);
+}
+
+/**
+ * Attach a prepared job to its parent and start its fiber. The one place every
+ * builder goes through.
+ *
+ * @param owner the parent, or null for "the current coroutine, else global_scope"
+ * @param where the dispatcher, or null for "the same as the parent"
+ */
+def start_coroutine(coroutine: job, owner: job?, where: coroutine_dispatcher?) : job {
+    parent_job := owner;
+    if(parent_job == null) {
+        parent_job = current_job();
+    }
+    if(parent_job == null) {
+        parent_job = global_scope.root();
+    }
+    p := parent_job!!;
+
+    placer := where;
+    if(placer == null) {
+        placer = p.dispatcher;
+    }
+    if(placer == null) {
+        placer = dispatchers.default_pool();
+    }
+
+    coroutine.dispatcher = placer;
+    coroutine.parent = p;
+    coroutine.attached = 1;
+
+    if(p.attach_child(coroutine) == 0) {
+        // the scope is over or cancelled: the coroutine is born cancelled and never runs
+        coroutine.attached = 0;
+        coroutine.quiet = 1;
+        coroutine.cancel_with(new cancellation_exception("the parent job is not active any more"), 0);
+        coroutine.finish_body(null, 0);
+        return coroutine;
+    }
+
+    coroutine.start();
+    return coroutine;
+}
+
+/**
+ * Run `block` as a coroutine in the CALLING fiber and return when it and
+ * every coroutine started inside it are finished. The bridge from ordinary
+ * code (main, a thread) into coroutines.
+ *
+ *     def main(args: string[]) {
+ *         run_blocking({ ->
+ *             launch({ -> delay(100); println("world"); });
+ *             println("hello");
+ *         });                                  // returns after "world"
+ *     }
+ *
+ * The block runs in-line, so it may capture locals. Coroutines launched
+ * inside without a dispatcher run on the calling thread, one at a time, while
+ * the block is suspended or finished (use launch_on(dispatchers.default_pool(), ...)
+ * for parallel work). The calling fiber is suspended while it waits, so its
+ * thread is free to run them.
+ *
+ * @throws the exception the block or one of its children failed with;
+ *         cancellation_exception when the scope was cancelled
+ * @throws illegal_state_exception directly inside another run_blocking { } of
+ *         the same fiber (THE NESTING RULE, scope/scopes.sharp)
+ * Kotlin: runBlocking { }
+ */
+def run_blocking(block: ()()) {
+    check_scope_nesting(4, "run_blocking");
+    scope_job := open_scope(0);
+
+    outer := current_job();
+    error : throwable? = null;
+    cancellation : var = 0;
+
+    // the block is called from here and not from a helper shared with the other
+    // scope functions, see THE NESTING RULE in scope/scopes.sharp
+    mark_scope(4);
+    set_current_job(scope_job);
+    try {
+        block();
+    } catch(c: cancellation_exception) {
+        error = c;
+        cancellation = 1;
+    } catch(t: throwable) {
+        error = t;
+    }
+    set_current_job(outer);
+    unmark_scope(4);
+
+    close_scope(scope_job, error, cancellation);
+}
+
+/**
+ * Run `block` on another dispatcher and wait for it: launch_on + join, with
+ * the block's exception thrown again here.
+ *
+ *     with_context(dispatchers.default_pool(), { -> heavy_work(); });
+ *
+ * SUSPENDS. A cancellation point; cancelling the caller cancels the block.
+ * The block runs on another fiber: THE CLOSURE RULE applies.
+ * @throws the exception the block failed with
+ * Kotlin: withContext(dispatcher) { }
+ */
+def with_context(where: coroutine_dispatcher, block: ()()) {
+    finish_context(start_context(new job(block), where));
+}
+
+/** with_context() with a state object, see launch(state, block). */
+def with_context(where: coroutine_dispatcher, state: object?, block: (object)()) {
+    finish_context(start_context(new job(state, block), where));
+}
+
+private def start_context(work: job, where: coroutine_dispatcher) : job {
+    ensure_active();
+    // like an in-line scope, its failure is thrown to the caller instead of cancelling the parent
+    work.scoped = 1;
+    return start_coroutine(work, null, where);
+}
+
+private def finish_context(work: job) {
+    work.await_final();
+    if(work.state == 5) {       // job.CANCELLED
+        throw work.failure!!;
+    }
+}
+
+/**
+ * Wait until all the jobs are finished.
+ * SUSPENDS. A cancellation point for the caller.
+ * Kotlin: joinAll(a, b, c)
+ */
+def join_all(jobs: job[]) {
+    for(i : var = 0; i < sizeof(jobs); i++) {
+        jobs[i].join();
+    }
+}
+
+/** join_all() for a list of jobs. Kotlin: jobs.joinAll() */
+def join_all(jobs: list<job>) {
+    for(i : var = 0; i < jobs.size().value; i++) {
+        jobs.at(i).join();
+    }
+}

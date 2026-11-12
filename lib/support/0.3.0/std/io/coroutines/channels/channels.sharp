@@ -1,0 +1,31 @@
+mod std.io.coroutines.channels;
+
+/**
+ * channels - the names of the four kinds of channel capacity.
+ *
+ * USAGE
+ *     a := new channel<int>();                       // rendezvous (the default)
+ *     b := new channel<int>(16);                     // a buffer of 16
+ *     c := new channel<int>(channels.UNLIMITED);     // send never waits
+ *     d := new channel<int>(channels.CONFLATED);     // only the newest element is kept
+ *
+ *     capacity          send() when no receiver is waiting
+ *     ---------------   -----------------------------------------------
+ *     RENDEZVOUS (0)    suspends until a receiver takes the element
+ *     n > 0             suspends only when n elements are waiting already
+ *     UNLIMITED         never suspends, the buffer grows
+ *     CONFLATED         never suspends, replaces the element that was waiting
+ *
+ * Kotlin equivalent: Channel.RENDEZVOUS, Channel.BUFFERED, Channel.UNLIMITED,
+ * Channel.CONFLATED.
+ */
+class channels {
+    /** no buffer: every send meets a receive */
+    static const RENDEZVOUS : var = 0;
+    /** a buffer of a sensible default size */
+    static const BUFFERED : var = 64;
+    /** a buffer without a limit */
+    static const UNLIMITED : var = -1;
+    /** a buffer of one that always holds the newest element */
+    static const CONFLATED : var = -2;
+}

@@ -26,7 +26,7 @@ import (
  *   fiber.suspend(), or simply the end of its time slice while another fiber
  *   is ready.
  *
- * WHAT std.coroutines DOES ABOUT IT
+ * WHAT std.io.coroutines DOES ABOUT IT
  *   - the library itself never calls a function of its own recursively (job
  *     trees are cancelled and finished with a work list, not by recursion)
  *   - the scope functions that call a block in-line (coroutine_scope { },

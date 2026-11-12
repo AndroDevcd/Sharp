@@ -3,12 +3,11 @@ mod main;
 import (
     testing,
     std.io,
-    std.coroutines,
-    std.concurrent
+    std.io.coroutines
 )
 
 /**
- * std.coroutines core: launch / job / async / deferred / run_blocking /
+ * std.io.coroutines core: launch / job / async / deferred / run_blocking /
  * coroutine_scope / supervisor_scope / coroutine_scope objects / cancellation /
  * with_timeout / dispatchers / exception handling.
  *

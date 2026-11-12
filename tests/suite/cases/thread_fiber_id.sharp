@@ -21,7 +21,7 @@ import (
  * WHAT THE LIBRARY DOES ABOUT IT
  *   std.io.fiber waiter cannot park such a fiber by id; it notices the case
  *   (id 0 on a thread that is not the main thread) and waits in short timed
- *   naps instead (waiter.polling). The dispatcher threads of std.coroutines
+ *   naps instead (waiter.polling). The dispatcher threads of std.io.coroutines
  *   keep their first fiber asleep and do all work in fibers they start.
  *
  * EXPECTED: the id seen on the second thread is not 0.

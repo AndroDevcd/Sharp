@@ -91,7 +91,6 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 | Existing `read_line()` loops forever at end of input; `print_numbers(_int16[])` etc. call themselves. | `std/console.sharp` |
 | `file.get_free_space()` returns <= 0 under `-O` (asm loads an int object). | `std/io/file.sharp` |
 | `atomic.sharp`: `<=` is implemented with `>=`. | `std/io/atomic.sharp` |
-| The old `std.io.coroutines` and the new `std.coroutines` both define `job`, `deferred` and `channel`; importing both in one file is ambiguous. | - |
 
 ## Fixed (kept here so the history is easy to find)
 

@@ -2,13 +2,13 @@ mod main;
 
 import (
     testing,
-    std.coroutines,
-    std.coroutines.sync,
-    std.concurrent
+    std.io.coroutines,
+    std.io.coroutines.sync,
+    std.io
 )
 
 /**
- * std.coroutines.sync (mutex, semaphore) and std.concurrent.atomic_counter.
+ * std.io.coroutines.sync (mutex, semaphore) and std.io.atomic_counter.
  *
  * Asserted are only things that hold for every schedule: totals after a join,
  * that a counter protected by a mutex loses no update, that never more
