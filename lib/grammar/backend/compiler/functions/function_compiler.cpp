@@ -324,6 +324,24 @@ void compile_function(sharp_function *function, Ast *ast) {
 
             if(function->returnType.type == type_untyped) {
                 validate_function_type(false, function, e.type, &e.scheme, function->ast);
+
+                // `def f(x: var) := x * 2;` - the inferred return type of a number
+                // expression is its box class (std#int, std#double, ...), so the
+                // number has to be wrapped:   return new int(x * 2);
+                // (Without this the raw number was returned where the caller
+                // expects an object.)
+                if(function->returnType.type == type_class
+                   && is_numeric_type(e.type) && !get_real_type(e.type).isArray) {
+                    match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor);
+                    if(match_result == match_constructor) {
+                        operation_schema *tmp = new operation_schema();
+                        compile_initialization_call(ast, constructor, e, tmp);
+                        e.scheme.free();
+                        e.scheme.copy(*tmp);
+                        e.type.copy(constructor->returnType);
+                        delete tmp;
+                    }
+                }
             } else {
                 match_result = is_implicit_type_match(function->returnType, e.type, constructor_only, constructor);
                 if (function->returnType != type_untyped && !is_match(match_result)) {

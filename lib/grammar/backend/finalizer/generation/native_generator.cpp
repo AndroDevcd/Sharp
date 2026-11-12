@@ -481,7 +481,9 @@ void append_call_functions(sharp_class* klass, stringstream& ss) {
 
         ss << ");";
         if(func->returnType.type != type_nil) {
-            if(func->returnType.type == type_function_ptr)
+            // a native number (var, _int32, function pointer, ...) goes back as a
+            // number; only real objects (classes, arrays, object) as an object
+            if(type_to_cpp_type(func->returnType.type, func->returnType.isArray) != "SharpObject")
                 ss << endl << "\t" << "internal::return_number($result);";
             else
                 ss << endl << "\t" << "internal::return_object($result);";
