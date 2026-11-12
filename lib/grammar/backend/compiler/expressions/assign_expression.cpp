@@ -8,6 +8,29 @@
 #include "../../../taskdelegator/task_delegator.h"
 #include "../../../settings/settings.h"
 
+/**
+ * Is the left side of `=` an array element (`a[i] = v`)? Then the step that
+ * reads the element is turned into the one that stores it, and this is its
+ * position; -1 means an ordinary assignment.
+ *
+ * Only when the element itself is what gets assigned (the type of the left
+ * side is still marked as an array element). In `items[0].weight = 6` the
+ * element is merely on the way to a field: that is a field assignment. The old
+ * search took any element access anywhere in the left side - and the FIRST one
+ * - so that statement stored the 6 over items[0] and never touched the field
+ * (and a null element raised nothing).
+ */
+static Int array_element_store_position(expression &left) {
+    if(!left.type.arrayElement)
+        return -1;
+
+    for(Int i = (Int)left.scheme.steps.size() - 1; i >= 0; i--) {
+        if(left.scheme.steps.get(i)->type == operation_get_array_element_at_index)
+            return i;       // the last one: in `x[i].list[j] = v` it is `[j]`
+    }
+    return -1;
+}
+
 void compile_assign_expression(expression *e, Ast *ast) {
     expression left, right;
     Token &operand = ast->getToken(0);
@@ -132,12 +155,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
             }
 
             if(is_match_normal(match_result)) {
-                Int lastPos = -1;
-                for(Int i = left.scheme.steps.size() - 1; i >= 0; i--) {
-                    if(left.scheme.steps.get(i)->type == operation_get_array_element_at_index) {
-                        lastPos = i;
-                    }
-                }
+                Int lastPos = array_element_store_position(left);
 
                 if(lastPos != -1) {
                     left.scheme.steps.at(lastPos)->type = operation_set_array_element_at_index;
@@ -187,12 +205,7 @@ void compile_assign_expression(expression *e, Ast *ast) {
                 }
 
                 if(is_match_normal(match_result)) {
-                    Int lastPos = -1;
-                    for(Int i = left.scheme.steps.size() - 1; i >= 0; i--) {
-                        if(left.scheme.steps.get(i)->type == operation_get_array_element_at_index) {
-                            lastPos = i;
-                        }
-                    }
+                    Int lastPos = array_element_store_position(left);
 
                     if(lastPos != -1) {
                         left.scheme.steps.at(lastPos)->type = operation_set_array_element_at_index;
