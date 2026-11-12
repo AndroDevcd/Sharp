@@ -78,9 +78,10 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 
 | Bug | File |
 |---|---|
-| `std_serialization` check "the same object serializes to the same bytes" fails when the runtime is built with the address sanitizer (`-O1 -fsanitize=address`) AND the JIT is on. Every other combination passes, and it does not depend on the garbage collector, so it is compiled code relying on something the C++ build changes. Not reduced yet. | - |
-| JIT crash in `return_method()` when two sibling coroutines take turns and one yields twice. | `lib_coroutines_jit_fiber_frames.sharp` |
-| JIT crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). Not reduced to a small program. | - |
+| Seen with the JIT that was replaced in November 2026, not re-tested with the new one: a crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). Not reduced to a small program. | - |
+| The JIT exists for x86-64 Linux / Intel macOS only; on arm64 and Windows everything is interpreted. | `lib/runtime/jit/jit_compiler.cpp` |
+| An integer constant above 2^53 written in source is loaded through a decimal constant (`ldc` + `d2i`) and loses its low bits. | needs an integer constant table |
+| The native bridge (`snb`) passes every number as a decimal. | `lib/runtime/snb` |
 | Deep recursion ends in SIGSEGV instead of a stack overflow exception. | described in `cases/recursion.sharp` |
 | The directory call returns only regular files of a whole tree and skips dot names; no environment-variable call; read-file returns null for empty and missing alike. | worked around in `std/io/files` |
 
@@ -102,6 +103,21 @@ deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
 `thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `lock_exception_and_nesting.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
 `non_null_index*.sharp`, `generics_isolated_and_nested.sharp` (a generic class seeing the caller's locals; `box<box<var>>`), `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
 and the `*_fixes.sharp` files.
+
+From the typed VM and the new JIT (November 2026):
+
+- **`lib_coroutines_jit_fiber_frames.sharp`** (crash in `return_method()` when two
+  sibling coroutines take turns and one yields twice) passes with the new JIT;
+  the file is still here and can move to `../cases/`.
+- **`std_serialization` failing with the address sanitizer and the JIT on** was a
+  bug of the old JIT, which is gone.
+- **`DUP` wrote one slot past the end of the fiber's stack** when the stack was
+  exactly full: it was the one push without the "grow the stack" check
+  (heap corruption in deep recursion under `-O`).
+- **`copy()` of an empty range** copied into a null array (`std.io/memory.cpp`).
+- **The optimizer's box removal and native-return passes had stopped firing**
+  when number fields moved into the object (they matched `movn` + `iload`);
+  they read `getf` / `putf` now.
 
 Found with the address sanitizer while the tracing garbage collector was tested
 (all three were in the runtime before it, and explain rare crashes):

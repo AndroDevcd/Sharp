@@ -25,6 +25,10 @@ Contents
 15. The garbage collector
 16. Lazy library compilation, the parse cache, the optimizer
 17. From schemes to bytecode
+18. Numbers: integers and decimals
+19. Objects in memory
+20. The instructions
+21. The JIT
 
 ---
 
@@ -498,3 +502,202 @@ consume empty machine data".
 Useful when a compile crashes in the generator: `SHARP_GEN_DEBUG=1` prints each
 function before its code is generated, and `sharpc -d` writes a listing
 (`.aout`) of the bytecode.
+
+## 18. Numbers: integers and decimals
+
+Since the November 2026 redesign the VM has two kinds of number, and the
+compiler - not the VM - knows which one every value is.
+
+| | in the language | in the VM | C++ picture |
+|---|---|---|---|
+| integer | `_int8` ... `_int64`, `_uint8` ... `_uint64`, `int`, `long`, `bool`, `char` ... | 64 bits, wraps around | `int64_t` |
+| decimal | `decimal` (was `var`), `double` | 64-bit IEEE double | `double` |
+
+- One VM value is one 8-byte cell: `union vm_cell { int64_t i; double d; }`
+  (`stdimports.h`). Registers, stack slots, number fields and 64-bit array
+  elements are all such cells. Nothing in the cell says which kind it holds.
+- Moving a value (register to local, local to stack, field to register ...)
+  copies the cell and is the same instruction for both kinds. Arithmetic and
+  comparison are not: every such instruction exists in an integer form with the
+  plain name (`ADD`, `LT`) and a decimal form with a `D` in front (`DADD`,
+  `DLT`). `I2D` and `D2I` convert a register.
+- `/` and `**` always work on decimals (`7 / 2` is `3.5`): `DDIV`, `DEXP`.
+  `%`, shifts and the bit operators always work on integers.
+- The compiler types every arithmetic step (`set_numeric_operation` in
+  `backend/operation/operation.h`, `type_binary_operation` in
+  `expressions/binary/binary_expression.cpp`) and inserts conversions where a
+  value changes kind: `compiler/expressions/numeric_conversion.*`
+  (`convert_number_for`, `convert_number_to_integer`,
+  `convert_number_to_condition`). Places that build a value by hand instead of
+  going through an expression must call these themselves.
+- `decimal_to_integer()` (`stdimports.h`) is what `D2I` does: the fraction is
+  dropped, a NaN becomes 0, a value that does not fit becomes the nearest end
+  of the range.
+- System interrupts (`INT`) read and write registers; what kind each one
+  expects is the table in `runtime/interrupt_signatures.cpp`. An `asm` block
+  that passes a number to an interrupt has to hold it in a local of the right
+  kind.
+- The kind checker. A runtime built with `-DSHARP_TYPE_CHECK` keeps a tag
+  (integer / decimal) next to every register and stack slot and reports any
+  instruction that reads the wrong kind (`runtime/memory/type_check.*`). It is
+  the tool for finding a conversion the compiler forgot.
+
+## 19. Objects in memory
+
+`runtime/memory/sharp_object.h` has the full description. In short:
+
+- A class instance is one block of 8-byte slots. A number field is stored IN
+  its slot (`number_slot(o, i)`); a reference field's slot holds the reference.
+  Each class knows which slots are numbers (`instanceNumberSlots`,
+  `staticNumberSlots`, built by `build_number_slot_maps()`), which is how the
+  collector, `sizeof` and the serializer skip them. There is no separate little
+  object per number field any more.
+- A number array stores its elements at their real size - one byte for
+  `_int8[]`, eight for `_int64[]` and `decimal[]` (`element_size(type)`), in
+  `sharp_object::data`. C++ code uses `integer_at` / `set_integer_at` /
+  `number_at` / `set_number_at`.
+- Runtime code that reads a field by name: `number_field(instance, name)` and
+  `set_number_field` for numbers, `resolve_field` for references
+  (`runtime/reflect/reflect_helpers.h`).
+
+## 20. The instructions
+
+An instruction is one 32-bit word, a few are two (the second word is a 32-bit
+constant, marked `+k` below). `a b c` are the operands in the order the listing
+prints them; `regs` are the ten VM registers (`adx cx cmt ebx ecx ecf edf ehf
+bmr egx`), `fp` is the frame, `sp` the top of the stack, `ptr` the object
+pointer (the address of a slot that holds a reference). Declared in
+`lib/core/opcode/opcode.h`; the interpreter's handlers are in
+`runtime/virtual_machine.cpp` (`main_vm_loop`) in the same order.
+
+Integer arithmetic (decimal twin in brackets)
+
+| instruction | does |
+|---|---|
+| `ADD SUB MUL` a, b -> c  [`DADD DSUB DMUL`] | `regs[c] = regs[a] op regs[b]` |
+| `MOD` a, b -> c | remainder; a zero divisor raises an exception |
+| `IADD ISUB IMUL` a `+k`  [`DIADD DISUB DIMUL`] | `regs[a] op= k` |
+| `IMOD` a `+k` | `regs[a] %= k` |
+| `INC DEC` a  [`DINC DDEC`] | `regs[a] += 1`, `-= 1` |
+| `NEG` a, b  [`DNEG`] | `regs[a] = -regs[b]` |
+| `NOT` a, b  [`DNOT`] | `regs[a] = regs[b] == 0` |
+| `LT GT LTE GTE` a, b  [`DLT DGT DLTE DGTE`] | `cmt = regs[a] ? regs[b]` (0 or 1, an integer) |
+| `TEST TNE` a, b  [`DTEST DTNE`] | `bmr = regs[a] == regs[b]`, `!=` |
+| `CMP` a `+k`  [`DCMP`] | `cmt = regs[a] == k` |
+| `AND` a, b | `bmr = regs[a] && regs[b]` |
+| `UAND OR XOR` a, b | `bmr = regs[a] & \| ^ regs[b]` |
+| `SHL SHR` a, b -> c | `regs[c] = regs[a] << regs[b]`, `>>` |
+| `MOV8 MOV16 MOV32 MOV64 MOVU8 MOVU16 MOVU32 MOVU64` a, b | `regs[a] = (that integer type)regs[b]` |
+
+Decimal only
+
+| instruction | does |
+|---|---|
+| `DDIV` a, b -> c, `DIDIV` a `+k` | division |
+| `DEXP` a, b -> c | `pow` |
+| `I2D` a, b / `D2I` a, b | `regs[a] = (double)regs[b]` / `decimal_to_integer(regs[b])` |
+| `LDC` a, n | `regs[a] =` decimal constant n of the executable |
+| `DMOVI` a `+k` | `regs[a] = (double)k` |
+
+Registers, locals, the stack (the cell is copied; both kinds)
+
+| instruction | does |
+|---|---|
+| `MOVI` a `+k` | `regs[a] = k` (integer) |
+| `MOVR` a, b | `regs[a] = regs[b]` |
+| `LOADL` a, n / `SMOVR_2` a, n | `regs[a] = fp[n]` / `fp[n] = regs[a]` |
+| `SMOVR_4` n `+m` | `fp[n] = fp[m]` |
+| `ISTOREL` n `+k`  [`DISTOREL`] | `fp[n] = k` |
+| `RSTORE` a / `LOADVAL` a | push `regs[a]` / `regs[a] =` pop |
+| `ISTORE` `+k`  [`DISTORE`] | push k |
+| `IPUSHL` n / `IPOPL` n | push `fp[n]` / `fp[n] =` pop |
+| `SMOV` a, n / `SMOVR` a, n | `regs[a] = sp[n]` / `sp[n] = regs[a]` |
+| `ISADD` n `+k`  [`DISADD`] | `sp[n] += k` |
+| `RETURNVAL` a | `fp[0] = regs[a]`: the function's number result |
+| `MOV_ABS` n / `LOAD_ABS` n | thread local n `= ebx` / `ebx =` thread local n |
+| `ADDL SUBL MULL MODL ANDL ORL XORL` a, n  [`DADDL DSUBL DMULL DDIVL`] | `fp[n] op= regs[a]` |
+| `IADDL ISUBL IMULL IMODL` n `+k`  [`DIADDL DISUBL DIMULL DIDIVL`] | `fp[n] op= k` |
+
+Objects
+
+| instruction | does |
+|---|---|
+| `MOVL` n / `MOVSL` n / `TLS_MOVL` n / `MOVG` class | `ptr =` address of local n's reference / stack slot / thread local / the class's static object |
+| `MOVN` `+n` / `MOVND` a | `ptr =` address of reference slot n (or `regs[a]`) of the object at ptr |
+| `GETF` a, slot / `PUTF` a, slot | `regs[a] =` number field of the object at ptr / the other way |
+| `ALOAD8 ALOADU8 ALOAD16 ALOADU16 ALOAD32 ALOADU32 ALOAD64` a, b | `regs[a] = array[regs[b]]`, element of that size, signed or unsigned |
+| `ASTORE8 ASTORE16 ASTORE32 ASTORE64` a, b | `array[regs[a]] = regs[b]` |
+| `CHECKLEN` a | bounds check of `regs[a]` against the object at ptr |
+| `SIZEOF` a / `CHECKNULL` a | `regs[a] =` its size / whether it is null |
+| `PUSHOBJ` / `PUSHL` n / `PUSHNULL` / `DUP` | push the reference at ptr / of local n / null / the top one again |
+| `POPOBJ` / `POPL` n / `POP` | reference at ptr `=` pop / local n `=` pop / drop |
+| `POPOBJ_2` | `ptr =` address of the slot just popped |
+| `SMOVR_3` n / `RETURNOBJ` / `DEL` | local n `=` reference at ptr / the function's object result / reference at ptr `= null` |
+| `ITEST` a | `regs[a] =` the two popped references are the same object |
+| `NEWCLASS` `+class`, `NEWARRAY` a, type, `NEWOBJARRAY` a, `NEWCLASSARRAY` a `+class`, `NEWSTRING` n | create and push |
+| `CAST` class / `VARCAST` type / `IS` a `+type` | checked casts, type test |
+| `LOCK` / `ULOCK` | the object lock of the object at ptr |
+| `SWAP` | swap the two top stack slots |
+
+Control flow and the rest
+
+| instruction | does |
+|---|---|
+| `JMP` pc / `JE` pc / `JNE` pc | jump; if `cmt` is set; if it is not |
+| `BRH` / `IFE` / `IFNE` | the same with the pc taken from `adx` |
+| `SKIP` n / `SKPE` a, n / `SKNE` a, n | relative jumps (being phased out) |
+| `LOADPC` a | `regs[a] =` this pc |
+| `CALL` function / `CALLD` a / `INVOKE_DELEGATE` | call; call the function whose address is in `regs[a]`; interface call |
+| `RET` / `RET 1` | return; return with the exception on the stack |
+| `THROW` | throw the object on the stack |
+| `INT` n | system interrupt n (`runtime/interrupt_signatures.cpp`) |
+| `PUT` a `DPUT` a `PUTC` a `GET` a `SLEEP` a `NOP` `HLT` | console output of an integer / a decimal / a character, key input, sleep |
+
+Adding an instruction: `opcode.h` (number + builder), `opcode.cpp`,
+`opcode_macros.h` (dispatch table, same order as the numbers), the handler in
+`main_vm_loop`, the listing in `finalizer/generation/code/code_info.cpp`, the
+row in `optimizer/instruction_set.cpp`, the `asm` mnemonic in
+`frontend/parser/Parser.cpp` and `functions/statements/asm_statement.cpp`,
+`runtime/telemetry/telemetry.cpp` (name), and the JIT (below).
+
+## 21. The JIT
+
+`lib/runtime/jit`. It compiles one function at a time to x86-64 machine code
+(System V: Linux and Intel macOS; on other CPUs everything is interpreted). A
+function is compiled when it has been called 10 times, or when a loop in it has
+gone round often enough (the interpreter then continues the loop in the
+compiled code).
+
+| file | what is in it |
+|---|---|
+| `jit_compiler.h/.cpp` | what the VM sees: `jitCompiler->compileFunction`, the record of a compiled function (`jit_compiled_function`) |
+| `jit_runtime.h/.cpp` | the C++ functions compiled code calls for everything slow or rare (`jit_rt_...`). None lets a C++ exception out: it becomes the thread's exception flag |
+| `x64/x64_compiler.*` | the x86-64 compiler the VM calls; installs the result |
+| `x64/x64_generator.*` | the code generator: walks the bytecode, and the building blocks every instruction uses. **Its header is the map of the JIT - start there** |
+| `x64/sections/` | what every function has once: `entry`, `dispatch`, `exception`, `exits`, `slow_paths` |
+| `x64/opcode/` | the instructions, one file per kind: `integer_math`, `decimal_math`, `stack_and_locals`, `objects`, `fields_and_arrays`, `allocation`, `casts_and_locks`, `control_flow`, `calls`, `direct_calls`, `console` |
+
+The ideas, each explained at length in the file named:
+
+- The VM's state stays where the interpreter keeps it (the fiber's stack and
+  frames), so stack traces, exceptions, the collector and fibers work
+  unchanged, and a function can switch between interpreter and machine code at
+  any instruction. Machine code only keeps COPIES in CPU registers
+  (`x64_compiler.h`).
+- Six VM registers live in CPU registers - the same six in every function, so
+  a call passes them along for free. C++ does not preserve those registers, so
+  code is written for one of two states, "register mode" and "memory mode",
+  with `save_vm_registers()` / `load_vm_registers()` between them
+  (`x64_generator.h`).
+- A bytecode instruction becomes one to four machine instructions:
+  `add ecx, ebx -> ecx` is `add r9, rsi` (`opcode/integer_math.cpp`).
+- A call from compiled code to compiled code does not leave machine code: the
+  caller writes the VM's call frame itself (`opcode/direct_calls.cpp`).
+- Every instruction has an address in the function's jump table, which is how
+  a fiber is continued, an exception handler is entered and a hot loop is taken
+  over (`sections/dispatch.cpp`).
+- An instruction the JIT has no code for makes `compileFunction` return false;
+  the function simply stays interpreted.
+
+Run with `-nojit` to compare against the interpreter: the two must always
+print the same thing.
