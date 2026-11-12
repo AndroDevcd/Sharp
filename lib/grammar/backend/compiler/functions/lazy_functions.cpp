@@ -104,6 +104,20 @@ bool defer_function_body(sharp_function *function, Ast *ast) {
     return true;
 }
 
+void force_defer_function_body(sharp_function *function, Ast *ast, sharp_file *file,
+                               sharp_module *module, sharp_class *classContext, bool isStatic) {
+    if(function == NULL || function->bodyPending)
+        return;
+
+    function->bodyPending = true;
+    function->pendingAst = ast;
+    function->pendingFile = file;
+    function->pendingModule = module;
+    function->pendingClass = classContext;
+    function->pendingStatic = isStatic;
+    deferredCount++;
+}
+
 bool compile_deferred_function_body(sharp_function *function) {
     if(function == NULL || !function->bodyPending)
         return false;
@@ -230,8 +244,8 @@ static void reach(sharp_file *file) {
 }
 
 void compile_reachable_function_bodies() {
-    if(!options.lazy_library || deferredCount == 0)
-        return;
+    if(deferredCount == 0)
+        return;     // (also runs with -eager: instances of generic functions may have been put aside)
     if(genesis_method == NULL || user_main_method == NULL)
         return;     // no entry point: the finalizer reports that
 

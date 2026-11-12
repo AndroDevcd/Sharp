@@ -2,6 +2,7 @@
 // Created by BNunnally on 8/31/2021.
 //
 
+#include "../compiler/functions/generic_functions.h"
 #include "dependancy.h"
 #include "../../compiler_info.h"
 #include "../types/sharp_module.h"
@@ -620,6 +621,11 @@ sharp_function* resolve_function(
     sharp_function *resolvedFunction = NULL;
     bool ambiguous = false;
     if(searchClass == nullptr) return NULL;
+
+    // `name<std#int>`: a call of a generic function. If this class declares
+    // the blueprint, its instance for these types is made now.
+    if(name.find('<') != string::npos)
+        instantiate_generic_function_for_call(name, searchClass);
 
     if(functionType == constructor_function && searchClass->genericBuilder != NULL) {
         locate_functions_with_type(searchClass, constructor_function, checkBaseClass, locatedFunctions);
@@ -1485,6 +1491,15 @@ void resolve_normal_item(
     context &context = currThread->currTask->file->ctx;
 
     if(resultType.type == type_untyped) {
+        // T inside an instance of  def f<T>(...)
+        if(resolve_generic_function_type_param(item.name, resultType)) {
+            if(resultType.type == type_class)
+                create_dependency(resultType._class);
+
+            hardType = true;
+            return;
+        }
+
         sharp_class *primaryClass = get_primary_class(&context);
         if(primaryClass) {
             if((hasFilter(filter, resolve_filter_generic_type_param)
@@ -2539,6 +2554,8 @@ bool resolve_global_class_function(
     }
 }
 
+sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *genericBlueprint, Ast *ast);
+
 /**
  * Objects without `new`:   p := point(1, 2);     (the same as  new point(1, 2))
  *
@@ -2570,6 +2587,29 @@ bool resolve_class_construction(
         context &ctx,
         sharp_class *known) {
     sharp_class *sc = known;
+
+    // list<int>(...): the class is an instance of a generic class, found (or
+    // made) from the type arguments noted at the call site
+    string genericName;
+    List<sharp_type> genericTypes;
+    if(sc == NULL && generic_call_info(item.name, genericName, genericTypes)) {
+        sharp_class *blueprint;
+        if(resultType.type == type_import_group) {
+            blueprint = resolve_class(resultType.group, genericName, true, false);
+        } else if(resultType.type == type_module) {
+            blueprint = resolve_class(resultType.module, genericName, true, false);
+        } else {
+            blueprint = resolve_class(currThread->currTask->file, genericName, true, false);
+        }
+
+        if(blueprint == NULL || !blueprint->blueprintClass
+           || blueprint->genericTypes.size() != genericTypes.size())
+            return false;
+
+        sc = create_generic_class(genericTypes, blueprint, item.ast);
+        if(sc == NULL || sc == blueprint)
+            return false;
+    }
 
     if(sc == NULL) {
         if(resultType.type == type_import_group) {
@@ -2980,6 +3020,11 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
             auto currf = current_file;
             current_file = generic->genericBuilder->implLocation.file;
 
+            // the class is processed and compiled on its own: it must not see
+            // the locals of the function that happens to instantiate it
+            isolated_context_scope isolation(&current_file->ctx);
+            generic_binding_isolation noFunctionTypeParameters;
+
             if(!generic->genericProcessed) {
                 generic->genericProcessed = true;
 
@@ -3385,9 +3430,24 @@ sharp_type resolve(
                 item->operations.last()->copy(expressions.get(i)->scheme);
             }
         } else if(item->type == generic_reference) {
-            create_new_error(
-                    GENERIC, resolveLocation, "generic functions are not supported.");
+            // name<types>(args): a call of a generic function, or the
+            // construction of a generic class without `new` (list<int>()).
+            // The call is renamed to the typed name, `name<std#int>`; whoever
+            // looks that name up finds or makes the instance.
+            List<sharp_type> genericTypes;
+            string baseName = item->name;
+            string typedName = get_typed_generic_class_name(*item, genericTypes);
+            note_generic_call(typedName, baseName, genericTypes);
 
+            item->name = typedName;
+            item->type = function_reference;
+            item->typeSpecifiers.free();
+            for(Int i = 0; i < expressions.size(); i++) {
+                sharp_type et = expression_type_to_normal_type(expressions.get(i));
+                item->typeSpecifiers.add(new sharp_type(et));
+                item->operations.add(new operation_schema());
+                item->operations.last()->copy(expressions.get(i)->scheme);
+            }
         } else {
             create_new_error(
                     GENERIC, resolveLocation, "expected function call.");

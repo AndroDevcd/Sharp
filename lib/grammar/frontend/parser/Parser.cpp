@@ -216,13 +216,42 @@ void parser::parseInterfaceDecl(Ast *ast) {
 //    int i = 0;
 }
 
+/**
+ * After `def`: does `name<T, U>(` follow - a name, a list of plain type
+ * parameter names (each optionally `base <type>`), and then the opening
+ * parenthesis? That is a generic function. (`def list<T>.something(` and other
+ * extension forms do not end in `>(` and are parsed as before.)
+ */
+bool parser::genericFunctionDeclFollows() {
+    if(peek(1)->getId() != IDENTIFIER || *peek(2) != "<")
+        return false;
+
+    for(int i = 3; i < 64; i++) {
+        Token *t = peek(i);
+        if(*t == ">")
+            return peek(i + 1)->getType() == LEFTPAREN;
+
+        if(t->getType() == LEFTPAREN || t->getType() == LEFTCURLY
+           || *t == ";" || t->getType() == _EOF)
+            return false;
+    }
+    return false;
+}
+
 void parser::parseMethodDecl(Ast *ast) {
     Ast* branch = getBranch(ast, ast_method_decl);
 
     addAccessTypes(branch);
     access_types.free();
 
-    if((peek(1)->getId() == IDENTIFIER && peek(2)->getType() != LEFTPAREN)
+    if(genericFunctionDeclFollows()) {
+        // def name<T, U>(...) - a generic function: the name, then its type
+        // parameters (kept as an ast_generic_identifier_list on the declaration)
+        expectIdentifier(branch);
+        expect(branch, "<", false);
+        parseGenericIdentifierList(branch);
+        expect(branch, ">", false);
+    } else if((peek(1)->getId() == IDENTIFIER && peek(2)->getType() != LEFTPAREN)
         || peek(1)->getValue() == "operator") {
         branch->setAstType(ast_operator_decl);
         parseReferencePointer(branch);
@@ -3820,6 +3849,41 @@ void parser::addAccessTypes(Ast *ast) {
     }
 }
 
+/**
+ * The end of a list of generic arguments:  list<int>   box<box<var>>
+ *
+ * The tokenizer reads `>>` as ONE token (shift right), so the two closing
+ * angles of a nested generic arrive together. The inner list takes the first
+ * half and leaves the token where it is (halfConsumedShr remembers that); the
+ * outer list then takes the token itself. Nothing is changed in the token
+ * list, so the speculative first attempt at a generic (see
+ * parseReferencePointer) can be undone by resetting halfConsumedShr.
+ *
+ * Before this `box<box<var>>` did not parse; it had to be written `box<box<var> >`.
+ */
+bool parser::genericCloseFollows() {
+    if(*peek(1) == ">") return true;
+
+    // `>>`: only when it can really be two closing angles - this list is
+    // itself inside another generic list (genericDepth), or an inner list has
+    // already taken its first half. `x < y >> 2` stays a comparison.
+    return peek(1)->getType() == SHR
+           && (genericDepth > 0 || halfConsumedShr == peek(1));
+}
+
+void parser::consumeGenericClose(Ast *ast) {
+    if(peek(1)->getType() == SHR) {
+        if(halfConsumedShr == peek(1)) {
+            advance();                      // second half: the token is used up
+            halfConsumedShr = NULL;
+        } else {
+            halfConsumedShr = peek(1);      // first half: stay in front of it
+        }
+    } else {
+        expect(ast, ">", false);
+    }
+}
+
 bool parser::parseReferencePointer(Ast *ast) {
     Ast *branch = getBranch(ast, ast_refrence_pointer);
     bool nullSafeAccess = false;
@@ -3869,19 +3933,25 @@ bool parser::parseReferencePointer(Ast *ast) {
         Ast *tmp = getBranch(refItem, ast_generic_reference);
         expect(tmp, "<", false);
         errors->enterProtectedMode();
+        genericDepth++;
         parseUtypeList(tmp);
+        genericDepth--;
 
         errors->pass();
         refItem->freeLastSub();
-        if(*peek(1) == ">") {
+        if(genericCloseFollows()) {
             _current = old;
+            halfConsumedShr = NULL;
             expect(refItem, "<", false);
+            genericDepth++;
             parseUtypeList(refItem);
-            expect(refItem, ">", false);
+            genericDepth--;
+            consumeGenericClose(refItem);
             refItem->encapsulate(ast_generic_reference);
         }
         else {
             _current = old;
+            halfConsumedShr = NULL;
         }
     }
 
@@ -3904,19 +3974,25 @@ bool parser::parseReferencePointer(Ast *ast) {
             Ast *tmp = getBranch(refItem, ast_generic_reference);
             expect(tmp, "<", false);
             errors->enterProtectedMode();
+            genericDepth++;
             parseUtypeList(tmp);
+            genericDepth--;
 
             errors->pass();
             refItem->freeLastSub();
-            if(*peek(1) == ">") {
+            if(genericCloseFollows()) {
                 _current = old;
+                halfConsumedShr = NULL;
                 expect(refItem, "<", false);
+                genericDepth++;
                 parseUtypeList(refItem);
-                expect(refItem, ">", false);
+                genericDepth--;
+                consumeGenericClose(refItem);
                 refItem->encapsulate(ast_generic_reference);
             }
             else {
                 _current = old;
+                halfConsumedShr = NULL;
             }
         }
     }

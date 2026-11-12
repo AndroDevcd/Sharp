@@ -130,6 +130,17 @@ void store_block(block_info *info) {
     info->storedItems.add(new stored_block_info(*info));
 }
 
+isolated_context_scope::isolated_context_scope(context *ctx)
+        : ctx(ctx) {
+    memcpy(saved, (void*)ctx, sizeof(context));
+    new (ctx) context();
+}
+
+isolated_context_scope::~isolated_context_scope() {
+    ctx->~context();
+    memcpy((void*)ctx, saved, sizeof(context));
+}
+
 void store_context(context *ctx) {
     ctx->storedItems.add(new stored_context_item(*ctx));
 }

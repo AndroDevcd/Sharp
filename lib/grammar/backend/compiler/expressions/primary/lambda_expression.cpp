@@ -2,6 +2,7 @@
 // Created by BNunnally on 10/17/2021.
 //
 
+#include "../../functions/generic_functions.h"
 #include "lambda_expression.h"
 #include "../../../types/sharp_field.h"
 #include "../../../astparser/ast_parser.h"
@@ -81,6 +82,7 @@ void compile_lambda_expression(expression *e, Ast *ast) {
             normal_function, functionName, false,
             params, noType, ast, anon_func)) {
         create_dependency(anon_func);
+        inherit_generic_bindings(anon_func);    // a lambda inside a generic function uses its type parameters
 
         anon_func->locals.addAll(anon_func->parameters);
         if(ast->hasSubAst(ast_method_return_type)) {

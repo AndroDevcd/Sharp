@@ -144,6 +144,9 @@ private:
     bool addition(Ast*);
     bool unary(Ast*);
     bool parseNonNullSuffix(Ast *branch);
+    bool genericCloseFollows();
+    bool genericFunctionDeclFollows();
+    void consumeGenericClose(Ast *ast);
     void parseTrailingLambda(Ast *list);
     bool trailingLambdaFollows();
     bool binary(Ast*);
@@ -209,6 +212,8 @@ private:
 
     List<Ast*> tree;
     Token* _current;
+    long genericDepth = 0;              // how many generic argument lists are open around the current position
+    Token* halfConsumedShr = NULL;      // a `>>` token whose first `>` closed an inner generic (see consumeGenericClose)
     Token* trailingLambdaEnd = NULL;    // the `}` that closed the last trailing lambda (see parseStatement)
     tokenizer *toks;
     List<string> lines;

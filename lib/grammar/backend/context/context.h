@@ -176,6 +176,32 @@ struct context : public stored_context_item {
     List<stored_context_item*> storedItems;
 };
 
+/**
+ * For the lifetime of this object the context `ctx` is a fresh, empty one; the
+ * context it had is put back when the object goes out of scope.
+ *
+ * Used when something unrelated has to be processed or compiled in the middle
+ * of compiling a function - a generic class or generic function that is
+ * instantiated there for the first time. A file has ONE context, pushing a new
+ * context keeps the locals, and name lookup searches every saved context
+ * (that is how lambdas reach the locals around them). Without the isolation
+ * the generic code saw the locals of whichever function happened to trigger
+ * its instantiation: in
+ *      class holder<T> { one : T;  holder(a: T) { one = a; } }
+ *      def main(..) { one := ...; h := new holder<var>(5); }
+ * the `one` inside holder resolved to main's local.
+ *
+ * (The old contents are moved aside byte for byte and moved back; nothing in
+ * a context points into itself.)
+ */
+struct isolated_context_scope {
+    explicit isolated_context_scope(context *ctx);
+    ~isolated_context_scope();
+
+    context *ctx;
+    alignas(context) char saved[sizeof(context)];
+};
+
 void create_context(sharp_class*, bool isStatic = false);
 void create_context(sharp_function*);
 void create_context(sharp_field*);

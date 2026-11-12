@@ -1,0 +1,204 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Generic functions: def name<T>(...). Each use with concrete types gets its
+ * own function, made on first use. Type arguments are written at the call.
+ */
+
+class box<T> {
+    item : T;
+    box(first: T) { item = first; }
+    def take() : T { return item; }
+
+    // a generic method inside a generic class: U is the method's, T the class's
+    def paired_with<U>(other: U) : pair2<T, U> { return new pair2<T, U>(item, other); }
+}
+
+// the class has T, the method adds Z and uses both
+class shelf<T> {
+    stored : T;
+    shelf(first: T) { stored = first; }
+
+    def check<Z>(n: T, v: Z) : pair2<T, Z> { return new pair2<T, Z>(n, v); }
+    def swap_in<Z>(replacement: T, note: Z) : Z { stored = replacement; return note; }
+    def with_stored<Z>(f: (T)(Z)) : Z { return f(stored); }
+    static def of<Z>(value: Z) : shelf<Z> { return new shelf<Z>(value); }
+}
+
+class pair2<A, B> {
+    left : A;
+    right : B;
+    pair2(l: A, r: B) { left = l; right = r; }
+}
+
+class point {
+    x : var;
+    point(a: var) { x = a; }
+}
+
+// ---- free functions
+def same<T>(value: T) : T { return value; }
+
+def pick<T>(first: T, second: T, use_first: var) : T {
+    if(use_first) { return first; }
+    return second;
+}
+
+def first_of<T>(items: T[]) : T { return items[0]; }
+
+def count_of<T>(items: T[]) : var { return sizeof(items); }
+
+def swap_pair<A, B>(p: pair2<A, B>) : pair2<B, A> { return new pair2<B, A>(p.right, p.left); }
+
+def make_box<T>(value: T) : box<T> { return new box<T>(value); }
+
+def apply<T, R>(value: T, f: (T)(R)) : R { return f(value); }
+
+def repeat_call<T>(value: T, times: var, f: (T)(T)) : T {
+    result : T = value;
+    for(i : var = 0; i < times; i++) { result = f(result); }
+    return result;
+}
+
+def describe<T>(value: T) : string { return "value: " + value; }
+
+// one generic function calling another, and itself with another type
+def twice<T>(value: T, f: (T)(T)) : T { return repeat_call<T>(value, 2, f); }
+
+// overloads by the number of type parameters
+def tag<T>(a: T) : var { return 1; }
+def tag<T, U>(a: T, b: U) : var { return 2; }
+
+// a plain function next to a generic one of another name
+def plain(a: var) : var { return a + 1; }
+
+// ---- generic methods in an ordinary class
+class tools {
+    calls : var = 0;
+
+    def keep<T>(value: T) : T { calls++; return value; }
+    static def wrap<T>(value: T) : box<T> { return new box<T>(value); }
+    def larger<T>(a: T, b: T, bigger: (T, T)(var)) : T {
+        calls++;
+        if(bigger(a, b)) { return a; }
+        return b;
+    }
+}
+
+class better_tools base tools {
+    def keep_twice<T>(value: T) : T { return keep<T>(keep<T>(value)); }
+}
+
+def main(args: string[]) {
+    // ---- one type parameter
+    expect("same<var>", same<var>(5), 5);
+    expect_str("same<string>", same<string>("text"), "text");
+    p := same<point>(new point(3));
+    expect("same<point>", p.x, 3);
+    expect("the same instance used again", same<var>(6) + same<var>(7), 13);
+
+    expect("pick first", pick<var>(1, 2, 1), 1);
+    expect("pick second", pick<var>(1, 2, 0), 2);
+    expect_str("pick<string>", pick<string>("a", "b", 0), "b");
+
+    // ---- arrays of T
+    numbers := new var[] { 4, 5, 6 };
+    expect("first_of<var>", first_of<var>(numbers), 4);
+    expect("count_of<var>", count_of<var>(numbers), 3);
+    words := new string[] { new string("x"), new string("y") };
+    expect_str("first_of<string>", first_of<string>(words), "x");
+    expect("count_of<string>", count_of<string>(words), 2);
+
+    // ---- generic classes in the signature
+    b := make_box<var>(9);
+    expect("make_box<var>", b.take(), 9);
+    sb := make_box<string>("in a box");
+    expect_str("make_box<string>", sb.take(), "in a box");
+
+    swapped := swap_pair<var, string>(new pair2<var, string>(1, "one"));
+    expect_str("swap_pair left", swapped.left, "one");
+    expect("swap_pair right", swapped.right, 1);
+
+    // ---- function types that use the type parameters
+    expect("apply<var, var>", apply<var, var>(4, { x: var -> (var) return x * 10; }), 40);
+    expect_str("apply<var, string>", apply<var, string>(4, { x: var -> (string) if(x == 4) { return "four"; } return "other"; }), "four");
+    expect("apply<string, var>", apply<string, var>("four", { s: string -> (var) return s.size().value; }), 4);
+    expect("untyped lambda gets its types", apply<var, var>(5, { x -> return x + 1; }), 6);
+    expect("trailing lambda", apply<var, var>(5) { it * 3 }, 15);
+    expect("repeat_call", repeat_call<var>(1, 5, { x: var -> (var) return x * 2; }), 32);
+
+    // ---- T inside the body
+    expect_str("describe<string>", describe<string>("abc"), "value: abc");
+
+    // ---- generic calling generic
+    expect("twice", twice<var>(3, { x: var -> (var) return x + 10; }), 23);
+
+    // ---- overloads by number of type parameters
+    expect("tag<var>", tag<var>(1), 1);
+    expect("tag<var, string>", tag<var, string>(1, "s"), 2);
+
+    // ---- ordinary functions are untouched
+    expect("plain", plain(1), 2);
+    less : var = plain(1) < 3;
+    more : var = 4 > plain(1);
+    expect("comparisons that could look like generics", less + more, 2);
+
+    // ---- methods
+    t := new tools();
+    expect("generic method", t.keep<var>(8), 8);
+    expect_str("generic method, another type", t.keep<string>("kept"), "kept");
+    expect("...the object is the same", t.calls, 2);
+    expect("larger", t.larger<var>(3, 9, { a: var, b: var -> (var) return a > b; }), 9);
+    wrapped := tools.wrap<var>(12);
+    expect("static generic method", wrapped.take(), 12);
+
+    bt := new better_tools();
+    expect("inherited generic method called from a subclass", bt.keep_twice<var>(4), 4);
+    expect("...counted on the object", bt.calls, 2);
+    expect("inherited generic method called from outside", bt.keep<var>(1), 1);
+
+    // ---- a generic method of a generic class
+    made := new box<var>(7).paired_with<string>("seven");
+    expect("class parameter T", made.left, 7);
+    expect_str("method parameter U", made.right, "seven");
+
+    // ---- check<Z>(n: T, v: Z) in a generic class: T from the class, Z from the call
+    numbers_shelf := new shelf<var>(1);
+    checked := numbers_shelf.check<string>(5, "five");
+    expect("check<string> on shelf<var>: T", checked.left, 5);
+    expect_str("check<string> on shelf<var>: Z", checked.right, "five");
+    checked2 := numbers_shelf.check<point>(6, new point(60));
+    expect("the same method with another Z", checked2.right.x, 60);
+
+    text_shelf := new shelf<string>("start");
+    checked3 := text_shelf.check<var>("six", 6);
+    expect_str("check<var> on shelf<string>: T", checked3.left, "six");
+    expect("check<var> on shelf<string>: Z", checked3.right, 6);
+
+    expect_str("a Z result and a T store", numbers_shelf.swap_in<string>(77, "swapped"), "swapped");
+    expect("...the T field changed", numbers_shelf.stored, 77);
+    expect_str("a function type using T and Z",
+               numbers_shelf.with_stored<string>({ n: var -> (string) if(n == 77) { return "has 77"; } return "?"; }), "has 77");
+    expect("...another Z", numbers_shelf.with_stored<var>({ n: var -> (var) return n + 1; }), 78);
+    built := shelf<var>.of<string>("made");
+    expect_str("a static generic method of a generic class", built.stored, "made");
+
+    // ---- nested generics close with >>
+    nested := new box<box<var>>(new box<var>(3));
+    expect("box<box<var>>", nested.take().take(), 3);
+    deep := same<box<box<var>>>(nested);
+    expect("same<box<box<var>>>", deep.take().take(), 3);
+    expect("shift right still works", 64 >> 2, 16);
+    small : var = 3;
+    expect("less-than followed by shift", small < 64 >> 2, 1);
+
+    // ---- generic classes without new
+    c := box<var>(21);
+    expect("box<var>(21) without new", c.take(), 21);
+    d := pair2<var, string>(1, "p");
+    expect_str("pair2<var, string>(...) without new", d.right, "p");
+
+    finish("generic_functions");
+}

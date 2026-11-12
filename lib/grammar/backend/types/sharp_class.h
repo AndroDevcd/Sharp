@@ -12,6 +12,8 @@
 #include "../../frontend/parser/Ast.h"
 #include "../meta_data.h"
 #include "sharp_module.h"
+#include "generic_function_blueprint.h"
+#include <vector>
 #include "generic_type_identifier.h"
 #include "unresolved_extension_function.h"
 #include "../../settings/settings.h"
@@ -233,6 +235,7 @@ struct sharp_class {
     sharp_function *staticInit;
     List<unresolved_extension_function> extensionFunctions;
     List<generic_type_identifier> genericTypes;
+    std::vector<generic_function_blueprint> genericFunctions;  // declared generic functions, see compiler/functions/generic_functions.h
     class_type type;
     uInt uid;
     obfuscation_modifier obfuscateModifier;

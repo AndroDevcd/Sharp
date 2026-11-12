@@ -50,8 +50,8 @@ def main(args: string[]) {
     expect("the local of the same name", one.take(), 1);
 
     // ---- bug 2
-    // nested := new box<box<var>>(new box<var>(3));
-    // expect("box<box<var>>", nested.take().take(), 3);
+    nested := new box<box<var>>(new box<var>(3));
+    expect("box<box<var>>", nested.take().take(), 3);
 
     finish("generics");
 }

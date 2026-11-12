@@ -1,0 +1,27 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * Generic functions declared in a library module (std/collections/generic_functions.sharp)
+ * and used from another one: the instance is made in the library's module, and
+ * its body goes through the lazy library compilation.
+ */
+def main(args: string[]) {
+    words := list_of<string>("alpha", "beta");
+    expect("list_of<string> size", words.size().value, 2);
+    expect_str("first_or<string>", first_or<string>(words, "none"), "alpha");
+    empty := new list<string>();
+    expect_str("first_or<string> fallback", first_or<string>(empty, "none"), "none");
+
+    lengths := transform<string, int>(words, { s: string -> (int) return s.size(); });
+    expect("transform<string, int>", lengths.at(0).value + lengths.at(1).value, 9);
+    shouted := transform<string, string>(words) { it + "!" };
+    expect_str("transform with a trailing lambda", shouted.at(1), "beta!");
+
+    numbers := list_of<int>(4, 5);
+    doubled := transform<int, int>(numbers) { it * 2 };
+    expect("transform<int, int>", doubled.at(0).value + doubled.at(1).value, 18);
+    expect("called through the module name", std.collections#first_or<int>(numbers, 0).value, 4);
+    finish("generic_functions_library");
+}

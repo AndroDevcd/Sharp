@@ -2,6 +2,7 @@
 // Created by BNunnally on 9/11/2021.
 //
 
+#include "../compiler/functions/generic_functions.h"
 #include <iomanip>
 #include "function_processor.h"
 #include "../astparser/ast_parser.h"
@@ -149,6 +150,15 @@ void process_function(
         Ast *ast) {
 
     GUARD2(globalLock)
+
+    // def name<T>(...): nothing can be resolved until T is known. The
+    // declaration is kept as a blueprint; each use with concrete types comes
+    // back here with the typed name (see compiler/functions/generic_functions.h).
+    if(is_generic_function_decl(ast) && !processing_generic_function_instance(ast)) {
+        register_generic_function(with_class, name, type, ast);
+        return;
+    }
+
     uInt flags = flag_none;
     List<sharp_field*> params;
     if(ast->hasSubAst(ast_access_type)) {
@@ -234,6 +244,7 @@ void process_function_return_type(sharp_function *fun) {
         && fun->ast->hasSubAst(ast_expression)
         && currThread->currTask->file->stage >= pre_compilation_state) {
         GUARD(globalLock)
+        generic_binding_scope bindings(fun);    // `:=` body of a generic function instance
         fun->returnType.type = type_undefined;
 
         create_context(fun->owner);

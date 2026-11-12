@@ -36,6 +36,8 @@
 
 struct sharp_function;
 struct sharp_file;
+struct sharp_module;
+struct sharp_class;
 class Ast;
 
 /**
@@ -44,6 +46,14 @@ class Ast;
  * when it has to be compiled now.
  */
 bool defer_function_body(sharp_function *function, Ast *ast);
+
+/**
+ * Put the body of `function` aside no matter where it comes from; it is
+ * compiled when the dependency walk reaches the function. Used for instances
+ * of generic functions that are created before bodies can be compiled.
+ */
+void force_defer_function_body(sharp_function *function, Ast *ast, sharp_file *file,
+                               sharp_module *module, sharp_class *classContext, bool isStatic);
 
 /** Compile the body of `function` now, if it was put aside. Returns true if it was. */
 bool compile_deferred_function_body(sharp_function *function);

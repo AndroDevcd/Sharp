@@ -11,6 +11,8 @@
 #include "../meta_data.h"
 #include "../../../core/access_flag.h"
 #include "sharp_type.h"
+#include "generic_type_identifier.h"
+#include <vector>
 #include "../../../core/function_type.h"
 #include "../../settings/settings.h"
 #include "../compiler/obfuscate_compiler.h"
@@ -164,6 +166,11 @@ struct sharp_function {
     // starts. The initial values of the fields are put in front of it, so
     // `width : var = 80; init { seen = width; }` sees 80. -1: no init block.
     Int fieldInitPos = -1;
+
+    // An instance of a generic function (compiler/functions/generic_functions.h):
+    // the types its type parameters stand for, { T -> std#int, ... }. Empty
+    // for every other function. Pushed while the body is compiled.
+    std::vector<generic_type_identifier> genericBindings;
 
     bool bodyPending = false;
     Ast *pendingAst = NULL;

@@ -15,6 +15,7 @@
 #include "../mutate_compiler.h"
 #include "init_compiler.h"
 #include "lazy_functions.h"
+#include "generic_functions.h"
 
 void check_main_method_signature(sharp_function *function) {
     if(get_primary_class(&current_context) != NULL && check_flag(get_primary_class(&current_context)->flags, flag_global)
@@ -169,6 +170,11 @@ void compile_function(
         sharp_class *with_class,
         function_type type,
         Ast *ast) {
+    // def name<T>(...) is a blueprint, not a function: its instances are
+    // compiled when they are made (generic_functions.h)
+    if(is_generic_function_decl(ast))
+        return;
+
     string name;
     if(type == constructor_function) {
         name = ast->getToken(0).getValue();
@@ -281,6 +287,10 @@ void compile_class_mutations(sharp_class *with_class, Ast *block) {
 }
 
 void compile_function(sharp_function *function, Ast *ast) {
+    // An instance of a generic function: its type parameters mean something
+    // only while its bindings are in force (generic_functions.h).
+    generic_binding_scope bindings(function);
+
     // A library function: its body waits until the program is known to use it.
     if(defer_function_body(function, ast))
         return;

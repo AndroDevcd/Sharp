@@ -37,6 +37,7 @@ sharp /tmp/bug
 |---|---|
 | A sized parameter is not cut to its size: `def f(x: _int8)` called with 200 sees 200. (A callee-side fix was tried and reverted: the `long` box picks an `_int32` constructor for big literals and relied on this.) | `casts.sharp` |
 | `0.1 + 0.2 == 0.3` differs between folded literals and run time. | `comparison.sharp` |
+| Adding two comparison results directly gives a wrong number when the operands are variables or calls: `(two < 3) + (4 > two)` is 3. | `comparison_sum.sharp` |
 | An enum declared inside a class cannot be named from outside (`holder.inner.off`). | - |
 | An interface method overridden in a subclass is ignored when called through the intermediate class type, or from a method of that class. | `interfaces.sharp` |
 | A field with both `get` and `set`: assignments from outside are lost under `-O`; an assignment also runs the getter; `p.value++` gives a wrong number. | `properties.sharp` |
@@ -59,7 +60,6 @@ sharp /tmp/bug
 |---|---|
 | A number literal is ambiguous between a `var` overload and a class overload (`d(5)` with `d(var)` and `d(string)`); also hits constructors and operators. | `functions.sharp` |
 | A class with a one-number constructor is implicitly convertible from a number, making `of(var, var, var)` / `of(var, month, var)` ambiguous. | `lib_time_implicit_number_to_class.sharp` |
-| A generic class sees the locals of the function that instantiates it, and they hide its fields. `box<box<var>>` does not parse (`>>`). | `generics.sharp` |
 | `p.value += 5` on a property, and assigning a getter-only field from outside: code generator fatal error. | `properties.sharp` |
 | `new coffee { water_left = 100 }` (inline initialization, shown in `examples/new_class.sharp`) does not parse. | - |
 | A lambda body containing `"literal" + s` (in some generic contexts): compiler segmentation fault. | `lib_collections_lambda_concat.sharp`, `lib_math_lambda_concat.sharp` |
@@ -78,6 +78,7 @@ literal in a longer condition (`c == -1 || x`) is read as `c == -(1 || x)`.
 
 | Bug | File |
 |---|---|
+| Rare crash (SIGSEGV inside `start_fiber`) or hang when many fibers are started on worker threads: about 1 run in 12 of `lib_coroutines_sync` on a loaded machine, not reproducible under a debugger. | - |
 | JIT crash in `return_method()` when two sibling coroutines take turns and one yields twice. | `lib_coroutines_jit_fiber_frames.sharp` |
 | JIT crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). Not reduced to a small program. | - |
 | Deep recursion ends in SIGSEGV instead of a stack overflow exception. | described in `cases/recursion.sharp` |
@@ -99,5 +100,5 @@ deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
 `variables_multiple.sharp`, `operators_on_new.sharp`, `casts_of_expressions.sharp`,
 `new_in_condition.sharp`, `foreach_over_new.sharp`, `foreach_inherited_loopable.sharp`,
 `thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `lock_exception_and_nesting.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
-`non_null_index*.sharp`, `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
+`non_null_index*.sharp`, `generics_isolated_and_nested.sharp` (a generic class seeing the caller's locals; `box<box<var>>`), `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
 and the `*_fixes.sharp` files.
