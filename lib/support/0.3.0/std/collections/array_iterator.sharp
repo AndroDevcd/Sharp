@@ -1,0 +1,75 @@
+mod std.collections;
+
+/**
+ * @class array_iterator
+ *
+ * An `iterator` over the elements of an array, from a start index up to (not
+ * including) an end index.
+ *
+ * It is what the array backed collections (stack, queue, deque, hash_set,
+ * the maps, ...) return from iterator(): they hand it a snapshot of their
+ * elements, so the collection may be changed while the iterator is in use
+ * without disturbing the walk (the iterator keeps showing the elements as
+ * they were when it was created).
+ *
+ * It can also be used directly to walk a plain array:
+ *
+ *     it := new array_iterator<string>(names);
+ *     while(it.has_next()) println(it.next());
+ */
+class array_iterator<T> : iterator<T> {
+    /** the array being walked; null means "no elements" */
+    private items : T[]?;
+    /** index of the element the next call of next() returns */
+    private position : var;
+    /** one past the index of the last element to return */
+    private limit : var;
+
+    /**
+     * Walk the whole array. A null array is treated as an empty one.
+     */
+    array_iterator(items: T[]?) {
+        self->items = items;
+        position = 0;
+        if(items == null) limit = 0;
+        else limit = sizeof(items);
+    }
+
+    /**
+     * Walk the elements items[from] .. items[to - 1].
+     *
+     * @throws out_of_bounds_exception when the range is not inside the array
+     *         (from < 0, to > length, or from > to)
+     */
+    array_iterator(items: T[]?, from: int, to: int) {
+        length : var = 0;
+        if(items != null) length = sizeof(items);
+        if(from.value < 0 || to.value > length || from.value > to.value)
+            throw new out_of_bounds_exception("array_iterator: range $from..$to is outside the array");
+
+        self->items = items;
+        position = from.value;
+        limit = to.value;
+    }
+
+    /** 1 while there are elements left, otherwise 0. O(1). */
+    override def has_next() : var {
+        return position < limit;
+    }
+
+    /**
+     * Return the current element and step to the next one. O(1).
+     *
+     * @throws no_such_element_exception when the iterator is finished
+     */
+    override def next() : T {
+        if(position >= limit)
+            throw new no_such_element_exception("array_iterator: no more elements");
+        return items[position++];
+    }
+
+    /** How many elements are still to be returned by next(). O(1). */
+    def remaining() : var {
+        return limit - position;
+    }
+}

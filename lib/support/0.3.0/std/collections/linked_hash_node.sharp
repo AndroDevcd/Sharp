@@ -1,0 +1,41 @@
+mod std.collections;
+
+/**
+ * @class linked_hash_node
+ *
+ * The storage cell of a `linked_hash_map`: one key/value pair that is part
+ * of two chains at the same time:
+ *
+ *   - the BUCKET chain (`chain`): all pairs whose keys landed in the same
+ *     slot of the hash table
+ *   - the ORDER chain (`before` / `after`): all pairs of the map in the
+ *     order they were first added, which is what gives the map its
+ *     predictable iteration order
+ *
+ * This class is an implementation detail of linked_hash_map.
+ */
+class linked_hash_node<K, V> {
+    /** the key (never changes once the node exists) */
+    key : K;
+    /** the value currently stored for the key */
+    value : V;
+    /** key.hash(), kept so growing the table does not have to hash again */
+    hash_code : var;
+    /**
+     * next node in the same bucket, or null at the end of the chain.
+     * (Declared without `?` on purpose: the slots of the bucket array have
+     * this exact type, and a chain link is copied to and from them.)
+     */
+    chain : linked_hash_node<K, V>;
+    /** the pair that was added before this one, or null for the oldest */
+    before : linked_hash_node<K, V>?;
+    /** the pair that was added after this one, or null for the newest */
+    after : linked_hash_node<K, V>?;
+
+    /** Create a node that is not linked into any chain yet. */
+    linked_hash_node(key: K, value: V, hash_code: var) {
+        self->key = key;
+        self->value = value;
+        self->hash_code = hash_code;
+    }
+}

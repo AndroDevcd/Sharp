@@ -8,131 +8,223 @@ import ( std.math )
 * @class hash_map
 *
 * Description:
+* A map from keys to values with O(1) average lookup: put a value under a
+* key, get it back with at().
 *
+*     ages := new hash_map<string, int>();
+*     ages.put("ann", 31);
+*     ages.at("ann");             // 31
+*     ages.at("bob");             // null: no such key
+*     ages.contains_key("ann");   // true
+*     ages.remove("ann");
+*
+* How it works: an array of buckets; `key.hash()` picks the bucket and the
+* entries of one bucket form a chain that is searched with `==`. When the
+* map holds more than `threshold` (0.75) entries per bucket the bucket array
+* grows and every entry is moved to its new bucket.
+*
+* Keys: the key type must give equal keys the same hash() - int, string and
+* the other std value types do.
+*
+* The order in which keys(), values() and entries() list the entries is the
+* order of the buckets: it looks random and changes when the map grows. Use
+* std.collections#linked_hash_map for insertion order or
+* std.collections#tree_map for sorted keys.
+*
+* Not thread safe; hash_table is the locked variant.
 */
 class hash_map<k base _object_, v base _object_> {
+    /** the buckets: data[i] is the first entry of the chain of bucket i, or null */
     data: entry<k, v?>[];
+    /** the map grows when it holds more than threshold * (number of buckets) entries */
     threshold := 0.75;
+    /** the number of entries at which the next growth happens */
     max_size := 96;
+    /** the number of entries (read it, do not write it) */
     size : var;
 
     private static const default_capacity := 128;
+
+    /** Create an empty map with `initialCapacity` buckets (it grows when needed). */
     public hash_map(initialCapacity: int) {
         data = new entry<k,v?>[initialCapacity.value];
         max_size = (sizeof(data) * threshold);
     }
 
+    /** Create an empty map with 128 buckets. */
     public hash_map() {
         data = new entry<k,v?>[default_capacity];
     }
 
+    /**
+     * Change how full the map may get before it grows: the next growth
+     * happens at threshold * (number of buckets) entries.
+     */
     def set_threshold(threshold: int) {
         self->threshold = threshold.value;
         max_size = (sizeof(data) * threshold.value);
     }
 
+    /** The bucket a key belongs to: its hash, made non-negative, modulo the number of buckets. */
     private def hash(key: k) : int {
         return abs(key.hash() % sizeof(data));
     }
 
+    /** 1 when the two keys are equal (compared with `==`), otherwise 0. */
+    private def same_key(a: k, b: k) : var {
+        if(a == b) return 1;
+        return 0;
+    }
+
+    /** Remove every entry; the map goes back to 128 buckets. O(1). */
     def clear() {
         data = new entry<k,v?>[default_capacity];
         max_size = (sizeof(data) * threshold);
         size = 0;
     }
 
+    /** Double the number of buckets and move every entry to its new bucket. O(n). */
     private def resize() {
-        old_data : entry<k, v?>[]? = data;
-        data = new entry<k,v?>[sizeof(old_data) + (sizeof(old_data) >> 1)];
+        old_data := data;
+        data = new entry<k,v?>[sizeof(old_data) * 2];
         max_size = sizeof(data) * threshold;
-        foreach(entry in old_data)
-        {
-            while(entry != null) // todo fix this this is wrong i think
-            {
-                next := entry.next;
-                index : var = hash(entry.key).value;
-                entry.next = data[index];
-                data[index] = entry;
-                entry = next;
+
+        for(i : var = 0; i < sizeof(old_data); i++) {
+            item := old_data[i];
+            while(item != null) {
+                following := item.next;
+                index : var = hash(item.key).value;
+                item.next = data[index];
+                data[index] = item;
+                item = following;
             }
         }
-
-        old_data = null;
     }
 
+    /** The entry that holds `key`, or null when the map does not have the key. */
+    private def find_entry(key: k) : entry<k, v?> {
+        item := data[hash(key).value];
+        while(item != null) {
+            if(same_key(item.key, key)) return item;
+            item = item.next;
+        }
+        return item;
+    }
+
+    /**
+     * The value stored for a key, or null when the map does not have the
+     * key (or when null was stored for it - see contains_key). O(1) on average.
+     */
     public def at(key: k) : v? {
-        index: var = hash(key).value;
-        initialHash := -1;
-        no_value : v;
-
-        if(data[index] == null) {
-            return no_value;
-        } else {
-            entry := data[index];
-            while(entry != null && entry.key != key
-                && entry.next != null)
-                entry = entry.next;
-
-            if (entry == null)
-                return no_value;
-            else
-                return entry.value;
-        }
+        item := find_entry(key);
+        if(item == null) return null;
+        return item.value;
     }
 
+    /** true when the map has the key (also when the value stored for it is null). O(1) on average. */
+    public def contains_key(key: k) : bool {
+        return find_entry(key) != null;
+    }
+
+    /** true when the map has no entries. O(1). */
+    public def is_empty() : bool {
+        return size == 0;
+    }
+
+    /**
+     * Store a value for a key, replacing the value the key had before.
+     * O(1) on average.
+     *
+     * @return true when the key is new, false when an existing value was replaced
+     */
     public def put(key: k, value: v?) : bool {
-        index: var = hash(key).value;
-        prev : entry<k,v?>;
-        entry := data[index];
-
-        while (entry != null && entry.key != key) {
-            prev = entry;
-            entry = entry.next;
-        }
-
-        if(entry == null) {
-            size++;
-            entry =  new entry<k,v?>(key, value);
-            if(prev == null) {
-                data[index] = entry;
-            } else {
-                prev.next = entry;
-            }
-
-            return true;
-        } else {
-            entry.value = value;
+        item := find_entry(key);
+        if(item != null) {
+            item.value = value;
             return false;
         }
+
+        if(size >= max_size.value) resize();
+
+        index : var = hash(key).value;
+        added := new entry<k,v?>(key, value);
+        added.next = data[index];
+        data[index] = added;
+        size++;
+        return true;
     }
 
+    /**
+     * Remove a key and its value. O(1) on average.
+     *
+     * @return true when the key was removed, false when the map did not have it
+     */
     public def remove(key: k) : bool {
-        index := hash(key).value;
-        if(data[index] == null) {
-            prev_entry: entry<k,v?>?;
-            entry : entry<k,v?>? = data[index];
-            while(entry != null && entry!!.key != key) {
-                prev_entry = entry;
-                entry = entry!!.next;
-            }
-
-            if(entry!!.key == key) {
-                if(prev_entry == null) {
-                    next_entry := entry!!.next;
-                    data[index] = next_entry;
-                } else {
-                    next_entry := entry!!.next;
-                    prev_entry!!.next = next_entry;
-                    entry = null;
-                }
-
+        index : var = hash(key).value;
+        previous : entry<k,v?>? = null;
+        item := data[index];
+        while(item != null) {
+            if(same_key(item.key, key)) {
+                if(previous == null) data[index] = item.next;
+                else previous!!.next = item.next;
+                size--;
                 return true;
             }
+            previous = item;
+            item = item.next;
         }
-
         return false;
     }
 
+    /** A new list with every key, in bucket order (see the class comment). O(n). */
+    public def keys() : list<k> {
+        result := new list<k>();
+        for(i : var = 0; i < sizeof(data); i++) {
+            item := data[i];
+            while(item != null) {
+                result.add(item.key);
+                item = item.next;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * A new list with every value that is not null, in the same order as
+     * keys() (when no null values were stored the two lists line up). O(n).
+     */
+    public def values() : list<v> {
+        result := new list<v>();
+        for(i : var = 0; i < sizeof(data); i++) {
+            item := data[i];
+            while(item != null) {
+                if(item.value != null) result.add(item.value!!);
+                item = item.next;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * A new list with a pair per entry whose value is not null: `first` is
+     * the key, `second` the value. The pairs are copies; changing them does
+     * not change the map. O(n).
+     *
+     *     foreach(e in ages.entries()) println(e.first + " = " + e.second);
+     */
+    public def entries() : list<pair<k, v> > {
+        result := new list<pair<k, v> >();
+        for(i : var = 0; i < sizeof(data); i++) {
+            item := data[i];
+            while(item != null) {
+                if(item.value != null) result.add(new pair<k, v>(item.key, item.value!!));
+                item = item.next;
+            }
+        }
+        return result;
+    }
+
+    /** One link of a bucket chain: a key, its value, and the next entry of the same bucket. */
     class entry<k, v> {
         protected key: k;
         protected value: v?;

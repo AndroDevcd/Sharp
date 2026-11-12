@@ -1,0 +1,225 @@
+mod std.collections;
+
+/**
+ * @class tree_set
+ *
+ * A set (every element at most once) that keeps its elements SORTED.
+ * Adding, removing and "is x in here?" are O(log n); looping visits the
+ * elements in ascending order; and the set can find the smallest / largest
+ * element, the nearest element below or above a value, and all elements
+ * inside a range.
+ *
+ * The order is decided by a comparison function given to the constructor
+ * (negative: a sorts before b, zero: same element, positive: a sorts after b):
+ *
+ *     primes := new tree_set<int>({ a: int, b: int -> (var) return a.value - b.value; });
+ *     primes.add(7);  primes.add(2);  primes.add(5);  primes.add(2);
+ *     primes.size();          // 3
+ *     primes.first();         // 2
+ *     primes.higher(5);       // 7   (smallest element > 5)
+ *     foreach(p in primes)    // 2, 5, 7
+ *
+ * Two elements are "the same" exactly when the comparison returns 0 for
+ * them; `==` and hash() are not used.
+ *
+ * It is built on `tree_map` (an AVL tree; each element is a key).
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `var` cannot be used as T.
+ */
+class tree_set<T> : loopable<T>, iterable<T> {
+    /** the elements are the keys of this map (each key maps to itself) */
+    private members : tree_map<T, T>;
+
+    /**
+     * Create an empty set.
+     *
+     * @param compare the ordering of the elements, see the class comment
+     */
+    tree_set(compare: (T, T)(var)) {
+        members = new tree_map<T, T>(compare);
+    }
+
+    /** Number of elements. O(1). */
+    def size() : var {
+        return members.size();
+    }
+
+    /** 1 when the set has no elements, otherwise 0. O(1). */
+    def is_empty() : var {
+        return members.is_empty();
+    }
+
+    /**
+     * Add an element unless the set already holds one that compares as
+     * equal. O(log n).
+     *
+     * @return 1 when the element was added, 0 when it was already there
+     */
+    def add(element: T) : var {
+        return members.put_if_absent(element, element);
+    }
+
+    /**
+     * Add every element of a `list` (duplicates are skipped). O(m log n).
+     *
+     * @return how many elements were actually added
+     */
+    def add_all(elements: list<T>) : var {
+        added : var = 0;
+        n : var = elements.size().value;
+        for(i : var = 0; i < n; i++)
+            added += add(elements.at(i));
+        return added;
+    }
+
+    /** 1 when the set holds the element, otherwise 0. O(log n). */
+    def contains(element: T) : var {
+        return members.contains_key(element);
+    }
+
+    /**
+     * Remove an element. O(log n).
+     *
+     * @return 1 when it was removed, 0 when the set did not hold it
+     */
+    def remove(element: T) : var {
+        return members.remove(element);
+    }
+
+    /** Remove every element. O(1). */
+    def clear() {
+        members.clear();
+    }
+
+    /**
+     * The smallest element. O(log n).
+     *
+     * @throws no_such_element_exception when the set is empty
+     */
+    def first() : T {
+        if(members.is_empty())
+            throw new no_such_element_exception("tree_set: first called on an empty set");
+        return members.first_key();
+    }
+
+    /**
+     * The largest element. O(log n).
+     *
+     * @throws no_such_element_exception when the set is empty
+     */
+    def last() : T {
+        if(members.is_empty())
+            throw new no_such_element_exception("tree_set: last called on an empty set");
+        return members.last_key();
+    }
+
+    /**
+     * Remove the smallest element and return it. O(log n).
+     *
+     * @throws no_such_element_exception when the set is empty
+     */
+    def poll_first() : T {
+        if(members.is_empty())
+            throw new no_such_element_exception("tree_set: poll_first called on an empty set");
+        return members.poll_first().key;
+    }
+
+    /**
+     * Remove the largest element and return it. O(log n).
+     *
+     * @throws no_such_element_exception when the set is empty
+     */
+    def poll_last() : T {
+        if(members.is_empty())
+            throw new no_such_element_exception("tree_set: poll_last called on an empty set");
+        return members.poll_last().key;
+    }
+
+    /** The largest element that is <= `element`, or null when there is none. O(log n). */
+    def floor(element: T) : T? {
+        return members.floor_key(element);
+    }
+
+    /** The smallest element that is >= `element`, or null when there is none. O(log n). */
+    def ceiling(element: T) : T? {
+        return members.ceiling_key(element);
+    }
+
+    /** The largest element that is strictly < `element`, or null when there is none. O(log n). */
+    def lower(element: T) : T? {
+        return members.lower_key(element);
+    }
+
+    /** The smallest element that is strictly > `element`, or null when there is none. O(log n). */
+    def higher(element: T) : T? {
+        return members.higher_key(element);
+    }
+
+    /**
+     * The elements e with from <= e < to, in ascending order (`from` is
+     * included, `to` is not). O(log n + number of elements returned).
+     */
+    def range(from: T, to: T) : list<T> {
+        return members.range_keys(from, to);
+    }
+
+    /** The elements strictly smaller than `to`, in ascending order. */
+    def head(to: T) : list<T> {
+        result := new list<T>();
+        items := members.key_array();
+        compare := members.comparison();
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(compare(items[i], to) >= 0) break;
+            result.add(items[i]);
+        }
+        return result;
+    }
+
+    /** The elements greater than or equal to `from`, in ascending order. */
+    def tail(from: T) : list<T> {
+        result := new list<T>();
+        if(members.is_empty()) return result;
+
+        start := members.ceiling_key(from);
+        if(start == null) return result;
+        // from the first element >= `from` up to and including the largest
+        result = members.range_keys(start!!, members.last_key());
+        result.add(members.last_key());
+        return result;
+    }
+
+    /** A new array with the elements in ascending order (length 0 when empty). O(n). */
+    def to_array() : T[] {
+        return members.key_array();
+    }
+
+    /** A new `list` with the elements in ascending order. O(n). */
+    def to_list() : list<T> {
+        return members.keys();
+    }
+
+    /**
+     * The elements in ascending order, or null when the set is empty. This
+     * is what `foreach` uses. O(n).
+     */
+    override def get_elements() : T[]? {
+        if(members.is_empty()) return null;
+        return members.key_array();
+    }
+
+    /** An iterator over a snapshot of the elements in ascending order. O(n) to create. */
+    override def iterator() : iterator<T> {
+        return new array_iterator<T>(get_elements());
+    }
+
+    /** An iterator over a snapshot of the elements in descending order. O(n) to create. */
+    def descending_iterator() : iterator<T> {
+        items := members.key_array();
+        n : var = sizeof(items);
+        reversed := new T[n];
+        for(i : var = 0; i < n; i++)
+            reversed[i] = items[n - 1 - i];
+        return new array_iterator<T>(reversed);
+    }
+}

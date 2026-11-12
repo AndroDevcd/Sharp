@@ -1,0 +1,29 @@
+mod std.collections;
+
+/**
+ * @class map_entry
+ *
+ * One key together with the value stored for it: what the maps of this
+ * module (linked_hash_map, tree_map, and hash_map through its entries()
+ * function) hand out when they are looped over.
+ *
+ *     foreach(entry in ages) {
+ *         println(entry.key + " is " + entry.value);
+ *     }
+ *
+ * An entry is a COPY of the pair as it was in the map at that moment.
+ * Changing `value` on an entry does not change the map - use the map's put()
+ * for that.
+ */
+class map_entry<K, V> {
+    /** the key */
+    key : K;
+    /** the value stored for the key */
+    value : V;
+
+    /** Create an entry from a key and its value. */
+    map_entry(key: K, value: V) {
+        self->key = key;
+        self->value = value;
+    }
+}

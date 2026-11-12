@@ -10,58 +10,129 @@ import (
 * @class list
 *
 * Description:
-* This class allows you to build la list of items
+* A growable, array backed list: the general purpose collection of the
+* library. Elements keep the order they were added in and are reached by
+* their position (0 = first).
+*
+*     names := new list<string>();
+*     names.add("ann");
+*     names.add("bob");
+*     names.at(1);                    // "bob"
+*     foreach(name in names) ...      // ann, bob
+*
+* Costs: at / put / add are O(1) (add occasionally O(n) when the array has
+* to grow); insert / remove_at / indexof are O(n).
+*
+* More list operations (binary search, ranges, bulk removal, conversions)
+* are static helpers in std.collections#lists<T>; Kotlin style helpers
+* (filter, map, group_by, ...) are in std.collections#collections<T> and
+* std.collections#transforms<T, R>.
+*
+* Elements are compared with `==` (indexof, remove): numbers and strings by
+* value, other objects by identity.
+*
+* Limitation: the element type has to be an object type. `list<var>` does
+* not compile at the moment (the class uses `T?`).
+*
+* Not thread safe: see synced_list for a list that several threads may use.
 */
 class list<T> : loopable<T> {
+    /** number of elements in use; data[0 .. n_elements - 1] are the elements */
     private n_elements : var;
+    /** the storage; usually longer than n_elements so that add() has room */
     private data : T[]?;
+    /** 1: grow in small fixed steps (saves memory), 0: grow proportionally (saves time) */
     private is_compact: var;
 
     private static const default_capacity := 10;
     private static const min_capacity := 128;
 
+    /** Create an empty list. */
     list() {
         data = new T[default_capacity];
     }
 
+    /**
+     * Create a list from an array. The list takes the array over as its
+     * storage (it is NOT copied), so do not keep using the array afterwards.
+     */
     list(data: T[]) {
         self->data = data;
         n_elements = sizeof(data);
     }
 
+    /**
+     * Create an empty list with room for `starting_capacity` elements.
+     * (Pass an `int` object: a bare number literal is ambiguous with the
+     * array constructor.)
+     */
     list(starting_capacity: int) {
         data = new T[starting_capacity.value];
     }
 
+    /**
+     * Choose how the storage grows: 1 = in fixed steps of 128 elements (less
+     * memory wasted), 0 = by 1/16 of the size plus 128 (the default).
+     */
     def set_compact(compact_array: int) {
         is_compact = compact_array.value;
     }
 
+    /**
+     * A copy of the elements as an array, or null when the list is empty.
+     * This is what `foreach(x in my_list)` uses. O(n).
+     */
     override def get_elements() : T[]? {
         if(n_elements == 0) return null;
         else return copy(data!!, 0, n_elements) as T[];
     }
 
+    /**
+     * The element at a position: my_list[2]. O(1).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
     def operator[](index: int): T {
         if(index.value >= n_elements || index.value < 0)
             throw new bounds_except(out_of_bounds_msg(index));
         return data[index.value];
     }
 
+    /**
+     * The element at a position (0 = first). O(1).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
     def at(index: int): T {
         if(index.value >= n_elements || index.value < 0)
             throw new bounds_except(out_of_bounds_msg(index));
         return data[index.value];
     }
 
+    /**
+     * The last element. O(1).
+     *
+     * @throws out_of_bounds_exception when the list is empty
+     */
     def last(): T {
         return at(n_elements - 1);
     }
 
+    /**
+     * The first element. O(1).
+     *
+     * @throws out_of_bounds_exception when the list is empty
+     */
     def first(): T {
         return at(0);
     }
 
+    /**
+     * Replace the element at a position and return the element that was
+     * there before. O(1).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
     def put(index: int, element: T) : T {
         if (index.value >= n_elements || index.value < 0)
             throw new bounds_except(out_of_bounds_msg(index));
@@ -71,6 +142,7 @@ class list<T> : loopable<T> {
         return old_val;
     }
 
+    /** Make the storage longer (by the step chosen with set_compact). */
     private def expand() {
         if(is_compact) {
             realloc(data!!, sizeof(data) + min_capacity);
@@ -78,6 +150,7 @@ class list<T> : loopable<T> {
             realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
     }
 
+    /** Make the storage longer so that about `size` more elements fit. */
     private def fit(size: int) {
         remaining := sizeof(data) - (n_elements + 1);
         if(size >= remaining && is_compact) {
@@ -86,6 +159,7 @@ class list<T> : loopable<T> {
             realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + size);
     }
 
+    /** Remove every element. O(1). */
     def clear() {
        if(n_elements > 0) {
            data = new T[default_capacity];
@@ -93,12 +167,22 @@ class list<T> : loopable<T> {
        }
     }
 
+    /**
+     * Remove the last element and return it. O(1).
+     *
+     * @throws out_of_bounds_exception when the list is empty
+     */
     def pop_last() : T {
        item := last();
        pop_back();
        return item;
     }
 
+    /**
+     * Remove the first element and return it. O(n): the others move up.
+     *
+     * @throws out_of_bounds_exception when the list is empty
+     */
     def pop_first() : T {
        if(n_elements > 0) {
            item := data[0];
@@ -109,11 +193,19 @@ class list<T> : loopable<T> {
        }
     }
 
+    /**
+     * Add every element of `lst` at the end of this list, in order (the
+     * same as append_all). The elements are copied over; `lst` is not
+     * changed and may be empty. O(n).
+     */
     def add_all(lst: list<T>) {
-       data = copy(lst.get_elements()!!, 0, lst.size().value) as T[];
-       n_elements = lst.size().value;
+       // (count first: this also makes my_list.add_all(my_list) terminate)
+       n : var = lst.size().value;
+       for(i : var = 0; i < n; i++)
+           add(lst.at(i));
     }
 
+    /** Add every element of `lst` at the end of this list, in order. O(n). */
     def append_all(lst: list<T>) {
        fit(lst.size());
        foreach(item in lst) {
@@ -121,12 +213,14 @@ class list<T> : loopable<T> {
        }
     }
 
+    /** Add an element at the end. O(1), occasionally O(n) when the storage grows. */
     def add(element: T) {
        if(n_elements >= sizeof(data))
            expand();
        data[n_elements++] = element;
     }
 
+    /** Position of the first element that equals `element`, or -1. O(n). */
     def indexof(element: T) : int {
        for(i : var = 0; i < n_elements; i++) {
            if(element == data[i]) {
@@ -137,6 +231,7 @@ class list<T> : loopable<T> {
        return -1;
     }
 
+    /** Remove the last element; does nothing when the list is empty. O(1). */
     def pop_back() {
        if(n_elements > 0) {
            excuse no_val : T;
@@ -144,14 +239,23 @@ class list<T> : loopable<T> {
        }
     }
 
+    /** Number of elements. O(1). */
     def size() : int {
        return n_elements;
     }
 
+    /** true when the list has no elements. O(1). */
     def empty() : bool {
        return n_elements==0;
     }
 
+    /**
+     * Insert an element so that it ends up at position `index`; the element
+     * that was there and all behind it move one position back.
+     * insert(size(), x) adds at the end. O(n).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index > size()
+     */
     def insert(index: int, element: T) {
        if(index.value > n_elements || index.value < 0)
           throw new bounds_except(out_of_bounds_msg(index));
@@ -169,6 +273,7 @@ class list<T> : loopable<T> {
     }
 
 
+    /** Remove the first element that equals `val`; does nothing when there is none. O(n). */
     def remove(val: T) {
        for(i : var = 0; i < n_elements; i++) {
            if(val == data[i]) {
@@ -178,6 +283,10 @@ class list<T> : loopable<T> {
        }
     }
 
+    /**
+     * Remove the first element for which compare_fun(val, element) answers
+     * true; does nothing when there is none. O(n).
+     */
     def remove(val: T, compare_fun: (T, T)(bool)) {
        for(i : var = 0; i < n_elements; i++) {
            if(compare_fun(val, data[i])) {
@@ -187,6 +296,11 @@ class list<T> : loopable<T> {
        }
     }
 
+    /**
+     * Remove the element at a position; the elements behind it move up. O(n).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
     def remove_at(index: int) {
        if(index.value >= n_elements || index.value < 0)
           throw new bounds_except(out_of_bounds_msg(index));
@@ -198,6 +312,10 @@ class list<T> : loopable<T> {
        pop_back();
     }
 
+    /**
+     * Position of the first element for which find_func(element, comparer)
+     * answers true, or -1. O(n).
+     */
     def indexof(comparer: T, find_func: (T, T)(bool)) : int {
        for(i : var = 0; i < n_elements; i++) {
            if(find_func(data[i], comparer)) {
@@ -208,6 +326,12 @@ class list<T> : loopable<T> {
        return -1;
     }
 
+    /**
+     * Sort in place with a simple bubble sort: `swap(a, b)` is asked for
+     * every pair of neighbours (a in front of b) and answers true when the
+     * two are in the wrong order. O(n * n) - fine for short lists; for long
+     * ones use sort(), which is O(n log n).
+     */
     def linear_sort(swap: (T, T)(bool)) {
        for(i : var = 0; i < n_elements; i++) {
 
@@ -224,6 +348,10 @@ class list<T> : loopable<T> {
        }
     }
 
+    /**
+     * The first element for which find_func(element, comparer) answers true,
+     * or null when there is none. O(n).
+     */
     def find(comparer : T, find_func: (T, T)(bool)) : T? {
        for(i : var = 0; i < n_elements; i++) {
            if(find_func(data[i], comparer)) {
@@ -234,6 +362,12 @@ class list<T> : loopable<T> {
        return null;
     }
 
+    /**
+     * Replace the first element for which compare_fun(val, element) answers
+     * true (not 0) with `val`. O(n).
+     *
+     * @return true when an element was replaced, false when none matched
+     */
     def replace(val: T, compare_fun: (T, T)(var)) : bool {
        for(i : var = 0; i < n_elements; i++) {
            if(compare_fun(val, data[i])) {
@@ -275,7 +409,122 @@ class list<T> : loopable<T> {
 //       return hash_value;
 //    }
 
+    // ------------------------------------------------------------------
+    // The most used extras. The rest of the list toolbox (binary search,
+    // ranges, bulk removal, ...) is in std.collections#lists<T>.
+    // ------------------------------------------------------------------
+
+    /** 1 when the list has no elements, otherwise 0 (a native number; empty() answers with a bool object). O(1). */
+    def is_empty() : var {
+        return n_elements == 0;
+    }
+
+    /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
+    def contains(element: T) : var {
+        for(i : var = 0; i < n_elements; i++) {
+            if(element == data[i]) return 1;
+        }
+        return 0;
+    }
+
+    /** Position of the last element that equals `element`, or -1 (indexof gives the first). O(n). */
+    def last_indexof(element: T) : int {
+        for(i : var = n_elements - 1; i >= 0; i--) {
+            if(element == data[i]) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * A new array with the elements, in order. Unlike get_elements() it
+     * never returns null: an empty list gives an array of length 0. O(n).
+     */
+    def to_array() : T[] {
+        result := new T[n_elements];
+        for(i : var = 0; i < n_elements; i++)
+            result[i] = data[i];
+        return result;
+    }
+
+    /**
+     * A new, independent list with the elements at positions
+     * from .. to - 1 (`from` included, `to` not). O(to - from).
+     *
+     * @throws out_of_bounds_exception when from < 0, to > size() or from > to
+     */
+    def sub_list(from: int, to: int) : list<T> {
+        if(from.value < 0 || to.value > n_elements || from.value > to.value)
+            throw new bounds_except("sub_list: range $from..$to is out of bounds");
+
+        result := new list<T>();
+        for(i : var = from.value; i < to.value; i++)
+            result.add(data[i]);
+        return result;
+    }
+
+    /** Reverse the order of the elements in place. O(n). */
+    def reverse() {
+        low : var = 0;
+        high : var = n_elements - 1;
+        while(low < high) {
+            held := data[low];
+            data[low] = data[high];
+            data[high] = held;
+            low++;
+            high--;
+        }
+    }
+
+    /**
+     * Sort the list in place. `compare(a, b)` answers a negative number
+     * when a sorts before b, 0 when they sort the same, a positive number
+     * when a sorts after b:
+     *
+     *     numbers.sort({ a: int, b: int -> (var) return a.value - b.value; });
+     *
+     * Bottom-up merge sort (loops only, no recursion): O(n log n) for any
+     * input, and stable - elements that compare as equal keep their order.
+     * Use this instead of linear_sort, which is O(n * n).
+     */
+    def sort(compare: (T, T)(var)) {
+        n : var = n_elements;
+        if(n < 2) return;
+
+        source := data!!;           // the array the current runs are in
+        target := new T[sizeof(data)];
+        for(width : var = 1; width < n; width = width * 2) {
+            for(low : var = 0; low < n; low = low + width * 2) {
+                middle : var = low + width;
+                if(middle > n) middle = n;
+                high : var = low + width * 2;
+                if(high > n) high = n;
+
+                // merge source[low, middle) and source[middle, high) into target[low, high)
+                left : var = low;
+                right : var = middle;
+                out : var = low;
+                while(left < middle && right < high) {
+                    // "<=" takes from the left run on a tie: that keeps the sort stable
+                    if(compare(source[left], source[right]) <= 0) target[out++] = source[left++];
+                    else target[out++] = source[right++];
+                }
+                while(left < middle) target[out++] = source[left++];
+                while(right < high) target[out++] = source[right++];
+            }
+
+            held := source;
+            source = target;
+            target = held;
+        }
+
+        // whichever array the last pass wrote becomes the storage (both have the same length)
+        data = source;
+    }
+
+    /** The text of the exception for a bad index. */
     private def out_of_bounds_msg(index: int) : string {
-        return "Index: $index, size: $n_elements";
+        // (an int object, so the size prints as "3" and not "3.0000000000000000")
+        count : int = n_elements;
+        return "Index: $index, size: $count";
     }
 }

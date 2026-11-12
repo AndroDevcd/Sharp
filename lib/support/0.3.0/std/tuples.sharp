@@ -1,20 +1,50 @@
 mod std;
 
+/**
+ * Tuples: small classes that bundle two to five values of possibly
+ * different types, for the cases where a class of its own would be overkill
+ * (returning two results from a function, the entries of a dictionary, the
+ * output of zip).
+ *
+ *     point := new pair<int, int>(3, 4);
+ *     point.first;        // 3
+ *     point.second;       // 4
+ *
+ * The fields are public and can be assigned. Each class is generic in the
+ * type of every field; the types have to be object types (int, string,
+ * your own classes), not native `var`.
+ */
+
+/**
+ * @class pair
+ *
+ * Two values. This is also the entry type of `dictionary` (what a
+ * dictionary literal makes): `first` is the key, `second` the value.
+ */
 class pair<A,B> {
+    /** the first value (the key, when the pair is a dictionary entry) */
     first : A;
+    /** the second value (the value, when the pair is a dictionary entry) */
     second : B;
 
+    /** Create a pair from its two values. */
     pair(first : A, second : B) {
         self->first = first;
         self->second = second;
     }
 }
 
+/**
+ * @class triplet
+ *
+ * Three values.
+ */
 class triplet<A,B,C> {
     first : A;
     second : B;
     third : C;
 
+    /** Create a triplet from its three values. */
     triplet(first : A, second : B, third : C) {
         self->first = first;
         self->second = second;
@@ -22,12 +52,18 @@ class triplet<A,B,C> {
     }
 }
 
+/**
+ * @class quad
+ *
+ * Four values.
+ */
 class quad<A,B,C,D> {
     first : A;
     second : B;
     third : C;
     fourth : D;
 
+    /** Create a quad from its four values. */
     quad(first : A, second : B, third : C, fourth : D) {
         self->first = first;
         self->second = second;
@@ -36,6 +72,11 @@ class quad<A,B,C,D> {
     }
 }
 
+/**
+ * @class quint
+ *
+ * Five values.
+ */
 class quint<A,B,C,D,E> {
     first : A;
     second : B;
@@ -43,6 +84,7 @@ class quint<A,B,C,D,E> {
     fourth : D;
     fifth : E;
 
+    /** Create a quint from its five values. */
     quint(first : A, second : B, third : C, fourth : D, fifth : E) {
         self->first = first;
         self->second = second;

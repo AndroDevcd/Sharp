@@ -1,0 +1,241 @@
+mod std.collections;
+
+/**
+ * @class priority_queue
+ *
+ * A queue that always hands out its SMALLEST element first, whatever order
+ * the elements were added in. "Smallest" is decided by a comparison function
+ * given to the constructor:
+ *
+ *     compare(a, b) < 0     a comes out before b
+ *     compare(a, b) == 0    a and b have the same priority
+ *     compare(a, b) > 0     a comes out after b
+ *
+ *     // smallest number first
+ *     pq := new priority_queue<int>({ a: int, b: int -> (var) return a.value - b.value; });
+ *     pq.add(5);  pq.add(1);  pq.add(3);
+ *     pq.poll();      // 1
+ *     pq.poll();      // 3
+ *
+ * To get the LARGEST first, turn the comparison around (b.value - a.value).
+ *
+ * Implementation: a binary heap stored in an array. The element at index i
+ * has its children at 2i+1 and 2i+2, and every element is <= its children,
+ * so the smallest one is always at index 0. add and poll are O(log n), peek
+ * is O(1).
+ *
+ * Elements with the same priority come out in no particular order (a heap is
+ * not stable).
+ *
+ * Looping (foreach, iterator, to_sorted_array) visits the elements in
+ * priority order without removing them; that costs O(n log n) because a
+ * sorted copy is made.
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `var` cannot be used as T.
+ */
+class priority_queue<T> : loopable<T>, iterable<T> {
+    /** the heap; heap[0] is the smallest element */
+    private heap : T[]?;
+    /** number of elements */
+    private count : var;
+    /** negative: first argument comes out first; see the class comment */
+    private compare : (T, T)(var);
+
+    private static const default_capacity : var = 16;
+
+    /**
+     * Create an empty priority queue.
+     *
+     * @param compare the ordering, see the class comment
+     */
+    priority_queue(compare: (T, T)(var)) {
+        heap = new T[default_capacity];
+        count = 0;
+        self->compare = compare;
+    }
+
+    /** Number of elements. O(1). */
+    def size() : var {
+        return count;
+    }
+
+    /** 1 when there are no elements, otherwise 0. O(1). */
+    def is_empty() : var {
+        return count == 0;
+    }
+
+    /** Add an element. O(log n). */
+    def add(element: T) {
+        if(count == sizeof(heap)) {
+            bigger := new T[count * 2];
+            for(i : var = 0; i < count; i++)
+                bigger[i] = heap[i];
+            heap = bigger;
+        }
+
+        heap[count] = element;
+        sift_up(heap!!, count);
+        count++;
+    }
+
+    /** Add every element of a `list`. O(m log n) for m new elements. */
+    def add_all(elements: list<T>) {
+        n : var = elements.size().value;
+        for(i : var = 0; i < n; i++)
+            add(elements.at(i));
+    }
+
+    /**
+     * The smallest element (it stays in the queue). O(1).
+     *
+     * @throws no_such_element_exception when the queue is empty
+     */
+    def peek() : T {
+        if(count == 0)
+            throw new no_such_element_exception("priority_queue: peek called on an empty queue");
+        return heap[0];
+    }
+
+    /** The smallest element, or null when the queue is empty. O(1). */
+    def peek_or_null() : T? {
+        if(count == 0) return null;
+        return heap[0];
+    }
+
+    /**
+     * Remove the smallest element and return it. O(log n).
+     *
+     * @throws no_such_element_exception when the queue is empty
+     */
+    def poll() : T {
+        if(count == 0)
+            throw new no_such_element_exception("priority_queue: poll called on an empty queue");
+        return remove_slot(0);
+    }
+
+    /** Remove and return the smallest element, or return null when the queue is empty. O(log n). */
+    def poll_or_null() : T? {
+        if(count == 0) return null;
+        return remove_slot(0);
+    }
+
+    /**
+     * Remove one element that equals `element` (compared with `==`). O(n).
+     *
+     * @return 1 when an element was removed, 0 when there was none
+     */
+    def remove(element: T) : var {
+        for(i : var = 0; i < count; i++) {
+            if(heap[i] == element) {
+                remove_slot(i);
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    /** 1 when an element equals `element`, otherwise 0. O(n). */
+    def contains(element: T) : var {
+        for(i : var = 0; i < count; i++) {
+            if(heap[i] == element) return 1;
+        }
+        return 0;
+    }
+
+    /** Remove every element. O(1). */
+    def clear() {
+        heap = new T[default_capacity];
+        count = 0;
+    }
+
+    /**
+     * A new array with all elements in priority order (smallest first). The
+     * queue itself is not changed. O(n log n).
+     */
+    def to_sorted_array() : T[] {
+        // work on a copy of the heap: take the smallest off n times
+        scratch := new T[count];
+        for(i : var = 0; i < count; i++)
+            scratch[i] = heap[i];
+
+        result := new T[count];
+        remaining : var = count;
+        for(i : var = 0; i < count; i++) {
+            result[i] = scratch[0];
+            remaining--;
+            scratch[0] = scratch[remaining];
+            sift_down(scratch, remaining, 0);
+        }
+        return result;
+    }
+
+    /** A new `list` with all elements in priority order. The queue is not changed. O(n log n). */
+    def to_list() : list<T> {
+        sorted := to_sorted_array();
+        result := new list<T>();
+        for(i : var = 0; i < sizeof(sorted); i++)
+            result.add(sorted[i]);
+        return result;
+    }
+
+    /**
+     * The elements in priority order, or null when the queue is empty. This
+     * is what `foreach` uses. O(n log n).
+     */
+    override def get_elements() : T[]? {
+        if(count == 0) return null;
+        return to_sorted_array();
+    }
+
+    /** An iterator over a snapshot of the elements in priority order. O(n log n) to create. */
+    override def iterator() : iterator<T> {
+        return new array_iterator<T>(get_elements());
+    }
+
+    /**
+     * Take the element at heap index `index` out: the last element takes its
+     * place and is then moved up or down until the heap rule holds again.
+     */
+    private def remove_slot(index: var) : T {
+        removed := heap[index];
+        count--;
+        if(index < count) {
+            heap[index] = heap[count];
+            sift_down(heap!!, count, index);
+            sift_up(heap!!, index);
+        }
+        excuse nothing : T;
+        heap[count] = nothing;      // drop the reference so the element can be collected
+        return removed;
+    }
+
+    /** Move the element at `index` towards the root while it is smaller than its parent. */
+    private def sift_up(items: T[], index: var) {
+        element := items[index];
+        while(index > 0) {
+            parent : var = (index - 1) >> 1;
+            if(compare(element, items[parent]) >= 0) break;
+            items[index] = items[parent];
+            index = parent;
+        }
+        items[index] = element;
+    }
+
+    /** Move the element at `index` towards the leaves while a child is smaller; `length` = used part of the array. */
+    private def sift_down(items: T[], length: var, index: var) {
+        if(index >= length) return;
+        element := items[index];
+        while(true) {
+            child : var = index * 2 + 1;
+            if(child >= length) break;
+            // pick the smaller of the two children
+            if(child + 1 < length && compare(items[child + 1], items[child]) < 0)
+                child = child + 1;
+            if(compare(items[child], element) >= 0) break;
+            items[index] = items[child];
+            index = child;
+        }
+        items[index] = element;
+    }
+}

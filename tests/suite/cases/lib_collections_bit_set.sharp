@@ -1,0 +1,248 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * std.collections - bit_set: single bits, ranges, counting, scanning and
+ * the bitwise combinations of two sets. Bits are stored 30 to a word, so
+ * the indexes 29, 30, 59, 60 are the interesting borders.
+ */
+
+def test_single_bits() {
+    b := new bit_set();
+    expect("new: is_empty", b.is_empty(), 1);
+    expect("new: cardinality", b.cardinality(), 0);
+    expect("new: length", b.length(), 0);
+    expect("new: test", b.test(0), 0);
+    expect("new: test far away", b.test(100000), 0);
+    expect_str("new: to_string", b.to_string(), "{}");
+    expect("new: next_set_bit", b.next_set_bit(0), 0 - 1);
+    expect("new: next_clear_bit", b.next_clear_bit(0), 0);
+
+    b.set_bit(0);
+    b.set_bit(5);
+    b.set_bit(29);
+    b.set_bit(30);
+    b.set_bit(64);
+    expect("test 0", b.test(0), 1);
+    expect("test 1", b.test(1), 0);
+    expect("test 5", b.test(5), 1);
+    expect("test 29 (last bit of word 0)", b.test(29), 1);
+    expect("test 30 (first bit of word 1)", b.test(30), 1);
+    expect("test 31", b.test(31), 0);
+    expect("test 64", b.test(64), 1);
+    expect("cardinality", b.cardinality(), 5);
+    expect("length", b.length(), 65);
+    expect("is_empty", b.is_empty(), 0);
+    expect_str("to_string", b.to_string(), "{0, 5, 29, 30, 64}");
+
+    b.set_bit(5);
+    expect("setting twice changes nothing", b.cardinality(), 5);
+    b.clear_bit(5);
+    expect("clear_bit", b.test(5), 0);
+    expect("clear_bit keeps the neighbours", b.test(0) + b.test(29), 2);
+    b.clear_bit(5);
+    expect("clearing twice changes nothing", b.cardinality(), 4);
+    b.clear_bit(5000);
+    expect("clearing beyond the end does not grow", b.length(), 65);
+
+    b.flip(5);
+    expect("flip off -> on", b.test(5), 1);
+    b.flip(5);
+    expect("flip on -> off", b.test(5), 0);
+    b.flip(200);
+    expect("flip grows", b.test(200), 1);
+    b.assign(7, 1);
+    expect("assign 1", b.test(7), 1);
+    b.assign(7, 0);
+    expect("assign 0", b.test(7), 0);
+
+    // growth: far beyond the first words, earlier bits survive
+    b.set_bit(3000);
+    expect("grown: new bit", b.test(3000), 1);
+    expect("grown: old bits survive", b.test(0) + b.test(29) + b.test(30) + b.test(64) + b.test(200), 5);
+    expect("grown: length", b.length(), 3001);
+    expect("grown: cardinality", b.cardinality(), 6);
+
+    b.clear();
+    expect("clear: is_empty", b.is_empty(), 1);
+    expect("clear: length", b.length(), 0);
+    expect("clear: test", b.test(3000), 0);
+
+    try { b.set_bit(0 - 1); fail("set_bit(-1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("set_bit(-1)"); }
+    try { b.clear_bit(0 - 1); fail("clear_bit(-1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("clear_bit(-1)"); }
+    try { b.test(0 - 1); fail("test(-1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("test(-1)"); }
+    try { b.flip(0 - 3); fail("flip(-3)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("flip(-3)"); }
+    try { b.next_set_bit(0 - 1); fail("next_set_bit(-1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("next_set_bit(-1)"); }
+    try { bad := new bit_set(0 - 1); fail("bit_set(-1)", "did not throw"); } catch(e: illegal_argument_exception) { pass("bit_set(-1)"); }
+
+    sized := new bit_set(1000);
+    expect("sized: starts empty", sized.cardinality(), 0);
+    sized.set_bit(999);
+    expect("sized: last bit", sized.test(999), 1);
+    sized.set_bit(1000);
+    expect("sized: one past the size still works", sized.test(1000), 1);
+}
+
+def test_ranges_and_scans() {
+    b := new bit_set();
+    b.set_range(25, 65);            // crosses two word borders (30 and 60)
+    expect("set_range cardinality", b.cardinality(), 40);
+    expect("set_range before", b.test(24), 0);
+    expect("set_range first", b.test(25), 1);
+    expect("set_range last", b.test(64), 1);
+    expect("set_range after", b.test(65), 0);
+    expect("set_range length", b.length(), 65);
+
+    b.clear_range(30, 60);          // exactly word 1
+    expect("clear_range cardinality", b.cardinality(), 10);
+    expect("clear_range kept 29", b.test(29), 1);
+    expect("clear_range cleared 30", b.test(30), 0);
+    expect("clear_range cleared 59", b.test(59), 0);
+    expect("clear_range kept 60", b.test(60), 1);
+    expect_str("clear_range to_string", b.to_string(), "{25, 26, 27, 28, 29, 60, 61, 62, 63, 64}");
+
+    b.set_range(10, 10);
+    expect("empty range sets nothing", b.cardinality(), 10);
+    try { b.set_range(5, 4); fail("set_range from > to", "did not throw"); } catch(e: out_of_bounds_exception) { pass("set_range from > to"); }
+    try { b.clear_range(0 - 1, 4); fail("clear_range negative", "did not throw"); } catch(e: out_of_bounds_exception) { pass("clear_range negative"); }
+
+    // scanning: bits 25..29 and 60..64 are on
+    expect("next_set_bit from 0", b.next_set_bit(0), 25);
+    expect("next_set_bit on a set bit", b.next_set_bit(27), 27);
+    expect("next_set_bit skips the empty word", b.next_set_bit(30), 60);
+    expect("next_set_bit after the last", b.next_set_bit(65), 0 - 1);
+    expect("next_set_bit far beyond", b.next_set_bit(100000), 0 - 1);
+    expect("next_clear_bit from 0", b.next_clear_bit(0), 0);
+    expect("next_clear_bit inside a run", b.next_clear_bit(25), 30);
+    expect("next_clear_bit at the end of the last run", b.next_clear_bit(60), 65);
+    expect("next_clear_bit beyond the stored words", b.next_clear_bit(100000), 100000);
+
+    full := new bit_set();
+    full.set_range(0, 60);          // two completely full words
+    expect("next_clear_bit skips full words", full.next_clear_bit(0), 60);
+    expect("full words cardinality", full.cardinality(), 60);
+
+    // the documented loop over all set bits
+    visited : var = 0;
+    sum : var = 0;
+    for(i : var = b.next_set_bit(0); i >= 0; i = b.next_set_bit(i + 1)) {
+        visited++;
+        sum += i;
+    }
+    expect("loop over set bits: count", visited, 10);
+    expect("loop over set bits: sum (25..29 + 60..64)", sum, 445);
+
+    indexes := b.to_list();
+    expect("to_list size", indexes.size().value, 10);
+    expect("to_list first", indexes.at(0).value, 25);
+    expect("to_list last", indexes.at(9).value, 64);
+}
+
+def test_combining() {
+    // a = {1, 2, 3, 40, 100}, b = {2, 3, 4, 40, 70}
+    a := new bit_set();
+    a.set_bit(1); a.set_bit(2); a.set_bit(3); a.set_bit(40); a.set_bit(100);
+    b := new bit_set();
+    b.set_bit(2); b.set_bit(3); b.set_bit(4); b.set_bit(40); b.set_bit(70);
+
+    both := a.copy_of();
+    both.and_with(b);
+    expect_str("and_with", both.to_string(), "{2, 3, 40}");
+
+    either := a.copy_of();
+    either.or_with(b);
+    expect_str("or_with", either.to_string(), "{1, 2, 3, 4, 40, 70, 100}");
+
+    one_side := a.copy_of();
+    one_side.xor_with(b);
+    expect_str("xor_with", one_side.to_string(), "{1, 4, 70, 100}");
+
+    only_a := a.copy_of();
+    only_a.and_not(b);
+    expect_str("and_not", only_a.to_string(), "{1, 100}");
+
+    expect_str("the operands are not changed: a", a.to_string(), "{1, 2, 3, 40, 100}");
+    expect_str("the operands are not changed: b", b.to_string(), "{2, 3, 4, 40, 70}");
+
+    expect("intersects", a.intersects(b), 1);
+    expect("intersects nothing in common", only_a.intersects(b), 0);
+    expect("intersects with empty", a.intersects(new bit_set()), 0);
+
+    // different capacities: a small set combined with a big one and the other way round
+    small := new bit_set();
+    small.set_bit(3);
+    large := new bit_set();
+    large.set_bit(3); large.set_bit(900);
+    grown := small.copy_of();
+    grown.or_with(large);
+    expect_str("or_with a longer set grows", grown.to_string(), "{3, 900}");
+    cut := large.copy_of();
+    cut.and_with(small);
+    expect_str("and_with a shorter set clears the rest", cut.to_string(), "{3}");
+    flipped := small.copy_of();
+    flipped.xor_with(large);
+    expect_str("xor_with a longer set", flipped.to_string(), "{900}");
+    kept := large.copy_of();
+    kept.and_not(small);
+    expect_str("and_not with a shorter set", kept.to_string(), "{900}");
+
+    // same_bits ignores the capacity
+    expect("same_bits with itself", a.same_bits(a), 1);
+    expect("same_bits with a copy", a.same_bits(a.copy_of()), 1);
+    expect("same_bits different", a.same_bits(b), 0);
+    roomy := new bit_set(5000);
+    roomy.set_bit(3);
+    expect("same_bits with different capacity", small.same_bits(roomy), 1);
+    expect("same_bits with different capacity, other way", roomy.same_bits(small), 1);
+    roomy.set_bit(4000);
+    expect("same_bits: a bit beyond the shorter one", small.same_bits(roomy), 0);
+
+    copy := a.copy_of();
+    copy.set_bit(7);
+    expect("copy_of is independent", a.test(7), 0);
+}
+
+/** the sieve of Eratosthenes: a classic use, and a larger scale check */
+def test_sieve() {
+    limit : var = 10000;
+    composite := new bit_set(limit + 1);
+    for(i : var = 2; i * i <= limit; i++) {
+        if(!composite.test(i)) {
+            for(multiple : var = i * i; multiple <= limit; multiple += i)
+                composite.set_bit(multiple);
+        }
+    }
+
+    primes : var = 0;
+    last_prime : var = 0;
+    for(i : var = 2; i <= limit; i++) {
+        if(!composite.test(i)) { primes++; last_prime = i; }
+    }
+    expect("sieve: primes below 10000", primes, 1229);
+    expect("sieve: the largest of them", last_prime, 9973);
+    expect("sieve: composites (2..10000 without the primes)", composite.cardinality(), 9999 - 1229);
+    expect("sieve: first composite", composite.next_set_bit(0), 4);
+    expect("sieve: 7919 is prime", composite.test(7919), 0);
+    expect("sieve: 7917 is not", composite.test(7917), 1);
+
+    // every third bit of 6000, counted three ways
+    thirds := new bit_set();
+    for(i : var = 0; i < 6000; i += 3) thirds.set_bit(i);
+    expect("thirds: cardinality", thirds.cardinality(), 2000);
+    expect("thirds: length", thirds.length(), 5998);
+    expect("thirds: to_list", thirds.to_list().size().value, 2000);
+    wrong : var = 0;
+    for(i : var = 0; i < 6000; i++) {
+        if(thirds.test(i) != (i % 3 == 0)) wrong++;
+    }
+    expect("thirds: every bit is as expected", wrong, 0);
+}
+
+def main(args: string[]) {
+    test_single_bits();
+    test_ranges_and_scans();
+    test_combining();
+    test_sieve();
+    finish("lib_collections_bit_set");
+}

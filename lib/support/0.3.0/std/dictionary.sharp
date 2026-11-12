@@ -1,9 +1,59 @@
 mod std;
 
-class dictionary<k,v> {
+/**
+ * @class dictionary
+ *
+ * What a dictionary literal makes:
+ *
+ *     ages := { "ann" : 31, "bob" : 45 };
+ *     none := { as <string, int> : };              // an empty one
+ *
+ * A dictionary is a short, ORDERED list of key/value pairs: `map` holds one
+ * pair<k, v> per entry of the literal, in the order they were written
+ * (`first` is the key, `second` the value). The same key may appear more
+ * than once; the literal does not check.
+ *
+ *     ages.size();                                 // 2
+ *     foreach(entry in ages) println(entry.first + " = " + entry.second);
+ *     ages.map.at(1).second;                       // 45
+ *
+ * It deliberately has no lookup by key. The literal above is typed by its
+ * raw literals - dictionary<_int8[], _int32>, native types, not string and
+ * int - and native keys cannot be hashed or compared by value, and generic
+ * code that mentions `v?` or list<k> does not compile for them. To look
+ * values up, loop over the pairs once and put them into a hash_map or one
+ * of the map classes of std.collections.
+ *
+ * The compiler builds a literal by calling the constructor below with an
+ * array of pairs, so the constructor and the `map` field must stay.
+ */
+class dictionary<k,v> : loopable<pair<k,v> > {
+    /** the pairs, in the order they were written; `first` is the key, `second` the value */
     map := new list<pair<k,v> >();
 
+    /** Create a dictionary from an array of pairs (this is what a literal calls). */
     dictionary(dict : pair<k,v>[]) {
-        map.add_all(dict);
+        // (one by one: an empty literal passes an empty array, which the
+        // bulk copy functions cannot handle)
+        for(i : var = 0; i < sizeof(dict); i++)
+            map.add(dict[i]);
+    }
+
+    /** Number of pairs (a key that was written twice counts twice). O(1). */
+    def size() : var {
+        return map.size().value;
+    }
+
+    /** 1 when the dictionary has no pairs, otherwise 0. O(1). */
+    def is_empty() : var {
+        return map.size().value == 0;
+    }
+
+    /**
+     * The pairs as an array, or null when the dictionary is empty. This is
+     * what `foreach(entry in my_dictionary)` uses. O(n).
+     */
+    override def get_elements() : pair<k,v>[]? {
+        return map.get_elements();
     }
 }

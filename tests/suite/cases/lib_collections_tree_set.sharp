@@ -1,0 +1,222 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * std.collections - tree_set, and tree_map checked against a simple reference
+ * through 2000 pseudo random inserts and removes.
+ */
+
+def ascending(a: int, b: int) : var { return a.value - b.value; }
+def descending(a: int, b: int) : var { return b.value - a.value; }
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    text := "";
+    for(i : var = 0; i < items.size().value; i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** "1,2,3" for the keys an entry iterator still has to give */
+def drain_keys(it: iterator<map_entry<int, string> >) : string {
+    text := "";
+    first : var = 1;
+    while(it.has_next()) {
+        if(!first) text = text + ",";
+        first = 0;
+        text = text + it.next().key;
+    }
+    return text;
+}
+
+/** the value of a nullable int, or -1 for null */
+def or_minus_one(value: int?) : var {
+    if(value == null) return 0 - 1;
+    return value!!.value;
+}
+
+/** 2000 pseudo random inserts and removes, checked against a plain array of flags */
+def test_tree_map_against_reference() {
+    present := new var[500];        // the reference: present[k] = 1 when key k is in the map
+    stored := new var[500];         // ... and the value stored for it
+    count : var = 0;
+
+    m := new tree_map<int, int>(ascending);
+    seed : var = 2024;
+    agree : var = 1;
+    for(step : var = 0; step < 2000; step++) {
+        seed = (seed * 7919 + 104729) % 1000003;
+        key : var = seed % 500;
+        seed = (seed * 7919 + 104729) % 1000003;
+
+        if(seed % 3 == 0) {
+            // remove
+            was_there : var = present[key];
+            if(was_there) { present[key] = 0; count--; }
+            if(m.remove(key) != was_there) agree = 0;
+        } else {
+            // insert or replace
+            was_new : var = !present[key];
+            if(was_new) { present[key] = 1; count++; }
+            stored[key] = step;
+            if(m.put(key, step) != was_new) agree = 0;
+        }
+        if(m.size() != count) agree = 0;
+    }
+    expect("tree random put/remove results agree with the reference", agree, 1);
+    expect("tree random size", m.size(), count);
+    expect_true("tree random height is logarithmic", m.height() <= 12);
+
+    // every key: contains, value
+    for(key : var = 0; key < 500; key++) {
+        if(m.contains_key(key) != present[key]) agree = 0;
+        if(present[key]) {
+            if(m.at(key)!!.value != stored[key]) agree = 0;
+        }
+    }
+    expect("tree random contents agree with the reference", agree, 1);
+
+    // the iteration is exactly the present keys in ascending order
+    expected_key : var = 0;
+    walked : var = 0;
+    foreach(entry in m) {
+        while(expected_key < 500 && !present[expected_key]) expected_key++;
+        if(entry.key.value != expected_key) agree = 0;
+        expected_key++;
+        walked++;
+    }
+    expect("tree random iteration is sorted and complete", agree, 1);
+    expect("tree random iteration count", walked, count);
+
+    // floor / ceiling / lower / higher for every possible key, against a linear scan
+    for(key : var = 0; key < 500; key++) {
+        floor : var = 0 - 1;
+        for(k : var = key; k >= 0; k--) { if(present[k]) { floor = k; break; } }
+        ceiling : var = 0 - 1;
+        for(k : var = key; k < 500; k++) { if(present[k]) { ceiling = k; break; } }
+        lower : var = 0 - 1;
+        for(k : var = key - 1; k >= 0; k--) { if(present[k]) { lower = k; break; } }
+        higher : var = 0 - 1;
+        for(k : var = key + 1; k < 500; k++) { if(present[k]) { higher = k; break; } }
+
+        if(or_minus_one(m.floor_key(key)) != floor) agree = 0;
+        if(or_minus_one(m.ceiling_key(key)) != ceiling) agree = 0;
+        if(or_minus_one(m.lower_key(key)) != lower) agree = 0;
+        if(or_minus_one(m.higher_key(key)) != higher) agree = 0;
+    }
+    expect("tree random neighbours agree with a linear scan", agree, 1);
+
+    // a range, counted both ways
+    in_range : var = 0;
+    for(k : var = 100; k < 300; k++) in_range += present[k];
+    expect("tree random range_keys", m.range_keys(100, 300).size().value, in_range);
+    it := m.range_iterator(100, 300);
+    walked = 0;
+    while(it.has_next()) { it.next(); walked++; }
+    expect("tree random range_iterator", walked, in_range);
+
+    // empty it from the front: keys must come out ascending
+    previous : var = 0 - 1;
+    while(!m.is_empty()) {
+        key : var = m.poll_first().key.value;
+        if(key <= previous) agree = 0;
+        previous = key;
+    }
+    expect("tree random poll_first order", agree, 1);
+    expect("tree random empty at the end", m.height(), 0);
+}
+
+def test_tree_set() {
+    s := new tree_set<int>(ascending);
+    expect("tset new size", s.size(), 0);
+    expect("tset new is_empty", s.is_empty(), 1);
+    expect_null("tset empty get_elements", s.get_elements());
+    expect_null("tset floor on empty", s.floor(1));
+    expect("tset tail on empty", s.tail(1).size().value, 0);
+    try { s.first(); fail("tset first empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset first empty"); }
+    try { s.last(); fail("tset last empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset last empty"); }
+    try { s.poll_first(); fail("tset poll_first empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset poll_first empty"); }
+    try { s.poll_last(); fail("tset poll_last empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset poll_last empty"); }
+
+    expect("tset add", s.add(5), 1);
+    expect("tset add 2", s.add(1), 1);
+    expect("tset add 3", s.add(9), 1);
+    expect("tset add duplicate", s.add(5), 0);
+    expect("tset add 4", s.add(3), 1);
+    expect("tset add 5", s.add(7), 1);
+    expect("tset size", s.size(), 5);
+    expect_str("tset sorted", join(s.to_list()), "1,3,5,7,9");
+    expect("tset to_array", s.to_array()[4].value, 9);
+    expect("tset contains", s.contains(7), 1);
+    expect("tset contains missing", s.contains(6), 0);
+    expect("tset first", s.first().value, 1);
+    expect("tset last", s.last().value, 9);
+    expect("tset floor", or_minus_one(s.floor(6)), 5);
+    expect("tset floor exact", or_minus_one(s.floor(7)), 7);
+    expect("tset ceiling", or_minus_one(s.ceiling(6)), 7);
+    expect("tset lower", or_minus_one(s.lower(5)), 3);
+    expect("tset lower none", or_minus_one(s.lower(1)), 0 - 1);
+    expect("tset higher", or_minus_one(s.higher(5)), 7);
+    expect("tset higher none", or_minus_one(s.higher(9)), 0 - 1);
+    expect_str("tset range", join(s.range(3, 9)), "3,5,7");
+    expect_str("tset range empty", join(s.range(4, 5)), "");
+    expect_str("tset head", join(s.head(5)), "1,3");
+    expect_str("tset head of everything", join(s.head(100)), "1,3,5,7,9");
+    expect_str("tset tail", join(s.tail(5)), "5,7,9");
+    expect_str("tset tail between", join(s.tail(8)), "9");
+    expect_str("tset tail of nothing", join(s.tail(10)), "");
+
+    digits : var = 0;
+    foreach(x in s) { digits = digits * 10 + x.value; }
+    expect("tset foreach", digits, 13579);
+    it := s.iterator();
+    digits = 0;
+    while(it.has_next()) digits = digits * 10 + it.next().value;
+    expect("tset iterator", digits, 13579);
+    back := s.descending_iterator();
+    digits = 0;
+    while(back.has_next()) digits = digits * 10 + back.next().value;
+    expect("tset descending_iterator", digits, 97531);
+
+    expect("tset remove", s.remove(5), 1);
+    expect("tset remove again", s.remove(5), 0);
+    expect("tset poll_first", s.poll_first().value, 1);
+    expect("tset poll_last", s.poll_last().value, 9);
+    expect_str("tset after removes", join(s.to_list()), "3,7");
+
+    more := new list<int>();
+    more.add(7); more.add(4); more.add(8); more.add(4);
+    expect("tset add_all counts the new ones", s.add_all(more), 2);
+    expect_str("tset after add_all", join(s.to_list()), "3,4,7,8");
+    s.clear();
+    expect("tset clear", s.size(), 0);
+
+    // scale: 3000 pseudo random numbers; the set must hold each once, sorted
+    seen := new var[2000];
+    distinct : var = 0;
+    seed : var = 99;
+    for(i : var = 0; i < 3000; i++) {
+        seed = (seed * 7919 + 104729) % 1000003;
+        value : var = seed % 2000;
+        if(!seen[value]) { seen[value] = 1; distinct++; }
+        s.add(value);
+    }
+    expect("tset big size", s.size(), distinct);
+    sorted : var = 1;
+    previous : var = 0 - 1;
+    foreach(x in s) {
+        if(x.value <= previous) sorted = 0;
+        if(!seen[x.value]) sorted = 0;
+        previous = x.value;
+    }
+    expect("tset big is sorted and has no strangers", sorted, 1);
+}
+
+def main(args: string[]) {
+    test_tree_map_against_reference();
+    test_tree_set();
+    finish("lib_collections_tree_set");
+}

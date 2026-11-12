@@ -1,0 +1,34 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUG: `mutate` on a GENERIC class. This file is EXPECTED TO FAIL (it
+ * does not compile).
+ *
+ * `mutate list { ... }` adds members to std list<T>. They are there on the
+ * instantiations the library itself also makes (list<string>, list<int>),
+ * but missing on an instantiation that only this program makes (list<card>):
+ *
+ *     error S8017: could not resolve symbol `is_blank(): unknown`
+ *
+ * It makes no difference whether the mutate block is in the program, in a
+ * library file, in module std or in another module.
+ *
+ * Because of this std.collections offers the extra list operations as static
+ * helpers (lists<T>) instead of adding them to list with mutate.
+ */
+
+class card { rank : var; }
+
+mutate list {
+    def is_blank() : var { return size().value == 0; }
+}
+
+def main(args: string[]) {
+    a := new list<string>();
+    expect("list<string> (also instantiated inside the library)", a.is_blank(), 1);
+    b := new list<card>();
+    expect("list<card> (only instantiated here)", b.is_blank(), 1);
+    finish("lib_collections_mutate_generic");
+}

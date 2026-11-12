@@ -1,0 +1,192 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * std.collections - linked_list (with linked_list_iterator) and array_iterator:
+ * the iterator / iterable protocol every collection of the module shares.
+ */
+
+/** "1,2,3" for an array of ints ("" for null or empty) */
+def join(items: int[]?) : string {
+    text := "";
+    if(items == null) return text;
+    for(i : var = 0; i < sizeof(items); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items[i];
+    }
+    return text;
+}
+
+/** "1,2,3" for everything an iterator still has to give */
+def drain(it: iterator<int>) : string {
+    text := "";
+    first : var = 1;
+    while(it.has_next()) {
+        if(!first) text = text + ",";
+        first = 0;
+        text = text + it.next();
+    }
+    return text;
+}
+
+/** works with ANY collection of the module: that is the point of `iterable` */
+def total(numbers: iterable<int>) : var {
+    sum : var = 0;
+    it := numbers.iterator();
+    while(it.has_next()) sum += it.next().value;
+    return sum;
+}
+
+def ascending(a: int, b: int) : var { return a.value - b.value; }
+def descending(a: int, b: int) : var { return b.value - a.value; }
+
+def test_linked_list() {
+    l := new linked_list<int>();
+    expect("ll new size", l.size(), 0);
+    expect("ll new is_empty", l.is_empty(), 1);
+    expect_null("ll empty get_elements", l.get_elements());
+    expect("ll empty to_array", sizeof(l.to_array()), 0);
+    expect_null("ll first_or_null empty", l.first_or_null());
+    expect_null("ll last_or_null empty", l.last_or_null());
+    expect("ll empty iterator", l.iterator().has_next(), 0);
+
+    l.add(2);
+    l.add_last(3);
+    l.add_first(1);
+    expect_str("ll add order", join(l.to_array()), "1,2,3");
+    expect("ll size 3", l.size(), 3);
+    expect("ll is_empty 0", l.is_empty(), 0);
+    expect("ll first", l.first().value, 1);
+    expect("ll last", l.last().value, 3);
+    expect("ll first_or_null", l.first_or_null()!!.value, 1);
+    expect("ll last_or_null", l.last_or_null()!!.value, 3);
+
+    // insert at the front, the middle, the back
+    l.insert(0, 0);
+    l.insert(4, 4);
+    l.insert(2, 9);
+    expect_str("ll insert", join(l.to_array()), "0,1,9,2,3,4");
+    expect("ll at 0", l.at(0).value, 0);
+    expect("ll at 2", l.at(2).value, 9);
+    expect("ll at 5 (walks from the tail)", l.at(5).value, 4);
+    expect("ll at 4", l.at(4).value, 3);
+
+    expect("ll put returns old", l.put(2, 7).value, 9);
+    expect_str("ll after put", join(l.to_array()), "0,1,7,2,3,4");
+
+    expect("ll index_of", l.index_of(7), 2);
+    expect("ll index_of last", l.index_of(4), 5);
+    expect("ll index_of missing", l.index_of(42), 0 - 1);
+    expect("ll contains", l.contains(3), 1);
+    expect("ll contains missing", l.contains(8), 0);
+
+    expect("ll remove_at middle", l.remove_at(2).value, 7);
+    expect("ll remove_first", l.remove_first().value, 0);
+    expect("ll remove_last", l.remove_last().value, 4);
+    expect_str("ll after removes", join(l.to_array()), "1,2,3");
+    expect("ll remove value", l.remove(2), 1);
+    expect("ll remove missing value", l.remove(2), 0);
+    expect_str("ll after remove value", join(l.to_array()), "1,3");
+    expect("ll size after removes", l.size(), 2);
+
+    // foreach and both iterators
+    l.add(5); l.add(8);
+    digits : var = 0;
+    foreach(x in l) { digits = digits * 10 + x.value; }
+    expect("ll foreach", digits, 1358);
+    expect_str("ll iterator", drain(l.iterator()), "1,3,5,8");
+    expect_str("ll descending_iterator", drain(l.descending_iterator()), "8,5,3,1");
+    expect("ll through iterable", total(l), 17);
+
+    l.reverse();
+    expect_str("ll reverse", join(l.to_array()), "8,5,3,1");
+    expect("ll reverse first", l.first().value, 8);
+    expect("ll reverse last", l.last().value, 1);
+    expect_str("ll reverse backwards", drain(l.descending_iterator()), "1,3,5,8");
+
+    as_list := l.to_list();
+    expect("ll to_list size", as_list.size().value, 4);
+    expect("ll to_list[1]", as_list.at(1).value, 5);
+
+    l.add_all(as_list);
+    expect_str("ll add_all", join(l.to_array()), "8,5,3,1,8,5,3,1");
+    expect("ll index_of finds the first", l.index_of(1), 3);
+
+    // errors
+    try { l.at(8); fail("ll at(size)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("ll at(size)"); }
+    try { l.at(0 - 1); fail("ll at(-1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("ll at(-1)"); }
+    try { l.insert(9, 1); fail("ll insert(size+1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("ll insert(size+1)"); }
+    try { l.remove_at(8); fail("ll remove_at(size)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("ll remove_at(size)"); }
+    try { l.put(8, 1); fail("ll put(size)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("ll put(size)"); }
+
+    l.clear();
+    expect("ll clear", l.size(), 0);
+    try { l.first(); fail("ll first empty", "did not throw"); } catch(e: no_such_element_exception) { pass("ll first empty"); }
+    try { l.last(); fail("ll last empty", "did not throw"); } catch(e: no_such_element_exception) { pass("ll last empty"); }
+    try { l.remove_first(); fail("ll remove_first empty", "did not throw"); } catch(e: no_such_element_exception) { pass("ll remove_first empty"); }
+    try { l.remove_last(); fail("ll remove_last empty", "did not throw"); } catch(e: no_such_element_exception) { pass("ll remove_last empty"); }
+    it := l.iterator();
+    try { it.next(); fail("ll next on finished iterator", "did not throw"); } catch(e: no_such_element_exception) { pass("ll next on finished iterator"); }
+
+    // a single element is both head and tail
+    l.add_first(6);
+    expect("ll single first", l.first().value, 6);
+    expect("ll single last", l.last().value, 6);
+    expect("ll single remove_last", l.remove_last().value, 6);
+    expect("ll empty again", l.is_empty(), 1);
+    l.add(1);
+    expect_str("ll usable after becoming empty", join(l.to_array()), "1");
+
+    // from an array, and with strings (compared by value)
+    words := new linked_list<string>(new string[] { "b", "c" });
+    words.add_first("a");
+    expect("ll<string> size", words.size(), 3);
+    expect_str("ll<string> at", words.at(1), "b");
+    expect("ll<string> index_of", words.index_of("c"), 2);
+    expect("ll<string> remove", words.remove("b"), 1);
+    expect_str("ll<string> last", words.last(), "c");
+
+    // scale: 3000 elements, sum of 0..2999 = 4498500
+    big := new linked_list<int>();
+    for(i : var = 0; i < 3000; i++) {
+        if(i % 2 == 0) big.add_last(i);
+        else big.add_first(i);
+    }
+    expect("ll big size", big.size(), 3000);
+    expect("ll big sum", total(big), 4498500);
+    expect("ll big first", big.first().value, 2999);
+    expect("ll big last", big.last().value, 2998);
+    expect("ll big at(1499) is the last odd one", big.at(1499).value, 1);
+    expect("ll big at(1500) is the first even one", big.at(1500).value, 0);
+    removed : var = 0;
+    while(big.size() > 10) { big.remove_first(); big.remove_last(); removed += 2; }
+    expect("ll big removed", removed, 2990);
+    expect_str("ll big middle", join(big.to_array()), "9,7,5,3,1,0,2,4,6,8");
+}
+
+def test_array_iterator() {
+    numbers := new int[] { 4, 5, 6, 7 };
+    it := new array_iterator<int>(numbers);
+    expect("array_iterator remaining", it.remaining(), 4);
+    expect("array_iterator next", it.next().value, 4);
+    expect("array_iterator remaining after next", it.remaining(), 3);
+    expect_str("array_iterator rest", drain(it), "5,6,7");
+    expect("array_iterator finished", it.has_next(), 0);
+    try { it.next(); fail("array_iterator next when finished", "did not throw"); } catch(e: no_such_element_exception) { pass("array_iterator next when finished"); }
+
+    part := new array_iterator<int>(numbers, 1, 3);
+    expect_str("array_iterator range", drain(part), "5,6");
+    none := new array_iterator<int>(numbers, 2, 2);
+    expect("array_iterator empty range", none.has_next(), 0);
+    try { bad := new array_iterator<int>(numbers, 2, 5); fail("array_iterator bad range", "did not throw"); } catch(e: out_of_bounds_exception) { pass("array_iterator bad range"); }
+    nothing : int[]? = null;
+    empty := new array_iterator<int>(nothing);
+    expect("array_iterator over null", empty.has_next(), 0);
+}
+
+def main(args: string[]) {
+    test_linked_list();
+    test_array_iterator();
+    finish("lib_collections_linked_list");
+}

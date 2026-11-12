@@ -1,0 +1,282 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * std.collections - collections<T>, the Kotlin style helpers that stay within one
+ * element type: filter, any / all / none, find, sorted_by, chunked, join_to_string, ...
+ * They take any `loopable`, so the sources here are lists, a linked_list, a deque,
+ * a hash_set, a tree_set and a stack.
+ */
+
+class person {
+    name : string;
+    age : var;
+    city : string;
+    person(name: string, age: var, city: string) {
+        self->name = name;
+        self->age = age;
+        self->city = city;
+    }
+}
+
+def ascending(a: int, b: int) : var { return a.value - b.value; }
+def is_even(n: int) : bool { return n.value % 2 == 0; }
+def is_big(n: int) : bool { return n.value > 100; }
+def is_small(n: int) : bool { return n.value < 3; }
+def value_of(n: int) : var { return n.value; }
+def age_of(p: person) : var { return p.age; }
+
+/** a list<int> with the numbers from..to (both included) */
+def numbers(from: var, to: var) : list<int> {
+    result := new list<int>();
+    for(i : var = from; i <= to; i++) result.add(new int(i));
+    return result;
+}
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    return collections<int>.join_to_string(items, ",");
+}
+
+/** the names of a list of people: "ann,bob" */
+def names(people: list<person>) : string {
+    text := "";
+    for(i : var = 0; i < people.size().value; i++) {
+        if(i > 0) text = text + ",";
+        text = text + people.at(i).name;
+    }
+    return text;
+}
+
+def people() : list<person> {
+    result := new list<person>();
+    result.add(new person("ann", 31, "oslo"));
+    result.add(new person("bob", 25, "rome"));
+    result.add(new person("cid", 42, "oslo"));
+    result.add(new person("dee", 25, "bern"));
+    result.add(new person("eve", 37, "rome"));
+    return result;
+}
+
+def test_filtering() {
+    n := numbers(1, 10);
+    empty := new list<int>();
+
+    expect_str("filter", join(collections<int>.filter(n, is_even)), "2,4,6,8,10");
+    expect_str("filter with a lambda", join(collections<int>.filter(n, { x: int -> (bool) return x.value > 7; })), "8,9,10");
+    expect_str("filter nothing matches", join(collections<int>.filter(n, is_big)), "");
+    expect_str("filter of empty", join(collections<int>.filter(empty, is_even)), "");
+    expect_str("filter_not", join(collections<int>.filter_not(n, is_even)), "1,3,5,7,9");
+    expect("filter leaves the source alone", n.size().value, 10);
+
+    parts := collections<int>.partition(n, is_even);
+    expect_str("partition first", join(parts.first), "2,4,6,8,10");
+    expect_str("partition second", join(parts.second), "1,3,5,7,9");
+    none := collections<int>.partition(empty, is_even);
+    expect("partition of empty", none.first.size().value + none.second.size().value, 0);
+
+    expect_str("take", join(collections<int>.take(n, 3)), "1,2,3");
+    expect_str("take 0", join(collections<int>.take(n, 0)), "");
+    expect_str("take more than there is", join(collections<int>.take(numbers(1, 2), 5)), "1,2");
+    expect_str("drop", join(collections<int>.drop(n, 7)), "8,9,10");
+    expect_str("drop 0", join(collections<int>.drop(numbers(1, 3), 0)), "1,2,3");
+    expect_str("drop more than there is", join(collections<int>.drop(n, 11)), "");
+    expect_str("take_last", join(collections<int>.take_last(n, 2)), "9,10");
+    expect_str("take_last more than there is", join(collections<int>.take_last(numbers(1, 2), 5)), "1,2");
+    expect_str("take_while", join(collections<int>.take_while(n, is_small)), "1,2");
+    expect_str("take_while nothing", join(collections<int>.take_while(n, is_big)), "");
+    expect_str("drop_while", join(collections<int>.drop_while(n, { x: int -> (bool) return x.value < 8; })), "8,9,10");
+    expect_str("drop_while keeps later matches", join(collections<int>.drop_while(arrays<int>.to_list(new int[] { 1, 5, 1 }), is_small)), "5,1");
+    try { collections<int>.take(n, 0 - 1); fail("take negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("take negative"); }
+    try { collections<int>.drop(n, 0 - 1); fail("drop negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("drop negative"); }
+    try { collections<int>.take_last(n, 0 - 1); fail("take_last negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("take_last negative"); }
+
+    repeats := arrays<int>.to_list(new int[] { 3, 1, 3, 2, 1, 3 });
+    expect_str("distinct keeps the first of each", join(collections<int>.distinct(repeats)), "3,1,2");
+    expect_str("distinct of empty", join(collections<int>.distinct(empty)), "");
+    words := arrays<string>.to_list(new string[] { "b", "a", "b" });
+    expect("distinct strings by value", collections<string>.distinct(words).size().value, 2);
+}
+
+def test_questions() {
+    n := numbers(1, 10);
+    empty := new list<int>();
+
+    expect("any yes", collections<int>.any(n, is_even), 1);
+    expect("any no", collections<int>.any(n, is_big), 0);
+    expect("any of empty", collections<int>.any(empty, is_even), 0);
+    expect("all no", collections<int>.all(n, is_even), 0);
+    expect("all yes", collections<int>.all(n, { x: int -> (bool) return x.value > 0; }), 1);
+    expect("all of empty", collections<int>.all(empty, is_even), 1);
+    expect("none yes", collections<int>.none(n, is_big), 1);
+    expect("none no", collections<int>.none(n, is_even), 0);
+    expect("none of empty", collections<int>.none(empty, is_even), 1);
+    expect("count", collections<int>.count(n, is_even), 5);
+    expect("count of empty", collections<int>.count(empty, is_even), 0);
+    expect("size", collections<int>.size(n), 10);
+    expect("size of empty", collections<int>.size(empty), 0);
+    expect("contains", collections<int>.contains(n, 7), 1);
+    expect("contains missing", collections<int>.contains(n, 11), 0);
+    expect("index_of", collections<int>.index_of(n, 7), 6);
+    expect("index_of missing", collections<int>.index_of(n, 0), 0 - 1);
+    expect("index_of in empty", collections<int>.index_of(empty, 0), 0 - 1);
+    expect("index_of_first", collections<int>.index_of_first(n, is_even), 1);
+    expect("index_of_first none", collections<int>.index_of_first(n, is_big), 0 - 1);
+
+    expect("find", collections<int>.find(n, is_even)!!.value, 2);
+    expect_null("find nothing", collections<int>.find(n, is_big));
+    expect_null("find in empty", collections<int>.find(empty, is_even));
+    expect("find_last", collections<int>.find_last(n, is_even)!!.value, 10);
+    expect_null("find_last nothing", collections<int>.find_last(n, is_big));
+    expect("first", collections<int>.first(n).value, 1);
+    expect("last", collections<int>.last(n).value, 10);
+    expect("first_or_null", collections<int>.first_or_null(n)!!.value, 1);
+    expect("last_or_null", collections<int>.last_or_null(n)!!.value, 10);
+    expect_null("first_or_null of empty", collections<int>.first_or_null(empty));
+    expect_null("last_or_null of empty", collections<int>.last_or_null(empty));
+    try { collections<int>.first(empty); fail("first of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("first of empty"); }
+    try { collections<int>.last(empty); fail("last of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("last of empty"); }
+}
+
+def test_numbers_and_order() {
+    n := arrays<int>.to_list(new int[] { 4, 9, 2, 7, 5 });
+    empty := new list<int>();
+    crowd := people();
+
+    expect("sum_of", collections<int>.sum_of(n, value_of), 27);
+    expect("sum_of empty", collections<int>.sum_of(empty, value_of), 0);
+    expect("max_of", collections<int>.max_of(n, value_of), 9);
+    expect("min_of", collections<int>.min_of(n, value_of), 2);
+    expect("average_of", collections<int>.average_of(n, value_of), 5.4);
+    expect("sum_of ages", collections<person>.sum_of(crowd, age_of), 160);
+    expect_str("max_by", collections<person>.max_by(crowd, age_of).name, "cid");
+    expect_str("min_by takes the first on a tie", collections<person>.min_by(crowd, age_of).name, "bob");
+    try { collections<int>.max_of(empty, value_of); fail("max_of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("max_of empty"); }
+    try { collections<int>.min_of(empty, value_of); fail("min_of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("min_of empty"); }
+    try { collections<int>.average_of(empty, value_of); fail("average_of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("average_of empty"); }
+    try { collections<person>.max_by(new list<person>(), age_of); fail("max_by empty", "did not throw"); } catch(e: no_such_element_exception) { pass("max_by empty"); }
+    try { collections<person>.min_by(new list<person>(), age_of); fail("min_by empty", "did not throw"); } catch(e: no_such_element_exception) { pass("min_by empty"); }
+
+    expect_str("reversed", join(collections<int>.reversed(n)), "5,7,2,9,4");
+    expect_str("reversed empty", join(collections<int>.reversed(empty)), "");
+    expect_str("sorted_with", join(collections<int>.sorted_with(n, ascending)), "2,4,5,7,9");
+    expect_str("sorted_with leaves the source", join(n), "4,9,2,7,5");
+    expect_str("sorted_by", join(collections<int>.sorted_by(n, value_of)), "2,4,5,7,9");
+    expect_str("sorted_by_descending", join(collections<int>.sorted_by_descending(n, value_of)), "9,7,5,4,2");
+    expect_str("sorted_by empty", join(collections<int>.sorted_by(empty, value_of)), "");
+    expect_str("sorted_by one element", join(collections<int>.sorted_by(numbers(3, 3), value_of)), "3");
+    // equal ages keep their order (bob before dee) in both directions
+    expect_str("sorted_by is stable", names(collections<person>.sorted_by(crowd, age_of)), "bob,dee,ann,eve,cid");
+    expect_str("sorted_by_descending is stable", names(collections<person>.sorted_by_descending(crowd, age_of)), "cid,eve,ann,bob,dee");
+    expect_str("sorted_with a lambda", names(collections<person>.sorted_with(crowd, { a: person, b: person -> (var) return b.age - a.age; })), "cid,eve,ann,bob,dee");
+
+    // scale: sorted_by on 5000 pseudo random numbers
+    big := new list<int>();
+    seed : var = 555;
+    for(i : var = 0; i < 5000; i++) {
+        seed = (seed * 7919 + 104729) % 1000003;
+        big.add(new int(seed));
+    }
+    sorted := collections<int>.sorted_by(big, value_of);
+    in_order : var = 1;
+    for(i : var = 1; i < 5000; i++) {
+        if(sorted.at(i - 1).value > sorted.at(i).value) in_order = 0;
+    }
+    expect("sorted_by 5000: size", sorted.size().value, 5000);
+    expect("sorted_by 5000: ascending", in_order, 1);
+    expect("sorted_by 5000: same sum", collections<int>.sum_of(sorted, value_of), collections<int>.sum_of(big, value_of));
+    expect("sorted_by 5000: first is the minimum", sorted.at(0).value, collections<int>.min_of(big, value_of));
+    expect("sorted_by 5000: last is the maximum", sorted.at(4999).value, collections<int>.max_of(big, value_of));
+}
+
+def test_combining() {
+    n := numbers(1, 5);
+    empty := new list<int>();
+
+    expect_str("plus", join(collections<int>.plus(n, numbers(8, 9))), "1,2,3,4,5,8,9");
+    expect_str("plus empty", join(collections<int>.plus(empty, n)), "1,2,3,4,5");
+
+    chunks := collections<int>.chunked(n, 2);
+    expect("chunked count", chunks.size().value, 3);
+    expect_str("chunked first", join(chunks.at(0)), "1,2");
+    expect_str("chunked second", join(chunks.at(1)), "3,4");
+    expect_str("chunked remainder", join(chunks.at(2)), "5");
+    expect("chunked exact", collections<int>.chunked(numbers(1, 6), 3).size().value, 2);
+    expect("chunked bigger than the source", collections<int>.chunked(n, 10).size().value, 1);
+    expect("chunked empty", collections<int>.chunked(empty, 2).size().value, 0);
+    try { collections<int>.chunked(n, 0); fail("chunked 0", "did not throw"); } catch(e: illegal_argument_exception) { pass("chunked 0"); }
+
+    expect_str("flatten", join(collections<int>.flatten(chunks)), "1,2,3,4,5");
+    expect_str("flatten empty", join(collections<int>.flatten(new list<list<int> >())), "");
+
+    windows := collections<int>.windowed(n, 3);
+    expect("windowed count", windows.size().value, 3);
+    expect_str("windowed first", join(windows.at(0)), "1,2,3");
+    expect_str("windowed last", join(windows.at(2)), "3,4,5");
+    expect("windowed too long", collections<int>.windowed(n, 6).size().value, 0);
+    try { collections<int>.windowed(n, 0); fail("windowed 0", "did not throw"); } catch(e: illegal_argument_exception) { pass("windowed 0"); }
+
+    expect("reduce sum", collections<int>.reduce(n, { a: int, b: int -> (int) return a.value + b.value; }).value, 15);
+    expect("reduce product", collections<int>.reduce(n, { a: int, b: int -> (int) return a.value * b.value; }).value, 120);
+    expect("reduce one element", collections<int>.reduce(numbers(7, 7), { a: int, b: int -> (int) return a.value + b.value; }).value, 7);
+    try { collections<int>.reduce(empty, { a: int, b: int -> (int) return a.value + b.value; }); fail("reduce empty", "did not throw"); } catch(e: no_such_element_exception) { pass("reduce empty"); }
+
+    seen := new list<int>();
+    collections<int>.for_each(n, { x: int -> seen.add(x); });
+    expect_str("for_each", join(seen), "1,2,3,4,5");
+
+    expect_str("join_to_string", collections<int>.join_to_string(n, ", "), "1, 2, 3, 4, 5");
+    expect_str("join_to_string with prefix and postfix", collections<int>.join_to_string(n, "-", "[", "]"), "[1-2-3-4-5]");
+    expect_str("join_to_string one element", collections<int>.join_to_string(numbers(4, 4), ", "), "4");
+    expect_str("join_to_string empty", collections<int>.join_to_string(empty, ", "), "");
+    expect_str("join_to_string empty with brackets", collections<int>.join_to_string(empty, ", ", "<", ">"), "<>");
+    expect_str("join_to_string with an empty separator", collections<int>.join_to_string(n, ""), "12345");
+    expect_str("join_to_string strings", collections<string>.join_to_string(arrays<string>.to_list(new string[] { "a", "b", "c" }), "/"), "a/b/c");
+
+    expect_str("to_list", join(collections<int>.to_list(n)), "1,2,3,4,5");
+    expect("to_array", sizeof(collections<int>.to_array(n)), 5);
+    expect("to_array of empty", sizeof(collections<int>.to_array(empty)), 0);
+}
+
+/** the same helpers on the other collections: anything loopable is a source */
+def test_other_sources() {
+    linked := new linked_list<int>();
+    ring := new deque<int>();
+    unique := new hash_set<int>();
+    ordered := new tree_set<int>(ascending);
+    pile := new stack<int>();
+    foreach(x in arrays<int>.to_list(new int[] { 6, 1, 4, 1, 3 })) {
+        linked.add(x);
+        ring.add_first(x);
+        unique.add(x);
+        ordered.add(x);
+        pile.push(x);
+    }
+
+    expect_str("linked_list source", join(collections<int>.filter(linked, is_even)), "6,4");
+    expect_str("deque source", join(collections<int>.to_list(ring)), "3,1,4,1,6");
+    expect_str("hash_set source", join(collections<int>.sorted_by(unique, value_of)), "1,3,4,6");
+    expect_str("tree_set source", join(collections<int>.take(ordered, 2)), "1,3");
+    expect_str("stack source", join(collections<int>.to_list(pile)), "3,1,4,1,6");
+    expect("sum over a linked_list", collections<int>.sum_of(linked, value_of), 15);
+    expect("any over an empty deque", collections<int>.any(new deque<int>(), is_even), 0);
+    expect("count over a tree_set", collections<int>.count(ordered, is_even), 2);
+    expect_str("distinct over a deque", join(collections<int>.distinct(ring)), "3,1,4,6");
+    expect("first of a priority_queue is its smallest", collections<int>.first(make_heap()).value, 2);
+}
+
+def make_heap() : priority_queue<int> {
+    heap := new priority_queue<int>(ascending);
+    heap.add(9); heap.add(2); heap.add(5);
+    return heap;
+}
+
+def main(args: string[]) {
+    test_filtering();
+    test_questions();
+    test_numbers_and_order();
+    test_combining();
+    test_other_sources();
+    finish("lib_collections_functional");
+}

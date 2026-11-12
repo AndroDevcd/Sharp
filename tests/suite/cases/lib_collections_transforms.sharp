@@ -1,0 +1,129 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * std.collections - transforms<T, R>, the Kotlin style helpers that produce another
+ * type: map, flat_map, fold, group_by, associate, zip, distinct_by.
+ */
+
+class person {
+    name : string;
+    age : var;
+    city : string;
+    person(name: string, age: var, city: string) {
+        self->name = name;
+        self->age = age;
+        self->city = city;
+    }
+}
+
+def ascending(a: int, b: int) : var { return a.value - b.value; }
+def is_even(n: int) : bool { return n.value % 2 == 0; }
+def is_big(n: int) : bool { return n.value > 100; }
+def is_small(n: int) : bool { return n.value < 3; }
+def value_of(n: int) : var { return n.value; }
+def age_of(p: person) : var { return p.age; }
+def city_of(p: person) : string { return p.city; }
+def name_of(p: person) : string { return p.name; }
+
+/** a list<int> with the numbers from..to (both included) */
+def numbers(from: var, to: var) : list<int> {
+    result := new list<int>();
+    for(i : var = from; i <= to; i++) result.add(new int(i));
+    return result;
+}
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    return collections<int>.join_to_string(items, ",");
+}
+
+/** the names of a list of people: "ann,bob" */
+def names(people: list<person>) : string {
+    text := "";
+    for(i : var = 0; i < people.size().value; i++) {
+        if(i > 0) text = text + ",";
+        text = text + people.at(i).name;
+    }
+    return text;
+}
+
+def people() : list<person> {
+    result := new list<person>();
+    result.add(new person("ann", 31, "oslo"));
+    result.add(new person("bob", 25, "rome"));
+    result.add(new person("cid", 42, "oslo"));
+    result.add(new person("dee", 25, "bern"));
+    result.add(new person("eve", 37, "rome"));
+    return result;
+}
+
+def test_transforms() {
+    n := numbers(1, 5);
+    empty := new list<int>();
+    crowd := people();
+
+    doubled := transforms<int, int>.map(n, { x: int -> (int) return x.value * 2; });
+    expect_str("map", join(doubled), "2,4,6,8,10");
+    expect_str("map of empty", join(transforms<int, int>.map(empty, { x: int -> (int) return x.value * 2; })), "");
+    cities := transforms<person, string>.map(crowd, city_of);
+    expect_str("map to another type", collections<string>.join_to_string(cities, ","), "oslo,rome,oslo,bern,rome");
+    lengths := transforms<string, int>.map(cities, { s: string -> (int) return s.size(); });
+    expect("map string -> int", collections<int>.sum_of(lengths, value_of), 20);
+    expect_str("map_indexed", join(transforms<int, int>.map_indexed(n, { i: int, x: int -> (int) return i.value * 10 + x.value; })), "1,12,23,34,45");
+
+    expect_str("flat_map", join(transforms<int, int>.flat_map(numbers(1, 3), { x: int -> (list<int>) return numbers(1, x.value); })), "1,1,2,1,2,3");
+    expect_str("flat_map empty", join(transforms<int, int>.flat_map(empty, { x: int -> (list<int>) return numbers(1, x.value); })), "");
+
+    expect("fold sum", transforms<int, int>.fold(n, 10, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 25);
+    expect("fold of empty is the start value", transforms<int, int>.fold(empty, 10, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 10);
+    expect_str("fold to another type", transforms<person, string>.fold(crowd, "", { text: string, p: person -> (string) return text + p.name; }), "annbobciddeeeve");
+
+    groups := transforms<person, string>.group_by(crowd, city_of);
+    expect("group_by number of groups", groups.size(), 3);
+    expect_str("group_by keys in first-seen order", collections<string>.join_to_string(groups.keys(), ","), "oslo,rome,bern");
+    expect_str("group_by oslo", names(groups.at("oslo")!!), "ann,cid");
+    expect_str("group_by rome", names(groups.at("rome")!!), "bob,eve");
+    expect_str("group_by bern", names(groups.at("bern")!!), "dee");
+    expect("group_by of empty", transforms<person, string>.group_by(new list<person>(), city_of).size(), 0);
+    parity := transforms<int, int>.group_by(numbers(1, 7), { x: int -> (int) return x.value % 3; });
+    expect_str("group_by int keys: 1", join(parity.at(1)!!), "1,4,7");
+    expect_str("group_by int keys: 0", join(parity.at(0)!!), "3,6");
+
+    by_name := transforms<person, string>.associate_by(crowd, name_of);
+    expect("associate_by size", by_name.size(), 5);
+    expect("associate_by lookup", by_name.at("cid")!!.age, 42);
+    by_city := transforms<person, string>.associate_by(crowd, city_of);
+    expect("associate_by: equal keys collapse", by_city.size(), 3);
+    expect_str("associate_by: the last one wins", by_city.at("oslo")!!.name, "cid");
+    squares := transforms<int, int>.associate_with(n, { x: int -> (int) return x.value * x.value; });
+    expect("associate_with size", squares.size(), 5);
+    expect("associate_with lookup", squares.at(4)!!.value, 16);
+
+    pairs := transforms<int, string>.zip(n, cities);
+    expect("zip size", pairs.size().value, 5);
+    expect("zip first.first", pairs.at(0).first.value, 1);
+    expect_str("zip first.second", pairs.at(0).second, "oslo");
+    expect_str("zip last.second", pairs.at(4).second, "rome");
+    expect("zip stops at the shorter one", transforms<int, int>.zip(n, numbers(1, 2)).size().value, 2);
+    expect("zip with empty", transforms<int, int>.zip(n, empty).size().value, 0);
+
+    expect_str("distinct_by", names(transforms<person, string>.distinct_by(crowd, city_of)), "ann,bob,dee");
+
+    // scale: group 6000 numbers by their remainder, map them back
+    big := numbers(1, 6000);
+    by_remainder := transforms<int, int>.group_by(big, { x: int -> (int) return x.value % 7; });
+    expect("group_by 6000: groups", by_remainder.size(), 7);
+    expect("group_by 6000: size of group 0", by_remainder.at(0)!!.size().value, 857);
+    expect("group_by 6000: size of group 1", by_remainder.at(1)!!.size().value, 858);
+    total : var = 0;
+    foreach(entry in by_remainder) { total += entry.value.size().value; }
+    expect("group_by 6000: nothing lost", total, 6000);
+    expect("map + fold 6000", transforms<int, int>.fold(transforms<int, int>.map(big, { x: int -> (int) return x.value * 2; }), 0, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 36006000);
+}
+
+def main(args: string[]) {
+    test_transforms();
+    finish("lib_collections_transforms");
+}

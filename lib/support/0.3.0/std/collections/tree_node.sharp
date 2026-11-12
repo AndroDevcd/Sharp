@@ -1,0 +1,93 @@
+mod std.collections;
+
+/**
+ * @class tree_node
+ *
+ * One node of the balanced search tree inside a `tree_map`: a key/value
+ * pair, the two sub trees (smaller keys on the left, larger keys on the
+ * right), the parent node and the height of the sub tree below it.
+ *
+ * The parent link is what lets the tree be walked in key order WITHOUT
+ * recursion and without a stack: next_node() and previous_node() step from
+ * a node to its neighbour in sorted order.
+ *
+ * This class is an implementation detail of tree_map / tree_map_iterator.
+ */
+class tree_node<K, V> {
+    /** the key; the tree is ordered by it */
+    key : K;
+    /** the value stored for the key */
+    value : V;
+    /** sub tree with the keys that sort before `key`, or null */
+    left : tree_node<K, V>?;
+    /** sub tree with the keys that sort after `key`, or null */
+    right : tree_node<K, V>?;
+    /** the node this one hangs under, null for the root */
+    parent : tree_node<K, V>?;
+    /** number of nodes on the longest way down from here, this node included (a leaf has height 1) */
+    height : var;
+
+    /** Create a leaf that is not attached to a tree yet. */
+    tree_node(key: K, value: V) {
+        self->key = key;
+        self->value = value;
+        height = 1;
+    }
+
+    /** The node with the smallest key in the sub tree that starts at this node. O(log n). */
+    def leftmost() : tree_node<K, V> {
+        node := self;
+        while(node.left != null)
+            node = node.left!!;
+        return node;
+    }
+
+    /** The node with the largest key in the sub tree that starts at this node. O(log n). */
+    def rightmost() : tree_node<K, V> {
+        node := self;
+        while(node.right != null)
+            node = node.right!!;
+        return node;
+    }
+
+    /**
+     * The node with the next larger key in the whole tree, or null when this
+     * node holds the largest key. O(log n) worst case, O(1) on average over
+     * a complete walk.
+     */
+    def next_node() : tree_node<K, V>? {
+        // the smallest key of the right sub tree, if there is one ...
+        if(right != null)
+            return right!!.leftmost();
+
+        // ... otherwise climb until we arrive at a parent from its LEFT side
+        child := self;
+        up := parent;
+        while(up != null) {
+            above := up!!;
+            if(above.left == child) return above;
+            child = above;
+            up = above.parent;
+        }
+        return null;
+    }
+
+    /**
+     * The node with the next smaller key in the whole tree, or null when
+     * this node holds the smallest key. Mirror image of next_node().
+     */
+    def previous_node() : tree_node<K, V>? {
+        if(left != null)
+            return left!!.rightmost();
+
+        child := self;
+        up := parent;
+        while(up != null) {
+            above := up!!;
+            if(above.right == child) return above;
+            child = above;
+            up = above.parent;
+        }
+        return null;
+    }
+}

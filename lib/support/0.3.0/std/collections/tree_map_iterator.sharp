@@ -1,0 +1,61 @@
+mod std.collections;
+
+/**
+ * @class tree_map_iterator
+ *
+ * The `iterator` a `tree_map` returns: it walks the pairs of the map in key
+ * order (or in reverse key order), optionally only up to a boundary node.
+ * Each next() returns a `map_entry` - a copy of the key and the value.
+ *
+ * The iterator steps through the tree itself (no snapshot is made, creating
+ * it is O(log n) and each step O(1) on average). The map must therefore not
+ * be changed while one of its iterators is still in use.
+ */
+class tree_map_iterator<K, V> : iterator<map_entry<K, V> > {
+    /** the node next() returns, null when finished */
+    private current : tree_node<K, V>?;
+    /** the walk ends in front of this node; null = walk to the end of the tree */
+    private stop : tree_node<K, V>?;
+    /** 1 = ascending keys, 0 = descending keys */
+    private forward : var;
+
+    /**
+     * @param start   the first node to return, null for "nothing to walk"
+     * @param stop    the node at which to stop (it is NOT returned), null to
+     *                walk to the end
+     * @param forward 1 for ascending key order, 0 for descending
+     */
+    tree_map_iterator(start: tree_node<K, V>?, stop: tree_node<K, V>?, forward: var) {
+        current = start;
+        self->stop = stop;
+        self->forward = forward;
+        if(current != null && stop != null) {
+            if(current == stop) current = null;
+        }
+    }
+
+    /** 1 while there are pairs left, otherwise 0. O(1). */
+    override def has_next() : var {
+        if(current == null) return 0;
+        return 1;
+    }
+
+    /**
+     * Return the current pair and step to the neighbouring key.
+     *
+     * @throws no_such_element_exception when the iterator is finished
+     */
+    override def next() : map_entry<K, V> {
+        if(current == null)
+            throw new no_such_element_exception("tree_map_iterator: no more elements");
+
+        node := current!!;
+        if(forward) current = node.next_node();
+        else current = node.previous_node();
+
+        if(current != null && stop != null) {
+            if(current == stop) current = null;
+        }
+        return new map_entry<K, V>(node.key, node.value);
+    }
+}

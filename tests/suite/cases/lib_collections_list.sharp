@@ -1,0 +1,336 @@
+mod main;
+
+import ( testing, std.collections )
+
+/**
+ * std.collections - lists<T>, the static helpers for the std `list<T>`
+ * class (sorting, searching, ranges, bulk removal, conversions), and the
+ * read-only immutable_list.
+ */
+
+def ascending(a: int, b: int) : var { return a.value - b.value; }
+def descending(a: int, b: int) : var { return b.value - a.value; }
+def is_even(n: int) : bool { return n.value % 2 == 0; }
+def is_big(n: int) : bool { return n.value > 100; }
+
+/** a list<int> from an array literal of numbers */
+def list_of(items: int[]) : list<int> {
+    result := new list<int>();
+    for(i : var = 0; i < sizeof(items); i++) result.add(items[i]);
+    return result;
+}
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    text := "";
+    for(i : var = 0; i < items.size().value; i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** "1,2,3" for an array of ints */
+def join_array(items: int[]) : string {
+    text := "";
+    for(i : var = 0; i < sizeof(items); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items[i];
+    }
+    return text;
+}
+
+class card {
+    rank : var;
+    label : string;
+    card(rank: var, label: string) { self->rank = rank; self->label = label; }
+}
+
+def by_rank(a: card, b: card) : var { return a.rank - b.rank; }
+
+def test_search() {
+    empty := new list<int>();
+    l := list_of(new int[] { 4, 7, 4, 9, 2, 4 });
+
+    expect("is_empty yes", lists<int>.is_empty(empty), 1);
+    expect("is_empty no", lists<int>.is_empty(l), 0);
+    expect("contains", lists<int>.contains(l, 9), 1);
+    expect("contains missing", lists<int>.contains(l, 5), 0);
+    expect("contains in empty", lists<int>.contains(empty, 5), 0);
+    expect("index_of", lists<int>.index_of(l, 4), 0);
+    expect("index_of later element", lists<int>.index_of(l, 2), 4);
+    expect("index_of missing", lists<int>.index_of(l, 5), 0 - 1);
+    expect("last_index_of", lists<int>.last_index_of(l, 4), 5);
+    expect("last_index_of single", lists<int>.last_index_of(l, 7), 1);
+    expect("last_index_of missing", lists<int>.last_index_of(l, 5), 0 - 1);
+    expect("count_of", lists<int>.count_of(l, 4), 3);
+    expect("count_of missing", lists<int>.count_of(l, 5), 0);
+    expect("index_where", lists<int>.index_where(l, { x: int -> (bool) return x.value > 6; }), 1);
+    expect("index_where none", lists<int>.index_where(l, is_big), 0 - 1);
+    expect("first_or_null", lists<int>.first_or_null(l)!!.value, 4);
+    expect("last_or_null", lists<int>.last_or_null(l)!!.value, 4);
+    expect_null("first_or_null of empty", lists<int>.first_or_null(empty));
+    expect_null("last_or_null of empty", lists<int>.last_or_null(empty));
+    expect("at_or_null", lists<int>.at_or_null(l, 3)!!.value, 9);
+    expect_null("at_or_null past the end", lists<int>.at_or_null(l, 6));
+    expect_null("at_or_null negative", lists<int>.at_or_null(l, 0 - 1));
+
+    words := new list<string>();
+    words.add("a"); words.add("b");
+    expect("contains compares strings by value", lists<string>.contains(words, "" + "b"), 1);
+    expect("index_of on strings", lists<string>.index_of(words, "b"), 1);
+
+    // the storage is longer than the list: slots beyond the end must not be looked at
+    l.pop_back();
+    expect("last_index_of after pop_back", lists<int>.last_index_of(l, 4), 2);
+    expect("count_of after pop_back", lists<int>.count_of(l, 4), 2);
+}
+
+def test_ordering() {
+    l := list_of(new int[] { 5, 3, 9, 1, 4 });
+    lists<int>.sort(l, ascending);
+    expect_str("sort", join(l), "1,3,4,5,9");
+    expect("is_sorted", lists<int>.is_sorted(l, ascending), 1);
+    expect("is_sorted the other way", lists<int>.is_sorted(l, descending), 0);
+    lists<int>.sort(l, descending);
+    expect_str("sort descending", join(l), "9,5,4,3,1");
+
+    empty := new list<int>();
+    lists<int>.sort(empty, ascending);
+    expect("sort of empty", empty.size().value, 0);
+    expect("is_sorted of empty", lists<int>.is_sorted(empty, ascending), 1);
+    one := list_of(new int[] { 7 });
+    lists<int>.sort(one, ascending);
+    expect_str("sort of one", join(one), "7");
+
+    source := list_of(new int[] { 2, 3, 1 });
+    copy := lists<int>.sorted(source, ascending);
+    expect_str("sorted copy", join(copy), "1,2,3");
+    expect_str("sorted leaves the list", join(source), "2,3,1");
+
+    // stable, on objects
+    cards := new list<card>();
+    cards.add(new card(2, "a")); cards.add(new card(1, "b")); cards.add(new card(2, "c")); cards.add(new card(1, "d"));
+    lists<card>.sort(cards, by_rank);
+    order := "";
+    for(i : var = 0; i < 4; i++) order = order + cards.at(i).label;
+    expect_str("sort is stable", order, "bdac");
+
+    sorted := list_of(new int[] { 10, 20, 30, 40 });
+    expect("binary_search found", lists<int>.binary_search(sorted, 30, ascending), 2);
+    expect("binary_search first", lists<int>.binary_search(sorted, 10, ascending), 0);
+    expect("binary_search missing: -(2) - 1", lists<int>.binary_search(sorted, 25, ascending), 0 - 3);
+    expect("binary_search above all: -(4) - 1", lists<int>.binary_search(sorted, 50, ascending), 0 - 5);
+    expect("binary_search in empty", lists<int>.binary_search(empty, 1, ascending), 0 - 1);
+
+    lists<int>.reverse(sorted);
+    expect_str("reverse", join(sorted), "40,30,20,10");
+    odd := list_of(new int[] { 1, 2, 3 });
+    lists<int>.reverse(odd);
+    expect_str("reverse odd length", join(odd), "3,2,1");
+    expect_str("reversed copy", join(lists<int>.reversed(odd)), "1,2,3");
+    expect_str("reversed leaves the list", join(odd), "3,2,1");
+    lists<int>.swap(odd, 0, 2);
+    expect_str("swap", join(odd), "1,2,3");
+    try { lists<int>.swap(odd, 0, 3); fail("swap out of bounds", "did not throw"); } catch(e: out_of_bounds_exception) { pass("swap out of bounds"); }
+    try { lists<int>.swap(odd, 0 - 1, 0); fail("swap negative", "did not throw"); } catch(e: out_of_bounds_exception) { pass("swap negative"); }
+
+    // scale: 5000 pseudo random numbers
+    big := new list<int>();
+    seed : var = 8086;
+    sum_before : var = 0;
+    for(i : var = 0; i < 5000; i++) {
+        seed = (seed * 7919 + 104729) % 1000003;
+        big.add(new int(seed));
+        sum_before += seed;
+    }
+    lists<int>.sort(big, ascending);
+    in_order : var = 1;
+    sum_after : var = big.at(0).value;
+    for(i : var = 1; i < 5000; i++) {
+        if(big.at(i - 1).value > big.at(i).value) in_order = 0;
+        sum_after += big.at(i).value;
+    }
+    expect("sort 5000: size", big.size().value, 5000);
+    expect("sort 5000: ascending", in_order, 1);
+    expect("sort 5000: nothing lost", sum_after, sum_before);
+    expect_true("sort 5000: binary_search finds an element", lists<int>.binary_search(big, big.at(4321), ascending) >= 0);
+}
+
+def test_ranges() {
+    l := list_of(new int[] { 0, 1, 2, 3, 4, 5 });
+    empty := new list<int>();
+
+    expect_str("sub_list", join(lists<int>.sub_list(l, 2, 5)), "2,3,4");
+    expect_str("sub_list everything", join(lists<int>.sub_list(l, 0, 6)), "0,1,2,3,4,5");
+    expect("sub_list empty", lists<int>.sub_list(l, 3, 3).size().value, 0);
+    part := lists<int>.sub_list(l, 0, 2);
+    part.add(99);
+    expect("sub_list is independent", l.size().value, 6);
+    try { lists<int>.sub_list(l, 0, 7); fail("sub_list past the end", "did not throw"); } catch(e: out_of_bounds_exception) { pass("sub_list past the end"); }
+    try { lists<int>.sub_list(l, 4, 3); fail("sub_list from > to", "did not throw"); } catch(e: out_of_bounds_exception) { pass("sub_list from > to"); }
+    try { lists<int>.sub_list(l, 0 - 1, 3); fail("sub_list negative", "did not throw"); } catch(e: out_of_bounds_exception) { pass("sub_list negative"); }
+
+    copy := lists<int>.copy_of(l);
+    copy.put(0, 50);
+    expect_str("copy_of", join(copy), "50,1,2,3,4,5");
+    expect("copy_of is independent", l.at(0).value, 0);
+
+    expect_str("to_array", join_array(lists<int>.to_array(l)), "0,1,2,3,4,5");
+    expect("to_array has exactly size() slots", sizeof(lists<int>.to_array(l)), 6);
+    expect("to_array of empty is not null", sizeof(lists<int>.to_array(empty)), 0);
+
+    grown := list_of(new int[] { 1 });
+    lists<int>.add_array(grown, new int[] { 2, 3 });
+    expect_str("add_array", join(grown), "1,2,3");
+    lists<int>.add_array(grown, new int[0]);
+    expect_str("add_array empty", join(grown), "1,2,3");
+
+    target := list_of(new int[] { 1, 2, 5 });
+    lists<int>.insert_all(target, 2, list_of(new int[] { 3, 4 }));
+    expect_str("insert_all in the middle", join(target), "1,2,3,4,5");
+    lists<int>.insert_all(target, 0, list_of(new int[] { 0 }));
+    expect_str("insert_all at the front", join(target), "0,1,2,3,4,5");
+    lists<int>.insert_all(target, 6, list_of(new int[] { 6, 7 }));
+    expect_str("insert_all at the end", join(target), "0,1,2,3,4,5,6,7");
+    lists<int>.insert_all(target, 3, empty);
+    expect("insert_all of an empty list", target.size().value, 8);
+    target.add(8);
+    expect_str("add after insert_all", join(target), "0,1,2,3,4,5,6,7,8");
+    twice := list_of(new int[] { 1, 2 });
+    lists<int>.insert_all(twice, 1, twice);
+    expect_str("insert_all of the list itself", join(twice), "1,1,2,2");
+    try { lists<int>.insert_all(target, 10, twice); fail("insert_all past the end", "did not throw"); } catch(e: out_of_bounds_exception) { pass("insert_all past the end"); }
+
+    lists<int>.remove_range(target, 2, 5);
+    expect_str("remove_range", join(target), "0,1,5,6,7,8");
+    lists<int>.remove_range(target, 0, 1);
+    expect_str("remove_range at the front", join(target), "1,5,6,7,8");
+    lists<int>.remove_range(target, 3, 5);
+    expect_str("remove_range at the end", join(target), "1,5,6");
+    lists<int>.remove_range(target, 1, 1);
+    expect("remove_range empty", target.size().value, 3);
+    lists<int>.remove_range(target, 0, 3);
+    expect("remove_range everything", target.size().value, 0);
+    target.add(1);
+    expect_str("usable after remove_range", join(target), "1");
+    try { lists<int>.remove_range(target, 0, 2); fail("remove_range past the end", "did not throw"); } catch(e: out_of_bounds_exception) { pass("remove_range past the end"); }
+
+    r := list_of(new int[] { 4, 7, 4, 9, 4 });
+    expect("remove_all returns the count", lists<int>.remove_all(r, 4), 3);
+    expect_str("remove_all", join(r), "7,9");
+    expect("remove_all missing", lists<int>.remove_all(r, 4), 0);
+    expect("remove_all size", r.size().value, 2);
+
+    f := list_of(new int[] { 1, 2, 3, 4, 5, 6 });
+    expect("remove_if returns the count", lists<int>.remove_if(f, is_even), 3);
+    expect_str("remove_if", join(f), "1,3,5");
+    expect("remove_if nothing", lists<int>.remove_if(f, is_even), 0);
+    g := list_of(new int[] { 1, 2, 3, 4, 5, 6 });
+    expect("retain_if returns the count", lists<int>.retain_if(g, is_even), 3);
+    expect_str("retain_if", join(g), "2,4,6");
+    expect("retain_if nothing matches", lists<int>.retain_if(g, is_big), 3);
+    expect("retain_if emptied the list", g.size().value, 0);
+
+    h := list_of(new int[] { 1, 2, 3 });
+    lists<int>.fill(h, 7);
+    expect_str("fill", join(h), "7,7,7");
+
+    it := lists<int>.iterator(l);
+    digits : var = 0;
+    while(it.has_next()) digits = digits * 10 + it.next().value;
+    expect("iterator", digits, 12345);
+    expect("iterator of empty", lists<int>.iterator(empty).has_next(), 0);
+    snapshot := lists<int>.iterator(l);
+    l.clear();
+    expect("iterator walks a snapshot", snapshot.next().value, 0);
+
+    // of / equals
+    made := lists<int>.of(new int[] { 1, 2, 3 });
+    expect_str("of", join(made), "1,2,3");
+    expect("of an empty array", lists<int>.of(new int[0]).size().value, 0);
+    expect("equals", lists<int>.equals(made, list_of(new int[] { 1, 2, 3 })), 1);
+    expect("equals one difference", lists<int>.equals(made, list_of(new int[] { 1, 2, 4 })), 0);
+    expect("equals different size", lists<int>.equals(made, list_of(new int[] { 1, 2 })), 0);
+    expect("equals both empty", lists<int>.equals(new list<int>(), new list<int>()), 1);
+}
+
+def test_immutable_list() {
+    source := list_of(new int[] { 3, 1, 4, 1, 5 });
+    frozen := new immutable_list<int>(source);
+    expect("size", frozen.size(), 5);
+    expect("is_empty", frozen.is_empty(), 0);
+    expect("at", frozen.at(2).value, 4);
+    expect("first", frozen.first().value, 3);
+    expect("last", frozen.last().value, 5);
+    expect("index_of", frozen.index_of(1), 1);
+    expect("last_index_of", frozen.last_index_of(1), 3);
+    expect("index_of missing", frozen.index_of(9), 0 - 1);
+    expect("contains", frozen.contains(4), 1);
+    expect("contains missing", frozen.contains(9), 0);
+    try { frozen.at(5); fail("at(size)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("at(size)"); }
+    try { frozen.at(0 - 1); fail("at(-1)", "did not throw"); } catch(e: out_of_bounds_exception) { pass("at(-1)"); }
+
+    // changes to the source, or to what the list hands out, do not show through
+    source.put(0, 99);
+    source.add(6);
+    expect("independent of its source: element", frozen.at(0).value, 3);
+    expect("independent of its source: size", frozen.size(), 5);
+    handed_out := frozen.to_array();
+    handed_out[0] = new int(77);
+    expect("to_array is a copy", frozen.at(0).value, 3);
+    elements := frozen.get_elements()!!;
+    elements[1] = new int(77);
+    expect("get_elements is a copy", frozen.at(1).value, 1);
+    as_list := frozen.to_list();
+    as_list.clear();
+    expect("to_list is a copy", frozen.size(), 5);
+
+    // "changing" functions make new lists
+    longer := frozen.plus(9);
+    expect("plus: new list", longer.size(), 6);
+    expect("plus: last", longer.last().value, 9);
+    expect("plus: original unchanged", frozen.size(), 5);
+    expect_str("sub_list", join(frozen.sub_list(1, 4).to_list()), "1,4,1");
+    expect("sub_list empty", frozen.sub_list(2, 2).size(), 0);
+    try { frozen.sub_list(2, 6); fail("sub_list past the end", "did not throw"); } catch(e: out_of_bounds_exception) { pass("sub_list past the end"); }
+    expect_str("reversed", join(frozen.reversed().to_list()), "5,1,4,1,3");
+    expect_str("reversed leaves the original", join(frozen.to_list()), "3,1,4,1,5");
+
+    digits : var = 0;
+    foreach(x in frozen) { digits = digits * 10 + x.value; }
+    expect("foreach", digits, 31415);
+    it := frozen.iterator();
+    digits = 0;
+    while(it.has_next()) digits = digits * 10 + it.next().value;
+    expect("iterator", digits, 31415);
+
+    // other ways to make one
+    from_array := new immutable_list<int>(new int[] { 1, 2 });
+    expect("from an array", from_array.size(), 2);
+    ring := new deque<int>();
+    ring.add_last(8); ring.add_first(7);
+    from_deque := new immutable_list<int>(ring);
+    expect_str("from any collection", join(from_deque.to_list()), "7,8");
+    from_empty := new immutable_list<int>(new list<int>());
+    expect("from an empty collection", from_empty.size(), 0);
+
+    nothing := new immutable_list<int>();
+    expect("empty: size", nothing.size(), 0);
+    expect("empty: is_empty", nothing.is_empty(), 1);
+    expect_null("empty: get_elements", nothing.get_elements());
+    expect("empty: to_array", sizeof(nothing.to_array()), 0);
+    expect("empty: iterator", nothing.iterator().has_next(), 0);
+    expect("empty: contains", nothing.contains(1), 0);
+    expect("empty: plus", nothing.plus(1).size(), 1);
+    try { nothing.first(); fail("first of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("first of empty"); }
+    try { nothing.last(); fail("last of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("last of empty"); }
+}
+
+def main(args: string[]) {
+    test_search();
+    test_ordering();
+    test_ranges();
+    test_immutable_list();
+    finish("lib_collections_list");
+}

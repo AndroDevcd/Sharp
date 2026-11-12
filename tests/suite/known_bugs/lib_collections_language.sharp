@@ -1,0 +1,41 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUGS in the language that the collections library had to work
+ * around. This file is EXPECTED TO FAIL.
+ */
+
+class score {
+    points : int;
+    score(points: int) { self->points = points; }
+}
+
+def main(args: string[]) {
+    // ---- BUG 1: an empty string on the RIGHT of `+` appends the word "null"
+    // (an empty string literal has no character array). "" + "a" is fine.
+    // collections.join_to_string therefore skips empty pieces.
+    left := "a";
+    expect_str("\"a\" + \"\"", left + "", "a");
+
+    // ---- BUG 2: a local of a nullable NUMBER type that is declared without
+    // a value is not null (string?, class and var[]? locals are).
+    count : int?;
+    if(count == null) pass("an int? local without a value is null");
+    else fail("an int? local without a value is null", "it is not null");
+    numbers : int[]?;
+    if(numbers == null) pass("an int[]? local without a value is null");
+    else fail("an int[]? local without a value is null", "it is not null");
+
+    // ---- BUG 3: assigning a number LITERAL to a field that holds a number
+    // object does not replace the object, it overwrites the number inside
+    // it - for everybody who holds that object.
+    shared := new int(11);
+    first := new score(shared);
+    second := new score(shared);
+    first.points = 500;
+    expect("the other holder of the old number object still sees 11", second.points.value, 11);
+
+    finish("lib_collections_language");
+}

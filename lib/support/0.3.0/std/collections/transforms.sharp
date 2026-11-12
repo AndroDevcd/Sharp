@@ -1,0 +1,172 @@
+mod std.collections;
+
+/**
+ * @class transforms
+ *
+ * The Kotlin style helpers that turn the elements of a collection into
+ * something of a DIFFERENT type: map, flat_map, fold, group_by, associate,
+ * zip. (Helpers that stay within one element type - filter, any, sorted_by,
+ * ... - are in `collections<T>`.)
+ *
+ * T is the element type of the source, R the type that is produced. Both are
+ * named once, then the static functions are called:
+ *
+ *     // list<string> names  ->  list<int> lengths
+ *     lengths := transforms<string, int>.map(names, { s: string -> (int) return s.size(); });
+ *
+ *     // add up with a start value: (R, T) -> R
+ *     total := transforms<int, int>.fold(numbers, 0, { sum: int, n: int -> (int) return sum.value + n.value; });
+ *
+ *     // people by city, cities in the order they first appear
+ *     by_city := transforms<person, string>.group_by(people, { p: person -> (string) return p.city; });
+ *
+ * The source can be anything that implements `loopable<T>`: list,
+ * synced_list and every collection of std.collections. It is never changed.
+ *
+ * Limitation: T and R have to be object types; native `var` cannot be used.
+ */
+class transforms<T base _object_, R base _object_> {
+
+    /** A list with transform(element) for every element, in order. O(n). */
+    static def map(source: loopable<T>, transform: (T)(R)) : list<R> {
+        result := new list<R>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result.add(transform(items[i]));
+        return result;
+    }
+
+    /**
+     * Like map, but the transform also receives the position of the element
+     * (0 for the first one). O(n).
+     */
+    static def map_indexed(source: loopable<T>, transform: (int, T)(R)) : list<R> {
+        result := new list<R>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result.add(transform(new int(i), items[i]));
+        return result;
+    }
+
+    /**
+     * The transform produces a list per element; the result is all those
+     * lists joined into one, in order. O(total number of produced elements).
+     */
+    static def flat_map(source: loopable<T>, transform: (T)(list<R>)) : list<R> {
+        result := new list<R>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++) {
+            produced := transform(items[i]);
+            n : var = produced.size().value;
+            for(j : var = 0; j < n; j++)
+                result.add(produced.at(j));
+        }
+        return result;
+    }
+
+    /**
+     * Run a value through all elements, left to right: start with
+     * `initial`, then for every element replace it with
+     * operation(value so far, element). Returns `initial` for an empty
+     * source. O(n).
+     *
+     *     fold([1, 2, 3], 10, +)  =  ((10 + 1) + 2) + 3  =  16
+     */
+    static def fold(source: loopable<T>, initial: R, operation: (R, T)(R)) : R {
+        result := initial;
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result = operation(result, items[i]);
+        return result;
+    }
+
+    /**
+     * Sort the elements into groups by a key computed from each element.
+     * The result maps every key to the list of its elements (in source
+     * order); the keys are in the order they first appeared. O(n) on
+     * average. R needs a hash() that matches `==` (int, string, ... do).
+     */
+    static def group_by(source: loopable<T>, key_of: (T)(R)) : linked_hash_map<R, list<T> > {
+        groups := new linked_hash_map<R, list<T> >();
+        items := source.get_elements();
+        if(items == null) return groups;
+        for(i : var = 0; i < sizeof(items); i++) {
+            key := key_of(items[i]);
+            group := groups.at(key);
+            if(group == null) {
+                created := new list<T>();
+                created.add(items[i]);
+                groups.put(key, created);
+            } else {
+                group!!.add(items[i]);
+            }
+        }
+        return groups;
+    }
+
+    /**
+     * A map from key_of(element) to the element. When several elements
+     * produce the same key the LAST one wins. Keys are in the order they
+     * first appeared. O(n) on average.
+     */
+    static def associate_by(source: loopable<T>, key_of: (T)(R)) : linked_hash_map<R, T> {
+        result := new linked_hash_map<R, T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result.put(key_of(items[i]), items[i]);
+        return result;
+    }
+
+    /**
+     * A map from each element to value_of(element). Equal elements share
+     * one key (the value of the last one wins). O(n) on average. T needs a
+     * hash() that matches `==`.
+     */
+    static def associate_with(source: loopable<T>, value_of: (T)(R)) : linked_hash_map<T, R> {
+        result := new linked_hash_map<T, R>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result.put(items[i], value_of(items[i]));
+        return result;
+    }
+
+    /**
+     * Pair the elements of two collections by position: (first[0],
+     * second[0]), (first[1], second[1]), ... The result is as long as the
+     * SHORTER of the two. O(n).
+     */
+    static def zip(first: loopable<T>, second: loopable<R>) : list<pair<T, R> > {
+        result := new list<pair<T, R> >();
+        left := first.get_elements();
+        right := second.get_elements();
+        if(left == null) return result;
+        if(right == null) return result;
+
+        n : var = sizeof(left);
+        if(sizeof(right) < n) n = sizeof(right);
+        for(i : var = 0; i < n; i++)
+            result.add(new pair<T, R>(left[i], right[i]));
+        return result;
+    }
+
+    /**
+     * The elements with distinct keys: of several elements that produce an
+     * equal key only the first is kept. Source order is kept. O(n) on average.
+     */
+    static def distinct_by(source: loopable<T>, key_of: (T)(R)) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        seen := new hash_set<R>();
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(seen.add(key_of(items[i]))) result.add(items[i]);
+        }
+        return result;
+    }
+}

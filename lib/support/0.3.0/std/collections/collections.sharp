@@ -1,0 +1,667 @@
+mod std.collections;
+
+/**
+ * @class collections
+ *
+ * Kotlin style helper functions that work on ANY collection: `list`,
+ * `synced_list`, and everything in std.collections (linked_list, deque,
+ * hash_set, tree_set, ...). Anything that implements `loopable<T>` can be
+ * passed as the source.
+ *
+ * The language has no generic functions, so the helpers are static
+ * functions of a generic class: name the element type once and call them.
+ *
+ *     numbers := new list<int>();        // 1, 2, 3, 4, 5, 6
+ *     ...
+ *     even  := collections<int>.filter(numbers, { n: int -> (bool) return n.value % 2 == 0; });
+ *     total := collections<int>.sum_of(numbers, { n: int -> (var) return n.value; });
+ *     text  := collections<int>.join_to_string(numbers, ", ");       // "1, 2, 3, 4, 5, 6"
+ *
+ * Helpers that turn elements into a DIFFERENT type (map, fold, group_by,
+ * zip, associate) need a second type and live in `transforms<T, R>`.
+ *
+ * Conventions:
+ *   - the source is never changed; functions that produce elements return a
+ *     new `list<T>` in the order of the source
+ *   - a predicate is a function `(T)(bool)`: "does this element qualify?"
+ *   - a selector is a function `(T)(var)`: "the number to judge this element by"
+ *   - a comparison is a function `(T, T)(var)`: negative / zero / positive
+ *     when the first argument sorts before / the same as / after the second
+ *   - equality (contains, index_of, distinct) uses `==`, and distinct
+ *     additionally hash()
+ *
+ * Limitation: T has to be an object type; native `var` cannot be used.
+ */
+class collections<T base _object_> {
+
+    // ------------------------------------------------------------------
+    // copying
+    // ------------------------------------------------------------------
+
+    /** A new `list` with all elements of the source, in order. O(n). */
+    static def to_list(source: loopable<T>) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /** A new array with all elements of the source, in order (length 0 when it is empty). O(n). */
+    static def to_array(source: loopable<T>) : T[] {
+        items := source.get_elements();
+        if(items == null) return new T[0];
+        result := new T[sizeof(items)];
+        for(i : var = 0; i < sizeof(items); i++)
+            result[i] = items[i];
+        return result;
+    }
+
+    /** Number of elements in the source. O(n) for collections that have to build their element array. */
+    static def size(source: loopable<T>) : var {
+        items := source.get_elements();
+        if(items == null) return 0;
+        return sizeof(items);
+    }
+
+    // ------------------------------------------------------------------
+    // filtering
+    // ------------------------------------------------------------------
+
+    /** The elements for which the predicate answers true. O(n). */
+    static def filter(source: loopable<T>, predicate: (T)(bool)) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(predicate(items[i])) result.add(items[i]);
+        }
+        return result;
+    }
+
+    /** The elements for which the predicate answers false. O(n). */
+    static def filter_not(source: loopable<T>, predicate: (T)(bool)) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(!predicate(items[i])) result.add(items[i]);
+        }
+        return result;
+    }
+
+    /**
+     * Split the source in two: `first` holds the elements for which the
+     * predicate answers true, `second` the others. Both keep the source
+     * order. O(n).
+     */
+    static def partition(source: loopable<T>, predicate: (T)(bool)) : pair<list<T>, list<T> > {
+        matching := new list<T>();
+        others := new list<T>();
+        items := source.get_elements();
+        if(items != null) {
+            for(i : var = 0; i < sizeof(items); i++) {
+                if(predicate(items[i])) matching.add(items[i]);
+                else others.add(items[i]);
+            }
+        }
+        return new pair<list<T>, list<T> >(matching, others);
+    }
+
+    /**
+     * The first `count` elements (all of them when the source is shorter). O(n).
+     *
+     * @throws illegal_argument_exception when count is negative
+     */
+    static def take(source: loopable<T>, count: int) : list<T> {
+        if(count.value < 0)
+            throw new illegal_argument_exception("collections.take: negative count $count");
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items) && i < count.value; i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /**
+     * Everything except the first `count` elements (empty when the source
+     * is not longer than that). O(n).
+     *
+     * @throws illegal_argument_exception when count is negative
+     */
+    static def drop(source: loopable<T>, count: int) : list<T> {
+        if(count.value < 0)
+            throw new illegal_argument_exception("collections.drop: negative count $count");
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = count.value; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /**
+     * The last `count` elements (all of them when the source is shorter). O(n).
+     *
+     * @throws illegal_argument_exception when count is negative
+     */
+    static def take_last(source: loopable<T>, count: int) : list<T> {
+        if(count.value < 0)
+            throw new illegal_argument_exception("collections.take_last: negative count $count");
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        start : var = sizeof(items) - count.value;
+        if(start < 0) start = 0;
+        for(i : var = start; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /** The elements from the start up to (not including) the first one for which the predicate answers false. O(n). */
+    static def take_while(source: loopable<T>, predicate: (T)(bool)) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(!predicate(items[i])) break;
+            result.add(items[i]);
+        }
+        return result;
+    }
+
+    /** Skips elements while the predicate answers true and returns the first one that does not and everything behind it. O(n). */
+    static def drop_while(source: loopable<T>, predicate: (T)(bool)) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        dropping : var = 1;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(dropping) {
+                if(!predicate(items[i])) dropping = 0;
+            }
+            if(!dropping) result.add(items[i]);
+        }
+        return result;
+    }
+
+    /**
+     * The elements without duplicates: of several equal elements only the
+     * first is kept. The order of the source is kept. O(n) on average (a
+     * hash_set remembers what was seen, so T needs a hash() that matches `==`).
+     */
+    static def distinct(source: loopable<T>) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        seen := new hash_set<T>();
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(seen.add(items[i])) result.add(items[i]);
+        }
+        return result;
+    }
+
+    // ------------------------------------------------------------------
+    // asking questions
+    // ------------------------------------------------------------------
+
+    /** 1 when the predicate answers true for at least one element (0 for an empty source). O(n), stops at the first hit. */
+    static def any(source: loopable<T>, predicate: (T)(bool)) : var {
+        items := source.get_elements();
+        if(items == null) return 0;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(predicate(items[i])) return 1;
+        }
+        return 0;
+    }
+
+    /** 1 when the predicate answers true for every element (1 for an empty source). O(n), stops at the first miss. */
+    static def all(source: loopable<T>, predicate: (T)(bool)) : var {
+        items := source.get_elements();
+        if(items == null) return 1;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(!predicate(items[i])) return 0;
+        }
+        return 1;
+    }
+
+    /** 1 when the predicate answers true for no element (1 for an empty source). O(n). */
+    static def none(source: loopable<T>, predicate: (T)(bool)) : var {
+        return !any(source, predicate);
+    }
+
+    /** How many elements the predicate answers true for. O(n). */
+    static def count(source: loopable<T>, predicate: (T)(bool)) : var {
+        items := source.get_elements();
+        if(items == null) return 0;
+        total : var = 0;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(predicate(items[i])) total++;
+        }
+        return total;
+    }
+
+    /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
+    static def contains(source: loopable<T>, element: T) : var {
+        return index_of(source, element) >= 0;
+    }
+
+    /** Position of the first element that equals `element`, or -1. O(n). */
+    static def index_of(source: loopable<T>, element: T) : var {
+        items := source.get_elements();
+        if(items == null) return -1;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(items[i] == element) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the first element the predicate answers true for, or -1. O(n). */
+    static def index_of_first(source: loopable<T>, predicate: (T)(bool)) : var {
+        items := source.get_elements();
+        if(items == null) return -1;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(predicate(items[i])) return i;
+        }
+        return -1;
+    }
+
+    // ------------------------------------------------------------------
+    // picking elements
+    // ------------------------------------------------------------------
+
+    /** The first element the predicate answers true for, or null when there is none. O(n). */
+    static def find(source: loopable<T>, predicate: (T)(bool)) : T? {
+        items := source.get_elements();
+        if(items == null) return null;
+        for(i : var = 0; i < sizeof(items); i++) {
+            if(predicate(items[i])) return items[i];
+        }
+        return null;
+    }
+
+    /** The last element the predicate answers true for, or null when there is none. O(n). */
+    static def find_last(source: loopable<T>, predicate: (T)(bool)) : T? {
+        items := source.get_elements();
+        if(items == null) return null;
+        for(i : var = sizeof(items) - 1; i >= 0; i--) {
+            if(predicate(items[i])) return items[i];
+        }
+        return null;
+    }
+
+    /**
+     * The first element.
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def first(source: loopable<T>) : T {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.first: the collection is empty");
+        return items[0];
+    }
+
+    /** The first element, or null when the source is empty. */
+    static def first_or_null(source: loopable<T>) : T? {
+        items := source.get_elements();
+        if(items == null) return null;
+        return items[0];
+    }
+
+    /**
+     * The last element.
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def last(source: loopable<T>) : T {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.last: the collection is empty");
+        return items[sizeof(items) - 1];
+    }
+
+    /** The last element, or null when the source is empty. */
+    static def last_or_null(source: loopable<T>) : T? {
+        items := source.get_elements();
+        if(items == null) return null;
+        return items[sizeof(items) - 1];
+    }
+
+    /**
+     * The element with the largest selector value (the first of them when
+     * several tie). O(n).
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def max_by(source: loopable<T>, selector: (T)(var)) : T {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.max_by: the collection is empty");
+        best := items[0];
+        best_value : var = selector(best);
+        for(i : var = 1; i < sizeof(items); i++) {
+            value : var = selector(items[i]);
+            if(value > best_value) { best = items[i]; best_value = value; }
+        }
+        return best;
+    }
+
+    /**
+     * The element with the smallest selector value (the first of them when
+     * several tie). O(n).
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def min_by(source: loopable<T>, selector: (T)(var)) : T {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.min_by: the collection is empty");
+        best := items[0];
+        best_value : var = selector(best);
+        for(i : var = 1; i < sizeof(items); i++) {
+            value : var = selector(items[i]);
+            if(value < best_value) { best = items[i]; best_value = value; }
+        }
+        return best;
+    }
+
+    // ------------------------------------------------------------------
+    // numbers out of elements
+    // ------------------------------------------------------------------
+
+    /** The selector values of all elements added up (0 for an empty source). O(n). */
+    static def sum_of(source: loopable<T>, selector: (T)(var)) : var {
+        items := source.get_elements();
+        if(items == null) return 0;
+        total : var = 0;
+        for(i : var = 0; i < sizeof(items); i++)
+            total += selector(items[i]);
+        return total;
+    }
+
+    /**
+     * The largest selector value. O(n).
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def max_of(source: loopable<T>, selector: (T)(var)) : var {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.max_of: the collection is empty");
+        best : var = selector(items[0]);
+        for(i : var = 1; i < sizeof(items); i++) {
+            value : var = selector(items[i]);
+            if(value > best) best = value;
+        }
+        return best;
+    }
+
+    /**
+     * The smallest selector value. O(n).
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def min_of(source: loopable<T>, selector: (T)(var)) : var {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.min_of: the collection is empty");
+        best : var = selector(items[0]);
+        for(i : var = 1; i < sizeof(items); i++) {
+            value : var = selector(items[i]);
+            if(value < best) best = value;
+        }
+        return best;
+    }
+
+    /**
+     * The mean of the selector values: sum / number of elements. O(n).
+     *
+     * @throws no_such_element_exception when the source is empty
+     */
+    static def average_of(source: loopable<T>, selector: (T)(var)) : var {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.average_of: the collection is empty");
+        total : var = 0;
+        for(i : var = 0; i < sizeof(items); i++)
+            total += selector(items[i]);
+        return total / sizeof(items);
+    }
+
+    // ------------------------------------------------------------------
+    // reordering
+    // ------------------------------------------------------------------
+
+    /** The elements in reverse order. O(n). */
+    static def reversed(source: loopable<T>) : list<T> {
+        result := new list<T>();
+        items := source.get_elements();
+        if(items == null) return result;
+        for(i : var = sizeof(items) - 1; i >= 0; i--)
+            result.add(items[i]);
+        return result;
+    }
+
+    /** The elements sorted with a comparison function. Stable merge sort, O(n log n). */
+    static def sorted_with(source: loopable<T>, compare: (T, T)(var)) : list<T> {
+        items := to_array(source);
+        arrays<T>.sort(items, compare);
+        return arrays<T>.to_list(items);
+    }
+
+    /**
+     * The elements sorted by a number taken from each of them, smallest
+     * first: collections<person>.sorted_by(people, { p: person -> (var) return p.age; }).
+     * Elements with the same number keep their order. O(n log n); the
+     * selector is called once per element.
+     */
+    static def sorted_by(source: loopable<T>, selector: (T)(var)) : list<T> {
+        return sort_by_key(source, selector, 0);
+    }
+
+    /** Like sorted_by, but largest number first. Elements with the same number keep their order. */
+    static def sorted_by_descending(source: loopable<T>, selector: (T)(var)) : list<T> {
+        return sort_by_key(source, selector, 1);
+    }
+
+    /**
+     * The work behind sorted_by / sorted_by_descending: the keys are
+     * computed once into a native array, then keys and elements are merge
+     * sorted together (bottom-up, no recursion).
+     */
+    private static def sort_by_key(source: loopable<T>, selector: (T)(var), descending: var) : list<T> {
+        items := to_array(source);
+        n : var = sizeof(items);
+        keys := new var[n];
+        for(i : var = 0; i < n; i++) {
+            keys[i] = selector(items[i]);
+            if(descending) keys[i] = 0 - keys[i];       // ascending by the negated key = descending by the key
+        }
+
+        spare_items := new T[n];
+        spare_keys := new var[n];
+        for(width : var = 1; width < n; width = width * 2) {
+            for(low : var = 0; low < n; low = low + width * 2) {
+                middle : var = low + width;
+                if(middle > n) middle = n;
+                high : var = low + width * 2;
+                if(high > n) high = n;
+
+                left : var = low;
+                right : var = middle;
+                out : var = low;
+                while(left < middle && right < high) {
+                    if(keys[left] <= keys[right]) {
+                        spare_keys[out] = keys[left];
+                        spare_items[out++] = items[left++];
+                    } else {
+                        spare_keys[out] = keys[right];
+                        spare_items[out++] = items[right++];
+                    }
+                }
+                while(left < middle) {
+                    spare_keys[out] = keys[left];
+                    spare_items[out++] = items[left++];
+                }
+                while(right < high) {
+                    spare_keys[out] = keys[right];
+                    spare_items[out++] = items[right++];
+                }
+            }
+
+            held_items := items;
+            items = spare_items;
+            spare_items = held_items;
+            held_keys := keys;
+            keys = spare_keys;
+            spare_keys = held_keys;
+        }
+
+        return arrays<T>.to_list(items);
+    }
+
+    // ------------------------------------------------------------------
+    // combining
+    // ------------------------------------------------------------------
+
+    /** All elements of `first` followed by all elements of `second`. O(n + m). */
+    static def plus(first: loopable<T>, second: loopable<T>) : list<T> {
+        result := to_list(first);
+        items := second.get_elements();
+        if(items == null) return result;
+        for(i : var = 0; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /** One list with the elements of all the given lists, one list after the other. O(total size). */
+    static def flatten(lists: loopable<list<T> >) : list<T> {
+        result := new list<T>();
+        outer := lists.get_elements();
+        if(outer == null) return result;
+        for(i : var = 0; i < sizeof(outer); i++) {
+            inner := outer[i];
+            n : var = inner.size().value;
+            for(j : var = 0; j < n; j++)
+                result.add(inner.at(j));
+        }
+        return result;
+    }
+
+    /**
+     * Cut the source into lists of `size` elements; the last one holds the
+     * remainder and may be shorter. chunked([1,2,3,4,5], 2) = [[1,2],[3,4],[5]]. O(n).
+     *
+     * @throws illegal_argument_exception when size is not positive
+     */
+    static def chunked(source: loopable<T>, size: int) : list<list<T> > {
+        if(size.value <= 0)
+            throw new illegal_argument_exception("collections.chunked: size must be positive, got $size");
+
+        result := new list<list<T> >();
+        items := source.get_elements();
+        if(items == null) return result;
+
+        chunk := new list<T>();
+        for(i : var = 0; i < sizeof(items); i++) {
+            chunk.add(items[i]);
+            if(chunk.size().value == size.value) {
+                result.add(chunk);
+                chunk = new list<T>();
+            }
+        }
+        if(chunk.size().value > 0) result.add(chunk);
+        return result;
+    }
+
+    /**
+     * Every run of `size` neighbouring elements, each run starting one
+     * element after the previous: windowed([1,2,3,4], 2) = [[1,2],[2,3],[3,4]].
+     * Empty when the source has fewer than `size` elements. O(n * size).
+     *
+     * @throws illegal_argument_exception when size is not positive
+     */
+    static def windowed(source: loopable<T>, size: int) : list<list<T> > {
+        if(size.value <= 0)
+            throw new illegal_argument_exception("collections.windowed: size must be positive, got $size");
+
+        result := new list<list<T> >();
+        items := source.get_elements();
+        if(items == null) return result;
+
+        for(start : var = 0; start + size.value <= sizeof(items); start++) {
+            window := new list<T>();
+            for(i : var = 0; i < size.value; i++)
+                window.add(items[start + i]);
+            result.add(window);
+        }
+        return result;
+    }
+
+    /**
+     * Combine all elements into one, left to right:
+     * reduce([a, b, c], f) = f(f(a, b), c).
+     *
+     * @throws no_such_element_exception when the source is empty (use
+     *         transforms.fold, which takes a start value, for that case)
+     */
+    static def reduce(source: loopable<T>, operation: (T, T)(T)) : T {
+        items := source.get_elements();
+        if(items == null)
+            throw new no_such_element_exception("collections.reduce: the collection is empty");
+        result := items[0];
+        for(i : var = 1; i < sizeof(items); i++)
+            result = operation(result, items[i]);
+        return result;
+    }
+
+    /** Call `action` once for every element, in order. */
+    static def for_each(source: loopable<T>, action: (T)()) {
+        items := source.get_elements();
+        if(items == null) return;
+        for(i : var = 0; i < sizeof(items); i++)
+            action(items[i]);
+    }
+
+    // ------------------------------------------------------------------
+    // text
+    // ------------------------------------------------------------------
+
+    /** The to_string() of every element, with `separator` between them: "1, 2, 3". "" for an empty source. */
+    static def join_to_string(source: loopable<T>, separator: string) : string {
+        return join_to_string(source, separator, "", "");
+    }
+
+    /**
+     * Like join_to_string(source, separator), with `prefix` in front and
+     * `postfix` behind: join_to_string(numbers, ", ", "[", "]") = "[1, 2, 3]".
+     */
+    static def join_to_string(source: loopable<T>, separator: string, prefix: string, postfix: string) : string {
+        // (elements whose to_string() answers null - the default for a class
+        // that does not override it - contribute nothing)
+        text := "";
+        text = glue(text, prefix);
+        items := source.get_elements();
+        if(items != null) {
+            for(i : var = 0; i < sizeof(items); i++) {
+                if(i > 0) text = glue(text, separator);
+                text = glue(text, items[i].to_string());
+            }
+        }
+        return glue(text, postfix);
+    }
+
+    /**
+     * text + piece, where a null or empty piece adds nothing. (Needed
+     * because `+` with an empty string on its right appends the word "null":
+     * an empty string literal has no character array.)
+     */
+    private static def glue(text: string, piece: string?) : string {
+        if(piece == null) return text;
+        if(piece!!.size().value == 0) return text;
+        return text + piece;
+    }
+}

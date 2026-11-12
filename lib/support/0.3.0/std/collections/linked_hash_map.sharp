@@ -1,0 +1,351 @@
+mod std.collections;
+
+/**
+ * @class linked_hash_map
+ *
+ * A hash map that remembers the order in which its keys were first added.
+ * Looking a key up, adding and removing are O(1) on average, like any hash
+ * map, and looping over the map always visits the pairs oldest first:
+ *
+ *     ages := new linked_hash_map<string, int>();
+ *     ages.put("tom", 31);
+ *     ages.put("ann", 27);
+ *     ages.put("tom", 32);                  // replaces the value, keeps the position
+ *     foreach(entry in ages)
+ *         println(entry.key + " " + entry.value);       // tom 32, ann 27
+ *
+ * How it works: an array of buckets, each bucket a chain of nodes whose
+ * keys hash to that slot (`key.hash()` picks the bucket, `==` finds the key
+ * inside it). Every node is additionally part of one long doubly linked
+ * chain that runs through all pairs in insertion order. When the map holds
+ * more than 0.75 pairs per bucket the bucket array is doubled.
+ *
+ * Keys: the key type must give equal keys the same hash() - int, string and
+ * the other std value types do. For your own classes override hash() (and
+ * `operator==` if two different objects should count as the same key).
+ *
+ * Limitation: key and value types have to be object types; native types
+ * such as `var` cannot be used.
+ */
+class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
+    /** the hash table: buckets[i] is the first node of bucket i, or null */
+    private buckets : linked_hash_node<K, V>[]?;
+    /** number of key/value pairs */
+    private count : var;
+    /** the pair that was added first, null when the map is empty */
+    private oldest : linked_hash_node<K, V>?;
+    /** the pair that was added last, null when the map is empty */
+    private newest : linked_hash_node<K, V>?;
+
+    private static const default_capacity : var = 16;
+
+    /** Create an empty map. */
+    linked_hash_map() {
+        buckets = new linked_hash_node<K, V>[default_capacity];
+        count = 0;
+    }
+
+    /** Number of key/value pairs. O(1). */
+    def size() : var {
+        return count;
+    }
+
+    /** 1 when the map has no pairs, otherwise 0. O(1). */
+    def is_empty() : var {
+        return count == 0;
+    }
+
+    /**
+     * Store a value for a key. A new key is added at the end of the
+     * iteration order; an existing key keeps its position and only gets the
+     * new value. O(1) on average.
+     *
+     * @return 1 when the key is new, 0 when an existing value was replaced
+     */
+    def put(key: K, value: V) : var {
+        hash_code : var = hash_of(key);
+        node := find_node(key, hash_code);
+        if(node != null) {
+            node!!.value = value;
+            return 0;
+        }
+
+        if(count + 1 > sizeof(buckets) * 0.75) grow();
+
+        added := new linked_hash_node<K, V>(key, value, hash_code);
+        index : var = hash_code % sizeof(buckets);
+        added.chain = buckets[index];
+        buckets[index] = added;
+
+        // append to the insertion order chain
+        if(newest == null) {
+            oldest = added;
+        } else {
+            added.before = newest;
+            newest!!.after = added;
+        }
+        newest = added;
+        count++;
+        return 1;
+    }
+
+    /**
+     * Store a value only when the key is not in the map yet. O(1) on average.
+     *
+     * @return 1 when the pair was added, 0 when the key already existed
+     *         (the map is left unchanged)
+     */
+    def put_if_absent(key: K, value: V) : var {
+        if(contains_key(key)) return 0;
+        return put(key, value);
+    }
+
+    /** Copy every pair of another map into this one (existing keys are overwritten). O(n). */
+    def put_all(other: linked_hash_map<K, V>) {
+        node := other.oldest;
+        while(node != null) {
+            current := node!!;
+            put(current.key, current.value);
+            node = current.after;
+        }
+    }
+
+    /** The value stored for a key, or null when the map does not have the key. O(1) on average. */
+    def at(key: K) : V? {
+        node := find_node(key, hash_of(key));
+        if(node == null) return null;
+        return node!!.value;
+    }
+
+    /** The value stored for a key, or `fallback` when the map does not have the key. O(1) on average. */
+    def at_or_default(key: K, fallback: V) : V {
+        node := find_node(key, hash_of(key));
+        if(node == null) return fallback;
+        return node!!.value;
+    }
+
+    /** 1 when the map has the key, otherwise 0. O(1) on average. */
+    def contains_key(key: K) : var {
+        if(find_node(key, hash_of(key)) == null) return 0;
+        return 1;
+    }
+
+    /**
+     * 1 when at least one key maps to a value that equals `wanted` (compared with `==`). O(n).
+     *
+     * (The parameter is deliberately not called `value`. With that name the
+     * compiler fails here, inside std/primatives.sharp: the `==` of the
+     * number classes is compiled on first use, apparently in the scope of
+     * the function that uses it, where a parameter named `value` hides the
+     * field `value` that operator reads.)
+     */
+    def contains_value(wanted: V) : var {
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            if(current.value == wanted) return 1;
+            node = current.after;
+        }
+        return 0;
+    }
+
+    /**
+     * Remove a key and its value. O(1) on average.
+     *
+     * @return 1 when the key was removed, 0 when the map did not have it
+     */
+    def remove(key: K) : var {
+        if(unlink(key) == null) return 0;
+        return 1;
+    }
+
+    /**
+     * Remove a key and return the value that was stored for it, or null when
+     * the map did not have the key. O(1) on average.
+     */
+    def take(key: K) : V? {
+        node := unlink(key);
+        if(node == null) return null;
+        return node!!.value;
+    }
+
+    /** Remove every pair. O(1). */
+    def clear() {
+        buckets = new linked_hash_node<K, V>[default_capacity];
+        oldest = null;
+        newest = null;
+        count = 0;
+    }
+
+    /**
+     * The key that was added first.
+     *
+     * @throws no_such_element_exception when the map is empty
+     */
+    def first_key() : K {
+        if(oldest == null)
+            throw new no_such_element_exception("linked_hash_map: first_key called on an empty map");
+        return oldest!!.key;
+    }
+
+    /**
+     * The key that was added last.
+     *
+     * @throws no_such_element_exception when the map is empty
+     */
+    def last_key() : K {
+        if(newest == null)
+            throw new no_such_element_exception("linked_hash_map: last_key called on an empty map");
+        return newest!!.key;
+    }
+
+    /** A new `list` with all keys in insertion order. O(n). */
+    def keys() : list<K> {
+        result := new list<K>();
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            result.add(current.key);
+            node = current.after;
+        }
+        return result;
+    }
+
+    /** A new array with all keys in insertion order (length 0 when empty). O(n). */
+    def key_array() : K[] {
+        result := new K[count];
+        i : var = 0;
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            result[i++] = current.key;
+            node = current.after;
+        }
+        return result;
+    }
+
+    /** A new `list` with all values, in the insertion order of their keys. O(n). */
+    def values() : list<V> {
+        result := new list<V>();
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            result.add(current.value);
+            node = current.after;
+        }
+        return result;
+    }
+
+    /** A new `list` with a map_entry (a copy of key and value) per pair, in insertion order. O(n). */
+    def entries() : list<map_entry<K, V> > {
+        result := new list<map_entry<K, V> >();
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            result.add(new map_entry<K, V>(current.key, current.value));
+            node = current.after;
+        }
+        return result;
+    }
+
+    /**
+     * The pairs as an array of map_entry in insertion order, or null when
+     * the map is empty. This is what `foreach(entry in map)` uses. O(n).
+     */
+    override def get_elements() : map_entry<K, V>[]? {
+        if(count == 0) return null;
+        result := new map_entry<K, V>[count];
+        i : var = 0;
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            result[i++] = new map_entry<K, V>(current.key, current.value);
+            node = current.after;
+        }
+        return result;
+    }
+
+    /**
+     * An iterator over a snapshot of the pairs in insertion order. The map
+     * may be changed while iterating. O(n) to create.
+     */
+    override def iterator() : iterator<map_entry<K, V> > {
+        return new array_iterator<map_entry<K, V> >(get_elements());
+    }
+
+    /** An iterator over a snapshot of the keys in insertion order. O(n) to create. */
+    def key_iterator() : iterator<K> {
+        return new array_iterator<K>(key_array());
+    }
+
+    /** key.hash() made non-negative and whole, so `% sizeof(buckets)` is a valid index. */
+    private def hash_of(key: K) : var {
+        code : var = key.hash().value;
+        if(code < 0) code = 0 - code;
+        return code % 2147483647;
+    }
+
+    /** The node that holds `key`, or null. The stored hash is compared first because that is much cheaper than `==`. */
+    private def find_node(key: K, hash_code: var) : linked_hash_node<K, V>? {
+        node : linked_hash_node<K, V>? = buckets[hash_code % sizeof(buckets)];
+        while(node != null) {
+            current := node!!;
+            if(current.hash_code == hash_code) {
+                if(current.key == key) return current;
+            }
+            node = current.chain;
+        }
+        return null;
+    }
+
+    /** Take the node for `key` out of its bucket and out of the order chain; returns it, or null when there is none. */
+    private def unlink(key: K) : linked_hash_node<K, V>? {
+        hash_code : var = hash_of(key);
+        index : var = hash_code % sizeof(buckets);
+
+        previous : linked_hash_node<K, V>? = null;
+        node : linked_hash_node<K, V>? = buckets[index];
+        while(node != null) {
+            current := node!!;
+            found : var = 0;
+            if(current.hash_code == hash_code) {
+                if(current.key == key) found = 1;
+            }
+
+            if(found) {
+                // out of the bucket chain
+                if(previous == null) buckets[index] = current.chain;
+                else previous!!.chain = current.chain;
+
+                // out of the insertion order chain
+                if(current.before == null) oldest = current.after;
+                else current.before!!.after = current.after;
+                if(current.after == null) newest = current.before;
+                else current.after!!.before = current.before;
+
+                current.before = null;
+                current.after = null;
+                count--;
+                return current;
+            }
+
+            previous = current;
+            node = current.chain;
+        }
+        return null;
+    }
+
+    /** Double the bucket array and put every node into its new bucket. O(n). */
+    private def grow() {
+        bigger := new linked_hash_node<K, V>[sizeof(buckets) * 2];
+        node := oldest;
+        while(node != null) {
+            current := node!!;
+            index : var = current.hash_code % sizeof(bigger);
+            current.chain = bigger[index];
+            bigger[index] = current;
+            node = current.after;
+        }
+        buckets = bigger;
+    }
+}

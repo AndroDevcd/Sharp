@@ -1,0 +1,387 @@
+mod std.collections;
+
+/**
+ * @class lists
+ *
+ * Static helpers for the std `list<T>` class: sorting, searching, ranges,
+ * bulk removal and conversions - the operations list itself does not have.
+ * Name the element type and pass the list:
+ *
+ *     numbers := new list<int>();
+ *     ...
+ *     lists<int>.sort(numbers, { a: int, b: int -> (var) return a.value - b.value; });
+ *     lists<int>.contains(numbers, 7);            // 1 or 0
+ *     firsts := lists<int>.sub_list(numbers, 0, 3);
+ *
+ * Why a helper class and not members of list: the language can add members
+ * to an existing class from another file (`mutate`), but for a GENERIC
+ * class those members are missing on every instantiation the library has
+ * not made itself (list<my_class>), see
+ * tests/suite/known_bugs/lib_collections_mutate_generic.sharp. Static
+ * helpers work for every element type.
+ *
+ * Everything here uses only the public functions of list (at, put, add,
+ * size, ...). Functions that answer yes / no or a position return native
+ * numbers (var): 1 / 0, and -1 for "not found".
+ *
+ * Order is given as a comparison function:
+ *
+ *     compare(a, b) < 0     a sorts before b
+ *     compare(a, b) == 0    a and b sort the same
+ *     compare(a, b) > 0     a sorts after b
+ *
+ * A range is given as `from` (included) and `to` (not included).
+ * Elements are compared with `==`: numbers and strings by value, other
+ * objects by identity.
+ */
+class lists<T> {
+
+    // ------------------------------------------------------------------
+    // creating and converting
+    // ------------------------------------------------------------------
+
+    /** A new list with the elements of an array, in order. The array is copied. O(n). */
+    static def of(items: T[]) : list<T> {
+        result := new list<T>();
+        for(i : var = 0; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /** A new, independent list with the same elements in the same order. O(n). */
+    static def copy_of(source: list<T>) : list<T> {
+        result := new list<T>();
+        n : var = source.size().value;
+        for(i : var = 0; i < n; i++)
+            result.add(source.at(i));
+        return result;
+    }
+
+    /**
+     * A new array with the elements, in order. Unlike list.get_elements()
+     * it never returns null: an empty list gives an array of length 0. O(n).
+     */
+    static def to_array(source: list<T>) : T[] {
+        n : var = source.size().value;
+        result := new T[n];
+        for(i : var = 0; i < n; i++)
+            result[i] = source.at(i);
+        return result;
+    }
+
+    /**
+     * An `iterator` (has_next / next) from the first element to the last.
+     * It walks a snapshot, so the list may be changed while iterating.
+     * O(n) to create.
+     */
+    static def iterator(source: list<T>) : iterator<T> {
+        return new array_iterator<T>(to_array(source));
+    }
+
+    // ------------------------------------------------------------------
+    // asking and searching
+    // ------------------------------------------------------------------
+
+    /** 1 when the list has no elements, otherwise 0. O(1). */
+    static def is_empty(source: list<T>) : var {
+        return source.size().value == 0;
+    }
+
+    /** 1 when an element equals `element`, otherwise 0. O(n). */
+    static def contains(source: list<T>, element: T) : var {
+        return index_of(source, element) >= 0;
+    }
+
+    /** Position of the first element that equals `element`, or -1. O(n). */
+    static def index_of(source: list<T>, element: T) : var {
+        n : var = source.size().value;
+        for(i : var = 0; i < n; i++) {
+            if(source.at(i) == element) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the last element that equals `element`, or -1. O(n). */
+    static def last_index_of(source: list<T>, element: T) : var {
+        for(i : var = source.size().value - 1; i >= 0; i--) {
+            if(source.at(i) == element) return i;
+        }
+        return -1;
+    }
+
+    /** How many elements equal `element`. O(n). */
+    static def count_of(source: list<T>, element: T) : var {
+        total : var = 0;
+        n : var = source.size().value;
+        for(i : var = 0; i < n; i++) {
+            if(source.at(i) == element) total++;
+        }
+        return total;
+    }
+
+    /** Position of the first element the predicate answers true for, or -1. O(n). */
+    static def index_where(source: list<T>, predicate: (T)(bool)) : var {
+        n : var = source.size().value;
+        for(i : var = 0; i < n; i++) {
+            if(predicate(source.at(i))) return i;
+        }
+        return -1;
+    }
+
+    /** The first element, or null when the list is empty (list.first() throws instead). O(1). */
+    static def first_or_null(source: list<T>) : T? {
+        if(source.size().value == 0) return null;
+        return source.at(0);
+    }
+
+    /** The last element, or null when the list is empty (list.last() throws instead). O(1). */
+    static def last_or_null(source: list<T>) : T? {
+        n : var = source.size().value;
+        if(n == 0) return null;
+        return source.at(n - 1);
+    }
+
+    /** The element at a position, or null when the position is outside the list (list.at() throws instead). O(1). */
+    static def at_or_null(source: list<T>, index: int) : T? {
+        if(index.value < 0 || index.value >= source.size().value) return null;
+        return source.at(index);
+    }
+
+    /** 1 when both lists have the same size and equal elements at every position, otherwise 0. O(n). */
+    static def equals(first: list<T>, second: list<T>) : var {
+        n : var = first.size().value;
+        if(n != second.size().value) return 0;
+        for(i : var = 0; i < n; i++) {
+            if(first.at(i) != second.at(i)) return 0;
+        }
+        return 1;
+    }
+
+    // ------------------------------------------------------------------
+    // ordering
+    // ------------------------------------------------------------------
+
+    /**
+     * Sort a list in place. Merge sort (see arrays<T>.sort): O(n log n) for
+     * any input, and stable - elements that compare as equal keep their
+     * order. Use this instead of list.linear_sort, which is O(n * n).
+     */
+    static def sort(target: list<T>, compare: (T, T)(var)) {
+        n : var = target.size().value;
+        if(n < 2) return;
+
+        items := to_array(target);
+        arrays<T>.sort(items, compare);
+        for(i : var = 0; i < n; i++)
+            target.put(i, items[i]);
+    }
+
+    /** A sorted copy of a list; the list itself is not changed. O(n log n), stable. */
+    static def sorted(source: list<T>, compare: (T, T)(var)) : list<T> {
+        items := to_array(source);
+        arrays<T>.sort(items, compare);
+        return of(items);
+    }
+
+    /** 1 when no element sorts before the one in front of it (also for empty lists), otherwise 0. O(n). */
+    static def is_sorted(source: list<T>, compare: (T, T)(var)) : var {
+        n : var = source.size().value;
+        for(i : var = 1; i < n; i++) {
+            if(compare(source.at(i - 1), source.at(i)) > 0) return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * Find `key` in a list that is SORTED according to `compare`, by
+     * halving the search range. O(log n).
+     *
+     * @return the position of an element that compares equal to `key`. When
+     *         there is none: -(insertion point) - 1, where the insertion
+     *         point is where the key would have to be inserted to keep the
+     *         list sorted. The result is >= 0 exactly when the key was found.
+     */
+    static def binary_search(source: list<T>, key: T, compare: (T, T)(var)) : var {
+        low : var = 0;
+        high : var = source.size().value - 1;
+        while(low <= high) {
+            middle : var = (low + high) >> 1;
+            order : var = compare(source.at(middle), key);
+            if(order == 0) return middle;
+            if(order < 0) low = middle + 1;
+            else high = middle - 1;
+        }
+        return 0 - low - 1;
+    }
+
+    /** Reverse the order of the elements in place. O(n). */
+    static def reverse(target: list<T>) {
+        low : var = 0;
+        high : var = target.size().value - 1;
+        while(low < high) {
+            held := target.at(low);
+            target.put(low, target.at(high));
+            target.put(high, held);
+            low++;
+            high--;
+        }
+    }
+
+    /** A new list with the elements in reverse order; the list itself is not changed. O(n). */
+    static def reversed(source: list<T>) : list<T> {
+        result := new list<T>();
+        for(i : var = source.size().value - 1; i >= 0; i--)
+            result.add(source.at(i));
+        return result;
+    }
+
+    /**
+     * Exchange the elements at two positions. O(1).
+     *
+     * @throws out_of_bounds_exception when a position is outside the list
+     */
+    static def swap(target: list<T>, first: int, second: int) {
+        held := target.at(first);
+        target.put(first, target.at(second));
+        target.put(second, held);
+    }
+
+    // ------------------------------------------------------------------
+    // ranges and bulk changes
+    // ------------------------------------------------------------------
+
+    /**
+     * A new list with the elements at positions from .. to - 1. The new
+     * list is independent of the source. O(to - from).
+     *
+     * @throws out_of_bounds_exception when from < 0, to > size or from > to
+     */
+    static def sub_list(source: list<T>, from: int, to: int) : list<T> {
+        if(from.value < 0 || to.value > source.size().value || from.value > to.value)
+            throw new out_of_bounds_exception("lists.sub_list: range $from..$to is out of bounds");
+
+        result := new list<T>();
+        for(i : var = from.value; i < to.value; i++)
+            result.add(source.at(i));
+        return result;
+    }
+
+    /** Add every element of an array at the end of a list, in order. O(m). */
+    static def add_array(target: list<T>, items: T[]) {
+        for(i : var = 0; i < sizeof(items); i++)
+            target.add(items[i]);
+    }
+
+    /**
+     * Insert all elements of `incoming` into `target` so that the first of
+     * them ends up at position `index`; what was there moves back.
+     * insert_all(target, size, x) appends. O(n + m).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index > size
+     */
+    static def insert_all(target: list<T>, index: int, incoming: list<T>) {
+        n : var = target.size().value;
+        if(index.value < 0 || index.value > n)
+            throw new out_of_bounds_exception("lists.insert_all: index $index is out of bounds");
+
+        // snapshots first, so that a list can be inserted into itself
+        old := to_array(target);
+        added := to_array(incoming);
+        if(sizeof(added) == 0) return;
+
+        target.clear();
+        for(i : var = 0; i < index.value; i++) target.add(old[i]);
+        for(i : var = 0; i < sizeof(added); i++) target.add(added[i]);
+        for(i : var = index.value; i < n; i++) target.add(old[i]);
+    }
+
+    /**
+     * Remove the elements at positions from .. to - 1; the elements behind
+     * them move up. O(n).
+     *
+     * @throws out_of_bounds_exception when from < 0, to > size or from > to
+     */
+    static def remove_range(target: list<T>, from: int, to: int) {
+        n : var = target.size().value;
+        if(from.value < 0 || to.value > n || from.value > to.value)
+            throw new out_of_bounds_exception("lists.remove_range: range $from..$to is out of bounds");
+
+        removed : var = to.value - from.value;
+        if(removed == 0) return;
+
+        for(i : var = to.value; i < n; i++)
+            target.put(i - removed, target.at(i));
+        for(i : var = 0; i < removed; i++)
+            target.pop_back();
+    }
+
+    /**
+     * Remove EVERY element that equals `element` (list.remove only takes
+     * the first). O(n).
+     *
+     * @return how many elements were removed
+     */
+    static def remove_all(target: list<T>, element: T) : var {
+        n : var = target.size().value;
+        kept : var = 0;
+        for(i : var = 0; i < n; i++) {
+            current := target.at(i);
+            if(current == element) continue;
+            target.put(kept, current);
+            kept++;
+        }
+
+        for(i : var = kept; i < n; i++)
+            target.pop_back();
+        return n - kept;
+    }
+
+    /**
+     * Remove every element the predicate answers true for. O(n).
+     *
+     * @return how many elements were removed
+     */
+    static def remove_if(target: list<T>, predicate: (T)(bool)) : var {
+        n : var = target.size().value;
+        kept : var = 0;
+        for(i : var = 0; i < n; i++) {
+            current := target.at(i);
+            if(predicate(current)) continue;
+            target.put(kept, current);
+            kept++;
+        }
+
+        for(i : var = kept; i < n; i++)
+            target.pop_back();
+        return n - kept;
+    }
+
+    /**
+     * Keep only the elements the predicate answers true for (the opposite
+     * of remove_if). O(n).
+     *
+     * @return how many elements were removed
+     */
+    static def retain_if(target: list<T>, predicate: (T)(bool)) : var {
+        n : var = target.size().value;
+        kept : var = 0;
+        for(i : var = 0; i < n; i++) {
+            current := target.at(i);
+            if(predicate(current)) {
+                target.put(kept, current);
+                kept++;
+            }
+        }
+
+        for(i : var = kept; i < n; i++)
+            target.pop_back();
+        return n - kept;
+    }
+
+    /** Store the same object at every position (the size does not change). O(n). */
+    static def fill(target: list<T>, value: T) {
+        n : var = target.size().value;
+        for(i : var = 0; i < n; i++)
+            target.put(i, value);
+    }
+}

@@ -1,0 +1,262 @@
+mod std.collections;
+
+/**
+ * @class deque
+ *
+ * A double ended queue ("deck"): elements can be added and removed at both
+ * the front and the back in O(1).
+ *
+ * It is backed by an array that is used as a ring buffer: `head` is the
+ * array index of the first element and the elements continue from there,
+ * wrapping around to index 0 when they reach the end of the array. Nothing
+ * is moved when an element is added or removed at either end. When the
+ * array is full it is replaced by one twice the size (so adding is O(1) on
+ * average).
+ *
+ *     d := new deque<int>();
+ *     d.add_last(2);  d.add_last(3);  d.add_first(1);      // 1 2 3
+ *     d.remove_first();                                    // 1
+ *     d.remove_last();                                     // 3
+ *
+ * Unlike a linked_list, reading by index (at) is O(1) as well.
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `var` cannot be used as T.
+ */
+class deque<T> : loopable<T>, iterable<T> {
+    /** the ring buffer */
+    private items : T[]?;
+    /** array index of the first element */
+    private head : var;
+    /** number of elements */
+    private count : var;
+
+    private static const default_capacity : var = 16;
+
+    /** Create an empty deque with room for 16 elements. */
+    deque() {
+        items = new T[default_capacity];
+        head = 0;
+        count = 0;
+    }
+
+    /** Number of elements. O(1). */
+    def size() : var {
+        return count;
+    }
+
+    /** 1 when there are no elements, otherwise 0. O(1). */
+    def is_empty() : var {
+        return count == 0;
+    }
+
+    /** Number of elements that fit before the buffer has to grow. O(1). */
+    def capacity() : var {
+        return sizeof(items);
+    }
+
+    /**
+     * Make sure at least `wanted` elements fit without another growth step.
+     * Useful before adding a known, large number of elements. O(n) when it
+     * has to grow, otherwise O(1).
+     */
+    def ensure_capacity(wanted: int) {
+        if(wanted.value > sizeof(items))
+            resize(wanted.value);
+    }
+
+    /** Add an element at the front. O(1) on average. */
+    def add_first(element: T) {
+        if(count == sizeof(items)) resize(count * 2);
+        head = head - 1;
+        if(head < 0) head = sizeof(items) - 1;
+        items[head] = element;
+        count++;
+    }
+
+    /** Add an element at the back. O(1) on average. */
+    def add_last(element: T) {
+        if(count == sizeof(items)) resize(count * 2);
+        items[slot(count)] = element;
+        count++;
+    }
+
+    /** Add an element at the back (same as add_last). O(1) on average. */
+    def add(element: T) {
+        add_last(element);
+    }
+
+    /**
+     * Remove the front element and return it. O(1).
+     *
+     * @throws no_such_element_exception when the deque is empty
+     */
+    def remove_first() : T {
+        if(count == 0) throw empty_error("remove_first");
+        element := items[head];
+        release(head);
+        head = head + 1;
+        if(head == sizeof(items)) head = 0;
+        count--;
+        return element;
+    }
+
+    /**
+     * Remove the back element and return it. O(1).
+     *
+     * @throws no_such_element_exception when the deque is empty
+     */
+    def remove_last() : T {
+        if(count == 0) throw empty_error("remove_last");
+        index : var = slot(count - 1);
+        element := items[index];
+        release(index);
+        count--;
+        return element;
+    }
+
+    /**
+     * The front element (it stays in the deque). O(1).
+     *
+     * @throws no_such_element_exception when the deque is empty
+     */
+    def first() : T {
+        if(count == 0) throw empty_error("first");
+        return items[head];
+    }
+
+    /**
+     * The back element (it stays in the deque). O(1).
+     *
+     * @throws no_such_element_exception when the deque is empty
+     */
+    def last() : T {
+        if(count == 0) throw empty_error("last");
+        return items[slot(count - 1)];
+    }
+
+    /** The front element, or null when the deque is empty. O(1). */
+    def first_or_null() : T? {
+        if(count == 0) return null;
+        return items[head];
+    }
+
+    /** The back element, or null when the deque is empty. O(1). */
+    def last_or_null() : T? {
+        if(count == 0) return null;
+        return items[slot(count - 1)];
+    }
+
+    /**
+     * The element at a position counted from the front (0 = front). O(1).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def at(index: int) : T {
+        if(index.value < 0 || index.value >= count) throw bounds_error(index.value);
+        return items[slot(index.value)];
+    }
+
+    /**
+     * Replace the element at a position (0 = front) and return the element
+     * that was there before. O(1).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def put(index: int, element: T) : T {
+        if(index.value < 0 || index.value >= count) throw bounds_error(index.value);
+        position : var = slot(index.value);
+        old := items[position];
+        items[position] = element;
+        return old;
+    }
+
+    /**
+     * Position (0 = front) of the first element that equals `element`, or -1
+     * when there is none. Elements are compared with `==`. O(n).
+     */
+    def index_of(element: T) : var {
+        for(i : var = 0; i < count; i++) {
+            if(items[slot(i)] == element) return i;
+        }
+        return -1;
+    }
+
+    /** 1 when an element equals `element`, otherwise 0. O(n). */
+    def contains(element: T) : var {
+        return index_of(element) >= 0;
+    }
+
+    /** Remove every element; the capacity goes back to the default. O(1). */
+    def clear() {
+        items = new T[default_capacity];
+        head = 0;
+        count = 0;
+    }
+
+    /** A new array with the elements from front to back (length 0 when empty). O(n). */
+    def to_array() : T[] {
+        result := new T[count];
+        for(i : var = 0; i < count; i++)
+            result[i] = items[slot(i)];
+        return result;
+    }
+
+    /** A new `list` with the elements from front to back. O(n). */
+    def to_list() : list<T> {
+        result := new list<T>();
+        for(i : var = 0; i < count; i++)
+            result.add(items[slot(i)]);
+        return result;
+    }
+
+    /**
+     * The elements from front to back as an array, or null when the deque is
+     * empty. This is what `foreach` uses. O(n).
+     */
+    override def get_elements() : T[]? {
+        if(count == 0) return null;
+        return to_array();
+    }
+
+    /**
+     * An iterator from front to back. It walks a snapshot, so the deque may
+     * be changed while iterating. O(n) to create.
+     */
+    override def iterator() : iterator<T> {
+        return new array_iterator<T>(get_elements());
+    }
+
+    /** Array index of the element at logical position `index` (0 = front). */
+    private def slot(index: var) : var {
+        position : var = head + index;
+        if(position >= sizeof(items)) position = position - sizeof(items);
+        return position;
+    }
+
+    /** Drop the reference in an array slot so the garbage collector can free the element. */
+    private def release(index: var) {
+        excuse nothing : T;
+        items[index] = nothing;
+    }
+
+    /** Move the elements into a new buffer of the given capacity, front at index 0. */
+    private def resize(new_capacity: var) {
+        if(new_capacity < default_capacity) new_capacity = default_capacity;
+        bigger := new T[new_capacity];
+        for(i : var = 0; i < count; i++)
+            bigger[i] = items[slot(i)];
+        items = bigger;
+        head = 0;
+    }
+
+    private def bounds_error(index: var) : out_of_bounds_exception {
+        i : int = index;
+        n : int = count;
+        return new out_of_bounds_exception("deque: index $i is out of bounds (size $n)");
+    }
+
+    private def empty_error(operation: string) : no_such_element_exception {
+        return new no_such_element_exception("deque: $operation called on an empty deque");
+    }
+}
