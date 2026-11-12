@@ -40,6 +40,22 @@ void compile_statement(Ast *ast, operation_schema *scheme, bool *controlPaths) {
 
     switch(ast->getType()) {
         case ast_return_stmnt:
+            // `{ hits.increment() }` - the single expression of an implicit
+            // trailing lambda is its result. When the lambda turns out to
+            // return nothing (the function type it is passed to says so) the
+            // expression is evaluated as a plain statement instead.
+            if(ast->hasToken("@implicit") && current_context.functionCxt != NULL
+               && current_context.functionCxt->returnType.type == type_nil
+               && ast->getSubAst(ast_expression) != NULL) {
+                expression e;
+                compile_expression(e, ast->getSubAst(ast_expression));
+
+                APPLY_TEMP_SCHEME_WITH_TYPE(1, scheme_none, *scheme,
+                    create_get_value_operation(&scheme_1, &e.scheme);
+                )
+                break;
+            }
+
             compile_return_statement(ast, scheme, controlPaths);
             break;
         case ast_if_statement:

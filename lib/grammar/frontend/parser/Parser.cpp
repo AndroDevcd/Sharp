@@ -1438,6 +1438,7 @@ bool parser::parseStatement(Ast* ast) {
         }
 
         _current--;
+        trailingLambdaEnd = NULL;
         if(!parseExpression(branch))
         {
             errors->pass();
@@ -1448,6 +1449,13 @@ bool parser::parseStatement(Ast* ast) {
         } else {
 
             errors->fail();
+            // A statement that ends with the `}` of a trailing lambda needs no
+            // semicolon, like any other statement that ends with a block:
+            //      launch { work(); }
+            //      items.for_each { println(it); }
+            if(trailingLambdaEnd != NULL && trailingLambdaEnd == _current && *peek(1) != ";")
+                return true;
+
             expect(branch, ";", false);
             return true;
         }
@@ -2789,6 +2797,116 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
     expect(branch, endChar);
 }
 
+/**
+ * `name {` with no parentheses: is this a call with a trailing lambda?
+ *
+ * Yes, unless the brace cannot be a lambda body here. The one place where a
+ * name is legitimately followed by `{` inside an expression is the dictionary
+ * / array literal `{ key : value }` handled by parseExpression - but that only
+ * applies to a `{` that STARTS a value, never one that follows a name. So the
+ * only thing checked is that the previous token really ended a name (and not,
+ * say, a keyword such as `else`, which never reaches this function).
+ */
+bool parser::trailingLambdaFollows() {
+    return current().getId() == IDENTIFIER
+           || current().getType() == GREATERTHAN;       // f<int> { ... }
+}
+
+/**
+ * Trailing lambda: a `{ ... }` block right after a call is the call's LAST
+ * argument.
+ *
+ *      launch { delay(10); }                 launch({ -> delay(10); });
+ *      xs.for_each { x -> println(x); }      xs.for_each({ x -> println(x); });
+ *      xs.filter { it > 3 }                  xs.filter({ it -> return it > 3; });
+ *      retry(3) { connect(); }               retry(3, { -> connect(); });
+ *
+ * Inside the braces either the existing lambda syntax is written
+ * (`a, b -> ...`, `-> ...`, with an optional return type), or nothing but the
+ * body. Without the arrow the lambda is "implicit":
+ *
+ *   - it takes no parameter, or ONE parameter called `it` when the body uses
+ *     that name (decided by the compiler, see compile_lambda_expression);
+ *   - a body that is a single expression with no `;` is the lambda's result:
+ *     `{ it > 3 }` returns it > 3. When the function type asked for returns
+ *     nothing, the expression is simply evaluated.
+ *
+ * No statement of the language has an expression directly followed by `{`
+ * (if / while / foreach / lock / catch / when all have a `)` or a keyword in
+ * between), so a `{` in this position used to be a syntax error.
+ *
+ * `list` is the argument list (ast_expression_list) of the call. The lambda is
+ * added to it wrapped exactly like any other argument:
+ *      ast_expression -> ast_primary_expr -> ast_lambda_function
+ * An implicit lambda carries the marker token "@implicit"; so does the return
+ * statement made from a single-expression body.
+ */
+void parser::parseTrailingLambda(Ast *list) {
+    Ast *expressionBranch = getBranch(list, ast_expression);
+    Ast *primary = getBranch(expressionBranch, ast_primary_expr);
+
+    advance();      // {
+    Token *afterBrace = _current;
+    Ast *lambda = getBranch(primary, ast_lambda_function);
+    bool explicitForm = false;
+
+    if(peek(1)->getValue() == "->") {                   // { -> ... }
+        advance();
+        parseLambdaReturnType(lambda);
+        explicitForm = true;
+    } else {                                            // { a, b -> ... } ?
+        errors->enterProtectedMode();
+        parseLambdaArgList(lambda);
+
+        if(peek(1)->getValue() == "->") {
+            errors->fail();
+            advance();
+            parseLambdaReturnType(lambda);
+            explicitForm = true;
+        } else {
+            errors->pass();
+            _current = afterBrace;
+            lambda->freeLastSub();
+        }
+    }
+
+    if(!explicitForm) {
+        lambda->addToken(Token("@implicit", IDENTIFIER, current().getColumn(), current().getLine()));
+
+        // a single expression and then `}` ?
+        if(peek(1)->getType() != RIGHTCURLY) {
+            errors->enterProtectedMode();
+            Token *bodyStart = _current;
+
+            Ast *block = getBranch(lambda, ast_block);
+            Ast *statement = getBranch(block, ast_statement);
+            Ast *result = getBranch(statement, ast_return_stmnt);
+            result->addToken(Token("return", IDENTIFIER, current().getColumn(), current().getLine()));
+            result->addToken(Token("@implicit", IDENTIFIER, current().getColumn(), current().getLine()));
+
+            RETAIN_RECURSION(0)
+            bool singleExpression = parseExpression(result) && peek(1)->getType() == RIGHTCURLY;
+            RESTORE_RECURSION()
+
+            if(singleExpression) {
+                errors->fail();
+                expect(block, "}");
+                trailingLambdaEnd = _current;
+                return;
+            }
+
+            errors->pass();
+            _current = bodyStart;
+            lambda->freeLastSub();
+        }
+    }
+
+    RETAIN_RECURSION(0)
+    parseLambdaBlock(lambda);
+    RESTORE_RECURSION()
+    trailingLambdaEnd = _current;
+}
+
 bool parser::parseDotNotCallExpr(Ast* ast) {
     Ast *branch = getBranch(ast, ast_dotnotation_call_expr);
 
@@ -2803,6 +2921,19 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
     if(parseUtypeNaked(branch)) {
         if(peek(1)->getType() == LEFTPAREN) {
             parseExpressionList(branch, "(", ")");
+
+            // f(a, b) { ... }  - a trailing lambda is one more argument
+            if(peek(1)->getType() == LEFTCURLY)
+                parseTrailingLambda(branch->getLastSubAst());
+
+            branch->encapsulate(ast_dot_fn_e);
+        }
+        else if(peek(1)->getType() == LEFTCURLY && trailingLambdaFollows()) {
+            // f { ... }  - no parentheses at all: the lambda is the only argument
+            Ast *list = getBranch(branch, ast_expression_list);
+            list->addToken(Token("(", SINGLE, current().getColumn(), current().getLine(), LEFTPAREN));
+            parseTrailingLambda(list);
+            list->addToken(Token(")", SINGLE, current().getColumn(), current().getLine(), RIGHTPAREN));
 
             branch->encapsulate(ast_dot_fn_e);
         }

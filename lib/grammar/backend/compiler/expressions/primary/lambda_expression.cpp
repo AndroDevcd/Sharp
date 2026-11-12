@@ -11,8 +11,44 @@
 #include "../expression.h"
 #include "../../functions/function_compiler.h"
 
+/**
+ * Does the body of an implicit lambda (`xs.filter { it > 3 }`) use the name
+ * `it`? Lambdas nested inside it that are implicit themselves are not looked
+ * into: their `it` is their own.
+ */
+static bool uses_implicit_parameter(Ast *ast) {
+    for(Int i = 0; i < ast->getTokenCount(); i++) {
+        Token &token = ast->getToken(i);
+        if(token.getId() == IDENTIFIER && token.getValue() == "it")
+            return true;
+    }
+
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+        Ast *sub = ast->getSubAst(i);
+        if(sub->getType() == ast_lambda_function && sub->hasToken("@implicit"))
+            continue;
+        if(uses_implicit_parameter(sub))
+            return true;
+    }
+    return false;
+}
+
 void compile_lambda_expression(expression *e, Ast *ast) {
     List<sharp_field*> params;
+
+    // A trailing lambda written without `->` (see parser::parseTrailingLambda):
+    // it has one parameter called `it` when its body uses that name, none
+    // otherwise. The type of `it` comes from the function type the lambda is
+    // passed to, like the type of any untyped lambda parameter.
+    if(ast->hasToken("@implicit") && ast->hasSubAst(ast_block)
+       && uses_implicit_parameter(ast->getSubAst(ast_block))) {
+        impl_location location(currThread->currTask->file, ast);
+        string name = "it";
+        sharp_type type;
+        type.type = type_any;
+        params.add(new sharp_field(name, NULL, location, type, flag_public, normal_field, ast));
+    }
+
     if(ast->hasSubAst(ast_lambda_arg_list)) {
         parse_lambda_arg_list(params, ast->getSubAst(ast_lambda_arg_list));
 

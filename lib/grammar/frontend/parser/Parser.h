@@ -144,6 +144,8 @@ private:
     bool addition(Ast*);
     bool unary(Ast*);
     bool parseNonNullSuffix(Ast *branch);
+    void parseTrailingLambda(Ast *list);
+    bool trailingLambdaFollows();
     bool binary(Ast*);
     bool binaryLevel(Ast*, int level);
     bool parsePrimaryExpr(Ast*, bool ignoreInlineLambda);
@@ -207,6 +209,7 @@ private:
 
     List<Ast*> tree;
     Token* _current;
+    Token* trailingLambdaEnd = NULL;    // the `}` that closed the last trailing lambda (see parseStatement)
     tokenizer *toks;
     List<string> lines;
     List<Token> access_types;
