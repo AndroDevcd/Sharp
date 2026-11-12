@@ -10,6 +10,7 @@
 #include "types/sharp_type.h"
 #include "memory/sharp_object.h"
 #include "types/library.h"
+#include "error/vm_exception.h"
 
 extern thread_local long double *registers;
 
@@ -101,5 +102,24 @@ bool catch_exception();
 bool return_method();
 void invoke_next_frame(sharp_function *frame, bool isInterpreter);
 sharp_function* get_next_frame(sharp_function *current);
+
+/**
+ * a % b as the VM defines it (both sides cut down to whole numbers first).
+ *
+ * In C++ a remainder by zero is not an error value but a hardware trap: the
+ * whole VM died with SIGFPE and no Sharp exception could be caught. It now
+ * raises invalid_operation_exception like any other run time error.
+ * (INT64_MIN % -1 traps the same way on x86; its mathematical result is 0.)
+ *
+ * Used by MOD / IMOD / MODL / IMODL in the interpreter and by the matching JIT
+ * wrappers in jit/jit_wrappers.cpp, so both behave identically.
+ */
+inline Int vm_remainder(Int left, Int right) {
+    if(right == 0)
+        throw vm_exception(vm.invalid_operation_except, "remainder of a division by zero");
+    if(right == -1)
+        return 0;
+    return left % right;
+}
 
 #endif //SHARP_VIRTUAL_MACHINE_H

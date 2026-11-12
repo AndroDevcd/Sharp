@@ -346,24 +346,32 @@ void jit_and(int leftRegister, int rightRegister) {
 
 // MOD: regs[triple_arg3] = (Int)regs[triple_arg1] % (Int)regs[triple_arg2];
 void jit_mod(int outRegister, int leftRegister, int rightRegister) {
-    registers[outRegister] = (Int)registers[leftRegister] % (Int)registers[rightRegister];
+    JIT_GUARD(
+        registers[outRegister] = vm_remainder((Int)registers[leftRegister], (Int)registers[rightRegister]);
+    )
 }
 
 // IMOD: regs[single_arg] = (Int)regs[single_arg] % raw_arg2;
 void jit_imod(int outRegister, int value) {
-    registers[outRegister] = (Int)registers[outRegister] % value;
+    JIT_GUARD(
+        registers[outRegister] = vm_remainder((Int)registers[outRegister], (Int)value);
+    )
 }
 
 // MODL: (task->fp + dual_arg2)->var = ((Int)(task->fp + dual_arg2)->var) % (Int)regs[dual_arg1];
 void jit_modl(int inRegister, int relFrameAddress) {
     auto task = thread_self->task;
-    (task->fp + relFrameAddress)->var = ((Int)(task->fp + relFrameAddress)->var) % (Int)registers[inRegister];
+    JIT_GUARD(
+        (task->fp + relFrameAddress)->var = vm_remainder((Int)(task->fp + relFrameAddress)->var, (Int)registers[inRegister]);
+    )
 }
 
 // IMODL: (task->fp + single_arg)->var = ((Int)(task->fp + single_arg)->var) % raw_arg2;
 void jit_imodl(int value, int relFrameAddress) {
     auto task = thread_self->task;
-    (task->fp + relFrameAddress)->var = ((Int)(task->fp + relFrameAddress)->var) % value;
+    JIT_GUARD(
+        (task->fp + relFrameAddress)->var = vm_remainder((Int)(task->fp + relFrameAddress)->var, (Int)value);
+    )
 }
 
 // Debug wrapper functions

@@ -195,7 +195,7 @@ void main_vm_loop(sharp_function *frame)
                 regs[triple_arg3] = regs[triple_arg1] / regs[triple_arg2];
                 branch
             MOD:
-                regs[triple_arg3] = (Int)regs[triple_arg1] % (Int)regs[triple_arg2];
+                regs[triple_arg3] = vm_remainder((Int)regs[triple_arg1], (Int)regs[triple_arg2]);
                 branch
             IADD:
                 regs[single_arg] += raw_arg2;
@@ -210,7 +210,7 @@ void main_vm_loop(sharp_function *frame)
                 regs[single_arg] /= raw_arg2;
                 branch_for(2)
             IMOD:
-                regs[single_arg] = (Int)regs[single_arg] % raw_arg2;
+                regs[single_arg] = vm_remainder((Int)regs[single_arg], (Int)raw_arg2);
                 branch_for(2)
             POP:
                 copy_object(&pop_stack_object, (sharp_object*)nullptr);
@@ -463,7 +463,7 @@ void main_vm_loop(sharp_function *frame)
                 (task->fp + dual_arg2)->var /= regs[dual_arg1];
                 branch
             MODL:
-                (task->fp + dual_arg2)->var = ((Int)(task->fp + dual_arg2)->var) % (Int)regs[dual_arg1];
+                (task->fp + dual_arg2)->var = vm_remainder((Int)(task->fp + dual_arg2)->var, (Int)regs[dual_arg1]);
                 branch
             IADDL:
                 (task->fp + single_arg)->var += raw_arg2;
@@ -478,7 +478,7 @@ void main_vm_loop(sharp_function *frame)
                 (task->fp + single_arg)->var /= raw_arg2;
                 branch_for(2)
             IMODL:
-                (task->fp + single_arg)->var = ((Int)(task->fp + single_arg)->var) % raw_arg2;
+                (task->fp + single_arg)->var = vm_remainder((Int)(task->fp + single_arg)->var, (Int)raw_arg2);
                 branch_for(2)
             LOADL:
                 regs[dual_arg1] = (task->fp + dual_arg2)->var;
@@ -693,6 +693,25 @@ void main_vm_loop(sharp_function *frame)
         goto run;
 }
 
+/**
+ * Is `thrown` the class `handler`, or derived from it (directly or through
+ * several levels), or does it or one of its base classes implement `handler`
+ * as an interface?
+ *
+ * (are_classes_related() in types/sharp_class.cpp is not usable for this: it
+ * compares name hashes and answered "related" for unrelated exception classes.)
+ */
+static bool is_class_or_subclass(sharp_class *thrown, sharp_class *handler) {
+    for(sharp_class *c = thrown; c != nullptr; c = c->base) {
+        if(c->guid == handler->guid) return true;
+
+        for(Int i = 0; i < c->interfaceCount; i++) {
+            if(c->interfaces[i] != nullptr && c->interfaces[i]->guid == handler->guid) return true;
+        }
+    }
+    return false;
+}
+
 bool catch_exception() {
     auto thread = thread_self;
     auto task = thread->task;
@@ -714,11 +733,16 @@ bool catch_exception() {
         try_catch_data *table = &task->current->tryCatchTable.node_at(i)->data;
         if(pc >= table->blockStartPc && pc <= table->blockEndPc) {
             for(catch_data &caughtException : table->catchTable) {
+                // A handler catches the class it names AND every class derived
+                // from it (catch(e: exception) catches an illegal_state_exception).
+                // It used to compare for the exact class only, with `exception`,
+                // `error` and `throwable` hard wired to catch everything - so a
+                // user defined base class caught nothing but itself, and
+                // catch(e: error) swallowed exceptions that are not errors.
+                // `throwable` stays a catch-all: it is the root of the hierarchy.
                 if(
-                        handlingClass->guid == caughtException.exception->guid
-                            || caughtException.exception == vm.exception_class
-                            || caughtException.exception == vm.error_class
-                            || caughtException.exception == vm.throwable
+                        caughtException.exception == vm.throwable
+                            || is_class_or_subclass(handlingClass, caughtException.exception)
                 ) {
                     if(caughtException.exceptionFieldAddress >= 0) {
                         copy_object(&(task->fp + caughtException.exceptionFieldAddress)->obj,
