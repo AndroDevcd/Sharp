@@ -300,7 +300,10 @@ void push_machine_data_to_stack() {
             case no_data: break;
             case numeric_constant: {
                 if (floor(constantMap.get(cc.machineData.dataAddress)) == constantMap.get(cc.machineData.dataAddress)
-                && constantMap.get(cc.machineData.dataAddress) < INT32_MAX) {
+                && constantMap.get(cc.machineData.dataAddress) < INT32_MAX
+                // (no lower bound was checked: -5000000000 went down the 32 bit
+                //  `istore` path and was pushed as -2147483648)
+                && constantMap.get(cc.machineData.dataAddress) > INT32_MIN) {
                     add_instruction(Opcode::Builder::istore(
                             (opcode_arg)constantMap.get(cc.machineData.dataAddress)));
                 } else {
