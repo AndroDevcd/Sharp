@@ -1113,12 +1113,25 @@ void create_or_or_operation(
         operation_schema *rightScheme) {
     scheme->schemeType = scheme_or;
 
+    // a || b  is always 1 or 0, like `&&` (C++: bool r = a || b;).
+    //
+    //        left  -> jump to trueLabel when true        (|| short circuit)
+    //        right -> jump to endLabel when false        (result stays 0)
+    //   trueLabel:   result = 1    (written by process_or_scheme)
+    //   endLabel:
+    //
+    // It used to end right after evaluating an operand, so the result was the
+    // operand itself: `0 || 7` gave 7 and `(a || b) + (c || d)` did not count.
+    // The step layout here is mirrored by process_or_scheme() - keep in sync.
     Int endLabel = create_allocate_label_operation(scheme);
+    Int trueLabel = create_allocate_label_operation(scheme);
 
     create_get_value_operation(scheme, leftScheme, false, false);
-    create_jump_if_true_operation(scheme, endLabel);
+    create_jump_if_true_operation(scheme, trueLabel);
 
     create_get_value_operation(scheme, rightScheme, false, false);
+    create_jump_if_false_operation(scheme, endLabel);
+    create_set_label_operation(scheme, trueLabel);
     create_set_label_operation(scheme, endLabel);
 }
 

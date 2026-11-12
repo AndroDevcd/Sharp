@@ -137,6 +137,7 @@ private:
     bool addition(Ast*);
     bool unary(Ast*);
     bool binary(Ast*);
+    bool binaryLevel(Ast*, int level);
     bool parsePrimaryExpr(Ast*, bool ignoreInlineLambda);
     bool parseLiteral(Ast*);
     bool parseRegister(Ast*);

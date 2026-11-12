@@ -180,11 +180,15 @@ void compile_local_variable_statement(Ast *ast, operation_schema *scheme) {
             APPLY_TEMP_SCHEME(1, *subScheme,
                 operation_schema *fieldScheme = new operation_schema();
 
-                if(field->scheme->schemeType != scheme_none && !subField->scheme->steps.empty()) {
-                    if(field->fieldType == localized_field)
-                        create_tls_field_access_operation(fieldScheme, field);
+                // Every variable of `a : var = 1, b = 2;` stores into ITSELF.
+                // This block was copied from the one above and kept using
+                // `field` (the first variable): b's value was stored in a and b
+                // was never assigned; `p := 1, q;` reset p to q's default.
+                if(subField->scheme->schemeType != scheme_none && !subField->scheme->steps.empty()) {
+                    if(subField->fieldType == localized_field)
+                        create_tls_field_access_operation(fieldScheme, subField);
                     else
-                        create_local_field_access_operation(fieldScheme, field);
+                        create_local_field_access_operation(fieldScheme, subField);
                     create_value_assignment_operation(&scheme_1, fieldScheme, subField->scheme);
                 } else {
                     create_setup_local_field_operation(&scheme_1, subField);

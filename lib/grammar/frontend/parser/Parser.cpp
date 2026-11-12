@@ -2287,9 +2287,33 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary, bool ignoreInlineLambd
 
 // [2] + [3]
 bool parser::binary(Ast *ast) {
-    bool success = equality(ast);
+    return binaryLevel(ast, 0);
+}
 
-    while(match(5, AND, XOR, OR, ANDAND, OROR)) {
+/**
+ * The five operators below == and !=, loosest first, exactly as in C++:
+ *
+ *      level 0   ||
+ *      level 1   &&
+ *      level 2   |
+ *      level 3   ^
+ *      level 4   &
+ *      (level 5 hands over to equality())
+ *
+ * Each level parses its operands with the next tighter level and groups from
+ * the left, so `a && b || c` is `(a && b) || c` and `a || b && c` is
+ * `a || (b && c)`.
+ *
+ * All five used to share one loop that also grouped from the RIGHT:
+ * `f && f || t` was read as `f && (f || t)` and gave 0.
+ */
+bool parser::binaryLevel(Ast *ast, int level) {
+    static const token_type operators[5] = { OROR, ANDAND, OR, XOR, AND };
+    if(level >= 5) return equality(ast);
+
+    bool success = binaryLevel(ast, level + 1);
+
+    while(match(1, operators[level])) {
         if(isExprSymbol(peek(2)->getValue())
             && peek(2)->getId() != CHAR_LITERAL
                && peek(2)->getId() != STRING_LITERAL && peek(2)->getValue() != "-")
@@ -2313,8 +2337,7 @@ bool parser::binary(Ast *ast) {
                 parseExpression(rightExpr);
                 return true;
             } else
-                equality(branch);
-            ast = branch;
+                binaryLevel(branch, level + 1);
             success = true;
         } else return false;
     }
