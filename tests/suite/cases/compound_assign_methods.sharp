@@ -1,0 +1,56 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Compound assignment to a local inside a method whose right side is a member
+ * call (this used to abort the compiler), and to locals captured by a lambda.
+ */
+
+class node {
+    left : node;
+    number : var = 3;
+
+    def seven(): var {
+        return 7;
+    }
+
+    def one_plus_seven(): var {
+        sum : var = 1;
+        sum += seven();
+        return sum;
+    }
+
+    def total(): var {
+        sum : var = number;
+        if(left != null) { sum += left!!.total(); }
+        sum -= seven();
+        sum *= seven();
+        return sum;
+    }
+
+    /* a captured local that is changed with += inside a method */
+    def captured(): var {
+        count : int = 5;
+        count += seven();
+        read := { -> (var) return count.value; };
+        return read();
+    }
+}
+
+def global_captured(): var {
+    count : int = 5;
+    count += 4;
+    read := { -> (var) return count.value; };
+    return read();
+}
+
+def main(args: string[]) {
+    n := new node();
+    expect("local += method()", n.one_plus_seven(), 8);
+    n.left = new node();
+    expect("local += field!!.method()", n.total(), (3 + (3 - 7) * 7 - 7) * 7);
+    expect("captured local after += in a method", n.captured(), 12);
+    expect("captured local after += in a function", global_captured(), 9);
+    finish("compound_assign_methods");
+}

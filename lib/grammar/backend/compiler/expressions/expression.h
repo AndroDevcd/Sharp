@@ -64,6 +64,8 @@ void compile_initialization_call(
         expression &e,
         operation_schema *scheme);
 
+bool scheme_has_own_layout(_operation_scheme type);
+void wrap_scheme_as_value(operation_schema &scheme);
 sharp_function* compile_class_function_overload(
         sharp_class *with_class,
         expression &e,

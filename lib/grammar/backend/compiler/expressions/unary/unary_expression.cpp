@@ -8,6 +8,39 @@
 #include "../../../types/types.h"
 #include "../../../../settings/settings.h"
 
+/**
+ * a[i]++   a[i]--   ++a[i]   --a[i]     on an element of a number array.
+ *
+ * Compiled as the compound assignment `a[i] += 1` / `a[i] -= 1` (see
+ * scheme_compound_assign_value.cpp: the array and the index are evaluated
+ * once and the result is stored back into the element).
+ *
+ *      ++a[i]   has the new value          int r = ++a[i];
+ *      a[i]++   has the value from before  int r = a[i]++;
+ *
+ * For the second form the assign step is marked (`_bool`), which tells the
+ * generator to hand back the value it read before adding.
+ *
+ * Before this, both forms compiled to a read of the element and nothing else:
+ * the element never changed.
+ */
+static void compile_array_element_step(expression *e, string &op, bool resultIsOldValue) {
+    operation_schema element(e->scheme);
+    operation_schema one;
+    create_get_integer_constant_operation(&one, 1);
+
+    e->scheme.free();
+    ALLOCATE_REGISTER_2X(0, 1, &e->scheme,
+        if(op == "++")
+            create_plus_value_assignment_operation(&e->scheme, register_0, register_1, &element, &one);
+        else
+            create_sub_value_assignment_operation(&e->scheme, register_0, register_1, &element, &one);
+
+        if(resultIsOldValue)
+            e->scheme.steps.last()->_bool = true;   // the operation_assign_numeric_value step
+    )
+}
+
 void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
     compile_expression(*e, ast->getSubAst(ast_expression));
 
@@ -179,6 +212,10 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
             case type_uint32:
             case type_uint64:
             case type_var: {
+                if(e->type.arrayElement && (op == "++" || op == "--")) {
+                    compile_array_element_step(e, op, false);
+                    break;
+                }
 
                 if(op == "-")
                     create_negate_operation(schema);
@@ -349,6 +386,10 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
             case type_uint32:
             case type_uint64:
             case type_var: {
+                if(e->type.arrayElement && (op == "++" || op == "--")) {
+                    compile_array_element_step(e, op, true);
+                    break;
+                }
                 // do nothing because ++ or -- value will never be captured
                 break;
             }

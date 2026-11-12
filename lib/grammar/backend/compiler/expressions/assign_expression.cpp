@@ -246,7 +246,10 @@ void compile_assign_expression(expression *e, Ast *ast) {
             e->type.copy(left.type);
             e->scheme.copy(left.scheme);
         } else if(is_numeric_type(left.type) && left.type.type != type_function_ptr) {
-            if(left.type == type_field) {
+            // a field, or an element of a number array (`a[i] += v`; it used to
+            // be rejected as "not assignable" - see
+            // scheme_compound_assign_value.cpp for how it is stored)
+            if(left.type == type_field || array_element_store_position(left) != -1) {
                 if (match_result == no_match_found) {
                     match_result =
                             is_implicit_type_match(left.type, right.type,

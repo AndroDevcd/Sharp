@@ -734,12 +734,24 @@ void compile_binary_expression(
                                        location, type, flag_public, normal_field, ast));
 
             expression leftOld(left);
+            // `new vec(1) + new vec(2)`: the operator function is called ON the
+            // left value, by appending the call to the left side's steps. A left
+            // side with a layout of its own (a `new`, arithmetic, ...) is first
+            // made a single value step - otherwise the generator stopped with
+            // "attempting to consume empty machine data".
+            if(scheme_has_own_layout(left.scheme.schemeType))
+                wrap_scheme_as_value(left.scheme);
             if(compile_class_function_overload(
                     get_class_type(left.type), left, params, operations, operand.getValue(), ast, true)) {
                 expressions_array_check(leftOld.type, operand, ast->getSubAst(0));
                 e->type.copy(left.type);
                 e->scheme.copy(left.scheme);
             } else {
+                // no operator function: back to the left side as it was (it
+                // may have been wrapped above; the object comparison below
+                // needs the original steps)
+                left.scheme.free();   // (copy() appends)
+                left.scheme.copy(leftOld.scheme);
                 compile_binary_object_expression(e, left, right, operand, ast);
             }
 

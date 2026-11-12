@@ -191,6 +191,31 @@ void compile_initialization_call(
     )
 }
 
+/**
+ * Schemes whose steps are only meaningful to their own generator (they
+ * allocate registers / labels in a fixed order, or leave a new object on the
+ * stack) and therefore cannot simply get another step appended to them.
+ */
+bool scheme_has_own_layout(_operation_scheme type) {
+    return type == scheme_binary_math || type == scheme_and || type == scheme_or
+        || type == scheme_inline_if || type == scheme_compound_assign_value
+        || type == scheme_null_fallback || type == scheme_assign_value
+        || type == scheme_new_class;
+}
+
+/**
+ * Turn the steps of `scheme` into ONE step, "get the value of <those steps>",
+ * so that more steps (a cast, an operator call on the result) can follow.
+ *
+ *      before:  scheme = [ a ] [ b ] [ c ]            (layout of its own)
+ *      after:   scheme = [ get value ( [a] [b] [c] ) ]
+ */
+void wrap_scheme_as_value(operation_schema &scheme) {
+    operation_schema *value = new operation_schema(scheme);
+    scheme.free();
+    create_get_value_operation(&scheme, value, false, true);   // true: it is now a plain "get value" scheme
+}
+
 sharp_function* compile_class_function_overload(
         sharp_class *with_class,
         expression &e,

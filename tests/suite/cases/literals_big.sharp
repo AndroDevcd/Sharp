@@ -1,0 +1,35 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Whole number literals and constants outside the 32 bit range, negative ones
+ * included, as values, arguments and operands.
+ */
+
+def id(x: var): var { return x; }
+
+def main(args: string[]) {
+    a : var = -12345678901;
+    expect("large negative literal", a, 0 - id(12345678901));
+    b : var = 0 - 2208988800;
+    expect("0 - 2208988800", b, 0 - id(2208988800));
+    c : var = 1 << 40;
+    expect("1 << 40", c, id(1099511627776));
+    d : var = id(1) << id(40);
+    expect("1 << 40 at run time", d, id(1099511627776));
+    big : long = 0 - 5000000000;
+    expect("long 0 - 5000000000", big.value, 0 - id(5000000000));
+    e : var = -1.0 / 0.0;
+    expect_true("-1.0 / 0.0 is below everything", e < 0 - id(1000000000000));
+    expect("pass a large negative literal", id(-5000000000), 0 - id(5000000000));
+    f : var = 5000000000 * 3;
+    expect("5000000000 * 3", f, id(15000000000));
+    g : var = 4294967296 / 2;
+    expect("4294967296 / 2", g, id(2147483648));
+    h : var = -2147483648;
+    expect("-2147483648", h, 0 - id(2147483648));
+    i : var = -2147483649;
+    expect("-2147483649", i, 0 - id(2147483649));
+    finish("literals_big");
+}

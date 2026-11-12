@@ -30,6 +30,19 @@ void compile_cast_expression(expression *e, Ast *ast) {
                 if(!(castType.type == type_object
                     || (get_class_type(e->type) != NULL && get_class_type(castType)
                         && !is_implicit_class_type_match(get_class_type(e->type), get_class_type(castType))))) {
+                    // The cast is one more step at the end of the steps that
+                    // produce the value, and it re-labels the whole scheme as a
+                    // "casted value", which is generated step by step. That is
+                    // fine for a variable or a call, but a scheme with a layout
+                    // of its own - arithmetic `((v - d) / r) as _int64`, a
+                    // ternary, && / || - lost its layout and the generator
+                    // stopped with "previous machine data not consumed".
+                    // The value of a number cast is therefore first made ONE step:
+                    //      [ get value (the original scheme) ] [ cast ]
+                    if(e->scheme.schemeType != scheme_none
+                       && castType.type != type_class && castType.type != type_object) {
+                        wrap_scheme_as_value(e->scheme);
+                    }
                     create_cast_operation(&e->scheme, &castType);
                 }
 

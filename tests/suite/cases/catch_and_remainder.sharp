@@ -1,0 +1,50 @@
+mod main;
+
+import ( testing )
+
+/**
+ * catch matches subclasses of the named class; remainder by zero raises
+ * invalid_operation_exception instead of ending the VM.
+ */
+
+class p_err base exception {
+    p_err(message: string) -> base(message) {}
+}
+class q_err base p_err {
+    q_err(message: string) -> base(message) {}
+}
+
+def rem(a: var, b: var): var { return a % b; }
+
+def main(args: string[]) {
+    hit : var = 0;
+    try { throw new q_err("x"); } catch(e: p_err) { hit = 1; }
+    expect("subclass caught by its base class handler", hit, 1);
+
+    hit = 0;
+    try { throw new q_err("x"); } catch(e: exception) { hit = 2; }
+    expect("caught as exception", hit, 2);
+
+    hit = 0;
+    try {
+        try { throw new illegal_state_exception("x"); } catch(e: p_err) { hit = 5; }
+    } catch(e: illegal_state_exception) { hit = 3; }
+    expect("an unrelated handler is skipped", hit, 3);
+
+    hit = 0;
+    try { throw new p_err("x"); } catch(e: q_err) { hit = 9; } catch(e: p_err) { hit = 4; }
+    expect("a base class object is not caught by a subclass handler", hit, 4);
+
+    hit = 0;
+    try { rem(5, 0); } catch(e: invalid_operation_exception) { hit = 6; }
+    expect("remainder by zero raises an exception", hit, 6);
+    expect("remainder still works", rem(17, 5), 2);
+    expect("negative remainder", rem(0 - 7, 3), 0 - 1);
+
+    total : var = 0;
+    for(i : var = 0; i < 5000; i++) {
+        try { total += rem(i, i % 3); } catch(e: exception) { total += 1000; }
+    }
+    expect("hot loop with remainder by zero", total, 1667833);
+    finish("catch_and_remainder");
+}
