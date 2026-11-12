@@ -71,9 +71,12 @@ void generate() {
         generate(compressedCompilationFunctions.get(i));
     }
 
-    // Every function now has its bytecode. Optimize it (sharpc -O1..-O3, does
-    // nothing at -O0) before the .aout listing and the executable are written.
-    optimize_bytecode();
+    // Every function now has its bytecode. With -O on the command line, optimize
+    // it before the .aout listing and the executable are written. Without -O the
+    // optimizer is not entered at all and the code stays exactly as generated.
+    if(options.optimize_level > 0) {
+        optimize_bytecode();
+    }
 
     application_id = abs(distr(generator));
 //    remove_delegate_functions();
