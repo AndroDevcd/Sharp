@@ -14,6 +14,7 @@
 #include "../backend/compiler/class_compiler.h"
 #include "../backend/postprocessor/import_processor.h"
 #include "../settings/settings.h"
+#include "../frontend/parser/parse_cache.h"
 
 thread_local worker_thread *currThread;
 
@@ -65,6 +66,16 @@ void tokenize_file() {
     string data = buf.to_str();
     buf.end();
 
+    // Unchanged since an earlier compile? Then its syntax tree is in the parse
+    // cache: no tokens and no parsing (parse_file() sees file->p and is done).
+    if(options.parse_cache && !data.empty()) {
+        TIME_STAGE("  load from parse cache");
+        if(parse_cache_load(file->name, data, file->tok, file->p)) {
+            file->stage = tokenized;
+            return;
+        }
+    }
+
     file->tok = new tokenizer(data, file->name);
     if(file->tok->getErrors()->hasErrors()) {
         GUARD(errorMutex)
@@ -81,6 +92,11 @@ void tokenize_file() {
 void parse_file() {
     sharp_file *file = currThread->currTask->file;
 
+    if(file->p != NULL) {       // came from the parse cache in tokenize_file()
+        file->stage = parsed;
+        return;
+    }
+
     file->p = new parser(file->tok);
     if(file->p->getErrors() && file->p->getErrors()->hasErrors()) {
         GUARD(errorMutex)
@@ -91,8 +107,14 @@ void parse_file() {
             panic = true;
         delete file->p; file->p = NULL;
         remove_all_posted_tasks(file);
-    } else if(file->p->parsed)
+    } else if(file->p->parsed) {
         file->stage = parsed;
+
+        if(options.parse_cache) {
+            TIME_STAGE("  save to parse cache");
+            parse_cache_store(file->name, file->tok->getData(), file->p);
+        }
+    }
 }
 
 void pre_process_() {

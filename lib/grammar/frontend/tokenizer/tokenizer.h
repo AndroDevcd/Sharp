@@ -14,9 +14,13 @@
 class tokenizer
 {
 public:
+    // linesOnly: split the text into lines and stop there, without making any
+    // tokens. Used when the syntax tree of the file comes from the parse cache
+    // (parser/parse_cache.h): the lines are still needed for error messages.
     tokenizer(const string tokens, const string file,
-            bool dynamicStrings = true)
+            bool dynamicStrings = true, bool linesOnly = false)
             :
+            linesOnly(linesOnly),
             toks(""),
             empty(""),
             errors(NULL),
@@ -93,6 +97,7 @@ private:
     bool dynamicString;
     long brackets;
     bool printTokens;
+    bool linesOnly;
 
     CXX11_INLINE void parseIdentifier();
     bool parseString();

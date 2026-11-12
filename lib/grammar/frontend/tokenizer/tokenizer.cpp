@@ -120,6 +120,9 @@ void tokenizer::parse()
     errors = new ErrorManager(&lines, file, false, options.aggressive_errors);
     EOF_token = new Token("", SINGLE, 1, lines.size(), _EOF);
 
+    if(linesOnly)
+        return;     // the tree of this file comes from the parse cache: no tokens needed
+
     current = toks.at(0);
 
     while(!is_end) {

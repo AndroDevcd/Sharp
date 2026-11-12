@@ -18,6 +18,25 @@
     (_current->getType() == _EOF)
 
 
+parser::parser(tokenizer *tokenizer, std::vector<Ast*> &cachedTree)
+        :
+        errors(NULL),
+        toks(tokenizer),
+        parsed(true),
+        panic(false),
+        recursion(0),
+        lines()
+{
+    lines.addAll(tokenizer->getLines());
+    access_types.init();
+    tree.init();
+    errors = new ErrorManager(&toks->getLines(), toks->file, false, options.aggressive_errors);
+
+    for(size_t i = 0; i < cachedTree.size(); i++) {
+        tree.add(cachedTree[i]);
+    }
+}
+
 void parser::parse() {
     if(toks->size() == 0)
         return;

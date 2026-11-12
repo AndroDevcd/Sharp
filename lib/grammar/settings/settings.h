@@ -165,6 +165,15 @@ struct settings {
      */
     bool lazy_library = true;
 
+    /**
+     * Keep the syntax tree of every source file on disk and load it instead of
+     * tokenizing and parsing a file that has not changed (see
+     * frontend/parser/parse_cache.h). `-cacheoff` turns it off, `-cache <folder>`
+     * chooses the folder (default: <home>/.sharpc/cache).
+     */
+    bool parse_cache = true;
+    string parse_cache_folder = "";
+
     /*
      * Easter egg to enable debug mode
      *

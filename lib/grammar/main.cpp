@@ -20,6 +20,8 @@
 #include "backend/finalizer/finalizer.h"
 
 int compile();
+long parse_cache_hits();                    // frontend/parser/parse_cache.h
+long parse_cache_misses();
 long deferred_function_count();             // backend/compiler/functions/lazy_functions.h
 long deferred_function_compiled_count();
 
@@ -69,6 +71,8 @@ void help() {
     }
     cout <<               "    -Oreport             print what the bytecode optimizer did"                         << endl;
     cout <<               "    -timings             print how long each stage of the compile took"                 << endl;
+    cout <<               "    -cache <folder>      folder for the parse cache (default: <home>/.sharpc/cache)"    << endl;
+    cout <<               "    -cacheoff            tokenize and parse every file again, do not use the parse cache" << endl;
     cout <<               "    -eager               compile every library function, also the ones never called"    << endl;
     cout <<               "                         (reports errors in unused library code; slower)"                << endl;
     cout <<               "    --hw                 display help message for warning options"                  << endl;
@@ -228,6 +232,15 @@ int _bootstrap(int argc, const char* args[])
         }
         else if(opt("-eager")){
             options.lazy_library = false;
+        }
+        else if(opt("-cacheoff")){
+            options.parse_cache = false;
+        }
+        else if(opt("-cache")){
+            if(i+1 >= argc)
+                error("folder required after option `-cache`");
+            else
+                options.parse_cache_folder = string(args[++i]);
         }
         else if(opt("-magic")){
             enable_magic_mode(true);
@@ -578,6 +591,10 @@ int compile()
         whole.~stage_timer();       // close TOTAL now, so it is in the table
         whole.active = false;
         print_stage_timings();
+        if(options.parse_cache) {
+            cout << "parse cache: " << parse_cache_hits() << " files loaded from the cache, "
+                 << parse_cache_misses() << " parsed" << endl;
+        }
         if(options.lazy_library) {
             cout << "library function bodies: " << deferred_function_count() << " put aside, "
                  << deferred_function_compiled_count() << " of them needed and compiled" << endl;

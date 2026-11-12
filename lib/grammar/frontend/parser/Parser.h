@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 #include "../tokenizer/tokenizer.h"
 #include "Ast.h"
+#include <vector>
 #include "../../json/json_value.h"
 
 class parser {
@@ -30,6 +31,12 @@ public:
             parse();
         }
     }
+
+    /**
+     * A parser that does not parse: its tree was read from the parse cache
+     * (parse_cache.h). Everything after parsing sees no difference.
+     */
+    parser(tokenizer *tokenizer, std::vector<Ast*> &cachedTree);
 
     ~parser() {
         free();
