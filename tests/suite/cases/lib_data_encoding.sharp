@@ -1,0 +1,261 @@
+mod main;
+
+import ( testing, std.io, std.data )
+
+/**
+ * std.data encodings: base64 (standard and URL safe), hex (encode, decode,
+ * numbers, hex dump) and url_codec (percent encoding, query strings).
+ */
+
+/** a string of the given byte values */
+def bytes3(a: var, b: var, c: var): string {
+    raw := new _int8[3];
+    raw[0] = a; raw[1] = b; raw[2] = c;
+    return new string(raw);
+}
+
+/** all 256 byte values in order */
+def all_bytes(): string {
+    buf := new char_buffer(256);
+    for(i : var = 0; i < 256; i++) {
+        buf.append_char(i);
+    }
+    return buf.to_string()!!;
+}
+
+/** true when both strings hold the same bytes (compared as 0..255) */
+def same_bytes(a: string, b: string): var {
+    if(io_strings.length(a) != io_strings.length(b)) {
+        return 0;
+    }
+    for(i : var = 0; i < io_strings.length(a); i++) {
+        if((a.data[i] & 0xff) != (b.data[i] & 0xff)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+def test_base64() {
+    // the test vectors of RFC 4648
+    expect_str("empty", base64.encode(""), "");
+    expect_str("f", base64.encode("f"), "Zg==");
+    expect_str("fo", base64.encode("fo"), "Zm8=");
+    expect_str("foo", base64.encode("foo"), "Zm9v");
+    expect_str("foob", base64.encode("foob"), "Zm9vYg==");
+    expect_str("fooba", base64.encode("fooba"), "Zm9vYmE=");
+    expect_str("foobar", base64.encode("foobar"), "Zm9vYmFy");
+    expect_str("hello", base64.encode("hello"), "aGVsbG8=");
+    expect_str("decode empty", base64.decode(""), "");
+    expect_str("decode f", base64.decode("Zg=="), "f");
+    expect_str("decode fo", base64.decode("Zm8="), "fo");
+    expect_str("decode foo", base64.decode("Zm9v"), "foo");
+    expect_str("decode foobar", base64.decode("Zm9vYmFy"), "foobar");
+    expect_str("decode without padding", base64.decode("Zm9vYg"), "foob");
+    expect_str("decode with line breaks", base64.decode("Zm9v\r\nYmFy\n"), "foobar");
+    expect_str("decode with spaces", base64.decode(" Zm9v YmE= "), "fooba");
+
+    // the two alphabets differ in the last two characters
+    high := bytes3(0xfb, 0xff, 0xbf);
+    expect_str("standard uses + and /", base64.encode(high), "+/+/");
+    expect_str("url safe uses - and _", base64.encode_url(high), "-_-_");
+    expect_str("url safe has no padding", base64.encode_url("f"), "Zg");
+    expect_str("url safe two bytes", base64.encode_url("fo"), "Zm8");
+    expect_true("decode standard alphabet", same_bytes(base64.decode("+/+/"), high));
+    expect_true("decode url alphabet", same_bytes(base64.decode("-_-_"), high));
+
+    everything := all_bytes();
+    encoded := base64.encode(everything);
+    expect("256 bytes give 344 characters", io_strings.length(encoded), 344);
+    expect_true("all byte values round trip", same_bytes(base64.decode(encoded), everything));
+    expect_true("all byte values round trip (url)", same_bytes(base64.decode(base64.encode_url(everything)), everything));
+    expect_str("zero bytes", base64.encode(bytes3(0, 0, 0)), "AAAA");
+    expect("decoded zero bytes length", io_strings.length(base64.decode("AAAA")), 3);
+
+    raw := new _int8[2];
+    raw[0] = 'h'; raw[1] = 'i';
+    expect_str("encode_bytes", base64.encode_bytes(raw), "aGk=");
+    expect_str("encode_url_bytes", base64.encode_url_bytes(raw), "aGk");
+    expect_str("encode_bytes null", base64.encode_bytes(null), "");
+    decoded := base64.decode_bytes("aGk=");
+    expect("decode_bytes size", sizeof(decoded), 2);
+    expect("decode_bytes content", decoded[1], 'i');
+    expect_null("decode_bytes of nothing", base64.decode_bytes(""));
+
+    expect_str("encode_lines", base64.encode_lines("foobarfoobar", 8), "Zm9vYmFy\r\nZm9vYmFy");
+    expect_str("encode_lines uneven", base64.encode_lines("foobarf", 8), "Zm9vYmFy\r\nZg==");
+    expect_str("encode_lines short text", base64.encode_lines("foo", 76), "Zm9v");
+    expect_str("lines decode again", base64.decode(base64.encode_lines("foobarfoobar", 4)), "foobarfoobar");
+    try { base64.encode_lines("x", 3); fail("line length too small", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("line length too small"); }
+
+    // malformed input
+    try { base64.decode("Zm9v!"); fail("illegal character", "no exception"); }
+    catch(e: parse_exception) { pass("illegal character"); }
+    try { base64.decode("Z"); fail("one character", "no exception"); }
+    catch(e: parse_exception) { pass("one character"); }
+    try { base64.decode("Zm9vY"); fail("five characters", "no exception"); }
+    catch(e: parse_exception) { pass("five characters"); }
+    try { base64.decode("Zg==Zg=="); fail("data after padding", "no exception"); }
+    catch(e: parse_exception) { pass("data after padding"); }
+    try { base64.decode("Zg="); fail("too little padding", "no exception"); }
+    catch(e: parse_exception) { pass("too little padding"); }
+    try { base64.decode("Zm8=="); fail("too much padding", "no exception"); }
+    catch(e: parse_exception) { pass("too much padding"); }
+    try { base64.decode("===="); fail("only padding", "no exception"); }
+    catch(e: parse_exception) { pass("only padding"); }
+    try { base64.decode("Zh=="); fail("stray bits", "no exception"); }
+    catch(e: parse_exception) { pass("stray bits"); }
+    expect_true("is_valid", base64.is_valid("Zm9vYmFy").value);
+    expect_false("is_valid bad", base64.is_valid("Zm9v*mFy").value);
+}
+
+def test_hex() {
+    expect_str("encode", hex.encode("Hi!"), "486921");
+    expect_str("encode empty", hex.encode(""), "");
+    expect_str("encode_upper", hex.encode_upper(bytes3(0xab, 0xcd, 0xef)), "ABCDEF");
+    expect_str("encode high bytes", hex.encode(bytes3(0, 0x80, 0xff)), "0080ff");
+    expect_str("encode_separated", hex.encode_separated("Hi!", ':'), "48:69:21");
+    raw := new _int8[2];
+    raw[0] = 1; raw[1] = 0x7f;
+    expect_str("encode_bytes", hex.encode_bytes(raw), "017f");
+    expect_str("encode_bytes null", hex.encode_bytes(null), "");
+
+    expect_str("decode", hex.decode("486921"), "Hi!");
+    expect_str("decode upper case", hex.decode("4A4B"), "JK");
+    expect_str("decode mixed case", hex.decode("4a4B"), "JK");
+    expect_str("decode with spaces", hex.decode("48 69 21"), "Hi!");
+    expect_str("decode with colons", hex.decode("48:69:21"), "Hi!");
+    expect_str("decode with 0x", hex.decode("0x4869"), "Hi");
+    expect_str("decode empty", hex.decode(""), "");
+    expect_true("decode high bytes", same_bytes(hex.decode("0080ff"), bytes3(0, 0x80, 0xff)));
+    expect_null("decode_bytes of nothing", hex.decode_bytes(""));
+    expect("decode_bytes size", sizeof(hex.decode_bytes("0102")), 2);
+    everything := all_bytes();
+    expect("256 bytes give 512 digits", io_strings.length(hex.encode(everything)), 512);
+    expect_true("all byte values round trip", same_bytes(hex.decode(hex.encode(everything)), everything));
+    expect_true("upper case round trip", same_bytes(hex.decode(hex.encode_upper(everything)), everything));
+
+    try { hex.decode("486"); fail("odd digits", "no exception"); }
+    catch(e: parse_exception) { pass("odd digits"); }
+    try { hex.decode("48zz"); fail("illegal digit", "no exception"); }
+    catch(e: parse_exception) { pass("illegal digit"); }
+    try { hex.decode("4 8"); fail("byte cut in two", "no exception"); }
+    catch(e: parse_exception) { pass("byte cut in two"); }
+    expect_true("is_valid", hex.is_valid("00ff").value);
+    expect_false("is_valid bad", hex.is_valid("0g").value);
+
+    expect_str("from_number", hex.from_number(255, 0), "ff");
+    expect_str("from_number padded", hex.from_number(255, 4), "00ff");
+    expect_str("from_number zero", hex.from_number(0, 2), "00");
+    expect("to_number", hex.to_number("ff"), 255);
+    expect("to_number upper", hex.to_number("FF"), 255);
+    expect("to_number 0x", hex.to_number("0x10"), 16);
+    expect("to_number large", hex.to_number("ffffffff"), 4294967295);
+    expect("to_number 2^52", hex.to_number("10000000000000"), 4503599627370496);
+    try { hex.to_number(""); fail("to_number empty", "no exception"); }
+    catch(e: parse_exception) { pass("to_number empty"); }
+    try { hex.to_number("12g"); fail("to_number bad digit", "no exception"); }
+    catch(e: parse_exception) { pass("to_number bad digit"); }
+    try { hex.to_number("0x"); fail("to_number prefix only", "no exception"); }
+    catch(e: parse_exception) { pass("to_number prefix only"); }
+
+    expect_str("dump empty", hex.dump(""), "");
+    expect_str("dump short",
+        hex.dump("Hi!"),
+        "00000000  48 69 21                                          |Hi!|\n");
+    expect_str("dump two lines",
+        hex.dump("Hello, world! 123"),
+        "00000000  48 65 6c 6c 6f 2c 20 77  6f 72 6c 64 21 20 31 32  |Hello, world! 12|\n"
+        + "00000010  33                                                |3|\n");
+    expect_str("dump unprintable",
+        hex.dump(bytes3(0, 'A', 0xff)),
+        "00000000  00 41 ff                                          |.A.|\n");
+    expect("dump of 256 bytes has 16 lines", io_strings.split_lines(hex.dump(all_bytes())).size().value, 16);
+    expect_str("dump_bytes null", hex.dump_bytes(null), "");
+}
+
+def test_url() {
+    expect_str("encode", url_codec.encode("a b&c=d/e"), "a%20b%26c%3Dd%2Fe");
+    expect_str("encode unreserved untouched", url_codec.encode("AZaz09-._~"), "AZaz09-._~");
+    expect_str("encode empty", url_codec.encode(""), "");
+    expect_str("encode reserved", url_codec.encode("?#[]@!+,;"), "%3F%23%5B%5D%40%21%2B%2C%3B");
+    expect_str("encode percent", url_codec.encode("100%"), "100%25");
+    expect_str("encode high bytes", url_codec.encode(bytes3(0xc3, 0xa9, 0x00)), "%C3%A9%00");
+    expect_str("encode_path", url_codec.encode_path("/my files/a&b.txt"), "/my%20files/a%26b.txt");
+    expect_str("encode_form", url_codec.encode_form("a b+c"), "a+b%2Bc");
+
+    expect_str("decode", url_codec.decode("a%20b%26c"), "a b&c");
+    expect_str("decode lower case digits", url_codec.decode("%3f%2f"), "?/");
+    expect_str("decode keeps plus", url_codec.decode("a+b"), "a+b");
+    expect_str("decode_form", url_codec.decode_form("a+b%2Bc"), "a b+c");
+    expect_str("decode plain", url_codec.decode("plain-text_1.0~"), "plain-text_1.0~");
+    expect_str("decode at the end", url_codec.decode("x%21"), "x!");
+    expect_str("decode empty", url_codec.decode(""), "");
+    expect_true("decode high bytes", same_bytes(url_codec.decode("%C3%A9%00"), bytes3(0xc3, 0xa9, 0x00)));
+    everything := all_bytes();
+    expect_true("all byte values round trip", same_bytes(url_codec.decode(url_codec.encode(everything)), everything));
+    expect_true("all byte values round trip (form)", same_bytes(url_codec.decode_form(url_codec.encode_form(everything)), everything));
+
+    try { url_codec.decode("100%"); fail("percent at the end", "no exception"); }
+    catch(e: parse_exception) { pass("percent at the end"); }
+    try { url_codec.decode("%4"); fail("one digit", "no exception"); }
+    catch(e: parse_exception) { pass("one digit"); }
+    try { url_codec.decode("%zz"); fail("no hex digits", "no exception"); }
+    catch(e: parse_exception) { pass("no hex digits"); }
+    try { url_codec.decode_form("a%2"); fail("form: cut off", "no exception"); }
+    catch(e: parse_exception) { pass("form: cut off"); }
+
+    // query strings
+    keys := new list<string>();
+    values := new list<string>();
+    keys.add("q"); values.add("sharp lang");
+    keys.add("page"); values.add("2");
+    keys.add("a&b"); values.add("x=y");
+    keys.add("empty"); values.add("");
+    query := url_codec.build_query(keys, values);
+    expect_str("build_query", query, "q=sharp+lang&page=2&a%26b=x%3Dy&empty=");
+    expect_str("build_query of nothing", url_codec.build_query(new list<string>(), new list<string>()), "");
+    back_keys := new list<string>();
+    back_values := new list<string>();
+    expect("parse_query count", url_codec.parse_query(query, back_keys, back_values), 4);
+    expect_str("parsed keys", io_strings.join(back_keys, "|"), "q|page|a&b|empty");
+    expect_str("parsed values", io_strings.join(back_values, "|"), "sharp lang|2|x=y|");
+    values.pop_back();
+    try { url_codec.build_query(keys, values); fail("uneven lists", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("uneven lists"); }
+
+    k := new list<string>();
+    v := new list<string>();
+    expect("parse a whole url", url_codec.parse_query("http://host/path?a=1&b=two%20words#frag", k, v), 2);
+    expect_str("url keys", io_strings.join(k, "|"), "a|b");
+    expect_str("url values", io_strings.join(v, "|"), "1|two words");
+    k.clear(); v.clear();
+    expect("leading question mark", url_codec.parse_query("?x=1", k, v), 1);
+    k.clear(); v.clear();
+    expect("empty pieces skipped", url_codec.parse_query("a=1&&b=2&", k, v), 2);
+    k.clear(); v.clear();
+    expect("key without value, repeated key, semicolon", url_codec.parse_query("flag&k=1;k=2&e=", k, v), 4);
+    expect_str("those keys", io_strings.join(k, "|"), "flag|k|k|e");
+    expect_str("those values", io_strings.join(v, "|"), "|1|2|");
+    k.clear(); v.clear();
+    expect("value with equals sign", url_codec.parse_query("expr=a=b", k, v), 1);
+    expect_str("...keeps the rest", v.at(0), "a=b");
+    k.clear(); v.clear();
+    expect("empty query", url_codec.parse_query("", k, v), 0);
+    try { url_codec.parse_query("a=%G1", k, v); fail("bad escape in query", "no exception"); }
+    catch(e: parse_exception) { pass("bad escape in query"); }
+
+    expect_str("query_value", url_codec.query_value(query, "q")!!, "sharp lang");
+    expect_str("query_value of encoded key", url_codec.query_value(query, "a&b")!!, "x=y");
+    expect_str("query_value empty", url_codec.query_value(query, "empty")!!, "");
+    expect_true("query_value missing is null", io_strings.is_null(url_codec.query_value(query, "nope")));
+    expect_str("query_value takes the first", url_codec.query_value("k=1&k=2", "k")!!, "1");
+}
+
+def main(args: string[]) {
+    test_base64();
+    test_hex();
+    test_url();
+    finish("lib_data_encoding");
+}

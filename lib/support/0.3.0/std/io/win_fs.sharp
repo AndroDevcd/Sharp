@@ -17,53 +17,56 @@ protected class win_fs base file_system {
 
     /**
     * Make sure we know that our path has the correct
-    * path seperators to be accessed
+    * path seperators to be accessed:
+    *
+    *   - a forward slash becomes a back slash ("a/b" -> "a\b")
+    *   - several separators in a row become one ("a\\b" -> "a\b"), except
+    *     for two at the very beginning, which name a server share
+    *     ("\\server\share" stays as it is)
+    *   - a separator at the end is removed ("a\b\" -> "a\b"), except when
+    *     the path is a root ("\" and "C:\" stay)
+    *
+    * "." and ".." are left alone (see path.normalize() for that). There is
+    * no limit on the length of the path.
     */
     override def normalize(pathname: string) : string {
-        lock(self) {
-           buffer := new char[512];
-           n := pathname.size();
-           buf_index : var = 0;
-           for (i : var = 0; i < n; i++) {
-               // remove any trailing slashes
-               if((i + 1) >= n && buf_index > 0 && (pathname[i] == '\\' || pathname[i] == '/'))
-                   break;
+        n : var = sizeof(pathname.data);
+        buf := new char_buffer(n + 1);
+        last_was_slash : var = 0;
+        i : var = 0;
 
-               // Remove duplicate slashes.
-               if (pathname[i] == '/') {
-                   if(buf_index > 0 && buffer[buf_index - 1] != '\\')
-                       buffer[buf_index++] = new char('\\');
-
-                   if(((i + 1) < n) && pathname[i + 1] == '/') {
-                       do {
-                           i++;
-                       } while(pathname[i] == '/');
-                       i--;
-                   }
-               }
-               else if(pathname[i] == '\\')  {
-                   if(((i + 1) < n) && pathname[i + 1] == '\\') {
-                       do {
-                           i++;
-                       } while(pathname[i] == '\\');
-
-                       if(buf_index > 0 && buffer[buf_index - 1] != '\\')
-                           i--;
-                   }
-
-                   if(buf_index > 0 && buffer[buf_index - 1] != '\\')
-                       buffer[buf_index++] = new char('\\');
-               }
-               else
-                   buffer[buf_index++] = pathname[i];
-           }
-
-           path_buf := new char[buf_index];
-           for(i : var = 0; i < (buf_index); i++) {
-               path_buf[i] = buffer[i];
-           }
-           return new string(path_buf, 0, buf_index);
+        // keep the two separators that start a server share
+        if(n >= 2 && (pathname.data[0] == '/' || pathname.data[0] == '\\')
+            && (pathname.data[1] == '/' || pathname.data[1] == '\\')) {
+            buf.append_char('\\');
+            buf.append_char('\\');
+            last_was_slash = 1;
+            i = 2;
         }
+
+        for(; i < n; i++) {
+            ch : var = pathname.data[i];
+            if(ch == '/' || ch == '\\') {
+                if(!last_was_slash) {
+                    buf.append_char('\\');
+                }
+                last_was_slash = 1;
+            } else {
+                buf.append_char(ch);
+                last_was_slash = 0;
+            }
+        }
+
+        // remove the trailing separator, but keep "\" and "C:\" (roots)
+        len : var = buf.length();
+        if(last_was_slash && len > 1) {
+            is_drive_root : var = (len == 3 && buf.char_at(1) == ':');
+            is_share_start : var = (len == 2);
+            if(!is_drive_root && !is_share_start) {
+                buf.truncate(len - 1);
+            }
+        }
+        return buf.to_string()!!;
     }
 
      /**
@@ -93,10 +96,13 @@ protected class win_fs base file_system {
       * Check whether the file or directory denoted by the given abstract
       * pathname may be accessed by this process.  The second argument specifies
       * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
-      * Return false if access is denied or an I/O error occurs
+      * Returns 0 when the access is allowed and something else if access is
+      * denied or an I/O error occurs. Execute access cannot be asked for on
+      * windows and always answers -1.
       */
      override def check_access(f: file, access: int) : int {
         path := f.path.data;
+        _access := access.value;
         result : var = 0;
 
         // unsupported on windows
@@ -109,7 +115,7 @@ protected class win_fs base file_system {
         */
         asm {
             pushl [path]
-            loadl ebx, [access]
+            loadl ebx, [_access]
             int 0x24
             smovr2 [result], ebx
         };

@@ -1,0 +1,65 @@
+mod std.io;
+
+/**
+ * Reads a text file: character by character, line by line, or in pieces.
+ *
+ *     input := new file_reader("settings.txt");
+ *     foreach(line in input) {
+ *         println(line);
+ *     }
+ *     input.close();
+ *
+ * The runtime has no file handles, so the whole file is read into memory
+ * when the reader is created, and close() only marks the reader as finished.
+ * Changes made to the file afterwards are not seen. For the same reason a
+ * file larger than the memory of the program cannot be read.
+ *
+ * Everything a string_text_reader can do (peek, seek, line numbers, ...)
+ * works here too, since this is one, with the content of the file as its
+ * text.
+ */
+class file_reader base string_text_reader : loopable<string> {
+    /** the file that was read */
+    private source : file;
+
+    /**
+     * A reader for the content of `source`.
+     * Throws io_exception when the file does not exist or is a directory.
+     */
+    file_reader(source: file) -> base(source.read_text()) {
+        self->source = source;
+    }
+
+    /**
+     * A reader for the content of the file at `file_path`.
+     * Throws io_exception when the file does not exist or is a directory,
+     * nullptr_exception when the path is empty.
+     */
+    file_reader(file_path: string) -> base(new file(file_path).read_text()) {
+        self->source = new file(file_path);
+    }
+
+    /**
+     * Makes `foreach(line in reader)` work: the remaining lines as an
+     * array (null when there are none). Reads the file to its end.
+     * (Repeated here because foreach only looks at the class itself for
+     * loopable, not at the class it is based on.)
+     */
+    override def get_elements() : string[]? {
+        lines := read_lines();
+        count_lines : var = lines.size().value;
+        if(count_lines == 0) {
+            return null;
+        }
+        result := new string[count_lines];
+        for(i : var = 0; i < count_lines; i++) {
+            result[i] = lines.at(i);
+        }
+        return result;
+    }
+
+    /** the file this reader was created for */
+    def get_file() : file {
+        return source;
+    }
+}

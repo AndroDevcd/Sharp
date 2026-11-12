@@ -1,0 +1,55 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Behaviour of the compiler / runtime / base library that the I/O library
+ * (std.io, std.data, std.system) had to work around. Every check below
+ * FAILS today; when one starts to pass, the workaround named in its comment
+ * can be removed.
+ */
+
+calls : var = 0;
+
+def counted_true(): bool {
+    calls++;
+    return true;
+}
+
+def boxed(v: var): int {
+    return v;
+}
+
+def main(args: string[]) {
+    // 1. `&&` and `||` do not stop early when the LEFT side is an object (bool, int ...):
+    //    the right side is always evaluated. Workaround: `.value` on the left, or nested ifs.
+    calls = 0;
+    if(boxed(0) > 0 && counted_true()) { }
+    expect("&& with an object on the left skips the right side", calls, 0);
+    calls = 0;
+    if(counted_true() || counted_true()) { }
+    expect("|| with an object on the left skips the right side", calls, 1);
+
+    // 2. a number above 127 stored from a `var` into an _int8 array element is kept as it
+    //    is (128, 129 ...) instead of wrapping to -128, -127 ..., so the element no longer
+    //    compares equal to the same byte read from a file.
+    //    Workaround: byte_buffer converts by hand, readers compare with `& 0xff`.
+    bytes := new _int8[2];
+    v : var = 128;
+    bytes[0] = v;
+    v = 129;
+    bytes[1] = v;
+    expect("129 stored in _int8 wraps", bytes[1], 0 - 127);
+    expect("128 stored in _int8 wraps", bytes[0], 0 - 128);
+
+    // 3. string + empty string appends "null" (string.operator+(string?) takes an empty
+    //    string for null). Workaround: build with char_buffer.
+    empty : string = "";
+    expect_str("text + empty string", "abc" + empty, "abc");
+
+    // 4. `s == null` is true for an empty string (it calls string.operator==).
+    //    Workaround: io_strings.is_null(s).
+    expect_false("empty string == null", (empty == null).value);
+
+    finish("lib_io_language");
+}

@@ -1,0 +1,164 @@
+mod std.io;
+
+import ( platform )
+
+/**
+ * Finds the names of the files and directories in a directory. This is the
+ * one place that knows how; file.list_names(), file.list_files() and
+ * directory_walker all come here.
+ *
+ * Why this is not a single call: the directory call of the runtime
+ * (file_natives.tree_files) reports the regular files of a whole tree
+ * and nothing else - no directories (so an empty directory cannot be seen)
+ * and nothing whose name starts with '.'. That is not enough to list, walk,
+ * copy or delete a directory correctly. So the names are found in two ways:
+ *
+ *   1. the command line (the default): `ls -1Ap` on unix, `dir /b /a` on
+ *      windows, with the output sent to a temporary file that is read back
+ *      and deleted. This sees everything: directories, empty directories,
+ *      hidden entries. It costs one small process per listed directory.
+ *   2. the runtime call, as a fallback when the command fails or the
+ *      command line was switched off with set_shell_enabled(false): the
+ *      names are worked out from the paths of the files in the tree. Fast
+ *      and without a process, but empty directories and names starting with
+ *      '.' are missing.
+ *
+ * Names that contain a line break cannot be listed correctly (the command
+ * prints one name per line).
+ *
+ * Everything is static.
+ */
+class directory_listing {
+    /** 1 when the command line may be used, 0 for the runtime call only */
+    private static shell_enabled : var = 1;
+
+    /**
+     * Allow (true, the default) or forbid (false) the use of the command
+     * line. Without it only the runtime call is used, with the limits the
+     * class comment describes.
+     */
+    static def set_shell_enabled(enabled: bool) {
+        if(enabled) {
+            shell_enabled = 1;
+        } else {
+            shell_enabled = 0;
+        }
+    }
+
+    /** true when the command line is used for listings (see set_shell_enabled) */
+    static def is_shell_enabled() : bool {
+        return shell_enabled != 0;
+    }
+
+    /**
+     * The names (not paths) of everything directly inside the directory
+     * `dir_path`, sorted by character code, without "." and "..". An empty
+     * list when the directory is empty or `dir_path` is not a directory.
+     */
+    static def names(dir_path: string) : list<string> {
+        dir := new file(dir_path);
+        if(!dir.is_directory()) {
+            return new list<string>();
+        }
+        if(shell_enabled) {
+            from_shell := names_from_shell(dir_path);
+            if(from_shell != null) {
+                return from_shell!!;
+            }
+        }
+        return names_from_runtime(dir_path);
+    }
+
+    /**
+     * The names found with the command line, or null when the command did
+     * not work (then names() falls back to the runtime call).
+     */
+    static def names_from_shell(dir_path: string) : list<string>? {
+        output := new file(temp_files.new_path("sharp_ls_", ".tmp"));
+        command : string = "";
+        if(build.is_windows()) {
+            command = "dir /b /a " + io_strings.shell_quote(dir_path) + " > "
+                + io_strings.shell_quote(output.get_path()) + " 2>nul";
+        } else {
+            command = "ls -1Ap -- " + io_strings.shell_quote(dir_path) + " > "
+                + io_strings.shell_quote(output.get_path()) + " 2>/dev/null";
+        }
+
+        status : var = sys(command).value;
+        if(!output.exists()) {
+            return null;
+        }
+        text := file_natives.read(output.get_path());
+        file_natives.delete_file(output.get_path());
+        if(status != 0) {
+            return null;
+        }
+
+        result := new list<string>();
+        if(io_strings.is_null(text)) {
+            return result; // nothing was printed: an empty directory
+        }
+
+        lines := io_strings.split_lines(text!!);
+        count : var = lines.size().value;
+        for(i : var = 0; i < count; i++) {
+            name := lines.at(i);
+            n : var = sizeof(name.data);
+            // `ls -p` marks a directory with a slash at the end
+            if(n > 0 && name.data[n - 1] == '/') {
+                name = io_strings.slice(name, 0, n - 1);
+                n--;
+            }
+            if(n > 0) {
+                result.add(name);
+            }
+        }
+        io_strings.sort(result);
+        return result;
+    }
+
+    /**
+     * The names found with the runtime call only: every file directly in
+     * the directory whose name does not start with '.', and every sub
+     * directory that has such a file somewhere below it.
+     */
+    static def names_from_runtime(dir_path: string) : list<string> {
+        result := new list<string>();
+        dir := new file(dir_path);
+        paths := file_natives.tree_files(dir.get_path());
+        // (`paths == null` would call the == operator of string on an array of strings)
+        paths_object : object = paths;
+        if(paths_object == null) {
+            return result;
+        }
+
+        // every reported path is "<dir><separator><name>[<separator>...]"
+        dir_text := dir.get_path();
+        skip : var = sizeof(dir_text.data);
+        if(skip > 0 && dir_text.data[skip - 1] != '/' && dir_text.data[skip - 1] != '\\') {
+            skip++;
+        }
+
+        foreach(full in paths) {
+            n : var = sizeof(full.data);
+            end : var = skip;
+            while(end < n && full.data[end] != '/' && full.data[end] != '\\') {
+                end++;
+            }
+            if(end > skip) {
+                result.add(io_strings.slice(full, skip, end));
+            }
+        }
+
+        // sort, then drop the repeats (a sub directory shows up once per file in it)
+        io_strings.sort(result);
+        unique := new list<string>();
+        count : var = result.size().value;
+        for(i : var = 0; i < count; i++) {
+            if(i == 0 || io_strings.compare(result.at(i), result.at(i - 1)) != 0) {
+                unique.add(result.at(i));
+            }
+        }
+        return unique;
+    }
+}

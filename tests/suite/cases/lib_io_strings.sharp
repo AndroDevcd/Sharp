@@ -1,0 +1,276 @@
+mod main;
+
+import ( testing, std.io )
+
+/**
+ * std.io text helpers: char_buffer (growable character buffer) and
+ * io_strings (slicing, searching, trimming, splitting, joining, sorting,
+ * numbers to text and back).
+ */
+
+def test_char_buffer() {
+    buf := new char_buffer();
+    expect("new buffer is empty", buf.length(), 0);
+    expect_true("is_empty", buf.is_empty().value);
+    expect_str("empty to_string", buf.to_string()!!, "");
+    expect_null("empty to_array", buf.to_array());
+
+    buf.append("x = ").append_int(42).append_char('\n');
+    expect_str("chained appends", buf.to_string()!!, "x = 42\n");
+    expect("length", buf.length(), 7);
+    expect("char_at", buf.char_at(0), 'x');
+    expect_false("not empty", buf.is_empty().value);
+
+    buf.set_char(0, 'y');
+    expect_str("set_char", buf.substring(0, 1), "y");
+    buf.truncate(1);
+    expect_str("truncate", buf.to_string()!!, "y");
+    buf.clear();
+    expect("clear", buf.length(), 0);
+
+    // growth far beyond the first capacity
+    for(i : var = 0; i < 1000; i++) {
+        buf.append_char('a' + (i % 26));
+    }
+    expect("1000 appended", buf.length(), 1000);
+    expect("char 999", buf.char_at(999), 'l');
+    expect_str("substring in grown buffer", buf.substring(26, 30), "abcd");
+
+    small := new char_buffer(1);
+    small.append("0123456789012345678901234567890123456789");
+    expect("string larger than capacity", small.length(), 40);
+    small.clear();
+    small.append_repeated('-', 5).append_number(2.5).append_number(3);
+    expect_str("append_repeated and numbers", small.to_string()!!, "-----2.53");
+    small.clear();
+    small.append("");
+    small.append_repeated('x', 0);
+    expect("empty appends", small.length(), 0);
+
+    chars := new _int8[4];
+    chars[0] = 'w'; chars[1] = 'x'; chars[2] = 'y'; chars[3] = 'z';
+    small.append_range(chars, 1, 3);
+    expect_str("append_range", small.to_string()!!, "xy");
+    arr := small.to_array();
+    expect("to_array size", sizeof(arr), 2);
+    expect("to_array content", arr[1], 'y');
+
+    try { small.char_at(2); fail("char_at past end", "no exception"); }
+    catch(e: out_of_bounds_exception) { pass("char_at past end"); }
+    try { small.truncate(3); fail("truncate longer", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("truncate longer"); }
+    try { small.append_range(chars, 3, 5); fail("append_range outside", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("append_range outside"); }
+    try { small.substring(1, 0); fail("substring reversed", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("substring reversed"); }
+}
+
+def test_slicing() {
+    s : string = "hello world";
+    expect("length", io_strings.length(s), 11);
+    expect("length of empty", io_strings.length(""), 0);
+    expect_str("slice", io_strings.slice(s, 0, 5), "hello");
+    expect_str("slice clipped", io_strings.slice(s, 6, 99), "world");
+    expect_str("slice empty range", io_strings.slice(s, 5, 5), "");
+    expect_str("slice reversed", io_strings.slice(s, 7, 3), "");
+    expect_str("slice negative start", io_strings.slice(s, 0 - 4, 2), "he");
+    expect_str("slice_from", io_strings.slice_from(s, 6), "world");
+    expect_str("slice_from at end", io_strings.slice_from(s, 11), "");
+
+    expect("index_of", io_strings.index_of(s, 'o'), 4);
+    expect("index_of from", io_strings.index_of(s, 'o', 5), 7);
+    expect("index_of missing", io_strings.index_of(s, 'z'), 0 - 1);
+    expect("last_index_of", io_strings.last_index_of(s, 'o'), 7);
+    expect("last_index_of missing", io_strings.last_index_of(s, 'z'), 0 - 1);
+    expect("index_of_text", io_strings.index_of_text(s, "wor", 0), 6);
+    expect("index_of_text at end", io_strings.index_of_text(s, "ld", 0), 9);
+    expect("index_of_text missing", io_strings.index_of_text(s, "worm", 0), 0 - 1);
+    expect("index_of_text empty needle", io_strings.index_of_text(s, "", 3), 3);
+    expect_true("contains", io_strings.contains(s, "lo w").value);
+    expect_false("contains not", io_strings.contains(s, "low").value);
+
+    expect_true("starts_with", io_strings.starts_with(s, "hell").value);
+    expect_true("starts_with itself", io_strings.starts_with(s, s).value);
+    expect_true("starts_with empty", io_strings.starts_with(s, "").value);
+    expect_false("starts_with longer", io_strings.starts_with("ab", "abc").value);
+    expect_true("ends_with", io_strings.ends_with(s, "world").value);
+    expect_true("ends_with itself", io_strings.ends_with(s, s).value);
+    expect_false("ends_with not", io_strings.ends_with(s, "worl").value);
+
+    expect_true("equals", io_strings.equals("abc", "abc").value);
+    expect_false("equals different", io_strings.equals("abc", "abd").value);
+    expect_false("equals different length", io_strings.equals("abc", "ab").value);
+    expect_true("equals empty", io_strings.equals("", "").value);
+    expect_true("equals_ignore_case", io_strings.equals_ignore_case("HeLLo", "hEllO").value);
+    expect_false("equals_ignore_case not", io_strings.equals_ignore_case("hello", "hallo").value);
+    expect("compare less", io_strings.compare("abc", "abd"), 0 - 1);
+    expect("compare greater", io_strings.compare("b", "abc"), 1);
+    expect("compare equal", io_strings.compare("abc", "abc"), 0);
+    expect("compare prefix", io_strings.compare("ab", "abc"), 0 - 1);
+    expect("compare upper before lower", io_strings.compare("Z", "a"), 0 - 1);
+}
+
+def test_changing() {
+    expect_str("trim", io_strings.trim("  hi there \t\n"), "hi there");
+    expect_str("trim nothing", io_strings.trim("x"), "x");
+    expect_str("trim all space", io_strings.trim("   "), "");
+    expect_str("trim empty", io_strings.trim(""), "");
+    expect_str("to_lower", io_strings.to_lower("Hello World 9"), "hello world 9");
+    expect_str("to_upper", io_strings.to_upper("Hello World 9"), "HELLO WORLD 9");
+    expect_str("replace_char", io_strings.replace_char("a-b-c", '-', '+'), "a+b+c");
+    expect_str("replace_text", io_strings.replace_text("one two one", "one", "1"), "1 two 1");
+    expect_str("replace_text longer", io_strings.replace_text("aaa", "a", "bb"), "bbbbbb");
+    expect_str("replace_text none", io_strings.replace_text("abc", "x", "y"), "abc");
+    expect_str("replace_text to nothing", io_strings.replace_text("a,b,c", ",", ""), "abc");
+    try { io_strings.replace_text("abc", "", "y"); fail("replace empty", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("replace empty"); }
+    expect_str("repeat", io_strings.repeat("ab", 3), "ababab");
+    expect_str("repeat zero", io_strings.repeat("ab", 0), "");
+    expect_str("pad_left", io_strings.pad_left("7", 3, '0'), "007");
+    expect_str("pad_left long enough", io_strings.pad_left("1234", 3, '0'), "1234");
+    expect_str("pad_right", io_strings.pad_right("ab", 5, '.'), "ab...");
+    expect_str("from_char", io_strings.from_char('q'), "q");
+    expect("lower_char", io_strings.lower_char('Q'), 'q');
+    expect("upper_char", io_strings.upper_char('q'), 'Q');
+    expect("upper_char of digit", io_strings.upper_char('5'), '5');
+    expect("hex_value digit", io_strings.hex_value('7'), 7);
+    expect("hex_value lower", io_strings.hex_value('f'), 15);
+    expect("hex_value upper", io_strings.hex_value('A'), 10);
+    expect("hex_value none", io_strings.hex_value('g'), 0 - 1);
+    expect_true("is_space tab", io_strings.is_space('\t'));
+    expect_false("is_space letter", io_strings.is_space('a'));
+    expect_true("is_digit", io_strings.is_digit('0'));
+    expect_false("is_digit letter", io_strings.is_digit('a'));
+    expect_true("is_letter", io_strings.is_letter('Z'));
+    expect_false("is_letter digit", io_strings.is_letter('1'));
+}
+
+def test_split_join_sort() {
+    parts := io_strings.split("a,,b", ',');
+    expect("split keeps empty pieces", parts.size().value, 3);
+    expect_str("split 0", parts.at(0), "a");
+    expect_str("split 1", parts.at(1), "");
+    expect_str("split 2", parts.at(2), "b");
+    expect("split empty string", io_strings.split("", ',').size().value, 1);
+    expect("split no separator", io_strings.split("abc", ',').size().value, 1);
+    expect("split trailing separator", io_strings.split("a,", ',').size().value, 2);
+    expect_str("join", io_strings.join(parts, "|"), "a||b");
+    expect_str("join empty list", io_strings.join(new list<string>(), ","), "");
+
+    lines := io_strings.split_lines("one\ntwo\r\nthree\rfour");
+    expect("split_lines count", lines.size().value, 4);
+    expect_str("line 0", lines.at(0), "one");
+    expect_str("line 1 (crlf)", lines.at(1), "two");
+    expect_str("line 2 (cr)", lines.at(2), "three");
+    expect_str("line 3 (no end)", lines.at(3), "four");
+    expect("trailing newline adds no line", io_strings.split_lines("a\nb\n").size().value, 2);
+    expect("empty text has no lines", io_strings.split_lines("").size().value, 0);
+    blank := io_strings.split_lines("a\n\nb");
+    expect("blank line kept", blank.size().value, 3);
+    expect_str("blank line is empty", blank.at(1), "");
+
+    names := new list<string>();
+    names.add("pear"); names.add("Apple"); names.add("fig"); names.add("apple"); names.add("figs"); names.add("banana");
+    io_strings.sort(names);
+    expect_str("sorted", io_strings.join(names, " "), "Apple apple banana fig figs pear");
+    many := new list<string>();
+    for(i : var = 0; i < 200; i++) {
+        many.add(io_strings.pad_left(io_strings.int_to_string((i * 37) % 200), 3, '0'));
+    }
+    io_strings.sort(many);
+    ordered : var = 1;
+    for(i : var = 1; i < 200; i++) {
+        if(io_strings.compare(many.at(i - 1), many.at(i)) > 0) {
+            ordered = 0;
+        }
+    }
+    expect_true("200 strings sorted", ordered);
+    expect_str("first of 200", many.at(0), "000");
+    expect_str("last of 200", many.at(199), "199");
+}
+
+def test_numbers() {
+    expect_str("int 0", io_strings.int_to_string(0), "0");
+    expect_str("int 42", io_strings.int_to_string(42), "42");
+    expect_str("int negative", io_strings.int_to_string(0 - 1234567890123), "-1234567890123");
+    expect_str("int cuts fraction", io_strings.int_to_string(2.9), "2");
+    expect_str("int cuts negative fraction", io_strings.int_to_string(0 - 2.9), "-2");
+    expect_str("int 2^53", io_strings.int_to_string(9007199254740992), "9007199254740992");
+    expect_str("hex", io_strings.int_to_hex(255, 0), "ff");
+    expect_str("hex padded", io_strings.int_to_hex(255, 4), "00ff");
+    expect_str("hex zero", io_strings.int_to_hex(0, 0), "0");
+    expect_str("hex large", io_strings.int_to_hex(4294967295, 0), "ffffffff");
+    try { io_strings.int_to_hex(0 - 1, 0); fail("hex negative", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("hex negative"); }
+
+    expect_str("number whole", io_strings.number_to_string(3), "3");
+    expect_str("number negative whole", io_strings.number_to_string(0 - 120), "-120");
+    expect_str("number zero", io_strings.number_to_string(0), "0");
+    expect_str("number 0.1", io_strings.number_to_string(0.1), "0.1");
+    expect_str("number 2.5", io_strings.number_to_string(2.5), "2.5");
+    expect_str("number -0.75", io_strings.number_to_string(0 - 0.75), "-0.75");
+    expect_str("number pi", io_strings.number_to_string(3.141592653589793), "3.141592653589793");
+    expect_str("number 1e15", io_strings.number_to_string(1000000000000000), "1000000000000000");
+    expect_str("number large", io_strings.number_to_string(1.5e300), "1.5e300");
+    expect_str("number small", io_strings.number_to_string(2e-9), "2e-9");
+    expect_str("number 1e21", io_strings.number_to_string(1e21), "1e21");
+    expect_str("NaN", io_strings.number_to_string(0.0 / 0.0), "NaN");
+    expect_str("Infinity", io_strings.number_to_string(1.0 / 0.0), "Infinity");
+    expect_str("-Infinity", io_strings.number_to_string(0 - 1.0 / 0.0), "-Infinity");
+    expect_str("fixed 2", io_strings.fixed_to_string(3.14159, 2), "3.14");
+    expect_str("fixed pads", io_strings.fixed_to_string(2, 1), "2.0");
+    expect_str("fixed 0 rounds", io_strings.fixed_to_string(2.6, 0), "3");
+
+    expect_true("is_int", io_strings.is_int("123").value);
+    expect_true("is_int signed", io_strings.is_int("-5").value);
+    expect_false("is_int empty", io_strings.is_int("").value);
+    expect_false("is_int sign only", io_strings.is_int("-").value);
+    expect_false("is_int fraction", io_strings.is_int("1.5").value);
+    expect_false("is_int spaces", io_strings.is_int(" 1").value);
+    expect("parse_int", io_strings.parse_int("12345"), 12345);
+    expect("parse_int negative", io_strings.parse_int("-17"), 0 - 17);
+    expect("parse_int plus", io_strings.parse_int("+8"), 8);
+    try { io_strings.parse_int("12x"); fail("parse_int bad", "no exception"); }
+    catch(e: number_format_exception) { pass("parse_int bad"); }
+
+    expect_true("is_number int", io_strings.is_number("12").value);
+    expect_true("is_number fraction", io_strings.is_number("-0.5").value);
+    expect_true("is_number exponent", io_strings.is_number("2.5E-3").value);
+    expect_true("is_number leading dot", io_strings.is_number(".5").value);
+    expect_false("is_number empty", io_strings.is_number("").value);
+    expect_false("is_number word", io_strings.is_number("abc").value);
+    expect_false("is_number open exponent", io_strings.is_number("1e").value);
+    expect_false("is_number two signs", io_strings.is_number("--1").value);
+    expect_false("is_number hex", io_strings.is_number("0x10").value);
+    expect_false("is_number dot only", io_strings.is_number(".").value);
+    expect("parse_number", io_strings.parse_number("2.5"), 2.5);
+    expect("parse_number exponent", io_strings.parse_number("1e3"), 1000);
+    expect("parse_number negative", io_strings.parse_number("-0.25"), 0 - 0.25);
+    try { io_strings.parse_number("1.2.3"); fail("parse_number bad", "no exception"); }
+    catch(e: number_format_exception) { pass("parse_number bad"); }
+
+    // number -> text -> number gives the same number
+    values := new var[6];
+    values[0] = 0.3; values[1] = 123456.789; values[2] = 1.0 / 3.0; values[3] = 6.02214076e23; values[4] = 1e-7; values[5] = 0 - 987654321.125;
+    same : var = 1;
+    for(i : var = 0; i < 6; i++) {
+        if(io_strings.parse_number(io_strings.number_to_string(values[i])) != values[i]) {
+            same = 0;
+            println("round trip differs for " + io_strings.number_to_string(values[i]));
+        }
+    }
+    expect_true("numbers survive text round trip", same);
+}
+
+def main(args: string[]) {
+    test_char_buffer();
+    test_slicing();
+    test_changing();
+    test_split_join_sort();
+    test_numbers();
+    expect_true("is_null of null", io_strings.is_null(null));
+    expect_false("is_null of empty", io_strings.is_null(""));
+    expect_str("shell_quote plain", io_strings.shell_quote("a b"), "'a b'");
+    expect("shell_quote with quote length", io_strings.length(io_strings.shell_quote("it's")), 9);
+    finish("lib_io_strings");
+}

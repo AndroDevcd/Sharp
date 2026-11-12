@@ -1,0 +1,120 @@
+mod main;
+
+import ( testing, std.io )
+
+/**
+ * std.io path: pure path arithmetic. Results are compared after
+ * path.to_unix() so that the expected values are the same on every
+ * operating system.
+ */
+
+def u(p: string): string {
+    return path.to_unix(p);
+}
+
+def main(args: string[]) {
+    // ---- separators and roots
+    expect_true("is_separator slash", path.is_separator('/'));
+    expect_true("is_separator back slash", path.is_separator(92));
+    expect_false("is_separator letter", path.is_separator('a'));
+    expect_str("root of absolute", u(path.root("/usr/lib")), "/");
+    expect_str("root of relative", path.root("usr/lib"), "");
+    expect_str("root of empty", path.root(""), "");
+    expect_str("root of drive", u(path.root("C:/dir")), "C:/");
+    expect_str("root of drive relative", path.root("C:dir"), "C:");
+    expect_true("is_absolute", path.is_absolute("/a").value);
+    expect_true("is_absolute back slash", path.is_absolute("\\a").value);
+    expect_true("is_absolute drive", path.is_absolute("C:\\a").value);
+    expect_false("is_absolute relative", path.is_absolute("a/b").value);
+    expect_false("is_absolute drive relative", path.is_absolute("C:a").value);
+    expect_false("is_absolute empty", path.is_absolute("").value);
+
+    // ---- split
+    parts := path.split("/usr//lib/x.so");
+    expect("split count", parts.size().value, 3);
+    expect_str("split 0", parts.at(0), "usr");
+    expect_str("split 1", parts.at(1), "lib");
+    expect_str("split 2", parts.at(2), "x.so");
+    expect("split root only", path.split("/").size().value, 0);
+    expect("split empty", path.split("").size().value, 0);
+    expect("split mixed separators", path.split("a\\b/c").size().value, 3);
+    expect("split keeps dots", path.split("a/./../b").size().value, 4);
+
+    // ---- join
+    expect_str("join", u(path.join("src", "main.sharp")), "src/main.sharp");
+    expect_str("join trailing separator", u(path.join("src/", "main.sharp")), "src/main.sharp");
+    expect_str("join absolute first", u(path.join("/usr", "lib")), "/usr/lib");
+    expect_str("join absolute second replaces", u(path.join("/usr", "/etc")), "/etc");
+    expect_str("join empty first", u(path.join("", "a/b")), "a/b");
+    expect_str("join empty second", u(path.join("a/b", "")), "a/b");
+    expect_str("join root", u(path.join("/", "a")), "/a");
+    expect_str("join three", u(path.join("a", "b", "c.txt")), "a/b/c.txt");
+    expect_str("join keeps dots", u(path.join("a/..", "b")), "a/../b");
+    many := new list<string>();
+    many.add("/home"); many.add("joe"); many.add(""); many.add("docs/a.txt");
+    expect_str("join_all", u(path.join_all(many)), "/home/joe/docs/a.txt");
+    expect_str("join_all empty", path.join_all(new list<string>()), "");
+
+    // ---- clean and normalize
+    expect_str("clean", u(path.clean("a//b\\c/")), "a/b/c");
+    expect_str("clean root", u(path.clean("///")), "/");
+    expect_str("normalize dots", u(path.normalize("a/./b/../c//d/")), "a/c/d");
+    expect_str("normalize leading dotdot kept", u(path.normalize("../x")), "../x");
+    expect_str("normalize climbs out", u(path.normalize("a/../../x")), "../x");
+    expect_str("normalize above root dropped", u(path.normalize("/../x")), "/x");
+    expect_str("normalize to nothing", path.normalize("a/.."), ".");
+    expect_str("normalize dot", path.normalize("."), ".");
+    expect_str("normalize empty", path.normalize(""), ".");
+    expect_str("normalize root", u(path.normalize("/a/..")), "/");
+    expect_str("normalize plain", u(path.normalize("/usr/lib")), "/usr/lib");
+    expect_str("normalize two dotdots", u(path.normalize("a/b/c/../../d")), "a/d");
+
+    // ---- parent, file_name, extension, stem
+    expect_str("parent", u(path.parent("/home/joe/a.txt")), "/home/joe");
+    expect_str("parent trailing separator", u(path.parent("a/b/")), "a");
+    expect_str("parent of top level", u(path.parent("/a")), "/");
+    expect_str("parent of single part", path.parent("a.txt"), "");
+    expect_str("parent of root", path.parent("/"), "");
+    expect_str("file_name", path.file_name("/home/joe/a.txt"), "a.txt");
+    expect_str("file_name trailing separator", path.file_name("a/b/"), "b");
+    expect_str("file_name single", path.file_name("a.txt"), "a.txt");
+    expect_str("file_name of root", path.file_name("/"), "");
+    expect_str("file_name back slash", path.file_name("dir\\file.bin"), "file.bin");
+    expect_str("extension", path.extension("archive.tar.gz"), "gz");
+    expect_str("extension none", path.extension("notes"), "");
+    expect_str("extension hidden file", path.extension(".profile"), "");
+    expect_str("extension trailing dot", path.extension("a."), "");
+    expect_str("extension in directory with dot", path.extension("a.b/notes"), "");
+    expect_str("stem", path.stem("/x/archive.tar.gz"), "archive.tar");
+    expect_str("stem none", path.stem("notes"), "notes");
+    expect_str("stem hidden", path.stem(".profile"), ".profile");
+    expect_str("with_extension", u(path.with_extension("a/b.txt", "md")), "a/b.md");
+    expect_str("with_extension adds", u(path.with_extension("a/b", "md")), "a/b.md");
+    expect_str("with_extension removes", u(path.with_extension("a/b.txt", "")), "a/b");
+    expect_str("with_extension no directory", path.with_extension("b.txt", "md"), "b.md");
+    try { path.with_extension("/", "md"); fail("with_extension root", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("with_extension root"); }
+
+    // ---- starts_with and relative_to
+    expect_true("starts_with", path.starts_with("/a/b/c", "/a/b").value);
+    expect_true("starts_with itself", path.starts_with("/a/b", "/a/b/").value);
+    expect_false("starts_with partial name", path.starts_with("/a/bc", "/a/b").value);
+    expect_false("starts_with other root", path.starts_with("a/b", "/a").value);
+    expect_true("starts_with after normalize", path.starts_with("a/x/../b/c", "a/b").value);
+    expect_true("starts_with dot", path.starts_with("a/b", ".").value);
+    expect_str("relative_to below", u(path.relative_to("/a/b/c", "/a")), "b/c");
+    expect_str("relative_to sideways", u(path.relative_to("/a/b", "/a/x/y")), "../../b");
+    expect_str("relative_to same", path.relative_to("/a/b", "/a/b/"), ".");
+    expect_str("relative_to relative paths", u(path.relative_to("src/lib/x.sharp", "src/bin")), "../lib/x.sharp");
+    expect_str("relative_to from dot", u(path.relative_to("a/b", ".")), "a/b");
+    try { path.relative_to("/a", "b"); fail("relative_to mixed roots", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("relative_to mixed roots"); }
+    try { path.relative_to("a", "../b"); fail("relative_to unknown way back", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("relative_to unknown way back"); }
+
+    // ---- conversions
+    expect_str("to_unix", path.to_unix("a\\b\\c"), "a/b/c");
+    expect_str("to_native then to_unix", path.to_unix(path.to_native("a\\b/c")), "a/b/c");
+
+    finish("lib_io_path");
+}

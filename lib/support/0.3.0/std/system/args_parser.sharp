@@ -1,0 +1,671 @@
+mod std.system;
+
+import ( std.io )
+
+/**
+ * Takes the command line of a program apart: flags, options with values and
+ * positional arguments, with defaults, checks, and a generated help text.
+ *
+ *     def main(args: string[]) {
+ *         parser := new args_parser("copytool", "Copies files with style.");
+ *         parser.add_flag("verbose", 'v', "print what is being done");
+ *         parser.add_option("jobs", 'j', "N", "how many copies run at once", "4");
+ *         parser.add_required_option("output", 'o', "DIR", "where the copies go");
+ *         parser.add_positional("source", "the file to copy", true);
+ *
+ *         try {
+ *             parser.parse(args);
+ *         } catch(e: args_exception) {
+ *             println(e.get_message());
+ *             println(parser.usage());
+ *             exit(2);
+ *         }
+ *         if(parser.help_requested()) { println(parser.help()); exit(0); }
+ *
+ *         jobs := parser.number("jobs");          // 4 unless -j / --jobs was given
+ *         if(parser.flag("verbose")) { ... }
+ *         source := parser.value("source");
+ *     }
+ *
+ * What a command line may look like:
+ *   --name            a flag               -n          its one-letter form
+ *   --name value      an option            -n value    its one-letter form
+ *   --name=value      the same             -nvalue     the same
+ *   -abc              several one-letter flags at once (the last may be an
+ *                     option that takes the next argument as its value)
+ *   --                everything after it is a positional argument, even
+ *                     when it starts with a dash
+ *   -                 a single dash is a positional argument (by custom:
+ *                     "standard input")
+ *   anything else     a positional argument
+ *
+ * An option takes the next argument as its value whatever it looks like, so
+ * "--count -5" works. An option or flag may appear several times: value()
+ * gives the last one, values() all of them, count() how many.
+ *
+ * --help and -h are understood without being declared (unless the program
+ * declares "help" or 'h' itself): they set help_requested(), and then the
+ * checks for required options and arguments are skipped.
+ *
+ * Everything that does not fit throws args_exception (see there). Declaring
+ * something twice, or asking for a name that was never declared, is a
+ * mistake in the program and throws illegal_argument_exception.
+ *
+ * A parser can parse several times; each parse starts fresh. Not thread
+ * safe.
+ */
+class args_parser {
+    private program : string;
+    private about : string;
+    /** flags and options with a value, in the order they were declared */
+    private options := new list<args_option>();
+    /** positional arguments, in the order they were declared */
+    private positionals := new list<args_option>();
+    /** positional arguments beyond the declared ones (only when allowed) */
+    private extra := new list<string>();
+    private extra_allowed : var = 0;
+    private extra_name : string = "";
+    private extra_description : string = "";
+    private help_seen : var = 0;
+
+    /**
+     * A parser for the program `program` (the name shown in the usage
+     * line); `about` is a sentence or two for the top of the help ("" for
+     * none).
+     */
+    args_parser(program: string, about: string) {
+        self->program = program;
+        self->about = about;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* declaring                                                           */
+    /* ------------------------------------------------------------------ */
+
+    /** throw unless `name` / `letter` can be declared: well formed and not taken */
+    private def check_new(name: string, letter: var) {
+        n : var = sizeof(name.data);
+        valid : var = n > 0;
+        for(i : var = 0; i < n; i++) {
+            ch : var = name.data[i];
+            if(!(io_strings.is_letter(ch) || io_strings.is_digit(ch) || ch == '-' || ch == '_')) {
+                valid = 0;
+            }
+        }
+        if(valid && name.data[0] == '-') {
+            valid = 0;
+        }
+        if(!valid) {
+            throw new illegal_argument_exception("args_parser: not a usable name: \"" + name + "\"");
+        }
+        if(letter != 0 && !(io_strings.is_letter(letter) || io_strings.is_digit(letter))) {
+            throw new illegal_argument_exception("args_parser: the short name of --" + name + " must be a letter or digit");
+        }
+
+        count : var = options.size().value;
+        for(i : var = 0; i < count; i++) {
+            other := options.at(i);
+            if(io_strings.equals(other.name, name)) {
+                throw new illegal_argument_exception("args_parser: \"" + name + "\" is declared twice");
+            }
+            if(letter != 0 && other.letter == letter) {
+                throw new illegal_argument_exception("args_parser: -" + io_strings.from_char(letter) + " is declared twice");
+            }
+        }
+        count = positionals.size().value;
+        for(i : var = 0; i < count; i++) {
+            if(io_strings.equals(positionals.at(i).name, name)) {
+                throw new illegal_argument_exception("args_parser: \"" + name + "\" is declared twice");
+            }
+        }
+    }
+
+    /**
+     * Declare a flag: --name, and -letter when `letter` is not 0 (pass the
+     * character, e.g. 'v'). A flag is off unless it is on the command
+     * line. Returns this parser.
+     * Throws illegal_argument_exception for a malformed or already used
+     * name.
+     */
+    def add_flag(name: string, letter: var, description: string) : args_parser {
+        check_new(name, letter);
+        options.add(new args_option(args_option.kind_flag, name, letter, description));
+        return self;
+    }
+
+    /**
+     * Declare an option with a value: --name VALUE, and -letter VALUE when
+     * `letter` is not 0. `value_name` is what the value is called in the
+     * help ("FILE", "N"). When the command line does not give the option
+     * its value is `default_value`. Returns this parser.
+     * Throws illegal_argument_exception for a malformed or already used
+     * name.
+     */
+    def add_option(name: string, letter: var, value_name: string, description: string, default_value: string) : args_parser {
+        check_new(name, letter);
+        option := new args_option(args_option.kind_value, name, letter, description);
+        option.value_name = value_name;
+        option.has_default = 1;
+        option.default_value = default_value;
+        options.add(option);
+        return self;
+    }
+
+    /**
+     * Declare an option with a value that may be left out and then has no
+     * value at all: has(name) tells whether it was given. Returns this
+     * parser.
+     * Throws illegal_argument_exception for a malformed or already used
+     * name.
+     */
+    def add_optional_option(name: string, letter: var, value_name: string, description: string) : args_parser {
+        check_new(name, letter);
+        option := new args_option(args_option.kind_value, name, letter, description);
+        option.value_name = value_name;
+        options.add(option);
+        return self;
+    }
+
+    /**
+     * Declare an option with a value that has to be on the command line.
+     * Returns this parser.
+     * Throws illegal_argument_exception for a malformed or already used
+     * name.
+     */
+    def add_required_option(name: string, letter: var, value_name: string, description: string) : args_parser {
+        check_new(name, letter);
+        option := new args_option(args_option.kind_value, name, letter, description);
+        option.value_name = value_name;
+        option.required = 1;
+        options.add(option);
+        return self;
+    }
+
+    /**
+     * Declare the next positional argument. Positional arguments are
+     * filled in the order they are declared; `required` says whether
+     * leaving it out is an error. Returns this parser.
+     * Throws illegal_argument_exception for a malformed or already used
+     * name, and when a required argument is declared after an optional one
+     * (which could never be told apart).
+     */
+    def add_positional(name: string, description: string, required: bool) : args_parser {
+        check_new(name, 0);
+        // (nested ifs: && does not stop early when its left side is a bool object)
+        if(positionals.size().value > 0) {
+            if(required && !positionals.last().required) {
+                throw new illegal_argument_exception("args_parser: the required argument \"" + name
+                    + "\" cannot follow an optional one");
+            }
+        }
+        option := new args_option(args_option.kind_positional, name, 0, description);
+        if(required) {
+            option.required = 1;
+        }
+        positionals.add(option);
+        return self;
+    }
+
+    /**
+     * Accept any number of positional arguments beyond the declared ones
+     * (see rest()); without this, extra arguments are an error. `name` and
+     * `description` are for the help ("files", "more files to process").
+     * Returns this parser.
+     */
+    def allow_extra(name: string, description: string) : args_parser {
+        extra_allowed = 1;
+        extra_name = name;
+        extra_description = description;
+        return self;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* parsing                                                             */
+    /* ------------------------------------------------------------------ */
+
+    private def find_long(name: string) : args_option? {
+        count : var = options.size().value;
+        for(i : var = 0; i < count; i++) {
+            if(io_strings.equals(options.at(i).name, name)) {
+                return options.at(i);
+            }
+        }
+        return null;
+    }
+
+    private def find_letter(letter: var) : args_option? {
+        count : var = options.size().value;
+        for(i : var = 0; i < count; i++) {
+            if(options.at(i).letter == letter) {
+                return options.at(i);
+            }
+        }
+        return null;
+    }
+
+    /** note that `option` was given, with `value` when it takes one */
+    private static def record(option: args_option, value: string) {
+        option.seen++;
+        if(option.kind != args_option.kind_flag) {
+            option.value = value;
+            option.values.add(value);
+        }
+    }
+
+    /**
+     * Take the command line `args` apart (the arguments as main() gets
+     * them, without the program name).
+     * Throws args_exception when it does not fit the declarations.
+     */
+    def parse(args: string[]) {
+        items := new list<string>();
+        count : var = sizeof(args);
+        for(i : var = 0; i < count; i++) {
+            items.add(args[i]);
+        }
+        parse_list(items);
+    }
+
+    /**
+     * Take the arguments in `args` apart, like parse().
+     * Throws args_exception when they do not fit the declarations.
+     */
+    def parse_list(args: list<string>) {
+        // start fresh
+        count : var = options.size().value;
+        for(i : var = 0; i < count; i++) {
+            options.at(i).reset();
+        }
+        count = positionals.size().value;
+        for(i : var = 0; i < count; i++) {
+            positionals.at(i).reset();
+        }
+        extra = new list<string>();
+        help_seen = 0;
+
+        next_positional : var = 0;
+        only_positionals : var = 0;
+        total : var = args.size().value;
+        i : var = 0;
+        while(i < total) {
+            arg := args.at(i);
+            n : var = sizeof(arg.data);
+            i++;
+
+            is_option : var = 0;
+            if(!only_positionals && n >= 2 && arg.data[0] == '-') {
+                is_option = 1;
+            }
+            if(!is_option) {
+                // ---- a positional argument
+                if(next_positional < positionals.size().value) {
+                    record(positionals.at(next_positional), arg);
+                    next_positional++;
+                } else if(extra_allowed) {
+                    extra.add(arg);
+                } else {
+                    throw new args_exception("unexpected argument " + arg);
+                }
+                continue;
+            }
+
+            if(arg.data[1] == '-') {
+                if(n == 2) {
+                    only_positionals = 1; // "--": the rest are positional arguments
+                    continue;
+                }
+
+                // ---- --name or --name=value
+                eq_at : var = io_strings.index_of(arg, '=', 2);
+                name : string = "";
+                if(eq_at < 0) {
+                    name = io_strings.slice_from(arg, 2);
+                } else {
+                    name = io_strings.slice(arg, 2, eq_at);
+                }
+                found := find_long(name);
+                if(found == null) {
+                    if(io_strings.equals(name, "help") && eq_at < 0) {
+                        help_seen = 1;
+                        continue;
+                    }
+                    throw new args_exception("unknown option --" + name);
+                }
+                option := found!!;
+                if(option.kind == args_option.kind_flag) {
+                    if(eq_at >= 0) {
+                        throw new args_exception("option --" + name + " does not take a value");
+                    }
+                    record(option, "");
+                } else if(eq_at >= 0) {
+                    record(option, io_strings.slice_from(arg, eq_at + 1));
+                } else {
+                    if(i >= total) {
+                        throw new args_exception("option --" + name + " needs a value");
+                    }
+                    record(option, args.at(i));
+                    i++;
+                }
+                continue;
+            }
+
+            // ---- one-letter options: -v, -abc, -o value, -ovalue
+            k : var = 1;
+            while(k < n) {
+                letter : var = arg.data[k];
+                k++;
+                found := find_letter(letter);
+                if(found == null) {
+                    if(letter == 'h') {
+                        help_seen = 1;
+                        continue;
+                    }
+                    throw new args_exception("unknown option -" + io_strings.from_char(letter));
+                }
+                option := found!!;
+                if(option.kind == args_option.kind_flag) {
+                    record(option, "");
+                    continue;
+                }
+                // an option with a value: the rest of this argument, or the next argument
+                if(k < n) {
+                    record(option, io_strings.slice_from(arg, k));
+                } else {
+                    if(i >= total) {
+                        throw new args_exception("option -" + io_strings.from_char(letter) + " needs a value");
+                    }
+                    record(option, args.at(i));
+                    i++;
+                }
+                k = n;
+            }
+        }
+
+        if(help_seen) {
+            return; // the user only wants the help: nothing is missing
+        }
+
+        count = options.size().value;
+        for(j : var = 0; j < count; j++) {
+            option := options.at(j);
+            if(option.required && option.seen == 0) {
+                throw new args_exception("missing required option --" + option.name);
+            }
+        }
+        count = positionals.size().value;
+        for(j : var = 0; j < count; j++) {
+            option := positionals.at(j);
+            if(option.required && option.seen == 0) {
+                throw new args_exception("missing required argument <" + option.name + ">");
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* results                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /** the declared flag, option or positional argument called `name`; throws when there is none */
+    private def declared(name: string) : args_option {
+        found := find_long(name);
+        if(found != null) {
+            return found!!;
+        }
+        count : var = positionals.size().value;
+        for(i : var = 0; i < count; i++) {
+            if(io_strings.equals(positionals.at(i).name, name)) {
+                return positionals.at(i);
+            }
+        }
+        throw new illegal_argument_exception("args_parser: \"" + name + "\" was never declared");
+    }
+
+    /** true when --help or -h was on the command line (and the program did not declare them itself) */
+    def help_requested() : bool {
+        return help_seen != 0;
+    }
+
+    /**
+     * True when the flag `name` was on the command line.
+     * Throws illegal_argument_exception when `name` was never declared.
+     */
+    def flag(name: string) : bool {
+        return declared(name).seen > 0;
+    }
+
+    /**
+     * How many times the flag, option or argument `name` was on the
+     * command line (-vvv gives 3).
+     * Throws illegal_argument_exception when `name` was never declared.
+     */
+    def count(name: string) : var {
+        return declared(name).seen;
+    }
+
+    /**
+     * True when the option or positional argument `name` was on the
+     * command line (false when its default is used).
+     * Throws illegal_argument_exception when `name` was never declared.
+     */
+    def has(name: string) : bool {
+        return declared(name).seen > 0;
+    }
+
+    /**
+     * The value of the option or positional argument `name`: from the
+     * command line (the last one when it was given several times), or its
+     * default. "" when it was not given and has no default (see has()).
+     * Throws illegal_argument_exception when `name` was never declared.
+     */
+    def value(name: string) : string {
+        option := declared(name);
+        if(option.seen > 0) {
+            return option.value;
+        }
+        if(option.has_default) {
+            return option.default_value;
+        }
+        return "";
+    }
+
+    /** the value of `name`, or `fallback` when it was not on the command line and has no default. Throws illegal_argument_exception when `name` was never declared. */
+    def value_or(name: string, fallback: string) : string {
+        option := declared(name);
+        if(option.seen > 0) {
+            return option.value;
+        }
+        if(option.has_default) {
+            return option.default_value;
+        }
+        return fallback;
+    }
+
+    /**
+     * The value of `name` as a number ("12", "-0.5", "1e3").
+     * Throws args_exception when the value is not a number (the user's
+     * mistake) and illegal_argument_exception when `name` was never
+     * declared (the program's).
+     */
+    def number(name: string) : var {
+        text := value(name);
+        if(!io_strings.is_number(text)) {
+            throw new args_exception(label_of(declared(name)) + " needs a number, not \"" + text + "\"");
+        }
+        return io_strings.parse_number(text);
+    }
+
+    /**
+     * The value of `name` as a whole number.
+     * Throws args_exception when the value is not a whole number and
+     * illegal_argument_exception when `name` was never declared.
+     */
+    def whole_number(name: string) : var {
+        text := value(name);
+        if(!io_strings.is_int(text)) {
+            throw new args_exception(label_of(declared(name)) + " needs a whole number, not \"" + text + "\"");
+        }
+        return io_strings.parse_int(text);
+    }
+
+    /**
+     * All values the option `name` was given, in order - for options that
+     * may be repeated (-I a -I b). Empty when it was not on the command
+     * line (the default is not included).
+     * Throws illegal_argument_exception when `name` was never declared.
+     */
+    def values(name: string) : list<string> {
+        return declared(name).values;
+    }
+
+    /** the positional arguments beyond the declared ones, in order (see allow_extra) */
+    def rest() : list<string> {
+        return extra;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* help                                                                */
+    /* ------------------------------------------------------------------ */
+
+    /** how an option or argument is called in messages: "option --name" or "argument <name>" */
+    private static def label_of(option: args_option) : string {
+        if(option.kind == args_option.kind_positional) {
+            return "argument <" + option.name + ">";
+        }
+        return "option --" + option.name;
+    }
+
+    /**
+     * The one-line summary of the command line, e.g.
+     * "usage: copytool [options] --output DIR <source> [target] [files...]":
+     * required options are spelled out, optional positional arguments are
+     * in brackets.
+     */
+    def usage() : string {
+        buf := new char_buffer(128);
+        buf.append("usage: ").append(program);
+        if(options.size().value > 0) {
+            buf.append(" [options]");
+        }
+        count : var = options.size().value;
+        for(i : var = 0; i < count; i++) {
+            option := options.at(i);
+            if(option.required) {
+                buf.append(" --").append(option.name).append_char(' ').append(option.value_name);
+            }
+        }
+        count = positionals.size().value;
+        for(i : var = 0; i < count; i++) {
+            option := positionals.at(i);
+            if(option.required) {
+                buf.append(" <").append(option.name).append_char('>');
+            } else {
+                buf.append(" [").append(option.name).append_char(']');
+            }
+        }
+        if(extra_allowed) {
+            buf.append(" [").append(extra_name).append("...]");
+        }
+        return buf.to_string()!!;
+    }
+
+    /**
+     * The full help text: the usage line, the description of the program,
+     * the positional arguments and the options, each with its description,
+     * in aligned columns. Defaults and "required" are mentioned. Ends with
+     * a line end.
+     */
+    def help() : string {
+        // the left column of every line, to find out how wide the column has to be
+        left := new list<string>();
+        right := new list<string>();
+        headings := new list<int>(); // 1 for the lines that are section headings
+
+        pos_count : var = positionals.size().value;
+        if(pos_count > 0 || extra_allowed) {
+            left.add("arguments:");
+            right.add("");
+            headings.add(new int(1));
+            for(i : var = 0; i < pos_count; i++) {
+                option := positionals.at(i);
+                left.add("  " + option.name);
+                if(option.required) {
+                    right.add(option.description);
+                } else {
+                    right.add(option.description + " (optional)");
+                }
+                headings.add(new int(0));
+            }
+            if(extra_allowed) {
+                left.add("  " + extra_name + "...");
+                right.add(extra_description);
+                headings.add(new int(0));
+            }
+        }
+
+        left.add("options:");
+        right.add("");
+        headings.add(new int(1));
+        opt_count : var = options.size().value;
+        for(i : var = 0; i < opt_count; i++) {
+            option := options.at(i);
+            entry := new char_buffer(32);
+            entry.append("  ");
+            if(option.letter != 0) {
+                entry.append_char('-').append_char(option.letter).append(", ");
+            } else {
+                entry.append("    ");
+            }
+            entry.append("--").append(option.name);
+            if(option.kind == args_option.kind_value) {
+                entry.append_char(' ').append(option.value_name);
+            }
+            left.add(entry.to_string()!!);
+
+            note := new char_buffer(64);
+            note.append(option.description);
+            if(option.required) {
+                note.append(" (required)");
+            } else if(option.has_default) {
+                note.append(" (default: ").append(option.default_value).append_char(41); // 41 is the closing parenthesis
+            }
+            right.add(note.to_string()!!);
+            headings.add(new int(0));
+        }
+        if(find_long("help") == null) {
+            if(find_letter('h') == null) {
+                left.add("  -h, --help");
+            } else {
+                left.add("      --help");
+            }
+            right.add("show this help");
+            headings.add(new int(0));
+        }
+
+        width : var = 0;
+        lines : var = left.size().value;
+        for(i : var = 0; i < lines; i++) {
+            if(headings.at(i).value == 0 && io_strings.length(left.at(i)) > width) {
+                width = io_strings.length(left.at(i));
+            }
+        }
+
+        buf := new char_buffer(512);
+        buf.append(usage()).append_char('\n');
+        if(sizeof(about.data) > 0) {
+            buf.append_char('\n').append(about).append_char('\n');
+        }
+        for(i : var = 0; i < lines; i++) {
+            if(headings.at(i).value == 1) {
+                buf.append_char('\n').append(left.at(i)).append_char('\n');
+            } else {
+                buf.append(left.at(i));
+                if(io_strings.length(right.at(i)) > 0) {
+                    buf.append_repeated(' ', width - io_strings.length(left.at(i)) + 2);
+                    buf.append(right.at(i));
+                }
+                buf.append_char('\n');
+            }
+        }
+        return buf.to_string()!!;
+    }
+}

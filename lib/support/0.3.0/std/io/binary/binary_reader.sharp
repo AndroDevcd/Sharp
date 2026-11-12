@@ -1,0 +1,178 @@
+mod std.io;
+
+/**
+ * Reads the values a binary_writer wrote, in the same order, from a
+ * byte_buffer (see binary_writer for an example and the formats).
+ *
+ * The reader has to ask for the same kinds of values in the same order as
+ * they were written: the data does not say what it contains.
+ *
+ * When the data ends before a value is complete the read functions throw
+ * out_of_bounds_exception; data that cannot be right (a boolean that is
+ * neither 0 nor 1, a number with too many bytes) throws io_exception.
+ * Not thread safe.
+ */
+class binary_reader {
+    private buf : byte_buffer;
+
+    /** a reader that takes its values from `buffer`, starting at the read position of the buffer */
+    binary_reader(buffer: byte_buffer) {
+        buf = buffer;
+    }
+
+    /** a reader for the given bytes (null means no data), stored big endian */
+    binary_reader(bytes: _int8[]?) {
+        buf = byte_buffer.wrap(bytes);
+    }
+
+    /**
+     * A reader for the content of the file `source` (big endian; call
+     * get_buffer().little_endian() for data stored the other way).
+     * Throws io_exception when the file does not exist or is a directory.
+     */
+    static def load(source: file) : binary_reader {
+        return new binary_reader(byte_buffer.from_file(source));
+    }
+
+    /** the buffer the values come from */
+    def get_buffer() : byte_buffer {
+        return buf;
+    }
+
+    /** how many bytes are left to read */
+    def remaining() : var {
+        return buf.remaining();
+    }
+
+    /** true when at least one byte is left to read */
+    def has_more() : bool {
+        return buf.remaining() > 0;
+    }
+
+    /**
+     * A boolean written with write_bool().
+     * Throws io_exception when the byte is neither 0 nor 1.
+     */
+    def read_bool() : bool {
+        value : var = buf.get_uint8();
+        if(value > 1) {
+            throw new io_exception("binary_reader: " + io_strings.int_to_string(value)
+                + " is not a boolean (0 or 1) at position " + io_strings.int_to_string(buf.position() - 1));
+        }
+        return value == 1;
+    }
+
+    /** one byte as a signed number: -128 .. 127 */
+    def read_byte() : var {
+        return buf.get_int8();
+    }
+
+    /** one byte as an unsigned number: 0 .. 255 */
+    def read_unsigned_byte() : var {
+        return buf.get_uint8();
+    }
+
+    /** two bytes as a signed 16-bit number */
+    def read_short() : var {
+        return buf.get_int16();
+    }
+
+    /** two bytes as an unsigned 16-bit number: 0 .. 65535 */
+    def read_unsigned_short() : var {
+        return buf.get_uint16();
+    }
+
+    /** four bytes as a signed 32-bit number */
+    def read_int() : var {
+        return buf.get_int32();
+    }
+
+    /** four bytes as an unsigned 32-bit number: 0 .. 4294967295 */
+    def read_unsigned_int() : var {
+        return buf.get_uint32();
+    }
+
+    /** eight bytes as a signed 64-bit number (exact from -2^53 to 2^53) */
+    def read_long() : var {
+        return buf.get_int64();
+    }
+
+    /** eight bytes as a number with fraction (IEEE 754 double) */
+    def read_double() : var {
+        return buf.get_float64();
+    }
+
+    /**
+     * A number written with write_varint().
+     * Throws io_exception when the number has more than 8 bytes (it would
+     * be larger than 2^53, so the data is damaged or not a varint) and
+     * out_of_bounds_exception when the data ends in the middle.
+     */
+    def read_varint() : var {
+        value : var = 0;
+        factor : var = 1;
+        for(i : var = 0; i < 8; i++) {
+            part : var = buf.get_uint8();
+            if(part < 128) {
+                return value + part * factor;
+            }
+            value += (part - 128) * factor;
+            factor = factor * 128;
+        }
+        throw new io_exception("binary_reader: a varint with more than 8 bytes ends at position "
+            + io_strings.int_to_string(buf.position()));
+    }
+
+    /** a number written with write_signed_varint(); throws like read_varint() */
+    def read_signed_varint() : var {
+        value : var = read_varint();
+        if(value % 2 == 0) {
+            return value / 2;
+        }
+        return 0 - (value + 1) / 2;
+    }
+
+    /**
+     * A string written with write_string().
+     * Throws out_of_bounds_exception when the data ends before the string
+     * does.
+     */
+    def read_string() : string {
+        length : var = read_varint();
+        return buf.get_string(length);
+    }
+
+    /**
+     * Bytes written with write_bytes(); null when the count was 0.
+     * Throws out_of_bounds_exception when the data ends before the bytes
+     * do.
+     */
+    def read_bytes() : _int8[]? {
+        length : var = read_varint();
+        return buf.get_bytes(length);
+    }
+
+    /**
+     * A list of strings written with write_string_list().
+     * Throws io_exception when the count is larger than the number of
+     * bytes left (each string takes at least one byte, so the data cannot
+     * be right), out_of_bounds_exception when the data ends early.
+     */
+    def read_string_list() : list<string> {
+        count : var = read_varint();
+        if(count > buf.remaining()) {
+            throw new io_exception("binary_reader: a list of " + io_strings.int_to_string(count)
+                + " strings cannot fit in the " + io_strings.int_to_string(buf.remaining()) + " bytes left");
+        }
+        items := new list<string>();
+        for(i : var = 0; i < count; i++) {
+            items.add(read_string());
+        }
+        return items;
+    }
+
+    /** step over `length` bytes. Throws out_of_bounds_exception when fewer are left. */
+    def skip(length: var) {
+        buf.skip(length);
+    }
+}

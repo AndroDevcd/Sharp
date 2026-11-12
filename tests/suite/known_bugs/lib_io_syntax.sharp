@@ -1,0 +1,40 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Does not COMPILE today. Three small things the parser rejects; each was
+ * met while writing the I/O library:
+ *
+ *   1. the character literal ')' as the last argument of a call: `f(')');`
+ *      ("expected `;`"). In std/system/platform_info.sharp `return ';';`
+ *      inside an if block failed in a similar way ("returning `nil` from a
+ *      function returning `var`"), though the same statement compiles here.
+ *      Workaround: the character code (41, 59).
+ *   2. `!!` directly in front of a closing parenthesis in a concatenation:
+ *      `println("x" + maybe!!);` ("expected `)`").
+ *      Workaround: a local variable.
+ *   3. a method call on a string literal: `"abc".size()`
+ *      ("unexpected symbol `.`"). Workaround: a variable.
+ */
+
+def semicolon(): var {
+    return ';';
+}
+
+def code_of(ch: var): var {
+    return ch;
+}
+
+def maybe_text(): string? {
+    return new string("y");
+}
+
+def main(args: string[]) {
+    expect("char literal ';' before ;", semicolon(), 59);
+    expect("char literal ')' before )", code_of(')'), 41);
+    maybe := maybe_text();
+    expect_str("!! before )", "x" + maybe!!, "xy");
+    expect("method on a literal", "abc".size().value, 3);
+    finish("lib_io_syntax");
+}

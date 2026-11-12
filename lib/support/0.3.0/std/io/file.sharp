@@ -14,7 +14,28 @@ import (
 * This abstract library uses a operating system based file system to make sure that
 * any operations sent to the kernel will be handled appropriately.
 *
+* A file object is only a path: creating one touches nothing on disk, and the
+* file or directory it names does not have to exist.
 *
+*     f := new file("notes/today.txt");
+*     if(!f.exists()) {
+*         f.parent()!!.mkdirs();
+*         f.write_text("first line\n");
+*     }
+*     f.append_line("second line");
+*     foreach(line in f.read_lines()) { println(line); }
+*
+* The class is spread over several source files so that none of them gets
+* large. This file holds the core (path, attributes, create / delete / rename,
+* whole-file read and write); the rest is added with `mutate file`:
+*
+*     files/file_names.sharp   name, parent, extension, child and sibling paths
+*     files/file_text.sharp    read_text, read_lines, write_lines, append, bytes
+*     files/file_tree.sharp    mkdirs, list_files, walk, copy, move, delete_recursively
+*
+* Functions that only report whether an operation worked return a number in
+* the style of the operating system: 0 means success. The functions added by
+* the other source files throw io_exception instead.
 */
 public class file {
     private static fs := get_file_system();
@@ -22,22 +43,40 @@ public class file {
     protected path: string;
     private static separator := fs.path_separator();
 
+    /**
+     * A file object for `path`. The path is normalized first: the
+     * separators of the other operating system are converted, repeated
+     * separators and a separator at the end are removed.
+     *
+     * Throws nullptr_exception when the path is null or empty.
+     */
     file(path: string) {
         update_path(path);
     }
 
+    /** the same as file(string), for an array of characters */
     file(path: _int8[]) {
-        update_path("$path");
+        update_path(new string(path));
     }
 
+    /**
+     * The last part of the path: the name of the file or directory without
+     * the directories in front of it. "/home/joe/a.txt" gives "a.txt". For a
+     * root ("/") the path itself is returned.
+     */
     def get_name() : string? {
         if(path == null || path.size()==0) {
             return null;
         }
 
-        for(i := path.size()-1; i > 0; i--) {
-            if(path[i] == separator) {
-                return path.substring(i + 1, path.size());
+        sep : var = separator.value;
+        n : var = sizeof(path.data);
+        for(i : var = n - 1; i >= 0; i--) {
+            if(path.data[i] == sep) {
+                if(i + 1 >= n) {
+                    return path; // a root: nothing behind the separator
+                }
+                return io_strings.slice(path, i + 1, n);
             }
         }
 
@@ -46,29 +85,35 @@ public class file {
 
     override def to_string() : string? = path;
 
+    /**
+     * Point this file object at another path (normalized the same way as in
+     * the constructor). Nothing on disk changes.
+     *
+     * Throws nullptr_exception when the path is null or empty.
+     */
 	def update_path(path: string) {
-        if(path == null)
+        if(io_strings.is_null(path))
             throw new null_except("file path cannot be null");
 
-        if(path.empty())
+        if(sizeof(path.data) == 0)
             throw new null_except("file path cannot be empty");
         self->path = fs.normalize(path);
     }
 
+    /**
+     * The directory this file or directory lies in, or null when the path
+     * has no parent: a bare name ("a.txt") or a root ("/").
+     * "/home/joe/a.txt" gives "/home/joe", "/a.txt" gives "/".
+     */
     def get_parent_file() : file? {
-        if(path == null || path.size()==0) {
+        up := file_natives.parent_of(path);
+        if(io_strings.is_null(up)) {
             return null;
         }
-
-        for(i := path.size()-1; i > 0; i--) {
-            if(path[i] == separator) {
-                return new file(path.substring(0, i + 1));
-            }
-        }
-
-        return null;
+        return new file(up!!);
     }
 
+    /** the path this object was made with, normalized (it may be relative) */
     def get_path() : string {
         return path;
     }
@@ -87,16 +132,20 @@ public class file {
 
      /**
       * Returns the absolute path of this file. An absolute path is a path that starts at a root
-      * of the file system. On Android, there is only one root: {/}.
+      * of the file system.
       *
-      * <p>A common use for absolute paths is when passing paths to a  as
-      * command-line arguments, to remove the requirement implied by relative paths, that the
-      * child must have the same working directory as its parent.
+      * A common use for absolute paths is when passing paths to another
+      * program as command-line arguments, to remove the requirement implied
+      * by relative paths, that the other program must have the same working
+      * directory.
+      *
+      * For a file that exists the operating system works the path out (on
+      * unix symbolic links are followed and "." and ".." removed). For a
+      * file that does not exist the path is put behind the current
+      * directory as it is.
       *
       * @return  The absolute pathname string denoting the same file or
       *          directory as this abstract pathname
-      *
-      * @see     java.io.File#isAbsolute()
       */
     def get_absolute_path() : string {
         return fs.resolve(self);
@@ -129,6 +178,11 @@ public class file {
         return ((fs.get_attributes(self) & file_system.file_exists)!= 0);
     }
 
+    /**
+     * The attribute bits of the file (see the file_... constants of
+     * file_system: exists, regular, directory, hidden, ...), or 0 when it
+     * does not exist.
+     */
     def file_attrs() : int {
         return (fs.get_attributes(self));
     }
@@ -158,7 +212,7 @@ public class file {
      * UNIX systems, a file is considered to be hidden if its name begins with
      * a period character ('.').  On Microsoft Windows systems, a file is
      * considered to be hidden if it has been marked as such in the filesystem.
-     *
+     * A file that does not exist is never hidden.
      */
     def is_hidden() : bool {
         return ((fs.get_attributes(self) & file_system.file_hidden) != 0);
@@ -166,30 +220,33 @@ public class file {
 
     /**
      * Returns the time that the file denoted by this abstract pathname was
-     * last modified.
-     *
+     * last modified, in seconds since 1970, or 0 when the file does not
+     * exist.
      */
     def last_modified() : long {
         return fs.last_modified_time(self, file_system.last_modification);
     }
 
+    /** the time (seconds since 1970) the status of the file last changed (permissions, owner, ...), or 0 when it does not exist */
     def last_status_changed() : long {
         return fs.last_modified_time(self, file_system.last_status_change);
     }
 
+    /** the time (seconds since 1970) the file was last read, or 0 when it does not exist */
     def last_accessed() : long {
         return fs.last_modified_time(self, file_system.last_access);
     }
 
     /**
-     * Returns the length of the file denoted by this abstract pathname.
-     * The return value is unspecified if this pathname denotes a directory.
-     *
+     * Returns the length in bytes of the file denoted by this abstract
+     * pathname. The return value is 0 if this pathname denotes a directory
+     * or does not exist.
      */
     def length() : int {
         return fs.get_length(self);
     }
 
+    /** true when the file has no content (also true for a file that does not exist and for a directory) */
     def is_empty() : bool {
        return length() == 0;
     }
@@ -198,69 +255,83 @@ public class file {
     /* -- File operations -- */
 
     /**
-     * Atomically creates a new, empty file named by this abstract pathname if
-     * and only if a file with this name does not yet exist.  The check for the
-     * existence of the file and the creation of the file if it does not exist
-     * are a single operation that is atomic with respect to all other
-     * filesystem activities that might affect the file.
+     * Creates a new, empty file named by this abstract pathname if
+     * and only if nothing with this name exists yet. An existing file is
+     * left as it is. The directory the file goes in has to exist.
      *
+     * Returns true when the file was created, false when something with
+     * that name was already there or the file could not be created.
      */
-    def create() {
+    def create() : bool {
+        if(exists()) {
+            return false;
+        }
         fs.create_file(path);
+        return exists();
     }
 
     /**
      * Deletes the file or directory denoted by this abstract pathname.  If
      * this pathname denotes a directory, then the directory must be empty in
-     * order to be deleted.
+     * order to be deleted (see delete_recursively()).
      *
+     * Returns 0 when it was deleted, something else when it was not.
      */
     def delete() : int {
         return fs.delete(self);
     }
 
     /**
-     * Returns an array of strings naming the files and directories in the
-     * directory denoted by this abstract pathname.
+     * Returns the names of the files and directories in the
+     * directory denoted by this abstract pathname, sorted by character
+     * code.
      *
-     * If this abstract pathname does not denote a directory, then this
-     * method returns {null}.  Otherwise an array of strings is
-     * returned, one for each file or directory in the directory.  Names
-     * denoting the directory itself and the directory's parent directory are
-     * not included in the result.  Each string is a file name rather than a
-     * complete path.
+     * Names denoting the directory itself and the directory's parent
+     * directory are not included in the result.  Each string is a file name
+     * rather than a complete path (see list_files() for file objects). An
+     * empty directory gives an empty list.
      *
+     * Throws io_exception when this pathname does not denote a directory.
      */
     def list() : list<string> {
-        return new list<string>(fs.list(self)!!);
+        if(!is_directory()) {
+            throw new io_exception("not a directory: " + path);
+        }
+
+        return directory_listing.names(path);
     }
 
     /**
-     * Creates the directory named by this abstract pathname.
+     * Creates the directory named by this abstract pathname. The directory
+     * it is created in has to exist (mkdirs() creates those too).
      *
+     * Returns 0 when the directory was created, something else when it was
+     * not (it exists already, the parent is missing, no permission).
      */
     def mkdir() : int {
         return fs.create_directory(self);
     }
 
     /**
-     * Renames the file denoted by this abstract pathname.
+     * Renames the file denoted by this abstract pathname. On success this
+     * object names the new path.
      *
      * Many failures are possible. Some of the more likely failures include:
-     * 
+     *
      * Write permission is required on the directories containing both the source and
      * destination paths.
      * Search permission is required for all parents of both paths.
-     * Both paths be on the same mount point. On Android, applications are most likely to hit
-     * this restriction when attempting to copy between internal storage and an SD card.
-     * 
+     * Both paths be on the same mount point (move_to() copies when a rename
+     * is not possible).
      *
      * The return value should always be checked to make sure
-     * that the rename operation was successful.
+     * that the rename operation was successful: 0 means it was.
+     *
+     * Throws nullptr_exception when dest is null.
      */
     def rename(dest: file) : int {
         if (dest == null) {
-            throw new null_except();
+            throw new null_except("rename: the destination cannot be null");
         }
 
         result := fs.rename(self, dest);
@@ -275,15 +346,17 @@ public class file {
 
     /**
      * Sets the last-modified time of the file or directory named by this
-     * abstract pathname.
+     * abstract pathname, in seconds since 1970.
      *
      * All platforms support file-modification times to the nearest second,
      * but some provide more precision.  The argument will be truncated to fit
      * the supported precision.  If the operation succeeds and no intervening
-     * operations on the file take place, then the next invocation of the
-     * lastModified method will return the (possibly
-     * truncated) time argument that was passed to this method.
+     * operations on the file take place, then the next invocation of
+     * last_modified() will return the (possibly truncated) time argument
+     * that was passed to this method.
      *
+     * Returns the time that was set, or -1 when the file does not exist.
+     * Throws illegal_argument_exception for a negative time.
      */
     def set_last_modified(time: var) : int {
         if ((time as _int32) < 0) throw new ill_arg_except("Negative time");
@@ -297,6 +370,7 @@ public class file {
      * to allow write access. Whether or not a read-only file or
      * directory may be deleted depends upon the underlying system.
      *
+     * Returns 0 on success.
      */
     def set_read_only() : int {
        return fs.set_read_only(self);
@@ -304,8 +378,7 @@ public class file {
 
     /**
      * Sets the owner's or everybody's write permission for this abstract
-     * pathname.
-     *
+     * pathname. Returns 0 on success.
      */
     def set_writable(writable: var, owner_only: var) : int {
         return fs.set_permission(self, file_system.access_write, writable, owner_only);
@@ -313,8 +386,7 @@ public class file {
 
     /**
      * A convenience method to set the owner's write permission for this abstract
-     * pathname.
-     *
+     * pathname. Returns 0 on success.
      */
     def set_writable(writable: var) : int {
         return set_writable(writable, true);
@@ -322,8 +394,7 @@ public class file {
 
     /**
      * Sets the owner's or everybody's read permission for this abstract
-     * pathname.
-     *
+     * pathname. Returns 0 on success.
      */
     def set_readable(readable: var, owner_only: var) : int {
         return fs.set_permission(self, file_system.access_read, readable, owner_only);
@@ -331,8 +402,7 @@ public class file {
 
     /**
      * A convenience method to set the owner's read permission for this abstract
-     * pathname.
-     *
+     * pathname. Returns 0 on success.
      */
     def set_readable(readable: var) : int {
         return set_readable(readable, true);
@@ -340,8 +410,8 @@ public class file {
 
     /**
      * Sets the owner's or everybody's execute permission for this abstract
-     * pathname.
-     *
+     * pathname. Returns 0 on success; always -1 on windows, which has no
+     * such permission.
      */
     def set_executable(executable: var, owner_only: var) : int {
         return fs.set_permission(self, file_system.access_execute, executable, owner_only);
@@ -349,8 +419,7 @@ public class file {
 
     /**
      * A convenience method to set the owner's execute permission for this abstract
-     * pathname.
-     *
+     * pathname. Returns 0 on success.
      */
     def set_executable(executable: var) : int {
         return set_executable(executable, true);
@@ -358,8 +427,7 @@ public class file {
 
     /**
      * Tests whether the application can execute the file denoted by this
-     * abstract pathname.
-     *
+     * abstract pathname (always false on windows).
      */
     def is_executable() : bool {
         return fs.check_access(self, file_system.access_execute)==0;
@@ -368,19 +436,16 @@ public class file {
     /* -- Disk usage -- */
 
     /**
-     * Returns the size of the partition <a href="#partName">named</a> by this
-     * abstract pathname.
-     *
-     * @since  1.6
+     * Returns the size in bytes of the partition the program runs on
+     * (the runtime reports one partition, whatever this path is).
      */
     def get_total_space() : long {
         return fs.get_space_available(file_system.space_total);
     }
 
     /**
-     * Returns the number of unallocated bytes in the partition 
-     * named by this abstract path name.
-     *
+     * Returns the number of unallocated bytes in the partition the program
+     * runs on.
      */
     def get_free_space() : long {
         return fs.get_space_available(file_system.space_free);
@@ -388,97 +453,75 @@ public class file {
 
     /**
      * Returns the number of bytes available to this virtual machine on the
-     * partition <a href="#partName">named</a> by this abstract pathname.  When
-     * possible, this method checks for write permissions and other operating
-     * system restrictions and will therefore usually provide a more accurate
-     * estimate of how much new data can actually be written than {@link
-     * #getFreeSpace}.
+     * partition the program runs on.  When possible, this method checks for
+     * write permissions and other operating system restrictions and will
+     * therefore usually provide a more accurate estimate of how much new
+     * data can actually be written than get_free_space().
      *
-     * <p> The returned number of available bytes is a hint, but not a
-     * guarantee, that it is possible to use most or any of these bytes.  The
-     * number of unallocated bytes is most likely to be accurate immediately
-     * after this call.  It is likely to be made inaccurate by any external
-     * I/O operations including those made on the system outside of this
-     * virtual machine.  This method makes no guarantee that write operations
-     * to this file system will succeed.
-     *
-     *
-     * @since  1.6
+     * The returned number of available bytes is a hint, but not a
+     * guarantee, that it is possible to use most or any of these bytes.
      */
     def get_usable_space() : long {
         return fs.get_space_available(file_system.space_usable);
     }
 
+    /** the directory the program was started in; relative paths are relative to it */
     static def current_directory() : string {
        return file_system.current_directory();
     }
 
     /* -- Temporary files -- */
 
-    // file name generation
-    private static def generate_temp_file(prefix: string, suffix: string, dir: file) : file?
-    {
-//        int n = Math.randomIntInternal();
-//        if (n == Integer.MIN_VALUE) {
-//            n = 0;      // corner case
-//        } else {
-//            n = Math.abs(n);
-//        }
-//        string name = prefix + Integer.tostring(n) + suffix;
-//        File f = new File(name);
-//        if (!name.equals(f.getName()))
-//            throw new IOException("Unable to create temporary file");
-        return null;
-    }
-
     /**
      * Creates a new empty file in the specified directory, using the
-     * given prefix and suffix strings to generate its name.  If this method
-     * returns successfully then it is guaranteed that:
+     * given prefix and suffix strings to generate its name
+     * (prefix + something unique + suffix). A null suffix means ".tmp", a
+     * null directory the temporary directory of the system
+     * (temp_files.directory()).
      *
+     * Returns the new file. Throws io_exception when the file cannot be
+     * created (e.g. the directory does not exist) and
+     * illegal_argument_exception when the prefix is null.
      */
     static def create_temp_file(prefix: string, suffix: string,
                                       directory: file?) : file?
     {
-//        if (prefix.length() < 3)
-//            throw new IllegalArgumentException("Prefix string too short");
-//        if (suffix == null)
-//            suffix = ".tmp";
-//
-//        File tmpdir = (directory != null) ? directory
-//                                          : new File(getProperty("java.io.tmpdir", "."));
-//        File f;
-//        try {
-//            do {
-//                f = generateTempFile(prefix, suffix, tmpdir);
-//            } while (f.exists());
-//            if (!f.createNewFile())
-//                throw new IOException("Unable to create temporary file");
-//        } catch (SecurityException se) {
-//            // don't reveal temporary directory location
-//            if (directory == null)
-//                throw new SecurityException("Unable to create temporary file");
-//            throw se;
-//        }
-        return null;
+        if((prefix as object) == null)
+            throw new ill_arg_except("create_temp_file: the prefix cannot be null");
+
+        ending : string = ".tmp";
+        if((suffix as object) != null) {
+            ending = suffix;
+        }
+
+        if(directory == null) {
+            return temp_files.create_file(prefix, ending);
+        }
+        return temp_files.create_file_in(directory!!.get_path(), prefix, ending);
     }
 
     /**
      * Creates an empty file in the default temporary-file directory, using
      * the given prefix and suffix to generate its name. Invoking this method
-     * is equivalent to invoking <code>{@link #createTempFile(java.lang.string,
-     * java.lang.string, java.io.File)
-     * createTempFile(prefix,&nbsp;suffix,&nbsp;null)}</code>.
-     *
+     * is equivalent to invoking create_temp_file(prefix, suffix, null).
      */
     static def create_temp_file(prefix: string, suffix: string) : file?
     {
-        //create_temp_file(null, suffix, null);
         return create_temp_file(prefix, suffix, null);
     }
 
+    /**
+     * The whole content of the file as a string (every byte one character),
+     * or null when the file is empty, does not exist or cannot be read. See
+     * read_text() for a version that tells these cases apart.
+     */
     def read() := fs.read(self);
 
+    /**
+     * Replace the content of the file with `data`, creating the file when
+     * it does not exist (its directory has to exist). Returns 0 when the
+     * file was written. See write_text() for a version that throws.
+     */
     def write(data: string) := fs.write(self, data);
 
     private static def get_file_system() : file_system {

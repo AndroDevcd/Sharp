@@ -1,0 +1,301 @@
+mod main;
+
+import ( testing, std.io, std.data )
+
+/**
+ * std.data ini_file / ini_section (sections, key = value, comments, quoted
+ * values, load / save, malformed input) and xml_writer (nesting,
+ * attributes, escaping, CDATA, comments, indentation, misuse).
+ *
+ * Works only inside /tmp/sharp_suite_io_config and removes it at the end.
+ */
+
+base_dir : string = "/tmp/sharp_suite_io_config";
+
+q : string = "\"";
+
+def expect_ini_error(name: string, text: string) {
+    try {
+        ini_file.parse(text);
+        fail(name, "no exception");
+    } catch(e: parse_exception) {
+        pass(name);
+    }
+}
+
+def test_ini_reading() {
+    text : string = "; a comment\n# another\nname = demo\nempty =\n\n[server]\nhost = localhost\nport=8080\n  debug  =  yes  \nurl: http://x/y?a=b\n\n[paths]\nhome = " + q + "  C:\\\\dir  " + q + "\nmsg = " + q + "say \\" + q + "hi\\" + q + "\\n" + q + "\n[empty section]\n[server]\nport = 9090\n";
+    config := ini_file.parse(text);
+
+    expect_str("sections", io_strings.join(config.sections(), "|"), "|server|paths|empty section");
+    expect("size", config.size(), 8);
+    expect_str("global value", config.find("", "name")!!, "demo");
+    expect_str("empty value", config.find("", "empty")!!, "");
+    expect_str("section value", config.find("server", "host")!!, "localhost");
+    expect_str("no spaces around =", config.value_or("server", "port", "?"), "9090");
+    expect_str("spaces trimmed", config.find("server", "debug")!!, "yes");
+    expect_str("colon separator, = inside the value", config.find("server", "url")!!, "http://x/y?a=b");
+    expect_str("quoted value keeps spaces", config.find("paths", "home")!!, "  C:\\dir  ");
+    expect_str("quoted value escapes", config.find("paths", "msg")!!, "say " + q + "hi" + q + "\n");
+    expect_str("keys of a section", io_strings.join(config.keys("server"), "|"), "host|port|debug|url");
+    expect("keys of empty section", config.keys("empty section").size().value, 0);
+    expect("keys of missing section", config.keys("nope").size().value, 0);
+    expect_true("has_section", config.has_section("paths").value);
+    expect_true("has_section empty", config.has_section("empty section").value);
+    expect_false("has_section missing", config.has_section("Server").value);
+    expect_true("has", config.has("server", "host").value);
+    expect_false("has missing key", config.has("server", "Host").value);
+    expect_false("has missing section", config.has("nope", "host").value);
+    expect_true("find missing key is null", io_strings.is_null(config.find("server", "nope")));
+    expect_true("find missing section is null", io_strings.is_null(config.find("nope", "host")));
+    expect_str("value_or fallback", config.value_or("server", "nope", "dflt"), "dflt");
+    expect_str("value_or missing section", config.value_or("nope", "host", "dflt"), "dflt");
+
+    expect("number_or", config.number_or("server", "port", 80), 9090);
+    expect("number_or fallback", config.number_or("server", "timeout", 30), 30);
+    try { config.number_or("server", "host", 0); fail("number_or on text", "no exception"); }
+    catch(e: number_format_exception) { pass("number_or on text"); }
+    expect_true("bool_or yes", config.bool_or("server", "debug", false).value);
+    expect_true("bool_or fallback", config.bool_or("server", "nope", true).value);
+    try { config.bool_or("server", "host", false); fail("bool_or on text", "no exception"); }
+    catch(e: parse_exception) { pass("bool_or on text"); }
+    words := ini_file.parse("a = TRUE\nb = On\nc = 1\nd = false\ne = No\nf = OFF\ng = 0\n");
+    expect_true("TRUE", words.bool_or("", "a", false).value);
+    expect_true("On", words.bool_or("", "b", false).value);
+    expect_true("1", words.bool_or("", "c", false).value);
+    expect_false("false", words.bool_or("", "d", true).value);
+    expect_false("No", words.bool_or("", "e", true).value);
+    expect_false("OFF", words.bool_or("", "f", true).value);
+    expect_false("0", words.bool_or("", "g", true).value);
+
+    section := config.section("server")!!;
+    expect_str("section name", section.name(), "server");
+    expect("section size", section.size(), 4);
+    expect_str("key_at", section.key_at(1), "port");
+    expect_str("value_at", section.value_at(1), "9090");
+    expect_null("section missing", config.section("nope"));
+    section.put("added", "through the section");
+    expect_str("change through the section object", config.find("server", "added")!!, "through the section");
+
+    expect("empty text", ini_file.parse("").size(), 0);
+    expect("only comments", ini_file.parse("; x\n# y\n\n").size(), 0);
+    expect("crlf lines", ini_file.parse("a=1\r\n[s]\r\nb=2\r\n").size(), 2);
+    expect_str("crlf value is clean", ini_file.parse("a=1\r\n").find("", "a")!!, "1");
+    expect_str("section name is trimmed", ini_file.parse("[  s  ]\nk=v\n").find("s", "k")!!, "v");
+    expect_str("last duplicate wins", ini_file.parse("k=1\nk=2\n").find("", "k")!!, "2");
+    expect_str("single quote char value", ini_file.parse("k=" + q + "\n").find("", "k")!!, q);
+
+    expect_ini_error("line without separator", "just some words\n");
+    expect_ini_error("missing key", "= value\n");
+    expect_ini_error("unclosed section", "[server\nhost=x\n");
+    expect_ini_error("unknown escape", "k = " + q + "a\\qb" + q + "\n");
+    try {
+        ini_file.parse("a=1\nb=2\noops\n");
+        fail("message", "no exception");
+    } catch(e: parse_exception) {
+        expect_true("message names the line", io_strings.contains(e.get_message(), "line 3").value);
+    }
+}
+
+def test_ini_writing() {
+    config := new ini_file();
+    config.put("", "name", "demo").put("server", "host", "localhost").put_number("server", "port", 8080).put_bool("server", "debug", true);
+    config.put("paths", "home", "  padded  ").put("paths", "multi", "two\nlines\t" + q + "x" + q + " \\ end");
+    config.put("", "version", "1.5");
+    expect_str("to_string", config.to_string()!!,
+        "name = demo\nversion = 1.5\n\n[server]\nhost = localhost\nport = 8080\ndebug = true\n\n[paths]\nhome = " + q + "  padded  " + q + "\nmulti = " + q + "two\\nlines\\t\\" + q + "x\\" + q + " \\\\ end" + q + "\n");
+
+    back := ini_file.parse(config.to_string()!!);
+    expect("round trip size", back.size(), 7);
+    expect_str("round trip sections", io_strings.join(back.sections(), "|"), "|server|paths");
+    expect_str("round trip padded", back.find("paths", "home")!!, "  padded  ");
+    expect_str("round trip multi line", back.find("paths", "multi")!!, "two\nlines\t" + q + "x" + q + " \\ end");
+    expect("round trip number", back.number_or("server", "port", 0), 8080);
+    expect_true("round trip bool", back.bool_or("server", "debug", false).value);
+    expect_str("written again the same", back.to_string()!!, config.to_string()!!);
+
+    config.put("server", "port", "9090");
+    expect_str("put replaces", config.find("server", "port")!!, "9090");
+    expect_str("...and keeps its place", config.keys("server").at(1), "port");
+    expect_true("remove", config.remove("server", "debug").value);
+    expect_false("remove again", config.remove("server", "debug").value);
+    expect_false("remove from missing section", config.remove("nope", "x").value);
+    expect_true("remove_section", config.remove_section("paths").value);
+    expect_false("remove_section again", config.remove_section("paths").value);
+    expect_str("after removals", config.to_string()!!, "name = demo\nversion = 1.5\n\n[server]\nhost = localhost\nport = 9090\n");
+
+    only := new ini_file();
+    only.put("s", "k", "v");
+    expect_str("no global section", only.to_string()!!, "[s]\nk = v\n");
+    expect_str("empty settings", new ini_file().to_string()!!, "");
+    late := ini_file.parse("[s]\nk=v\n");
+    late.put("", "g", "1");
+    expect_str("global entries are written first", late.to_string()!!, "g = 1\n\n[s]\nk = v\n");
+    expect_str("...and read back", ini_file.parse(late.to_string()!!).find("", "g")!!, "1");
+
+    try { config.put("s", "", "v"); fail("empty key", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("empty key"); }
+    try { config.put("s", "a=b", "v"); fail("key with =", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("key with ="); }
+    try { config.put("s", "[k", "v"); fail("key starting with [", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("key starting with ["); }
+    try { config.put("s", ";k", "v"); fail("key starting with ;", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("key starting with ;"); }
+    try { config.put("s]x", "k", "v"); fail("section with ]", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("section with ]"); }
+    try { config.put("s", "two\nlines", "v"); fail("key with line end", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("key with line end"); }
+
+    // files
+    target := new file(base_dir + "/app.ini");
+    config.save(target);
+    loaded := ini_file.load(target);
+    expect_str("load after save", loaded.to_string()!!, config.to_string()!!);
+    try { ini_file.load(new file(base_dir + "/missing.ini")); fail("load missing", "no exception"); }
+    catch(e: io_exception) { pass("load missing"); }
+    more := new ini_file();
+    more.put("server", "host", "old").put("x", "y", "z");
+    more.read_text("[server]\nhost = new\nextra = 1\n");
+    expect_str("read_text merges", more.to_string()!!, "[server]\nhost = new\nextra = 1\n\n[x]\ny = z\n");
+}
+
+def test_xml() {
+    xml := new xml_writer();
+    xml.start("a").end();
+    expect_str("empty element", xml.to_string()!!, "<a/>");
+
+    xml = new xml_writer();
+    xml.start("root").attribute("id", "1").attribute_number("n", 2.5).text("hello").end();
+    expect_str("attributes and text", xml.to_string()!!, "<root id=" + q + "1" + q + " n=" + q + "2.5" + q + ">hello</root>");
+
+    xml = new xml_writer();
+    xml.start("t").text("a < b & c > d " + q + "quoted" + q + " 'single'").end();
+    expect_str("text escaping", xml.to_string()!!, "<t>a &lt; b &amp; c &gt; d " + q + "quoted" + q + " 'single'</t>");
+    xml = new xml_writer();
+    xml.start("t").attribute("v", "a<b&c>" + q + "d" + q + "\n\te").end();
+    expect_str("attribute escaping", xml.to_string()!!, "<t v=" + q + "a&lt;b&amp;c&gt;&quot;d&quot;&#10;&#9;e" + q + "/>");
+    expect_str("escape()", xml_writer.escape("1 < 2 && 3 > 2"), "1 &lt; 2 &amp;&amp; 3 &gt; 2");
+    expect_str("escape() of nothing special", xml_writer.escape("plain"), "plain");
+
+    xml = new xml_writer();
+    xml.declaration();
+    xml.start("library").attribute("city", "Oslo");
+    xml.start("book").attribute("id", "1");
+    xml.element("title", "Tom & Jerry");
+    xml.end();
+    xml.start("empty").end();
+    xml.end();
+    expect_str("compact document", xml.to_string()!!,
+        "<?xml version=" + q + "1.0" + q + " encoding=" + q + "UTF-8" + q + "?>\n<library city=" + q + "Oslo" + q + "><book id=" + q + "1" + q + "><title>Tom &amp; Jerry</title></book><empty/></library>");
+
+    xml = new xml_writer();
+    xml.set_indent(2);
+    xml.declaration();
+    xml.start("library").attribute("city", "Oslo");
+    xml.comment(" the books ");
+    xml.start("book").attribute("id", "1");
+    xml.element("title", "Tom & Jerry");
+    xml.start("note").text("mixed ").start("b").text("bold").end().text(" text").end();
+    xml.end();
+    xml.start("empty").end();
+    expect("depth", xml.depth(), 1);
+    xml.end();
+    expect_str("indented document", xml.to_string()!!,
+        "<?xml version=" + q + "1.0" + q + " encoding=" + q + "UTF-8" + q + "?>\n<library city=" + q + "Oslo" + q + ">\n  <!-- the books -->\n  <book id=" + q + "1" + q + ">\n    <title>Tom &amp; Jerry</title>\n    <note>mixed <b>bold</b> text</note>\n  </book>\n  <empty/>\n</library>\n");
+
+    xml = new xml_writer();
+    xml.start("c").cdata("if(a < b && c) { x[y[0]]>1 }").end();
+    expect_str("cdata", xml.to_string()!!, "<c><![CDATA[if(a < b && c) { x[y[0]]]]><![CDATA[>1 }]]></c>");
+    xml = new xml_writer();
+    xml.start("c").cdata("").cdata("plain").end();
+    expect_str("empty and plain cdata", xml.to_string()!!, "<c><![CDATA[]]><![CDATA[plain]]></c>");
+
+    xml = new xml_writer();
+    xml.comment("before");
+    xml.start("r").text("").end();
+    xml.comment("after");
+    expect_str("comments outside the root; empty text adds nothing", xml.to_string()!!, "<!--before-->\n<r/>\n<!--after-->");
+
+    xml = new xml_writer();
+    xml.start("a").start("b").start("c");
+    expect("depth 3", xml.depth(), 3);
+    xml.end_all();
+    expect("end_all", xml.depth(), 0);
+    expect_str("end_all result", xml.to_string()!!, "<a><b><c/></b></a>");
+
+    xml = new xml_writer();
+    xml.start("ns:item").attribute("xml:lang", "en").attribute("data-x_1.y", "v").end();
+    expect_str("names with : - _ . and digits", xml.to_string()!!, "<ns:item xml:lang=" + q + "en" + q + " data-x_1.y=" + q + "v" + q + "/>");
+
+    // misuse
+    try { new xml_writer().start("1abc"); fail("name starting with a digit", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("name starting with a digit"); }
+    try { new xml_writer().start("a b"); fail("name with a space", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("name with a space"); }
+    try { new xml_writer().start(""); fail("empty name", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("empty name"); }
+    try { new xml_writer().start("a<b"); fail("name with <", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("name with <"); }
+    bad := new xml_writer();
+    bad.start("a").attribute("x", "1");
+    try { bad.attribute("x", "2"); fail("duplicate attribute", "no exception"); }
+    catch(e: illegal_state_exception) { pass("duplicate attribute"); }
+    try { bad.attribute("bad name", "2"); fail("attribute name", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("attribute name"); }
+    bad.text("content");
+    try { bad.attribute("y", "2"); fail("attribute after content", "no exception"); }
+    catch(e: illegal_state_exception) { pass("attribute after content"); }
+    try { bad.to_string(); fail("to_string with open element", "no exception"); }
+    catch(e: illegal_state_exception) { pass("to_string with open element"); }
+    try { bad.save(new file(base_dir + "/never.xml")); fail("save with open element", "no exception"); }
+    catch(e: illegal_state_exception) { pass("save with open element"); }
+    bad.end();
+    try { bad.end(); fail("end without open element", "no exception"); }
+    catch(e: illegal_state_exception) { pass("end without open element"); }
+    try { bad.start("second"); fail("second root", "no exception"); }
+    catch(e: illegal_state_exception) { pass("second root"); }
+    try { bad.text("outside"); fail("text outside the root", "no exception"); }
+    catch(e: illegal_state_exception) { pass("text outside the root"); }
+    try { bad.cdata("outside"); fail("cdata outside the root", "no exception"); }
+    catch(e: illegal_state_exception) { pass("cdata outside the root"); }
+    try { bad.declaration(); fail("late declaration", "no exception"); }
+    catch(e: illegal_state_exception) { pass("late declaration"); }
+    try { bad.comment("a -- b"); fail("comment with --", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("comment with --"); }
+    try { bad.comment("ends with -"); fail("comment ending with -", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("comment ending with -"); }
+    try { new xml_writer().to_string(); fail("no root", "no exception"); }
+    catch(e: illegal_state_exception) { pass("no root"); }
+    try { new xml_writer().set_indent(0 - 1); fail("negative indent", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("negative indent"); }
+    ctl := new xml_writer();
+    ctl.start("a");
+    try { ctl.text(io_strings.from_char(1)); fail("control character", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("control character"); }
+
+    // a file
+    doc := new xml_writer();
+    doc.set_indent(4);
+    doc.start("items");
+    for(i : var = 0; i < 3; i++) {
+        doc.start("item").attribute_number("n", i).end();
+    }
+    doc.end();
+    target := new file(base_dir + "/doc.xml");
+    doc.save(target);
+    expect_str("saved file", target.read_text(),
+        "<items>\n    <item n=" + q + "0" + q + "/>\n    <item n=" + q + "1" + q + "/>\n    <item n=" + q + "2" + q + "/>\n</items>\n");
+}
+
+def main(args: string[]) {
+    start := new file(base_dir);
+    start.delete_recursively();
+    expect_true("test directory created", start.mkdirs().value);
+
+    test_ini_reading();
+    test_ini_writing();
+    test_xml();
+
+    expect_true("cleanup", start.delete_recursively().value);
+    finish("lib_data_config");
+}

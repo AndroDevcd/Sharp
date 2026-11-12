@@ -1,0 +1,431 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Settings in the INI format: sections with "key = value" lines.
+ *
+ *     ; comment
+ *     name = demo
+ *
+ *     [server]
+ *     host = localhost
+ *     port = 8080
+ *     debug = yes
+ *
+ *     config := ini_file.load(new file("app.ini"));
+ *     host := config.value_or("server", "host", "127.0.0.1");
+ *     port := config.number_or("server", "port", 80);
+ *     if(config.bool_or("server", "debug", false)) { ... }
+ *     config.put("server", "port", "9090");
+ *     config.save(new file("app.ini"));
+ *
+ * The format as it is read:
+ *   - "[name]" starts a section; entries before the first one belong to the
+ *     section "" (the global section)
+ *   - "key = value" (or "key: value") is an entry; white space around key
+ *     and value is removed; the value may be empty and may contain '='
+ *   - a value in double quotes keeps its spaces, and \" \\ \n \t inside it
+ *     are escapes: path = "  C:\\dir  "
+ *   - lines starting with ';' or '#' are comments, empty lines are skipped
+ *   - a section that appears twice is one section; a key that appears twice
+ *     keeps the last value
+ *   - anything else throws parse_exception with the line number: a line
+ *     without '=' or ':', an entry without a key, "[name" without ']'
+ *
+ * Section names and keys are compared exactly (case matters). Everything is
+ * kept in the order it first appeared, and written back in that order.
+ * Comments are not kept: save() writes the entries only. Values are
+ * strings; number_or() and bool_or() interpret them.
+ *
+ * Not thread safe.
+ */
+class ini_file {
+    /** the sections in order; the global section "" is only in here once it has entries */
+    private all_sections := new list<ini_section>();
+
+    /** settings without any entry */
+    ini_file() {
+    }
+
+    /**
+     * The settings in the INI text `text`.
+     * Throws parse_exception for a malformed line.
+     */
+    static def parse(text: string) : ini_file {
+        result := new ini_file();
+        result.read_text(text);
+        return result;
+    }
+
+    /**
+     * The settings in the file `source`.
+     * Throws io_exception when the file does not exist or is a directory,
+     * parse_exception for a malformed line.
+     */
+    static def load(source: file) : ini_file {
+        return parse(source.read_text());
+    }
+
+    /**
+     * Add the entries of the INI text `text` to these settings (entries
+     * that exist already are replaced).
+     * Throws parse_exception for a malformed line; the entries of the lines
+     * before it have been added then.
+     */
+    def read_text(text: string) {
+        lines := io_strings.split_lines(text);
+        current : string = "";
+        total : var = lines.size().value;
+        for(i : var = 0; i < total; i++) {
+            line := io_strings.trim(lines.at(i));
+            n : var = sizeof(line.data);
+            if(n == 0 || line.data[0] == ';' || line.data[0] == '#') {
+                continue;
+            }
+
+            if(line.data[0] == '[') {
+                if(line.data[n - 1] != ']') {
+                    throw new parse_exception("ini: line " + io_strings.int_to_string(i + 1)
+                        + ": a section header must end with ']': " + line);
+                }
+                current = io_strings.trim(io_strings.slice(line, 1, n - 1));
+                section_for(current);
+                continue;
+            }
+
+            // the key ends at the first '=' or ':'
+            split : var = 0 - 1;
+            for(k : var = 0; k < n; k++) {
+                if(line.data[k] == '=' || line.data[k] == ':') {
+                    split = k;
+                    break;
+                }
+            }
+            if(split < 0) {
+                throw new parse_exception("ini: line " + io_strings.int_to_string(i + 1)
+                    + ": expected \"key = value\" or \"[section]\": " + line);
+            }
+            key := io_strings.trim(io_strings.slice(line, 0, split));
+            if(sizeof(key.data) == 0) {
+                throw new parse_exception("ini: line " + io_strings.int_to_string(i + 1)
+                    + ": the key is missing: " + line);
+            }
+            value := unquote(io_strings.trim(io_strings.slice_from(line, split + 1)), i + 1);
+            section_for(current).put(key, value);
+        }
+    }
+
+    /** resolve the quotes and escapes of a value written in double quotes; other values are returned as they are */
+    private static def unquote(value: string, line_number: var) : string {
+        n : var = sizeof(value.data);
+        if(n < 2 || value.data[0] != '"' || value.data[n - 1] != '"') {
+            return value;
+        }
+        buf := new char_buffer(n);
+        i : var = 1;
+        while(i < n - 1) {
+            ch : var = value.data[i];
+            if(ch == 92 && i + 1 < n - 1) {
+                following : var = value.data[i + 1];
+                if(following == 'n') { buf.append_char(10); }
+                else if(following == 't') { buf.append_char(9); }
+                else if(following == 'r') { buf.append_char(13); }
+                else if(following == '"') { buf.append_char('"'); }
+                else if(following == 92) { buf.append_char(92); }
+                else {
+                    throw new parse_exception("ini: line " + io_strings.int_to_string(line_number)
+                        + ": unknown escape in a quoted value: " + value);
+                }
+                i += 2;
+            } else {
+                buf.append_char(ch);
+                i++;
+            }
+        }
+        return buf.to_string()!!;
+    }
+
+    /** true when the value has to be written in quotes to be read back unchanged */
+    private static def needs_quotes(value: string) : var {
+        n : var = sizeof(value.data);
+        if(n == 0) {
+            return 0;
+        }
+        if(io_strings.is_space(value.data[0]) || io_strings.is_space(value.data[n - 1]) || value.data[0] == '"') {
+            return 1;
+        }
+        for(i : var = 0; i < n; i++) {
+            ch : var = value.data[i];
+            if(ch == '\n' || ch == '\r' || ch == '\t') {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    /** the position of the section `name` in the list, or -1 */
+    private def section_index(name: string) : var {
+        total : var = all_sections.size().value;
+        for(i : var = 0; i < total; i++) {
+            if(io_strings.equals(all_sections.at(i).name(), name)) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /** the section `name`, created when it does not exist */
+    private def section_for(name: string) : ini_section {
+        at : var = section_index(name);
+        if(at >= 0) {
+            return all_sections.at(at);
+        }
+        created := new ini_section(name);
+        all_sections.add(created);
+        return created;
+    }
+
+    /** true when there is a section `name` ("" is the global section, which exists once it has an entry) */
+    def has_section(name: string) : bool {
+        return section_index(name) >= 0;
+    }
+
+    /** the section `name` with its entries, or null when there is none. Changing the section changes these settings. */
+    def section(name: string) : ini_section? {
+        at : var = section_index(name);
+        if(at < 0) {
+            return null;
+        }
+        return all_sections.at(at);
+    }
+
+    /** the names of all sections in order ("" for the global section, when it has entries) */
+    def sections() : list<string> {
+        result := new list<string>();
+        total : var = all_sections.size().value;
+        for(i : var = 0; i < total; i++) {
+            result.add(all_sections.at(i).name());
+        }
+        return result;
+    }
+
+    /** the keys of the section `name` in order; an empty list when there is no such section */
+    def keys(name: string) : list<string> {
+        at : var = section_index(name);
+        if(at < 0) {
+            return new list<string>();
+        }
+        return all_sections.at(at).keys();
+    }
+
+    /** true when the section `section_name` has an entry `key` */
+    def has(section_name: string, key: string) : bool {
+        at : var = section_index(section_name);
+        if(at < 0) {
+            return false;
+        }
+        return all_sections.at(at).has(key);
+    }
+
+    /** the value of `key` in the section `section_name`, or null when the section or the key does not exist */
+    def find(section_name: string, key: string) : string? {
+        at : var = section_index(section_name);
+        if(at < 0) {
+            return null;
+        }
+        return all_sections.at(at).find(key);
+    }
+
+    /** the value of `key` in the section `section_name`, or `fallback` when the section or the key does not exist */
+    def value_or(section_name: string, key: string, fallback: string) : string {
+        found := find(section_name, key);
+        if(io_strings.is_null(found)) {
+            return fallback;
+        }
+        return found!!;
+    }
+
+    /**
+     * The value of `key` in the section `section_name` as a number, or
+     * `fallback` when the entry does not exist.
+     * Throws number_format_exception when the entry exists but is not a
+     * number ("12", "-0.5", "1e3" are; "", "abc", "12px" are not).
+     */
+    def number_or(section_name: string, key: string, fallback: var) : var {
+        found := find(section_name, key);
+        if(io_strings.is_null(found)) {
+            return fallback;
+        }
+        return io_strings.parse_number(found!!);
+    }
+
+    /**
+     * The value of `key` in the section `section_name` as a boolean, or
+     * `fallback` when the entry does not exist. true / yes / on / 1 mean
+     * true and false / no / off / 0 mean false, in any case.
+     * Throws parse_exception when the entry exists but is none of these.
+     */
+    def bool_or(section_name: string, key: string, fallback: bool) : bool {
+        found := find(section_name, key);
+        if(io_strings.is_null(found)) {
+            return fallback;
+        }
+        raw : string = found!!;
+        word := io_strings.to_lower(raw);
+        if(word == "true" || word == "yes" || word == "on" || word == "1") {
+            return true;
+        }
+        if(word == "false" || word == "no" || word == "off" || word == "0") {
+            return false;
+        }
+        throw new parse_exception("ini: [" + section_name + "] " + key + " is not a boolean: " + raw);
+    }
+
+    /**
+     * Set `key` in the section `section_name` to `value`, creating the
+     * section when needed. Returns these settings so calls can be chained.
+     * Throws illegal_argument_exception when the key is empty or contains
+     * '=', ':' or a line end, starts with '[', ';' or '#', or when the
+     * section name contains ']' or a line end (such entries could not be
+     * read back).
+     */
+    def put(section_name: string, key: string, value: string) : ini_file {
+        check_name(section_name, 1);
+        check_name(key, 0);
+        section_for(section_name).put(key, value);
+        return self;
+    }
+
+    /** set `key` in the section `section_name` to a number, written the short way ("8080", "0.5"). Returns these settings. Throws like put(). */
+    def put_number(section_name: string, key: string, value: var) : ini_file {
+        return put(section_name, key, io_strings.number_to_string(value));
+    }
+
+    /** set `key` in the section `section_name` to "true" or "false". Returns these settings. Throws like put(). */
+    def put_bool(section_name: string, key: string, value: bool) : ini_file {
+        if(value) {
+            return put(section_name, key, "true");
+        }
+        return put(section_name, key, "false");
+    }
+
+    private static def check_name(name: string, is_section: var) {
+        n : var = sizeof(name.data);
+        if(is_section) {
+            for(i : var = 0; i < n; i++) {
+                ch : var = name.data[i];
+                if(ch == ']' || ch == '\n' || ch == '\r') {
+                    throw new illegal_argument_exception("ini: a section name cannot contain ']' or a line end: " + name);
+                }
+            }
+            return;
+        }
+        if(n == 0) {
+            throw new illegal_argument_exception("ini: the key cannot be empty");
+        }
+        first : var = name.data[0];
+        if(first == '[' || first == ';' || first == '#' || io_strings.is_space(first) || io_strings.is_space(name.data[n - 1])) {
+            throw new illegal_argument_exception("ini: a key cannot start with '[', ';' or '#' or have spaces around it: " + name);
+        }
+        for(i : var = 0; i < n; i++) {
+            ch : var = name.data[i];
+            if(ch == '=' || ch == ':' || ch == '\n' || ch == '\r') {
+                throw new illegal_argument_exception("ini: a key cannot contain '=', ':' or a line end: " + name);
+            }
+        }
+    }
+
+    /** remove `key` from the section `section_name`; returns true when there was such an entry. An emptied section stays. */
+    def remove(section_name: string, key: string) : bool {
+        at : var = section_index(section_name);
+        if(at < 0) {
+            return false;
+        }
+        return all_sections.at(at).remove(key);
+    }
+
+    /** remove the section `name` with all its entries; returns true when there was one */
+    def remove_section(name: string) : bool {
+        at : var = section_index(name);
+        if(at < 0) {
+            return false;
+        }
+        all_sections.remove_at(at);
+        return true;
+    }
+
+    /** the number of entries in all sections together */
+    def size() : var {
+        count : var = 0;
+        total : var = all_sections.size().value;
+        for(i : var = 0; i < total; i++) {
+            count += all_sections.at(i).size();
+        }
+        return count;
+    }
+
+    /**
+     * The settings as INI text: the global entries first, then every
+     * section as "[name]" followed by its "key = value" lines, with an
+     * empty line between sections. Values that need it are written in
+     * double quotes. parse() of this text gives the same settings.
+     */
+    override def to_string() : string? {
+        buf := new char_buffer(256);
+        // the global section has no header, so it has to come first
+        global_at : var = section_index("");
+        if(global_at >= 0) {
+            write_entries(buf, all_sections.at(global_at));
+        }
+        total : var = all_sections.size().value;
+        for(i : var = 0; i < total; i++) {
+            if(i == global_at) {
+                continue;
+            }
+            if(buf.length() > 0) {
+                buf.append_char('\n');
+            }
+            buf.append_char('[');
+            buf.append(all_sections.at(i).name());
+            buf.append_char(']');
+            buf.append_char('\n');
+            write_entries(buf, all_sections.at(i));
+        }
+        return buf.to_string();
+    }
+
+    private static def write_entries(buf: char_buffer, from: ini_section) {
+        total : var = from.size();
+        for(i : var = 0; i < total; i++) {
+            buf.append(from.key_at(i));
+            buf.append(" = ");
+            value := from.value_at(i);
+            if(needs_quotes(value)) {
+                buf.append_char('"');
+                n : var = sizeof(value.data);
+                for(k : var = 0; k < n; k++) {
+                    ch : var = value.data[k];
+                    if(ch == '"') { buf.append_char(92); buf.append_char('"'); }
+                    else if(ch == 92) { buf.append_char(92); buf.append_char(92); }
+                    else if(ch == '\n') { buf.append_char(92); buf.append_char('n'); }
+                    else if(ch == '\r') { buf.append_char(92); buf.append_char('r'); }
+                    else if(ch == '\t') { buf.append_char(92); buf.append_char('t'); }
+                    else { buf.append_char(ch); }
+                }
+                buf.append_char('"');
+            } else {
+                buf.append(value);
+            }
+            buf.append_char('\n');
+        }
+    }
+
+    /**
+     * Replace the content of the file `target` with to_string().
+     * Throws io_exception when the file cannot be written.
+     */
+    def save(target: file) {
+        target.write_text(to_string()!!);
+    }
+}

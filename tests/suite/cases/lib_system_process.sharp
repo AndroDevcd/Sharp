@@ -1,0 +1,214 @@
+mod main;
+
+import ( testing, std.io, std.system )
+
+/**
+ * std.system process (running shell commands, exit codes, captured
+ * output, input, environment) and platform_info, and std ansi / console
+ * (the parts that do not need a person at the keyboard).
+ *
+ * The commands are plain POSIX shell (echo, printf, cat, exit, test), so
+ * this test is for unix-like systems. Works only inside
+ * /tmp/sharp_suite_io_process and removes it at the end.
+ */
+
+base_dir : string = "/tmp/sharp_suite_io_process";
+
+/** a dollar sign (it cannot be written inside a string literal, where it starts an interpolation) */
+def dollar(): string {
+    return io_strings.from_char(36);
+}
+
+def esc(): string {
+    return io_strings.from_char(27);
+}
+
+def test_process() {
+    r := process.run("echo hello");
+    expect("exit code 0", r.exit_code(), 0);
+    expect_true("succeeded", r.succeeded().value);
+    expect_str("output", r.output(), "hello\n");
+    expect_str("output_trimmed", r.output_trimmed(), "hello");
+    expect_str("no error output", r.error_output(), "");
+    expect_str("command", r.command(), "echo hello");
+    expect_true("check returns the result", r.check().succeeded().value);
+
+    r = process.run("exit 3");
+    expect("exit code 3", r.exit_code(), 3);
+    expect_false("not succeeded", r.succeeded().value);
+    expect_str("no output", r.output(), "");
+    expect("no output lines", r.output_lines().size().value, 0);
+    try { r.check(); fail("check on failure", "no exception"); }
+    catch(e: io_exception) { expect_true("check message names the code", io_strings.contains(e.get_message(), "exit code 3").value); }
+    expect("exit code 255", process.run("exit 255").exit_code(), 255);
+    expect("false is 1", process.run("false").exit_code(), 1);
+
+    r = process.run("echo out; echo err 1>&2; exit 2");
+    expect_str("stdout apart", r.output(), "out\n");
+    expect_str("stderr apart", r.error_output(), "err\n");
+    expect("code with both", r.exit_code(), 2);
+    r = process.run_merged("echo out; echo err 1>&2");
+    expect_str("merged output", r.output(), "out\nerr\n");
+    expect_str("merged: no separate error output", r.error_output(), "");
+
+    r = process.run("printf 'a\\nb\\n\\nc'");
+    lines := r.output_lines();
+    expect("output_lines", lines.size().value, 4);
+    expect_str("line 0", lines.at(0), "a");
+    expect_str("empty line", lines.at(2), "");
+    expect_str("last line without newline", lines.at(3), "c");
+
+    r = process.run("this_command_does_not_exist_12345");
+    expect("command not found", r.exit_code(), 127);
+    expect_true("...with a message on stderr", io_strings.length(r.error_output()) > 0);
+    expect("killed by a signal", process.run("kill -9 " + dollar() + dollar()).exit_code(), 137);
+    r = process.run("echo one && echo two | tr a-z A-Z; test -d /");
+    expect_str("pipes and &&", r.output(), "one\nTWO\n");
+    expect("status of the last command", r.exit_code(), 0);
+
+    // input
+    r = process.run_with_input("cat", "fed in\nline 2\n");
+    expect_str("input passed through", r.output(), "fed in\nline 2\n");
+    r = process.run_with_input("wc -c", "12345");
+    expect_str("input length", r.output_trimmed(), "5");
+    r = process.run_with_input("cat", "");
+    expect_str("empty input", r.output(), "");
+
+    // quoting
+    odd : string = "it's a \"test\" & more; `x` \\ end";
+    r = process.run("printf '%s' " + process.quote(odd));
+    expect_str("quoted argument arrives unchanged", r.output(), odd);
+    expect_str("quote plain", process.quote("plain"), "'plain'");
+    expect_str("quote empty", process.quote(""), "''");
+    spaced := new file(base_dir + "/dir with space/file name.txt");
+    spaced.parent()!!.mkdirs();
+    spaced.write_text("content\n");
+    r = process.run("cat " + process.quote(spaced.get_path()));
+    expect_str("path with spaces", r.output(), "content\n");
+
+    // a command that writes a file, and larger output
+    r = process.run("echo written > " + process.quote(base_dir + "/made.txt"));
+    expect_str("file made by a command", new file(base_dir + "/made.txt").read_text(), "written\n");
+    r = process.run("seq 0 1999 | sed s/^/line./");
+    expect("2000 lines captured", r.output_lines().size().value, 2000);
+    expect_str("last captured line", r.output_lines().at(1999), "line.1999");
+
+    expect("execute", process.execute("exit 4"), 4);
+    expect("execute success", process.execute("true"), 0);
+
+    // environment
+    expect_true("PATH is set", !io_strings.is_null(process.environment("PATH")));
+    expect_true("unset variable is null", io_strings.is_null(process.environment("SHARP_SUITE_NO_SUCH_VARIABLE")));
+    try { process.environment("BAD NAME"); fail("bad variable name", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("bad variable name"); }
+    try { process.environment(""); fail("empty variable name", "no exception"); }
+    catch(e: illegal_argument_exception) { pass("empty variable name"); }
+    r = process.run("SHARP_SUITE_VAR='some value' sh -c 'printf %s " + io_strings.from_char(34) + dollar() + "SHARP_SUITE_VAR" + io_strings.from_char(34) + "'");
+    expect_str("variables reach child commands", r.output(), "some value");
+    expect_true("command_exists sh", process.command_exists("sh").value);
+    expect_false("command_exists nonsense", process.command_exists("this_command_does_not_exist_12345").value);
+
+    // nothing is left behind in the temporary directory
+    left : var = 0;
+    temp_dir := new file(temp_files.directory());
+    temp_names := temp_dir.list_names();
+    foreach(name in temp_names) {
+        if(io_strings.starts_with(name, "sharp_proc_").value) {
+            left++;
+        }
+    }
+    expect("capture files are deleted", left, 0);
+}
+
+def test_platform() {
+    expect_false("is_windows", platform_info.is_windows().value);
+    expect_true("is_unix", platform_info.is_unix().value);
+    expect_str("os_name", platform_info.os_name(), "unix");
+    expect_str("os_id", platform_info.os_id(), "posix");
+    expect_true("processor_count", platform_info.processor_count() >= 1);
+    expect("path_separator", platform_info.path_separator(), '/');
+    expect("path_list_separator", platform_info.path_list_separator(), ':');
+    expect_str("line_separator", platform_info.line_separator(), "\n");
+    expect_true("current_directory is absolute", platform_info.current_directory().data[0] == '/');
+    expect_true("temp_directory exists", new file(platform_info.temp_directory()).is_directory().value);
+    expect_true("app_name", io_strings.length(platform_info.app_name()) > 0);
+    expect_true("app_version", io_strings.length(platform_info.app_version()) > 0);
+    expect_true("platform_version", io_strings.length(platform_info.platform_version()) > 0);
+    expect_str("environment_or fallback", platform_info.environment_or("SHARP_SUITE_NO_SUCH_VARIABLE", "dflt"), "dflt");
+    expect_true("environment_or set", io_strings.length(platform_info.environment_or("PATH", "")) > 0);
+    home := platform_info.home_directory();
+    expect_str("home_directory is HOME", home, platform_info.environment_or("HOME", ""));
+    expect_str("home_directory is remembered", platform_info.home_directory(), home);
+    expect_str("host_name is what hostname prints", platform_info.host_name(), process.run("hostname").output_trimmed());
+    expect_str("user_name is USER or LOGNAME", platform_info.user_name(),
+        platform_info.environment_or("USER", platform_info.environment_or("LOGNAME", "")));
+    expect_true("free_disk_space", platform_info.free_disk_space() > 0);
+    expect_true("total_disk_space is at least the free space", platform_info.total_disk_space() >= platform_info.free_disk_space());
+    expect_true("summary", io_strings.starts_with(platform_info.summary(), "unix, ").value);
+}
+
+def test_ansi_console() {
+    e := esc();
+    expect_true("enabled by default", ansi.is_enabled().value);
+    expect_str("foreground", ansi.foreground(ansi.red), e + "[31m");
+    expect_str("foreground bright", ansi.foreground(ansi.bright_blue), e + "[94m");
+    expect_str("foreground black", ansi.foreground(ansi.black), e + "[30m");
+    expect_str("background", ansi.background(ansi.green), e + "[42m");
+    expect_str("background bright", ansi.background(ansi.bright_white), e + "[107m");
+    expect_str("style", ansi.style(ansi.bold), e + "[1m");
+    expect_str("reset", ansi.reset(), e + "[0m");
+    expect_str("colored", ansi.colored("hi", ansi.yellow), e + "[33mhi" + e + "[0m");
+    expect_str("colored on background", ansi.colored("hi", ansi.white, ansi.blue), e + "[37m" + e + "[44mhi" + e + "[0m");
+    expect_str("styled", ansi.styled("hi", ansi.underline), e + "[4mhi" + e + "[0m");
+    expect_str("clear_screen", ansi.clear_screen(), e + "[2J" + e + "[H");
+    expect_str("clear_line", ansi.clear_line(), e + "[2K\r");
+    expect_str("move_to", ansi.move_to(3, 14), e + "[3;14H");
+    expect_str("cursor hidden", ansi.cursor_visible(false), e + "[?25l");
+    expect_str("cursor shown", ansi.cursor_visible(true), e + "[?25h");
+    expect_str("strip", ansi.strip(ansi.colored("plain", ansi.red) + " and " + ansi.styled("bold", ansi.bold)), "plain and bold");
+    expect_str("strip without codes", ansi.strip("nothing here [31m"), "nothing here [31m");
+    expect_str("strip cursor codes", ansi.strip("a" + ansi.move_to(1, 1) + "b" + ansi.clear_screen() + "c"), "abc");
+    try { ansi.foreground(16); fail("colour 16", "no exception"); }
+    catch(e1: illegal_argument_exception) { pass("colour 16"); }
+    try { ansi.background(0 - 1); fail("negative colour", "no exception"); }
+    catch(e2: illegal_argument_exception) { pass("negative colour"); }
+    try { ansi.colored("x", 2.5); fail("fractional colour", "no exception"); }
+    catch(e3: illegal_argument_exception) { pass("fractional colour"); }
+    try { ansi.move_to(0, 1); fail("row 0", "no exception"); }
+    catch(e4: illegal_argument_exception) { pass("row 0"); }
+
+    ansi.set_enabled(false);
+    expect_false("disabled", ansi.is_enabled().value);
+    expect_str("colored when disabled", ansi.colored("hi", ansi.red), "hi");
+    expect_str("colored on background when disabled", ansi.colored("hi", ansi.red, ansi.blue), "hi");
+    expect_str("styled when disabled", ansi.styled("hi", ansi.bold), "hi");
+    expect_str("foreground when disabled", ansi.foreground(ansi.red), "");
+    expect_str("reset when disabled", ansi.reset(), "");
+    expect_str("clear_screen when disabled", ansi.clear_screen(), "");
+    expect_str("clear_line when disabled", ansi.clear_line(), "");
+    expect_str("move_to when disabled", ansi.move_to(1, 1), "");
+
+    // console output helpers: with codes switched off they print plain text or nothing
+    console.print_text("");
+    console.clear();
+    console.clear_line();
+    console.move_cursor(1, 1);
+    console.new_lines(0);
+    console.print_colored("", ansi.red);
+    pass("console helpers print nothing visible when there is nothing to print");
+    ansi.set_enabled(true);
+    expect_true("enabled again", ansi.is_enabled().value);
+}
+
+def main(args: string[]) {
+    start := new file(base_dir);
+    start.delete_recursively();
+    expect_true("test directory created", start.mkdirs().value);
+
+    test_process();
+    test_platform();
+    test_ansi_console();
+
+    expect_true("cleanup", start.delete_recursively().value);
+    finish("lib_system_process");
+}

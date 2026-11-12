@@ -1,0 +1,174 @@
+mod std.system;
+
+import ( std.io, platform, platform.kernel )
+
+/**
+ * Facts about the machine and the running program: which operating system,
+ * how many processors, where the directories are, what the program is
+ * called.
+ *
+ *     if(platform_info.is_windows()) { ... }
+ *     println(platform_info.os_name() + ", " + platform_info.processor_count() + " cores");
+ *     config := platform_info.home_directory() + "/.myapp";
+ *
+ * Everything is static. Most answers come from the runtime (the `build`
+ * class of the platform module); the ones about the user's environment
+ * (home directory, user name, host name) are asked from the shell on the
+ * first call and remembered - see process.environment() - and are "" when
+ * they cannot be found out.
+ */
+class platform_info {
+    /* answers that need the shell, remembered once known; `asked_...` says whether they were asked */
+    private static home_path : string = "";
+    private static asked_home : var = 0;
+    private static user : string = "";
+    private static asked_user : var = 0;
+    private static host : string = "";
+    private static asked_host : var = 0;
+
+    /** true when the program runs on windows */
+    static def is_windows() : bool {
+        return build.is_windows();
+    }
+
+    /** true when the program runs on a unix-like system (linux, macOS, BSD, ...) */
+    static def is_unix() : bool {
+        return !build.is_windows();
+    }
+
+    /** the family of the operating system: "windows" or "unix" */
+    static def os_name() : string {
+        if(build.is_windows()) {
+            return "windows";
+        }
+        return "unix";
+    }
+
+    /** the operating system as the runtime names it: "win" or "posix" */
+    static def os_id() : string {
+        return build.os;
+    }
+
+    /** the name the running program was compiled with */
+    static def app_name() : string {
+        return build.app_name;
+    }
+
+    /** the version the running program was compiled with */
+    static def app_version() : string {
+        return build.version;
+    }
+
+    /** the platform (runtime version) the running program was compiled for */
+    static def platform_version() : string {
+        return build.platform;
+    }
+
+    /** the number of processors (cores) the machine has, at least 1 */
+    static def processor_count() : var {
+        count : var = vm.hardware_concurrency().value;
+        if(count < 1) {
+            return 1;
+        }
+        return count;
+    }
+
+    /** the character between the parts of a path: '/' or '\' (as a character code) */
+    static def path_separator() : var {
+        return path.separator();
+    }
+
+    /** the character between the entries of the PATH variable: ':' on unix, ';' on windows (as a character code) */
+    static def path_list_separator() : var {
+        if(build.is_windows()) {
+            return 59; // the semicolon
+        }
+        return ':';
+    }
+
+    /** the line end text files usually have on this system: "\n" on unix, "\r\n" on windows */
+    static def line_separator() : string {
+        if(build.is_windows()) {
+            return "\r\n";
+        }
+        return "\n";
+    }
+
+    /** the directory the program was started in */
+    static def current_directory() : string {
+        return file.current_directory();
+    }
+
+    /** the directory for temporary files (see temp_files.directory) */
+    static def temp_directory() : string {
+        return temp_files.directory();
+    }
+
+    /** the value of an environment variable, or `fallback` when it is not set */
+    static def environment_or(name: string, fallback: string) : string {
+        value := process.environment(name);
+        if(io_strings.is_null(value)) {
+            return fallback;
+        }
+        return value!!;
+    }
+
+    /** the home directory of the user (HOME on unix, USERPROFILE on windows), or "" when unknown */
+    static def home_directory() : string {
+        if(!asked_home) {
+            asked_home = 1;
+            if(build.is_windows()) {
+                home_path = environment_or("USERPROFILE", "");
+            } else {
+                home_path = environment_or("HOME", "");
+            }
+        }
+        return home_path;
+    }
+
+    /** the login name of the user (USER / LOGNAME on unix, USERNAME on windows), or "" when unknown */
+    static def user_name() : string {
+        if(!asked_user) {
+            asked_user = 1;
+            if(build.is_windows()) {
+                user = environment_or("USERNAME", "");
+            } else {
+                user = environment_or("USER", "");
+                if(sizeof(user.data) == 0) {
+                    user = environment_or("LOGNAME", "");
+                }
+            }
+        }
+        return user;
+    }
+
+    /** the name of the machine, as the command `hostname` prints it, or "" when unknown */
+    static def host_name() : string {
+        if(!asked_host) {
+            asked_host = 1;
+            result := process.run("hostname");
+            if(result.exit_code() == 0) {
+                host = result.output_trimmed();
+            }
+        }
+        return host;
+    }
+
+    /** the size in bytes of the disk the program runs on, or -1 when unknown */
+    static def total_disk_space() : var {
+        return file_natives.disk_space(0);
+    }
+
+    /** the number of bytes on the disk the program runs on that this program can still use, or -1 when unknown */
+    static def free_disk_space() : var {
+        return file_natives.disk_space(2);
+    }
+
+    /** a one line summary for logs and bug reports, e.g. "unix, 8 processors, app demo 1.0" */
+    static def summary() : string {
+        buf := new char_buffer(64);
+        buf.append(os_name()).append(", ").append_int(processor_count()).append(" processors, app ");
+        buf.append(build.app_name).append_char(' ').append(build.version);
+        return buf.to_string()!!;
+    }
+}

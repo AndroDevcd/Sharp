@@ -1,0 +1,436 @@
+mod std.system;
+
+import ( std.io, std.math )
+
+/**
+ * Writes log messages with a level, optionally a time stamp, and a name, to
+ * the console, to files, or to any text_writer.
+ *
+ *     log := new logger("server");
+ *     log.add_console();
+ *     log.add_file(new file("server.log"));
+ *     log.set_level(logger.level_debug);
+ *
+ *     log.info("listening on port 8080");
+ *     log.warn("disk almost full");
+ *     log.debug("request took 12 ms");
+ *     log.close();
+ *
+ *     2026-11-12 09:30:00.123 INFO  [server] listening on port 8080
+ *
+ * Levels, from chatty to serious: trace, debug, info, warn, error. A logger
+ * writes the messages at its level and above (info by default) and drops
+ * the rest; logger.level_off silences it.
+ *
+ * Format. Every message becomes one line built from a pattern with the
+ * placeholders {time} {level} {name} {message}; the default is
+ * "{time} {level} [{name}] {message}". set_format() changes it. The level
+ * is padded to five characters so that the messages line up.
+ *
+ * Time. {time} is the time in UTC as "YYYY-MM-DD HH:MM:SS.mmm". The clock
+ * can be replaced with set_clock() (a function that returns milliseconds
+ * since 1970) - tests use that to get the same output on every run - or
+ * time stamps can be left out altogether with set_timestamps(false), which
+ * also removes "{time} " from the default format.
+ *
+ * Targets. A logger without a target writes nothing. File targets append
+ * to their file. By default every message is flushed to all targets right
+ * away, so nothing is lost when the program stops; for a file that means
+ * rewriting it on every message (the runtime cannot append), which is fine
+ * for ordinary logs and slow for very large ones - set_auto_flush(false)
+ * and flush() or close() at the end are the remedy.
+ *
+ * Not thread safe: log from one thread, or guard the logger yourself.
+ */
+class logger {
+    /* the levels */
+    static const level_trace : var = 0;
+    static const level_debug : var = 1;
+    static const level_info : var = 2;
+    static const level_warn : var = 3;
+    static const level_error : var = 4;
+    /** a level for set_level() that lets nothing through */
+    static const level_off : var = 5;
+
+    private logger_name : string;
+    private level : var = 2;
+    private targets := new list<text_writer>();
+    private pattern : string = "{time} {level} [{name}] {message}";
+    private custom_pattern : var = 0;
+    private timestamps : var = 1;
+    private auto_flush : var = 1;
+    private closed : var = 0;
+
+    private has_clock : var = 0;
+    private clock : ()(var);
+
+    /** how many messages were written (passed the level) */
+    private written : var = 0;
+    /** how many messages were dropped because of the level */
+    private dropped : var = 0;
+
+    /** a logger called `name` at level info, without targets */
+    logger(name: string) {
+        logger_name = name;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* configuration                                                       */
+    /* ------------------------------------------------------------------ */
+
+    /** the name given to the constructor, shown as {name} */
+    def name() : string {
+        return logger_name;
+    }
+
+    /**
+     * Write messages of `new_level` and above (logger.level_trace .. logger.level_error,
+     * or logger.level_off for none). Returns this logger.
+     * Throws illegal_argument_exception for a number that is not a level.
+     */
+    def set_level(new_level: var) : logger {
+        if(new_level < 0 || new_level > 5 || (new_level as _int32) != new_level) {
+            throw new illegal_argument_exception("logger: not a level: " + io_strings.number_to_string(new_level));
+        }
+        level = new_level;
+        return self;
+    }
+
+    /** the lowest level that is written */
+    def get_level() : var {
+        return level;
+    }
+
+    /** true when a message of `message_level` would be written - to skip building an expensive message that would be dropped */
+    def is_enabled(message_level: var) : bool {
+        return message_level >= level && level < 5;
+    }
+
+    /** the name of a level as it appears in messages: "TRACE", "DEBUG", "INFO", "WARN", "ERROR" ("OFF" for logger.level_off, "?" otherwise) */
+    static def level_name(which: var) : string {
+        if(which == 0) return "TRACE";
+        if(which == 1) return "DEBUG";
+        if(which == 2) return "INFO";
+        if(which == 3) return "WARN";
+        if(which == 4) return "ERROR";
+        if(which == 5) return "OFF";
+        return "?";
+    }
+
+    /**
+     * The level with the given name, in any case: "debug", "WARN",
+     * "warning" (same as warn), "off" ...
+     * Throws illegal_argument_exception for any other word - for reading
+     * the level from a configuration file or the command line.
+     */
+    static def level_of(word: string) : var {
+        lower := io_strings.to_lower(io_strings.trim(word));
+        if(lower == "trace") return 0;
+        if(lower == "debug") return 1;
+        if(lower == "info") return 2;
+        if(lower == "warn") return 3;
+        if(lower == "warning") return 3;
+        if(lower == "error") return 4;
+        if(lower == "off") return 5;
+        throw new illegal_argument_exception("logger: not a level: " + word);
+    }
+
+    /** also print messages on the console. Returns this logger. */
+    def add_console() : logger {
+        targets.add(new console_writer());
+        return self;
+    }
+
+    /**
+     * Also append messages to the file `target` (created when it does not
+     * exist). Returns this logger.
+     * Throws io_exception when `target` is a directory.
+     */
+    def add_file(target: file) : logger {
+        targets.add(new file_writer(target, true));
+        return self;
+    }
+
+    /** also write messages to `target` (a string_writer in tests, a buffered_writer, ...). Returns this logger. */
+    def add_writer(target: text_writer) : logger {
+        targets.add(target);
+        return self;
+    }
+
+    /** how many targets the logger writes to */
+    def target_count() : var {
+        return targets.size().value;
+    }
+
+    /**
+     * The pattern every line is built from. Placeholders: {time} {level}
+     * {name} {message}; everything else is copied as it is. Returns this
+     * logger.
+     */
+    def set_format(new_pattern: string) : logger {
+        pattern = new_pattern;
+        custom_pattern = 1;
+        return self;
+    }
+
+    /**
+     * Show time stamps (true, the default) or not (false). Without them
+     * {time} is replaced by nothing, and the default format loses its
+     * "{time} " at the front. Returns this logger.
+     */
+    def set_timestamps(enabled: bool) : logger {
+        if(enabled) {
+            timestamps = 1;
+        } else {
+            timestamps = 0;
+        }
+        return self;
+    }
+
+    /**
+     * Take the time from `source` instead of the clock of the machine: a
+     * function without parameters that returns milliseconds since
+     * 1970-01-01 00:00 UTC. Returns this logger.
+     */
+    def set_clock(source: ()(var)) : logger {
+        clock = source;
+        has_clock = 1;
+        return self;
+    }
+
+    /** flush all targets after every message (true, the default) or only on flush() / close() (false). Returns this logger. */
+    def set_auto_flush(enabled: bool) : logger {
+        if(enabled) {
+            auto_flush = 1;
+        } else {
+            auto_flush = 0;
+        }
+        return self;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* logging                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /** log `message` at level trace: very detailed tracing */
+    def trace(message: string) {
+        log(0, message);
+    }
+
+    /** log `message` at level debug: details for finding problems */
+    def debug(message: string) {
+        log(1, message);
+    }
+
+    /** log `message` at level info: normal events worth noting */
+    def info(message: string) {
+        log(2, message);
+    }
+
+    /** log `message` at level warn: something is odd but the program goes on */
+    def warn(message: string) {
+        log(3, message);
+    }
+
+    /** log `message` at level error: something failed */
+    def error(message: string) {
+        log(4, message);
+    }
+
+    /** log an exception at level error: `message`, then ": " and the message of the exception */
+    def log_exception(message: string, problem: throwable) {
+        buf := new char_buffer(128);
+        buf.append(message).append(": ").append(problem.get_message());
+        log(4, buf.to_string()!!);
+    }
+
+    /**
+     * Log `message` at `message_level` (logger.level_trace .. logger.level_error): when
+     * the level is enabled, one line is written to every target.
+     * Throws illegal_state_exception when the logger was closed,
+     * illegal_argument_exception for a number that is not a level, and
+     * io_exception when a file target cannot be written.
+     */
+    def log(message_level: var, message: string) {
+        if(closed) {
+            throw new illegal_state_exception("logger: the logger \"" + logger_name + "\" is closed");
+        }
+        if(message_level < 0 || message_level > 4 || (message_level as _int32) != message_level) {
+            throw new illegal_argument_exception("logger: not a level for a message: " + io_strings.number_to_string(message_level));
+        }
+        if(message_level < level) {
+            dropped++;
+            return;
+        }
+
+        line := format_line(message_level, message);
+        written++;
+        count : var = targets.size().value;
+        for(i : var = 0; i < count; i++) {
+            target := targets.at(i);
+            target.write_line(line);
+            if(auto_flush) {
+                target.flush();
+            }
+        }
+    }
+
+    /** the line for one message, without a line end: the pattern with its placeholders filled in */
+    def format_line(message_level: var, message: string) : string {
+        used : string = pattern;
+        if(!custom_pattern && !timestamps) {
+            used = "{level} [{name}] {message}";
+        }
+
+        buf := new char_buffer(sizeof(used.data) + sizeof(message.data) + 32);
+        n : var = sizeof(used.data);
+        i : var = 0;
+        while(i < n) {
+            if(used.data[i] == '{') {
+                if(matches(used, i, "{time}")) {
+                    if(timestamps) {
+                        buf.append(format_time(now()));
+                    }
+                    i += 6;
+                    continue;
+                }
+                if(matches(used, i, "{level}")) {
+                    buf.append(io_strings.pad_right(level_name(message_level), 5, ' '));
+                    i += 7;
+                    continue;
+                }
+                if(matches(used, i, "{name}")) {
+                    buf.append(logger_name);
+                    i += 6;
+                    continue;
+                }
+                if(matches(used, i, "{message}")) {
+                    buf.append(message);
+                    i += 9;
+                    continue;
+                }
+            }
+            buf.append_char(used.data[i]);
+            i++;
+        }
+        return buf.to_string()!!;
+    }
+
+    /** true when `text` has `word` at index `at` */
+    private static def matches(text: string, at: var, word: string) : var {
+        m : var = sizeof(word.data);
+        if(at + m > sizeof(text.data)) {
+            return 0;
+        }
+        for(k : var = 0; k < m; k++) {
+            if(text.data[at + k] != word.data[k]) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+
+    /** the current time in milliseconds since 1970, from the injected clock or the machine */
+    private def now() : var {
+        if(has_clock) {
+            return clock();
+        }
+        return utc_mills().value;
+    }
+
+    /**
+     * Milliseconds since 1970-01-01 00:00 UTC as "YYYY-MM-DD HH:MM:SS.mmm"
+     * (UTC, the proleptic Gregorian calendar). Negative values (before
+     * 1970) are treated as 0.
+     */
+    static def format_time(mills: var) : string {
+        if(mills < 0 || mills != mills) {
+            mills = 0;
+        }
+        mills = floor(mills).value;
+        ms : var = mills % 1000;
+        seconds : var = (mills - ms) / 1000;
+        second : var = seconds % 60;
+        minutes : var = (seconds - second) / 60;
+        minute : var = minutes % 60;
+        hours : var = (minutes - minute) / 60;
+        hour : var = hours % 24;
+        days : var = (hours - hour) / 24;
+
+        /*
+        * Days since 1970-01-01 to year / month / day (the "civil from
+        * days" method): shift the start to 0000-03-01 so that the leap day
+        * is the last day of a year, then work in 400 year eras.
+        */
+        z : var = days + 719468;
+        era : var = (z - z % 146097) / 146097;
+        day_of_era : var = z - era * 146097;
+        t1 : var = (day_of_era - day_of_era % 1460) / 1460;
+        t2 : var = (day_of_era - day_of_era % 36524) / 36524;
+        t3 : var = (day_of_era - day_of_era % 146096) / 146096;
+        y0 : var = day_of_era - t1 + t2 - t3;
+        year_of_era : var = (y0 - y0 % 365) / 365;
+        year : var = year_of_era + era * 400;
+        c1 : var = (year_of_era - year_of_era % 4) / 4;
+        c2 : var = (year_of_era - year_of_era % 100) / 100;
+        day_of_year : var = day_of_era - (365 * year_of_era + c1 - c2);
+        m0 : var = 5 * day_of_year + 2;
+        month_index : var = (m0 - m0 % 153) / 153;
+        d0 : var = 153 * month_index + 2;
+        day : var = day_of_year - (d0 - d0 % 5) / 5 + 1;
+        month : var = month_index + 3;
+        if(month > 12) {
+            month -= 12;
+        }
+        if(month <= 2) {
+            year++;
+        }
+
+        buf := new char_buffer(24);
+        buf.append(io_strings.pad_left(io_strings.int_to_string(year), 4, '0')).append_char('-');
+        buf.append(io_strings.pad_left(io_strings.int_to_string(month), 2, '0')).append_char('-');
+        buf.append(io_strings.pad_left(io_strings.int_to_string(day), 2, '0')).append_char(' ');
+        buf.append(io_strings.pad_left(io_strings.int_to_string(hour), 2, '0')).append_char(':');
+        buf.append(io_strings.pad_left(io_strings.int_to_string(minute), 2, '0')).append_char(':');
+        buf.append(io_strings.pad_left(io_strings.int_to_string(second), 2, '0')).append_char('.');
+        buf.append(io_strings.pad_left(io_strings.int_to_string(ms), 3, '0'));
+        return buf.to_string()!!;
+    }
+
+    /** how many messages were written so far (they passed the level) */
+    def get_written() : var {
+        return written;
+    }
+
+    /** how many messages were dropped so far because their level was below the level of the logger */
+    def get_dropped() : var {
+        return dropped;
+    }
+
+    /**
+     * Hand everything on to where it goes (files are written now).
+     * Throws io_exception when a file cannot be written.
+     */
+    def flush() {
+        count : var = targets.size().value;
+        for(i : var = 0; i < count; i++) {
+            targets.at(i).flush();
+        }
+    }
+
+    /**
+     * Flush and close all targets; logging afterwards throws
+     * illegal_state_exception. Closing twice is fine.
+     * Throws io_exception when a file cannot be written.
+     */
+    def close() {
+        if(closed) {
+            return;
+        }
+        closed = 1;
+        count : var = targets.size().value;
+        for(i : var = 0; i < count; i++) {
+            targets.at(i).close();
+        }
+    }
+}

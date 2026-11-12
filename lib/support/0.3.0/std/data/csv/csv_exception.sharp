@@ -1,0 +1,29 @@
+mod std.data;
+
+/**
+ * Thrown by csv_reader for text that is not well formed CSV: a quoted field
+ * that is never closed, or text directly behind the closing quote of a
+ * field ("ab"c). Also thrown by csv_writer and csv_reader for settings that
+ * cannot work (a separator that is a quote or a line end).
+ *
+ * `line` is the line of the text where the problem is (counting from 1, and
+ * counting the line breaks inside quoted fields too), `column` the place in
+ * that line (from 1). Both are -1 when the error is not about a place in a
+ * text. The message already contains them.
+ */
+class csv_exception base exception {
+    /** line of the problem, counting from 1, or -1 */
+    line : var = 0 - 1;
+    /** place within the line, counting from 1, or -1 */
+    column : var = 0 - 1;
+
+    /** an error that is not about a place in a text */
+    public csv_exception(message: string) -> base(message) {
+    }
+
+    /** an error at a known place; `message` should already mention the place */
+    public csv_exception(message: string, line: var, column: var) -> base(message) {
+        self->line = line;
+        self->column = column;
+    }
+}

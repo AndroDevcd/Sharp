@@ -1,0 +1,21 @@
+mod std.system;
+
+/**
+ * Thrown by args_parser.parse() when the command line does not fit what the
+ * program declared: an unknown option, an option without its value, a
+ * missing required option or argument, too many arguments, a value that is
+ * not a number where one is needed.
+ *
+ * The message is meant for the user of the program, e.g.
+ *
+ *     unknown option --colour
+ *     option --output needs a value
+ *     missing required argument <source>
+ *
+ * The usual reaction is to print it together with parser.usage() and exit
+ * with a code other than 0.
+ */
+class args_exception base exception {
+    public args_exception(message: string) -> base(message) {
+    }
+}

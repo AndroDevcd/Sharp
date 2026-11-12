@@ -1,0 +1,276 @@
+mod std;
+
+import ( std.io )
+
+/**
+ * Talking to the person at the terminal: printing numbers the short way,
+ * coloured output, clearing the screen, and asking for input with
+ * validation.
+ *
+ *     console.print_line("Total: " + io_strings.number_to_string(7.5));
+ *     console.print_colored("warning", ansi.yellow);
+ *     name := console.prompt("Your name: ");
+ *     age := console.read_int("Your age: ");            // asks again until it is a whole number
+ *     level := console.read_int_between("Level (1-5): ", 1, 5);
+ *     if(console.confirm("Continue?")) { ... }
+ *
+ * This class adds to the plain functions print(), println() and read_line()
+ * of std/console.sharp; it does not replace them. Everything is static.
+ *
+ * The end of the input (the input was a file or a pipe and it is used up,
+ * or the user pressed Ctrl-D) is noticed: read_line_or_null() returns null,
+ * and the functions that have to return something throw io_exception
+ * instead of waiting or asking for ever. (The plain read_line() does not
+ * notice it.)
+ */
+class console {
+
+    /* ------------------------------------------------------------------ */
+    /* output                                                              */
+    /* ------------------------------------------------------------------ */
+
+    /** print `text` without a line end */
+    static def print_text(text: string) {
+        if(sizeof(text.data) > 0) {
+            print(text);
+        }
+    }
+
+    /** print `text` and a line end */
+    static def print_line(text: string) {
+        println(text);
+    }
+
+    /** print a whole number without a line end: 42, not 42.0000000000000000 (a fraction is cut off) */
+    static def print_int(value: var) {
+        print(io_strings.int_to_string(value));
+    }
+
+    /** print a whole number and a line end */
+    static def println_int(value: var) {
+        println(io_strings.int_to_string(value));
+    }
+
+    /** print a number the short way without a line end: 3, 0.5, 1e21 (see io_strings.number_to_string) */
+    static def print_number(value: var) {
+        print(io_strings.number_to_string(value));
+    }
+
+    /** print a number the short way and a line end */
+    static def println_number(value: var) {
+        println(io_strings.number_to_string(value));
+    }
+
+    /** print a number with exactly `decimals` digits behind the point, rounded, without a line end */
+    static def print_fixed(value: var, decimals: var) {
+        print(io_strings.fixed_to_string(value, decimals));
+    }
+
+    /** print "true" or "false" without a line end */
+    static def print_bool(value: bool) {
+        if(value) {
+            print("true");
+        } else {
+            print("false");
+        }
+    }
+
+    /** print one character given as its code, without a line end */
+    static def print_char(ch: var) {
+        print(io_strings.from_char(ch));
+    }
+
+    /** print `count` line ends (blank lines) */
+    static def new_lines(count: var) {
+        for(i : var = 0; i < count; i++) {
+            println();
+        }
+    }
+
+    /**
+     * Print `text` in the colour `color` (a constant of the class ansi,
+     * e.g. ansi.red) without a line end.
+     * Throws illegal_argument_exception when color is not 0..15.
+     */
+    static def print_colored(text: string, color: var) {
+        print(ansi.colored(text, color));
+    }
+
+    /**
+     * Print `text` in the colour `color` and a line end.
+     * Throws illegal_argument_exception when color is not 0..15.
+     */
+    static def println_colored(text: string, color: var) {
+        println(ansi.colored(text, color));
+    }
+
+    /** print `text` in a style of the class ansi (ansi.bold, ansi.underline, ...) without a line end */
+    static def print_styled(text: string, style: var) {
+        print(ansi.styled(text, style));
+    }
+
+    /** clear the screen and put the cursor in the top left corner (nothing happens when ansi codes are switched off) */
+    static def clear() {
+        print_text(ansi.clear_screen());
+    }
+
+    /** clear the line the cursor is on and go back to its beginning, e.g. to redraw a progress display */
+    static def clear_line() {
+        print_text(ansi.clear_line());
+    }
+
+    /** put the cursor at `row`, `column` (both from 1). Throws illegal_argument_exception when one is below 1. */
+    static def move_cursor(row: var, column: var) {
+        print_text(ansi.move_to(row, column));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* input                                                               */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Read one line typed by the user, without the line end. Returns null
+     * when the input has ended before a single character could be read.
+     * A "\r\n" line end (windows, or a file made there) is taken as one.
+     */
+    static def read_line_or_null() : string? {
+        buf := new char_buffer(80);
+        ch : var = read_char().value;
+        if(ch == 0 - 1) {
+            return null;
+        }
+        while(ch != 10 && ch != 13 && ch != 0 - 1) {
+            buf.append_char(ch);
+            ch = read_char().value;
+        }
+        std#flush();
+        return buf.to_string();
+    }
+
+    /**
+     * Print `message` (without a line end) and read the line the user
+     * types.
+     * Throws io_exception when the input has ended.
+     */
+    static def prompt(message: string) : string {
+        print_text(message);
+        line := read_line_or_null();
+        if(io_strings.is_null(line)) {
+            throw new io_exception("the input ended while waiting for an answer");
+        }
+        return line!!;
+    }
+
+    /**
+     * Like prompt(), but an empty answer (just the enter key) gives
+     * `fallback`. The message should say what the default is.
+     * Throws io_exception when the input has ended.
+     */
+    static def prompt_or(message: string, fallback: string) : string {
+        answer := prompt(message);
+        if(sizeof(answer.data) == 0) {
+            return fallback;
+        }
+        return answer;
+    }
+
+    /**
+     * Ask for a whole number: print `message`, read a line, and ask again
+     * (after a short note) until the answer is a whole number such as 42 or
+     * -7. Spaces around the number are ignored.
+     * Throws io_exception when the input has ended.
+     */
+    static def read_int(message: string) : var {
+        while(true) {
+            answer := io_strings.trim(prompt(message));
+            if(io_strings.is_int(answer)) {
+                return io_strings.parse_int(answer);
+            }
+            println("Please enter a whole number.");
+        }
+        return 0;
+    }
+
+    /**
+     * Ask for a whole number from `low` to `high` (both allowed); asks
+     * again until the answer is one.
+     * Throws io_exception when the input has ended and
+     * illegal_argument_exception when low is greater than high.
+     */
+    static def read_int_between(message: string, low: var, high: var) : var {
+        if(low > high) {
+            throw new illegal_argument_exception("read_int_between: the lowest value is above the highest");
+        }
+        while(true) {
+            answer := io_strings.trim(prompt(message));
+            if(io_strings.is_int(answer)) {
+                value : var = io_strings.parse_int(answer);
+                if(value >= low && value <= high) {
+                    return value;
+                }
+            }
+            println("Please enter a whole number from " + io_strings.int_to_string(low) + " to "
+                + io_strings.int_to_string(high) + ".");
+        }
+        return 0;
+    }
+
+    /**
+     * Ask for a number, with or without fraction (3, -0.5, 1e6); asks
+     * again until the answer is one. Spaces around the number are ignored.
+     * Throws io_exception when the input has ended.
+     */
+    static def read_number(message: string) : var {
+        while(true) {
+            answer := io_strings.trim(prompt(message));
+            if(io_strings.is_number(answer)) {
+                return io_strings.parse_number(answer);
+            }
+            println("Please enter a number.");
+        }
+        return 0;
+    }
+
+    /**
+     * Ask a yes / no question: prints `message` followed by " (y/n) " and
+     * asks again until the answer is y, yes, n or no (in any case).
+     * Returns true for yes.
+     * Throws io_exception when the input has ended.
+     */
+    static def confirm(message: string) : bool {
+        while(true) {
+            answer := io_strings.to_lower(io_strings.trim(prompt(message + " (y/n) ")));
+            if(answer == "y" || answer == "yes") {
+                return true;
+            }
+            if(answer == "n" || answer == "no") {
+                return false;
+            }
+            println("Please answer y or n.");
+        }
+        return false;
+    }
+
+    /**
+     * Show a numbered list of choices and ask for one of them. Returns the
+     * position (from 0) of the chosen string in `choices`.
+     * Throws io_exception when the input has ended and
+     * illegal_argument_exception when there are no choices.
+     */
+    static def choose(message: string, choices: list<string>) : var {
+        count : var = choices.size().value;
+        if(count == 0) {
+            throw new illegal_argument_exception("choose: there are no choices");
+        }
+        for(i : var = 0; i < count; i++) {
+            println("  " + io_strings.int_to_string(i + 1) + ") " + choices.at(i));
+        }
+        return read_int_between(message, 1, count) - 1;
+    }
+
+    /** print `message` and wait until the user presses enter (returns at once when the input has ended) */
+    static def pause(message: string) {
+        print_text(message);
+        read_line_or_null();
+    }
+}
