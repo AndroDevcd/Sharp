@@ -3,16 +3,15 @@ mod main;
 import ( testing )
 
 /**
- * KNOWN BUG (compiler): `x = x + n` on a localized (fiber-local) number stores
- * garbage. Reading the variable into a local first works.
+ * `x = x + n` on a localized (fiber-local) number.
  *
- * WHAT std.io.coroutines DOES ABOUT IT
- *   mark_scope() / unmark_scope() in std/io/coroutines/scope/scopes.sharp go
- *   through a local variable.
- *
- * EXPECTED: all three checks pass.
- * ACTUAL:   "direct" is a meaningless number instead of 4 (52, 1915, ...: interpreter and JIT;
- *           the number differs from program to program); the other two pass.
+ * It used to store a meaningless number (52, 1915, ...; it differed from
+ * program to program): the value was loaded into ebx but the addition read the
+ * register it had asked for, which never received it
+ * (finalizer/generation/code/code_context.cpp, numeric_tls_field).
+ * std.io.coroutines went through a local variable to avoid it
+ * (mark_scope() / unmark_scope() in std/io/coroutines/scope/scopes.sharp);
+ * both ways are checked here.
  */
 
 localized direct : decimal;

@@ -227,6 +227,10 @@ struct code_context {
     // was started ...). See constant_conversion.cpp.
     Int lastInstruction = -1;
     Int previousInstruction = -1;       // the one before it, same rules
+    // The register the last arithmetic / comparison step left its result in:
+    // bmr for arithmetic and ==, cmt for < > <= >=. A step whose left operand
+    // is "the value just computed" reads it from here (get_numeric_operands).
+    Int lastNumericResult = 8;          // BMR
     sharp_function *container;
     machine_data machineData;
 };

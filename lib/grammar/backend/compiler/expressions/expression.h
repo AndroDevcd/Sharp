@@ -78,6 +78,14 @@ sharp_function* compile_class_function_overload(
         Ast *ast,
         bool allowMissing = false);
 
+/**
+ * While a `base->...` expression is compiled: the class `base` stands for.
+ * Calls to functions of that class (or of its own base classes) are direct
+ * calls, never looked up at run time (see "Direct call or run-time lookup?" in
+ * expression.cpp). Set and cleared by compile_base_expression(); NULL otherwise.
+ */
+void set_base_call_class(sharp_class *baseClass);
+
 void compile_function_call(
         operation_schema *scheme,
         List<sharp_field*> & params,

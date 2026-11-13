@@ -26,9 +26,9 @@ emit_result X64Generator::emit_calls() {
             check_after_runtime_call(true);
 #endif
             return emitted;
-        case Opcode::CALLD:     // prepare_method(regs[a])
+        case Opcode::CALLD:     // call_function_value(a): a = how many arguments were pushed
             prepare_runtime_call();
-            a.mov(rdi, vm_register_in_memory(single));
+            a.mov(rdi, (int64_t)single);
             call_runtime(reinterpret_cast<void*>(jit_rt_call_dynamic));
             check_after_runtime_call(true);
             return emitted;

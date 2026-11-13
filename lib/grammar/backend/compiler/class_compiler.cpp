@@ -42,7 +42,6 @@ void compile_class(sharp_class* parentClass, sharp_class *with_class, Ast *ast) 
     compile_class_functions(with_class, block);
     compile_default_constructor(with_class);
     compile_class_lambdas(with_class);
-    compile_static_closure_references(with_class);
 
 
     for(Int i = 0; i < block->getSubAstCount(); i++) {
@@ -104,6 +103,5 @@ void compile_classes() {
         }
     }
 
-    compile_static_closure_references(globalClass);
     delete_context();
 }

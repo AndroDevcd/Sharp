@@ -105,13 +105,22 @@ public:
     {
         return this->type == ty;
     }
+    /**
+     * Is this token the symbol / keyword / name `s`?
+     *
+     * A string or character literal never is, whatever its text: in
+     * `put(')')` the literal's text is `)` but it is a value, not the closing
+     * parenthesis. (Comparing the text alone ended the argument list there.)
+     * To look at a literal's text use getValue().
+     */
     bool operator==(const string& s)
     {
+        if(id == STRING_LITERAL || id == CHAR_LITERAL) return false;
         return this->tok == s;
     }
     bool operator!=(const string& s)
     {
-        return this->tok != s;
+        return !(*this == s);
     }
 
     json_value* exportData();

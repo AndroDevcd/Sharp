@@ -10,6 +10,7 @@
 #include "scheme_processor.h"
 #include "../code_info.h"
 #include "../constant_conversion.h"
+#include "../../../../types/function_value.h"
 #include "../../../../../../core/opcode/opcode_macros.h"
 
 void add_instruction(opcode_instr instr) {
@@ -597,7 +598,7 @@ void process_set_array_element_at_index(operation_step *step) {
         // which is -56. (`var` and function pointer elements are stored as they
         // are. Without this an _int8[] could hold 129, which then did not
         // compare equal to the same byte read back from a file.)
-        if(step->nativeType < type_function_ptr)
+        if(step->nativeType <= type_uint64)
             cast_machine_data(EBX, (data_type)step->nativeType);
         add_instruction(array_store((data_type)step->nativeType, ADX, EBX));
         // the value of `a[i] = v` is the value that was stored, still in ebx
@@ -709,8 +710,12 @@ static bool is_decimal_operation(operation_step *step) {
 }
 
 static numeric_operands get_numeric_operands(operation_step *step) {
+    // -1: the left operand is the result of the operation before this one.
+    // That is bmr after arithmetic but cmt after a comparison, as in
+    // `(a < b) + (c > d)` - it used to be read from bmr always, which added
+    // whatever bmr happened to hold.
     internal_register* left = step->integer == -1 ?
-            get_register(BMR) : get_register_or_consume(step->integer, true);
+            get_register((_register) cc.lastNumericResult) : get_register_or_consume(step->integer, true);
     internal_register* right = get_register_or_consume(step->secondRegister, false);
 
     numeric_operands operands;
@@ -725,6 +730,7 @@ static numeric_operands get_numeric_operands(operation_step *step) {
 }
 
 static void set_numeric_result(operation_step *step, _register result) {
+    cc.lastNumericResult = result;
     convert_register(result, step->resultConversion);
     set_machine_data(get_register(result));
 }
@@ -1143,8 +1149,49 @@ void process_nullify_value(operation_step *step) {
 void process_get_static_function_address(operation_step *step) {
     validate_step_type(step, operation_get_static_function_address);
 
-    // a function's address is an integer
-    set_machine_data(integer_constant, step->function->ci->address);
+    // A function used as a value is an object: a new function_value whose
+    // `address` is the index of the function (lib/runtime/memory/function_value.h).
+    //
+    //      newclass function_value     ; the new object is on the stack
+    //      movi     <index>, egx
+    //      movsl    0                  ; ptr = that object
+    //      putf     egx, address
+    //
+    // (It used to be the index itself, an integer constant.)
+    sharp_class *valueClass = function_value_class();
+    sharp_field *address = function_value_address_field();
+    if(valueClass == NULL || address == NULL) {
+        generation_error("a function is used as a value, but the class platform.kernel#function_value is missing!");
+        return;
+    }
+
+    add_instruction(Opcode::Builder::newClass(valueClass->ci->address));
+    add_instruction(Opcode::Builder::movi(step->function->ci->address, EGX));
+    add_instruction(Opcode::Builder::movsl(0));
+    add_instruction(Opcode::Builder::putf(EGX, get_or_initialize_code(address)->address));
+
+    // A lambda that captures takes along the closure object of the function
+    // that makes it - the one being generated (dependency/closure_capture.h):
+    //
+    //      pushl   __closure
+    //      movsl   -1                  ; ptr = the function value
+    //      movn    captured
+    //      popobj                      ; value.captured = __closure
+    if(step->function->capturedParameter != NULL) {
+        sharp_field *captured = function_value_captured_field();
+        sharp_field *closureLocal = cc.container->closure;
+        if(captured == NULL || closureLocal == NULL || closureLocal->ci == NULL) {
+            generation_error("a lambda captures from `" + cc.container->fullName + "`, which has no closure object!");
+            return;
+        }
+
+        add_instruction(Opcode::Builder::pushl(closureLocal->ci->address));
+        add_instruction(Opcode::Builder::movsl(-1));
+        add_instruction(Opcode::Builder::movn(get_or_initialize_code(captured)->address));
+        add_instruction(Opcode::Builder::popObject());
+    }
+
+    set_machine_data(new_class_data);
 }
 
 void process_get_string_constant(operation_step *step) {
@@ -1263,25 +1310,14 @@ void process_instance_function_call(operation_step *step) {
 void process_call_dynamic_function(operation_step *step) {
     validate_step_type(step, operation_call_dynamic_function);
 
-    auto reg = find_register(step->integer);
+    // step->integer: how many arguments were pushed on top of the function
+    // value (create_dynamic_function_call_operation)
+    add_instruction(Opcode::Builder::calld(step->integer));
 
-    if(reg != NULL) {
-        Int address = reg->address;
-        if(reg->address != normal_register) {
-            set_machine_data(reg);
-            consume_machine_data(get_register(EGX));
-            address = EGX;
-        }
-
-        add_instruction(Opcode::Builder::calld((_register) address));
-
-        if (is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
-            set_machine_data(function_numeric_data);
-        } else if (step->function->returnType.type != type_nil) {
-            set_machine_data(function_object_data);
-        }
-    } else {
-        generation_error("attempt to call dynamic function on unknown register!");
+    if (is_numeric_type(step->function->returnType) && !step->function->returnType.isArray) {
+        set_machine_data(function_numeric_data);
+    } else if (step->function->returnType.type != type_nil) {
+        set_machine_data(function_object_data);
     }
 }
 
@@ -1438,7 +1474,7 @@ void process_return_number(operation_step *step) {
     // type would store it:   return (int8_t) value;
     // (`var` and function pointers are returned as they are.)
     if(cc.container != NULL && !cc.container->returnType.isArray
-       && cc.container->returnType.type < type_function_ptr) {
+       && cc.container->returnType.type <= type_uint64) {
         cast_machine_data(r, cc.container->returnType.type);
     }
 

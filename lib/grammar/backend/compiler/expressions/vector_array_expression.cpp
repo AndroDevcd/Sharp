@@ -5,6 +5,7 @@
 #include "vector_array_expression.h"
 #include "../../types/types.h"
 #include "expression.h"
+#include "../../dependency/dependancy.h"
 #include "../../../compiler_info.h"
 
 
@@ -41,7 +42,7 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
             isNumeric = true;
             create_new_number_array_operation(&e->scheme, arraySizeScheme, e->type.type);
         }
-        else if(arrayType.type == type_object)
+        else if(arrayType.type == type_object || arrayType.type == type_function_ptr)  // function values are objects
             create_new_object_array_operation(&e->scheme, arraySizeScheme);
         else {
             create_new_error(GENERIC, ast->line, ast->col,
@@ -70,22 +71,37 @@ void compile_vector_array_expression(expression *e, Ast *ast) {
                     convert_number_for(*expr, arrayType);
                     setArrayItem->steps.add(new operation_step(operation_get_value, &expr->scheme));
                 } else { // match_constructor
-                    operation_schema *arrayItemScheme = new operation_schema(), resultScheme;
-                    arrayItemScheme->schemeType = scheme_new_class;
-                    arrayItemScheme->sc = arrayType._class;
+                    // the item is built from the value: new <class>(item), the
+                    // same steps `new <class>[] { item }` produces
+                    // (primary/new_expression.cpp)
+                    operation_schema resultScheme;
+                    resultScheme.sc = arrayType._class;
 
-                    arrayItemScheme->steps.add(
+                    create_dependency(arrayType._class);
+                    create_dependency(matchedConstructor);
+
+                    resultScheme.steps.add(
                             new operation_step(
                                     operation_create_class,
-                                    e->type._class
+                                    arrayType._class
                             )
                     );
+                    resultScheme.steps.add(
+                            new operation_step(operation_duplicate_item)
+                    );
 
-                    List<operation_schema*> scheme;
-                    scheme.add(arrayItemScheme);
+                    List<operation_schema*> schemes;
+                    schemes.add(&expr->scheme);
+
+                    operation_schema *constructorCall = new operation_schema();
                     create_instance_function_call_operation(
-                            &resultScheme, scheme, matchedConstructor);
-                    deleteList(scheme);
+                            constructorCall, schemes, matchedConstructor);
+                    schemes.free();
+
+                    resultScheme.steps.add(
+                            new operation_step(operation_step_scheme, constructorCall)
+                    );
+                    resultScheme.schemeType = scheme_new_class;
                     setArrayItem->steps.add(new operation_step(operation_step_scheme, &resultScheme));
                 }
 
@@ -105,9 +121,23 @@ void compile_vector_item(Ast *ast, sharp_type *arrayType, List<expression*>& arr
     expression *item = new expression();
 
     compile_expression(*item, ast);
+    bool isTextLiteral = item->type.type == type_string;
     convert_expression_type_to_real_type(*item);
 
-    if (!has_type(*arrayType) && has_type(item->type)) {
+    if (!has_type(*arrayType) && isTextLiteral) {
+        // { "a", "b", "c" }: an array of strings, each built from its literal -
+        // what `new string[] { "a", "b", "c" }` gives. (The literal's own type
+        // is an array of characters, which made this a one element array.)
+        string std = "std";
+        sharp_class *stringClass = resolve_class(get_module(std), "string", false, false);
+        if(stringClass != NULL) {
+            arrayType->type = type_class;
+            arrayType->_class = stringClass;
+            arrayType->isArray = false;
+        } else {
+            arrayType->copy(item->type);
+        }
+    } else if (!has_type(*arrayType) && has_type(item->type)) {
         arrayType->copy(item->type);
     } else if (has_type(item->type)) {
         if (!is_implicit_type_match(

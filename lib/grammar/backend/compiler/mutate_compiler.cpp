@@ -7,6 +7,7 @@
 #include "compiler.h"
 #include "../preprocessor/class_preprocessor.h"
 #include "../postprocessor/class_processor.h"
+#include "../postprocessor/mutation_processor.h"
 #include "../astparser/ast_parser.h"
 
 void compile_global_mutations(sharp_file *file) {
@@ -51,12 +52,24 @@ void compile_mutation(Ast* ast) {
         if(with_class->blueprintClass) {
             GUARD(globalLock)
 
+            // `mutate list { ... }` changes the generic class itself, so EVERY
+            // list<T> has the new members - the ones that exist now and the
+            // ones made later. It is remembered on the blueprint for the later
+            // ones (create_generic_class in dependency.cpp applies what is
+            // recorded there). It used to be applied only to the instances
+            // that existed at this moment: a `list<card>` first used further
+            // down in the program never got the members.
+            with_class->mutations.addif(ast);
+
             for(Int i = 0; i < with_class->genericClones.size(); i++) {
                 sharp_class *sc = with_class->genericClones.get(i);
 
-                pre_process_class(NULL, sc, ast);
-                process_class(NULL, sc, ast);
-                compile_class(NULL, sc, ast);
+                // process_mutation() does nothing for an instance that already
+                // has this mutation (it notes it on the instance)
+                bool isNew = !sc->mutations.find(ast);
+                process_mutation(sc, ast);
+                if(isNew)
+                    compile_class(NULL, sc, ast);
             }
         } else {
             pre_process_class(NULL, with_class, ast);

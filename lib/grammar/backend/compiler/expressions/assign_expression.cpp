@@ -7,6 +7,9 @@
 #include "../../types/types.h"
 #include "../../../taskdelegator/task_delegator.h"
 #include "../../../settings/settings.h"
+#include "binary/binary_expression.h"
+
+void compile_assignment(expression *e, Ast *ast, expression &left, expression &right, Token &operand);
 
 /**
  * Is the left side of `=` an array element (`a[i] = v`)? Then the step that
@@ -77,12 +80,104 @@ static bool assign_by_construction(expression *e, expression &left, expression &
     return true;
 }
 
+// ---------------------------------------------------------------------------------
+// Properties: a field with `get` and `set`
+//
+//      class account {
+//          balance : decimal = 0;
+//              get { return balance; }
+//              set v -> { balance = v; }
+//      }
+//
+// From outside the class, reading `a.balance` calls the getter and
+// `a.balance = 5` calls the setter. Changing it in place is both:
+//
+//      a.balance += 5;         a.balance = a.balance + 5;      getter, then setter
+//      a.balance++;            a.balance = a.balance + 1;
+//
+// (These used to be compiled as if the field were a plain variable: += stopped
+// the code generator and ++ changed a temporary copy.)
+//
+// C++ comparison: C++ has no properties; it is what `a.set_balance(a.balance() + 5)`
+// does when written by hand.
+// ---------------------------------------------------------------------------------
+
+bool is_property_target(expression &left) {
+    if(!(left.type == type_field)) return false;
+
+    // inside its own getter / setter the field is the plain variable
+    auto primaryFunction = get_primary_function(&current_context);
+    sharp_field *field = left.type.field;
+    return field->getter != NULL && field->setter != NULL
+        && field->getter != primaryFunction && field->setter != primaryFunction;
+}
+
+/** `left = value`, where left is a property: the setter is called with `value` */
+static void assign_property(expression *e, Ast *ast, expression &left, expression &value) {
+    Token assign("=", ast->getToken(0).getId(), ast->getToken(0).getColumn(), ast->getToken(0).getLine());
+    compile_assignment(e, ast, left, value, assign);
+}
+
+/** `left <op>= right` on a property, e.g. op = "+" for += */
+static void compile_property_compound_assignment(
+        expression *e, Ast *ast, expression &left, expression &right, Token &operand) {
+    string arithmetic = operand.getValue().substr(0, operand.getValue().size() - 1);
+    Token arithmeticToken(arithmetic, operand.getId(), operand.getColumn(), operand.getLine());
+
+    // The left side is needed twice: once to read (getter) and once to write
+    // (setter). The copy for the read gets label numbers of its own, because
+    // a label can only be placed once.
+    expression read(left), value;
+    relabel_scheme(&read.scheme);
+    compile_binary_expression(&value, ast, read, right, arithmeticToken);
+    if(value.type == type_undefined)
+        return;                         // the arithmetic was reported as an error
+
+    assign_property(e, ast, left, value);
+}
+
+bool compile_property_step(expression *e, Ast *ast, const string &op) {
+    if((op != "++" && op != "--") || !is_property_target(*e))
+        return false;
+
+    sharp_field *field = e->type.field;
+    if(!(((field->type.type >= type_int8 && field->type.type <= type_uint64)
+          || field->type.type == type_var) && !field->type.isArray))
+        return false;                   // not a number: the usual rules (and errors) apply
+
+    // the new value: what the getter gives, plus or minus one. (The copy for
+    // the read gets its own label numbers, see the compound assignment.)
+    expression target(*e), read(*e), value;
+    relabel_scheme(&read.scheme);
+    operation_schema *changed = new operation_schema();
+    changed->schemeType = op == "++" ? scheme_inc_value : scheme_dec_value;
+    create_get_value_operation(changed, &read.scheme, false, false);
+    if(op == "++") create_increment_operation(changed, field->type.type);
+    else create_decrement_operation(changed, field->type.type);
+    value.scheme.copy(*changed);
+    value.type.type = field->type.type;
+    delete changed;
+
+    e->scheme.free();
+    assign_property(e, ast, target, value);
+    return true;
+}
+
 void compile_assign_expression(expression *e, Ast *ast) {
     expression left, right;
     Token &operand = ast->getToken(0);
     compile_expression(left, ast->getSubAst(0));
     compile_expression(right, ast->getSubAst(1));
 
+    if(operand != "=" && is_property_target(left)) {
+        compile_property_compound_assignment(e, ast, left, right, operand);
+        return;
+    }
+
+    compile_assignment(e, ast, left, right, operand);
+}
+
+void compile_assignment(expression *e, Ast *ast, expression &left, expression &right, Token &operand) {
     sharp_function *matchedFun = NULL;
     uInt match_result = is_explicit_type_match(left.type, right.type);
 
@@ -118,6 +213,22 @@ void compile_assign_expression(expression *e, Ast *ast) {
                               && left.scheme.steps.last(0)->function == left.type.field->getter) {
                         getGetterStep->scheme->steps.free();
                         create_primary_instance_field_access_operation(getGetterStep->scheme, left.type.field);
+                    } else if(getGetterStep->scheme->steps.size() >= 2
+                              && getGetterStep->scheme->steps.last(0)->type == operation_call_instance_function
+                              && getGetterStep->scheme->steps.last(0)->function == left.type.field->getter
+                              && getGetterStep->scheme->steps.last(1)->type == operation_push_value_to_stack) {
+                        // `p.value = 10` on another object's property: the left
+                        // side was built as "p, then call the getter". An
+                        // assignment does not read the old value, so the getter
+                        // call is taken out again and the field itself is named
+                        // (the setter block below then calls the setter on `p`).
+                        // It used to stay: the getter ran on every assignment,
+                        // and the setter only found its object because the
+                        // getter's result happened to sit in the same stack slot -
+                        // which -O no longer guaranteed.
+                        getGetterStep->scheme->steps.pop_back();
+                        getGetterStep->scheme->steps.pop_back();
+                        create_instance_field_access_operation(getGetterStep->scheme, left.type.field);
                     }
                 }
             }

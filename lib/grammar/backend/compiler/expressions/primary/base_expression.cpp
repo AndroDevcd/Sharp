@@ -6,12 +6,17 @@
 #include "../../../../taskdelegator/task_delegator.h"
 #include "../../../types/sharp_class.h"
 #include "self_expression.h"
+#include "../expression.h"
 #include "../../../../compiler_info.h"
 
 void compile_base_expression(expression *e, Ast *ast, Int endLabel) {
     sharp_class *primary
             = get_primary_class(&currThread->currTask->file->ctx);
+    // calls on `base` name the base class's function and are never looked up
+    // again at run time (expression.cpp, dispatch_target)
+    set_base_call_class(primary->baseClass);
     compile_self_expression(primary, primary->baseClass, e, ast, endLabel);
+    set_base_call_class(NULL);
 }
 
 sharp_class* compile_base_class(Ast *ast) {

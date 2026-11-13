@@ -747,7 +747,12 @@ bool tokenizer::parseString() {
             if ('"' == current)
                 break;
 
-            if('$' == current && dynamicStringSupport) {
+            // "$name", "${expression}" and "$$" (one dollar sign) mean something
+            // inside a string. A `$` in front of anything else - "$5", "a $ b",
+            // a `$` at the very end - is just that character. (It used to be an
+            // error: "expected at least 1 letter in identifier".)
+            if('$' == current && dynamicStringSupport
+               && (peek(1) == '$' || peek(1) == '{' || isalpha(peek(1)) || peek(1) == '_')) {
                 if(peek(1) == '$') {
                     escaped_found = true;
                     advance();

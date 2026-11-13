@@ -1,0 +1,9 @@
+mod main;
+import ( testing, std.io )
+def main(args: string[]) {
+    a := new atomic<int>(5);
+    expect_true("atomic 5 <= 7", (a <= 7).value);
+    expect_false("atomic 5 <= 3", (a <= 3).value);
+    expect_true("atomic 5 >= 3", (a >= 3).value);
+    finish("lib_io_atomic_comparisons");
+}

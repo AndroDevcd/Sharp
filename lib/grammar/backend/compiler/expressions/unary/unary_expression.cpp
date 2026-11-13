@@ -2,6 +2,7 @@
 // Created by BNunnally on 9/23/2021.
 //
 
+#include "../assign_expression.h"
 #include "unary_expression.h"
 #include "../expression.h"
 #include "../../../../taskdelegator/task_delegator.h"
@@ -52,6 +53,10 @@ void compile_unary_prefix_expression(expression *e, string &op, Ast *ast) {
     compile_expression(*e, ast->getSubAst(ast_expression));
 
     if(e->type == type_undefined)
+        return;
+
+    // ++p.value on a property: getter, add, setter (assign_expression.cpp)
+    if(compile_property_step(e, ast, op))
         return;
 
     operation_schema *schema = new operation_schema();
@@ -298,6 +303,10 @@ void compile_unary_postfix_expression(expression *e, string &op, Ast *ast, bool 
         compile_expression(*e, ast->getSubAst(ast_expression));
 
     if(e->type == type_undefined)
+        return;
+
+    // p.value++ on a property: getter, add, setter (assign_expression.cpp)
+    if(compile_property_step(e, ast, op))
         return;
 
     if(e->type.isArray) {

@@ -35,6 +35,7 @@ struct sharp_function {
             flags(flag_none),
             ast(NULL),
             closure(NULL),
+            capturedParameter(NULL),
             scheme(NULL),
             delegate(NULL),
             ci(NULL),
@@ -75,6 +76,7 @@ struct sharp_function {
             returnType(sf.returnType),
             type(sf.type),
             closure(sf.closure),
+            capturedParameter(sf.capturedParameter),
             directlyCopyParams(sf.directlyCopyParams),
             scheme(NULL),
             ci(NULL)
@@ -117,6 +119,7 @@ struct sharp_function {
             baseConstructor(NULL),
             obfuscateModifier(options.obfuscate ? modifier_obfuscate : modifier_none),
             closure(NULL),
+            capturedParameter(NULL),
             delegate(NULL),
             ci(NULL)
     {
@@ -146,7 +149,14 @@ struct sharp_function {
     List<sharp_alias*> aliases;
     List<sharp_label*> labels;
     operation_schema *scheme;
+    // Closures (dependency/closure_capture.h):
+    //   closure             `__closure`, the local that holds this function's
+    //                       closure object; NULL when no lambda captures from it
+    //   capturedParameter   `__captured`, the hidden last parameter of a lambda
+    //                       that captures: the closure object of the function
+    //                       around it; NULL for every other function
     sharp_field* closure;
+    sharp_field* capturedParameter;
     sharp_function* delegate;
     List<sharp_function*> impls;
     sharp_type returnType;

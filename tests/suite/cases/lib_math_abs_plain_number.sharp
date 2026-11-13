@@ -1,0 +1,8 @@
+mod main;
+import ( testing, std.math )
+def main(args: string[]) {
+    expect("abs(3.5)", abs(3.5), 3.5);
+    expect("abs(0 - 4)", abs(0 - 4), 4);
+    expect("abs(0 - 2.5)", abs(0 - 2.5), 2.5);
+    finish("lib_math_abs_plain_number");
+}

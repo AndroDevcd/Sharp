@@ -385,9 +385,9 @@ class job : coroutine_body {
 
     /** runs the code this job was created with; deferred<t> replaces it to keep the result */
     override def run_body() {
-        if(block0 != 0) {
+        if(block0 != null) {      // (a function value is an object; it used to be a number, `!= 0`)
             block0();
-        } else if(block1 != 0) {
+        } else if(block1 != null) {
             block1(arg);
         } else if(body != null) {
             task : coroutine_body = body!!;

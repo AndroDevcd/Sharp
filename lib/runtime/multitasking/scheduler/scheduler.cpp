@@ -653,6 +653,16 @@ void run_scheduler() {
                 if(thread->task == nullptr || thread->state != THREAD_RUNNING)
                     continue; // gc/idle threads, or it parked in the meantime
 
+                // `now` was read at the top of this round. A fiber that started
+                // AFTER that has lastRanMicros > now, and both are unsigned:
+                // now - lastRanMicros would wrap around to an enormous number
+                // and the fiber would be switched out the moment it began.
+                // (It was: about one coroutine in a thousand lost its turn
+                //  right after starting - "first come first served" on one
+                //  thread came out as b, c, d, a.)
+                if(now <= thread->lastRanMicros)
+                    continue;   // it has run for no time at all yet
+
                 if((thread->readyHead != nullptr || unboundWaiting)
                     && (now - thread->lastRanMicros) > time_slice_of(thread)) {
                     enable_context_switch(thread, true);

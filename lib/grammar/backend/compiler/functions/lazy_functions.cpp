@@ -89,7 +89,7 @@ bool defer_function_body(sharp_function *function, Ast *ast) {
 
     // A lambda inside a function becomes a function and a closure of the
     // enclosing CLASS, which are finished right after the class's functions
-    // (compile_class_lambdas, compile_static_closure_references). Such bodies
+    // (compile_class_lambdas). Such bodies
     // stay where they are.
     if(contains_lambda(ast))
         return false;

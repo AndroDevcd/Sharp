@@ -77,7 +77,7 @@ class produce<t> : coroutine_body {
         error : throwable? = null;
 
         try {
-            if(fn0 != 0) {
+            if(fn0 != null) {
                 fn0(sink);
             } else {
                 fn1(sink, arg!!);

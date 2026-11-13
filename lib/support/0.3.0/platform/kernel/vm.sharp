@@ -106,7 +106,7 @@ class vm {
             pushl [args]
             pushl [fib]
             ipushl [threadid]
-            ipushl [main]
+            pushl [main]        // a function value is an object (function_value.sharp)
             pushl [name]
             int 0x45
             smovr2 [result], ebx

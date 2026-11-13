@@ -147,27 +147,49 @@ class atomic<t base base_number<t> > {
      def operator>(num : _int64) : bool      { lock(self) { return (value.value>num); }}
      def operator>(num : decimal) : bool         { lock(self) { return (value.value>num); }}
 
-     def operator<=(num : atomic<t>) : bool   { lock(self) { return (value.value>=num.value.value); }}
-     def operator<=(num : ulong) : bool       { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : long) : bool        { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : uint) : bool        { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : int) : bool         { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : ushort) : bool      { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : short) : bool       { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : byte) : bool        { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : uchar) : bool       { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : char) : bool        { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : bool) : bool        { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : double) : bool      { lock(self) { return (value.value>=num.value); }}
-     def operator<=(num : _uint8) : bool      { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _uint16) : bool     { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _uint32) : bool     { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _uint64) : bool     { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _int8) : bool       { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _int16) : bool      { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _int32) : bool      { lock(self) { return (value.value>=num); }}
-     def operator<=(num : _int64) : bool      { lock(self) { return (value.value>=num); }}
-     def operator<=(num : decimal) : bool         { lock(self) { return (value.value>=num); }}
+     def operator<=(num : atomic<t>) : bool   { lock(self) { return (value.value<=num.value.value); }}
+     def operator<=(num : ulong) : bool       { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : long) : bool        { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : uint) : bool        { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : int) : bool         { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : ushort) : bool      { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : short) : bool       { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : byte) : bool        { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : uchar) : bool       { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : char) : bool        { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : bool) : bool        { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : double) : bool      { lock(self) { return (value.value<=num.value); }}
+     def operator<=(num : _uint8) : bool      { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _uint16) : bool     { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _uint32) : bool     { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _uint64) : bool     { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _int8) : bool       { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _int16) : bool      { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _int32) : bool      { lock(self) { return (value.value<=num); }}
+     def operator<=(num : _int64) : bool      { lock(self) { return (value.value<=num); }}
+     def operator<=(num : decimal) : bool         { lock(self) { return (value.value<=num); }}
+
+     def operator>=(num : atomic<t>) : bool   { lock(self) { return (value.value>=num.value.value); }}
+     def operator>=(num : ulong) : bool       { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : long) : bool        { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : uint) : bool        { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : int) : bool         { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : ushort) : bool      { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : short) : bool       { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : byte) : bool        { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : uchar) : bool       { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : char) : bool        { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : bool) : bool        { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : double) : bool      { lock(self) { return (value.value>=num.value); }}
+     def operator>=(num : _uint8) : bool      { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _uint16) : bool     { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _uint32) : bool     { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _uint64) : bool     { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _int8) : bool       { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _int16) : bool      { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _int32) : bool      { lock(self) { return (value.value>=num); }}
+     def operator>=(num : _int64) : bool      { lock(self) { return (value.value>=num); }}
+     def operator>=(num : decimal) : bool         { lock(self) { return (value.value>=num); }}
 
      def operator+(num : atomic<t>) : t   { lock(self) { return (value.value+num.value.value); }}
      def operator+(num : ulong) : t       { lock(self) { return (value.value+num.value); }}

@@ -108,7 +108,7 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
 
     if(arrayElement) {
         stepPos++;  // the assign step: done here instead
-        if(elementType < type_function_ptr)
+        if(elementType <= type_uint64)
             cast_machine_data(BMR, (data_type)elementType);
         add_instruction(array_store((data_type)elementType, ADX, BMR));
         // (the machine data already says "the value is in bmr": the result of
@@ -135,8 +135,7 @@ void process_compound_assign_value_scheme(operation_schema *scheme) {
         push_machine_data_to_stack();
         add_instruction(Opcode::Builder::dup());
 
-        add_instruction(Opcode::Builder::movg(closureRef->owner->ci->address));
-        add_instruction(Opcode::Builder::movn(closureRef->ci->address));
+        add_instruction(Opcode::Builder::movl(closureRef->ci->address));    // this call's closure object
         move_to_field(closure);
 
         set_machine_data(closure, false);

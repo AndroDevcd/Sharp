@@ -26,32 +26,30 @@ import ( std.io )
  * =============================================================================
  * THE CLOSURE RULE  (read this once, it applies to every builder)
  * =============================================================================
- * A coroutine runs on its own fiber, and in this version of the language a
- * lambda can only see the local variables of the function that created it
- * while it runs ON THE FIBER THAT CREATED IT. On another fiber they read as
- * null (the compiler keeps captured variables in fiber-local storage).
+ * THIS RULE IS HISTORY. A lambda now carries the variables it captured (a
+ * function value is an object: platform/kernel/function_value.sharp), so the
+ * block of a coroutine may use the locals of the function that created it,
+ * on whatever fiber it runs:
  *
  *     total := new counter();
- *     launch({ -> total.add(1); });                 // WRONG: `total` is null inside the coroutine
+ *     launch({ -> total.add(1); });                 // fine
  *
- * So the block of launch / async / produce / launch_on may use
- *   - global variables and static fields,
- *   - its own parameters and locals,
- *   - and ONE object handed over explicitly, the `state` argument:
+ * Until November 2026 a lambda could only see those locals ON THE FIBER THAT
+ * CREATED IT (the compiler kept them in fiber-local storage) and `total` was
+ * null inside the coroutine. That is why every builder also has a form that
+ * hands ONE object over explicitly, the `state` argument:
  *
- *     total := new counter();
- *     launch(total, { s: object ->                  // RIGHT: the state travels with the coroutine
+ *     launch(total, { s: object ->
  *         c := s as counter;
  *         c.add(1);
  *     });
  *
- * or it can be an object that implements coroutine_body and carries its data
- * in its fields:  launch(new my_task(a, b));
+ * and why a body can be an object that implements coroutine_body:
+ *     launch(new my_task(a, b));
+ * Both forms stay and work as before; they are no longer needed for this.
  *
- * Blocks that run IN-LINE in the calling fiber are not affected and may
- * capture locals as usual: coroutine_scope { }, supervisor_scope { },
- * run_blocking { }, with_timeout { }, mutex.with_lock { }, the flow operators,
- * channel.for_each { }.
+ * What a closure can capture is unchanged: objects, arrays and function
+ * values, not plain numbers.
  * =============================================================================
  *
  * WHO IS THE PARENT

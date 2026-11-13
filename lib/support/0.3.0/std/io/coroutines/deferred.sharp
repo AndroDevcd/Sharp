@@ -46,9 +46,9 @@ class deferred<t> base job {
 
     /** runs the block and stores its result (replaces job.run_body) */
     override def run_body() {
-        if(fn0 != 0) {
+        if(fn0 != null) {
             result = fn0();
-        } else if(fn1 != 0) {
+        } else if(fn1 != null) {
             result = fn1(arg);
         }
     }

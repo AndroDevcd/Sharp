@@ -87,7 +87,14 @@ void compile_try_catch_statement(Ast *ast, operation_schema *scheme, bool *contr
 
     if(hasFinallyBlock) {
         uInt flags = flag_public;
-        set_internal_variable_name(ss, "exception_object", 0)
+        // The hidden local that holds the exception while the finally block
+        // runs. A try statement written INSIDE a finally block gets a local of
+        // its own (one per nesting depth): sharing it meant that entering the
+        // inner try reset the local to null and with it forgot the exception
+        // the outer finally was about to re-throw.
+        //      try { throw e; } finally { try { .. } finally { .. } }   // e was lost
+        set_internal_variable_name(ss, "exception_object",
+                                   enclosing_blocks(&current_context.blockInfo, finally_block))
         if((exceptionObject = resolve_local_field(ss.str(), &current_context)) == NULL) {
             sharp_type fieldType = sharp_type(type_object);
             exceptionObject =  create_local_field(current_file, &current_context, ss.str(), flags, fieldType, normal_field, ast);

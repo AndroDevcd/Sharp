@@ -139,6 +139,16 @@ def floor(num: double) : double {
     return math_proc(num, 0x10);
 }
 
+/**
+ * The absolute value of a plain number: abs(3.5), abs(x - y). (Without this
+ * one a plain number fitted every abs() below equally well - each takes a
+ * number object - and the call was "ambiguous".)
+ */
+def abs(num: decimal) : decimal {
+    if(num < 0) return 0 - num;
+    return num;
+}
+
 def abs(num: double) : double {
     return fabs(num);
 }

@@ -2,8 +2,10 @@
 // Created by BNunnally on 9/9/2021.
 //
 
+#include <map>
 #include "operation.h"
 #include "../types/types.h"
+#include "../types/function_value.h"
 #include "../../compiler_info.h"
 
 
@@ -1380,6 +1382,50 @@ void create_deallocate_register_operation(
     }
 }
 
+static bool carries_label(operation_type type) {
+    return type == operation_allocate_label || type == operation_set_label
+        || type == operation_jump || type == operation_jump_if_true || type == operation_jump_if_false
+        || type == operation_retain_label_value;
+}
+
+static void collect_allocated_labels(operation_schema *scheme, std::map<Int, Int> &fresh) {
+    for(Int i = 0; i < scheme->steps.size(); i++) {
+        operation_step *step = scheme->steps.get(i);
+        if(step->type == operation_allocate_label && fresh.find(step->integer) == fresh.end())
+            fresh[step->integer] = uniqueLabelIds++;
+        if(step->scheme != NULL)
+            collect_allocated_labels(step->scheme, fresh);
+    }
+}
+
+static void apply_labels(operation_schema *scheme, std::map<Int, Int> &fresh) {
+    for(Int i = 0; i < scheme->steps.size(); i++) {
+        operation_step *step = scheme->steps.get(i);
+        if(carries_label(step->type)) {
+            auto renamed = fresh.find(step->integer);
+            if(renamed != fresh.end()) step->integer = renamed->second;
+        }
+        if(step->scheme != NULL)
+            apply_labels(step->scheme, fresh);
+    }
+}
+
+/**
+ * Give the labels a scheme allocates new numbers, everywhere they are used
+ * inside it. Needed for a COPY of a scheme that is generated next to the
+ * original: a label can only be created once, and `p?.x` or `a.b.c` carry a
+ * label of their own ("the end of this access"). Labels that come from outside
+ * the scheme (a loop's start, a `break` target) keep their numbers.
+ */
+void relabel_scheme(operation_schema *scheme) {
+    if(scheme == NULL) return;
+
+    std::map<Int, Int> fresh;
+    collect_allocated_labels(scheme, fresh);
+    if(!fresh.empty())
+        apply_labels(scheme, fresh);
+}
+
 Int create_allocate_label_operation(
         operation_schema *scheme) {
         if(scheme) {
@@ -1720,6 +1766,10 @@ void create_get_static_function_address_operation(
         if(resetState)
             scheme->free();
         scheme->schemeType = scheme_get_address;
+
+        // the value is an instance of platform.kernel#function_value:
+        // that class has to be part of the program (types/function_value.h)
+        depend_on_function_value();
 
         scheme->steps.add(new operation_step(
                 operation_get_static_function_address, fun));
@@ -2255,7 +2305,12 @@ void create_dynamic_function_call_operation(
 
         if(resetState) scheme->free();
 
-        create_retain_numeric_value_operation(scheme, registerId);
+        // The function value (an object, the steps before this fetched it)
+        // goes on the stack first, the arguments on top of it, and the call
+        // says how many arguments there are so the runtime can find the value
+        // under them:   push f ; push a ; push b ; calld 2
+        // (It used to be a number kept in a register: registerId is not used.)
+        create_push_to_stack_operation(scheme);
         for(Int i = 0; i < paramScheme.size(); i++) {
             scheme->steps.add(new operation_step(
                     new operation_schema(*paramScheme.get(i)),
@@ -2264,7 +2319,7 @@ void create_dynamic_function_call_operation(
         }
 
         scheme->steps.add(new operation_step(
-                operation_call_dynamic_function, registerId));
+                operation_call_dynamic_function, (Int)paramScheme.size()));
         scheme->steps.last()->function = fun;
     }
 }

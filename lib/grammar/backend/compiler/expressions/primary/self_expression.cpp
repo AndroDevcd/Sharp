@@ -11,6 +11,7 @@
 #include "../../../types/types.h"
 #include "../../../../compiler_info.h"
 #include "post_ast_expression.h"
+#include "../../../dependency/closure_capture.h"
 
 void compile_self_expression(expression *e, Ast *ast, Int endLabel) {
     context &ctx = currThread->currTask->file->ctx;
@@ -19,33 +20,54 @@ void compile_self_expression(expression *e, Ast *ast, Int endLabel) {
     compile_self_expression(primaryClass, NULL, e, ast, endLabel);
 }
 
+/**
+ * `self` written inside a lambda: the instance function the lambda (or the
+ * lambdas around it) was written in, NULL when the code is not in a lambda or
+ * the function around the lambdas is static.
+ *
+ *      class counter {
+ *          def bump() { run({ -> self->count++; }); }      // -> counter.bump
+ *      }
+ */
+static sharp_function* instance_function_around_lambda(context &ctx) {
+    string lambdaPrefix = anonymous_func_prefix;
+    if(ctx.functionCxt == NULL || ctx.functionCxt->name.find(lambdaPrefix) != 0)
+        return NULL;
+
+    for(Int i = (Int)ctx.storedItems.size() - 1; i >= 0; i--) {
+        sharp_function *fun = ctx.storedItems.get(i)->functionCxt;
+        if(fun == NULL || fun->name.find(lambdaPrefix) == 0)
+            continue;   // a class, a block, or another lambda on the way out
+
+        return check_flag(fun->flags, flag_static) ? NULL : fun;
+    }
+    return NULL;
+}
+
 void compile_self_expression(sharp_class *primaryClass, sharp_class *instanceClass, expression *e, Ast *ast, Int endLabel) {
     context &ctx = currThread->currTask->file->ctx;
-    sharp_function *fun = get_primary_function(&ctx);
+    sharp_function *fun = instance_function_around_lambda(ctx);
 
-    if(fun != NULL && !check_flag(fun->flags, flag_static)
-       && ctx.type == block_context && ctx.functionCxt != fun) {
-        sharp_class *closure_class = create_closure_class(
-                currThread->currTask->file, currModule, fun,
-                ast);
-        sharp_field *closure = create_closure_field(closure_class, "__@self",
-                                                    sharp_type(primaryClass), ast);
-        sharp_field *staticClosureRef = create_closure_field(
-                resolve_class(currModule, global_class_name, false, false),
-                "closure_ref_" + fun->fullName,
-                sharp_type(closure_class),
-                ast
-        );
+    if(fun != NULL) {
+        // `self` inside a lambda of an instance function: the lambda is a
+        // static function and has no instance of its own. The instance is
+        // captured like a local of the function (closure_capture.h), and
+        // what follows `self` is looked up on that captured object.
+        // (This used to be an error, "cannot access self from static
+        //  context": the test that was here never held.)
+        capture_enclosing_self(fun, fun->owner, ctx, &e->scheme, ast);
 
-        staticClosureRef->staticClosure = true;
-        staticClosureRef->flags |= flag_static;
-        staticClosureRef->fieldType = localized_field;
-        fun->closure = staticClosureRef;
+        e->type.type = type_class;
+        e->type._class = fun->owner;
 
-        create_dependency(closure);
-        create_dependency(staticClosureRef);
-        create_tls_field_access_operation(&e->scheme, staticClosureRef);
-        create_instance_field_access_operation(&e->scheme, closure);
+        if(ast->hasToken(PTR)) {
+            create_post_access_operation(&e->scheme);
+            compile_dot_notation_call_expression(
+                    e, fun->owner, false, endLabel, ast->getSubAst(ast_dotnotation_call_expr));
+        } else {
+            compile_post_ast_expression(e, ast);
+        }
+        return;
     } else {
         if(ctx.isStatic) {
             create_new_error(GENERIC, ast,

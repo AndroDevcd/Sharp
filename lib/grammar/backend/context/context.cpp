@@ -166,6 +166,16 @@ bool inside_block(block_info *info, block_type type) {
     } else return true;
 }
 
+/** how many blocks of `type` the code being compiled is inside of (0 = none) */
+Int enclosing_blocks(block_info *info, block_type type) {
+    Int count = info->type == type ? 1 : 0;
+    for(Int i = 0; i < info->storedItems.size(); i++) {
+        if(info->storedItems.get(i)->type == type)
+            count++;
+    }
+    return count;
+}
+
 stored_block_info* retrieve_block(block_info *info, block_type type) {
     if(info->type != type) {
         for(Int i = (Int)info->storedItems.size() - 1; i >= 0; i--) {
@@ -224,7 +234,7 @@ void restore_block(block_info *info) {
 
 void restore_context(context *ctx) {
     stored_context_item item(*ctx->storedItems.last());
-    free(ctx->storedItems.last());
+    delete ctx->storedItems.last();     // made with `new` in store_context()
     ctx->storedItems.pop_back();
     ctx->copy(item);
 }

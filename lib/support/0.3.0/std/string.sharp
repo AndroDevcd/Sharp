@@ -94,7 +94,13 @@ class string : loopable<_int8> {
     def append(immstr: _int8[]?) : string
     {
         if(immstr == null) return self;
-        else if(immstr == data) return self;
+        else if(immstr == data) {
+            // s += s: the text is added to itself. It is copied first,
+            // because growing `data` below would change what is being read.
+            twin := new _int8[sizeof(data)];
+            memcopy(data!!, twin, 0, 0, sizeof(data));
+            return append(twin);
+        }
 
         old_size : decimal = sizeof(data);
 
@@ -340,6 +346,19 @@ class string : loopable<_int8> {
     }
 
     def operator+=( str: string ) := append(str.data!!);
+
+    // s += 5, s += 2.5: the number is added as text, exactly as `s + 5` writes
+    // it. One version per number type, like operator+ above, so that every
+    // number has exactly one that fits ('c' is an _int8: the character itself).
+    def operator+=( ch: _int8 ) := append(ch);
+    def operator+=( num: decimal ) := append((new string("") + num).data);
+    def operator+=( num: _int16 ) := append((new string("") + num).data);
+    def operator+=( num: _int32 ) := append((new string("") + num).data);
+    def operator+=( num: _int64 ) := append((new string("") + num).data);
+    def operator+=( num: _uint8 ) := append(num as _int8);
+    def operator+=( num: _uint16 ) := append((new string("") + num).data);
+    def operator+=( num: _uint32 ) := append((new string("") + num).data);
+    def operator+=( num: _uint64 ) := append((new string("") + num).data);
 
     def operator+=( str: _int8[]? ) := append(str);
 

@@ -170,6 +170,11 @@ void process_delegates(sharp_class *with_class) {
                         fun->delegate = basefun;
                         create_dependency(fun, basefun);
                         create_dependency(basefun, fun);
+                        // listed with the method's other implementations, like the
+                        // ones found above: the lazy compiler and the dependency
+                        // walk keep them alive, and a call can tell that a
+                        // subclass has a version of its own (dispatch_target, expression.cpp)
+                        basefun->impls.addif(fun);
                     } else {
                         stringstream err;
                         err << "function `" << function_to_str(functions.get(i)) << "` overrides nothing in class `"

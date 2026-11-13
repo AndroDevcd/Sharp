@@ -87,5 +87,5 @@ def main(args: string[]) {
     expect("300 passed to a _uint8 parameter", through_uint8(300), 44);
     expect("70000 passed to an _int16 parameter", through_int16(70000), 4464);
 
-    finish("casts");
+    finish("casts_fixes");
 }

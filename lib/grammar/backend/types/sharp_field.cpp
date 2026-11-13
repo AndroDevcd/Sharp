@@ -45,6 +45,7 @@ sharp_field* create_field(
 
 bool can_capture_closure(sharp_field *sf) {
     return sf->type.isArray || sf->type.type == type_class
+        || sf->type.type == type_function_ptr   // a function value is an object
         || sf->type.type == type_object && sf->fieldType == normal_field;
 }
 

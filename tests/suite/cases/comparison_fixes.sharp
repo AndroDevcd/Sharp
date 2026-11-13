@@ -28,5 +28,5 @@ def main(args: string[]) {
     expect("0.1 + 0.2 == 0.3 (literals)", 0.1 + 0.2 == 0.3, 0);
     expect("0.1 + 0.2 != 0.3 (literals)", 0.1 + 0.2 != 0.3, 1);
 
-    finish("comparison");
+    finish("comparison_fixes");
 }

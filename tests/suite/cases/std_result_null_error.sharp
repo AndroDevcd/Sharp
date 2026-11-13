@@ -1,0 +1,7 @@
+mod main;
+import ( testing )
+def main(args: string[]) {
+    r := new result<string, exception>("ok", null);
+    expect_true("result with a null error", r != null);
+    finish("std_result_null_error");
+}

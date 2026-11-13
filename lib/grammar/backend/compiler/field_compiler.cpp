@@ -31,47 +31,6 @@ void compile_class_fields(sharp_class *with_class, Ast *block) {
     delete_context();
 }
 
-void compile_static_closure_reference(sharp_field *field) {
-    GUARD2(globalLock)
-    create_context(field);
-    field->closureSetup = true;
-
-    sharp_function *function;
-    List<sharp_field*> params;
-    sharp_type void_type(type_nil);
-    string platform_kernel = "platform.kernel";
-    sharp_class *with_class = resolve_class(get_module(platform_kernel), "platform", false, false);
-
-    if(with_class != NULL) {
-        function = resolve_function(
-                tls_init_function_name, with_class,
-                params, normal_function, exclude_all,
-                field->ast, false, false
-        );
-
-        if (function != NULL) {
-            GUARD(globalLock)
-            if(function->scheme == NULL)
-                function->scheme = new operation_schema(scheme_master);
-
-            create_dependency(function, field);
-            APPLY_TEMP_SCHEME(0, (*function->scheme),
-                 create_new_class_operation(&scheme_0, field->type._class);
-                 create_tls_field_access_operation(&scheme_0, field, false);
-                 create_pop_value_from_stack_operation(&scheme_0);
-            )
-        } else {
-            create_new_error(INTERNAL_ERROR, field->ast,
-                       " cannot locate internal function `static_init` in platform class for closure.");
-        }
-    } else {
-        create_new_error(INTERNAL_ERROR, field->ast,
-                  " cannot locate platform class `platform` for closure.");
-    }
-
-    delete_context();
-}
-
 void compile_field(sharp_class *with_class, Ast *ast) {
     string name;
     if(parser::isStorageType(ast->getToken(0))) {
@@ -268,7 +227,8 @@ void compile_field(sharp_field *field, Ast *ast) {
             )
 
             field->scheme->copy(scheme_0);
-        } else if(field->type.type == type_class && pre_initialize_class(field->type._class)) {
+        } else if(field->type.type == type_class && !field->type.nullable && !field->type.isArray
+                && pre_initialize_class(field->type._class)) {
             List<sharp_field*> params;
             List<operation_schema*> paramOps;
             field->preInitScheme = new operation_schema();
@@ -402,7 +362,8 @@ void compile_field(sharp_field *field, Ast *ast) {
                         )
 
                         xtraField->scheme->copy(scheme_0);
-                    } else if(xtraField->type.type == type_class && pre_initialize_class(xtraField->type._class)) {
+                    } else if(xtraField->type.type == type_class && !xtraField->type.nullable && !xtraField->type.isArray
+                && pre_initialize_class(xtraField->type._class)) {
                         List<sharp_field*> params;
                         List<operation_schema*> paramOps;
                         xtraField->preInitScheme = new operation_schema();

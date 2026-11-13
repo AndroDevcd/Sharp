@@ -73,14 +73,22 @@ def main(args: string[]) {
     expect("++ on a property", p.value, 6);                             // no -O: 43, -O: 5
 
     // ---- bug 4: += on a property (compiler stops)
-    // q := new both();
-    // q.value += 5;
-    // expect("+= on a property", q.value, 10);
+    q := new both();
+    q.value += 5;
+    expect("+= on a property", q.value, 10);
+    q.value--;
+    expect("-- on a property", q.value, 9);
+    --q.value;
+    expect("prefix -- on a property", q.value, 8);
+    counted := new both_counted();
+    counted.value += 1;
+    expect("+= reads once", counted.reads, 1);
+    expect("+= writes once", counted.writes, 1);
 
     // ---- bug 5: assigning a getter-only field from outside (compiler stops)
     // g := new getter_only();
     // g.value = 50;
     // expect("assigned from outside", g.value, 50);
 
-    finish("properties");
+    finish("properties_fixes");
 }

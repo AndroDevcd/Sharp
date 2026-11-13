@@ -17,7 +17,7 @@ class result<T, E> {
 	    get return error == null;
 	    private set v -> {}
 
-	public result(data: T, err: E) {
+	public result(data: T, err: E?) {
 	   self->data = data;
 	   self->error = err;
 	}

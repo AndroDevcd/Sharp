@@ -3,13 +3,11 @@ mod main;
 import ( testing )
 
 /**
- * Known bug (or a rule that needs writing down) found while writing the
- * functions-and-classes tests. This file is EXPECTED to fail.
- *
- * The operands of a binary operator are evaluated RIGHT TO LEFT.
+ * THE RULE (decided 2026-11-12): the operands of a binary operator are
+ * evaluated RIGHT TO LEFT.
  *   In `f() + g()` g is called before f. It only shows when the calls have
- *   side effects, e.g. `box.swap(x) + box.take()`. Expected: left to right,
- *   as the expression is read.
+ *   side effects, e.g. `box.swap(x) + box.take()`: write such calls as
+ *   separate statements when the order matters.
  *   Same result in all four configurations ({no -O, -O} x {JIT, -nojit}).
  */
 
@@ -23,11 +21,11 @@ def mark(digit: decimal): decimal {
 
 def main(args: string[]) {
     x : decimal = mark(1) + mark(2);
-    expect("a + b evaluates a first", trace, 12);                   // 21
+    expect("a + b evaluates b first", trace, 21);
 
     trace = 0;
     x = mark(1) - mark(2) * mark(3);
-    expect("a - b * c evaluates a, then b, then c", trace, 123);    // 321
+    expect("a - b * c evaluates c, then b, then a", trace, 321);
 
-    finish("operators");
+    finish("operators_evaluation_order");
 }

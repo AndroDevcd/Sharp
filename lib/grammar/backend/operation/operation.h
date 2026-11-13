@@ -1239,6 +1239,8 @@ void create_deallocate_register_operation(
 Int create_allocate_register_operation(
         operation_schema *scheme);
 
+void relabel_scheme(operation_schema *scheme);     // new numbers for the labels a copied scheme allocates
+
 Int create_allocate_label_operation(
         operation_schema *scheme);
 

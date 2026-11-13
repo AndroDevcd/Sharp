@@ -32,7 +32,10 @@ void compile_dot_notation_call_expression(
     }
 
     Ast *dotNotationAst = ast->getType() == ast_dotnotation_call_expr ? ast : ast->getSubAst(ast_dotnotation_call_expr);
-    if(dotNotationAst->hasSubAst(ast_dot_fn_e)) {
+    // `name(args)` starts with the call. In `name[i](args)` the call comes after
+    // the index and belongs to the element: the name is resolved as a value
+    // here and the index and the call are handled after it (post_ast_expression).
+    if(dotNotationAst->getSubAstCount() > 0 && dotNotationAst->getSubAst(0)->getType() == ast_dot_fn_e) {
         e->type.copy(resolve(dotNotationAst, filter, scheme, with_class, endLabel));
     } else {
         e->type.copy(resolve(dotNotationAst->getSubAst(ast_utype), filter,

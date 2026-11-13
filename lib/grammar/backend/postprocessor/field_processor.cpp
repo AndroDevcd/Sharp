@@ -234,6 +234,7 @@ void validate_field_type(
         operation_schema *scheme,
         Ast *ast) {
     if(type.type == type_class
+        || type.type == type_function_ptr   // (was inside the range below when it was a number)
         || (type.type >= type_int8 && type.type <= type_object)) {
         if(type.type == type_class)
             create_dependency(type._class);

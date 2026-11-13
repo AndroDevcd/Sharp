@@ -365,62 +365,87 @@ arguments get `type_any`. The lambda becomes a STATIC function named
 `anonymous_func<id>` in the primary class. Its body is compiled later by
 `compile_class_lambdas`, or at once if the file is already past
 pre-compilation and the function is fully typed. The expression's type is
-`type_lambda_function`; its value is the function's address.
+`type_lambda_function`; its value is a function value (section 13).
 
 Typing an untyped lambda. `fully_qualify_function` copies parameter and return
 types from the target function type and then compiles the body. It is called
 from overload resolution, `compile_function_call`, and local / field
 declarations.
 
-Captures. When `resolve_local_field` finds a name in a saved context that
-belongs to another function, and `can_capture_closure` allows it (arrays,
-classes and `object` fields only - native `var` is refused):
+Captures (`dependency/closure_capture.h`). When `resolve_local_field` finds a
+name in a saved context that belongs to another function, and
+`can_capture_closure` allows it (arrays, classes, `object` fields and function
+values - a native number is refused), `capture_enclosing_local` does this:
 
-1. a class `closure_<enclosingFn>` is created, one per enclosing function, with
-   one field per captured name;
-2. a field `closure_ref_<enclosingFn>` is created on the module's global
-   class, static and `localized` (fiber-local storage);
-3. the original local gets `field->closure` and `field->closureRef`;
-4. inside the lambda an access is "fiber-local `closure_ref_<fn>`, then the
-   field".
+1. the enclosing function gets a class `closure_<enclosingFn>` with one field
+   per captured name, and a hidden local `__closure` that holds an instance of
+   it. The instance is created at the START OF EVERY CALL
+   (`generate_initial_closure_setup`): one set of captured variables per call;
+2. the lambda gets a hidden LAST parameter `__captured` (`capturedParameter`
+   on its `sharp_function`). It is kept out of `parameters` while types are
+   matched - `{ a: int -> ... }` still matches `(int)()` - and added to the
+   list when code generation starts (`generate_address`). The lambda stays a
+   static function;
+3. the original local gets `field->closure` (the field of the closure class)
+   and `field->closureRef` (the `__closure` local);
+4. inside the lambda an access is "`__captured`, then the field".
 
-The closure object itself is created in `platform.tls_init`, which runs when a
-fiber or thread starts. So there is ONE closure object per fiber per enclosing
-function - not one per call. Consequences:
+```
+def make_counter() : ()(int) {          frame of make_counter
+    total := new box();                   [ total ][ __closure ] ---> closure_make_counter { total }
+    return { -> (int) ... total ... };                                   ^
+}                                       function value { address, captured -+ }
+                                        frame of the lambda:  [ __captured ] -> the same closure object
+```
 
-- recursion and two live calls of the same function share the captured
-  variables;
-- on another fiber the object is a fresh one, so captured values read as null;
 - the enclosing function keeps its own frame slot and copies every write into
   the closure object at code generation time (`scheme_assign_value.cpp`,
   `scheme_compound_assign_value.cpp`). A captured local therefore lives in two
   places, which only works because just objects are captured;
-- captured PARAMETERS are copied at function entry
-  (`generate_initial_closure_setup`) with a static-field access although the
-  reference is a fiber-local field - this mismatch is the likely cause of "a
-  lambda capturing a parameter can crash" (inference);
-- capturing `self` creates a field `__@self` that nothing writes (inference: it
-  reads null).
+- captured PARAMETERS are copied at function entry;
+- a lambda inside a lambda: every function between the lambda and the owner of
+  the variable gets a closure object too, with a field `__parent` that holds
+  the closure object it received. The access is `__captured.__parent.x`;
+- `self` in a lambda of an instance function is captured as the field
+  `__@self`, written at function entry from slot 0 (`self_expression.cpp`);
+- slot 0 of a frame is the instance of an instance function and nothing else.
+  The captured object is a parameter, never an instance.
 
-## 13. Function pointers
+(Until November 2026 there was one closure object per enclosing function PER
+FIBER, found through a fiber-local static field and created in
+`platform.tls_init`: recursion shared the captured variables, another fiber
+read them as null.)
 
-- Value. A function pointer is a NUMBER: the function's index in the method
-  table (`process_get_static_function_address`). A plain function name used as
-  a value resolves the same way; non-static functions are rejected.
-- Storage. Stack slots are `{double var; object obj}` and a function pointer
-  uses `var`. In a class field it is a boxed one-element number object, because
-  `create_object` pre-boxes every field whose type is `<= type_var`. The
-  platform class stores the address of the user's `main` this way and tests it
-  with `!= 0`.
-- Call. `post_ast_expression.cpp` → `compile_function_call(..., isFunctionPointer)`
-  → `create_dynamic_function_call_operation`: retain the address in a register,
-  push the arguments, `operation_call_dynamic_function`. The generator parks
-  the address in a frame slot while the arguments are evaluated and emits
-  `calld reg`.
-- Interpreter. `CALLD` range-checks the register and calls `prepare_method`,
-  which sets `fp = sp - fpOffset`; for a non-static callee `self` is `fp[0]`.
-- JIT. x64 `emit_calld` calls `jit_prepareMethodDynamic`. arm64 `emit_calld` is
-  a TODO; a function using an unsupported opcode stays interpreted.
+## 13. Function values
+
+- Value. A function value is an OBJECT: an instance of
+  `platform.kernel#function_value` (`lib/support/0.3.0/platform/kernel/function_value.sharp`)
+  with a number slot `address` (the function's index in the method table) and
+  an object slot `captured` (the closure object of the function that made a
+  lambda, or null). `process_get_static_function_address` builds one wherever
+  a lambda or the name of a function is used as a value; non-static functions
+  are rejected. `lib/runtime/memory/function_value.h` has the full picture.
+- Type. `type_function_ptr` sits after `type_class` in `lib/core/data_type.h`,
+  outside the number range, so every `type <= type_var` test treats a function
+  value as an object: object fields, object locals, object arrays.
+- Comparing. `f == null` is a null test. `f == g` between two function values
+  calls `function_value.same(f, g)`: the same function with the same captured
+  object (`compile_function_value_comparison` in `binary_expression.cpp`).
+- Call. `post_ast_expression.cpp` -> `compile_function_call(..., isFunctionPointer)`
+  -> `create_dynamic_function_call_operation`: push the function value, push
+  the arguments, `operation_call_dynamic_function` -> `calld <argument count>`.
+- Interpreter. `CALLD n` calls `call_function_value(n)`: the function value is
+  under the n arguments; the arguments move down over it, the captured object
+  is pushed after them when there is one, and `prepare_method(address)` runs
+  as for any static call.
+- JIT. `CALLD` calls `jit_rt_call_dynamic`, which is the same C++ function.
+- Fibers. `vm.start_fiber` pushes the function value (int 0x45); the runtime
+  reads `address` from it. A thread's `main` field is copied to its first
+  fiber as an object.
+
+(Until November 2026 a function value was a NUMBER, the function's index, kept
+in registers and number slots; `main != 0` tested it and `calld` took a
+register.)
 
 ## 14. Fibers and threads
 
@@ -647,7 +672,7 @@ Control flow and the rest
 | `BRH` / `IFE` / `IFNE` | the same with the pc taken from `adx` |
 | `SKIP` n / `SKPE` a, n / `SKNE` a, n | relative jumps (being phased out) |
 | `LOADPC` a | `regs[a] =` this pc |
-| `CALL` function / `CALLD` a / `INVOKE_DELEGATE` | call; call the function whose address is in `regs[a]`; interface call |
+| `CALL` function / `CALLD` a / `INVOKE_DELEGATE` | call; call the function value under the `a` arguments on the stack (section 13); interface call |
 | `RET` / `RET 1` | return; return with the exception on the stack |
 | `THROW` | throw the object on the stack |
 | `INT` n | system interrupt n (`runtime/interrupt_signatures.cpp`) |

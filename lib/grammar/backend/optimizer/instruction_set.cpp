@@ -122,7 +122,7 @@ static void build_table() {
     STACK(PUSHOBJ, "pushobj", layout_none, k_none, k_none, k_none, 0, 0, 0, 1, RP | RH);// push *ptr
     PLAIN(DEL, "del", layout_none, k_none, k_none, k_none, RP | SE | TH);               // *ptr = null
     PLAIN(CALL, "call", layout_d, k_method, k_none, k_none, f_call | TH | SE | SC);     // call function a
-    PLAIN(CALLD, "calld", layout_d, k_reg_r, k_none, k_none, f_call | TH | SE | SC);    // call function regs[a]
+    PLAIN(CALLD, "calld", layout_d, k_int, k_none, k_none, f_call | TH | SE | SC);      // call the function value under a arguments
     STACK(NEWCLASS, "newclass", layout_raw, k_class, k_none, k_none, 0, 0, 0, 1, NEW);  // push new a()
     PLAIN(MOVN, "movn", layout_raw, k_field, k_none, k_none, RP | WP | RH | TH);        // ptr = &ptr->o->node[a]
     PLAIN(SLEEP, "sleep", layout_d, k_reg_r, k_none, k_none, SE);

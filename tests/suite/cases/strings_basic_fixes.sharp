@@ -68,5 +68,5 @@ def main(args: string[]) {
         fail("null string == null", "the else branch ran");
     }
 
-    finish("strings_basic");
+    finish("strings_basic_fixes");
 }

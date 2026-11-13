@@ -58,6 +58,15 @@ void compile_expression_for_type(sharp_type &type, Ast *ast) {
     type.copy(e.type);
 }
 
+/**
+ * Classes whose variables get an object without being given one: `n : int;`
+ * holds an int object with the value 0.
+ *
+ * The callers ask this only for a plain variable of the class. A nullable one
+ * (`n : int?;`) and an array (`n : int[];`) start as null like every other
+ * nullable variable - they used to be given an object too, so `n == null` was
+ * false for a variable nothing had been assigned to.
+ */
 bool pre_initialize_class(sharp_class *sc) {
     return sc->fullName == "std#bool" ||
        sc->fullName == "std#byte" ||
@@ -77,7 +86,13 @@ void convert_expression_type_to_real_type(
         expression &typeDefinition) {
     if(typeDefinition.type == type_integer
        || typeDefinition.type == type_decimal) {
-        typeDefinition.type = typeDefinition.type == type_decimal ? type_var : type_int32;
+        // A whole-number literal is an _int32 - unless it does not fit in
+        // one: 4294967296 is an _int64. (It used to be an _int32 always, and
+        // `text + 4294967296` then called the _int32 function and printed 0.)
+        Int whole = typeDefinition.type.integer;
+        bool fitsInt32 = whole >= INT32_MIN && whole <= INT32_MAX;
+        typeDefinition.type = typeDefinition.type == type_decimal ? type_var
+                            : fitsInt32 ? type_int32 : type_int64;
     } else if(typeDefinition.type == type_char
               || typeDefinition.type == type_bool) {
         typeDefinition.type = type_int8;
@@ -268,6 +283,84 @@ sharp_function* compile_class_function_overload(
     }
 }
 
+// ---------------------------------------------------------------------------------
+// Direct call or run-time lookup?
+// Which function does a call on an object run when a subclass has its own
+// version?
+//
+//      interface named { def name(): string; }
+//      class rectangle : named {
+//          override def name(): string { return "rectangle"; }
+//          def describe(): string { return "a " + name(); }
+//      }
+//      class labelled_rectangle base rectangle {
+//          override def name(): string { return "label"; }
+//      }
+//
+//      r : rectangle = new labelled_rectangle();
+//      r.name();           // must be "label": the object is a labelled_rectangle
+//      r.describe();       // must be "a label"
+//
+// A call written against the class `rectangle` used to be bound to
+// rectangle.name when it was compiled, whatever the object really was. Only a
+// call through the INTERFACE type looked the function up at run time.
+//
+// THE RULE
+// A call to a function that implements an interface method goes through that
+// interface method (a run-time lookup, the INVOKE_DELEGATE instruction) when
+// some class DERIVED from the function's class implements the same method too.
+// When no subclass does, the object can only run this very function and the
+// call stays a direct one - nothing gets slower.
+//
+// NEVER through the interface: a call on `base` (`base->name()`). It names the
+// base class's function on purpose; looking it up again would call the
+// function it was made from, forever.
+//
+// C++ comparison: a virtual call. C++ makes every call of a virtual function a
+// lookup and lets the optimizer "devirtualize" the ones it can prove; here the
+// compiler sees the whole program and only emits the lookup where it matters.
+//
+// Only interface / delegate methods take part (`override` applies to those
+// alone, see tests/suite/cases/inheritance.sharp): a plain base-class method
+// is still bound when compiled.
+//
+// ---------------------------------------------------------------------------------
+
+// the compiler compiles several files at once, one per worker thread
+static thread_local sharp_class *baseCallClass = nullptr;
+
+void set_base_call_class(sharp_class *baseClass) {
+    baseCallClass = baseClass;
+}
+
+/** is `sc` the class `ancestor` or derived from it? */
+static bool is_or_derives_from(sharp_class *sc, sharp_class *ancestor) {
+    for(sharp_class *c = sc; c != nullptr; c = c->baseClass) {
+        if(c == ancestor) return true;
+    }
+    return false;
+}
+
+static sharp_function* dispatch_target(sharp_function *callee) {
+    if(callee == nullptr || callee->delegate == nullptr || callee->type == delegate_function)
+        return callee;      // implements no interface method (or is one itself)
+
+    // `base->f()`: the base class's own function, on purpose
+    if(baseCallClass != nullptr && is_or_derives_from(baseCallClass, callee->owner))
+        return callee;
+
+    // does a class derived from the callee's class implement the method too?
+    List<sharp_function*> &implementations = callee->delegate->impls;
+    for(Int i = 0; i < implementations.size(); i++) {
+        sharp_function *other = implementations.get(i);
+        if(other != callee && other->owner != callee->owner
+           && is_or_derives_from(other->owner, callee->owner))
+            return callee->delegate;
+    }
+
+    return callee;
+}
+
 void compile_function_call(
         operation_schema *scheme,
         List<sharp_field*> & params,
@@ -307,8 +400,12 @@ void compile_function_call(
 
             // an argument becomes the kind of number its parameter is:
             // area(count) for `def area(side: var)` passes a decimal
-            if(is_match_normal(matchResult))
+            if(is_match_normal(matchResult)) {
                 convert_scheme_for(paramOperations.get(i), *assigner, *asignee);
+                // ... and is cut to the parameter's size: f(200) for
+                // `def f(x: _int8)` passes -56
+                narrow_scheme_for(paramOperations.get(i), *assigner, *asignee);
+            }
             // ... or of the constructor it is wrapped with: an _int32 given to a
             // parameter of a class that is built from a var
             else if(matchedConstructor != NULL && matchedConstructor->parameters.size() == 1)
@@ -333,10 +430,16 @@ void compile_function_call(
         } else if (isStaticCall) {
             create_static_function_call_operation(scheme, compiledParamOperations, callee);
         } else {
+            // a call on an object: direct, or through the interface method when
+            // a subclass has its own version (dispatch_target above)
+            sharp_function *target = dispatch_target(callee);
+            if(target != callee)
+                create_dependency(target);
+
             if (isPrimaryClass)
-                create_primary_class_function_call_operation(scheme, compiledParamOperations, callee);
+                create_primary_class_function_call_operation(scheme, compiledParamOperations, target);
             else {
-                create_instance_function_call_operation(scheme, compiledParamOperations, callee);
+                create_instance_function_call_operation(scheme, compiledParamOperations, target);
             }
         }
     }

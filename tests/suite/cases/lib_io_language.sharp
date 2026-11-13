@@ -47,9 +47,9 @@ def main(args: string[]) {
     empty : string = "";
     expect_str("text + empty string", "abc" + empty, "abc");
 
-    // 4. `s == null` is true for an empty string (it calls string.operator==).
-    //    Workaround: io_strings.is_null(s).
-    expect_false("empty string == null", (empty == null).value);
+    // 4. `s == null` asks only whether there is an object: an empty string is not null.
+    //    (It used to call string.operator== and answer true.)
+    expect_false("empty string == null", empty == null);
 
     finish("lib_io_language");
 }

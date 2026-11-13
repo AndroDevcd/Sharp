@@ -1,0 +1,11 @@
+mod main;
+import ( testing )
+class holder {
+    enum inner { off = 0, on = 1 }
+    state : inner = inner.off;
+}
+def main(args: string[]) {
+    h := new holder();
+    expect_true("enum inside a class named from outside", (h.state == holder.inner.off).value);
+    finish("enums_inside_classes");
+}

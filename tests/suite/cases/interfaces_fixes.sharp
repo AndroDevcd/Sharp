@@ -63,5 +63,5 @@ def main(args: string[]) {
     expect_str("passed as the class in between", name_through_class(l), "label");
     expect_str("called from an inherited method", l.describe(), "a label");
 
-    finish("interfaces");
+    finish("interfaces_fixes");
 }

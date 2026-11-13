@@ -233,7 +233,7 @@ void cast_object(object *from, Int toClass) {
             }
         }
 
-        vm_exception err(vm.ill_state_except, ss.str());
+        vm_exception err(vm.class_cast_except, ss.str());   // a cast that cannot succeed
         enable_exception_flag(thread_self, true);
         throw err;
     }
@@ -283,7 +283,7 @@ void cast_numeric_array(object *from, Int toType) {
                 break;
         }
 
-        vm_exception err(vm.ill_state_except, ss.str());
+        vm_exception err(vm.class_cast_except, ss.str());   // a cast that cannot succeed
         enable_exception_flag(thread_self, true);
         throw err;
     }

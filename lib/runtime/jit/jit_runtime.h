@@ -39,7 +39,7 @@ struct jit_compiled_function;
 
 // ---- calls and returns ------------------------------------------------------------
 void jit_rt_call(Int address);                              // CALL
-void jit_rt_call_dynamic(Int address);                      // CALLD (the address came from a register)
+void jit_rt_call_dynamic(Int argumentCount);                // CALLD (the function value is under the arguments)
 void jit_rt_invoke_delegate(Int address, Int argSize, Int staticCall);
 
 /**

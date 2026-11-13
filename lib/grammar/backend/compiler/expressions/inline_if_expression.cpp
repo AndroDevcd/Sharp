@@ -2,6 +2,7 @@
 // Created by bknun on 7/23/2022.
 //
 
+#include "primary/literal_expression.h"
 #include "inline_if_expression.h"
 #include "expression.h"
 #include "../../types/types.h"
@@ -12,6 +13,18 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
     compile_expression(condExpr, ast->getSubAst(0));
     compile_expression(trueExpr, ast->getSubAst(1));
     compile_expression(falseExpr, ast->getSubAst(2));
+
+    // `flag ? "none" : name` - a literal on one side and a string object on
+    // the other. The literal becomes a string object, so both sides are one
+    // type. (It was an error: "expression of type string is not equal to that
+    // of type string_literal".)
+    {
+        sharp_class *trueClass = get_class_type(trueExpr.type), *falseClass = get_class_type(falseExpr.type);
+        if(trueExpr.type.type == type_string && falseClass != NULL && falseClass->fullName == "std#string")
+            make_string_object(&trueExpr, ast->getSubAst(1));
+        else if(falseExpr.type.type == type_string && trueClass != NULL && trueClass->fullName == "std#string")
+            make_string_object(&falseExpr, ast->getSubAst(2));
+    }
 
     extract_value_field_from_expression(condExpr, "", ast->getSubAst(0));
     convert_number_to_condition(condExpr);

@@ -9,7 +9,8 @@
 //          save the six CPU registers we reserve (C++ expects them back)
 //          thread, task, regs, fp, sp, ptr -> their CPU registers
 //          if(task->rebuilding) run the frames above us first      (a fiber is being continued)
-//          if(task->pc == task->rom)   VM registers -> their homes; call the direct door
+//          if(task->pc == task->rom and no signal is pending)
+//                                      VM registers -> their homes; call the direct door
 //          else                        call the resume door        (continue in the middle)
 //          homes -> the VM register array                          (C++ reads the array)
 //          restore, return what the body returned
@@ -73,6 +74,13 @@ void X64Generator::emit_entry() {
     load_stack_registers();
     a.mov(rax, fiber_field(offsetof(fiber, pc)));
     a.cmp(rax, fiber_field(offsetof(fiber, rom)));
+    a.jne(inTheMiddle);
+    // pc at the first instruction is not always a fresh call: a function whose
+    // first instruction is a CALL is continued THERE when the callee threw
+    // (the pc stays on the call so the try block can be found). With a signal
+    // pending take the resume door, which looks at it before anything runs;
+    // the direct door would run the CALL a second time.
+    a.cmp(thread_signal(), 0);
     a.jne(inTheMiddle);
     load_vm_registers();                              // -> register mode
     a.call(directEntry);

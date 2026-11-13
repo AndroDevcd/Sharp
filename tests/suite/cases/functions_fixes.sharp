@@ -28,5 +28,5 @@ def main(args: string[]) {
     y : decimal = 5;
     expect("overload with a var variable", kind_of(y), 1);      // compiles
     expect("overload with a number literal", kind_of(5), 1);    // error S807: ambiguous
-    finish("functions");
+    finish("functions_fixes");
 }

@@ -1337,7 +1337,7 @@ void compile_asm_instruction(operation_schema *scheme, Ast *branch, string &opco
         create_machine_instruction_operation(scheme,
            new machine_instruction(
                    Opcode::CALLD,
-                   compile_asm_register(branch->getSubAst(0))
+                   compile_asm_literal(branch->getSubAst(ast_literal), scheme)
            )
         );
     } else if(opcode == "varCast") {

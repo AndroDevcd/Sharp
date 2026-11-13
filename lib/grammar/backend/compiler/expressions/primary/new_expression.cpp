@@ -113,7 +113,7 @@ void compile_new_vector_expression(sharp_type *newType, expression *e, Ast *ast)
         isNumeric = true;
         create_new_number_array_operation(&e->scheme, arraySizeScheme, newType->type);
     }
-    else if(newType->type == type_object)
+    else if(newType->type == type_object || newType->type == type_function_ptr)   // function values are objects
         create_new_object_array_operation(&e->scheme, arraySizeScheme);
     else {
         create_new_error(GENERIC, ast->line, ast->col,
@@ -231,7 +231,7 @@ void compile_new_array_expression(sharp_type *newType, expression *e, Ast *ast) 
         create_new_class_array_operation(&e->scheme, arraySieScheme, e->type._class);
     else if(e->type.type >= type_int8 && e->type.type <= type_var)
         create_new_number_array_operation(&e->scheme, arraySieScheme, e->type.type);
-    else if(e->type.type == type_object)
+    else if(e->type.type == type_object || e->type.type == type_function_ptr)     // function values are objects
         create_new_object_array_operation(&e->scheme, arraySieScheme);
     else {
         create_new_error(GENERIC, ast->line, ast->col,

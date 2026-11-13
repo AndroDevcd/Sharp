@@ -75,7 +75,12 @@ class stack_overflow_exception base exception {
 class thread_stack_exception base exception {
     public thread_stack_exception(message : string?) -> base(message) {}
 }
-class class_cast_exception base exception {
+/**
+ * Thrown by a cast (`x as shape`) when the object is not of that class.
+ * It is an illegal_state_exception, which is what a failing cast used to
+ * throw: code that catches that one still catches this.
+ */
+class class_cast_exception base illegal_state_exception {
     public class_cast_exception(message : string?) -> base(message) {}
 }
 class out_of_memory_exception base exception {

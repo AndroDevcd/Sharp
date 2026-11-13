@@ -15,15 +15,6 @@
 #include "../../settings/settings.h"
 #include "obfuscate_compiler.h"
 
-void compile_static_closure_references(sharp_class *with_class) {
-    for(Int i = 0; i < with_class->fields.size(); i++) {
-        if(with_class->fields.get(i)->staticClosure &&
-            !with_class->fields.get(i)->closureSetup) {
-            compile_static_closure_reference(with_class->fields.get(i));
-        }
-    }
-}
-
 void compile_global_members() {
     sharp_file *file = current_file;
     sharp_class *globalClass = NULL;
@@ -66,7 +57,6 @@ void compile_global_members() {
         }
     }
 
-    compile_static_closure_references(globalClass);
     delete_context();
 }
 

@@ -68,10 +68,10 @@ class platform
 
         result := 0;
         when {
-            main != 0 -> result = main(user_args);
-            main2 != 0 -> main2(user_args);
-            main3 != 0 -> main3();
-            main4 != 0 -> result = main4();
+            main != null -> result = main(user_args);
+            main2 != null -> main2(user_args);
+            main3 != null -> main3();
+            main4 != null -> result = main4();
         } // todo: look into main thread uncaught_exception_handler
 
         return result;

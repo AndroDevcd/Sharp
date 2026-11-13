@@ -224,6 +224,7 @@ void store_block(block_info *info);
 void restore_block(block_info *info);
 
 bool inside_block(block_info *info, block_type type);
+Int enclosing_blocks(block_info *info, block_type type);
 void retrieve_lock_expressions(block_info *info, List<Ast*> &expressions);
 stored_block_info* retrieve_block(block_info *info, block_type type);
 sharp_label* retrieve_next_finally_label(block_info *info);

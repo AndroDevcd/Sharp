@@ -49,7 +49,7 @@ void process_assign_value_scheme(operation_schema *scheme) {
             add_instruction(Opcode::Builder::dup());
         }
 
-        add_instruction(Opcode::Builder::tlsMovl(closureRef->ci->address));
+        add_instruction(Opcode::Builder::movl(closureRef->ci->address));    // this call's closure object
         move_to_field(closure);
 
         set_machine_data(closure, false);

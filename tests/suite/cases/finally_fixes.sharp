@@ -44,5 +44,5 @@ def main(args: string[]) {
     expect("the exception still reaches the caller", caught, 1);
     expect_str("nothing after the outer statement runs", trail, "12345");
 
-    finish("finally");
+    finish("finally_fixes");
 }

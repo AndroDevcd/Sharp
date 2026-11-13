@@ -13,6 +13,7 @@
 #include "memory/garbage_collector.h"
 #include "memory/tracing_collector.h"
 #include "memory/type_check.h"
+#include "memory/function_value.h"
 #include "types/sharp_field.h"
 #include "console_helper.h"
 #include "../util/time.h"
@@ -353,15 +354,8 @@ void main_vm_loop(sharp_function *frame)
             CALL:
                 prepare_method(single_arg);
                 check_state(0) // a jit compiled callee can come back with an exception/signal pending
-            CALLD:
-                TC(TC_REG_INT(single_arg))
-                if((data = (Int)regs[single_arg].i) <= 0 || data >= vm.mf.methods) {
-                    stringstream ss;
-                    ss << "invalid call to method (@" << data << ") out of range!";
-                    throw vm_exception(ss.str());
-                }
-
-                prepare_method(data);
+            CALLD:  // call the function value under the a arguments (memory/function_value.h)
+                call_function_value(single_arg);
                 check_state(0)
             NEWCLASS:
                 grow_stack
@@ -1518,7 +1512,9 @@ void exec_interrupt(Int interrupt)
             return;
         case OP_FIBER_START: {
             auto *name = pop_stack_object.o;
-            Int mainFunc = pop_stack_number.i;
+            // the function the fiber runs is a function value (an object);
+            // only its index is needed, a fiber's main captures nothing
+            Int mainFunc = function_value_address(pop_stack_object.o);
             Int threadid = pop_stack_number.i;
             auto fibObj = pop_stack_object.o;
             auto fibArgs = pop_stack_object.o;

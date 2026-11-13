@@ -2,6 +2,7 @@
 // Created by BNunnally on 9/24/2021.
 //
 
+#include "../../../types/function_value.h"
 #include "binary_expression.h"
 #include "../expression.h"
 #include "../../../../taskdelegator/task_delegator.h"
@@ -102,7 +103,14 @@ Int get_numeric_expression_value_as_int(expression &e) {
     }
 }
 
-long double get_numeric_expression_value_as_decimal(expression &e) {
+/**
+ * The value of a number literal as the VM will hold it: a 64-bit double.
+ * Literals are parsed into a long double (80 bits on x86), but the program
+ * computes with doubles, so the compiler folds `0.1 + 0.2 == 0.3` with doubles
+ * too - otherwise the folded answer differs from what the same expression
+ * gives at run time with variables.
+ */
+double get_numeric_expression_value_as_decimal(expression &e) {
     switch(e.type.type) {
         case type_integer:
             return e.type.integer;
@@ -236,6 +244,22 @@ void compile_binary_integer_expression(
         case type_bool:
         case type_decimal: {
             Int result = 0;
+            // 2 + 3, 7 - 2, 4 * 5: two whole-number literals give a whole
+            // number. (They were folded as decimals, so `"n" + (2 + 3)` printed
+            // "n5.0000000000000000" where `"n" + 5` prints "n5".)
+            if((operand == "+" || operand == "-" || operand == "*")
+               && left.type.type != type_decimal && right.type.type != type_decimal) {
+                Int whole_left = get_numeric_expression_value_as_int(left);
+                Int whole_right = get_numeric_expression_value_as_int(right);
+                result = operand == "+" ? whole_left + whole_right
+                       : operand == "-" ? whole_left - whole_right
+                       : whole_left * whole_right;
+                create_get_integer_constant_operation(&e->scheme, result);
+                e->type.type = type_integer;
+                e->type.integer = result;
+                break;
+            }
+
             if(operand == "&") {
                 create_get_integer_constant_operation(&e->scheme,
                                                       result = (get_numeric_expression_value_as_int(left) & get_numeric_expression_value_as_int(right)));
@@ -655,6 +679,7 @@ void compile_binary_object_expression(
 
         case type_object:
         case type_class:
+        case type_function_ptr:     // a function value is an object
         case type_field: {
             if(left.type.isArray != right.type.isArray) {
                 create_new_error(
@@ -691,6 +716,66 @@ void compile_binary_object_expression(
             break;
         }
     }
+}
+
+/**
+ * `f == g` and `f != g` for two function values.
+ *
+ * A function value is an object, and using the name of a function makes a new
+ * one every time, so "the same object" would be the wrong question:
+ *
+ *      f := twice;
+ *      f == twice          // must be true
+ *
+ * Two function values are equal when they are the same function with the
+ * same captured variables. The library class answers that
+ * (platform/kernel/function_value.sharp), the comparison becomes
+ *
+ *      function_value.same(f, g)       /   function_value.different(f, g)
+ *
+ *      C++ comparison: comparing two function pointers compares the
+ *      addresses; this is that, plus "and the same captures".
+ *
+ * false: the class is not there, nothing was added (the caller reports it).
+ */
+static bool compile_function_value_comparison(
+        expression *e,
+        expression &left,
+        expression &right,
+        Token &operand,
+        Ast *ast) {
+    sharp_class *valueClass = function_value_class();
+    if(valueClass == NULL) return false;
+
+    List<sharp_field*> params;
+    List<operation_schema*> operations;
+    string name;
+    impl_location location(current_file, ast);
+    sharp_type anyObject(type_object);
+    anyObject.nullable = true;
+
+    for(Int i = 0; i < 2; i++) {
+        params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
+                                   location, anyObject, flag_public, normal_field, ast));
+        operations.add(new operation_schema());
+        create_get_value_operation(operations.last(), i == 0 ? &left.scheme : &right.scheme, false);
+    }
+
+    sharp_function *compare = resolve_function(
+            operand == "==" ? "same" : "different", valueClass,
+            params, normal_function, exclude_all,
+            ast, false, false
+    );
+
+    bool found = compare != NULL;
+    if(found) {
+        compile_function_call(&e->scheme, params, operations, compare, true, false, false);
+        e->type.copy(compare->returnType);
+    }
+
+    deleteList(params);
+    deleteList(operations);
+    return found;
 }
 
 void compile_binary_expression(
@@ -733,6 +818,23 @@ void compile_binary_expression(
         case type_function_ptr:
         case type_var:
         case type_field:  {
+            // A function value is an object: `callback == null`, `a == b` ask
+            // "is there one" / "is it the same one". (It was a number, and
+            // was compared like one: `main != 0`.)
+            if(left.type.type == type_function_ptr
+               || (left.type == type_field && left.type.field->type.type == type_function_ptr)) {
+                // two function values: the same function with the same
+                // captures? (anything else, `== null` first of all: _object)
+                bool rightIsFunction = right.type.type == type_function_ptr
+                        || right.type.type == type_lambda_function
+                        || (right.type == type_field && right.type.field->type.type == type_function_ptr);
+
+                if(rightIsFunction && (operand == "==" || operand == "!=")
+                   && compile_function_value_comparison(e, left, right, operand, ast))
+                    break;
+                goto _object;
+            }
+
             if(left.type == type_field) {
                 if(left.type.field->type.type != type_class && left.type.field->type.type != type_object && !(left.type.field->type.type >= type_int8 && left.type.field->type.type <= type_var)) {
                     goto error;
@@ -760,6 +862,15 @@ void compile_binary_expression(
 
         case type_class: {
             _class:
+            // `x == null` / `x != null` asks "is there an object?" and nothing
+            // else. It never calls the class's own operator==: that function
+            // compares CONTENTS (string.operator== made `"" == null` true) and
+            // cannot even be called when x is null.
+            if(right.type.type == type_null && (operand == "==" || operand == "!=")) {
+                compile_binary_object_expression(e, left, right, operand, ast);
+                break;
+            }
+
             List<sharp_field *> params;
             List<operation_schema *> operations;
             operations.add(new operation_schema());

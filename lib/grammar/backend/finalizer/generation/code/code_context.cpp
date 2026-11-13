@@ -306,7 +306,7 @@ void pop_machine_data_from_stack() {
 
             case numeric_instance_field: {
                 add_instruction(Opcode::Builder::loadValue(EGX));
-                if(cc.machineData.field->type.type < type_function_ptr) {
+                if(cc.machineData.field->type.type <= type_uint64) {
                     cast_machine_data(EGX, cc.machineData.field->type.type);
                 }
 
@@ -317,7 +317,7 @@ void pop_machine_data_from_stack() {
             case numeric_local_field: {
                 // field == NULL: not a declared local but a compiler temporary (an expression deep
                 // enough to run out of registers spills into stack slots, see allocate_register): no cast
-                if(cc.machineData.field != NULL && cc.machineData.field->type.type < type_function_ptr) {
+                if(cc.machineData.field != NULL && cc.machineData.field->type.type <= type_uint64) {
                     add_instruction(Opcode::Builder::loadValue(EGX));
                     cast_machine_data(EGX, cc.machineData.field->type.type);
                     add_instruction(Opcode::Builder::smovr2(EGX, cc.machineData.dataAddress));
@@ -500,14 +500,14 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
                 }
                 case numeric_local_field: {
                     if (internalRegister->type == normal_register) {
-                        if(cc.machineData.field != NULL && cc.machineData.field->type.type < type_function_ptr) {
+                        if(cc.machineData.field != NULL && cc.machineData.field->type.type <= type_uint64) {
                             cast_machine_data((_register) internalRegister->address, cc.machineData.field->type.type);
                         }
 
                         add_instruction(Opcode::Builder::smovr2(
                                 (_register) internalRegister->address, cc.machineData.dataAddress));
                     } else {
-                        if(cc.machineData.field != NULL && cc.machineData.field->type.type < type_function_ptr) {
+                        if(cc.machineData.field != NULL && cc.machineData.field->type.type <= type_uint64) {
                             add_instruction(Opcode::Builder::loadl(
                                     EGX, internalRegister->address));
 
@@ -547,14 +547,14 @@ void consume_machine_data_from_register(internal_register *internalRegister) {
                 }
                 case numeric_instance_field: {
                     if (internalRegister->type == normal_register) {
-                        if(cc.machineData.field->type.type < type_function_ptr) {
+                        if(cc.machineData.field->type.type <= type_uint64) {
                             cast_machine_data((_register) internalRegister->address, cc.machineData.field->type.type);
                         }
 
                         add_instruction(Opcode::Builder::putf((_register) internalRegister->address, cc.machineData.dataAddress));
                     } else {
                         add_instruction(Opcode::Builder::loadl(EGX, internalRegister->address));
-                        if(cc.machineData.field->type.type < type_function_ptr) {
+                        if(cc.machineData.field->type.type <= type_uint64) {
                             cast_machine_data(EGX, cc.machineData.field->type.type);
                         }
 
@@ -634,9 +634,14 @@ void consume_machine_data(internal_register *internalRegister) {
                 }
                 case numeric_tls_field: {
                     if (internalRegister->type == normal_register) {
+                        // loadabs always puts the value in ebx: when another
+                        // register was asked for, copy it there. (The test was
+                        // `== EBX`: the copy was never made, and `x = x + n` on
+                        // a fiber-local number added whatever the asked-for
+                        // register happened to hold.)
                         add_instruction(Opcode::Builder::loadabs(cc.machineData.dataAddress));
 
-                        if(internalRegister->address == EBX) {
+                        if(internalRegister->address != EBX) {
                             add_instruction(Opcode::Builder::movr((_register) internalRegister->address, EBX));
                         }
                     } else {
@@ -1779,7 +1784,7 @@ void resolve_dynamic_instruction(List<opcode_instr> &instructions, dynamic_instr
             break;
         }
         case Opcode::CALLD: {
-            update_dynamic_instruction(instructions, di, Opcode::Builder::calld((_register)get_dynamic_arg_value(di.arg1)));
+            update_dynamic_instruction(instructions, di, Opcode::Builder::calld(get_dynamic_arg_value(di.arg1)));
             break;
         }
         case Opcode::VARCAST: {

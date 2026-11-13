@@ -40,11 +40,12 @@ def main(args: string[]) {
     limit : decimal = -1.7976931348623157e308;
     expect_true("a large negative decimal literal", limit < 0 - 1e300);         // actual: false
 
-    // ---- 2. a number passed as a string
-    // expected: a compile error, or at least the text "3"; a one-character
-    // string with character code 3 is neither
-    expect("takes_text(3): the character received", first_code(3), '3');        // actual: 3 (the code, not '3')
-    expect("takes_text(300): length of the text \"300\"", takes_text(300), 3);  // actual: 1
+    // ---- 2. a number is not accepted where a string is expected
+    // takes_text(300) is a compile error now (it used to pass a one-character
+    // string). A character still becomes a string by itself, and a number is
+    // made text explicitly.
+    expect("a character passed as a string", first_code('3'), '3');
+    expect("\"\" + 300 passed as a string", takes_text("" + 300), 3);
 
     finish("lib_text_literals");
 }

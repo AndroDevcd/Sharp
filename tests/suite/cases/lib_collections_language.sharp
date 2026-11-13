@@ -28,14 +28,20 @@ def main(args: string[]) {
     if(numbers == null) pass("an int[]? local without a value is null");
     else fail("an int[]? local without a value is null", "it is not null");
 
-    // ---- BUG 3: assigning a number LITERAL to a field that holds a number
-    // object does not replace the object, it overwrites the number inside
-    // it - for everybody who holds that object.
+    // ---- THE RULE (decided 2026-11-12): assigning a number to a field that
+    // holds a number object does not replace the object, it writes the number
+    // into it (the assignment calls the object's operator=) - so everybody who
+    // holds that same object sees the new number. To give one holder its own
+    // number, assign a new object: first.points = new int(500).
     shared := new int(11);
     first := new score(shared);
     second := new score(shared);
     first.points = 500;
-    expect("the other holder of the old number object still sees 11", second.points.value, 11);
+    expect("the other holder of the same number object sees 500 too", second.points.value, 500);
+    third := new score(shared);
+    third.points = new int(7);
+    expect("a new object replaces only that holder's number", second.points.value, 500);
+    expect("...and the holder that got it has 7", third.points.value, 7);
 
     finish("lib_collections_language");
 }

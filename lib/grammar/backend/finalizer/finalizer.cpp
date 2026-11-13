@@ -2,6 +2,7 @@
 // Created by bknun on 7/4/2022.
 //
 
+#include "../types/function_value.h"
 #include "../compiler/functions/lazy_functions.h"
 #include "finalizer.h"
 #include "../../taskdelegator/task_delegator.h"
@@ -128,6 +129,7 @@ void setup_core_functions() {
                     ALLOCATE_REGISTER_1X(0, functionAddressScheme,
                         create_get_static_function_address_operation(functionAddressScheme, user_main_method, false);
                     )
+                    depend_on_function_value(StaticInit);   // the value is a function_value object
                     create_get_value_operation(&scheme_2, functionAddressScheme, false, false);
                     create_push_to_stack_operation(&scheme_2);
 

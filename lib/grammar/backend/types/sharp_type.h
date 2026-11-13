@@ -281,6 +281,23 @@ struct sharp_type {
 
     sharp_type& copy(const sharp_type &st);
 
+    /**
+     * `a = b` copies everything `b` owns, like the copy constructor does.
+     *
+     * Without this C++ copies member by member: the list of unresolved items
+     * (unresolvedType) then points at the SAME items from both types, and the
+     * first of the two to be destroyed frees them under the other. That was
+     * the compiler crash on `"literal" + s` inside a lambda: `type =
+     * get_real_type(...)` kept the list of a temporary that was already gone.
+     *
+     * C++ comparison: the "rule of three" - a class that owns memory and
+     * defines a copy constructor and a destructor needs this operator too.
+     */
+    sharp_type& operator=(const sharp_type &st) {
+        if(this != &st) copy(st);
+        return *this;
+    }
+
     ~sharp_type() {
         free();
     }

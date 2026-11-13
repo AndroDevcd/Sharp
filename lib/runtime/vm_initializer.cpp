@@ -15,6 +15,7 @@
 #include "reflect/reflection.h"
 #include "jit/jit_compiler.h"
 #include "memory/tracing_collector.h"
+#include "memory/function_value.h"
 
 int initialize_virtual_machine()
 {
@@ -85,6 +86,7 @@ int initialize_virtual_machine()
     /**
      * Initialize all classes to be used for static access
      */
+    setup_function_values();    // the slots of platform.kernel#function_value
     build_number_slot_maps();   // which slots of each class hold numbers: needed before the first object exists
     for(unsigned long i = 0; i < vm.mf.classes; i++) {
         copy_object(vm.staticHeap + i, create_static_object(vm.classes + i));

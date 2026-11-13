@@ -58,6 +58,24 @@ void convert_number_to_condition(expression &e);
 void convert_scheme_for(operation_schema *scheme, sharp_type &from, sharp_type &target);
 
 /**
+ * A value handed to something of a SMALLER integer type is cut to that type,
+ * as a cast would do:
+ *
+ *      def f(x: _int8) { ... }
+ *      f(200);             // x is -56, the same as (200 as _int8)
+ *
+ * Without this the parameter simply held 200: a number its type cannot hold.
+ * Nothing is added when the value already fits by its type (an _int8 given to
+ * an _int32, an _int32 given to an _int64); a literal is cut while compiling.
+ *
+ * `from` is the type the value has AFTER convert_scheme_for (a decimal has
+ * already become an integer by then).
+ *
+ * C++ comparison: the implicit conversion in `int8_t x = 200;`.
+ */
+void narrow_scheme_for(operation_schema *scheme, sharp_type &from, sharp_type &target);
+
+/**
  * Is `left <op> right` calculated with decimals?
  *
  *      /  **                   always

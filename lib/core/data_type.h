@@ -14,10 +14,21 @@ enum data_type {
     type_uint16,
     type_uint32,
     type_uint64,
-    type_function_ptr,
+    // 8 was the function pointer when a function value was a number (the
+    // index of the function). The slot stays so that decimal, object and class
+    // keep the numbers that programs and the library know them by
+    // (std/reflect/data_type.sharp).
+    type_unused_8,
     type_var,
     type_object,
     type_class,
+    // A function value: `fn : (int)(int)`. It sits AFTER the numbers on
+    // purpose: every "is this a number" range check (type <= type_var) used
+    // to count it as one. It is an object now - an instance of
+    // platform.kernel#function_value, which holds the function's index and
+    // the variables the function captured.
+    // C++ equivalent: a std::function instead of a raw function pointer.
+    type_function_ptr,
     type_field,
     type_function,
     type_lambda_function,

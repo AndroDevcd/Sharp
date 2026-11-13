@@ -129,6 +129,14 @@ void compile_post_ast_expression(expression *e, Ast *ast, Int startPos, Int endL
                             for(Int j = 0; j < scheme.steps.size(); j++) {
                                 e->scheme.steps.add(new operation_step(*scheme.steps.get(j)));
                             }
+                            // The steps so far fetched the pointer (`fns[0]`), the
+                            // ones just added call it: the whole is a call through
+                            // a function pointer and has to be generated as one
+                            // (scheme_call_dynamic_function.cpp). It kept the kind
+                            // of the fetching steps - an array access - and the
+                            // generator stopped with "attempting to consume data
+                            // object data into register" on `fns[0](4)`.
+                            e->scheme.schemeType = scheme.schemeType;
                         }
                     } else {
                         stringstream ss;

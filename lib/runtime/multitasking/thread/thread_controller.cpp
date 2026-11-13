@@ -80,6 +80,7 @@ vm_thread_entry(void *arg)
         setup_thread(thread);
 
         do {
+            continue_fiber:
             registers = thread->task->registers;
             if(thread->task->calls == 0) {
                 prepare_method(thread->task->main->address);
@@ -91,6 +92,35 @@ vm_thread_entry(void *arg)
             thread->task->rebuilding = thread->task->callFramePtr >= 0;
 
             main_vm_loop(thread->task->main);
+
+            // AN EXCEPTION THAT IS STILL ON ITS WAY DOWN THE STACK
+            //
+            // The interpreter loop comes back here whenever the function it
+            // unwinds was called by compiled code (frame.native): "my caller
+            // is machine code, it looks next". After a context switch that
+            // machine code may not be there - the fiber was continued in this
+            // loop, its compiled callers have no machine frames yet:
+            //
+            //      run()          compiled, has the try { } that catches
+            //        spinner()    compiled
+            //          yield()    continued HERE by the interpreter, throws
+            //
+            // yield does not catch, its frame is popped, "back to the compiled
+            // caller" - which is this function. The exception is not unhandled:
+            // the fiber still has functions on its stack. Go round again; the
+            // rebuild walk gives the callers their machine frames back and the
+            // one on top looks for a handler.
+            //
+            // (It used to fall through to "unhandled exception": a coroutine
+            //  cancelled right after it was continued killed its worker
+            //  thread, and whoever joined it waited for ever. About one run
+            //  in three of tests/suite/cases/lib_coroutines_core with the JIT.)
+            //
+            // Unhandled is: the fiber's FIRST function was unwound (finished).
+            if(hasSignal(thread->signal, tsig_except)
+               && !thread->task->finished && thread->task->calls > 0
+               && thread->state != THREAD_KILLED && !hasSignal(thread->signal, tsig_kill))
+                goto continue_fiber;
 
             _unboundExceptionThrown:
             if(hasSignal(thread->signal, tsig_except)) {
@@ -635,7 +665,9 @@ void setup_thread(sharp_thread* thread) {
             copy_object(&thread->task->fiberObject, fib);
             auto fiberName = resolve_field("name", fib->o);
             copy_object(fiberName, name);
-            set_number_field(fib->o, "main", number_field(thread->currentThread.o, "main"));
+            // `main` is a function value, an object (memory/function_value.h): the
+            // fiber gets the same one the thread was given
+            copy_object(resolve_field("main", fib->o), resolve_field("main", thread->currentThread.o)->o);
             // fiber.id is a native number field (`id : var`), written like `main`
             // above. assign_numeric_class_field() is for number OBJECTS (int,
             // long, ...): it stored the id somewhere else and the first fiber

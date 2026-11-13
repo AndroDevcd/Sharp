@@ -81,6 +81,66 @@ void convert_scheme_for(operation_schema *scheme, sharp_type &from, sharp_type &
         convert_scheme(scheme, want ? convert_to_decimal : convert_to_integer);
 }
 
+/** how many bits an integer type has; 64 for everything that is not a sized integer */
+static int integer_bits(data_type type) {
+    switch(type) {
+        case type_int8:  case type_uint8:  return 8;
+        case type_int16: case type_uint16: return 16;
+        case type_int32: case type_uint32: return 32;
+        default: return 64;
+    }
+}
+
+static bool is_unsigned_integer(data_type type) {
+    return type == type_uint8 || type == type_uint16 || type == type_uint32 || type == type_uint64;
+}
+
+/** `value` as the integer type `type` holds it (wrapped around, like a cast) */
+static Int cut_to_type(Int value, data_type type) {
+    switch(type) {
+        case type_int8:   return (int8_t)value;
+        case type_int16:  return (int16_t)value;
+        case type_int32:  return (int32_t)value;
+        case type_uint8:  return (uint8_t)value;
+        case type_uint16: return (uint16_t)value;
+        case type_uint32: return (uint32_t)value;
+        default: return value;
+    }
+}
+
+void narrow_scheme_for(operation_schema *scheme, sharp_type &from, sharp_type &target) {
+    if(scheme == NULL || !is_plain_number(from) || !is_plain_number(target))
+        return;
+
+    sharp_type wanted = get_real_type(target);
+    if(wanted.type == type_var || integer_bits(wanted.type) == 64)
+        return;     // a decimal or a 64-bit integer holds whatever arrives
+
+    // a literal: cut now
+    if(is_literal_scheme(scheme, operation_get_integer_constant)) {
+        Int value = cut_to_type(scheme->steps.last()->integer, wanted.type);
+        scheme->free();
+        create_get_integer_constant_operation(scheme, value);
+        return;
+    }
+    if(is_literal_scheme(scheme, operation_get_char_constant) || is_literal_scheme(scheme, operation_get_bool_constant))
+        return;     // 0..255 and 0 / 1: left as they are (a character is a byte)
+
+    // a value whose own type already fits needs nothing
+    sharp_type have = get_real_type(from);
+    if(have.type != type_var && have.type <= type_uint64) {
+        int haveBits = integer_bits(have.type), wantBits = integer_bits(wanted.type);
+        bool haveUnsigned = is_unsigned_integer(have.type), wantUnsigned = is_unsigned_integer(wanted.type);
+        if(have.type == wanted.type) return;
+        if(haveUnsigned == wantUnsigned && haveBits <= wantBits) return;
+        if(haveUnsigned && !wantUnsigned && haveBits < wantBits) return;
+    }
+
+    if(scheme->schemeType != scheme_none)
+        wrap_scheme_as_value(*scheme);
+    create_cast_operation(scheme, &wanted);
+}
+
 void convert_number_for(expression &e, sharp_type &target) {
     if(!is_plain_number(e.type) || !is_plain_number(target))
         return;

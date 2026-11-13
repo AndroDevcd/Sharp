@@ -42,7 +42,9 @@ bool is_evaluable_type(sharp_type &st) {
 
 bool is_object_type(sharp_type &st) {
     sharp_type type = get_real_type(st);
-    return type.type == type_object;
+    // a function value is an object too (it was a number): it is assigned,
+    // null-checked and locked like one
+    return type.type == type_object || type.type == type_function_ptr;
 }
 
 sharp_class* get_class_type(sharp_type &st) {
@@ -281,6 +283,23 @@ uInt is_implicit_type_match(
                return nullability_check(comparer, comparee, indirect_match);
            }
 
+            // An ARRAY of a class is never made from one value: `string[]`
+            // does not accept "x" just because `string` has a constructor
+            // that takes text. (It used to, and the call then crashed at run
+            // time: the function got a string where it expected an array.)
+            if(comparer.isArray) return no_match_found;
+
+            // A number is not text. `string` has a constructor that takes one
+            // character, and through it ANY number used to be accepted where a
+            // string is expected: takes_text(300) quietly passed a one-character
+            // string. Only a character ('a', an _int8 / _uint8) still becomes a
+            // string by itself; everything else is a compile error. To make a
+            // string from a number, say so: "" + n, or new string(...).
+            if(comparer._class->fullName == "std#string" && !comparee.isArray
+               && (comparee.type == type_integer || comparee.type == type_decimal || comparee.type == type_bool
+                   || (comparee.type >= type_int16 && comparee.type <= type_var && comparee.type != type_uint8)))
+                return no_match_found;
+
             uInt result = no_match_found;
             List<sharp_field*> params;
             string name = "mock";
@@ -318,6 +337,7 @@ uInt is_implicit_type_match(
 
             return with_result(comparee.type == type_class
                    || comparee.type == type_object
+                   || comparee.type == type_function_ptr    // a function value is an object
                    || (comparee.type > type_var && comparee.isArray)
                    || (comparee.type <= type_var && comparee.isArray && !comparer.isArray),
                    indirect_match);

@@ -364,7 +364,7 @@ public:
         static opcode_instr ipopl(opcode_arg relFrameAddress);
         static opcode_instr* cmp(_register inRegister, opcode_arg value);
         static opcode_instr* dcmp(_register inRegister, opcode_arg value);
-        static opcode_instr calld(_register inRegister);
+        static opcode_instr calld(opcode_arg argumentCount);    // call the function value under that many arguments
         static opcode_instr varCast(opcode_arg varType, bool isArray);
         static opcode_instr tlsMovl(opcode_arg address);
         static opcode_instr dup();

@@ -4,6 +4,7 @@
 
 #include "../compiler/functions/generic_functions.h"
 #include "overload_preference.h"
+#include "closure_capture.h"
 #include "dependancy.h"
 #include "../../compiler_info.h"
 #include "../types/sharp_module.h"
@@ -901,34 +902,15 @@ bool resolve_local_field(
                         create_dependency(field->type._class);
                 } else {
                     if (can_capture_closure(field)) {
-                        sharp_class *closure_class = create_closure_class(
-                                currThread->currTask->file, currModule, contextItem->functionCxt,
-                                item.ast);
-                        sharp_field *closure = create_closure_field(closure_class, item.name,
-                                                                    field->type, item.ast);
-                        sharp_field *staticClosureRef = create_closure_field(
-                                resolve_class(currModule, global_class_name, false, false),
-                                "closure_ref_" + contextItem->functionCxt->fullName,
-                                sharp_type(closure_class),
-                                item.ast
-                        );
-
-                        staticClosureRef->staticClosure = true;
-                        staticClosureRef->flags |= flag_static;
-                        staticClosureRef->fieldType = localized_field;
-                        contextItem->functionCxt->closure = staticClosureRef;
-                        field->closure = closure;
-                        field->closureRef = staticClosureRef;
-                        resultType.field = closure;
-
-                        create_tls_field_access_operation(scheme, staticClosureRef);
-                        create_instance_field_access_operation(scheme, closure);
+                        // a local of a function around this lambda: it is read
+                        // from the closure object the lambda was given
+                        // (closure_capture.h)
+                        sharp_field *closure = capture_enclosing_local(
+                                contextItem->functionCxt, field, ctx, scheme, item.ast);
+                        resultType.field = closure != NULL ? closure : field;
 
                         if (field->type.type == type_class)
                             create_dependency(field->type._class);
-                        create_dependency(closure_class);
-                        create_dependency(closure);
-                        create_dependency(staticClosureRef);
                     } else {
                         resultType.field = field;
                         create_new_error(GENERIC, item.ast,
@@ -1590,7 +1572,12 @@ void resolve_normal_item(
                || hasFilter(filter, resolve_filter_un_restricted))
                && resolve_primary_class_inner_class(item, primaryClass, true,  hasFilter(filter, resolve_filter_un_restricted), resultType, scheme, false, context)) {
 
-                hardType = false;
+                // A class name is a type, wherever the class was found: this one is a
+                // class written inside the class being compiled (a class at the top of
+                // a file is inside the file's global class). It was marked "a value",
+                // and then nothing nested in it could be named: `holder.part.count`,
+                // `holder.inner.off` for an enum inside a class.
+                hardType = true;
                 return;
             }
 
@@ -2137,28 +2124,12 @@ bool resolve_local_function_pointer_field(
                         create_dependency(field->type._class);
                 } else {
                     if (can_capture_closure(field)) {
-                        sharp_class *closure_class = create_closure_class(
-                                currThread->currTask->file, currModule, contextItem->functionCxt,
-                                item.ast);
-                        sharp_field *closure = create_closure_field(closure_class, item.name,
-                                                                    field->type, item.ast);
-                        sharp_field *staticClosureRef = create_closure_field(
-                                resolve_class(currModule, global_class_name, false, false),
-                                "closure_ref_" + contextItem->functionCxt->fullName,
-                                sharp_type(closure_class),
-                                item.ast
-                        );
-
-                        staticClosureRef->staticClosure = true;
-                        staticClosureRef->flags |= flag_static;
-                        staticClosureRef->fieldType = localized_field;
-                        contextItem->functionCxt->closure = staticClosureRef;
-                        field->closure = closure;
-                        field->closureRef = staticClosureRef;
+                        // a function value held by a local of a function
+                        // around this lambda: fetched from the closure object
+                        // the lambda was given, then called (closure_capture.h)
+                        capture_enclosing_local(
+                                contextItem->functionCxt, field, ctx, scheme, item.ast);
                         resultType.copy(field->type.fun->returnType);
-
-                        create_tls_field_access_operation(scheme, staticClosureRef);
-                        create_instance_field_access_operation(scheme, closure);
 
                         compile_function_call(
                                 scheme, params, item.operations,
@@ -2167,9 +2138,6 @@ bool resolve_local_function_pointer_field(
 
                         if (field->type.type == type_class)
                             create_dependency(field->type._class);
-                        create_dependency(closure_class);
-                        create_dependency(closure);
-                        create_dependency(staticClosureRef);
                     } else {
                         resultType.field = field;
                         create_new_error(GENERIC, item.ast,
@@ -3049,6 +3017,12 @@ sharp_class *create_generic_class(List<sharp_type> &genericTypes, sharp_class *g
 
             if (compilation_ready(currStage)) {
                 compile_class(NULL, generic, generic->ast);
+
+                // ... and the bodies of what `mutate` blocks added to the
+                // generic class (process_generic_mutations above declared
+                // them; see compile_mutation in compiler/mutate_compiler.cpp)
+                for(Int i = 0; i < genericBlueprint->mutations.size(); i++)
+                    compile_class(NULL, generic, genericBlueprint->mutations.get(i));
             }
 
             current_file = currf;
@@ -3384,7 +3358,10 @@ void resolve(
 sharp_type expression_type_to_normal_type(expression *e) {
     if(e->type.type == type_integer
         || e->type.type == type_decimal) {
-        return sharp_type(e->type.type == type_decimal ? type_var : type_int32);
+        // a whole-number literal that does not fit in 32 bits is an _int64
+        // (see convert_expression_type_to_real_type)
+        bool fitsInt32 = e->type.integer >= INT32_MIN && e->type.integer <= INT32_MAX;
+        return sharp_type(e->type.type == type_decimal ? type_var : fitsInt32 ? type_int32 : type_int64);
     } else if(e->type.type == type_bool || e->type.type == type_char) {
         return sharp_type(type_int8);
     } else if(e->type.type == type_string) {

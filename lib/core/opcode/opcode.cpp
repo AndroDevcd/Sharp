@@ -879,8 +879,8 @@ opcode_instr *OpBuilder::dcmp(_register inRegister, opcode_arg value) {
     return instruction_Buffer;
 }
 
-opcode_instr OpBuilder::calld(_register inRegister) {
-    return SET_Di(tmpInstr, CALLD, inRegister, POSITIVE);
+opcode_instr OpBuilder::calld(opcode_arg argumentCount) {
+    return SET_Di(tmpInstr, CALLD, argumentCount, POSITIVE);
 }
 
 opcode_instr OpBuilder::varCast(opcode_arg varType, bool isArray) {

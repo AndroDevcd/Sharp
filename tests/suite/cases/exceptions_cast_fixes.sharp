@@ -25,5 +25,5 @@ def main(args: string[]) {
     }
     expect("a failing cast throws class_cast_exception", where, 1);
 
-    finish("exceptions");
+    finish("exceptions_cast_fixes");
 }

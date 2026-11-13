@@ -5,6 +5,68 @@
 #include "literal_expression.h"
 #include "../expression.h"
 #include "../../../../settings/settings.h"
+#include "../../../../compiler_info.h"
+#include "../../../dependency/dependancy.h"
+#include "../../../types/types.h"
+#include "post_ast_expression.h"
+
+/**
+ * A string literal is an array of characters, not an object: "abc" by itself
+ * has no functions. Before one is called on it the literal becomes
+ * `new string("abc")` - the same object an assignment `s := "abc"` makes.
+ */
+void make_string_object(expression *e, Ast *ast) {
+    string std = "std", name = "";
+    sharp_class *stringClass = resolve_class(get_module(std), "string", false, false);
+    if(stringClass == NULL) {
+        create_new_error(GENERIC, ast, "the class `std#string` is needed to call a function on a string literal.");
+        return;
+    }
+
+    List<sharp_field*> params;
+    List<operation_schema*> paramOperations;
+    impl_location location(current_file, ast);
+    sharp_type literalType = get_real_type(e->type);
+    literalType.nullable = true;
+    params.add(new sharp_field(
+            name, get_primary_class(&currThread->currTask->file->ctx), location,
+            literalType, flag_public, normal_field, ast
+    ));
+    paramOperations.add(new operation_schema(e->scheme));
+
+    sharp_function *constructor = resolve_function("string", stringClass, params,
+                                                   constructor_function, exclude_all, ast, false, false);
+    if(constructor == NULL) {
+        create_new_error(GENERIC, ast, "no constructor of `std#string` takes a string literal.");
+    } else {
+        create_dependency(constructor);
+        create_dependency(stringClass);
+
+        operation_schema made;
+        compile_initialization_call(ast, stringClass, constructor, params, paramOperations, &made);
+        made.schemeType = scheme_new_class;
+
+        e->scheme.free();
+        e->scheme.copy(made);
+        e->type.free();
+        e->type.type = type_class;
+        e->type._class = stringClass;
+        e->type.isArray = false;        // the literal was an array of characters; this is one object
+        e->type.nullable = false;
+    }
+
+    deleteList(params);
+    deleteList(paramOperations);
+}
+
+void compile_literal_member_access(expression *e, Ast *literalExpression) {
+    // sub tree 0 is the literal itself, what follows was written after it
+    if(literalExpression->getSubAstCount() < 2 || e->type.type != type_string)
+        return;
+
+    make_string_object(e, literalExpression);
+    compile_post_ast_expression(e, literalExpression, 1);
+}
 
 void compile_literal_expression(expression *e, Ast *ast) {
     Token &literal = ast->getToken(0);

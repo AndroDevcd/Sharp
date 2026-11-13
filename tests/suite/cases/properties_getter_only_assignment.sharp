@@ -1,0 +1,12 @@
+mod main;
+import ( testing )
+class getter_only {
+    value : decimal = 5;
+        get { return value; }
+}
+def main(args: string[]) {
+    g := new getter_only();
+    g.value = 50;
+    expect("assigned from outside", g.value, 50);
+    finish("properties_getter_only_assignment");
+}

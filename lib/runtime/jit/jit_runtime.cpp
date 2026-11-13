@@ -11,6 +11,7 @@
 #include "../error/vm_exception.h"
 #include "../memory/garbage_collector.h"
 #include "../memory/tracing_collector.h"
+#include "../memory/function_value.h"
 #include "../multitasking/thread/sharp_thread.h"
 #include "../multitasking/thread/thread_controller.h"
 #include "../multitasking/fiber/fiber.h"
@@ -35,16 +36,9 @@ void jit_rt_call(Int address) {
     GUARDED( prepare_method(address); )
 }
 
-void jit_rt_call_dynamic(Int address) {
-    GUARDED(
-        if(address <= 0 || address >= vm.mf.methods) {
-            stringstream ss;
-            ss << "invalid call to method (@" << address << ") out of range!";
-            throw vm_exception(ss.str());
-        }
-
-        prepare_method(address);
-    )
+void jit_rt_call_dynamic(Int argumentCount) {
+    // the function value sits under the arguments: memory/function_value.h
+    GUARDED( call_function_value(argumentCount); )
 }
 
 void jit_rt_invoke_delegate(Int address, Int argSize, Int staticCall) {
